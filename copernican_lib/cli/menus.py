@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-import random
+import secrets
 import time
 from typing import Iterable
 
@@ -90,7 +90,7 @@ def select_seed() -> int:
                     )
             break
         if choice in {"3", "random"}:
-            seed = random.randint(0, 2**32 - 1)
+            seed = secrets.randbelow(2**32)
             console.write(f"Generated random seed {seed}.")
             break
         console.write("Please choose 1, 2 or 3.", error=True)

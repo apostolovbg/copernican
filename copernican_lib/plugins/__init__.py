@@ -129,7 +129,8 @@ class CAMBParameterEvaluator:
         """Evaluate the parameter map using the supplied parameter values."""
 
         env = {
-            name: float(val) for name, val in zip(self.parameter_names, values)
+            name: float(value)
+            for name, value in zip(self.parameter_names, values)
         }
         results: dict[str, float] = {}
         for key, expr in self.param_map.items():
@@ -463,8 +464,12 @@ def build_engine_plugin(
             extras[name] = func
 
     equations = model_data.get("equations", {})
-    sne_eqs = tuple(sanitize_equation(eq) for eq in equations.get("sne", []))
-    bao_eqs = tuple(sanitize_equation(eq) for eq in equations.get("bao", []))
+    sne_eqs = tuple(
+        sanitize_equation(equation) for equation in equations.get("sne", [])
+    )
+    bao_eqs = tuple(
+        sanitize_equation(equation) for equation in equations.get("bao", [])
+    )
 
     plugin = EnginePlugin(
         MODEL_NAME=model_data.get("model_name", "GeneratedModel"),

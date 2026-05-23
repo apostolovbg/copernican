@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import math
-import random
 import time
 from pathlib import Path
+from random import SystemRandom
 from typing import Callable
 
 import yaml
@@ -26,6 +26,8 @@ from .ai_config import load_settings as load_ai_settings  # noqa: E402
 from .game_config import load_settings as load_game_settings  # noqa: E402
 from .hall_of_fame import HallOfFame  # noqa: E402
 
+SECURE_RANDOM = SystemRandom()
+
 
 def launch_alien_invasion(context: MinigameContext) -> None:
     """Space-invader inspired mini-game."""
@@ -43,8 +45,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     if not context.render or tkinter_module is None or context.tk_root is None:
         dummy_order = [f"E{i}" for i in range(10)]
-        random.shuffle(dummy_order)
-        _apply_seed(dummy_order, random.random() * 20)
+        SECURE_RANDOM.shuffle(dummy_order)
+        _apply_seed(dummy_order, SECURE_RANDOM.random() * 20)
         return
 
     ai_settings = load_ai_settings()
@@ -128,7 +130,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     learning_mode = False
     learning_restart_handle: str | None = None
     shooting_stars: list[dict] = []
-    next_shooting_star_time = time.time() + random.expovariate(0.1)
+    next_shooting_star_time = time.time() + SECURE_RANDOM.expovariate(0.1)
     learning_speed_multiplier = default_learning_speed
     learning_speed_min = 1
     learning_speed_max = 60
@@ -234,10 +236,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             outline="",
         )
         for _ in range(120):
-            size = random.uniform(1.0, 2.4)
-            x = random.randint(0, canvas_width)
-            y = random.randint(0, int(sky_height - 60))
-            tint = random.randint(200, 255)
+            size = SECURE_RANDOM.uniform(1.0, 2.4)
+            x = SECURE_RANDOM.randint(0, canvas_width)
+            y = SECURE_RANDOM.randint(0, int(sky_height - 60))
+            tint = SECURE_RANDOM.randint(200, 255)
             canvas.create_oval(
                 x - size,
                 y - size,
@@ -269,7 +271,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         segment_width = canvas_width / segments
         for i in range(segments + 1):
             x = i * segment_width
-            offset = random.uniform(-15, 10)
+            offset = SECURE_RANDOM.uniform(-15, 10)
             y = sky_height + offset
             ridge_points.append((x, y))
 
@@ -341,14 +343,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 max_buildings = int(region_width // building_width)
                 if max_buildings < 10:
                     return False
-                building_count = random.randint(10, min(15, max_buildings))
+                building_count = SECURE_RANDOM.randint(
+                    10, min(15, max_buildings)
+                )
                 offset_space = max(
                     0.0, region_width - building_count * building_width
                 )
                 base_offset = (
                     0.0
                     if offset_space <= 0
-                    else random.uniform(0, offset_space)
+                    else SECURE_RANDOM.uniform(0, offset_space)
                 )
                 for idx in range(building_count):
                     left = start_x + base_offset + idx * building_width
@@ -357,7 +361,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         break
                     mid_x = (left + right) / 2
                     base_y = _hill_y_at(mid_x)
-                    height = random.randint(14, 32)
+                    height = SECURE_RANDOM.randint(14, 32)
                     top_y = max(0.0, base_y - height)
                     canvas.create_rectangle(
                         left,
@@ -371,7 +375,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         window_x = left + column_offset - 1
                         window_y = base_y - 4
                         while window_y > top_y + 2:
-                            lit = random.random() < 0.35
+                            lit = SECURE_RANDOM.random() < 0.35
                             canvas.create_rectangle(
                                 window_x,
                                 window_y,
@@ -398,15 +402,15 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             """Scatter stylized trees along the hill line."""
             if len(ridge_points) < 2:
                 return
-            cluster_count = random.randint(3, 6)
+            cluster_count = SECURE_RANDOM.randint(3, 6)
             centers = [
                 (
-                    random.uniform(0, canvas_width),
-                    sky_height + random.uniform(-10, 8),
+                    SECURE_RANDOM.uniform(0, canvas_width),
+                    sky_height + SECURE_RANDOM.uniform(-10, 8),
                 )
                 for _ in range(cluster_count)
             ]
-            total_trees = random.randint(30, 50)
+            total_trees = SECURE_RANDOM.randint(30, 50)
             base = total_trees // cluster_count
             remainder = total_trees % cluster_count
             span = canvas_width * 0.05
@@ -418,15 +422,15 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         0,
                         min(
                             canvas_width,
-                            center_x + random.uniform(-span, span),
+                            center_x + SECURE_RANDOM.uniform(-span, span),
                         ),
                     )
                     base_y = _hill_y_at(x)
                     if base_y < sky_height + 2:
                         base_y = sky_height + 2
-                    tree_height = random.randint(5, 14)
-                    base_width = random.randint(4, 9)
-                    trunk_height = random.randint(2, 3)
+                    tree_height = SECURE_RANDOM.randint(5, 14)
+                    base_width = SECURE_RANDOM.randint(4, 9)
+                    trunk_height = SECURE_RANDOM.randint(2, 3)
                     canvas.create_rectangle(
                         x - 0.5,
                         base_y - trunk_height,
@@ -448,12 +452,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
         def _draw_bushes() -> None:
             """Dot the foreground with brushy shrubs."""
-            bush_count = random.randint(20, 38)
+            bush_count = SECURE_RANDOM.randint(20, 38)
             for _ in range(bush_count):
-                x = random.uniform(0, canvas_width)
+                x = SECURE_RANDOM.uniform(0, canvas_width)
                 base_y = _hill_y_at(x)
-                radius = random.uniform(0.8, 2.0)
-                center_y = base_y - radius * random.uniform(0.2, 0.6)
+                radius = SECURE_RANDOM.uniform(0.8, 2.0)
+                center_y = base_y - radius * SECURE_RANDOM.uniform(0.2, 0.6)
                 top = center_y - radius
                 bottom = center_y + radius
                 if top < 0:
@@ -505,8 +509,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if learning_mode:
             next_shooting_star_time = float("inf")
             return
-        interval = random.expovariate(0.1)
-        roll = random.random()
+        interval = SECURE_RANDOM.expovariate(0.1)
+        roll = SECURE_RANDOM.random()
         if roll < 0.2:
             interval *= 0.35
         elif roll > 0.9:
@@ -519,22 +523,22 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if learning_mode:
             return
         base_colors = ["#fef5d7", "#ffe5b0", "#cde8ff", "#fff0ef"]
-        angle = math.radians(random.uniform(15, 165))
-        slow = random.random() < 0.5
+        angle = math.radians(SECURE_RANDOM.uniform(15, 165))
+        slow = SECURE_RANDOM.random() < 0.5
         if slow:
-            speed = random.uniform(2.0, 3.8)
-            target_len = random.uniform(140, 200)
+            speed = SECURE_RANDOM.uniform(2.0, 3.8)
+            target_len = SECURE_RANDOM.uniform(140, 200)
         else:
-            speed = random.uniform(3.8, 8.0)
-            target_len = random.uniform(30, 150)
-        start_x = random.uniform(-60, canvas_width + 60)
-        start_y = random.uniform(-80, sky_height * 0.4)
+            speed = SECURE_RANDOM.uniform(3.8, 8.0)
+            target_len = SECURE_RANDOM.uniform(30, 150)
+        start_x = SECURE_RANDOM.uniform(-60, canvas_width + 60)
+        start_y = SECURE_RANDOM.uniform(-80, sky_height * 0.4)
         horizontal_velocity = math.cos(angle) * speed
         vertical_velocity = math.sin(angle) * speed
-        grow_rate = max(4.0, target_len / random.uniform(6.0, 10.0))
-        decay_rate = grow_rate / random.uniform(1.5, 2.5)
-        base_color = _color_from_hex(random.choice(base_colors))
-        size = random.uniform(3.0, 5.5)
+        grow_rate = max(4.0, target_len / SECURE_RANDOM.uniform(6.0, 10.0))
+        decay_rate = grow_rate / SECURE_RANDOM.uniform(1.5, 2.5)
+        base_color = _color_from_hex(SECURE_RANDOM.choice(base_colors))
+        size = SECURE_RANDOM.uniform(3.0, 5.5)
         brightness = 0.25
         head = canvas.create_oval(
             start_x - size,
@@ -952,12 +956,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         colors = ["#ffd166", "#ff8a5b", "#ff4d6d", "#ffe29a", "#ffb347"]
         size_scale = max(0.5, min(explosion_violence, 2.0))
         for _ in range(explosion_shard_count):
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(2.5, 6.5) * explosion_violence
-            size = random.uniform(3.5, 8.5) * size_scale
+            angle = SECURE_RANDOM.uniform(0, 2 * math.pi)
+            speed = SECURE_RANDOM.uniform(2.5, 6.5) * explosion_violence
+            size = SECURE_RANDOM.uniform(3.5, 8.5) * size_scale
             horizontal_velocity = math.cos(angle) * speed
             vertical_velocity = math.sin(angle) * speed
-            color = random.choice(colors)
+            color = SECURE_RANDOM.choice(colors)
             fragment_shape_id = canvas.create_oval(
                 player["x"] - size,
                 player["y"] - size,
@@ -972,7 +976,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     "velocity_x": horizontal_velocity,
                     "velocity_y": vertical_velocity,
                     "size": size,
-                    "life": random.uniform(0.8, 1.2),
+                    "life": SECURE_RANDOM.uniform(0.8, 1.2),
                 }
             )
         player_explosion_handle = canvas.after(
@@ -1422,7 +1426,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai = {
                         "target": canvas_width - field_margin,
                         "mode": "patrol",
-                        "cooldown": random.randint(60, 120),
+                        "cooldown": SECURE_RANDOM.randint(60, 120),
                         "velocity_x": 0.0,
                     }
                 _update_enemy_shield_visual(enemy_id)
@@ -1937,7 +1941,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         per_cycle = (
             1
             if len(live_enemies) < 3
-            else random.randint(1, min(3, len(live_enemies)))
+            else SECURE_RANDOM.randint(1, min(3, len(live_enemies)))
         )
         fired_ids: set[str] = set()
         for _ in range(per_cycle):
@@ -1949,7 +1953,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             if not candidates:
                 break
             total_weight = sum(_fire_weight(eid) for eid in candidates)
-            pick = random.uniform(0, total_weight)
+            pick = SECURE_RANDOM.uniform(0, total_weight)
             cumulative = 0.0
             shooter_id = candidates[-1]
             for candidate in candidates:
@@ -1965,7 +1969,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         """Spawn an extra space charge capsule when permitted."""
         if len(charges) >= 2 or charge_count >= charge_capacity:
             return
-        x = random.randint(60, canvas_width - 60)
+        x = SECURE_RANDOM.randint(60, canvas_width - 60)
         charge_capsule_id = canvas.create_oval(
             x - 8, 30, x + 8, 46, fill="#b0f3ff", outline="#68d4ff"
         )
@@ -1980,7 +1984,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             fire_handle = _scaled_after(400, _enemy_fire_cycle)
             return
         _spawn_enemy_shot_once()
-        interval = random.randint(600, 1200)
+        interval = SECURE_RANDOM.randint(600, 1200)
         fire_handle = _scaled_after(interval, _enemy_fire_cycle)
 
     def _charge_cycle() -> None:
@@ -2002,12 +2006,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if paused:
             general_fire_handle = _scaled_after(600, _general_fire_cycle)
             return
-        interval = random.randint(600, 1200)
+        interval = SECURE_RANDOM.randint(600, 1200)
         if general_id and general_barrage_cooldown <= 0:
-            bursts = random.randint(1, 3)
+            bursts = SECURE_RANDOM.randint(1, 3)
             for _ in range(bursts):
                 _fire_enemy_shot(general_id, aim_for=player["x"])
-            general_barrage_cooldown = random.randint(2200, 3600)
+            general_barrage_cooldown = SECURE_RANDOM.randint(2200, 3600)
         else:
             general_barrage_cooldown = max(
                 0, general_barrage_cooldown - interval
@@ -2330,23 +2334,25 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     min(player["x"], canvas_width - player["x"]) < 90
                 )
                 if player_lingering:
-                    general_ai["mode"] = random.choice(["pressure", "harass"])
+                    general_ai["mode"] = SECURE_RANDOM.choice(
+                        ["pressure", "harass"]
+                    )
                     offset = 0.0
                     if general_ai["mode"] == "harass":
-                        offset = random.uniform(-90, 90)
+                        offset = SECURE_RANDOM.uniform(-90, 90)
                     general_ai["target"] = max(
                         safe_margin,
                         min(canvas_width - safe_margin, player["x"] + offset),
                     )
-                    general_ai["cooldown"] = random.randint(15, 35)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(15, 35)
                 elif general_ai.get("mode") == "pressure":
                     general_ai["mode"] = "patrol"
-                    general_ai["cooldown"] = random.randint(50, 110)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(50, 110)
 
                 if (
                     near_player_edge
                     and not general_ai.get("retreat", False)
-                    and random.random() < 0.4
+                    and SECURE_RANDOM.random() < 0.4
                 ):
                     far_side = (
                         canvas_width - safe_margin
@@ -2356,14 +2362,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["retreat"] = True
                     general_ai["mode"] = "retreat"
                     general_ai["retreat_target"] = far_side
-                    general_ai["cooldown"] = random.randint(60, 110)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(60, 110)
 
-                if random.random() < 0.12 and general_ai.get("mode") not in (
+                if SECURE_RANDOM.random() < 0.12 and general_ai.get(
+                    "mode"
+                ) not in (
                     "pressure",
                     "harass",
                 ):
-                    flank_direction = -1 if random.random() < 0.5 else 1
-                    flank_offset = 160 + random.uniform(-110, 110)
+                    flank_direction = -1 if SECURE_RANDOM.random() < 0.5 else 1
+                    flank_offset = 160 + SECURE_RANDOM.uniform(-110, 110)
                     general_ai["mode"] = "flank"
                     general_ai["target"] = max(
                         safe_margin,
@@ -2372,7 +2380,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                             player["x"] + flank_direction * flank_offset,
                         ),
                     )
-                    general_ai["cooldown"] = random.randint(60, 120)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(60, 120)
 
                 if general_ai.get("mode") != "pressure":
                     if abs(gap) < 140:
@@ -2383,13 +2391,14 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                             min(
                                 canvas_width - safe_margin,
                                 record["x"]
-                                + direction * (200 + random.uniform(0, 80)),
+                                + direction
+                                * (200 + SECURE_RANDOM.uniform(0, 80)),
                             ),
                         )
                         general_ai["cooldown"] = 35
                     elif abs(gap) > 220:
                         general_ai["mode"] = "stalk"
-                        offset = random.uniform(-80, 80)
+                        offset = SECURE_RANDOM.uniform(-80, 80)
                         general_ai["target"] = max(
                             safe_margin,
                             min(
@@ -2397,13 +2406,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                                 player["x"] + offset,
                             ),
                         )
-                        general_ai["cooldown"] = random.randint(40, 80)
+                        general_ai["cooldown"] = SECURE_RANDOM.randint(40, 80)
                     elif general_ai["cooldown"] <= 0:
                         general_ai["mode"] = "patrol"
-                        general_ai["target"] = random.choice(
+                        general_ai["target"] = SECURE_RANDOM.choice(
                             [safe_margin, canvas_width - safe_margin]
                         )
-                        general_ai["cooldown"] = random.randint(60, 140)
+                        general_ai["cooldown"] = SECURE_RANDOM.randint(60, 140)
                 target = general_ai.get("target", canvas_width / 2)
                 if general_ai.get("retreat"):
                     target = general_ai.get("retreat_target", target)
@@ -2412,7 +2421,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     and general_ai["mode"] == "evade"
                 ):
                     general_ai["mode"] = "patrol"
-                    general_ai["cooldown"] = random.randint(40, 100)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(40, 100)
                 if (
                     general_ai.get("retreat")
                     and abs(target - record["x"]) < 12
@@ -2420,7 +2429,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["retreat"] = False
                     general_ai["retreat_target"] = None
                     general_ai["mode"] = "patrol"
-                    general_ai["cooldown"] = random.randint(60, 120)
+                    general_ai["cooldown"] = SECURE_RANDOM.randint(60, 120)
                 direction_to_target = 0
                 if target > record["x"]:
                     direction_to_target = 1
@@ -2438,12 +2447,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     base_speed = 5.8
                 elif mode == "stalk":
                     base_speed = 5.2
-                speed = base_speed + random.uniform(-0.8, 0.8)
+                speed = base_speed + SECURE_RANDOM.uniform(-0.8, 0.8)
                 speed = min(speed, general_speed_limit)
                 movement = direction_to_target * speed
                 if abs(target - record["x"]) < abs(movement):
                     movement = target - record["x"]
-                jitter = random.uniform(-0.6, 0.6)
+                jitter = SECURE_RANDOM.uniform(-0.6, 0.6)
                 general_vel = general_ai.get("velocity_x", 0.0)
                 general_accel = max(0.25, min(1.0, general_speed_limit * 0.15))
                 desired_velocity = movement
@@ -2451,7 +2460,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     -general_accel,
                     min(general_accel, desired_velocity - general_vel),
                 )
-                general_vel += random.uniform(-0.4, 0.4)
+                general_vel += SECURE_RANDOM.uniform(-0.4, 0.4)
                 general_ai["velocity_x"] = max(
                     -general_speed_limit, min(general_speed_limit, general_vel)
                 )
@@ -2573,9 +2582,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         base_count = count if count is not None else debris_default_count
         actual_count = max(1, int(base_count * explosion_violence))
         for _ in range(actual_count):
-            speed = random.uniform(1.0, 4.0) * speed_scale * explosion_violence
-            horizontal_velocity = speed * random.uniform(-1.0, 1.0)
-            vertical_velocity = -abs(speed) + random.uniform(-1.0, 2.0)
+            speed = (
+                SECURE_RANDOM.uniform(1.0, 4.0)
+                * speed_scale
+                * explosion_violence
+            )
+            horizontal_velocity = speed * SECURE_RANDOM.uniform(-1.0, 1.0)
+            vertical_velocity = -abs(speed) + SECURE_RANDOM.uniform(-1.0, 2.0)
             debris_piece_id = canvas.create_polygon(
                 x - 4,
                 y - 4,
@@ -2601,7 +2614,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         fire_handle = _scaled_after(900, _enemy_fire_cycle)
         charge_handle = _scaled_after(12000, _charge_cycle)
         general_fire_handle = _scaled_after(
-            random.randint(600, 1200), _general_fire_cycle
+            SECURE_RANDOM.randint(600, 1200), _general_fire_cycle
         )
 
     def _accept_seed() -> None:

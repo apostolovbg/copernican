@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 import time
 from pathlib import Path
+from random import SystemRandom
 from typing import Any, Dict, List, Sequence
 
 import yaml
 
 from .ai_config import load_settings
+
+SECURE_RANDOM = SystemRandom()
 
 INPUT_FEATURES = (
     "target_offset",
@@ -90,7 +92,7 @@ def _init_network(hidden_layers: Sequence[int]) -> Dict[str, Any]:
     """Create a neural policy network with arbitrary hidden layers."""
 
     layers = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
-    rng = random.Random()
+    rng = SystemRandom()
     layer_sizes = [len(INPUT_FEATURES)] + layers + [OUTPUT_UNITS]
     weights: List[List[List[float]]] = []
     biases: List[List[float]] = []
@@ -243,19 +245,20 @@ class AlienInvasionAI:
             + urgency * 0.7
         )
         shoot_prob = min(0.99, max(0.01, forward["shoot"] + shoot_bias))
-        shoot = shoot_prob > random.random()
+        shoot = shoot_prob > SECURE_RANDOM.random()
 
         charge_bias = weights["charge"] * 0.2 + urgency * 0.45
         charge_prob = min(0.98, max(0.01, forward["charge"] + charge_bias))
         charge = (
-            snapshot.get("charges", 0) > 0 and charge_prob > random.random()
+            snapshot.get("charges", 0) > 0
+            and charge_prob > SECURE_RANDOM.random()
         )
 
-        if random.random() < self.exploration_rate:  # exploration
-            move_dir = random.choice([-1.0, 0.0, 1.0])
-        if random.random() < self.exploration_rate:
+        if SECURE_RANDOM.random() < self.exploration_rate:  # exploration
+            move_dir = SECURE_RANDOM.choice([-1.0, 0.0, 1.0])
+        if SECURE_RANDOM.random() < self.exploration_rate:
             shoot = not shoot
-        if random.random() < self.exploration_rate * 0.75:
+        if SECURE_RANDOM.random() < self.exploration_rate * 0.75:
             charge = not charge
 
         self._remember_sample(

@@ -20,8 +20,8 @@ from functools import lru_cache
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 import camb
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
@@ -40,7 +40,7 @@ _FAKE_CMB_OFFSET = 3.0
 _FAKE_CMB_PROVIDER: (
     Callable[
         [Mapping[str, float], Iterable[int], Sequence[str]],
-        Mapping[str, np.ndarray] | np.ndarray,
+        Mapping[str, numpy.ndarray] | numpy.ndarray,
     ]
     | None
 ) = None
@@ -49,7 +49,7 @@ _FAKE_CMB_PROVIDER: (
 def _normalise_value(entry_value: Any) -> Any:
     """Return a cache-friendly representation of ``entry_value``."""
 
-    if isinstance(entry_value, (int, float, np.integer, np.floating)):
+    if isinstance(entry_value, (int, float, numpy.integer, numpy.floating)):
         return float(entry_value)
     return str(entry_value)
 
@@ -75,9 +75,9 @@ def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
 
 
 def _coerce_fake_output(
-    fake: Mapping[str, np.ndarray] | np.ndarray,
+    fake: Mapping[str, numpy.ndarray] | numpy.ndarray,
     spectra: Sequence[str],
-) -> Mapping[str, np.ndarray] | np.ndarray:
+) -> Mapping[str, numpy.ndarray] | numpy.ndarray:
     """Normalise stubbed spectra for deterministic test execution.
 
     The injected provider may return a bare array for single-spectrum
@@ -87,15 +87,15 @@ def _coerce_fake_output(
     """
 
     if isinstance(fake, Mapping):
-        result: dict[str, np.ndarray] = {}
+        result: dict[str, numpy.ndarray] = {}
         for spec in spectra:
             spectrum_output = fake.get(spec)
             if spectrum_output is None:
                 continue
-            result[str(spec)] = np.asarray(spectrum_output, dtype=float)
+            result[str(spec)] = numpy.asarray(spectrum_output, dtype=float)
         return result
 
-    coerced = np.asarray(fake, dtype=float)
+    coerced = numpy.asarray(fake, dtype=float)
     if len(spectra) == 1:
         return coerced
     return {spec: coerced for spec in spectra}
@@ -108,15 +108,15 @@ def _fake_cmb_enabled() -> bool:
     return flag.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _fake_background_payload(z_arr: np.ndarray) -> dict[str, np.ndarray]:
+def _fake_background_payload(z_arr: numpy.ndarray) -> dict[str, numpy.ndarray]:
     """Return deterministic background observables for CI-only runs."""
 
-    rs_drag = np.full(1, 147.0, dtype=float)
+    rs_drag = numpy.full(1, 147.0, dtype=float)
     dm_vals = z_arr * 1000.0
-    dh_vals = np.full_like(z_arr, 1000.0)
-    da_vals = np.divide(dm_vals, 1.0 + z_arr, dtype=float)
-    dv_vals = np.power(dm_vals * np.square(1.0 + z_arr), 1.0 / 3.0)
-    hz_vals = np.full_like(z_arr, 70.0)
+    dh_vals = numpy.full_like(z_arr, 1000.0)
+    da_vals = numpy.divide(dm_vals, 1.0 + z_arr, dtype=float)
+    dv_vals = numpy.power(dm_vals * numpy.square(1.0 + z_arr), 1.0 / 3.0)
+    hz_vals = numpy.full_like(z_arr, 70.0)
     return {
         "rs_drag": rs_drag,
         "DM": dm_vals,
@@ -152,7 +152,7 @@ def _make_camb_params(
     if "theta_H0_range" in param_dict:
         theta_range = param_dict["theta_H0_range"]
         cosmo_kwargs["theta_H0_range"] = tuple(
-            float(value) for value in np.atleast_1d(theta_range)[:2]
+            float(value) for value in numpy.atleast_1d(theta_range)[:2]
         )
 
     # Translate high-level neutrino controls into the names CAMB expects.  The
@@ -187,7 +187,7 @@ def _make_camb_params(
         )
         masses = [float(param_dict[key]) for key in ordered]
         cosmo_kwargs.setdefault("num_massive_neutrinos", len(masses))
-        cosmo_kwargs["mnu"] = float(np.sum(masses))
+        cosmo_kwargs["mnu"] = float(numpy.sum(masses))
     if "sum_mnu" in param_dict:
         cosmo_kwargs["mnu"] = float(param_dict["sum_mnu"])
     elif "mnu" in param_dict:
@@ -239,7 +239,7 @@ def _cached_cmb(
     params = _make_camb_params(param_dict, lmax=int(lmax))
     results = camb.get_results(params)
     cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
-    out: dict[str, np.ndarray] = {}
+    out: dict[str, numpy.ndarray] = {}
     if "TT" in spectra:
         out["TT"] = cls[:, 0]
     if "EE" in spectra:
@@ -269,7 +269,7 @@ def _cached_background(
     derived = results.get_derived_params()
     rs_drag = float(derived.get("rdrag", float("nan")))
 
-    z_arr = np.asarray(z_tuple, dtype=float)
+    z_arr = numpy.asarray(z_tuple, dtype=float)
     comoving_distances: list[float] = []
     angular_distance_values: list[float] = []
     hubble_parameters: list[float] = []
@@ -282,23 +282,27 @@ def _cached_background(
         )
         hubble_parameters.append(float(results.hubble_parameter(float(z_val))))
 
-    comoving_distance_array = np.asarray(comoving_distances, dtype=float)
-    angular_distance_array = np.asarray(angular_distance_values, dtype=float)
-    hubble_parameter_array = np.asarray(hubble_parameters, dtype=float)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        hubble_distance_array = np.where(
-            np.abs(hubble_parameter_array) > 1e-12,
+    comoving_distance_array = numpy.asarray(comoving_distances, dtype=float)
+    angular_distance_array = numpy.asarray(
+        angular_distance_values, dtype=float
+    )
+    hubble_parameter_array = numpy.asarray(hubble_parameters, dtype=float)
+    with numpy.errstate(divide="ignore", invalid="ignore"):
+        hubble_distance_array = numpy.where(
+            numpy.abs(hubble_parameter_array) > 1e-12,
             _C_LIGHT_KM_S / hubble_parameter_array,
-            np.nan,
+            numpy.nan,
         )
     term = comoving_distance_array * comoving_distance_array
     term *= z_arr
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with numpy.errstate(divide="ignore", invalid="ignore"):
         term = term * hubble_distance_array
-    volume_average_distance_array = np.full_like(term, np.nan, dtype=float)
-    mask = np.isfinite(term) & (term >= 0.0)
-    volume_average_distance_array[mask] = np.power(term[mask], 1.0 / 3.0)
-    zero = np.isfinite(term) & (z_arr == 0.0)
+    volume_average_distance_array = numpy.full_like(
+        term, numpy.nan, dtype=float
+    )
+    mask = numpy.isfinite(term) & (term >= 0.0)
+    volume_average_distance_array[mask] = numpy.power(term[mask], 1.0 / 3.0)
+    zero = numpy.isfinite(term) & (z_arr == 0.0)
     volume_average_distance_array[zero] = 0.0
 
     return (
@@ -313,7 +317,7 @@ def _cached_background(
 
 def compute_camb_background_observables(
     param_dict: Mapping[str, Any], redshifts: Sequence[float]
-) -> dict[str, np.ndarray]:
+) -> dict[str, numpy.ndarray]:
     """Return CAMB background quantities for ``redshifts``.
 
     The helper shares the same caching layer as the spectrum generator so
@@ -329,12 +333,12 @@ def compute_camb_background_observables(
             "(compute_camb_background_observables): Using synthetic "
             "background observables in lieu of CAMB",
         )
-        z_arr = np.asarray(redshifts, dtype=float)
+        z_arr = numpy.asarray(redshifts, dtype=float)
         return _fake_background_payload(z_arr)
 
-    z_arr = np.asarray(redshifts, dtype=float)
+    z_arr = numpy.asarray(redshifts, dtype=float)
     z_tuple = tuple(
-        float(f"{float(val):.{_CACHE_PRECISION}g}") for val in z_arr
+        float(f"{float(value):.{_CACHE_PRECISION}g}") for value in z_arr
     )
     items = _normalise_items(param_dict)
     (
@@ -347,12 +351,12 @@ def compute_camb_background_observables(
     ) = _cached_background(("background", items, z_tuple))
     return {
         "rs_drag": float(rs_drag),
-        "DM": np.asarray(comoving_distance_tuple, dtype=float),
-        "DH": np.asarray(hubble_distance_tuple, dtype=float),
-        "DA": np.asarray(angular_distance_tuple, dtype=float),
-        "DV": np.asarray(volume_average_distance_tuple, dtype=float),
-        "Hz": np.asarray(hubble_parameter_tuple, dtype=float),
-        "z": np.asarray(z_tuple, dtype=float),
+        "DM": numpy.asarray(comoving_distance_tuple, dtype=float),
+        "DH": numpy.asarray(hubble_distance_tuple, dtype=float),
+        "DA": numpy.asarray(angular_distance_tuple, dtype=float),
+        "DV": numpy.asarray(volume_average_distance_tuple, dtype=float),
+        "Hz": numpy.asarray(hubble_parameter_tuple, dtype=float),
+        "z": numpy.asarray(z_tuple, dtype=float),
     }
 
 
@@ -383,7 +387,7 @@ def compute_cmb_spectrum_from_dict(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
-) -> np.ndarray | Mapping[str, np.ndarray]:
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using CAMB with caching.
 
     Tests inject ``_FAKE_CMB_PROVIDER`` or set ``COPERNICAN_FAKE_CMB=1`` to
@@ -403,7 +407,7 @@ def compute_cmb_spectrum_from_dict(
         return _coerce_fake_output(fake, spectra)
 
     if _fake_cmb_enabled():
-        ell_arr = np.asarray(list(ells), dtype=int)
+        ell_arr = numpy.asarray(list(ells), dtype=int)
         template = _FAKE_CMB_BASELINE / (ell_arr + _FAKE_CMB_OFFSET)
         result = {spec: template.copy() for spec in spectra}
         if len(result) == 1:
@@ -412,7 +416,7 @@ def compute_cmb_spectrum_from_dict(
 
     try:
         items = _normalise_items(param_dict)
-        lmax = int(np.max(list(ells)))
+        lmax = int(numpy.max(list(ells)))
         cache_key = ("dict", items, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
     except (
@@ -424,9 +428,11 @@ def compute_cmb_spectrum_from_dict(
         ValueError,
     ) as exc:  # pragma: no cover - camb errors are logged
         logger.error("(compute_cmb_spectrum_from_dict): %s", exc)
-        return np.full_like(np.asarray(list(ells)), np.nan, dtype=float)
+        return numpy.full_like(
+            numpy.asarray(list(ells)), numpy.nan, dtype=float
+        )
 
-    ell_arr = np.asarray(list(ells), dtype=int)
+    ell_arr = numpy.asarray(list(ells), dtype=int)
     result = {spec: full[spec][ell_arr] for spec in spectra}
     if len(result) == 1:
         return next(iter(result.values()))
@@ -439,7 +445,7 @@ def compute_cmb_spectrum_cached(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
-) -> np.ndarray | Mapping[str, np.ndarray]:
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
     logger = logging.getLogger()
@@ -454,7 +460,9 @@ def compute_cmb_spectrum_cached(
         ValueError,
     ) as exc:
         logger.error("(compute_cmb_spectrum_cached): %s", exc)
-        return np.full_like(np.asarray(list(ells)), np.nan, dtype=float)
+        return numpy.full_like(
+            numpy.asarray(list(ells)), numpy.nan, dtype=float
+        )
 
     return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
@@ -464,7 +472,7 @@ def compute_cmb_spectrum(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
-) -> np.ndarray | Mapping[str, np.ndarray]:
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Backward-compatible wrapper accepting a CAMB parameter dictionary."""
 
     dummy = type(
@@ -482,7 +490,7 @@ def compute_cmb_spectrum(
 class CMBLike(LikelihoodProtocol):
     """Evaluate CMB log-likelihoods for tabulated spectra."""
 
-    cmb_data_df: pd.DataFrame
+    cmb_data_df: pandas.DataFrame
     plugin: Any
     extra_params: Mapping[str, float] | None = None
     enabled: bool = True
@@ -490,10 +498,10 @@ class CMBLike(LikelihoodProtocol):
         default_factory=LikelihoodState,
         init=False,
     )
-    _ells: np.ndarray = field(init=False, repr=False)
-    _observed: np.ndarray = field(init=False, repr=False)
-    _cov_inv: np.ndarray | None = field(init=False, repr=False)
-    _residual_buffer: np.ndarray = field(init=False, repr=False)
+    _ells: numpy.ndarray = field(init=False, repr=False)
+    _observed: numpy.ndarray = field(init=False, repr=False)
+    _cov_inv: numpy.ndarray | None = field(init=False, repr=False)
+    _residual_buffer: numpy.ndarray = field(init=False, repr=False)
     _extra_params_cached: dict[str, float] | None = field(
         init=False,
         default=None,
@@ -507,29 +515,29 @@ class CMBLike(LikelihoodProtocol):
         cmb_df = self.cmb_data_df
         if cmb_df is None or cmb_df.empty:
             self._setup_error = "(cmb_like): CMB data is empty."
-            self._ells = np.empty(0, dtype=int)
-            self._observed = np.empty(0, dtype=float)
+            self._ells = numpy.empty(0, dtype=int)
+            self._observed = numpy.empty(0, dtype=float)
             self._cov_inv = None
-            self._residual_buffer = np.empty(0, dtype=float)
+            self._residual_buffer = numpy.empty(0, dtype=float)
             return
 
         self._ells = cmb_df["ell"].to_numpy(dtype=int, copy=True)
         self._observed = cmb_df["Dl_obs"].to_numpy(dtype=float, copy=True)
-        if np.any(~np.isfinite(self._observed)):
+        if numpy.any(~numpy.isfinite(self._observed)):
             self._setup_error = (
                 "(cmb_like): Observed spectrum contains non-finite values."
             )
 
         cov_attr = cmb_df.attrs.get("covariance_matrix_inv")
         self._cov_inv = (
-            None if cov_attr is None else np.asarray(cov_attr, dtype=float)
+            None if cov_attr is None else numpy.asarray(cov_attr, dtype=float)
         )
         if self._cov_inv is None:
             self._setup_error = (
                 "(cmb_like): Missing inverse covariance matrix."
             )
 
-        self._residual_buffer = np.empty_like(self._observed, dtype=float)
+        self._residual_buffer = numpy.empty_like(self._observed, dtype=float)
 
         if self.extra_params:
             cached: dict[str, float] = {}
@@ -568,7 +576,7 @@ class CMBLike(LikelihoodProtocol):
             return float("-inf")
 
         params_dict = {
-            str(key): float(val) for key, val in camb_params.items()
+            str(key): float(value) for key, value in camb_params.items()
         }
         if self._extra_params_cached:
             params_dict.update(self._extra_params_cached)
@@ -578,15 +586,15 @@ class CMBLike(LikelihoodProtocol):
             self._ells,
             spectra=("TT",),
         )
-        if not isinstance(theory, np.ndarray):
-            theory = np.asarray(theory, dtype=float)
-        if theory.shape != self._observed.shape or np.any(
-            ~np.isfinite(theory)
+        if not isinstance(theory, numpy.ndarray):
+            theory = numpy.asarray(theory, dtype=float)
+        if theory.shape != self._observed.shape or numpy.any(
+            ~numpy.isfinite(theory)
         ):
             self._state = LikelihoodState()
             return float("-inf")
 
-        np.subtract(
+        numpy.subtract(
             self._observed,
             theory,
             out=self._residual_buffer,
@@ -604,7 +612,7 @@ class CMBLike(LikelihoodProtocol):
             )
         except (
             FloatingPointError,
-            np.linalg.LinAlgError,
+            numpy.linalg.LinAlgError,
             RuntimeError,
             ValueError,
         ) as exc:
@@ -612,7 +620,7 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        loglike = -0.5 * chi2 if np.isfinite(chi2) else float("-inf")
+        loglike = -0.5 * chi2 if numpy.isfinite(chi2) else float("-inf")
         self._state = LikelihoodState(
             chi2=chi2,
             loglike=loglike,

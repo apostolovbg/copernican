@@ -13,8 +13,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
@@ -23,18 +23,20 @@ from ._protocol import LikelihoodProtocol, LikelihoodState
 class SNeLike(LikelihoodProtocol):
     """Evaluate the Supernova Ia log-likelihood for a given dataset."""
 
-    mu_model: Callable[..., np.ndarray]
-    observations: pd.DataFrame
+    mu_model: Callable[..., numpy.ndarray]
+    observations: pandas.DataFrame
     enabled: bool = True
     _state: LikelihoodState = field(
         default_factory=LikelihoodState,
         init=False,
     )
-    _z_values: np.ndarray = field(init=False, repr=False)
-    _mu_observed: np.ndarray = field(init=False, repr=False)
-    _covariance_matrix_inv: np.ndarray | None = field(init=False, repr=False)
-    _diag_errors: np.ndarray | None = field(init=False, repr=False)
-    _residual_buffer: np.ndarray = field(init=False, repr=False)
+    _z_values: numpy.ndarray = field(init=False, repr=False)
+    _mu_observed: numpy.ndarray = field(init=False, repr=False)
+    _covariance_matrix_inv: numpy.ndarray | None = field(
+        init=False, repr=False
+    )
+    _diag_errors: numpy.ndarray | None = field(init=False, repr=False)
+    _residual_buffer: numpy.ndarray = field(init=False, repr=False)
     _setup_error: str | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -49,11 +51,11 @@ class SNeLike(LikelihoodProtocol):
             self._setup_error = "SNe DataFrame missing required columns %s" % (
                 missing,
             )
-            self._z_values = np.empty(0, dtype=float)
-            self._mu_observed = np.empty(0, dtype=float)
+            self._z_values = numpy.empty(0, dtype=float)
+            self._mu_observed = numpy.empty(0, dtype=float)
             self._covariance_matrix_inv = None
             self._diag_errors = None
-            self._residual_buffer = np.empty(0, dtype=float)
+            self._residual_buffer = numpy.empty(0, dtype=float)
             return
 
         self._z_values = observations_df["zcmb"].to_numpy(
@@ -62,8 +64,8 @@ class SNeLike(LikelihoodProtocol):
         self._mu_observed = observations_df["mu_obs"].to_numpy(
             dtype=float, copy=True
         )
-        if np.any(~np.isfinite(self._z_values)) or np.any(
-            ~np.isfinite(self._mu_observed)
+        if numpy.any(~numpy.isfinite(self._z_values)) or numpy.any(
+            ~numpy.isfinite(self._mu_observed)
         ):
             self._setup_error = (
                 "SNe data contains non-finite zcmb or mu_obs values"
@@ -72,15 +74,19 @@ class SNeLike(LikelihoodProtocol):
         cov_attr = observations_df.attrs.get("covariance_matrix_inv")
         self._covariance_matrix_inv = None
         if cov_attr is not None:
-            self._covariance_matrix_inv = np.asarray(cov_attr, dtype=float)
+            self._covariance_matrix_inv = numpy.asarray(cov_attr, dtype=float)
 
         self._diag_errors = None
         if "e_mu_obs" in observations_df.columns:
             errs = observations_df["e_mu_obs"].to_numpy(dtype=float, copy=True)
-            errs = np.where(~np.isfinite(errs) | (errs <= 0), 1e-12, errs)
+            errs = numpy.where(
+                ~numpy.isfinite(errs) | (errs <= 0), 1e-12, errs
+            )
             self._diag_errors = errs
 
-        self._residual_buffer = np.empty_like(self._mu_observed, dtype=float)
+        self._residual_buffer = numpy.empty_like(
+            self._mu_observed, dtype=float
+        )
 
     def loglike(self, params: Sequence[float]) -> float:
         """Return the log-likelihood for ``params`` with the stored data."""
@@ -101,23 +107,23 @@ class SNeLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if not isinstance(mu_model, np.ndarray) or (
+        if not isinstance(mu_model, numpy.ndarray) or (
             mu_model.shape != self._mu_observed.shape
         ):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if np.any(~np.isfinite(mu_model)):
+        if numpy.any(~numpy.isfinite(mu_model)):
             self._state = LikelihoodState()
             return float("-inf")
 
-        np.subtract(
+        numpy.subtract(
             self._mu_observed,
             mu_model,
             out=self._residual_buffer,
             casting="unsafe",
         )
-        if np.any(~np.isfinite(self._residual_buffer)):
+        if numpy.any(~numpy.isfinite(self._residual_buffer)):
             self._state = LikelihoodState()
             return float("-inf")
 
@@ -134,7 +140,7 @@ class SNeLike(LikelihoodProtocol):
                 )
                 metadata["covariance"] = "full"
             except (
-                np.linalg.LinAlgError,
+                numpy.linalg.LinAlgError,
                 RuntimeError,
                 TypeError,
                 ValueError,
@@ -151,11 +157,11 @@ class SNeLike(LikelihoodProtocol):
                 self._state = LikelihoodState()
                 return float("-inf")
             chi2 = float(
-                np.sum((self._residual_buffer / self._diag_errors) ** 2)
+                numpy.sum((self._residual_buffer / self._diag_errors) ** 2)
             )
             metadata["covariance"] = "diagonal"
 
-        loglike = -0.5 * chi2 if np.isfinite(chi2) else float("-inf")
+        loglike = -0.5 * chi2 if numpy.isfinite(chi2) else float("-inf")
         self._state = LikelihoodState(
             chi2=chi2,
             loglike=loglike,

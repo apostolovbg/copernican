@@ -1395,7 +1395,7 @@ class CopernicanGUI:
 
         if types is None:
             types = []
-        resolved = [t.lower() for t in types if t]
+        resolved = [type_name.lower() for type_name in types if type_name]
         self.last_filter_types = resolved
         if not resolved:
             return list(self.catalogue_index.values())

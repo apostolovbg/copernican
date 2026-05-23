@@ -14,11 +14,13 @@ import importlib
 import importlib.util
 import json
 import os
-import subprocess
 import sys
+import unittest
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+
+import numpy
 
 from copernican_lib import console_output as console
 
@@ -45,17 +47,25 @@ def get_runtime_options() -> RuntimeOptions:
 
 
 def run_startup_tests() -> bool:
-    """Execute the project's unit tests via ``python -m unittest discover``."""
+    """Execute the project's unit tests in-process via unittest discovery."""
 
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "unittest", "discover", "-v"],
-            check=False,
+        repo_root = Path(__file__).resolve().parents[2]
+        suite = unittest.defaultTestLoader.discover(
+            start_dir=str(repo_root),
+            pattern="test*.py",
+            top_level_dir=str(repo_root),
         )
-    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover
+        result = unittest.TextTestRunner(verbosity=2).run(suite)
+    except (
+        ImportError,
+        OSError,
+        RuntimeError,
+        ValueError,
+    ) as exc:  # pragma: no cover
         console.write(f"Error running startup tests: {exc}")
         return False
-    return result.returncode == 0
+    return result.wasSuccessful()
 
 
 def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
@@ -302,9 +312,8 @@ def check_dependencies() -> None:
 def load_third_party_modules():
     """Import heavy optional dependencies lazily for CLI use."""
 
-    import multiprocessing as mp
+    import multiprocessing as multiprocessing_module
 
     import matplotlib.pyplot as plt
-    import numpy as np  # local import to defer heavy wheels
 
-    return np, plt, mp
+    return numpy, plt, multiprocessing_module

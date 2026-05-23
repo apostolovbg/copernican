@@ -1,23 +1,24 @@
 model_name: TemplateModel
 version: "1.0"
 description: |
-  This template is the canonical source of truth for generative agents and reviewers.
-  It documents every field that a valid `cosmo_model_*.yml` may contain. The
-  `parameters` list combines real physics knobs with instructive metadata so you can
-  infer the required structure when composing a new theory.
-  * Define each parameter with `name`, `python_var` if the default identifier is
-    too verbose, `latex_name`, `unit`, `definition` and a `prior`. The `prior`
-    block must always declare `type` (`gaussian`, `uniform`, `loguniform` or
-    `fixed`) along with the fields that type requires (`mean`/`sigma`,
-    `lower`/`upper`, `value`). Log-uniform priors automatically add the
-    `transform: log` metadata in the cached YAML.
+  This template is the canonical source of truth for generative agents and
+  reviewers. It documents every field that a valid `cosmo_model_*.yml` may
+  contain. The `parameters` list combines real physics knobs with instructive
+  metadata so you can infer the required structure when composing a new theory.
+  * Define each parameter with `name`, `python_var` if the default identifier
+    is too verbose, `latex_name`, `unit`, `definition` and a `prior`. The
+    `prior` block must always declare `type` (`gaussian`, `uniform`,
+    `loguniform` or `fixed`) along with the fields that type requires
+    (`mean`/`sigma`, `lower`/`upper`, `value`). Log-uniform priors
+    automatically add the `transform: log` metadata in the cached YAML.
   * Every physics observable that can appear in `H(z)` or the sound-horizon
     integrand must already be a declared parameter (or a fixed constant).
-  * Always pair the photon density `Omega_gamma` with a sampled `Neff` parameter
-    (2.5–3.5) so the radiation term evaluates as
-    `Omega_gamma * (1 + 0.2271 * Neff)` when constructing both `Hz_expression`
-    and `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
-    aligned with the CAMB background while letting relativistic species float.
+  * Always pair the photon density `Omega_gamma` with a sampled `Neff`
+    parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
+    (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
+    `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
+    aligned with the CAMB background while letting relativistic species
+    float.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the theory was designed to confront.
@@ -95,7 +96,8 @@ Hz_expression: >-
   H(z) = H0 * sqrt(
     Omega_m0 * (1 + z)**3
     + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
-    + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff)) * (1 + z)**(3 + log_amp)
+    + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff)) *
+      (1 + z)**(3 + log_amp)
   )
 equations:
   sne:

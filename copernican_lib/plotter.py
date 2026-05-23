@@ -13,7 +13,7 @@ import tkinter
 from typing import Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
-import numpy as np
+import numpy
 from matplotlib.colors import ListedColormap
 
 from . import latex_utils
@@ -46,9 +46,9 @@ _INFO_BOX_MARGIN = 0.03
 # validates and flattens the raw sampler output.  A backwards-compatibility
 # alias keeps Stage 5 imports functional for older automation.
 def _prepare_corner_inputs(
-    posterior_samples: np.ndarray,
+    posterior_samples: numpy.ndarray,
     parameter_names: list[str],
-) -> tuple[np.ndarray, list[str], dict[str, int | bool]]:
+) -> tuple[numpy.ndarray, list[str], dict[str, int | bool]]:
     """Return flattened samples, labels and downsampling statistics.
 
     The corner plot accepts sampler output either in raw ``(n_steps,
@@ -63,7 +63,7 @@ def _prepare_corner_inputs(
     statistics.
     """
 
-    samples = np.asarray(posterior_samples, dtype=float)
+    samples = numpy.asarray(posterior_samples, dtype=float)
     if samples.size == 0:
         raise ValueError(
             "posterior_samples is empty; cannot render corner plot",
@@ -81,7 +81,7 @@ def _prepare_corner_inputs(
         )
 
     initial_count = int(samples.shape[0])
-    clean_samples = samples[~np.any(~np.isfinite(samples), axis=1)]
+    clean_samples = samples[~numpy.any(~numpy.isfinite(samples), axis=1)]
     if clean_samples.size == 0:
         raise ValueError("All posterior samples contain NaN or inf values")
 
@@ -100,7 +100,7 @@ def _prepare_corner_inputs(
     }
 
     if clean_samples.shape[0] > MAX_CORNER_SAMPLES:
-        stride = int(np.ceil(clean_samples.shape[0] / MAX_CORNER_SAMPLES))
+        stride = int(numpy.ceil(clean_samples.shape[0] / MAX_CORNER_SAMPLES))
         stride = max(stride, 1)
         stats["stride"] = stride
         clean_samples = clean_samples[::stride]
@@ -120,9 +120,9 @@ def _prepare_corner_inputs(
 # public spelling by delegating to :func:`_prepare_corner_inputs` so legacy
 # imports keep working while linters still see a real function definition.
 def _validate_corner_inputs(
-    posterior_samples: np.ndarray,
+    posterior_samples: numpy.ndarray,
     parameter_names: list[str],
-) -> tuple[np.ndarray, list[str], dict[str, int | bool]]:
+) -> tuple[numpy.ndarray, list[str], dict[str, int | bool]]:
     """Compatibility wrapper for callers expecting the historic helper name.
 
     Older automation accessed :func:`_validate_corner_inputs` directly.  The
@@ -144,38 +144,38 @@ def _info_box_layout(right: float) -> tuple[float, float]:
 
 
 def _density_levels(
-    histogram: np.ndarray,
+    histogram: numpy.ndarray,
     levels: tuple[float, ...],
 ) -> list[float]:
     """Return histogram heights for requested cumulative density levels."""
 
     flat = histogram.ravel()
-    if flat.size == 0 or not np.isfinite(flat).any():
+    if flat.size == 0 or not numpy.isfinite(flat).any():
         return [0.0 for _ in levels]
 
-    order = np.sort(flat)[::-1]
-    cumulative = np.cumsum(order)
+    order = numpy.sort(flat)[::-1]
+    cumulative = numpy.cumsum(order)
     if cumulative[-1] == 0:
         return [0.0 for _ in levels]
     cumulative /= cumulative[-1]
 
     level_values: list[float] = []
     for level in levels:
-        idx = np.searchsorted(cumulative, level, side="left")
+        idx = numpy.searchsorted(cumulative, level, side="left")
         idx = min(idx, order.size - 1)
         level_values.append(float(order[idx]))
 
     level_values.sort()
     cleaned_levels: list[float] = []
-    last_value = -np.inf
-    epsilon = np.finfo(float).eps
+    last_value = -numpy.inf
+    epsilon = numpy.finfo(float).eps
     for level_height in level_values:
-        finite_value = level_height if np.isfinite(level_height) else 0.0
+        finite_value = level_height if numpy.isfinite(level_height) else 0.0
         finite_value = max(finite_value, 0.0)
         if finite_value <= last_value:
             finite_value = (
-                np.nextafter(last_value, np.inf)
-                if np.isfinite(last_value)
+                numpy.nextafter(last_value, numpy.inf)
+                if numpy.isfinite(last_value)
                 else epsilon
             )
         cleaned_levels.append(finite_value)
@@ -185,7 +185,7 @@ def _density_levels(
 
 def _ensure_strictly_increasing(
     values: Sequence[float], *, start: float | None = None
-) -> np.ndarray:
+) -> numpy.ndarray:
     """Return ``values`` as a strictly increasing numpy array.
 
     ``matplotlib.contour`` requires strictly increasing level thresholds.  The
@@ -196,7 +196,7 @@ def _ensure_strictly_increasing(
     remaining numerically close to the original targets.
     """
 
-    arr = np.asarray(values, dtype=float)
+    arr = numpy.asarray(values, dtype=float)
     if arr.size == 0:
         return arr
 
@@ -204,18 +204,18 @@ def _ensure_strictly_increasing(
     if start is not None:
         result[0] = float(start)
 
-    eps = np.finfo(float).eps
+    eps = numpy.finfo(float).eps
     last = result[0]
-    if not np.isfinite(last):
+    if not numpy.isfinite(last):
         last = eps
         result[0] = last
 
     for idx in range(1, result.size):
         current = result[idx]
-        if not np.isfinite(current):
+        if not numpy.isfinite(current):
             current = last
         if current <= last:
-            current = np.nextafter(last, np.inf)
+            current = numpy.nextafter(last, numpy.inf)
         result[idx] = current
         last = current
 
@@ -223,9 +223,9 @@ def _ensure_strictly_increasing(
 
 
 def _build_contour_levels(
-    histogram: np.ndarray,
+    histogram: numpy.ndarray,
     cumulative_levels: Sequence[float],
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return level arrays safe for ``contourf`` and ``contour`` calls.
 
     The helper extracts positive density thresholds for the requested
@@ -234,15 +234,15 @@ def _build_contour_levels(
     so contour rendering still succeeds without collapsing to a scatter plot.
     """
 
-    finite = histogram[np.isfinite(histogram)]
+    finite = histogram[numpy.isfinite(histogram)]
     if finite.size == 0:
-        eps = np.nextafter(0.0, np.inf)
-        filled = np.array([0.0, eps], dtype=float)
+        eps = numpy.nextafter(0.0, numpy.inf)
+        filled = numpy.array([0.0, eps], dtype=float)
         return filled, filled[1:]
 
-    max_density = float(np.max(finite))
-    if max_density <= 0.0 or not np.isfinite(max_density):
-        max_density = np.nextafter(0.0, np.inf)
+    max_density = float(numpy.max(finite))
+    if max_density <= 0.0 or not numpy.isfinite(max_density):
+        max_density = numpy.nextafter(0.0, numpy.inf)
 
     derived = [
         level
@@ -251,20 +251,20 @@ def _build_contour_levels(
     ]
 
     if not derived:
-        fractions = np.linspace(0.35, 0.85, max(len(cumulative_levels), 1))
+        fractions = numpy.linspace(0.35, 0.85, max(len(cumulative_levels), 1))
         base_levels = max_density * fractions
     else:
-        base_levels = np.array(derived, dtype=float)
+        base_levels = numpy.array(derived, dtype=float)
 
-    base_levels = np.asarray(base_levels, dtype=float)
+    base_levels = numpy.asarray(base_levels, dtype=float)
     base_levels.sort()
     base_levels = _ensure_strictly_increasing(base_levels)
 
     top_level = max_density
-    if top_level <= base_levels[-1] or not np.isfinite(top_level):
-        top_level = np.nextafter(base_levels[-1], np.inf)
+    if top_level <= base_levels[-1] or not numpy.isfinite(top_level):
+        top_level = numpy.nextafter(base_levels[-1], numpy.inf)
 
-    filled_levels = np.concatenate(([0.0], base_levels, [top_level]))
+    filled_levels = numpy.concatenate(([0.0], base_levels, [top_level]))
     filled_levels = _ensure_strictly_increasing(filled_levels, start=0.0)
 
     return filled_levels, base_levels
@@ -377,10 +377,10 @@ def _compute_corner_layout(
     # the typical three-parameter comparison plots.
     scale = max(panel_width / base_panel_width, 0.55)
     font_sizes = {
-        "title": float(np.clip(26.0 * scale, 18.0, 30.0)),
-        "label": float(np.clip(18.0 * scale, 12.0, 20.0)),
-        "ticks": float(np.clip(12.0 * scale, 8.0, 14.0)),
-        "footer": float(np.clip(12.0 * scale, 9.0, 14.0)),
+        "title": float(numpy.clip(26.0 * scale, 18.0, 30.0)),
+        "label": float(numpy.clip(18.0 * scale, 12.0, 20.0)),
+        "ticks": float(numpy.clip(12.0 * scale, 8.0, 14.0)),
+        "footer": float(numpy.clip(12.0 * scale, 9.0, 14.0)),
     }
 
     # Align the footer cadence with the other plotting helpers so the Suite's
@@ -402,7 +402,7 @@ def _compute_corner_layout(
         else _CORNER_FOOTER_CLEARANCE
     )
     axes_bottom = float(
-        np.clip(
+        numpy.clip(
             max(base_bottom, pad_guard, clearance_floor),
             _CORNER_MIN_BOTTOM,
             _CORNER_MAX_BOTTOM,
@@ -421,7 +421,7 @@ def _compute_corner_layout(
     margins = {
         "left": 0.07 + 0.01 * shrink_penalty,
         "right": 0.95 - 0.01 * shrink_penalty,
-        "top": float(np.clip(0.93 + 0.008 * shrink_penalty, 0.91, 0.945)),
+        "top": float(numpy.clip(0.93 + 0.008 * shrink_penalty, 0.91, 0.945)),
         "bottom": bottom_margin,
     }
 
@@ -430,20 +430,20 @@ def _compute_corner_layout(
 
 
 def _smooth_line(
-    x: np.ndarray, y: np.ndarray, points: int = 200
-) -> tuple[np.ndarray, np.ndarray]:
+    x: numpy.ndarray, y: numpy.ndarray, points: int = 200
+) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return a smooth interpolation of ``y`` over ``x``."""
     if len(x) < 4:
         return x, y
     try:
         from scipy.interpolate import make_interp_spline
 
-        idx = np.argsort(x)
+        idx = numpy.argsort(x)
         x_sorted = x[idx]
         y_sorted = y[idx]
         order = 3 if len(x_sorted) > 3 else 1
         spline = make_interp_spline(x_sorted, y_sorted, k=order)
-        x_new = np.linspace(x_sorted[0], x_sorted[-1], points)
+        x_new = numpy.linspace(x_sorted[0], x_sorted[-1], points)
         y_new = spline(x_new)
         return x_new, y_new
     except (AttributeError, RuntimeError, TypeError, ValueError) as exc:
@@ -452,11 +452,11 @@ def _smooth_line(
 
 
 def get_binned_average(
-    z: np.ndarray, residuals: np.ndarray, n_bins: int = 20
-) -> tuple[np.ndarray, np.ndarray]:
+    z: numpy.ndarray, residuals: numpy.ndarray, n_bins: int = 20
+) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return binned average residuals or empty arrays when unavailable."""
     if len(z) < n_bins:
-        return np.array([]), np.array([])
+        return numpy.array([]), numpy.array([])
     try:
         from scipy.stats import binned_statistic
 
@@ -464,18 +464,18 @@ def get_binned_average(
             z, residuals, statistic="mean", bins=n_bins
         )
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        valid_indices = ~np.isnan(mean_stat)
+        valid_indices = ~numpy.isnan(mean_stat)
         return bin_centers[valid_indices], mean_stat[valid_indices]
     except ImportError:
         get_logger().warning(
             "Scipy not found, cannot plot binned residual averages.",
         )
-        return np.array([]), np.array([])
+        return numpy.array([]), numpy.array([])
     except (AttributeError, RuntimeError, TypeError, ValueError) as exc:
         get_logger().warning(
             f"Could not calculate binned average due to an error: {exc}"
         )
-        return np.array([]), np.array([])
+        return numpy.array([]), numpy.array([])
 
 
 def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
@@ -606,14 +606,14 @@ def _format_corner_footer_stats(
 
 
 def _build_arviz_inference_data(
-    samples: np.ndarray, labels: list[str]
+    samples: numpy.ndarray, labels: list[str]
 ) -> tuple[object, list[str]]:
     """Construct an ArviZ InferenceData object from flattened samples."""
 
     if arviz_module is None:
         raise RuntimeError("ArviZ is not available")
 
-    posterior_arrays: dict[str, np.ndarray] = {}
+    posterior_arrays: dict[str, numpy.ndarray] = {}
     var_names: list[str] = []
     for idx, name in enumerate(labels):
         base = name or f"param_{idx + 1}"
@@ -629,9 +629,9 @@ def _build_arviz_inference_data(
 
 
 def _render_corner_grid_legacy(
-    axes: np.ndarray,
+    axes: numpy.ndarray,
     n_params: int,
-    samples: np.ndarray,
+    samples: numpy.ndarray,
     wrapped_labels: list[str],
     font_sizes: dict[str, float],
     bins: int,
@@ -657,7 +657,7 @@ def _render_corner_grid_legacy(
                     alpha=0.7,
                     edgecolor="white",
                 )
-                quantiles = np.percentile(param_samples, percentile_lines)
+                quantiles = numpy.percentile(param_samples, percentile_lines)
                 for quantile, style in zip(
                     quantiles,
                     ["dashed", "solid", "dashed"],
@@ -675,13 +675,13 @@ def _render_corner_grid_legacy(
             else:
                 x = samples[:, col]
                 y = samples[:, row]
-                hist, x_edges, y_edges = np.histogram2d(
+                hist, x_edges, y_edges = numpy.histogram2d(
                     x,
                     y,
                     bins=bins,
                     density=True,
                 )
-                if np.allclose(hist, 0.0):
+                if numpy.allclose(hist, 0.0):
                     corner_axis.scatter(
                         x,
                         y,
@@ -737,12 +737,12 @@ def _render_corner_grid_legacy(
 
 
 def _render_corner_with_arviz(
-    axes: np.ndarray,
+    axes: numpy.ndarray,
     n_params: int,
     wrapped_labels: list[str],
     font_sizes: dict[str, float],
     percentile_lines: tuple[float, float, float],
-    samples: np.ndarray,
+    samples: numpy.ndarray,
     inference_data: object,
     var_names: list[str],
     bins: int,
@@ -790,7 +790,7 @@ def _render_corner_with_arviz(
                     "Density",
                     fontsize=font_sizes["label"],
                 )
-                quantiles = np.percentile(samples[:, row], percentile_lines)
+                quantiles = numpy.percentile(samples[:, row], percentile_lines)
                 for quantile, style in zip(
                     quantiles,
                     ["dashed", "solid", "dashed"],
@@ -829,7 +829,7 @@ def _render_corner_with_arviz(
 
 def _render_single_param_arviz(
     axis_obj: plt.Axes,
-    samples: np.ndarray,
+    samples: numpy.ndarray,
     label: str,
     font_sizes: dict[str, float],
     bins: int,
@@ -857,7 +857,7 @@ def _render_single_param_arviz(
         textsize=font_sizes["label"],
     )
 
-    quantile_values = np.percentile(samples, percentile_lines)
+    quantile_values = numpy.percentile(samples, percentile_lines)
     for quantile, style in zip(
         quantile_values,
         ["dashed", "solid", "dashed"],
@@ -958,7 +958,7 @@ def format_model_summary_text(
             numeric = float(numeric_value)
         except (TypeError, ValueError):
             return rf"  {label_tex} = N/A"
-        if not np.isfinite(numeric):
+        if not numpy.isfinite(numeric):
             return rf"  {label_tex} = N/A"
         suffix = f" {unit}" if unit else ""
         formatted = f"{numeric:.2f}"
@@ -1011,30 +1011,30 @@ def format_model_summary_text(
 
     if dataset_type == "sne":
         lines.append(r"$\mathbf{SNe\ Fit\ Statistics:}$")
-        chi2_min = fit_results.get("chi2_min", np.nan)
+        chi2_min = fit_results.get("chi2_min", numpy.nan)
         chi2_sne = fit_results.get("chi2_sne", chi2_min)
         lines.append(_format_numeric_line(r"$\chi^2_{SNe}$", chi2_sne))
         if "chi2_total" in fit_results:
-            chi2_tot = fit_results.get("chi2_total", np.nan)
+            chi2_tot = fit_results.get("chi2_total", numpy.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "bao":
         lines.append(r"$\mathbf{BAO\ Fit\ Results:}$")
         lines.append(
             _format_numeric_line(
-                r"$r_s$", kwargs.get("rs_Mpc", np.nan), unit="Mpc"
+                r"$r_s$", kwargs.get("rs_Mpc", numpy.nan), unit="Mpc"
             )
         )
-        chi2_bao = kwargs.get("chi2_bao", np.nan)
+        chi2_bao = kwargs.get("chi2_bao", numpy.nan)
         lines.append(_format_numeric_line(r"$\chi^2_{BAO}$", chi2_bao))
         if "chi2_total" in kwargs:
-            chi2_tot = kwargs.get("chi2_total", np.nan)
+            chi2_tot = kwargs.get("chi2_total", numpy.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "cmb":
         lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
-        chi2_cmb = kwargs.get("chi2_cmb", np.nan)
+        chi2_cmb = kwargs.get("chi2_cmb", numpy.nan)
         lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         if "chi2_total" in kwargs:
-            chi2_tot = kwargs.get("chi2_total", np.nan)
+            chi2_tot = kwargs.get("chi2_total", numpy.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
 
     return "\n".join(lines)
@@ -1100,10 +1100,10 @@ def plot_hubble_diagram(
     mu_obs_data = sne_data_df["mu_obs"].values
     z_data = sne_data_df["zcmb"].values
     diag_errors_plot = sne_data_df.attrs.get(
-        "diag_errors_for_plot", np.ones_like(z_data) * 0.2
+        "diag_errors_for_plot", numpy.ones_like(z_data) * 0.2
     )
-    z_plot_smooth = np.geomspace(
-        max(np.min(z_data) * 0.9, 0.001), np.max(z_data) * 1.05, 200
+    z_plot_smooth = numpy.geomspace(
+        max(numpy.min(z_data) * 0.9, 0.001), numpy.max(z_data) * 1.05, 200
     )
 
     left = 0.08
@@ -1160,7 +1160,7 @@ def plot_hubble_diagram(
             *p_lcdm,
         )
         res_lcdm = mu_obs_data - mu_model_lcdm_points
-        chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', np.nan):.2f}"
+        chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,
             mu_model_lcdm_smooth,
@@ -1207,7 +1207,7 @@ def plot_hubble_diagram(
             *p_alt,
         )
         res_alt = mu_obs_data - mu_model_alt_points
-        chi2_alt = f"{alt_model_fit_results.get('chi2_min', np.nan):.2f}"
+        chi2_alt = f"{alt_model_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,
             mu_model_alt_smooth,
@@ -1428,7 +1428,7 @@ def plot_bao_observables(
 
     obs_types = bao_data_df["observable_type"].unique()
     cmap = plt.get_cmap("viridis")
-    colors = cmap(np.linspace(0, 0.8, len(obs_types)))
+    colors = cmap(numpy.linspace(0, 0.8, len(obs_types)))
     for i, obs_type in enumerate(obs_types):
         subset = bao_data_df[bao_data_df["observable_type"] == obs_type]
         label = f"Data: {obs_type.replace('_', '/')}"
@@ -1463,13 +1463,13 @@ def plot_bao_observables(
         z = smooth_preds["z"]
 
         def robust_plot(
-            z_vals: np.ndarray,
-            y_vals: np.ndarray,
+            z_vals: numpy.ndarray,
+            y_vals: numpy.ndarray,
             **kwargs: Any,
         ) -> None:
             """Plot only valid data points to avoid runtime warnings."""
-            valid_indices = np.isfinite(z_vals) & np.isfinite(y_vals)
-            if np.any(valid_indices):
+            valid_indices = numpy.isfinite(z_vals) & numpy.isfinite(y_vals)
+            if numpy.any(valid_indices):
                 main_axis.plot(
                     z_vals[valid_indices], y_vals[valid_indices], **kwargs
                 )
@@ -1586,8 +1586,8 @@ def plot_bao_observables(
         )
 
     if all_res:
-        max_res = np.nanmax(np.abs(np.concatenate(all_res)))
-        if np.isfinite(max_res) and max_res > 0:
+        max_res = numpy.nanmax(numpy.abs(numpy.concatenate(all_res)))
+        if numpy.isfinite(max_res) and max_res > 0:
             residual_axis.set_ylim(-1.2 * max_res, 1.2 * max_res)
 
     main_axis.set_ylabel(r"$D_X/r_s$", fontsize=font_sizes["label"])
@@ -1748,20 +1748,20 @@ def plot_cmb_spectrum(
     diag_errors_plot = None
     if "covariance_matrix_inv" in cmb_data_df.attrs:
         try:
-            cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
-            diag_errors_plot = np.sqrt(np.diag(cov))
+            cov = numpy.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
+            diag_errors_plot = numpy.sqrt(numpy.diag(cov))
         except (
             FloatingPointError,
-            np.linalg.LinAlgError,
+            numpy.linalg.LinAlgError,
             RuntimeError,
             ValueError,
         ) as exc:
             logger.warning(
                 f"Could not derive CMB errors from covariance: {exc}",
             )
-            diag_errors_plot = np.full_like(dl_obs, 1.0)
+            diag_errors_plot = numpy.full_like(dl_obs, 1.0)
     else:
-        diag_errors_plot = np.full_like(dl_obs, 1.0)
+        diag_errors_plot = numpy.full_like(dl_obs, 1.0)
 
     components = ["TT"]
     if "Dl_te_obs" in cmb_data_df.columns:
@@ -1821,7 +1821,7 @@ def plot_cmb_spectrum(
         else:
             err = cmb_data_df.get(
                 f"e_{comp.lower()}_obs",
-                np.full_like(obs, 1.0),
+                numpy.full_like(obs, 1.0),
             )
 
         axs[idx_main].errorbar(
@@ -1856,7 +1856,7 @@ def plot_cmb_spectrum(
             )
             if theory_values is not None:
                 chi2_lcdm = (
-                    f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}"
+                    f"{lcdm_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
                     if comp == "TT"
                     else ""
                 )
@@ -1872,9 +1872,9 @@ def plot_cmb_spectrum(
                     label=label,
                 )
                 cosmic_variance = (
-                    np.sqrt(2.0 / (2 * ells + 1.0)) * theory_values
+                    numpy.sqrt(2.0 / (2 * ells + 1.0)) * theory_values
                 )
-                lower = np.clip(theory_values - cosmic_variance, 1e-8, None)
+                lower = numpy.clip(theory_values - cosmic_variance, 1e-8, None)
                 axs[idx_main].fill_between(
                     ells,
                     lower,
@@ -1917,7 +1917,7 @@ def plot_cmb_spectrum(
             )
             if alt_theory_values is not None:
                 chi2_alt = (
-                    f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}"
+                    f"{alt_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
                     if comp == "TT"
                     else ""
                 )
@@ -2089,7 +2089,7 @@ def plot_cmb_spectrum(
 
 
 def plot_corner(
-    posterior_samples: np.ndarray,
+    posterior_samples: numpy.ndarray,
     alt_model_plugin: Any,
     data_attrs: dict[str, Any] | None,
     plot_dir: str = ".",
@@ -2295,14 +2295,14 @@ def plot_corner(
     # derived from ``_compute_corner_layout`` so the panels resize gracefully
     # as the dimensionality grows while remaining within a manageable figure.
     fig, axes = _build_corner_figure()
-    if isinstance(axes, np.ndarray):
-        axes_array = np.asarray(axes)
+    if isinstance(axes, numpy.ndarray):
+        axes_array = numpy.asarray(axes)
     else:
-        axes_array = np.array([[axes]])
+        axes_array = numpy.array([[axes]])
     if axes_array.ndim != 2:
         axes_array = axes_array.reshape((n_params, n_params))
 
-    bins = max(25, int(np.sqrt(samples.shape[0]) // 2))
+    bins = max(25, int(numpy.sqrt(samples.shape[0]) // 2))
     percentile_lines = (16.0, 50.0, 84.0)
     contour_levels = (0.68, 0.95)
 
@@ -2423,7 +2423,7 @@ def plot_corner(
 
 
 def plot_parameter_histograms(
-    posterior_samples: np.ndarray,
+    posterior_samples: numpy.ndarray,
     alt_model_plugin: Any,
     data_attrs: dict[str, Any] | None,
     plot_dir: str = ".",
@@ -2483,7 +2483,7 @@ def plot_parameter_histograms(
 
     model_label = getattr(alt_model_plugin, "MODEL_NAME", "model")
 
-    bins = max(25, int(np.sqrt(samples.shape[0]) // 2))
+    bins = max(25, int(numpy.sqrt(samples.shape[0]) // 2))
     percentile_lines = (16.0, 50.0, 84.0)
 
     max_columns = 3
@@ -2532,7 +2532,7 @@ def plot_parameter_histograms(
             )
             param_axis.hist(values, **hist_kwargs)
 
-        quantiles = np.percentile(values, percentile_lines)
+        quantiles = numpy.percentile(values, percentile_lines)
         for quantile, style in zip(
             quantiles,
             ["dashed", "solid", "dashed"],

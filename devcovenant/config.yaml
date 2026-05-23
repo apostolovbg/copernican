@@ -197,7 +197,7 @@ install:
 # file_suffixes and ignore_dirs define broad scan boundaries.
 
 engine:
-  fail_threshold: warning
+  fail_threshold: error
   output_mode: verbose
   tests_output_mode: verbose
   logs_keep_last: 0
@@ -1151,6 +1151,8 @@ autogen_metadata_overlays:
     - '*.egg-info/**'
     - '**/*.egg-info/**'
     - .matplotlib-cache/**
+    - rng_minigames/registry.json
+    - validation/manifests/**
     exclude_prefixes:
     - build
     - dist

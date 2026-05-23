@@ -11,9 +11,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import numpy as np
-import pandas as pd
-import xarray as xr
+import numpy
+import pandas
+import xarray as xarray_dataset
 
 from copernican_lib import (
     chain_io,
@@ -51,20 +51,20 @@ def _build_short_chain_plugin():
     """Return a lightweight plugin for the autocorrelation guard test."""
 
     def _distance_modulus_model(z, omega_m, omega_lambda):
-        z = np.asarray(z, dtype=float)
+        z = numpy.asarray(z, dtype=float)
         return (
-            5.0 * np.log10(1.0 + z)
+            5.0 * numpy.log10(1.0 + z)
             + float(omega_m)
             + 0.5 * float(omega_lambda)
         )
 
     def _distance_helper(z, *params):
-        z = np.asarray(z, dtype=float)
+        z = numpy.asarray(z, dtype=float)
         return (1.0 + z) * 100.0
 
     def _hz_helper(z, *params):
-        z = np.asarray(z, dtype=float)
-        return np.full(z.shape, 70.0, dtype=float)
+        z = numpy.asarray(z, dtype=float)
+        return numpy.full(z.shape, 70.0, dtype=float)
 
     return SimpleNamespace(
         MODEL_NAME="ShortChainModel",
@@ -115,20 +115,20 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_active_log_probability_rebuilds_full_vector(self) -> None:
         def posterior(arr):
-            return float(np.sum(arr))
+            return float(numpy.sum(arr))
 
         adapter = _ActiveLogProbability(
             posterior,
-            np.array([1.0, 2.0, 3.0]),
-            np.array([0, 2]),
+            numpy.array([1.0, 2.0, 3.0]),
+            numpy.array([0, 2]),
         )
-        full = adapter.assemble_full(np.array([4.0, 5.0]))
-        self.assertTrue(np.allclose(full, np.array([4.0, 2.0, 5.0])))
-        self.assertEqual(adapter(np.array([4.0, 5.0])), 11.0)
+        full = adapter.assemble_full(numpy.array([4.0, 5.0]))
+        self.assertTrue(numpy.allclose(full, numpy.array([4.0, 2.0, 5.0])))
+        self.assertEqual(adapter(numpy.array([4.0, 5.0])), 11.0)
 
     def test_sampler_produces_netcdf(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -148,7 +148,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(res["samples"].shape, expected)
         self.assertEqual(res["log_probability"].shape, expected[:2])
         self.assertTrue(res["success"])
-        self.assertTrue(np.isfinite(res["chi2_min"]))
+        self.assertTrue(numpy.isfinite(res["chi2_min"]))
         components = res.get("chi2_components", {})
         total_components = (
             components.get("sne", 0.0)
@@ -187,7 +187,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_legacy_fit_alias_warns_and_runs(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -223,23 +223,27 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             )
             try:
                 open_kwargs = {"group": "posterior"}
-                dataset = xr.open_dataset(path, **open_kwargs)
+                dataset = xarray_dataset.open_dataset(path, **open_kwargs)
                 expects_group = True
             except ValueError:
                 open_kwargs = {}
-                dataset = xr.open_dataset(path, **open_kwargs)
+                dataset = xarray_dataset.open_dataset(path, **open_kwargs)
                 expects_group = False
 
-            with dataset as ds:
+            with dataset as posterior_dataset:
                 for name in plugin.PARAMETER_NAMES:
-                    self.assertIn(name, ds.data_vars)
-                self.assertEqual(ds.attrs.get("model"), plugin.MODEL_NAME)
+                    self.assertIn(name, posterior_dataset.data_vars)
+                self.assertEqual(
+                    posterior_dataset.attrs.get("model"), plugin.MODEL_NAME
+                )
                 if not expects_group:
-                    self.assertEqual(ds.attrs.get("posterior_group"), "/")
+                    self.assertEqual(
+                        posterior_dataset.attrs.get("posterior_group"), "/"
+                    )
 
     def test_progress_logging_reports_statistics(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -274,14 +278,16 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertAlmostEqual(upper[0], 0.5)
 
     def test_condition_number_estimator_handles_well_conditioned(self) -> None:
-        matrix = np.array([[1.0, 0.0], [0.0, 2.0]])
+        matrix = numpy.array([[1.0, 0.0], [0.0, 2.0]])
         self.assertLess(_estimate_condition_number(matrix), 3.0)
 
     def test_joint_logposterior_builds_with_active_coordinates(self) -> None:
         plugin = _build_short_chain_plugin()
         posterior, joint_like, labels = _build_joint_logposterior(
             plugin,
-            pd.DataFrame({"zcmb": [0.1], "mu_obs": [40.0], "e_mu_obs": [0.1]}),
+            pandas.DataFrame(
+                {"zcmb": [0.1], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+            ),
             None,
             None,
         )
@@ -290,15 +296,15 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(callable(joint_like))
 
     def test_initialise_and_reseed_walkers(self) -> None:
-        lower = np.array([0.0, 0.0])
-        upper = np.array([1.0, 1.0])
-        rng = np.random.default_rng(42)
+        lower = numpy.array([0.0, 0.0])
+        upper = numpy.array([1.0, 1.0])
+        rng = numpy.random.default_rng(42)
 
         def logp(_):
             return 0.0
 
         initial, logp_vals = _initialise_active_walkers(
-            np.array([0.3, 0.7]),
+            numpy.array([0.3, 0.7]),
             lower,
             upper,
             n_walkers=4,
@@ -306,24 +312,24 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             log_probability_fn=logp,
         )
         self.assertEqual(initial.shape[1], 2)
-        self.assertTrue(np.all(np.isfinite(logp_vals)))
+        self.assertTrue(numpy.all(numpy.isfinite(logp_vals)))
         reseeded, reseeded_logp = _reseed_invalid_walkers(
             initial,
-            np.array([True, False, True, False]),
+            numpy.array([True, False, True, False]),
             lower=lower,
             upper=upper,
             rng=rng,
             log_probability_fn=logp,
-            reference_position=np.array([0.3, 0.7]),
+            reference_position=numpy.array([0.3, 0.7]),
         )
         self.assertEqual(reseeded.shape, initial.shape)
-        self.assertTrue(np.isfinite(reseeded).all())
-        self.assertTrue(np.isfinite(reseeded_logp).all())
+        self.assertTrue(numpy.isfinite(reseeded).all())
+        self.assertTrue(numpy.isfinite(reseeded_logp).all())
 
     @mock.patch("engines.cosmo_engine_mcmc.BatchProgressBar")
     def test_progress_bar_reports_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
                 "mu_obs": [40.0, 41.0, 42.0],
@@ -350,7 +356,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_explicit_pool_size_respected(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -370,7 +376,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_log_probability_penalty(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01],
                 "mu_obs": [40.0],
@@ -381,13 +387,13 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             plugin,
             sne_df,
         )
-        bad = np.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
-        lp = posterior(bad)
-        self.assertTrue(np.isneginf(lp))
+        bad = numpy.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
+        log_posterior = posterior(bad)
+        self.assertTrue(numpy.isneginf(log_posterior))
 
     def test_invalid_walkers_are_reseeded(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -395,25 +401,25 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             }
         )
         bounds = plugin.PARAMETER_BOUNDS
-        lower = np.array(
-            [-np.inf if low is None else float(low) for low, _ in bounds]
+        lower = numpy.array(
+            [-numpy.inf if low is None else float(low) for low, _ in bounds]
         )
-        upper = np.array(
-            [np.inf if high is None else float(high) for _, high in bounds]
+        upper = numpy.array(
+            [numpy.inf if high is None else float(high) for _, high in bounds]
         )
         ndim = len(plugin.PARAMETER_NAMES)
-        coords = np.vstack(
+        coords = numpy.vstack(
             [
-                np.asarray(plugin.INITIAL_GUESSES, dtype=float),
-                np.full(ndim, np.nan),
+                numpy.asarray(plugin.INITIAL_GUESSES, dtype=float),
+                numpy.full(ndim, numpy.nan),
             ]
         )
         posterior, _, _ = _build_joint_logposterior(
             plugin,
             sne_df,
         )
-        log_prob = np.array([posterior(coords[0]), np.nan])
-        rng = np.random.default_rng(12345)
+        log_prob = numpy.array([posterior(coords[0]), numpy.nan])
+        rng = numpy.random.default_rng(12345)
         new_coords, new_log_prob = _reseed_invalid_walkers(
             coords,
             log_prob,
@@ -421,14 +427,16 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             upper=upper,
             rng=rng,
             log_probability_fn=lambda pos: posterior(pos),
-            reference_position=np.asarray(plugin.INITIAL_GUESSES, dtype=float),
+            reference_position=numpy.asarray(
+                plugin.INITIAL_GUESSES, dtype=float
+            ),
         )
-        self.assertTrue(np.all(np.isfinite(new_coords)))
-        self.assertTrue(np.all(np.isfinite(new_log_prob)))
+        self.assertTrue(numpy.all(numpy.isfinite(new_coords)))
+        self.assertTrue(numpy.all(numpy.isfinite(new_log_prob)))
 
     def test_sampler_respects_shared_seed(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -453,8 +461,8 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             pool_size=1,
             burn_in_steps=8,
         )
-        np.testing.assert_array_equal(first["samples"], second["samples"])
-        np.testing.assert_array_equal(
+        numpy.testing.assert_array_equal(first["samples"], second["samples"])
+        numpy.testing.assert_array_equal(
             first["log_probability"], second["log_probability"]
         )
         self.assertTrue(first["success"])
@@ -463,7 +471,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_active_log_probability_expands_parameters(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01],
                 "mu_obs": [40.0],
@@ -475,32 +483,32 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         lower, upper, fixed_mask = _classify_parameter_bounds(
             bounds, logger=logging.getLogger()
         )
-        template = np.asarray(plugin.INITIAL_GUESSES, dtype=float)
-        active_indices = np.flatnonzero(~fixed_mask)
+        template = numpy.asarray(plugin.INITIAL_GUESSES, dtype=float)
+        active_indices = numpy.flatnonzero(~fixed_mask)
         adapter = _ActiveLogProbability(posterior, template, active_indices)
         trial = template[active_indices]
         assembled = adapter.assemble_full(trial)
-        self.assertTrue(np.allclose(assembled[active_indices], trial))
+        self.assertTrue(numpy.allclose(assembled[active_indices], trial))
         self.assertTrue(
-            np.allclose(assembled[fixed_mask], template[fixed_mask])
+            numpy.allclose(assembled[fixed_mask], template[fixed_mask])
         )
         value = adapter(trial)
         self.assertIsInstance(value, float)
         self.assertTrue(math.isfinite(value) or math.isneginf(value))
 
-        clipped = np.clip(
+        clipped = numpy.clip(
             trial + 0.1,
             lower[~fixed_mask],
             upper[~fixed_mask],
         )
         assembled_clipped = adapter.assemble_full(clipped)
         self.assertTrue(
-            np.allclose(assembled_clipped[active_indices], clipped)
+            numpy.allclose(assembled_clipped[active_indices], clipped)
         )
 
     def test_sampler_runs_with_spawn_pool(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -521,7 +529,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_sampler_handles_fixed_bounds(self) -> None:
         plugin = _build_model_plugin("cosmo_model_wcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -540,12 +548,12 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         chain = result["samples"]
         self.assertEqual(chain.shape[2], len(plugin.PARAMETER_NAMES))
         const_idx = plugin.PARAMETER_NAMES.index("c_light")
-        fixed_spread = np.ptp(chain[:, :, const_idx])
+        fixed_spread = numpy.ptp(chain[:, :, const_idx])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
     def test_likelihood_state_reported(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -569,29 +577,29 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_joint_fit_component_chi2_totals(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
                 "mu_obs": [40.0, 41.0, 42.0],
                 "e_mu_obs": [0.1, 0.1, 0.1],
             }
         )
-        initial = np.asarray(plugin.INITIAL_GUESSES, dtype=float)
-        z_bao = np.array([0.1])
-        dm = plugin.get_comoving_distance_Mpc(z_bao, *initial)
-        rs = plugin.get_sound_horizon_rs_Mpc(*initial)
-        bao_df = pd.DataFrame(
+        initial = numpy.asarray(plugin.INITIAL_GUESSES, dtype=float)
+        z_bao = numpy.array([0.1])
+        distance_modulus = plugin.get_comoving_distance_Mpc(z_bao, *initial)
+        sound_horizon = plugin.get_sound_horizon_rs_Mpc(*initial)
+        bao_df = pandas.DataFrame(
             {
                 "redshift": z_bao,
                 "observable_type": ["DM_over_rs"],
-                "value": dm / rs,
+                "value": distance_modulus / sound_horizon,
                 "error": [0.05],
             }
         )
-        bao_df.attrs["covariance_matrix_inv"] = np.eye(1)
+        bao_df.attrs["covariance_matrix_inv"] = numpy.eye(1)
 
-        ells = np.arange(30, 34)
-        ell_arr = np.asarray(ells, dtype=float)
+        ells = numpy.arange(30, 34)
+        ell_arr = numpy.asarray(ells, dtype=float)
         simulated = 1200.0 / (ell_arr + 3.0)
         with contextlib.ExitStack() as stack:
             stack.enter_context(
@@ -608,9 +616,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 ells,
                 spectra=("TT",),
             )
-            np.testing.assert_allclose(dl_vals, simulated)
-            cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
-            cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+            numpy.testing.assert_allclose(dl_vals, simulated)
+            cmb_df = pandas.DataFrame({"ell": ells, "Dl_obs": dl_vals})
+            cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(len(ells))
 
             result = module.fit_cosmology_parameters(
                 sne_df,
@@ -642,15 +650,15 @@ class TestCosmoEngineMcmc(unittest.TestCase):
     def test_comoving_distance_vectorized(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
         params = plugin.INITIAL_GUESSES
-        z_vals = np.array([0.1, 0.2, 0.3])
+        z_vals = numpy.array([0.1, 0.2, 0.3])
         arr = plugin.get_comoving_distance_Mpc(z_vals, *params)
-        loop = np.array(
+        loop = numpy.array(
             [
                 plugin.get_comoving_distance_Mpc(float(z), *params)
                 for z in z_vals
             ]
         )
-        np.testing.assert_allclose(arr, loop)
+        numpy.testing.assert_allclose(arr, loop)
 
     def test_near_fixed_bounds_are_flagged(self) -> None:
         logger = logging.getLogger("test.mcmc.bounds")
@@ -664,10 +672,10 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertAlmostEqual(upper[0], 1.0 + 5e-10)
 
     def test_initialise_walkers_relaxes_condition_number(self) -> None:
-        initial = np.array([5.0, 5.0])
-        lower = np.array([0.0, 0.0])
-        upper = np.array([10.0, 10.0])
-        rng = np.random.default_rng(42)
+        initial = numpy.array([5.0, 5.0])
+        lower = numpy.array([0.0, 0.0])
+        upper = numpy.array([10.0, 10.0])
+        rng = numpy.random.default_rng(42)
 
         def logp(_):
             return 0.0
@@ -680,7 +688,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             rng=rng,
             log_probability_fn=logp,
         )
-        self.assertTrue(np.all(np.isfinite(logp_vals)))
+        self.assertTrue(numpy.all(numpy.isfinite(logp_vals)))
         cond = _estimate_condition_number(walkers)
         if cond is not None:
             self.assertLessEqual(cond, 1e12)
@@ -696,7 +704,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         plugin.INITIAL_GUESSES = list(plugin.INITIAL_GUESSES)
         plugin.INITIAL_GUESSES[0] = tight_value
 
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -714,21 +722,21 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
         self.assertTrue(result["success"])
         chain = result["samples"]
-        fixed_spread = np.ptp(chain[:, :, 0])
+        fixed_spread = numpy.ptp(chain[:, :, 0])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
     def test_short_chain_returns_none_without_runtime_warning(self) -> None:
         plugin = _build_short_chain_plugin()
-        z_values = np.linspace(0.01, 0.03, 3)
-        baseline = np.array([0.3, 0.7])
+        z_values = numpy.linspace(0.01, 0.03, 3)
+        baseline = numpy.array([0.3, 0.7])
         mu_model = (
-            5.0 * np.log10(1.0 + z_values) + baseline[0] + 0.5 * baseline[1]
+            5.0 * numpy.log10(1.0 + z_values) + baseline[0] + 0.5 * baseline[1]
         )
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": z_values,
                 "mu_obs": mu_model,
-                "e_mu_obs": np.full(3, 0.1),
+                "e_mu_obs": numpy.full(3, 0.1),
             }
         )
         with warnings.catch_warnings(record=True) as caught:
@@ -762,7 +770,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         ) -> None:
             messages.append(msg)
 
-        bar = BatchProgressBar(
+        progress_bar = BatchProgressBar(
             "Stage",
             total_steps=5,
             display=True,
@@ -772,9 +780,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             "copernican_lib.console_output.write",
             side_effect=recorder,
         ):
-            bar.start_batch(1, 5)
-            updated = bar.update(1, processed=1, total=5)
-            bar.finish_batch()
+            progress_bar.start_batch(1, 5)
+            updated = progress_bar.update(1, processed=1, total=5)
+            progress_bar.finish_batch()
 
         self.assertIsNotNone(updated)
         self.assertTrue(any("batch 1" in msg for msg in messages))
@@ -786,16 +794,16 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_listener_receives_events_even_when_percent_stalls(self) -> None:
         events: list[dict[str, object]] = []
-        bar = BatchProgressBar(
+        progress_bar = BatchProgressBar(
             "Stage",
             total_steps=5,
             display=False,
             progress_listener=lambda record: events.append(record),
         )
         with mock.patch("copernican_lib.console_output.write") as patched:
-            bar.start_batch(1, 5)
-            bar.update(1, processed=0, total=5)
-            bar.update(1, processed=0, total=5)
+            progress_bar.start_batch(1, 5)
+            progress_bar.update(1, processed=0, total=5)
+            progress_bar.update(1, processed=0, total=5)
         self.assertFalse(patched.called)
         self.assertEqual(
             [record["event"] for record in events],
@@ -816,7 +824,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         ) -> None:
             captured.append(msg)
 
-        bar = BatchProgressBar(
+        progress_bar = BatchProgressBar(
             "Stage",
             total_steps=1,
             display=True,
@@ -826,8 +834,8 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             "copernican_lib.console_output.write",
             side_effect=recorder,
         ):
-            bar.start_batch(1, 1)
-            bar.finish_batch()
+            progress_bar.start_batch(1, 1)
+            progress_bar.finish_batch()
 
         self.assertTrue(any("complete" in msg for msg in captured))
         self.assertIsNotNone(final_event)

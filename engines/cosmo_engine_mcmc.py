@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 import math
-import multiprocessing as mp
+import multiprocessing as multiprocessing_module
 import warnings
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
@@ -56,8 +56,8 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - optional fallback for tests
     arviz_module = None
 import emcee
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from copernican_lib import engine_plugin_validation
 from copernican_lib.engine_capabilities import (
@@ -163,9 +163,9 @@ class _ActiveLogProbability:
 
     def __init__(
         self,
-        posterior: Callable[[np.ndarray], float],
-        template_params: np.ndarray,
-        active_indices: np.ndarray,
+        posterior: Callable[[numpy.ndarray], float],
+        template_params: numpy.ndarray,
+        active_indices: numpy.ndarray,
     ) -> None:
         """Save the wrapped posterior metadata for multiprocessing."""
         # ``posterior`` already encapsulates priors and likelihood terms via
@@ -176,11 +176,11 @@ class _ActiveLogProbability:
         # entries included.  Copy and coerce it to ``float`` so all workers see
         # a consistent array and accidental mutations never bleed between
         # processes.
-        self._template = np.asarray(template_params, dtype=float)
+        self._template = numpy.asarray(template_params, dtype=float)
         # ``active_indices`` pinpoints which coordinates ``emcee`` manipulates.
-        self._active_indices = np.asarray(active_indices, dtype=int)
+        self._active_indices = numpy.asarray(active_indices, dtype=int)
 
-    def assemble_full(self, position: np.ndarray) -> np.ndarray:
+    def assemble_full(self, position: numpy.ndarray) -> numpy.ndarray:
         """Return a full parameter vector for ``position``.
 
         The method centralises the reconstruction so tests can assert that
@@ -190,10 +190,10 @@ class _ActiveLogProbability:
         """
 
         full = self._template.copy()
-        full[self._active_indices] = np.asarray(position, dtype=float)
+        full[self._active_indices] = numpy.asarray(position, dtype=float)
         return full
 
-    def __call__(self, position: np.ndarray) -> float:
+    def __call__(self, position: numpy.ndarray) -> float:
         """Evaluate the posterior for ``position`` in the active subspace."""
 
         full = self.assemble_full(position)
@@ -247,16 +247,16 @@ class _SamplingProgressReporter:
     def __init__(
         self,
         param_names: Sequence[str],
-        template_params: np.ndarray,
-        active_indices: np.ndarray,
+        template_params: numpy.ndarray,
+        active_indices: numpy.ndarray,
         *,
         progress_granularity: int = 20,
         max_params_to_show: int | None = None,
     ) -> None:
         """Capture sampling state and formatting hints for progress reports."""
         self._param_names = list(param_names)
-        self._template = np.asarray(template_params, dtype=float)
-        self._active_indices = np.asarray(active_indices, dtype=int)
+        self._template = numpy.asarray(template_params, dtype=float)
+        self._active_indices = numpy.asarray(active_indices, dtype=int)
         self._reference_log_prob: float | None = None
         self._report_count = 0
         self._show_all = max_params_to_show is None
@@ -267,7 +267,7 @@ class _SamplingProgressReporter:
         self._sample_interval = max(1, int(progress_granularity // 4) or 1)
         # Reuse a scratch buffer so percentile calculations avoid allocating a
         # fresh ``(n_walkers, n_params)`` array on every progress callback.
-        self._scratch: np.ndarray | None = None
+        self._scratch: numpy.ndarray | None = None
         self._wrap_width = 72
 
     def __call__(
@@ -280,16 +280,16 @@ class _SamplingProgressReporter:
         del step_index  # The index is tracked via ``_report_count``.
         self._report_count += 1
 
-        coords = np.asarray(state.coords, dtype=float)
-        log_prob = np.asarray(state.log_prob, dtype=float)
+        coords = numpy.asarray(state.coords, dtype=float)
+        log_prob = numpy.asarray(state.log_prob, dtype=float)
 
         lines: list[str] = []
-        finite_mask = np.isfinite(log_prob)
-        if np.any(finite_mask):
+        finite_mask = numpy.isfinite(log_prob)
+        if numpy.any(finite_mask):
             finite = log_prob[finite_mask]
-            mean_lp = float(np.mean(finite))
-            std_lp = float(np.std(finite))
-            max_lp = float(np.max(finite))
+            mean_lp = float(numpy.mean(finite))
+            std_lp = float(numpy.std(finite))
+            max_lp = float(numpy.max(finite))
             if self._reference_log_prob is None:
                 self._reference_log_prob = max_lp
             delta_chi2 = -2.0 * (max_lp - self._reference_log_prob)
@@ -303,7 +303,7 @@ class _SamplingProgressReporter:
             )
 
         if coords.ndim == 1:
-            coords = coords[np.newaxis, :]
+            coords = coords[numpy.newaxis, :]
 
         n_walkers = coords.shape[0]
         if n_walkers == 0:
@@ -315,13 +315,13 @@ class _SamplingProgressReporter:
             self._param_names[: self._max_params_to_show]
         ):
             values = expanded[:, idx]
-            finite_vals = values[np.isfinite(values)]
+            finite_vals = values[numpy.isfinite(values)]
             if finite_vals.size == 0:
                 lines.append(
                     f"    {name}: statistics unavailable (non-finite samples)."
                 )
                 continue
-            q16, q50, q84 = np.percentile(finite_vals, [16.0, 50.0, 84.0])
+            q16, q50, q84 = numpy.percentile(finite_vals, [16.0, 50.0, 84.0])
             minus = q50 - q16
             plus = q84 - q50
             lines.append(
@@ -337,11 +337,11 @@ class _SamplingProgressReporter:
 
         return lines
 
-    def _expand_coordinates(self, coords: np.ndarray) -> np.ndarray:
+    def _expand_coordinates(self, coords: numpy.ndarray) -> numpy.ndarray:
         """Return full parameter coordinates for ``coords`` walkers."""
 
         if coords.ndim == 1:
-            coords = coords[np.newaxis, :]
+            coords = coords[numpy.newaxis, :]
 
         n_walkers = coords.shape[0]
         n_params = self._template.size
@@ -349,7 +349,7 @@ class _SamplingProgressReporter:
             n_walkers,
             n_params,
         ):
-            self._scratch = np.broadcast_to(
+            self._scratch = numpy.broadcast_to(
                 self._template, (n_walkers, n_params)
             ).copy()
         else:
@@ -403,10 +403,12 @@ def _build_joint_logposterior(
         and len(bao_data_df) > 0
     )
     bao_like = BAOLike(
-        np.asarray(bao_z if bao_z is not None else [], dtype=float),
-        np.asarray(bao_types if bao_types is not None else [], dtype=object),
-        np.asarray(bao_val if bao_val is not None else [], dtype=float),
-        np.asarray(bao_err if bao_err is not None else [], dtype=float),
+        numpy.asarray(bao_z if bao_z is not None else [], dtype=float),
+        numpy.asarray(
+            bao_types if bao_types is not None else [], dtype=object
+        ),
+        numpy.asarray(bao_val if bao_val is not None else [], dtype=float),
+        numpy.asarray(bao_err if bao_err is not None else [], dtype=float),
         model_plugin,
         covariance_matrix_inv=(
             None
@@ -427,7 +429,7 @@ def _build_joint_logposterior(
         and "covariance_matrix_inv" in getattr(cmb_data_df, "attrs", {})
     )
     cmb_like = CMBLike(
-        cmb_data_df if cmb_data_df is not None else pd.DataFrame(),
+        cmb_data_df if cmb_data_df is not None else pandas.DataFrame(),
         model_plugin,
         enabled=cmb_enabled,
     )
@@ -474,16 +476,16 @@ _build_sne_logposterior = _build_joint_logposterior
 
 
 def _reseed_invalid_walkers(
-    coords: np.ndarray,
-    log_prob: np.ndarray,
+    coords: numpy.ndarray,
+    log_prob: numpy.ndarray,
     *,
-    lower: np.ndarray,
-    upper: np.ndarray,
-    rng: np.random.Generator,
-    log_probability_fn: Callable[[np.ndarray], float],
-    reference_position: np.ndarray | None = None,
+    lower: numpy.ndarray,
+    upper: numpy.ndarray,
+    rng: numpy.random.Generator,
+    log_probability_fn: Callable[[numpy.ndarray], float],
+    reference_position: numpy.ndarray | None = None,
     max_attempts: int = 8,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Replace non-finite walker states with fresh proposals.
 
     The :mod:`emcee` stretch move occasionally propagates ``nan`` coordinates
@@ -500,42 +502,48 @@ def _reseed_invalid_walkers(
     """
 
     logger = logging.getLogger()
-    coords = np.asarray(coords, dtype=float).copy()
-    log_prob = np.asarray(log_prob, dtype=float).copy()
+    coords = numpy.asarray(coords, dtype=float).copy()
+    log_prob = numpy.asarray(log_prob, dtype=float).copy()
 
-    invalid = (~np.isfinite(coords).all(axis=1)) | (~np.isfinite(log_prob))
-    if not np.any(invalid):
+    invalid = (~numpy.isfinite(coords).all(axis=1)) | (
+        ~numpy.isfinite(log_prob)
+    )
+    if not numpy.any(invalid):
         return coords, log_prob
 
     logger.warning(
         "Detected %d invalid walkers after burn-in; reseeding them.",
-        int(np.sum(invalid)),
+        int(numpy.sum(invalid)),
     )
 
     valid_coords = coords[~invalid]
     if valid_coords.size == 0:
         if reference_position is None:
             raise RuntimeError("No baseline available for reseeding walkers.")
-        valid_coords = np.asarray(reference_position, dtype=float)[None, :]
+        valid_coords = numpy.asarray(reference_position, dtype=float)[None, :]
 
-    centre = np.mean(valid_coords, axis=0)
-    spread = np.std(valid_coords, axis=0)
-    finite_width = np.where(
-        np.isfinite(lower) & np.isfinite(upper), upper - lower, np.nan
+    centre = numpy.mean(valid_coords, axis=0)
+    spread = numpy.std(valid_coords, axis=0)
+    finite_width = numpy.where(
+        numpy.isfinite(lower) & numpy.isfinite(upper), upper - lower, numpy.nan
     )
-    fallback = np.where(np.isfinite(finite_width), finite_width / 6.0, 1.0)
-    spread = np.where(spread > 0, spread, fallback)
-    spread = np.where(spread > 0, spread, 1.0)
+    fallback = numpy.where(
+        numpy.isfinite(finite_width), finite_width / 6.0, 1.0
+    )
+    spread = numpy.where(spread > 0, spread, fallback)
+    spread = numpy.where(spread > 0, spread, 1.0)
 
-    bad_idx = np.flatnonzero(invalid)
+    bad_idx = numpy.flatnonzero(invalid)
     attempts = 0
     while bad_idx.size and attempts < max_attempts:
         attempts += 1
         jitter = rng.standard_normal((bad_idx.size, centre.size))
-        proposals = centre + jitter * np.maximum(spread, 1e-3)
-        proposals = np.clip(proposals, lower, upper)
-        new_log_prob = np.array([log_probability_fn(pos) for pos in proposals])
-        finite = np.isfinite(new_log_prob)
+        proposals = centre + jitter * numpy.maximum(spread, 1e-3)
+        proposals = numpy.clip(proposals, lower, upper)
+        new_log_prob = numpy.array(
+            [log_probability_fn(pos) for pos in proposals]
+        )
+        finite = numpy.isfinite(new_log_prob)
         coords[bad_idx[finite]] = proposals[finite]
         log_prob[bad_idx[finite]] = new_log_prob[finite]
         bad_idx = bad_idx[~finite]
@@ -551,7 +559,7 @@ def _reseed_invalid_walkers(
 
 def _run_stage_with_progress(
     sampler: emcee.EnsembleSampler,
-    initial_state: np.ndarray,
+    initial_state: numpy.ndarray,
     n_steps: int,
     *,
     stage_name: str,
@@ -677,7 +685,9 @@ def fit_cosmology_parameters(
     )
     names: Iterable[str] = getattr(model_plugin, "PARAMETER_NAMES", [])
     names = list(names)
-    initial = np.asarray(getattr(model_plugin, "INITIAL_GUESSES", []), float)
+    initial = numpy.asarray(
+        getattr(model_plugin, "INITIAL_GUESSES", []), float
+    )
     bounds = list(getattr(model_plugin, "PARAMETER_BOUNDS", []))
 
     ndim_total = len(initial)
@@ -692,8 +702,8 @@ def fit_cosmology_parameters(
     except ValueError:
         return {"success": False, "samples": None}
     active_mask = ~fixed_mask
-    active_indices = np.flatnonzero(active_mask)
-    fixed_indices = np.flatnonzero(fixed_mask)
+    active_indices = numpy.flatnonzero(active_mask)
+    fixed_indices = numpy.flatnonzero(fixed_mask)
 
     fixed_only = active_indices.size == 0
     if fixed_only:
@@ -707,7 +717,7 @@ def fit_cosmology_parameters(
             fixed_names,
         )
 
-    template_params = np.clip(initial, lower_all, upper_all)
+    template_params = numpy.clip(initial, lower_all, upper_all)
     initial_active = template_params[active_indices]
     lower = lower_all[active_indices]
     upper = upper_all[active_indices]
@@ -715,7 +725,7 @@ def fit_cosmology_parameters(
     seed = get_random_seed()
     if seed is None:
         seed = 0
-    rng = np.random.default_rng(seed)
+    rng = numpy.random.default_rng(seed)
     logger.debug(
         "Initialising sampler RNG with seed %s for deterministic chains.",
         seed,
@@ -740,10 +750,10 @@ def fit_cosmology_parameters(
     )
 
     sampler: emcee.EnsembleSampler | None = None
-    chain_active: np.ndarray | None = None
-    log_prob_chain: np.ndarray | None = None
-    flat_log_prob: np.ndarray | None = None
-    acceptance_fraction: np.ndarray | None = None
+    chain_active: numpy.ndarray | None = None
+    log_prob_chain: numpy.ndarray | None = None
+    flat_log_prob: numpy.ndarray | None = None
+    acceptance_fraction: numpy.ndarray | None = None
 
     burn_in = (
         burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
@@ -773,7 +783,7 @@ def fit_cosmology_parameters(
         pool_processes = requested_pool
         if pool_processes is None:
             try:
-                cpu_total = mp.cpu_count()
+                cpu_total = multiprocessing_module.cpu_count()
             except NotImplementedError:
                 cpu_total = 1
             if cpu_total > 1:
@@ -794,7 +804,9 @@ def fit_cosmology_parameters(
             pool_processes = None
 
         if pool_processes is not None:
-            pool = mp.get_context("spawn").Pool(processes=pool_processes)
+            pool = multiprocessing_module.get_context("spawn").Pool(
+                processes=pool_processes
+            )
         try:
             sampler = emcee.EnsembleSampler(
                 n_walkers,
@@ -872,18 +884,18 @@ def fit_cosmology_parameters(
     else:
         n_effective_walkers = int(n_walkers)
         n_production = max(int(max(n_steps, 1)), 1)
-        chain_active = np.zeros(
+        chain_active = numpy.zeros(
             (n_production, n_effective_walkers, 0), dtype=float
         )
         log_prob_value = float(posterior_full(template_params))
-        log_prob_chain = np.full(
+        log_prob_chain = numpy.full(
             (n_production, n_effective_walkers), log_prob_value
         )
         flat_log_prob = log_prob_chain.ravel()
-        acceptance_fraction = np.zeros(n_effective_walkers, dtype=float)
+        acceptance_fraction = numpy.zeros(n_effective_walkers, dtype=float)
 
     n_production, n_effective_walkers, _ = chain_active.shape
-    chain = np.empty(
+    chain = numpy.empty(
         (n_production, n_effective_walkers, ndim_total),
         dtype=chain_active.dtype,
     )
@@ -892,16 +904,18 @@ def fit_cosmology_parameters(
 
     flat_chain = chain.reshape(-1, ndim_total)
 
-    best_index = int(np.argmax(flat_log_prob))
+    best_index = int(numpy.argmax(flat_log_prob))
     best_params = flat_chain[best_index]
-    mean_params = np.mean(flat_chain, axis=0)
+    mean_params = numpy.mean(flat_chain, axis=0)
 
-    covariance = np.cov(flat_chain, rowvar=False)
-    errors = np.sqrt(np.diag(covariance))
-    error_dict = {n: e for n, e in zip(names, errors)}
+    covariance = numpy.cov(flat_chain, rowvar=False)
+    errors = numpy.sqrt(numpy.diag(covariance))
+    error_dict = {
+        name: error_value for name, error_value in zip(names, errors)
+    }
 
-    fitted = {n: v for n, v in zip(names, best_params)}
-    posterior_mean = {n: v for n, v in zip(names, mean_params)}
+    fitted = {name: value for name, value in zip(names, best_params)}
+    posterior_mean = {name: value for name, value in zip(names, mean_params)}
 
     loglike_best = float(loglike_full(best_params))
     log_posterior_best = float(posterior_full(best_params))
@@ -932,7 +946,7 @@ def fit_cosmology_parameters(
         )
     total_points = sne_points + bao_points + cmb_points
     dof = total_points - ndim_total
-    reduced = chi2_best / dof if dof > 0 else np.nan
+    reduced = chi2_best / dof if dof > 0 else numpy.nan
 
     log_prior_best = float("-inf")
     if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
@@ -941,7 +955,7 @@ def fit_cosmology_parameters(
     acceptance = (
         acceptance_fraction
         if acceptance_fraction is not None
-        else np.zeros(n_effective_walkers, dtype=float)
+        else numpy.zeros(n_effective_walkers, dtype=float)
     )
     diagnostics: dict[str, dict[str, float]] = {
         "rhat": {},
@@ -958,7 +972,7 @@ def fit_cosmology_parameters(
                 warnings.simplefilter("ignore", category=UserWarning)
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 inference_data = arviz_module.from_dict(
-                    posterior={"parameters": np.swapaxes(chain, 0, 1)},
+                    posterior={"parameters": numpy.swapaxes(chain, 0, 1)},
                     coords={"parameter": list(names)},
                     dims={"parameters": ["parameter"]},
                 )
@@ -984,7 +998,7 @@ def fit_cosmology_parameters(
                 "ess_tail": _dataset_to_dict(ess_tail_dataset),
             }
             if diagnostics["rhat"]:
-                rhat_values = np.fromiter(
+                rhat_values = numpy.fromiter(
                     diagnostics["rhat"].values(),
                     dtype=float,
                     count=len(diagnostics["rhat"]),
@@ -992,17 +1006,17 @@ def fit_cosmology_parameters(
                 logger.info(
                     "Rank-normalised R-hat summary: min=%.3f median=%.3f "
                     "max=%.3f",
-                    float(np.min(rhat_values)),
-                    float(np.median(rhat_values)),
-                    float(np.max(rhat_values)),
+                    float(numpy.min(rhat_values)),
+                    float(numpy.median(rhat_values)),
+                    float(numpy.max(rhat_values)),
                 )
             if diagnostics["ess_bulk"]:
-                bulk_values = np.fromiter(
+                bulk_values = numpy.fromiter(
                     diagnostics["ess_bulk"].values(),
                     dtype=float,
                     count=len(diagnostics["ess_bulk"]),
                 )
-                tail_values = np.fromiter(
+                tail_values = numpy.fromiter(
                     diagnostics["ess_tail"].values(),
                     dtype=float,
                     count=len(diagnostics["ess_tail"]),
@@ -1010,8 +1024,8 @@ def fit_cosmology_parameters(
                 logger.info(
                     "Effective sample sizes: bulk median=%.1f tail median="
                     "%.1f",
-                    float(np.median(bulk_values)),
-                    float(np.median(tail_values)),
+                    float(numpy.median(bulk_values)),
+                    float(numpy.median(tail_values)),
                 )
         except (
             AttributeError,
@@ -1036,9 +1050,9 @@ def fit_cosmology_parameters(
     logger.info(
         "MCMC acceptance for %s: mean=%.3f, min=%.3f, max=%.3f",
         getattr(model_plugin, "MODEL_NAME", "Unknown"),
-        float(np.mean(acceptance)),
-        float(np.min(acceptance)),
-        float(np.max(acceptance)),
+        float(numpy.mean(acceptance)),
+        float(numpy.min(acceptance)),
+        float(numpy.max(acceptance)),
     )
 
     # ``emcee`` estimates autocorrelation times with a minimum window of 32
@@ -1065,7 +1079,7 @@ def fit_cosmology_parameters(
         )
 
     return {
-        "success": np.isfinite(chi2_best)
+        "success": numpy.isfinite(chi2_best)
         and math.isfinite(log_posterior_best),
         "samples": chain,
         "log_probability": log_prob_chain,
@@ -1168,7 +1182,7 @@ __all__ = [
 ]
 
 
-def _estimate_condition_number(samples: np.ndarray) -> float | None:
+def _estimate_condition_number(samples: numpy.ndarray) -> float | None:
     """Return the condition number of ``samples`` or ``None`` when undefined.
 
     ``emcee`` inspects the condition number of the initial walker ensemble to
@@ -1182,12 +1196,12 @@ def _estimate_condition_number(samples: np.ndarray) -> float | None:
 
     if samples.shape[0] < 2:
         return None
-    centred = samples - np.mean(samples, axis=0, keepdims=True)
+    centred = samples - numpy.mean(samples, axis=0, keepdims=True)
     try:
-        singular_values = np.linalg.svd(
+        singular_values = numpy.linalg.svd(
             centred, full_matrices=False, hermitian=False
         )[1]
-    except np.linalg.LinAlgError:
+    except numpy.linalg.LinAlgError:
         return float("inf")
     positive = singular_values[singular_values > 0]
     if positive.size == 0:
@@ -1199,27 +1213,28 @@ def _classify_parameter_bounds(
     bounds: Iterable[tuple[float | None, float | None]],
     *,
     logger: logging.Logger,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """Return lower/upper bounds and a mask of effectively fixed parameters.
 
     Each entry in ``bounds`` is converted to a floating interval.  ``None``
-    values map to ``-np.inf`` or ``np.inf`` as appropriate.  Bounds where the
-    upper edge falls below the lower edge signal malformed model definitions
-    and trigger an error log.  Parameters whose admissible range shrinks to a
+    values map to ``-numpy.inf`` or ``numpy.inf`` as appropriate.  Bounds
+    where the upper edge falls below the lower edge signal malformed model
+    definitions and trigger an error log.  Parameters whose admissible range
+    shrinks to a
     single point—or a numerically indistinguishable sliver—are flagged as
     fixed so the active sampling subspace contains only degrees of freedom
     that ``emcee`` can explore without tripping its linear-independence
     checks.
     """
 
-    lower = np.empty(len(bounds), dtype=float)
-    upper = np.empty(len(bounds), dtype=float)
+    lower = numpy.empty(len(bounds), dtype=float)
+    upper = numpy.empty(len(bounds), dtype=float)
     for idx, (low, high) in enumerate(bounds):
-        lower[idx] = -np.inf if low is None else float(low)
-        upper[idx] = np.inf if high is None else float(high)
+        lower[idx] = -numpy.inf if low is None else float(low)
+        upper[idx] = numpy.inf if high is None else float(high)
         if (
-            np.isfinite(lower[idx])
-            and np.isfinite(upper[idx])
+            numpy.isfinite(lower[idx])
+            and numpy.isfinite(upper[idx])
             and upper[idx] < lower[idx]
         ):
             logger.error(
@@ -1230,18 +1245,18 @@ def _classify_parameter_bounds(
             )
             raise ValueError("invalid parameter bounds: lower exceeds upper")
 
-    with np.errstate(invalid="ignore"):
+    with numpy.errstate(invalid="ignore"):
         widths = upper - lower
         centres = (upper + lower) / 2.0
-        scale = np.maximum(np.abs(centres), 1.0)
+        scale = numpy.maximum(numpy.abs(centres), 1.0)
         threshold = scale * _FIXED_BOUNDS_RTOL + _FIXED_BOUNDS_ATOL
-        fixed_mask = np.isfinite(widths) & (widths <= threshold)
+        fixed_mask = numpy.isfinite(widths) & (widths <= threshold)
 
     return lower, upper, fixed_mask
 
 
 def _compute_basic_diagnostics(
-    chain: np.ndarray,
+    chain: numpy.ndarray,
     names: Sequence[str],
     *,
     logger: logging.Logger,
@@ -1254,7 +1269,7 @@ def _compute_basic_diagnostics(
     conservative, by collapsing effective sample sizes to the total draw count.
     """
 
-    walkers_first = np.swapaxes(chain, 0, 1)
+    walkers_first = numpy.swapaxes(chain, 0, 1)
     n_chains, n_draws, _ = walkers_first.shape
     if n_chains <= 0 or n_draws <= 1:
         logger.warning(
@@ -1263,18 +1278,18 @@ def _compute_basic_diagnostics(
             int(n_chains),
             int(n_draws),
         )
-        rhat_values = np.full(len(names), 1.0, dtype=float)
+        rhat_values = numpy.full(len(names), 1.0, dtype=float)
     else:
-        chain_means = np.mean(walkers_first, axis=1)
-        chain_vars = np.var(walkers_first, axis=1, ddof=1)
-        mean_overall = np.mean(chain_means, axis=0)
-        between = np.sum((chain_means - mean_overall) ** 2, axis=0)
+        chain_means = numpy.mean(walkers_first, axis=1)
+        chain_vars = numpy.var(walkers_first, axis=1, ddof=1)
+        mean_overall = numpy.mean(chain_means, axis=0)
+        between = numpy.sum((chain_means - mean_overall) ** 2, axis=0)
         between *= n_draws / max(n_chains - 1, 1)
-        within = np.mean(chain_vars, axis=0)
-        with np.errstate(divide="ignore", invalid="ignore"):
+        within = numpy.mean(chain_vars, axis=0)
+        with numpy.errstate(divide="ignore", invalid="ignore"):
             var_hat = ((n_draws - 1) / n_draws) * within + between / n_draws
-            ratio = np.where(within > 0, var_hat / within, 1.0)
-            rhat_values = np.sqrt(np.clip(ratio, 0.0, np.inf))
+            ratio = numpy.where(within > 0, var_hat / within, 1.0)
+            rhat_values = numpy.sqrt(numpy.clip(ratio, 0.0, numpy.inf))
 
     rhat = {name: float(value) for name, value in zip(names, rhat_values)}
     total_draws = float(max(n_chains, 1) * max(n_draws, 0))
@@ -1283,13 +1298,13 @@ def _compute_basic_diagnostics(
 
 
 def _initialise_active_walkers(
-    initial_active: np.ndarray,
-    lower: np.ndarray,
-    upper: np.ndarray,
+    initial_active: numpy.ndarray,
+    lower: numpy.ndarray,
+    upper: numpy.ndarray,
     n_walkers: int,
-    rng: np.random.Generator,
-    log_probability_fn: Callable[[np.ndarray], float],
-) -> tuple[np.ndarray, np.ndarray]:
+    rng: numpy.random.Generator,
+    log_probability_fn: Callable[[numpy.ndarray], float],
+) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return initial walker positions with finite log probabilities.
 
     The generator gradually inflates the proposal scatter whenever the
@@ -1304,11 +1319,11 @@ def _initialise_active_walkers(
     """
 
     ndim_active = initial_active.size
-    uniform_mask = np.isfinite(lower) & np.isfinite(upper)
+    uniform_mask = numpy.isfinite(lower) & numpy.isfinite(upper)
     width = upper - lower
-    jitter = np.maximum(np.abs(initial_active), 1.0) * 1e-3
-    jitter = np.where(
-        np.isfinite(width), np.maximum(width / 10.0, jitter), jitter
+    jitter = numpy.maximum(numpy.abs(initial_active), 1.0) * 1e-3
+    jitter = numpy.where(
+        numpy.isfinite(width), numpy.maximum(width / 10.0, jitter), jitter
     )
 
     attempts = 0
@@ -1322,11 +1337,11 @@ def _initialise_active_walkers(
         else:
             noise = rng.standard_normal((n_walkers, ndim_active))
             proposals = initial_active + noise * jitter * scatter_multiplier
-            proposals = np.clip(proposals, lower, upper)
-        proposals[0] = np.clip(initial_active, lower, upper)
+            proposals = numpy.clip(proposals, lower, upper)
+        proposals[0] = numpy.clip(initial_active, lower, upper)
 
-        logp = np.array([log_probability_fn(pos) for pos in proposals])
-        if not np.all(np.isfinite(logp)):
+        logp = numpy.array([log_probability_fn(pos) for pos in proposals])
+        if not numpy.all(numpy.isfinite(logp)):
             scatter_multiplier *= 2.0
             continue
 

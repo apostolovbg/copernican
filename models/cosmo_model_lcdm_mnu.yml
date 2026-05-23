@@ -3,19 +3,21 @@ version: '1.0'
 description: >-
   ### LambdaCDM with variable neutrino mass
 
-  This sample keeps the flat ΛCDM background but promotes the summed neutrino
-  mass to a sampled quantity instead of a fixed heritage value. Supernovae and BAO
-  distances remain governed by the same H(z) expression while the CAMB-based CMB
-  likelihood now sees the explicit nummerical contribution through Omnus.
-  Elevating m_ν lets the manifest capture the neutrino signature shown by galaxy
-  clustering without rewriting the BAO or SNe integrals.
+  This sample keeps the flat ΛCDM background but promotes the summed
+  neutrino mass to a sampled quantity instead of a fixed heritage value.
+  Supernovae and BAO distances remain governed by the same H(z)
+  expression while the CAMB-based CMB likelihood now sees the explicit
+  nummerical contribution through Omnus. Elevating m_ν lets the
+  manifest capture the neutrino signature shown by galaxy clustering
+  without rewriting the BAO or SNe integrals.
 
-  Observationally, raising sum_mnu shifts the small-scale power while leaving the
-  high-z acoustic scale practically untouched; the sampler mitigates this by
-  letting Omega_m0 adjust in concert with Omega_b while the massless photon
-  term preserves the early-time speed of sound. The description below keeps the
-  derived nu density explicit so downstream validators compare the manifest
-  entry against the cached neutrino density metadata.
+  Observationally, raising sum_mnu shifts the small-scale power while
+  leaving the high-z acoustic scale practically untouched; the sampler
+  mitigates this by letting Omega_m0 adjust in concert with Omega_b
+  while the massless photon term preserves the early-time speed of
+  sound. The description below keeps the derived nu density explicit so
+  downstream validators compare the manifest entry against the cached
+  neutrino density metadata.
 abstract: >-
   LambdaCDM+Mnu keeps the classic expansion law but learns the neutrino sector.
   The total matter density still sources the Friedmann equation, and the sound
@@ -74,7 +76,8 @@ parameters:
     bounds: [0.0, 0.5]
     latex_name: \sum m_{\nu}
     unit: eV
-    definition: Total mass in electron-volts carried by the three active neutrinos.
+    definition: >-
+      Total mass in electron-volts carried by the three active neutrinos.
     prior:
       type: uniform
       lower: 0.0
@@ -139,11 +142,12 @@ cmb:
     num_massive_neutrinos: 3
     sum_mnu: sum_mnu
 notes: >-
-  The neutrino contribution enters only through omnuh2, which is derived from
-  the declared sum_mnu. The radiation term multiplies Omega_gamma by
-  (1 + 0.2271 * Neff) so the BAO integral mirrors the same effective relativistic
-  density that CAMB uses alongside the explicit neutrino mass information. The
-  matter density Omch2 subtracts the neutrino density so cold dark matter carries
-  the remaining mass.
+  The neutrino contribution enters only through omnuh2, which is
+  derived from the declared sum_mnu. The radiation term multiplies
+  Omega_gamma by (1 + 0.2271 * Neff) so the BAO integral mirrors the
+  same effective relativistic density that CAMB uses alongside the
+  explicit neutrino mass information. The matter density Omch2
+  subtracts the neutrino density so cold dark matter carries the
+  remaining mass.
 title: LambdaCDM with active neutrino mass
 date: '2025-12-06'

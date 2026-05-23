@@ -1,5 +1,7 @@
 # Validation manifests
 
+## Overview
+
 The validation suite now runs *real* manifests through the same pipeline that
 the GUI and CLI use for ordinary analyses. The manifest files live under
 `validation/manifests/`, and the canonical manifest `reference_planck2018.yml`

@@ -6,6 +6,11 @@ Each title records player interactions, hashes the payload and emits a seed via
 other applications can copy the directory verbatim, run the registry and pick
 up the same playful seed-forging experience Copernican offers inside its GUI.
 
+## Overview
+This bundle stays self-contained so the games can be vendored into another
+application without changing their deterministic behavior or storage layout.
+Each title keeps its own launcher, metadata and runtime data.
+
 ## Architecture
 
 - Every game lives inside `rng_minigames/<id>/` with a `metadata.json`

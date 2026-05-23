@@ -3,55 +3,59 @@
 
 """Regression tests for :mod:`copernican_lib.plugins` pickling helpers."""
 
-import multiprocessing as mp
+import multiprocessing as multiprocessing_module
 import unittest
 
 from copernican_lib import plugins
 
 
-def distance_modulus_model(z_val, h0):
+def distance_modulus_model(z_val, hubble_parameter):
     """Toy distance modulus helper that stays trivially picklable."""
 
-    return float(z_val) + float(h0)
+    return float(z_val) + float(hubble_parameter)
 
 
-def get_comoving_distance_Mpc(z_val, h0):
+def get_comoving_distance_Mpc(z_val, hubble_parameter):
     """Return a linearised comoving distance for testing only."""
 
-    return float(z_val) * 100.0 / max(float(h0), 1.0)
+    return float(z_val) * 100.0 / max(float(hubble_parameter), 1.0)
 
 
-def get_luminosity_distance_Mpc(z_val, h0):
+def get_luminosity_distance_Mpc(z_val, hubble_parameter):
     """Derive luminosity distance directly from the comoving result."""
 
-    return (1.0 + float(z_val)) * get_comoving_distance_Mpc(z_val, h0)
+    return (1.0 + float(z_val)) * get_comoving_distance_Mpc(
+        z_val, hubble_parameter
+    )
 
 
-def get_angular_diameter_distance_Mpc(z_val, h0):
+def get_angular_diameter_distance_Mpc(z_val, hubble_parameter):
     """Derive angular diameter distance from the comoving helper."""
 
-    return get_comoving_distance_Mpc(z_val, h0) / (1.0 + float(z_val))
+    return get_comoving_distance_Mpc(z_val, hubble_parameter) / (
+        1.0 + float(z_val)
+    )
 
 
-def get_Hz_per_Mpc(z_val, h0):
+def get_Hz_per_Mpc(z_val, hubble_parameter):
     """Return a monotonic H(z) scaling for deterministic assertions."""
 
-    return float(h0) * (1.0 + float(z_val))
+    return float(hubble_parameter) * (1.0 + float(z_val))
 
 
-def get_DV_Mpc(z_val, h0):
+def get_DV_Mpc(z_val, hubble_parameter):
     """Return a BAO-inspired helper anchored to the comoving distance."""
 
-    dm_val = get_comoving_distance_Mpc(z_val, h0)
+    dm_val = get_comoving_distance_Mpc(z_val, hubble_parameter)
     numerator = dm_val * dm_val * 299792.458 * float(z_val)
-    ratio = numerator / get_Hz_per_Mpc(z_val, h0)
+    ratio = numerator / get_Hz_per_Mpc(z_val, hubble_parameter)
     return ratio ** (1.0 / 3.0)
 
 
-def get_sound_horizon_rs_Mpc(h0):
+def get_sound_horizon_rs_Mpc(hubble_parameter):
     """Simple sound horizon approximation suitable for tests."""
 
-    return 144.0 / max(float(h0), 1.0)
+    return 144.0 / max(float(hubble_parameter), 1.0)
 
 
 def helper_extra_function():
@@ -109,7 +113,7 @@ class FrozenMappingTests(unittest.TestCase):
         """EnginePlugin should survive pickle round-trips under spawn pools."""
 
         plugin = _build_sample_plugin()
-        with mp.get_context("spawn").Pool(1) as pool:
+        with multiprocessing_module.get_context("spawn").Pool(1) as pool:
             is_frozen, custom_value, fixed_h0 = pool.apply(
                 _inspect_plugin,
                 (plugin,),

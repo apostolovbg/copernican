@@ -6,7 +6,7 @@ import copy
 import os
 from typing import Any, Callable, Mapping, Sequence
 
-import numpy as np
+import numpy
 
 from copernican_lib import chain_io, console_output, csv_writer, diagnostics
 from copernican_lib import logger as log_mod
@@ -359,7 +359,7 @@ def execute_run_pipeline(
         return component in enabled_components
 
     z_plot_smooth = (
-        np.geomspace(
+        numpy.geomspace(
             max(bao_data_df["redshift"].min() * 0.8, 0.01),
             bao_data_df["redshift"].max() * 1.2,
             100,
@@ -371,13 +371,13 @@ def execute_run_pipeline(
     def _run_bao_analysis(
         model_plugin,
         fit_results,
-        z_smooth_arr: np.ndarray | None,
+        z_smooth_arr: numpy.ndarray | None,
     ):
         """Produce BAO predictions and diagnostics for ``model_plugin``."""
         summary = {
             "sne_fit_results": fit_results,
             "pred_df": None,
-            "rs_Mpc": np.nan,
+            "rs_Mpc": numpy.nan,
             "chi2_bao": float(
                 (fit_results or {}).get("chi2_bao", float("inf"))
             ),
@@ -427,8 +427,8 @@ def execute_run_pipeline(
         ):
             logger.info(line)
         chi2_bao = summary["chi2_bao"]
-        if pred_df is not None and np.isfinite(rs_Mpc):
-            if np.isfinite(chi2_bao):
+        if pred_df is not None and numpy.isfinite(rs_Mpc):
+            if numpy.isfinite(chi2_bao):
                 logger.info(
                     "%s BAO: r_s = %.2f Mpc, χ²_BAO = %.2f",
                     model_plugin.MODEL_NAME,
@@ -518,7 +518,7 @@ def execute_run_pipeline(
         ):
             logger.info(line)
         chi2_cmb = summary["chi2_cmb"]
-        if np.isfinite(chi2_cmb):
+        if numpy.isfinite(chi2_cmb):
             logger.info(
                 "%s CMB χ² = %.2f",
                 model_plugin.MODEL_NAME,

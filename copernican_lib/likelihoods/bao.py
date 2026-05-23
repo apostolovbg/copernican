@@ -16,7 +16,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
-import numpy as np
+import numpy
 
 from ..model_coder import SoundHorizonComputationError
 from ._protocol import LikelihoodProtocol, LikelihoodState
@@ -27,29 +27,29 @@ from .cmb import compute_camb_background_observables
 class BAOLike(LikelihoodProtocol):
     """Evaluate BAO log-likelihoods for pre-extracted observables."""
 
-    redshifts: np.ndarray
-    observable_types: np.ndarray
-    observable_values: np.ndarray
-    observable_errors: np.ndarray
+    redshifts: numpy.ndarray
+    observable_types: numpy.ndarray
+    observable_values: numpy.ndarray
+    observable_errors: numpy.ndarray
     model_plugin: Any
-    covariance_matrix_inv: np.ndarray | None = None
+    covariance_matrix_inv: numpy.ndarray | None = None
     rs_override: float | None = None
     enabled: bool = True
     _state: LikelihoodState = field(
         default_factory=LikelihoodState,
         init=False,
     )
-    _z_values: np.ndarray = field(init=False, repr=False)
-    _obs_type: np.ndarray = field(init=False, repr=False)
-    _observed: np.ndarray = field(init=False, repr=False)
-    _errors: np.ndarray = field(init=False, repr=False)
-    _cov_inv: np.ndarray | None = field(init=False, repr=False)
+    _z_values: numpy.ndarray = field(init=False, repr=False)
+    _obs_type: numpy.ndarray = field(init=False, repr=False)
+    _observed: numpy.ndarray = field(init=False, repr=False)
+    _errors: numpy.ndarray = field(init=False, repr=False)
+    _cov_inv: numpy.ndarray | None = field(init=False, repr=False)
     _rs_override: float | None = field(init=False, repr=False)
-    _mask_dm: np.ndarray = field(init=False, repr=False)
-    _mask_dh: np.ndarray = field(init=False, repr=False)
-    _mask_dv: np.ndarray = field(init=False, repr=False)
-    _prediction_buffer: np.ndarray = field(init=False, repr=False)
-    _residual_buffer: np.ndarray = field(init=False, repr=False)
+    _mask_dm: numpy.ndarray = field(init=False, repr=False)
+    _mask_dh: numpy.ndarray = field(init=False, repr=False)
+    _mask_dv: numpy.ndarray = field(init=False, repr=False)
+    _prediction_buffer: numpy.ndarray = field(init=False, repr=False)
+    _residual_buffer: numpy.ndarray = field(init=False, repr=False)
     _get_camb_params: Callable[[Sequence[float]], Mapping[str, Any]] | None = (
         field(
             init=False,
@@ -67,14 +67,20 @@ class BAOLike(LikelihoodProtocol):
     def __post_init__(self) -> None:
         """Normalise arrays and cache model callables for fast evaluation."""
 
-        self._z_values = np.asarray(self.redshifts, dtype=float).copy()
-        self._obs_type = np.asarray(self.observable_types, dtype=object).copy()
-        self._observed = np.asarray(self.observable_values, dtype=float).copy()
-        self._errors = np.asarray(self.observable_errors, dtype=float).copy()
+        self._z_values = numpy.asarray(self.redshifts, dtype=float).copy()
+        self._obs_type = numpy.asarray(
+            self.observable_types, dtype=object
+        ).copy()
+        self._observed = numpy.asarray(
+            self.observable_values, dtype=float
+        ).copy()
+        self._errors = numpy.asarray(
+            self.observable_errors, dtype=float
+        ).copy()
         self._cov_inv = (
             None
             if self.covariance_matrix_inv is None
-            else np.asarray(self.covariance_matrix_inv, dtype=float)
+            else numpy.asarray(self.covariance_matrix_inv, dtype=float)
         )
         self._rs_override = (
             None if self.rs_override is None else float(self.rs_override)
@@ -84,9 +90,9 @@ class BAOLike(LikelihoodProtocol):
         self._mask_dh = self._obs_type == "DH_over_rs"
         self._mask_dv = self._obs_type == "DV_over_rs"
 
-        self._prediction_buffer = np.empty_like(self._observed, dtype=float)
-        self._prediction_buffer.fill(np.nan)
-        self._residual_buffer = np.empty_like(self._observed, dtype=float)
+        self._prediction_buffer = numpy.empty_like(self._observed, dtype=float)
+        self._prediction_buffer.fill(numpy.nan)
+        self._residual_buffer = numpy.empty_like(self._observed, dtype=float)
 
         self._get_camb_params = getattr(
             self.model_plugin, "get_camb_params", None
@@ -180,12 +186,12 @@ class BAOLike(LikelihoodProtocol):
             if rs_drag is None:
                 rs_background = float("nan")
             else:
-                rs_arr = np.asarray(rs_drag)
+                rs_arr = numpy.asarray(rs_drag)
                 if rs_arr.size == 0:
                     rs_background = float("nan")
                 else:
                     rs_background = float(rs_arr.flat[0])
-            if np.isnan(rs_background) and self._fallback_rs is not None:
+            if numpy.isnan(rs_background) and self._fallback_rs is not None:
                 try:
                     rs_background = float(
                         self._call_with_params(self._fallback_rs, (), params)
@@ -221,11 +227,11 @@ class BAOLike(LikelihoodProtocol):
                     )
             rs_mpc = rs_background
 
-        if not (np.isfinite(rs_mpc) and rs_mpc > 0):
+        if not (numpy.isfinite(rs_mpc) and rs_mpc > 0):
             self._state = LikelihoodState()
             return float("-inf")
 
-        self._prediction_buffer.fill(np.nan)
+        self._prediction_buffer.fill(numpy.nan)
 
         dm_vals = background.get("DM")
         dh_vals = background.get("DH")
@@ -235,35 +241,35 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if np.any(self._mask_dm):
+        if numpy.any(self._mask_dm):
             self._prediction_buffer[self._mask_dm] = (
                 dm_vals[self._mask_dm] / rs_mpc
             )
 
-        if np.any(self._mask_dh):
+        if numpy.any(self._mask_dh):
             self._prediction_buffer[self._mask_dh] = (
                 dh_vals[self._mask_dh] / rs_mpc
             )
 
-        if np.any(self._mask_dv):
+        if numpy.any(self._mask_dv):
             self._prediction_buffer[self._mask_dv] = (
                 dv_vals[self._mask_dv] / rs_mpc
             )
 
-        if np.all(~np.isfinite(self._prediction_buffer)):
+        if numpy.all(~numpy.isfinite(self._prediction_buffer)):
             logger.warning(
                 "(bao_like): Model returned no finite BAO predictions."
             )
             self._state = LikelihoodState()
             return float("-inf")
 
-        np.subtract(
+        numpy.subtract(
             self._observed,
             self._prediction_buffer,
             out=self._residual_buffer,
             casting="unsafe",
         )
-        if np.any(~np.isfinite(self._residual_buffer)):
+        if numpy.any(~numpy.isfinite(self._residual_buffer)):
             logger.warning("(bao_like): Non-finite residuals in BAO data.")
             self._state = LikelihoodState()
             return float("-inf")
@@ -283,7 +289,7 @@ class BAOLike(LikelihoodProtocol):
                 RuntimeError,
                 TypeError,
                 ValueError,
-                np.linalg.LinAlgError,
+                numpy.linalg.LinAlgError,
             ) as exc:
                 logger.warning(
                     "(bao_like): Falling back to diagonal covariance: %s",
@@ -292,19 +298,19 @@ class BAOLike(LikelihoodProtocol):
                 cov_inv = None
 
         if cov_inv is None:
-            valid = np.isfinite(self._errors) & (self._errors > 1e-9)
-            if not np.any(valid):
+            valid = numpy.isfinite(self._errors) & (self._errors > 1e-9)
+            if not numpy.any(valid):
                 logger.warning("(bao_like): No valid BAO errors available.")
                 self._state = LikelihoodState()
                 return float("-inf")
             chi2 = float(
-                np.sum(
+                numpy.sum(
                     (self._residual_buffer[valid] / self._errors[valid]) ** 2
                 )
             )
             metadata["covariance"] = "diagonal"
 
-        loglike = -0.5 * chi2 if np.isfinite(chi2) else float("-inf")
+        loglike = -0.5 * chi2 if numpy.isfinite(chi2) else float("-inf")
         self._state = LikelihoodState(
             chi2=chi2,
             loglike=loglike,
@@ -327,14 +333,14 @@ class BAOLike(LikelihoodProtocol):
 
     def _compute_plugin_background(
         self, params: Sequence[float]
-    ) -> dict[str, np.ndarray] | None:
+    ) -> dict[str, numpy.ndarray] | None:
         """Return background observables from model distance functions."""
 
         if self._fallback_dm is None or self._fallback_hz is None:
             return None
 
         try:
-            dm_vals = np.asarray(
+            dm_vals = numpy.asarray(
                 self._call_with_params(
                     self._fallback_dm,
                     (self._z_values,),
@@ -342,7 +348,7 @@ class BAOLike(LikelihoodProtocol):
                 ),
                 dtype=float,
             )
-            hz_vals = np.asarray(
+            hz_vals = numpy.asarray(
                 self._call_with_params(
                     self._fallback_hz,
                     (self._z_values,),
@@ -373,16 +379,16 @@ class BAOLike(LikelihoodProtocol):
         ):
             return None
 
-        with np.errstate(divide="ignore", invalid="ignore"):
-            dh_vals = np.where(
-                np.abs(hz_vals) > 1e-12,
+        with numpy.errstate(divide="ignore", invalid="ignore"):
+            dh_vals = numpy.where(
+                numpy.abs(hz_vals) > 1e-12,
                 self._c_light_km_s / hz_vals,
-                np.nan,
+                numpy.nan,
             )
 
         if self._fallback_dv is not None:
             try:
-                dv_vals = np.asarray(
+                dv_vals = numpy.asarray(
                     self._call_with_params(
                         self._fallback_dv,
                         (self._z_values,),
@@ -398,23 +404,23 @@ class BAOLike(LikelihoodProtocol):
                 TypeError,
                 ValueError,
             ):
-                dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
+                dv_vals = numpy.full_like(dm_vals, numpy.nan, dtype=float)
             if dv_vals.shape != dm_vals.shape:
-                dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
+                dv_vals = numpy.full_like(dm_vals, numpy.nan, dtype=float)
         else:
-            dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
-            with np.errstate(divide="ignore", invalid="ignore"):
+            dv_vals = numpy.full_like(dm_vals, numpy.nan, dtype=float)
+            with numpy.errstate(divide="ignore", invalid="ignore"):
                 term = dm_vals * dm_vals
                 term *= self._z_values
                 term *= dh_vals
-            mask = np.isfinite(term) & (term >= 0.0)
-            dv_vals[mask] = np.power(term[mask], 1.0 / 3.0)
-            zero = np.isfinite(term) & (self._z_values == 0.0)
+            mask = numpy.isfinite(term) & (term >= 0.0)
+            dv_vals[mask] = numpy.power(term[mask], 1.0 / 3.0)
+            zero = numpy.isfinite(term) & (self._z_values == 0.0)
             dv_vals[zero] = 0.0
 
         if self._fallback_da is not None:
             try:
-                da_vals = np.asarray(
+                da_vals = numpy.asarray(
                     self._call_with_params(
                         self._fallback_da,
                         (self._z_values,),
@@ -432,10 +438,10 @@ class BAOLike(LikelihoodProtocol):
             ):
                 da_vals = dm_vals / (1.0 + self._z_values)
             if da_vals.shape != dm_vals.shape:
-                with np.errstate(divide="ignore", invalid="ignore"):
+                with numpy.errstate(divide="ignore", invalid="ignore"):
                     da_vals = dm_vals / (1.0 + self._z_values)
         else:
-            with np.errstate(divide="ignore", invalid="ignore"):
+            with numpy.errstate(divide="ignore", invalid="ignore"):
                 da_vals = dm_vals / (1.0 + self._z_values)
 
         return {

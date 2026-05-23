@@ -27,5 +27,18 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.get_timestamp(now=naive), "20300601_120000")
 
 
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the utility API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(callable(utils.check_dataset_id))
+        self.assertTrue(callable(utils.compute_sha256))
+        self.assertTrue(callable(utils.ensure_dir_exists))
+        self.assertTrue(callable(utils.generate_filename))
+        self.assertTrue(callable(utils.get_random_seed))
+        self.assertTrue(callable(utils.load_metadata_from_dir))
+        self.assertTrue(callable(utils.set_random_seed))
+
+
 if __name__ == "__main__":
     unittest.main()

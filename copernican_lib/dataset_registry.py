@@ -26,7 +26,7 @@ from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from typing import Any
 
-import numpy as np
+import numpy
 
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
@@ -243,8 +243,8 @@ def _file_sha256(path: str) -> str:
     """
 
     hasher = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
+    with open(path, "rb") as file_handle:
+        for chunk in iter(lambda: file_handle.read(65536), b""):
             hasher.update(chunk.replace(b"\r\n", b"\n"))
     return hasher.hexdigest()
 
@@ -489,14 +489,14 @@ def _validate_bao_covariance(dataset_df, logger):
             "falling back to diagonal errors."
         )
         return False
-    inv_arr = np.asarray(inv_cov, dtype=float)
+    inv_arr = numpy.asarray(inv_cov, dtype=float)
     try:
         if inv_arr.ndim != 2 or inv_arr.shape[0] != inv_arr.shape[1]:
             raise ValueError("matrix must be square")
-        if not np.allclose(inv_arr, inv_arr.T, atol=1e-10):
+        if not numpy.allclose(inv_arr, inv_arr.T, atol=1e-10):
             raise ValueError("matrix is not symmetric")
-        eigenvalues = np.linalg.eigvalsh(inv_arr)
-        if np.any(eigenvalues <= 0.0):
+        eigenvalues = numpy.linalg.eigvalsh(inv_arr)
+        if numpy.any(eigenvalues <= 0.0):
             raise ValueError("matrix must be positive definite")
     except ValueError as exc:
         logger.warning(
@@ -507,7 +507,7 @@ def _validate_bao_covariance(dataset_df, logger):
             exc,
         )
         return False
-    cond_number = float(np.linalg.cond(inv_arr))
+    cond_number = float(numpy.linalg.cond(inv_arr))
     dataset_df.attrs["covariance_condition_number"] = cond_number
     logger.info("BAO covariance condition number: %.3e", cond_number)
     return True
@@ -550,7 +550,9 @@ def collect_dataset_hashes(
         f"found {len(targets)} target file(s)."
     )
     hashes: dict[str, str] = {}
-    for target in sorted(targets, key=lambda p: p.as_posix()):
+    for target in sorted(
+        targets, key=lambda target_path: target_path.as_posix()
+    ):
         rel = _relative_to_dir(resolved_dir, target)
         if rel is None:
             continue

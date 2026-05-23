@@ -7,6 +7,11 @@ path, the click order and the elapsed time to produce a deterministic random
 seed. The mechanic mirrors Emoji Meteors’ determinism while rewarding a
 steadier pace.
 
+## Overview
+This title focuses on careful selection and reproducible seed generation.
+The launcher keeps the UI lightweight while still recording the exact path
+you traced across the star field.
+
 ## Controls
 
 - **Left-click** to select a star. The halo brightens to confirm the choice and

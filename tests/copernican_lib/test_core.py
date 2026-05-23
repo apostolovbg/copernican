@@ -10,8 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import camb
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 import copernican_lib.dataset_registry as dataset_registry
 import copernican_lib.engine_plugin_validation as engine_plugin_validation
@@ -86,7 +86,7 @@ class FunctionalTestCase(unittest.TestCase):
         chi2_sne = engine.chi_squared_sne(
             params, self.plugin.distance_modulus_model, sne_df
         )
-        self.assertTrue(np.isfinite(chi2_sne))
+        self.assertTrue(numpy.isfinite(chi2_sne))
 
         pred_df, rs_mpc, _ = engine.calculate_bao_observables(
             bao_df, self.plugin, params
@@ -106,14 +106,14 @@ class FunctionalTestCase(unittest.TestCase):
             rs_mpc,
             covariance_matrix_inv=cov_inv,
         )
-        self.assertTrue(np.isfinite(chi2_bao))
+        self.assertTrue(numpy.isfinite(chi2_bao))
 
         camb_params = self.plugin.get_camb_params(params)
         chi2_cmb = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         spec = engine.compute_cmb_spectrum(
             camb_params, cmb_df["ell"].values, spectra=("TT", "TE", "EE")
         )
-        self.assertTrue(np.isfinite(chi2_cmb))
+        self.assertTrue(numpy.isfinite(chi2_cmb))
         self.assertIn("TT", spec)
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
@@ -137,7 +137,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertIn("samples", result)
         self.assertIn("chi2_total", result)
-        self.assertTrue(np.isfinite(result["chi2_total"]))
+        self.assertTrue(numpy.isfinite(result["chi2_total"]))
         components = result.get("chi2_components", {})
         self.assertAlmostEqual(
             result["chi2_total"], sum(components.values()), places=7
@@ -158,25 +158,27 @@ class FunctionalTestCase(unittest.TestCase):
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
-        self.assertTrue(np.isfinite(chi2))
+        self.assertTrue(numpy.isfinite(chi2))
 
     def test_chi_squared_sne_invalid_data(self):
         """chi_squared_sne should return inf when data is invalid."""
-        bad_df = pd.DataFrame(
+        bad_df = pandas.DataFrame(
             {
-                "zcmb": [0.1, np.nan],
+                "zcmb": [0.1, numpy.nan],
                 "mu_obs": [33.1, 34.5],
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        with self.assertLogs(level="ERROR") as cm:
+        with self.assertLogs(level="ERROR") as captured_logs:
             chi2 = engine.chi_squared_sne(
                 self.plugin.INITIAL_GUESSES,
                 self.plugin.distance_modulus_model,
                 bad_df,
             )
-        self.assertTrue(np.isinf(chi2))
-        self.assertIn("non-finite zcmb or mu_obs", "".join(cm.output))
+        self.assertTrue(numpy.isinf(chi2))
+        self.assertIn(
+            "non-finite zcmb or mu_obs", "".join(captured_logs.output)
+        )
 
     def test_cmb_spectrum_is_d_ell(self):
         """Ensure cached CAMB spectra match Dl convention."""
@@ -192,12 +194,12 @@ class FunctionalTestCase(unittest.TestCase):
         # cached spectra.  Calling the internal builder keeps the functional
         # regression aligned with whichever optional neutrino knobs the plugin
         # exposes.
-        params = cmb._make_camb_params(camb_params, lmax=int(np.max(ells)))
+        params = cmb._make_camb_params(camb_params, lmax=int(numpy.max(ells)))
         params.InitPower.set_params(As=camb_params["As"], ns=camb_params["ns"])
         ref = camb.get_results(params).get_unlensed_scalar_cls(
-            lmax=int(np.max(ells)), CMB_unit="muK"
+            lmax=int(numpy.max(ells)), CMB_unit="muK"
         )
-        np.testing.assert_allclose(result, ref[:, 0][ells], rtol=1e-7)
+        numpy.testing.assert_allclose(result, ref[:, 0][ells], rtol=1e-7)
 
     def test_engine_metadata_constants(self):
         """Expose human-readable descriptors for UI logging."""

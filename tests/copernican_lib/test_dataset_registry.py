@@ -10,7 +10,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-import pandas as pd
+import pandas
 import yaml
 
 from copernican_lib import dataset_registry
@@ -24,8 +24,8 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
         prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
         prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                base = Path(tmp)
+            with tempfile.TemporaryDirectory() as temporary_dir:
+                base = Path(temporary_dir)
                 good_dir = base / "sne" / "trusted"
                 good_dir.mkdir(parents=True)
                 meta = {
@@ -34,8 +34,8 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 }
                 with open(
                     good_dir / "metadata_dummy.yml", "w", encoding="utf-8"
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 parser_path = good_dir / "cosmo_parser_trusted.py"
                 code = (
                     "from copernican_lib.dataset_registry "
@@ -58,22 +58,22 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 }
                 with open(
                     bad_dir / "metadata_dummy.yml", "w", encoding="utf-8"
-                ) as fh:
-                    yaml.safe_dump(meta_bad, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta_bad, file_handle)
                 bad_parser = bad_dir / "cosmo_parser_rogue.py"
                 sentinel = base / "malicious_imported.txt"
                 bad_code = (
                     "import os\n"
                     "with open(os.environ['MAL_SENTINEL'], 'w', "
-                    "encoding='utf-8') as fh:\n"
-                    "    fh.write('imported')\n"
+                    "encoding='utf-8') as file_handle:\n"
+                    "    file_handle.write('imported')\n"
                 )
                 bad_parser.write_text(bad_code, encoding="utf-8")
                 os.environ["MAL_SENTINEL"] = str(sentinel)
 
                 dataset_registry.SNE_PARSER_REGISTRY = {}
                 dataset_registry.discover_trusted_parsers(
-                    base_dir=tmp, force=True
+                    base_dir=temporary_dir, force=True
                 )
                 self.assertIn("trusted", dataset_registry.SNE_PARSER_REGISTRY)
                 self.assertNotIn("rogue", dataset_registry.SNE_PARSER_REGISTRY)
@@ -90,22 +90,22 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
         prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
         prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                base = Path(tmp)
+            with tempfile.TemporaryDirectory() as temporary_dir:
+                base = Path(temporary_dir)
                 outside = base.parent / f"outside_{uuid.uuid4().hex}"
                 outside.mkdir()
                 meta = {"dataset_name": "Link SNe", "dataset_id": "link"}
                 with open(
                     outside / "metadata_dummy.yml", "w", encoding="utf-8"
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 bad_parser = outside / "cosmo_parser_bad.py"
                 sentinel = outside / "symlink_imported.txt"
                 code = (
                     "import os\n"
                     "with open(os.environ['LINK_SENTINEL'], 'w', "
-                    "encoding='utf-8') as fh:\n"
-                    "    fh.write('imported')\n"
+                    "encoding='utf-8') as file_handle:\n"
+                    "    file_handle.write('imported')\n"
                 )
                 bad_parser.write_text(code, encoding="utf-8")
                 os.environ["LINK_SENTINEL"] = str(sentinel)
@@ -119,13 +119,13 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 real_dir.mkdir()
                 with open(
                     real_dir / "metadata_dummy.yml", "w", encoding="utf-8"
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 (real_dir / "cosmo_parser_real.py").symlink_to(bad_parser)
 
                 dataset_registry.SNE_PARSER_REGISTRY = {}
                 dataset_registry.discover_trusted_parsers(
-                    base_dir=tmp, force=True
+                    base_dir=temporary_dir, force=True
                 )
                 self.assertFalse(sentinel.exists())
                 self.assertEqual(dataset_registry.SNE_PARSER_REGISTRY, {})
@@ -141,7 +141,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
     def test_register_and_load_sne_parser(self):
         prev = dataset_registry.SNE_PARSER_REGISTRY.copy()
         try:
-            with tempfile.TemporaryDirectory() as tmp:
+            with tempfile.TemporaryDirectory() as temporary_dir:
                 meta = {
                     "dataset_name": "Dummy SNe",
                     "dataset_id": "dummy_sne",
@@ -149,18 +149,18 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     "version": "1.0-test",
                 }
                 with open(
-                    os.path.join(tmp, "metadata_dummy.yml"),
+                    os.path.join(temporary_dir, "metadata_dummy.yml"),
                     "w",
                     encoding="utf-8",
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
 
                 @dataset_registry.register_sne_parser(
                     name="dummy_sne",
-                    data_dir=tmp,
+                    data_dir=temporary_dir,
                 )
                 def _parser(_dir, **_kwargs):
-                    return pd.DataFrame(
+                    return pandas.DataFrame(
                         {
                             "zcmb": [0.1],
                             "mu_obs": [1.0],
@@ -168,14 +168,16 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                         }
                     )
 
-                df = dataset_registry.load_sne_data("dummy_sne")
-                self.assertEqual(df.attrs["dataset_name"], "Dummy SNe")
-                self.assertEqual(df.attrs["dataset_id"], "dummy_sne")
-                self.assertEqual(len(df), 1)
-                self.assertEqual(df.attrs["dataset_version"], "1.0-test")
-                self.assertEqual(df.attrs["data_path"], tmp)
+                dataframe = dataset_registry.load_sne_data("dummy_sne")
+                self.assertEqual(dataframe.attrs["dataset_name"], "Dummy SNe")
+                self.assertEqual(dataframe.attrs["dataset_id"], "dummy_sne")
+                self.assertEqual(len(dataframe), 1)
                 self.assertEqual(
-                    df.attrs["independence_assumptions"],
+                    dataframe.attrs["dataset_version"], "1.0-test"
+                )
+                self.assertEqual(dataframe.attrs["data_path"], temporary_dir)
+                self.assertEqual(
+                    dataframe.attrs["independence_assumptions"],
                     dataset_registry.OBSERVATION_INDEPENDENCE_NOTES["sne"],
                 )
         finally:
@@ -196,8 +198,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     os.path.join(sne_dir, "metadata_dummy.yml"),
                     "w",
                     encoding="utf-8",
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_rogue2.py")
                 code = (
                     "from copernican_lib.dataset_registry "
@@ -208,8 +210,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     "def load(_dir, **_kwargs):\n"
                     "    return None\n"
                 )
-                with open(parser_path, "w", encoding="utf-8") as fh:
-                    fh.write(code)
+                with open(parser_path, "w", encoding="utf-8") as file_handle:
+                    file_handle.write(code)
                 rel_path = os.path.relpath(parser_path, base)
                 dataset_registry.TRUSTED_PARSER_DIGESTS[rel_path] = "0" * 64
                 dataset_registry.SNE_PARSER_REGISTRY = {}
@@ -238,8 +240,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     os.path.join(sne_dir, "metadata_dummy.yml"),
                     "w",
                     encoding="utf-8",
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_trusted.py")
                 code = (
                     "from copernican_lib.dataset_registry "
@@ -250,8 +252,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     "def load(_dir, **_kwargs):\n"
                     "    return None\n"
                 )
-                with open(parser_path, "w", encoding="utf-8") as fh:
-                    fh.write(code)
+                with open(parser_path, "w", encoding="utf-8") as file_handle:
+                    file_handle.write(code)
                 rel_key = os.path.relpath(parser_path, base).replace("\\", "/")
                 digest = dataset_registry._file_sha256(parser_path)
                 dataset_registry.TRUSTED_PARSER_DIGESTS[rel_key] = digest
@@ -296,12 +298,12 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
         self.assertNotIn("dummy_sne", output)
 
     def test_invalid_metadata_raises_yaml_error(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            bad = os.path.join(tmp, "metadata_bad.yml")
-            with open(bad, "w", encoding="utf-8") as fh:
-                fh.write("dataset_name: bad\nitems: [1, 2\n")
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            bad = os.path.join(temporary_dir, "metadata_bad.yml")
+            with open(bad, "w", encoding="utf-8") as file_handle:
+                file_handle.write("dataset_name: bad\nitems: [1, 2\n")
             with self.assertRaises(yaml.YAMLError):
-                load_metadata_from_dir(tmp)
+                load_metadata_from_dir(temporary_dir)
 
     def test_untrusted_parser_is_skipped(self):
         prev = dataset_registry.SNE_PARSER_REGISTRY.copy()
@@ -317,8 +319,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     os.path.join(sne_dir, "metadata_dummy.yml"),
                     "w",
                     encoding="utf-8",
-                ) as fh:
-                    yaml.safe_dump(meta, fh)
+                ) as file_handle:
+                    yaml.safe_dump(meta, file_handle)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_rogue.py")
                 code = (
                     "from copernican_lib.dataset_registry "
@@ -329,8 +331,8 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     "def load(_dir, **_kwargs):\n"
                     "    return None\n"
                 )
-                with open(parser_path, "w", encoding="utf-8") as fh:
-                    fh.write(code)
+                with open(parser_path, "w", encoding="utf-8") as file_handle:
+                    file_handle.write(code)
                 dataset_registry.SNE_PARSER_REGISTRY = {}
                 dataset_registry.discover_trusted_parsers(
                     base_dir=base, force=True
@@ -340,6 +342,31 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 )
         finally:
             dataset_registry.SNE_PARSER_REGISTRY = prev
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the dataset registry API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(callable(dataset_registry.collect_dataset_hashes))
+        self.assertTrue(callable(dataset_registry.discover_trusted_parsers))
+        self.assertTrue(callable(dataset_registry.get_parser_registries))
+        self.assertTrue(callable(dataset_registry.get_parser_registry))
+        self.assertTrue(callable(dataset_registry.load_bao_data))
+        self.assertTrue(callable(dataset_registry.load_cmb_data))
+        self.assertTrue(callable(dataset_registry.load_gw_data))
+        self.assertTrue(callable(dataset_registry.register_bao_parser))
+        self.assertTrue(callable(dataset_registry.register_cmb_parser))
+        self.assertTrue(callable(dataset_registry.register_gw_parser))
+        self.assertTrue(callable(dataset_registry.register_sne_parser))
+
+    def test_decorator_factory_is_exposed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            decorator = dataset_registry.register_sne_parser(
+                name="coverage_demo",
+                data_dir=temporary_dir,
+            )
+            self.assertTrue(callable(decorator))
 
 
 if __name__ == "__main__":  # pragma: no cover

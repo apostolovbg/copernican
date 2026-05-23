@@ -7,12 +7,13 @@ prevents GUI failures during post-processing.
 
 from __future__ import annotations
 
+import inspect
 import tkinter
 import types
 import unittest
 from typing import Any
 
-import numpy as np
+import numpy
 import pytest
 
 from copernican_lib import plotter
@@ -175,16 +176,16 @@ def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:
         chi2_total=None,
     )
 
-    self.assertIn("$\\chi^2_{tot}$ = N/A", summary)
-    self.assertIn("$\\chi^2_{CMB}$ = N/A", summary)
+    self.assertIn(r"$\chi^2_{tot}$ = N/A", summary)
+    self.assertIn(r"$\chi^2_{CMB}$ = N/A", summary)
 
 
 def _case_format_model_summary_text_numeric_rendering(self) -> None:
     """Verify numeric chi-squared statistics include two decimal places."""
 
     for value, expected_fragment in (
-        (42.0, "$\\chi^2_{SNe}$ = 42.00"),
-        (float("nan"), "$\\chi^2_{SNe}$ = N/A"),
+        (42.0, r"$\chi^2_{SNe}$ = 42.00"),
+        (float("nan"), r"$\chi^2_{SNe}$ = N/A"),
     ):
         with self.subTest(value=value):
             fit_results = {
@@ -202,9 +203,9 @@ def _case_format_model_summary_text_numeric_rendering(self) -> None:
 
             self.assertIn(expected_fragment, summary)
             if expected_fragment.endswith("N/A"):
-                self.assertIn("$\\chi^2_{tot}$ = N/A", summary)
+                self.assertIn(r"$\chi^2_{tot}$ = N/A", summary)
             else:
-                self.assertIn("$\\chi^2_{tot}$ = 42.00", summary)
+                self.assertIn(r"$\chi^2_{tot}$ = 42.00", summary)
 
 
 def _case_plot_corner_renders_expected_file(
@@ -214,9 +215,9 @@ def _case_plot_corner_renders_expected_file(
     """Ensure the new corner plot helper writes a PNG with suite styling."""
 
     tmp_path = _tmp_path_or_default(tmp_path)
-    samples = np.zeros((10, 4, 3))
-    samples[:, :, 0] = np.linspace(0.0, 1.0, 10)[:, None]
-    samples[:, :, 1] = np.linspace(-1.0, 1.0, 10)[:, None]
+    samples = numpy.zeros((10, 4, 3))
+    samples[:, :, 0] = numpy.linspace(0.0, 1.0, 10)[:, None]
+    samples[:, :, 1] = numpy.linspace(-1.0, 1.0, 10)[:, None]
     samples[:, :, 2] = 0.5
 
     attrs = {
@@ -252,7 +253,7 @@ def _case_plot_parameter_histograms_renders_expected_file(
     """Ensure the parameter histogram helper writes a PNG summary."""
 
     tmp_path = _tmp_path_or_default(tmp_path)
-    rng = np.random.default_rng(8)
+    rng = numpy.random.default_rng(8)
     samples = rng.normal(size=(10, 2, 3))
 
     attrs = {
@@ -293,7 +294,7 @@ def _case_plot_corner_scales_layout_with_dimension(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(4)
+    rng = numpy.random.default_rng(4)
     small_samples = rng.normal(size=(6, 2, 2))
     large_samples = rng.normal(size=(6, 2, 6))
 
@@ -450,7 +451,7 @@ def _case_plot_corner_scales_layout_with_dimension(
         panel_width = side_length / float(n_params)
         scale = max(panel_width / base_panel_width, 0.55)
         shrink_penalty = max(0.0, 1.0 - min(scale, 1.0))
-        expected_top = np.clip(
+        expected_top = numpy.clip(
             0.93 + 0.008 * shrink_penalty,
             0.91,
             0.945,
@@ -470,7 +471,7 @@ def _case_plot_corner_positions_title_and_footer(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(2)
+    rng = numpy.random.default_rng(2)
     samples = rng.normal(size=(12, 2, 3))
 
     attrs = {
@@ -601,7 +602,7 @@ def _case_plot_corner_downsamples_large_chains(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(0)
+    rng = numpy.random.default_rng(0)
     samples = rng.normal(size=(200, 10, 3))
 
     attrs = {
@@ -615,8 +616,8 @@ def _case_plot_corner_downsamples_large_chains(
     original_validator = plotter._prepare_corner_inputs
 
     def _recording_validator(
-        posterior_samples: np.ndarray, parameter_names: list[str]
-    ) -> tuple[np.ndarray, list[str], dict[str, int | bool]]:
+        posterior_samples: numpy.ndarray, parameter_names: list[str]
+    ) -> tuple[numpy.ndarray, list[str], dict[str, int | bool]]:
         processed, labels, stats = original_validator(
             posterior_samples,
             parameter_names,
@@ -671,7 +672,7 @@ def _case_plot_corner_falls_back_to_agg_backend(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(3)
+    rng = numpy.random.default_rng(3)
     samples = rng.normal(size=(10, 2, 2))
 
     attrs = {
@@ -723,7 +724,7 @@ def _case_plot_corner_handles_legacy_validator_signature(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(42)
+    rng = numpy.random.default_rng(42)
     samples = rng.normal(size=(5, 2, 2))
 
     attrs = {
@@ -734,11 +735,11 @@ def _case_plot_corner_handles_legacy_validator_signature(
     }
 
     def _legacy_validator(
-        posterior_samples: np.ndarray, parameter_names: list[str]
-    ) -> tuple[np.ndarray, list[str]]:
+        posterior_samples: numpy.ndarray, parameter_names: list[str]
+    ) -> tuple[numpy.ndarray, list[str]]:
         """Mimic the pre-7.4 signature returning only flattened data."""
 
-        flattened = np.asarray(posterior_samples).reshape(
+        flattened = numpy.asarray(posterior_samples).reshape(
             -1, posterior_samples.shape[-1]
         )
         return flattened, parameter_names[: flattened.shape[1]]
@@ -767,7 +768,7 @@ def _case_plot_corner_handles_legacy_validator_signature(
 def _case_density_levels_are_strictly_increasing(self) -> None:
     """Ensure contour thresholds never repeat when histogram bins coincide."""
 
-    hist = np.full((2, 2), 0.25)
+    hist = numpy.full((2, 2), 0.25)
     levels = plotter._density_levels(hist, (0.5, 0.9))
     self.assertLess(levels[0], levels[1])
 
@@ -775,11 +776,11 @@ def _case_density_levels_are_strictly_increasing(self) -> None:
 def _case_build_contour_levels_produce_increasing_sequences(self) -> None:
     """Even plateaued histograms should yield strictly increasing levels."""
 
-    hist = np.array([[0.4, 0.4], [0.4, 0.1]])
+    hist = numpy.array([[0.4, 0.4], [0.4, 0.1]])
     filled, lines = plotter._build_contour_levels(hist, (0.68, 0.95))
 
-    self.assertTrue(np.all(np.diff(filled) > 0.0))
-    self.assertTrue(np.all(np.diff(lines) > 0.0))
+    self.assertTrue(numpy.all(numpy.diff(filled) > 0.0))
+    self.assertTrue(numpy.all(numpy.diff(lines) > 0.0))
     self.assertTrue(filled[0] == pytest.approx(0.0))
 
 
@@ -795,7 +796,7 @@ def _case_plot_corner_omits_dataset_metadata_from_footer(
         monkeypatch = pytest.MonkeyPatch()
         self.addCleanup(monkeypatch.undo)
 
-    rng = np.random.default_rng(7)
+    rng = numpy.random.default_rng(7)
     samples = rng.normal(size=(20, 3, 3))
 
     attrs = {
@@ -882,3 +883,21 @@ def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
     self.assertNotIn("Corner validation stub", "\n".join(footer_text))
     generation_line = "Corner plot generation: 12 samples used"
     self.assertEqual(footer_text.count(generation_line), 1)
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the plotter API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        source = inspect.getsource(plotter.plot_bao_observables)
+        self.assertTrue(callable(plotter.build_footer_lines))
+        self.assertTrue(callable(plotter.compose_footer))
+        self.assertTrue(callable(plotter.format_model_summary_text))
+        self.assertTrue(callable(plotter.get_binned_average))
+        self.assertTrue(callable(plotter.plot_bao_observables))
+        self.assertTrue(callable(plotter.plot_cmb_spectrum))
+        self.assertTrue(callable(plotter.plot_corner))
+        self.assertTrue(callable(plotter.plot_hubble_diagram))
+        self.assertTrue(callable(plotter.plot_parameter_histograms))
+        self.assertIn("def plot_model_bao(", source)
+        self.assertIn("def robust_plot(", source)

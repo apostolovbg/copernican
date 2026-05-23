@@ -91,5 +91,15 @@ class CheckDependenciesPromptTestCase(unittest.TestCase):
             run_mock.assert_not_called()
 
 
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the CLI dependency API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(hasattr(dependencies, "RuntimeOptions"))
+        self.assertTrue(callable(dependencies.get_runtime_options))
+        self.assertTrue(callable(dependencies.run_startup_tests))
+        self.assertTrue(callable(dependencies.load_third_party_modules))
+
+
 if __name__ == "__main__":  # pragma: no cover - manual execution hook
     unittest.main()

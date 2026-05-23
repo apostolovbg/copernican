@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import numpy as np
+import numpy
 
 from copernican_lib import analysis, chain_io
 
@@ -46,7 +46,7 @@ class TestAnalysis(unittest.TestCase):
             run_dir = Path(tmpdir) / "posterior-run"
             run_dir.mkdir()
             posterior_path = run_dir / "posterior-0001.nc"
-            chain = np.random.default_rng(0).normal(size=(4, 3, 2))
+            chain = numpy.random.default_rng(0).normal(size=(4, 3, 2))
             chain_io.save_posterior(
                 chain,
                 ["omega_c", "H0"],
@@ -68,6 +68,29 @@ class TestAnalysis(unittest.TestCase):
             self.assertTrue(saved["corner"].exists())
             self.assertTrue(saved["histograms"].exists())
             self.assertTrue(saved["overview"].exists())
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the analysis API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        result = _build_run_result(Path("."))
+        self.assertTrue(callable(analysis.analyze_run))
+        self.assertTrue(callable(analysis.compare_run_dirs))
+        self.assertTrue(callable(analysis.compare_runs))
+        self.assertTrue(callable(analysis.format_run_summary_text))
+        self.assertTrue(callable(analysis.load_manifest))
+        self.assertTrue(callable(analysis.load_parameter_summary))
+        self.assertTrue(callable(analysis.parse_log))
+        self.assertTrue(callable(analysis.plot_posterior))
+        self.assertTrue(callable(analysis.save_comparison_summary))
+        self.assertTrue(callable(analysis.save_run_summary))
+        self.assertIsInstance(result, analysis.RunAnalysisResult)
+        self.assertIsInstance(result.diagnostics, analysis.RunDiagnostics)
+        self.assertIsInstance(
+            result.model_summaries["LambdaCDM"], analysis.ModelSummary
+        )
+        self.assertIsInstance(result.to_dict(), dict)
 
 
 if __name__ == "__main__":

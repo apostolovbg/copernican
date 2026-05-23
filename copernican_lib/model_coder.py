@@ -19,8 +19,8 @@ import sys
 import warnings
 from pathlib import Path
 
-import numpy as np
-import sympy as sp
+import numpy
+import sympy
 import yaml
 from scipy.integrate import IntegrationWarning, cumulative_trapezoid
 from scipy.integrate import quad as _SCIPY_QUAD
@@ -145,20 +145,20 @@ class _GeneratedCallable:
         """Construct and register the underlying Python callable."""
 
         if sym_expr is None:
-            sym_expr = sp.sympify(self._state["expr_repr"], evaluate=False)
-        args = tuple(sp.symbols(name) for name in self._state["arg_names"])
+            sym_expr = sympy.sympify(self._state["expr_repr"], evaluate=False)
+        args = tuple(sympy.symbols(name) for name in self._state["arg_names"])
 
         if self._state["has_integral"]:
             printer = QuadPrinter({"strict": False})
             code = printer.doprint(sym_expr)
             func_name = "_generated_func"
-            args_str = ", ".join(str(a) for a in args)
+            args_str = ", ".join(str(argument) for argument in args)
             src = f"def {func_name}({args_str}):\n    return {code}"
             module = ast.parse(src, mode="exec")
             compiled = compile(module, filename="<model>", mode="exec")
             env = {
-                "np": np,
-                "numpy": np,
+                "np": numpy,
+                "numpy": numpy,
                 # ``quad`` is mapped to the resilient helper so that
                 # generated callables automatically inherit the retry
                 # logic that guards against SciPy ``IntegrationWarning``
@@ -172,7 +172,7 @@ class _GeneratedCallable:
             exec(compiled, env)  # nosec B102 - validated generated code.
             generated = env[func_name]
         else:
-            generated = sp.lambdify(
+            generated = sympy.lambdify(
                 args,
                 sym_expr,
                 [{"__builtins__": {}}, "numpy"],
@@ -230,7 +230,7 @@ class _ComovingDistance:
             """Return ``c/H(redshift_for_integrand)`` for the integrator."""
             return 299792.458 / self._hz_fn(redshift_for_integrand, *params)
 
-        if np.isscalar(redshift_input):
+        if numpy.isscalar(redshift_input):
             # The adaptive quad helper raises the subdivision ceiling
             # automatically so sharply varying integrands—common in the
             # suite's experimental models—do not terminate with a SciPy
@@ -242,17 +242,17 @@ class _ComovingDistance:
                 limit=_DEFAULT_QUAD_LIMIT,
             )[0]
 
-        redshift_array = np.asarray(redshift_input, dtype=float)
-        redshift_flat = np.ravel(redshift_array)
+        redshift_array = numpy.asarray(redshift_input, dtype=float)
+        redshift_flat = numpy.ravel(redshift_array)
         if redshift_flat.size == 0:
-            return np.asarray(redshift_array, dtype=float)
-        sorted_redshifts = np.sort(redshift_flat)
+            return numpy.asarray(redshift_array, dtype=float)
+        sorted_redshifts = numpy.sort(redshift_flat)
         n_grid = max(2000, len(sorted_redshifts) * 4)
-        grid = np.linspace(0.0, sorted_redshifts[-1], n_grid)
+        grid = numpy.linspace(0.0, sorted_redshifts[-1], n_grid)
         integrand_vals = integrand(grid)
         cumulative = cumulative_trapezoid(integrand_vals, grid, initial=0.0)
-        interp = np.interp(redshift_flat, grid, cumulative)
-        return np.reshape(interp, np.shape(redshift_input))
+        interp = numpy.interp(redshift_flat, grid, cumulative)
+        return numpy.reshape(interp, numpy.shape(redshift_input))
 
 
 class _LuminosityDistance:
@@ -301,16 +301,16 @@ class _VolumeAveragedDistance:
             comoving_distance**2 * 299792.458 * redshift_value / hubble_value
         )
 
-        if np.isscalar(redshift_value):
+        if numpy.isscalar(redshift_value):
             if redshift_value > 0 and hubble_value != 0:
-                return dv_term ** (1 / 3) if dv_term >= 0 else np.nan
+                return dv_term ** (1 / 3) if dv_term >= 0 else numpy.nan
             return 0.0
 
-        result = np.zeros_like(redshift_value, dtype=float)
+        result = numpy.zeros_like(redshift_value, dtype=float)
         mask = (redshift_value > 0) & (hubble_value != 0)
         term_arr = dv_term[mask]
-        result[mask] = np.where(
-            term_arr >= 0, np.power(term_arr, 1 / 3), np.nan
+        result[mask] = numpy.where(
+            term_arr >= 0, numpy.power(term_arr, 1 / 3), numpy.nan
         )
         return result
 
@@ -366,10 +366,10 @@ class _DistanceModulusFromLuminosity:
     def __call__(self, redshift_value, *params):
         """Translate luminosity distances to distance moduli."""
         luminosity_distance = self._luminosity_fn(redshift_value, *params)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            distance_modulus = 5.0 * np.log10(luminosity_distance) + 25.0
-        return np.where(
-            np.asarray(luminosity_distance) > 0, distance_modulus, np.nan
+        with numpy.errstate(divide="ignore", invalid="ignore"):
+            distance_modulus = 5.0 * numpy.log10(luminosity_distance) + 25.0
+        return numpy.where(
+            numpy.asarray(luminosity_distance) > 0, distance_modulus, numpy.nan
         )
 
 
@@ -659,7 +659,7 @@ def _robust_quad_core(
         stop = float(upper_bound)
         segment_count = _MIN_SEGMENT_COUNT
         while segment_count <= _MAX_SEGMENT_COUNT:
-            edges = np.linspace(start, stop, segment_count + 1, dtype=float)
+            edges = numpy.linspace(start, stop, segment_count + 1, dtype=float)
             total = 0.0
             total_err = 0.0
             try:
@@ -667,9 +667,9 @@ def _robust_quad_core(
                     warnings.simplefilter("error", IntegrationWarning)
                     for left, right in zip(edges[:-1], edges[1:]):
                         sub_points = tuple(
-                            p
-                            for p in points
-                            if min(left, right) < p < max(left, right)
+                            point
+                            for point in points
+                            if min(left, right) < point < max(left, right)
                         )
                         partial, err = _call_quad(
                             left,
@@ -741,9 +741,9 @@ def _handle_infinite_interval(
 
     relevant_points = tuple(
         sorted(
-            p
-            for p in points
-            if _point_in_interval(p, lower_bound, upper_bound)
+            point
+            for point in points
+            if _point_in_interval(point, lower_bound, upper_bound)
         )
     )
 
@@ -760,7 +760,9 @@ def _handle_infinite_interval(
     total_err = 0.0
     for left, right in zip(boundaries[:-1], boundaries[1:]):
         segment_points = tuple(
-            p for p in relevant_points if _point_in_interval(p, left, right)
+            point
+            for point in relevant_points
+            if _point_in_interval(point, left, right)
         )
         partial, err = _integrate_infinite_segment(
             func,
@@ -826,9 +828,9 @@ def _integrate_infinite_segment(
             interval."""
             t_safe = float(logistic_param)
             if t_safe <= 0.0:
-                t_safe = float(np.nextafter(0.0, 1.0))
+                t_safe = float(numpy.nextafter(0.0, 1.0))
             if t_safe >= 1.0:
-                t_safe = float(np.nextafter(1.0, 0.0))
+                t_safe = float(numpy.nextafter(1.0, 0.0))
             original_value = finite_upper - (1.0 - t_safe) / t_safe
             return func(original_value, *forwarded_args) * (1.0 / (t_safe**2))
 
@@ -853,9 +855,9 @@ def _integrate_infinite_segment(
             interval."""
             t_safe = float(logistic_param)
             if t_safe <= 0.0:
-                t_safe = float(np.nextafter(0.0, 1.0))
+                t_safe = float(numpy.nextafter(0.0, 1.0))
             if t_safe >= 1.0:
-                t_safe = float(np.nextafter(1.0, 0.0))
+                t_safe = float(numpy.nextafter(1.0, 0.0))
             original_value = finite_lower + t_safe / (1.0 - t_safe)
             return func(original_value, *forwarded_args) * (
                 1.0 / (1.0 - t_safe) ** 2
@@ -891,10 +893,10 @@ def _latex_to_sympy_str(expr: str) -> str:
 
 
 _SAFE_GLOBALS = {"__builtins__": {}}
-_SAFE_GLOBALS.update({name: getattr(sp, name) for name in sp.__all__})
+_SAFE_GLOBALS.update({name: getattr(sympy, name) for name in sympy.__all__})
 
 
-def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
+def _safe_parse_expr(expr_str: str, local_dict: dict) -> sympy.Expr:
     """Safely parse ``expr_str`` into a SymPy expression.
 
     The parser runs with an empty ``__builtins__`` dict so that tokens like
@@ -926,9 +928,9 @@ def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
     function names were assigned dynamically.
     """
 
-    has_integral = bool(sym_expr.atoms(sp.Integral))
-    arg_names = tuple(str(a) for a in args)
-    expr_repr = sp.srepr(sym_expr)
+    has_integral = bool(sym_expr.atoms(sympy.Integral))
+    arg_names = tuple(str(argument) for argument in args)
+    expr_repr = sympy.srepr(sym_expr)
     return _GeneratedCallable(
         expr_repr=expr_repr,
         arg_names=arg_names,
@@ -968,18 +970,19 @@ def generate_callables(cache_path):
 
     logger = logging.getLogger()
 
-    z = sp.symbols("z")
+    z = sympy.symbols("z")
     param_syms = [
-        sp.symbols(p["python_var"]) for p in model_data["parameters"]
+        sympy.symbols(parameter["python_var"])
+        for parameter in model_data["parameters"]
     ]
     local_dict = {
-        p["python_var"]: sym
-        for p, sym in zip(model_data["parameters"], param_syms)
+        parameter["python_var"]: sym
+        for parameter, sym in zip(model_data["parameters"], param_syms)
     }
     local_dict["z"] = z
     # Allow YAML equations to reference the full 'sympy' prefix
     # as well as shorthand
-    local_dict["sympy"] = sp
+    local_dict["sympy"] = sympy
 
     funcs = {}
     code_dict = {}
@@ -989,8 +992,13 @@ def generate_callables(cache_path):
         try:
             parsed_hz = _latex_to_sympy_str(hz_expr_str)
             hz_sym = _safe_parse_expr(parsed_hz, local_dict)
-            used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
-            param_names = {p["python_var"] for p in model_data["parameters"]}
+            used_syms = {
+                str(symbol) for symbol in hz_sym.free_symbols if symbol != z
+            }
+            param_names = {
+                parameter["python_var"]
+                for parameter in model_data["parameters"]
+            }
             missing = used_syms - param_names
             if missing:
                 missing_str = "', '".join(missing)
@@ -1040,13 +1048,18 @@ def generate_callables(cache_path):
 
             # --- Derive sound horizon at recombination (r_s) ---
             rs_expr_str = model_data.get("rs_expression")
-            param_names = {p["python_var"] for p in model_data["parameters"]}
+            param_names = {
+                parameter["python_var"]
+                for parameter in model_data["parameters"]
+            }
 
             if rs_expr_str:
                 try:
                     parsed_rs = _latex_to_sympy_str(rs_expr_str)
                     rs_sym = _safe_parse_expr(parsed_rs, local_dict)
-                    used = {str(s) for s in rs_sym.free_symbols} - {"z"}
+                    used = {str(symbol) for symbol in rs_sym.free_symbols} - {
+                        "z"
+                    }
                     missing_rs = used - param_names
                     if missing_rs:
                         missing_str = "', '".join(missing_rs)
@@ -1138,7 +1151,8 @@ def generate_callables(cache_path):
             # Quick sanity evaluation using midpoints of parameter bounds
             try:
                 mid_params = tuple(
-                    sum(p["bounds"]) / 2.0 for p in model_data["parameters"]
+                    sum(parameter["bounds"]) / 2.0
+                    for parameter in model_data["parameters"]
                 )
                 test_args = (0.5,) + mid_params
                 compiled_callable(*test_args)

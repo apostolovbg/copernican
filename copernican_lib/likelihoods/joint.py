@@ -31,7 +31,9 @@ class JointLike(LikelihoodProtocol):
     def __post_init__(self) -> None:
         """Apply configuration toggles to component enabled flags."""
 
-        toggles = {key: bool(val) for key, val in (self.config or {}).items()}
+        toggles = {
+            key: bool(value) for key, value in (self.config or {}).items()
+        }
         for name, component in self.components.items():
             if name in toggles:
                 component.enabled = component.enabled and toggles[name]

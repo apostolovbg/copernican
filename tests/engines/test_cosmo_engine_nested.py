@@ -8,8 +8,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import pandas as pd
-import xarray as xr
+import pandas
+import xarray as xarray_dataset
 
 from copernican_lib import (
     chain_io,
@@ -80,7 +80,7 @@ class TestCosmoEngineNested(unittest.TestCase):
 
     def test_fit_produces_weighted_samples(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
                 "mu_obs": [40.0, 41.0, 42.0],
@@ -118,7 +118,7 @@ class TestCosmoEngineNested(unittest.TestCase):
 
     def test_chain_serialisation_to_netcdf(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -140,16 +140,18 @@ class TestCosmoEngineNested(unittest.TestCase):
                 metadata={"model": plugin.MODEL_NAME},
             )
             try:
-                ds = xr.open_dataset(path, group="posterior")
+                dataset_reader = xarray_dataset.open_dataset(
+                    path, group="posterior"
+                )
             except ValueError:
-                ds = xr.open_dataset(path)
-            with ds:
+                dataset_reader = xarray_dataset.open_dataset(path)
+            with dataset_reader:
                 for name in plugin.PARAMETER_NAMES:
-                    self.assertIn(name, ds.data_vars)
+                    self.assertIn(name, dataset_reader.data_vars)
 
     def test_legacy_alias_warns_and_runs(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
                 "mu_obs": [40.0, 41.0],
@@ -199,7 +201,7 @@ class TestCosmoEngineNested(unittest.TestCase):
     @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
     def test_progress_bar_initialises_and_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
                 "mu_obs": [40.0, 41.0, 42.0],
@@ -236,7 +238,7 @@ class TestCosmoEngineNested(unittest.TestCase):
     @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
     def test_progress_bar_finishes_on_exception(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
-        sne_df = pd.DataFrame(
+        sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
                 "mu_obs": [40.0, 41.0, 42.0],

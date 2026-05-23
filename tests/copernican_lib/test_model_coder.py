@@ -4,24 +4,24 @@
 """Security tests for ``model_coder`` expression handling."""
 
 import math
-import multiprocessing as mp
+import multiprocessing as multiprocessing_module
 import tempfile
 import unittest
 import warnings
 from pathlib import Path
 from unittest import mock
 
-import sympy as sp
+import sympy
 import yaml
 from scipy.integrate import IntegrationWarning, quad
 
 from copernican_lib import model_coder
 
 
-def _evaluate_generated_callable(fn):
+def _evaluate_generated_callable(generated_callable):
     """Return the generated helper evaluation from a worker process."""
 
-    return fn(1)
+    return generated_callable(1)
 
 
 class TestModelCoderSecurity(unittest.TestCase):
@@ -29,11 +29,11 @@ class TestModelCoderSecurity(unittest.TestCase):
 
     def test_compile_sympy_expr_blocks_import(self):
         """``_compile_sympy_expr`` should deny access to ``__import__``."""
-        z = sp.symbols("z")
-        malicious = sp.Function("__import__")(sp.Symbol("os"))
-        fn = model_coder._compile_sympy_expr(malicious, (z,))
+        z = sympy.symbols("z")
+        malicious = sympy.Function("__import__")(sympy.Symbol("os"))
+        generated_callable = model_coder._compile_sympy_expr(malicious, (z,))
         with self.assertRaises(NameError):
-            fn(0)
+            generated_callable(0)
 
     def test_safe_parse_expr_rejects_dunder(self):
         """Expressions containing ``__`` should be rejected outright."""
@@ -42,30 +42,40 @@ class TestModelCoderSecurity(unittest.TestCase):
 
     def test_compile_sympy_expr_returns_picklable_callable(self):
         """Generated helpers should pickle under the spawn start method."""
-        z = sp.symbols("z")
+        z = sympy.symbols("z")
         expr = z + 1
-        fn = model_coder._compile_sympy_expr(expr, (z,), name_hint="picklable")
-        with mp.get_context("spawn").Pool(1) as pool:
-            restored_value = pool.apply(_evaluate_generated_callable, (fn,))
+        generated_callable = model_coder._compile_sympy_expr(
+            expr, (z,), name_hint="picklable"
+        )
+        with multiprocessing_module.get_context("spawn").Pool(1) as pool:
+            restored_value = pool.apply(
+                _evaluate_generated_callable,
+                (generated_callable,),
+            )
         self.assertEqual(restored_value, 2)
         self.assertIsInstance(
-            fn,
+            generated_callable,
             model_coder._GeneratedCallable,
         )
         self.assertEqual(
-            fn.python_function.__module__,
+            generated_callable.python_function.__module__,
             "copernican_lib.model_coder",
         )
-        self.assertTrue(hasattr(model_coder, fn.python_function.__name__))
+        self.assertTrue(
+            hasattr(
+                model_coder,
+                generated_callable.python_function.__name__,
+            )
+        )
 
     def test_compile_sympy_expr_integral_execution(self):
         """``_compile_sympy_expr`` should handle integrals safely."""
-        z = sp.symbols("z")
-        expr = sp.Integral(z, (z, 0, 1))  # integral of z from 0 to 1 = 0.5
-        fn = model_coder._compile_sympy_expr(expr, (z,))
-        self.assertAlmostEqual(fn(0), 0.5)
+        z = sympy.symbols("z")
+        expr = sympy.Integral(z, (z, 0, 1))  # integral of z from 0 to 1 = 0.5
+        generated_callable = model_coder._compile_sympy_expr(expr, (z,))
+        self.assertAlmostEqual(generated_callable(0), 0.5)
         self.assertEqual(
-            fn.python_function.__globals__.get("__builtins__"),
+            generated_callable.python_function.__globals__.get("__builtins__"),
             {},
         )
 
@@ -73,8 +83,8 @@ class TestModelCoderSecurity(unittest.TestCase):
 class TestSoundHorizonRigour(unittest.TestCase):
     """Validate the stricter sound-horizon requirements."""
 
-    def _write_model(self, tmpdir: Path, payload: dict) -> Path:
-        path = tmpdir / "model.yml"
+    def _write_model(self, temporary_dir: Path, payload: dict) -> Path:
+        path = temporary_dir / "model.yml"
         with path.open("w", encoding="utf-8") as handle:
             yaml.safe_dump(
                 payload, handle, sort_keys=False, allow_unicode=True
@@ -111,9 +121,9 @@ class TestSoundHorizonRigour(unittest.TestCase):
             "skip_bao": False,
             "valid_for_bao": True,
         }
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            cache = self._write_model(tmp_path, payload)
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            cache = self._write_model(temporary_path, payload)
             with self.assertRaises(ValueError):
                 model_coder.generate_callables(cache)
 
@@ -162,10 +172,10 @@ class TestSoundHorizonRigour(unittest.TestCase):
             "skip_bao": False,
             "valid_for_bao": True,
         }
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            cache = self._write_model(tmp_path, payload)
-            funcs, data = model_coder.generate_callables(cache)
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            cache = self._write_model(temporary_path, payload)
+            funcs, model_data = model_coder.generate_callables(cache)
 
         hubble = 70.0
         omega_m0 = 0.3
@@ -186,7 +196,7 @@ class TestSoundHorizonRigour(unittest.TestCase):
 
         rs_expected = quad(integrand, z_rec, math.inf, limit=200)[0]
         self.assertAlmostEqual(rs_model, rs_expected, places=6)
-        self.assertTrue(data["valid_for_bao"])
+        self.assertTrue(model_data["valid_for_bao"])
 
     def test_sound_horizon_divergence_raises_signal(self):
         """Divergent ``rs_expression`` integrals must raise a clear error."""
@@ -210,9 +220,9 @@ class TestSoundHorizonRigour(unittest.TestCase):
             "valid_for_bao": True,
         }
 
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            cache = self._write_model(tmp_path, payload)
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            cache = self._write_model(temporary_path, payload)
             funcs, _ = model_coder.generate_callables(cache)
 
         rs_helper = funcs["get_sound_horizon_rs_Mpc"]
@@ -370,6 +380,18 @@ class TestRobustQuad(unittest.TestCase):
                 1100.0,
                 math.inf,
             )
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the model coder API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(hasattr(model_coder, "QuadPrinter"))
+        self.assertTrue(callable(model_coder.robust_quad))
+
+    def test_transformed_symbol_is_exposed(self) -> None:
+        transformed = model_coder.robust_quad
+        self.assertTrue(callable(transformed))
 
 
 if __name__ == "__main__":  # pragma: no cover

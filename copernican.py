@@ -212,7 +212,12 @@ def _build_gui_progress_callback(
         payload.setdefault("timestamp", utils.get_timestamp())
         try:
             progress_state.record_progress(target, payload)
-        except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - defensive logging
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:  # pragma: no cover - defensive logging
             logger = log_mod.get_program_logger()
             logger.debug("Failed to update GUI progress state: %s", exc)
 
@@ -433,7 +438,12 @@ def _collect_engine_index(
             module = importlib.import_module(module_name)
             label = getattr(module, "ENGINE_LABEL", path.stem)
             version_label = getattr(module, "ENGINE_VERSION", "unknown")
-        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+        ):
             module = None
             label = path.stem
             version_label = "unavailable"
@@ -627,7 +637,10 @@ def _discover_manifest_records(
         manifest_files = sorted(child.glob("run_manifest_*.yml"))
         if not manifest_files:
             continue
-        manifest_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        manifest_files.sort(
+            key=lambda manifest_file: manifest_file.stat().st_mtime,
+            reverse=True,
+        )
         records.append((child, manifest_files[0]))
     records.sort(key=lambda item: item[1].stat().st_mtime, reverse=True)
     return records
@@ -668,7 +681,14 @@ def _print_manifest_file(path: Path) -> bool:
         return False
     try:
         manifest_data = run_manifest.load_manifest(str(path))
-    except (OSError, RuntimeError, TypeError, UnicodeError, ValueError, yaml.YAMLError) as exc:
+    except (
+        OSError,
+        RuntimeError,
+        TypeError,
+        UnicodeError,
+        ValueError,
+        yaml.YAMLError,
+    ) as exc:
         console.write(f"Failed to load manifest {path}: {exc}", error=True)
         return False
     console.write("")
@@ -940,9 +960,11 @@ def _handle_fatal_signal(signum: int, _frame: object) -> None:
     console.write(msg, error=True)
     if CURRENT_LOG_FILE:
         try:
-            with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as fh:
-                fh.write(msg + "\n")
-                faulthandler.dump_traceback(file=fh, all_threads=True)
+            with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as file_handle:
+                file_handle.write(msg + "\n")
+                faulthandler.dump_traceback(
+                    file=file_handle, all_threads=True
+                )
         except (OSError, ValueError) as exc:
             if logger:
                 # Preserve the failure details in the central log.
@@ -1419,7 +1441,13 @@ def _get_cpu_info() -> tuple[str, str]:
         freq_info = psutil.cpu_freq()
         if freq_info:
             freq = freq_info.current / 1000.0
-    except (AttributeError, ImportError, OSError, RuntimeError, ValueError) as exc:
+    except (
+        AttributeError,
+        ImportError,
+        OSError,
+        RuntimeError,
+        ValueError,
+    ) as exc:
         if logger:
             # ``psutil`` is optional; log and continue with unknown frequency.
             logger.warning(
@@ -1434,8 +1462,8 @@ def _get_cpu_info() -> tuple[str, str]:
             )
     if freq is None and platform.system() == "Linux":
         try:
-            with open("/proc/cpuinfo", "r") as fh:
-                for line in fh:
+            with open("/proc/cpuinfo", "r") as file_handle:
+                for line in file_handle:
                     if line.startswith("model name") and cpu == "Unknown CPU":
                         cpu = line.split(":", 1)[1].strip()
                     if line.startswith("cpu MHz") and freq is None:
@@ -1573,7 +1601,12 @@ def _run_cli_launch(
     try:
         main_workflow(manifest_path=launch_request.manifest_path)
         return 0
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - deferred logging
+    except (
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:  # pragma: no cover - deferred logging
         _handle_cli_exception(exc)
         return 1
     finally:
@@ -1623,11 +1656,11 @@ def _announce_program_start(
 
 def main(argv: Iterable[str] | None = None) -> int:
     """Entry point that decides whether to run GUI or CLI workflows."""
-    import multiprocessing as _mp
+    import multiprocessing as multiprocessing_module
 
-    _mp.freeze_support()
+    multiprocessing_module.freeze_support()
     try:
-        _mp.set_start_method("spawn", force=True)
+        multiprocessing_module.set_start_method("spawn", force=True)
     except RuntimeError:
         pass
     launch_request = _parse_launch_args(

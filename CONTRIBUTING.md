@@ -1,7 +1,7 @@
 # Contributing
 **Doc ID:** CONTRIBUTING
 **Doc Type:** contributing-guide
-**Project Version:** 12.0.3
+**Project Version:** 12.0.6
 **Last Updated:** 2026-05-23
 **DevCovenant Version:** 1.0.1b5
 
@@ -11,6 +11,26 @@ It defines the standard contributor workflow used by repositories that use
 DevCovenant. Add repository-specific contributor notes below the managed
 section.
 <!-- DEVCOV:END -->
+
+## Overview
+Copernican contributions should preserve behavior, keep the mirrored test
+layout aligned with the source tree, and record changes in the changelog.
+The repository uses DevCovenant-managed gates, so contributor work must stay
+compatible with the active policy surface instead of bypassing it.
+
+## Workflow
+1. Read `AGENTS.md` before making changes so the current repository rules are
+   clear.
+2. Keep edits scoped to the requested task and avoid unmanaged drift.
+3. Log substantive changes in `CHANGELOG.md` with the touched files or
+   subsystems.
+4. Run the managed checks required by the current DevCovenant session before
+   committing.
+
+## Notes
+Keep contributor guidance short and current. If the workflow or repo shape
+changes, update this page in the same session so future contributors do not
+follow stale steps.
 
 Thank you for considering a contribution. Before opening a pull request, please
 read `AGENTS.md` for the full development specification. Log every change in

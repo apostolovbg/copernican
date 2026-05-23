@@ -71,10 +71,10 @@ def load_settings() -> dict[str, dict[str, object]]:
     path = get_settings_path()
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as fh:
+        with path.open("w", encoding="utf-8") as file_handle:
             yaml.safe_dump(
                 DEFAULT_SETTINGS,
-                fh,
+                file_handle,
                 sort_keys=False,
                 default_flow_style=False,
             )
@@ -92,8 +92,10 @@ def save_settings(settings: dict[str, dict[str, object]]) -> None:
 
     path = get_settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        yaml.safe_dump(settings, fh, sort_keys=False, default_flow_style=False)
+    with path.open("w", encoding="utf-8") as file_handle:
+        yaml.safe_dump(
+            settings, file_handle, sort_keys=False, default_flow_style=False
+        )
     global _SETTINGS_CACHE
     _SETTINGS_CACHE = copy.deepcopy(settings)
 

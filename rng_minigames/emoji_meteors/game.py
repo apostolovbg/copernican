@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import random
+from random import SystemRandom
 
 try:  # pragma: no cover - Tk only available when GUI rendering is enabled
     import tkinter as tkinter_module
@@ -12,6 +12,8 @@ except ImportError:  # pragma: no cover - executed on headless environments
     ttk = None
 
 from rng_minigames.api import MinigameContext
+
+SECURE_RANDOM = SystemRandom()
 
 _EMOJI_METEOR_CHOICES = [
     "🐱",
@@ -64,7 +66,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         )
 
     if not context.render or tkinter_module is None or context.tk_root is None:
-        _apply_seed(random.sample(_EMOJI_METEOR_CHOICES, 5))
+        _apply_seed(SECURE_RANDOM.sample(_EMOJI_METEOR_CHOICES, 5))
         return
 
     window = tkinter_module.Toplevel(context.tk_root)
@@ -106,9 +108,9 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
 
     def _spawn_meteor() -> tuple[int, dict[str, object]]:
         """Spawn a random emoji meteor with jittery motion."""
-        emoji = random.choice(_EMOJI_METEOR_CHOICES)
-        x_pos = random.randint(40, canvas_width - 40)
-        y_pos = random.randint(-canvas_height, -20)
+        emoji = SECURE_RANDOM.choice(_EMOJI_METEOR_CHOICES)
+        x_pos = SECURE_RANDOM.randint(40, canvas_width - 40)
+        y_pos = SECURE_RANDOM.randint(-canvas_height, -20)
         item_id = canvas.create_text(
             x_pos,
             y_pos,
@@ -117,7 +119,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         )
         meta = {
             "emoji": emoji,
-            "speed": random.uniform(1.5, 3.5),
+            "speed": SECURE_RANDOM.uniform(1.5, 3.5),
         }
         return item_id, meta
 
@@ -134,11 +136,11 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
             canvas.move(meteor_id, 0, meteor_meta["speed"])
             x_pos, y_pos = canvas.coords(meteor_id)
             if y_pos > canvas_height + 50:
-                new_x = random.randint(40, canvas_width - 40)
+                new_x = SECURE_RANDOM.randint(40, canvas_width - 40)
                 canvas.coords(meteor_id, new_x, -30)
-                new_emoji = random.choice(_EMOJI_METEOR_CHOICES)
+                new_emoji = SECURE_RANDOM.choice(_EMOJI_METEOR_CHOICES)
                 meteor_meta["emoji"] = new_emoji
-                meteor_meta["speed"] = random.uniform(1.5, 3.5)
+                meteor_meta["speed"] = SECURE_RANDOM.uniform(1.5, 3.5)
                 canvas.itemconfigure(meteor_id, text=new_emoji)
         after_id = canvas.after(60, _animate)
 
@@ -217,11 +219,11 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         _render_selection_status()
         _redraw_preview()
         for meteor_id, meteor_meta in meteor_items.items():
-            new_x = random.randint(40, canvas_width - 40)
+            new_x = SECURE_RANDOM.randint(40, canvas_width - 40)
             canvas.coords(meteor_id, new_x, -20)
-            new_emoji = random.choice(_EMOJI_METEOR_CHOICES)
+            new_emoji = SECURE_RANDOM.choice(_EMOJI_METEOR_CHOICES)
             meteor_meta["emoji"] = new_emoji
-            meteor_meta["speed"] = random.uniform(1.5, 3.5)
+            meteor_meta["speed"] = SECURE_RANDOM.uniform(1.5, 3.5)
             canvas.itemconfigure(
                 meteor_id, text=new_emoji, font=("Helvetica", 58)
             )

@@ -14,7 +14,7 @@ validation, sanitisation and cache management rather than mere text parsing.
 # processes so that validation only happens once in the main process.
 
 import math
-import multiprocessing as _mp
+import multiprocessing as multiprocessing_module
 from pathlib import Path
 
 import yaml
@@ -125,7 +125,7 @@ def validate_and_cache_model(path, cache_dir):
     # worker processes import this module under multiprocessing. The
     # sanitized file produced here is shared by child processes, so
     # repeated validation is unnecessary.
-    if _mp.current_process().name == "MainProcess":
+    if multiprocessing_module.current_process().name == "MainProcess":
         try:
             validate(instance=model_spec, schema=MODEL_SCHEMA)
         except ValidationError as e:

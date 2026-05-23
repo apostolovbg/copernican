@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
-import xarray as xr
+import numpy
+import xarray as xarray_module
 
 from . import analysis
 
@@ -23,7 +23,7 @@ def find_posterior_files(run_dir: Path | str) -> list[Path]:
     return sorted(directory.glob("posterior-*.nc"))
 
 
-def load_inference_data(path: Path | str) -> xr.Dataset:
+def load_inference_data(path: Path | str) -> xarray_module.Dataset:
     """Load the posterior data from disk via ArviZ or xarray."""
 
     path = Path(path)
@@ -32,17 +32,19 @@ def load_inference_data(path: Path | str) -> xr.Dataset:
             return arviz_module.from_netcdf(str(path)).posterior
         except (OSError, RuntimeError, ValueError):
             pass
-    return xr.open_dataset(path, engine="scipy")
+    return xarray_module.open_dataset(path, engine="scipy")
 
 
-def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
+def extract_posterior_arrays(
+    dataset: xarray_module.Dataset,
+) -> dict[str, numpy.ndarray]:
     """Return flattened arrays for every posterior data variable."""
 
-    arrays: dict[str, np.ndarray] = {}
+    arrays: dict[str, numpy.ndarray] = {}
     for name, data_var in dataset.data_vars.items():
         if data_var.values is None:
             continue
-        arr = np.asarray(data_var.values).reshape(-1)
+        arr = numpy.asarray(data_var.values).reshape(-1)
         if arr.size == 0:
             continue
         arrays[name] = arr
@@ -50,15 +52,15 @@ def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
 
 
 def flatten_posterior_arrays(
-    dataset: xr.Dataset,
-) -> tuple[np.ndarray, list[str]]:
+    dataset: xarray_module.Dataset,
+) -> tuple[numpy.ndarray, list[str]]:
     """Stack every posterior array into a 2d matrix with column names."""
 
     arrays = extract_posterior_arrays(dataset)
     if not arrays:
-        return np.empty((0, 0)), []
+        return numpy.empty((0, 0)), []
     names = list(arrays.keys())
-    stacked = np.column_stack([arrays[name] for name in names])
+    stacked = numpy.column_stack([arrays[name] for name in names])
     return stacked, names
 
 

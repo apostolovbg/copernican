@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: f4a8109fc3a6c856d9b268833be7963ae5f9f29582ffbf759a38661f4a973f1a
+  policy_registry_input_hash: 6d5b3b7505dec7dcf0465a3f1595db9d2c35a88a96ebe0601055c8cf3cbd341a
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.3
+  project_version: 12.0.5
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -6877,6 +6877,8 @@ policies:
       - node_modules/**
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
+      - rng_minigames/registry.json
+      - validation/manifests/**
       - devcovenant/**
       include_prefixes: []
       include_globs:
@@ -7245,6 +7247,8 @@ policies:
           - '*.egg-info/**'
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
+          - rng_minigames/registry.json
+          - validation/manifests/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7257,6 +7261,8 @@ policies:
           - '*.egg-info/**'
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
+          - rng_minigames/registry.json
+          - validation/manifests/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7293,6 +7299,8 @@ policies:
           - node_modules/**
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
+          - rng_minigames/registry.json
+          - validation/manifests/**
           - devcovenant/**
       include_prefixes:
         descriptor:
@@ -7615,6 +7623,8 @@ policies:
       - node_modules/**
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
+      - rng_minigames/registry.json
+      - validation/manifests/**
       - devcovenant/**
       include_prefixes: []
       include_globs: &id043
@@ -7731,6 +7741,7 @@ policies:
     - mailto:/**
     - node_modules/**
     - pip-wheel-metadata/**
+    - rng_minigames/registry.json
     - sftp:/**
     - sftp://
     - ssh:/**
@@ -7743,6 +7754,7 @@ policies:
     - tests/devcovenant/custom/**
     - torrent:/**
     - urn:/**
+    - validation/manifests/**
     - ws:/**
     - ws://
     - wss:/**
@@ -15983,6 +15995,8 @@ profiles:
       line-length-limit:
         exclude_globs:
         - .matplotlib-cache/**
+        - rng_minigames/registry.json
+        - validation/manifests/**
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py

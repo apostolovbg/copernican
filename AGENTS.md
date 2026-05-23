@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.3
+**Project Version:** 12.0.6
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -186,7 +186,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.3
+- Project Version: 12.0.6
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -1168,6 +1168,8 @@ exclude_globs:
 - node_modules/**
 - '**/*.egg-info/**'
 - .matplotlib-cache/**
+- rng_minigames/registry.json
+- validation/manifests/**
 - devcovenant/**
 include_prefixes: []
 include_globs:

@@ -48,7 +48,9 @@ def _normalize_model_label(label: str) -> str:
     normalized = unicodedata.normalize("NFKD", label)
     for greek, latin in _GREEK_REPLACEMENTS.items():
         normalized = normalized.replace(greek, latin)
-    ascii_only = "".join(ch for ch in normalized if ord(ch) < 128)
+    ascii_only = "".join(
+        character for character in normalized if ord(character) < 128
+    )
     return ascii_only.casefold()
 
 
@@ -81,10 +83,10 @@ def _find_latest_file(run_dir: Path, pattern: str) -> Optional[Path]:
 def _load_yaml_or_json(path: Path) -> Any:
     """Read either a YAML or JSON document from `path`."""
     if path.suffix.lower() in {".yml", ".yaml"}:
-        with open(path, "r", encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
-    with open(path, "r", encoding="utf-8") as fh:
-        return json.load(fh)
+        with open(path, "r", encoding="utf-8") as file_handle:
+            return yaml.safe_load(file_handle)
+    with open(path, "r", encoding="utf-8") as file_handle:
+        return json.load(file_handle)
 
 
 def load_parameter_summary(
@@ -197,10 +199,10 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
     ess: dict[str, float] = {}
     last_ts: Optional[datetime.datetime] = None
 
-    with open(log_path, "r", encoding="utf-8") as fh:
+    with open(log_path, "r", encoding="utf-8") as file_handle:
         previous_message: Optional[str] = None
         current_model_key: Optional[str] = None
-        for raw in fh:
+        for raw in file_handle:
             stripped = raw.rstrip("\n")
             timestamp, message = _split_log_line(stripped)
             if message is None:
@@ -666,12 +668,12 @@ def _dump_summary(
 ) -> None:
     """Serialize summary data to YAML or JSON depending on `fmt`."""
     if fmt in ("yml", "yaml"):
-        with open(path, "w", encoding="utf-8") as fh:
-            yaml.safe_dump(summary_data, fh, sort_keys=False)
+        with open(path, "w", encoding="utf-8") as file_handle:
+            yaml.safe_dump(summary_data, file_handle, sort_keys=False)
         return
     if fmt == "json":
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(summary_data, fh, indent=2)
+        with open(path, "w", encoding="utf-8") as file_handle:
+            json.dump(summary_data, file_handle, indent=2)
         return
     raise ValueError(f"Unsupported summary format: {fmt!r}")
 

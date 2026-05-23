@@ -4,7 +4,7 @@
 """Tests for ``copernican_lib.engine_plugin_validation`` helpers."""
 
 import math
-import multiprocessing as mp
+import multiprocessing as multiprocessing_module
 import unittest
 from types import SimpleNamespace
 
@@ -41,7 +41,11 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "description": "desc",
             "abstract": "abs",
             "parameters": [
-                {"python_var": "h0", "latex_name": "H_0", "bounds": [60, 80]}
+                {
+                    "python_var": "hubble_parameter",
+                    "latex_name": "H_0",
+                    "bounds": [60, 80],
+                }
             ],
             "equations": {"sne": ["$$E=mc^2$$"], "bao": []},
             "cmb": {
@@ -68,10 +72,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def test_missing_attribute_fails_validation(self):
         """A plugin lacking required attributes is rejected."""
         bad = SimpleNamespace()
-        with self.assertLogs(level="ERROR") as cm:
+        with self.assertLogs(level="ERROR") as captured_logs:
             with self.assertRaises(PluginValidationError):
                 engine_plugin_validation.validate_plugin(bad)
-        self.assertIn("Plugin validation issue", "".join(cm.output))
+        self.assertIn("Plugin validation issue", "".join(captured_logs.output))
 
     def test_get_camb_params_expression(self):
         """LaTeX expressions in ``cmb.param_map`` evaluate correctly."""
@@ -144,7 +148,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         def like(params):
             calls.append(tuple(params))
-            return -0.5 * sum(val * val for val in params)
+            return -0.5 * sum(value * value for value in params)
 
         like.parameter_bounds = [(0.0, 1.0), (None, None)]
         priors = [
@@ -165,7 +169,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Transforms should apply Jacobian corrections automatically."""
 
         def like(params):
-            return -0.5 * sum(val * val for val in params)
+            return -0.5 * sum(value * value for value in params)
 
         def exp_transform(raw):
             transformed = math.exp(raw)
@@ -180,9 +184,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
         posterior = engine_plugin_validation.make_logposterior(like, priors)
 
         # Raw value of 0.0 transforms to 1.0 and remains inside bounds.
-        val = posterior((0.0, 0.0))
+        value = posterior((0.0, 0.0))
         expected = like((0.0, math.exp(0.0))) - math.log(2.0 - 0.5) + 0.0
-        self.assertAlmostEqual(val, expected)
+        self.assertAlmostEqual(value, expected)
         # Raw value of log(3) transforms outside the allowed range and is
         # rejected.
         transformed = posterior((0.0, math.log(3.0)))
@@ -195,7 +199,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "loguniform", "lower": 1e-3, "upper": 1.0},
         ]
         posterior = MAKE_POSTERIOR(_linear_like, priors)
-        with mp.get_context("spawn").Pool(1) as pool:
+        with multiprocessing_module.get_context("spawn").Pool(1) as pool:
             restored_value = pool.apply(_evaluate_posterior, (posterior,))
         self.assertAlmostEqual(restored_value, posterior([0.1]))
 

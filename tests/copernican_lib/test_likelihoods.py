@@ -6,7 +6,7 @@ import os
 import unittest
 from pathlib import Path
 
-import numpy as np
+import numpy
 
 import copernican_lib.dataset_registry as dataset_registry
 import copernican_lib.engine_plugin_validation as engine_plugin_validation
@@ -62,8 +62,8 @@ class LikelihoodTestCase(unittest.TestCase):
             self.plugin.distance_modulus_model,
             sne_df,
         )
-        self.assertTrue(np.isfinite(sne_like.loglike(params)))
-        self.assertTrue(np.isfinite(sne_like.state["chi2"]))
+        self.assertTrue(numpy.isfinite(sne_like.loglike(params)))
+        self.assertTrue(numpy.isfinite(sne_like.state["chi2"]))
 
         bao_df = self._prepare_bao()
         rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
@@ -76,13 +76,13 @@ class LikelihoodTestCase(unittest.TestCase):
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
             rs_override=rs_value,
         )
-        self.assertTrue(np.isfinite(bao_like.loglike(params)))
-        self.assertTrue(np.isfinite(bao_like.state["chi2"]))
+        self.assertTrue(numpy.isfinite(bao_like.loglike(params)))
+        self.assertTrue(numpy.isfinite(bao_like.state["chi2"]))
 
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
-        self.assertTrue(np.isfinite(cmb_like.loglike(params)))
-        self.assertTrue(np.isfinite(cmb_like.state["chi2"]))
+        self.assertTrue(numpy.isfinite(cmb_like.loglike(params)))
+        self.assertTrue(numpy.isfinite(cmb_like.state["chi2"]))
 
     def test_bao_loglike_falls_back_without_camb(self):
         """BAO helper should reuse model distance functions when CAMB fails."""
@@ -136,7 +136,7 @@ class LikelihoodTestCase(unittest.TestCase):
 
         loglike = bao_like.loglike(params)
 
-        self.assertTrue(np.isfinite(loglike))
+        self.assertTrue(numpy.isfinite(loglike))
         self.assertGreater(fallback_plugin.calls["dm"], 0)
         self.assertGreater(fallback_plugin.calls["hz"], 0)
         self.assertGreater(fallback_plugin.calls["rs"], 0)
@@ -148,7 +148,7 @@ class LikelihoodTestCase(unittest.TestCase):
             lambda *full_params: model_coder.robust_quad(
                 lambda z_val: 1.0 / (1.0 + z_val),
                 full_params[-1],
-                np.inf,
+                numpy.inf,
             )[0]
         )
 
@@ -213,7 +213,7 @@ class LikelihoodTestCase(unittest.TestCase):
             config={"sne": True, "bao": True, "cmb": True},
         )
         joint_loglike = joint.loglike(params)
-        self.assertTrue(np.isfinite(joint_loglike))
+        self.assertTrue(numpy.isfinite(joint_loglike))
 
         component_states = joint.state["metadata"]["components"]
         component_sum = sum(
@@ -251,7 +251,7 @@ class LikelihoodTestCase(unittest.TestCase):
         loglike = joint.loglike(params)
         state = joint.state["metadata"]["components"]
 
-        self.assertTrue(np.isfinite(loglike))
+        self.assertTrue(numpy.isfinite(loglike))
         self.assertAlmostEqual(loglike, state["sne"]["loglike"], places=8)
         self.assertAlmostEqual(state["bao"]["chi2"], 0.0, places=8)
         self.assertFalse(state["bao"]["metadata"]["enabled"])
@@ -326,6 +326,16 @@ class LikelihoodTestCase(unittest.TestCase):
             cmb_like_mutated.loglike(params),
             cmb_baseline,
         )
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the shared likelihood API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(callable(likelihoods.BAOLike))
+        self.assertTrue(callable(likelihoods.CMBLike))
+        self.assertTrue(callable(likelihoods.SNeLike))
+        self.assertTrue(callable(likelihoods.JointLike))
 
 
 if __name__ == "__main__":

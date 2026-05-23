@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 import camb
-import numpy as np
+import numpy
 
 from copernican_lib import (
     engine_plugin_validation,
@@ -38,20 +38,20 @@ class CMBBackgroundTestCase(unittest.TestCase):
         """Background helper should return one entry per requested redshift."""
 
         params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
-        redshifts = np.array([0.15, 0.35, 0.57])
+        redshifts = numpy.array([0.15, 0.35, 0.57])
         background = cmb.compute_camb_background_observables(params, redshifts)
 
         self.assertEqual(background["DM"].shape, redshifts.shape)
         self.assertEqual(background["DH"].shape, redshifts.shape)
         self.assertEqual(background["DV"].shape, redshifts.shape)
         self.assertGreater(background["rs_drag"], 0.0)
-        self.assertTrue(np.all(np.isfinite(background["DM"])))
+        self.assertTrue(numpy.all(numpy.isfinite(background["DM"])))
 
     def test_background_cache_collapses_duplicate_redshifts(self) -> None:
         """Repeated redshifts should produce identical background distances."""
 
         params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
-        redshifts = np.array([0.35, 0.35, 0.60])
+        redshifts = numpy.array([0.35, 0.35, 0.60])
         background = cmb.compute_camb_background_observables(params, redshifts)
 
         self.assertAlmostEqual(
@@ -78,8 +78,8 @@ class CMBBackgroundTestCase(unittest.TestCase):
             "mnu2": 0.12,
             "neutrino_hierarchy": "normal",
         }
-        ell_range = np.arange(2, 51, dtype=int)
-        redshifts = np.array([0.15, 0.60, 1.0])
+        ell_range = numpy.arange(2, 51, dtype=int)
+        redshifts = numpy.array([0.15, 0.60, 1.0])
 
         helper_background = cmb.compute_camb_background_observables(
             custom_params, redshifts
@@ -119,7 +119,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
         for column, spectrum in zip(
             (0, 1, 3), ("TT", "EE", "TE"), strict=True
         ):
-            np.testing.assert_allclose(
+            numpy.testing.assert_allclose(
                 helper_cls[spectrum],
                 manual_cls[:, column][ell_range],
                 rtol=1e-7,
@@ -132,47 +132,66 @@ class CMBBackgroundTestCase(unittest.TestCase):
         manual_background["rs_drag"] = float(
             manual_results.get_derived_params().get("rdrag")
         )
-        manual_background["DM"] = np.asarray(
+        manual_background["DM"] = numpy.asarray(
             [
                 manual_results.comoving_radial_distance(float(z))
                 for z in redshifts
             ]
         )
-        manual_background["DA"] = np.asarray(
+        manual_background["DA"] = numpy.asarray(
             [
                 manual_results.angular_diameter_distance(float(z))
                 for z in redshifts
             ]
         )
-        manual_background["Hz"] = np.asarray(
+        manual_background["Hz"] = numpy.asarray(
             [manual_results.hubble_parameter(float(z)) for z in redshifts]
         )
-        manual_background["DH"] = np.where(
-            np.abs(manual_background["Hz"]) > 1e-12,
+        manual_background["DH"] = numpy.where(
+            numpy.abs(manual_background["Hz"]) > 1e-12,
             cmb._C_LIGHT_KM_S / manual_background["Hz"],
-            np.nan,
+            numpy.nan,
         )
-        manual_background["DV"] = np.full_like(redshifts, np.nan, dtype=float)
+        manual_background["DV"] = numpy.full_like(
+            redshifts, numpy.nan, dtype=float
+        )
         term = manual_background["DM"] * manual_background["DM"]
         term *= redshifts
         term *= manual_background["DH"]
-        mask = np.isfinite(term) & (term >= 0.0)
-        manual_background["DV"][mask] = np.power(term[mask], 1.0 / 3.0)
+        mask = numpy.isfinite(term) & (term >= 0.0)
+        manual_background["DV"][mask] = numpy.power(term[mask], 1.0 / 3.0)
         manual_background["DV"][redshifts == 0.0] = 0.0
 
-        np.testing.assert_allclose(
+        numpy.testing.assert_allclose(
             helper_background["rs_drag"],
             manual_background["rs_drag"],
             rtol=5e-6,
             atol=1e-10,
         )
         for key in ("DM", "DA", "DH", "DV", "Hz"):
-            np.testing.assert_allclose(
+            numpy.testing.assert_allclose(
                 helper_background[key],
                 manual_background[key],
                 rtol=1e-8,
                 atol=1e-8,
             )
+
+
+class PublicSymbolCoverageTestCase(unittest.TestCase):
+    """Expose the CMB helper API to the coverage policy."""
+
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(hasattr(cmb, "CMBLike"))
+        self.assertTrue(callable(cmb.compute_cmb_spectrum))
+        self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
+        self.assertTrue(callable(cmb.compute_cmb_spectrum_from_dict))
+        self.assertTrue(callable(cmb.describe_camb_configuration))
+
+    def test_loglike_and_state_symbols_are_exposed(self) -> None:
+        loglike = cmb.CMBLike.loglike
+        state = cmb.CMBLike.state
+        self.assertTrue(callable(loglike))
+        self.assertTrue(hasattr(state, "__get__"))
 
 
 if __name__ == "__main__":

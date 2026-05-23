@@ -1,11 +1,12 @@
 model_name: Temporal Opposition Geometry CAMB
 version: '0.2'
 description: >-
-  Temporal Opposition Geometry (TOG) encodes the hypothesis that time is not a
-  fourth spatial axis but a Lorentz-opposed temporal direction. This CAMB-enabled
-  Copernican implementation keeps the temporal-opposition deformation in the
-  suite-native background expansion while mapping the shared base cosmological
-  parameters into CAMB for CMB likelihood evaluation.
+  Temporal Opposition Geometry (TOG) encodes the hypothesis that time is
+  not a fourth spatial axis but a Lorentz-opposed temporal direction.
+  This CAMB-enabled Copernican implementation keeps the
+  temporal-opposition deformation in the suite-native background
+  expansion while mapping the shared base cosmological parameters into
+  CAMB for CMB likelihood evaluation.
 abstract: >-
   A flat FLRW background model with standard matter/radiation content plus a
   temporal-opposition deformation parameter epsilon_T. The model reduces to
@@ -62,7 +63,9 @@ parameters:
     bounds: [2.5, 3.5]
     unit: ''
     latex_name: 'N_{\rm eff}'
-    definition: Effective relativistic neutrino count used in radiation and CAMB mapping.
+    definition: >-
+      Effective relativistic neutrino count used in radiation and CAMB
+      mapping.
     prior:
       type: uniform
       lower: 2.5
@@ -73,7 +76,9 @@ parameters:
     bounds: [-0.35, 0.35]
     unit: ''
     latex_name: '\epsilon_T'
-    definition: Dimensionless deformation of the opposed-time sector; epsilon_T = 0 recovers LambdaCDM.
+    definition: >-
+      Dimensionless deformation of the opposed-time sector;
+      epsilon_T = 0 recovers LambdaCDM.
     prior:
       type: gaussian
       mean: 0.0
@@ -84,7 +89,9 @@ parameters:
     bounds: [1089.92, 1089.92]
     unit: ''
     latex_name: 'z_{\rm rec}'
-    definition: Fixed photon-decoupling redshift used as the sound-horizon lower limit.
+    definition: >-
+      Fixed photon-decoupling redshift used as the sound-horizon lower
+      limit.
     prior:
       type: fixed
       value: 1089.92
@@ -94,7 +101,9 @@ parameters:
     bounds: [299792.458, 299792.458]
     unit: km/s
     latex_name: 'c'
-    definition: Fixed speed of light used by distance and sound-horizon expressions.
+    definition: >-
+      Fixed speed of light used by distance and sound-horizon
+      expressions.
     prior:
       type: fixed
       value: 299792.458
@@ -154,7 +163,7 @@ notes: >-
   Therefore CMB constrains H0, Omega_b, Omega_m0 and Neff through the
   LambdaCDM-compatible projection, while SNe and BAO use the full
   epsilon_T-deformed H(z). To make CMB constrain epsilon_T directly, extend
-  copernican_lib/likelihoods/cmb.py so _make_camb_params maps a YAML key such as
-  w or epsilon_T into CAMB's dark-energy parameterisation.
+  copernican_lib/likelihoods/cmb.py so _make_camb_params maps a YAML
+  key such as w or epsilon_T into CAMB's dark-energy parameterisation.
 
 date: '2026-05-21'

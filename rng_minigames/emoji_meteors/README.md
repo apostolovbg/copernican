@@ -7,6 +7,11 @@ set and the emoji identities form the payload that is hashed into the final
 seed. Because the mini-game runs inside the deterministic `rng_minigames/`
 framework, two identical play sessions always produce the same result.
 
+## Overview
+This title is intentionally short and accessible so a user can collect a seed
+quickly. The interaction model stays simple, but the payload remains fully
+deterministic for repeatable runs.
+
 ## Controls
 
 - **Pet the animals** – Left-click the meteor you want to claim. The emoji

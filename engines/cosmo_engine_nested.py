@@ -29,8 +29,8 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from copernican_lib import engine_plugin_validation
 from copernican_lib.engine_capabilities import (
@@ -107,7 +107,7 @@ ENGINE_PROGRESS_CHUNKS = (
 class _Sample:
     """Container storing a single nested-sampling state."""
 
-    params: np.ndarray
+    params: numpy.ndarray
     log_posterior: float
     log_likelihood: float
     log_prior: float
@@ -177,10 +177,12 @@ def _build_joint_logposterior(
         and len(bao_data_df) > 0
     )
     bao_like = BAOLike(
-        np.asarray(bao_z if bao_z is not None else [], dtype=float),
-        np.asarray(bao_types if bao_types is not None else [], dtype=object),
-        np.asarray(bao_val if bao_val is not None else [], dtype=float),
-        np.asarray(bao_err if bao_err is not None else [], dtype=float),
+        numpy.asarray(bao_z if bao_z is not None else [], dtype=float),
+        numpy.asarray(
+            bao_types if bao_types is not None else [], dtype=object
+        ),
+        numpy.asarray(bao_val if bao_val is not None else [], dtype=float),
+        numpy.asarray(bao_err if bao_err is not None else [], dtype=float),
         model_plugin,
         covariance_matrix_inv=(
             None
@@ -197,7 +199,7 @@ def _build_joint_logposterior(
         and "covariance_matrix_inv" in getattr(cmb_data_df, "attrs", {})
     )
     cmb_like = CMBLike(
-        cmb_data_df if cmb_data_df is not None else pd.DataFrame(),
+        cmb_data_df if cmb_data_df is not None else pandas.DataFrame(),
         model_plugin,
         enabled=cmb_enabled,
     )
@@ -234,14 +236,14 @@ def _build_joint_logposterior(
 
 
 def _initial_live_point(
-    rng: np.random.Generator,
-    lower: np.ndarray,
-    upper: np.ndarray,
-    centre: np.ndarray,
-) -> np.ndarray:
+    rng: numpy.random.Generator,
+    lower: numpy.ndarray,
+    upper: numpy.ndarray,
+    centre: numpy.ndarray,
+) -> numpy.ndarray:
     """Return a candidate sampled uniformly within finite bounds."""
 
-    sample = np.empty_like(lower, dtype=float)
+    sample = numpy.empty_like(lower, dtype=float)
     for idx, (lower_bound, upper_bound) in enumerate(
         zip(lower, upper, strict=False)
     ):
@@ -259,29 +261,29 @@ def _initial_live_point(
 
 
 def _replacement_sample(
-    rng: np.random.Generator,
+    rng: numpy.random.Generator,
     live_points: Sequence[_Sample],
-    lower: np.ndarray,
-    upper: np.ndarray,
+    lower: numpy.ndarray,
+    upper: numpy.ndarray,
     enlargement: float,
-) -> np.ndarray:
+) -> numpy.ndarray:
     """Return a proposal drawn around the existing live point cloud."""
 
-    stacked = np.array([entry.params for entry in live_points], dtype=float)
+    stacked = numpy.array([entry.params for entry in live_points], dtype=float)
     centre = stacked[rng.integers(len(stacked))]
-    spread = np.std(stacked, axis=0)
-    fallback = np.maximum(np.abs(centre), 1.0)
-    spread = np.where(spread > 0, spread, fallback)
+    spread = numpy.std(stacked, axis=0)
+    fallback = numpy.maximum(numpy.abs(centre), 1.0)
+    spread = numpy.where(spread > 0, spread, fallback)
     spread = spread * max(enlargement, 1.0)
     proposal = centre + rng.standard_normal(centre.shape) * spread
-    proposal = np.clip(proposal, lower, upper)
+    proposal = numpy.clip(proposal, lower, upper)
     return proposal
 
 
 def _evaluate_point(
     posterior: engine_plugin_validation.PosteriorEvaluator,
     joint_like: JointLike,
-    params: np.ndarray,
+    params: numpy.ndarray,
 ) -> _Sample | None:
     """Return a populated :class:`_Sample` when ``params`` are valid."""
 
@@ -294,7 +296,7 @@ def _evaluate_point(
         return None
     log_prior = log_post - log_like
     return _Sample(
-        params=np.asarray(params, dtype=float),
+        params=numpy.asarray(params, dtype=float),
         log_posterior=log_post,
         log_likelihood=log_like,
         log_prior=log_prior,
@@ -305,15 +307,15 @@ def _evaluate_point(
 def _prepare_bounds(
     bounds: Iterable[tuple[float | None, float | None]] | None,
     initial: Sequence[float] | None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]:
     """Return lower and upper bounds along with an initial centre."""
 
     bounds = list(bounds or [])
     if not bounds:
         ndim = len(initial or [])
         bounds = [(None, None)] * ndim
-    lower = np.empty(len(bounds), dtype=float)
-    upper = np.empty(len(bounds), dtype=float)
+    lower = numpy.empty(len(bounds), dtype=float)
+    upper = numpy.empty(len(bounds), dtype=float)
     for idx, (lower_value, upper_value) in enumerate(bounds):
         lower[idx] = -math.inf if lower_value is None else float(lower_value)
         upper[idx] = math.inf if upper_value is None else float(upper_value)
@@ -324,29 +326,31 @@ def _prepare_bounds(
         ):
             raise ValueError("parameter bounds inverted")
     if initial is None or len(initial) != len(bounds):
-        initial_arr = np.zeros(len(bounds), dtype=float)
+        initial_arr = numpy.zeros(len(bounds), dtype=float)
     else:
-        initial_arr = np.asarray(initial, dtype=float)
+        initial_arr = numpy.asarray(initial, dtype=float)
     return lower, upper, initial_arr
 
 
-def _weights_from_logs(log_weights: np.ndarray) -> np.ndarray:
+def _weights_from_logs(log_weights: numpy.ndarray) -> numpy.ndarray:
     """Return normalised weights derived from ``log_weights``."""
 
-    max_logw = np.max(log_weights)
-    shifted = np.exp(log_weights - max_logw)
+    max_logw = numpy.max(log_weights)
+    shifted = numpy.exp(log_weights - max_logw)
     total = shifted.sum()
     if total <= 0:
-        return np.full_like(shifted, 1.0 / max(len(shifted), 1), dtype=float)
+        return numpy.full_like(
+            shifted, 1.0 / max(len(shifted), 1), dtype=float
+        )
     return shifted / total
 
 
 def fit_cosmology_parameters(
-    sne_data_df: pd.DataFrame,
+    sne_data_df: pandas.DataFrame,
     model_plugin: Any,
     *,
-    bao_data_df: pd.DataFrame | None = None,
-    cmb_data_df: pd.DataFrame | None = None,
+    bao_data_df: pandas.DataFrame | None = None,
+    cmb_data_df: pandas.DataFrame | None = None,
     n_live_points: int = _DEFAULT_LIVE_POINTS,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
     evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
@@ -376,7 +380,7 @@ def fit_cosmology_parameters(
     )
     ndim = lower.size
 
-    rng = np.random.default_rng(get_random_seed())
+    rng = numpy.random.default_rng(get_random_seed())
     live_points: list[_Sample] = []
     attempts = 0
     while (
@@ -434,7 +438,7 @@ def fit_cosmology_parameters(
         while iterations < max_iterations and live_points:
             iterations += 1
             worst_index = int(
-                np.argmin([p.log_likelihood for p in live_points])
+                numpy.argmin([point.log_likelihood for point in live_points])
             )
             worst_point = live_points[worst_index]
             log_width -= 1.0 / max(n_live_points, 1)
@@ -485,7 +489,7 @@ def fit_cosmology_parameters(
                 )
                 break
 
-            remaining_best = max(p.log_likelihood for p in live_points)
+            remaining_best = max(point.log_likelihood for point in live_points)
             if (
                 iterations > n_live_points
                 and math.isfinite(remaining_best)
@@ -501,7 +505,9 @@ def fit_cosmology_parameters(
 
     if live_points:
         log_width -= 1.0 / max(n_live_points, 1)
-        tail_weight = log_width + max(p.log_likelihood for p in live_points)
+        tail_weight = log_width + max(
+            point.log_likelihood for point in live_points
+        )
         for entry in live_points:
             samples.append(entry)
             log_weights.append(tail_weight)
@@ -510,22 +516,26 @@ def fit_cosmology_parameters(
     if not samples:
         return {"success": False, "samples": None}
 
-    points = np.array([s.params for s in samples], dtype=float)
-    log_posterior = np.array([s.log_posterior for s in samples], dtype=float)
-    log_likelihoods = np.array(
-        [s.log_likelihood for s in samples],
+    points = numpy.array([sample.params for sample in samples], dtype=float)
+    log_posterior = numpy.array(
+        [sample.log_posterior for sample in samples], dtype=float
+    )
+    log_likelihoods = numpy.array(
+        [sample.log_likelihood for sample in samples],
         dtype=float,
     )
-    log_weights_arr = np.array(log_weights, dtype=float)
+    log_weights_arr = numpy.array(log_weights, dtype=float)
     weights = _weights_from_logs(log_weights_arr)
 
     mean_vector = weights @ points
     centred = points - mean_vector
     covariance = centred.T @ (centred * weights[:, None])
     covariance = covariance / max(weights.sum(), _MIN_WEIGHT_FLOOR)
-    std_dev = np.sqrt(np.clip(np.diag(covariance), a_min=0.0, a_max=None))
+    std_dev = numpy.sqrt(
+        numpy.clip(numpy.diag(covariance), a_min=0.0, a_max=None)
+    )
 
-    best_index = int(np.argmax(log_posterior))
+    best_index = int(numpy.argmax(log_posterior))
     best_sample = samples[best_index]
     best_state = best_sample.state
     chi2_total = float(best_state.get("chi2", float("inf")))
@@ -553,13 +563,13 @@ def fit_cosmology_parameters(
     reduced = chi2_total / dof
 
     if math.isfinite(log_evidence):
-        info_nats = float(np.dot(weights, log_likelihoods) - log_evidence)
+        info_nats = float(numpy.dot(weights, log_likelihoods) - log_evidence)
     else:
         info_nats = float("nan")
     diagnostics = {
         "log_evidence": float(log_evidence),
         "information_nats": info_nats,
-        "effective_samples": float(1.0 / np.sum(weights**2)),
+        "effective_samples": float(1.0 / numpy.sum(weights**2)),
         "iterations_completed": int(iterations),
     }
 
@@ -616,11 +626,11 @@ def fit_cosmology_parameters(
 
 
 def fit_sne_parameters(
-    sne_data_df: pd.DataFrame,
+    sne_data_df: pandas.DataFrame,
     model_plugin: Any,
     *,
-    bao_data_df: pd.DataFrame | None = None,
-    cmb_data_df: pd.DataFrame | None = None,
+    bao_data_df: pandas.DataFrame | None = None,
+    cmb_data_df: pandas.DataFrame | None = None,
     n_live_points: int = _DEFAULT_LIVE_POINTS,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
     evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,

@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from typing import Iterable, Mapping
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 
 def _residual_statistics(
-    residuals: np.ndarray,
+    residuals: numpy.ndarray,
 ) -> tuple[float, float, float, int]:
     """Return RMS, max absolute value, median and sample size.
 
@@ -25,19 +25,19 @@ def _residual_statistics(
     parts of the dataset are disabled for a specific model.
     """
 
-    mask = np.isfinite(residuals)
-    if not np.any(mask):
+    mask = numpy.isfinite(residuals)
+    if not numpy.any(mask):
         return float("nan"), float("nan"), float("nan"), 0
 
     cleaned = residuals[mask]
-    rms = float(np.sqrt(np.mean(cleaned**2)))
-    max_abs = float(np.max(np.abs(cleaned)))
-    median = float(np.median(cleaned))
+    rms = float(numpy.sqrt(numpy.mean(cleaned**2)))
+    max_abs = float(numpy.max(numpy.abs(cleaned)))
+    median = float(numpy.median(cleaned))
     return rms, max_abs, median, int(cleaned.size)
 
 
 def bao_residual_diagnostics(
-    predictions: pd.DataFrame | None,
+    predictions: pandas.DataFrame | None,
     *,
     model_name: str,
 ) -> list[str]:
@@ -92,8 +92,8 @@ def bao_residual_diagnostics(
 
 
 def cmb_residual_diagnostics(
-    cmb_data: pd.DataFrame | None,
-    theory: Mapping[str, Iterable[float]] | np.ndarray,
+    cmb_data: pandas.DataFrame | None,
+    theory: Mapping[str, Iterable[float]] | numpy.ndarray,
     *,
     model_name: str,
 ) -> list[str]:
@@ -102,13 +102,13 @@ def cmb_residual_diagnostics(
     if cmb_data is None or getattr(cmb_data, "empty", True):
         return [f"{model_name} CMB residuals unavailable (no data)."]
 
-    if isinstance(theory, np.ndarray):
-        theory_map: Mapping[str, np.ndarray] = {}
-        theory_map["TT"] = np.asarray(theory, dtype=float)
+    if isinstance(theory, numpy.ndarray):
+        theory_map: Mapping[str, numpy.ndarray] = {}
+        theory_map["TT"] = numpy.asarray(theory, dtype=float)
     else:
         theory_map = {}
         for key, component_values in theory.items():
-            theory_map[key] = np.asarray(component_values, dtype=float)
+            theory_map[key] = numpy.asarray(component_values, dtype=float)
 
     component_columns = {
         "TT": "Dl_obs",

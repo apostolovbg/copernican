@@ -140,7 +140,7 @@ def _patch_builtins(base_dir: str) -> None:
         if kwargs.get("file", sys.stdout) is sys.stdout:
             sep = kwargs.get("sep", " ")
             end = kwargs.get("end", "\n")
-            message = sep.join(str(a) for a in args)
+            message = sep.join(str(argument) for argument in args)
             if end != "\n":
                 message += end
             _log_console_message(message)
@@ -378,7 +378,8 @@ def log_environment_info(
     for name, version in pkgs.items():
         logger.info(f"  {name} {version}", **log_kwargs)
     summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
-        f"{n} {v}" for n, v in pkgs.items()
+        f"{package_name} {package_version}"
+        for package_name, package_version in pkgs.items()
     )
     logger.info(f"Environment summary: {summary}", **log_kwargs)
 

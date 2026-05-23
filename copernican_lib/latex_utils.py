@@ -16,8 +16,10 @@ import yaml
 # Explicit UTF-8 ensures consistent parsing across platforms.
 _mapping_path = Path(__file__).with_name("latex_mappings.yml")
 try:
-    with open(_mapping_path, encoding="utf-8") as _fh:
-        _MAPPINGS: Dict[str, Dict[str, str]] = yaml.safe_load(_fh)
+    with open(_mapping_path, encoding="utf-8") as mapping_file_handle:
+        _MAPPINGS: Dict[str, Dict[str, str]] = yaml.safe_load(
+            mapping_file_handle
+        )
 except OSError as exc:  # pragma: no cover - only fails if repo is corrupted
     raise RuntimeError(f"Cannot read LaTeX mappings: {_mapping_path}") from exc
 
@@ -321,12 +323,12 @@ def latex_to_unicode(text: str) -> str:
     cleaned = re.sub(r"\^\{([^{}]+)\}", _sup_repl, cleaned)
     cleaned = re.sub(
         r"_([A-Za-z0-9])",
-        lambda m: _SUB_MAP.get(m.group(1), m.group(1)),
+        lambda match: _SUB_MAP.get(match.group(1), match.group(1)),
         cleaned,
     )
     cleaned = re.sub(
         r"\^([A-Za-z0-9+-])",
-        lambda m: _SUP_MAP.get(m.group(1), m.group(1)),
+        lambda match: _SUP_MAP.get(match.group(1), match.group(1)),
         cleaned,
     )
     return cleaned

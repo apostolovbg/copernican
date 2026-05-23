@@ -15,7 +15,7 @@ dataset so that the columns reflect their domain-specific outputs.
 import os
 from typing import Any
 
-import numpy as np
+import numpy
 
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename
@@ -51,8 +51,8 @@ def save_sne_results_detailed_csv(
         df_out["mu_model_lcdm"] = mu_model_lcdm
         df_out["residual_lcdm"] = mu_data - mu_model_lcdm
     else:
-        df_out["mu_model_lcdm"] = np.nan
-        df_out["residual_lcdm"] = np.nan
+        df_out["mu_model_lcdm"] = numpy.nan
+        df_out["residual_lcdm"] = numpy.nan
 
     alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_")
     alt_model_name = alt_model_name.replace(".", "")
@@ -64,8 +64,8 @@ def save_sne_results_detailed_csv(
         df_out[f"mu_model_{alt_model_name}"] = mu_model_alt
         df_out[f"residual_{alt_model_name}"] = mu_data - mu_model_alt
     else:
-        df_out[f"mu_model_{alt_model_name}"] = np.nan
-        df_out[f"residual_{alt_model_name}"] = np.nan
+        df_out[f"mu_model_{alt_model_name}"] = numpy.nan
+        df_out[f"residual_{alt_model_name}"] = numpy.nan
 
     dataset_id = sne_data_df.attrs.get("dataset_id", "sne_data")
     model_comparison_name = f"vs-{alt_model_name}"
@@ -201,7 +201,7 @@ def save_cmb_results_csv(
                 ]
                 if col not in df_out.columns
             ]
-        ] = np.nan
+        ] = numpy.nan
 
     alt_name_safe = alt_model_name.replace(" ", "_").replace(".", "")
     has_theory = False
@@ -241,7 +241,7 @@ def save_cmb_results_csv(
                 ]
                 if col not in df_out.columns
             ]
-        ] = np.nan
+        ] = numpy.nan
 
     dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
     model_comparison_name = f"vs-{alt_name_safe}"

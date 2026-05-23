@@ -17,8 +17,8 @@ import os
 import warnings
 from typing import Iterable
 
-import numpy as np
-import xarray as xr
+import numpy
+import xarray as xarray_module
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy.
 try:  # pragma: no cover - compatibility shim
@@ -44,7 +44,7 @@ from .utils import ensure_dir_exists
 
 
 def save_posterior(
-    chain: np.ndarray,
+    chain: numpy.ndarray,
     param_names: Iterable[str],
     filepath: str,
     *,
@@ -74,7 +74,7 @@ def save_posterior(
 
     # ArviZ expects arrays in ``(chain, draw, ...)`` order.  The sampler in the
     # MCMC engine yields ``(step, walker, param)`` so we transpose accordingly.
-    transposed = np.transpose(chain, (1, 0, 2))
+    transposed = numpy.transpose(chain, (1, 0, 2))
     posterior_dict = {
         name: transposed[:, :, i] for i, name in enumerate(param_names)
     }
@@ -102,24 +102,24 @@ def save_posterior(
 
     # Minimal fallback when ArviZ is unavailable during lightweight test runs.
     coords = {
-        "chain": np.arange(transposed.shape[0], dtype=int),
-        "draw": np.arange(transposed.shape[1], dtype=int),
+        "chain": numpy.arange(transposed.shape[0], dtype=int),
+        "draw": numpy.arange(transposed.shape[1], dtype=int),
     }
-    dataset = xr.Dataset(
+    xarray_dataset = xarray_module.Dataset(
         {
             name: (("chain", "draw"), transposed[:, :, i])
             for i, name in enumerate(param_names)
         }
     )
-    dataset = dataset.assign_coords(coords)
+    xarray_dataset = xarray_dataset.assign_coords(coords)
     if metadata:
-        dataset.attrs.update(metadata)
+        xarray_dataset.attrs.update(metadata)
     # The SciPy NetCDF backend does not support groups, so the fallback writes
     # everything to the root group and records a flag for downstream callers.
-    dataset.attrs.setdefault("posterior_group", "/")
+    xarray_dataset.attrs.setdefault("posterior_group", "/")
 
     try:
-        dataset.to_netcdf(filepath)
+        xarray_dataset.to_netcdf(filepath)
         logger.info(
             "Posterior samples saved to %s using xarray fallback "
             "(ArviZ missing)",

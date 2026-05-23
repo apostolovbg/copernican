@@ -1,12 +1,12 @@
 # Project Specification
 **Doc ID:** SPEC
 **Doc Type:** project-spec
-**Project Version:** 12.0.3
+**Project Version:** 12.0.6
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-22
+**Last Updated:** 2026-05-23
 **DevCovenant Version:** 1.0.1b5
 
 ## Overview
@@ -17,6 +17,8 @@ It evaluates models against SNe Ia, BAO, and CMB observations.
 - Keep model evaluation declarative through YAML manifests.
 - Preserve native background expressions such as `Hz_expression`.
 - Keep backend adapters narrow and behavior-preserving.
+- Validation runs and mirrored tests should stay behavior-focused, not
+  cosmetic drift checks.
 
 ## Repository Constraints
 - Do not edit managed DevCovenant blocks directly.

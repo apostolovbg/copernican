@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import hashlib
-import random
 import time
+from random import SystemRandom
 
 try:  # pragma: no cover - Tk is optional
     import tkinter as tkinter_module
@@ -14,6 +14,8 @@ except ImportError:  # pragma: no cover - executed when Tk is missing
     ttk = None
 
 from rng_minigames.api import MinigameContext
+
+SECURE_RANDOM = SystemRandom()
 
 
 def launch_constellation(context: MinigameContext) -> None:
@@ -36,8 +38,8 @@ def launch_constellation(context: MinigameContext) -> None:
         )
 
     if not context.render or tkinter_module is None or context.tk_root is None:
-        random_selection = random.sample(range(300), target_connections)
-        _apply_seed(random_selection, random.random() * 10)
+        random_selection = SECURE_RANDOM.sample(range(300), target_connections)
+        _apply_seed(random_selection, SECURE_RANDOM.random() * 10)
         return
 
     window = tkinter_module.Toplevel(context.tk_root)
@@ -56,18 +58,18 @@ def launch_constellation(context: MinigameContext) -> None:
     canvas.pack(padx=16, pady=(0, 8))
     star_count = 260
     stars: list[dict[str, object]] = []
-    random.seed()
+    SECURE_RANDOM.seed()
 
     def _clamp(channel_value: float) -> int:
         """Clamp a color channel value between 0 and 255."""
         return max(0, min(255, int(round(channel_value))))
 
     for index in range(star_count):
-        x_pos = random.randint(10, canvas_width - 10)
-        y_pos = random.randint(10, canvas_height - 10)
-        magnitude = random.uniform(1.2, 3.5)
-        tint = random.randint(200, 255)
-        hue_shift = random.randint(-25, 25)
+        x_pos = SECURE_RANDOM.randint(10, canvas_width - 10)
+        y_pos = SECURE_RANDOM.randint(10, canvas_height - 10)
+        magnitude = SECURE_RANDOM.uniform(1.2, 3.5)
+        tint = SECURE_RANDOM.randint(200, 255)
+        hue_shift = SECURE_RANDOM.randint(-25, 25)
         r_val = _clamp(tint + hue_shift)
         g_val = _clamp(tint + hue_shift // 2)
         b_val = _clamp(tint + hue_shift // 3)

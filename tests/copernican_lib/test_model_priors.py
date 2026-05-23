@@ -48,7 +48,7 @@ class PriorParsingTestCase(unittest.TestCase):
                 {
                     "name": "alpha",
                     "bounds": [1e-4, 1.0],
-                    "latex_name": "\\alpha",
+                    "latex_name": r"\alpha",
                     "prior": {
                         "type": "loguniform",
                         "lower": 1e-4,
@@ -60,12 +60,12 @@ class PriorParsingTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         cache_path = model_spec_validator.validate_and_cache_model(
-            tmp_path, cache_dir
+            temporary_path, cache_dir
         )
         funcs, parsed = model_coder.generate_callables(cache_path)
         for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
@@ -103,14 +103,14 @@ class PriorParsingTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         cache_path = None
         try:
             cache_path = model_spec_validator.validate_and_cache_model(
-                tmp_path, cache_dir
+                temporary_path, cache_dir
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
             for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
@@ -125,7 +125,7 @@ class PriorParsingTestCase(unittest.TestCase):
             self.assertIn("C", plugin.FIXED_PARAMS)
             self.assertAlmostEqual(plugin.FIXED_PARAMS["C"], 299792.458)
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
             if cache_path is not None:
                 cache_path = Path(cache_path)
                 cache_path.unlink(missing_ok=True)
@@ -151,17 +151,17 @@ class PriorValidationTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         try:
             with self.assertRaises(ValueError):
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
 
     def test_loguniform_requires_positive_bounds(self):
         """Log-uniform priors reject non-positive bounds."""
@@ -172,7 +172,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "beta",
                     "bounds": [0.0, 1.0],
-                    "latex_name": "\\beta",
+                    "latex_name": r"\beta",
                     "prior": {
                         "type": "loguniform",
                         "lower": -1.0,
@@ -184,17 +184,17 @@ class PriorValidationTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         try:
             with self.assertRaises(ValueError):
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
 
     def test_prior_definition_requires_mapping(self):
         """Non-mapping prior declarations should fail validation."""
@@ -205,7 +205,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "gamma",
                     "bounds": [0.0, 1.0],
-                    "latex_name": "\\gamma",
+                    "latex_name": r"\gamma",
                     "prior": ["not", "a", "mapping"],
                 }
             ],
@@ -213,17 +213,17 @@ class PriorValidationTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         try:
             with self.assertRaises(ValueError):
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
 
     def test_uniform_with_identical_bounds_rejected(self):
         """Uniform priors cannot pin a parameter to a fixed value."""
@@ -234,7 +234,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "gamma",
                     "bounds": [1.0, 1.0],
-                    "latex_name": "\\gamma",
+                    "latex_name": r"\gamma",
                     "prior": {
                         "type": "uniform",
                         "lower": 1.0,
@@ -246,17 +246,17 @@ class PriorValidationTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         try:
             with self.assertRaises(ValueError):
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
 
     def test_fixed_prior_must_match_bounds(self):
         """Fixed priors must agree with the declared bounds."""
@@ -267,7 +267,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "delta",
                     "bounds": [0.0, 0.0],
-                    "latex_name": "\\delta",
+                    "latex_name": r"\delta",
                     "prior": {"type": "fixed", "value": 1.0},
                 }
             ],
@@ -275,17 +275,17 @@ class PriorValidationTestCase(unittest.TestCase):
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         try:
             with self.assertRaises(ValueError):
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
 
     def test_parser_normalises_prior_mappings(self):
         """Canonical prior mappings should be written to the cache file."""
@@ -296,7 +296,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "delta",
                     "bounds": [-5.0, 5.0],
-                    "latex_name": "\\delta",
+                    "latex_name": r"\delta",
                     "prior": {
                         "type": "gaussian",
                         "mean": 0.0,
@@ -306,7 +306,7 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "epsilon",
                     "bounds": [1e-5, 10.0],
-                    "latex_name": "\\epsilon",
+                    "latex_name": r"\epsilon",
                     "prior": {
                         "type": "loguniform",
                         "lower": 1e-5,
@@ -317,22 +317,22 @@ class PriorValidationTestCase(unittest.TestCase):
                 {
                     "name": "zeta",
                     "bounds": [42.0, 42.0],
-                    "latex_name": "\\zeta",
+                    "latex_name": r"\zeta",
                 },
             ],
             "equations": {},
         }
         with tempfile.NamedTemporaryFile(
             "w", suffix=".yml", delete=False
-        ) as tmp:
-            yaml.safe_dump(model, tmp, sort_keys=False)
-            tmp_path = tmp.name
-        cache_dir = Path(tmp_path).parent
+        ) as temporary_file:
+            yaml.safe_dump(model, temporary_file, sort_keys=False)
+            temporary_path = temporary_file.name
+        cache_dir = Path(temporary_path).parent
         cache_path = None
         try:
             cache_path = Path(
                 model_spec_validator.validate_and_cache_model(
-                    tmp_path, cache_dir
+                    temporary_path, cache_dir
                 )
             )
             with cache_path.open("r") as handle:
@@ -361,7 +361,7 @@ class PriorValidationTestCase(unittest.TestCase):
             )
             self.assertNotIn("transform", third_param)
         finally:
-            Path(tmp_path).unlink(missing_ok=True)
+            Path(temporary_path).unlink(missing_ok=True)
             if cache_path is not None:
                 cache_path.unlink(missing_ok=True)
 

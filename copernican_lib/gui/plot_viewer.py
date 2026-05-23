@@ -33,7 +33,7 @@ class PlotViewer(ttk.Frame):
         self._zoom_active = False
         self._pan_press_event = None
         self._original_limits: dict[
-            int, tuple[tuple[float, float], tuple[float, float]]
+            object, tuple[tuple[float, float], tuple[float, float]]
         ] = {}
         self.canvas.mpl_connect("button_press_event", self._on_press)
         self.canvas.mpl_connect("button_release_event", self._on_release)
@@ -65,7 +65,8 @@ class PlotViewer(ttk.Frame):
             self.fit_to_screen()
             return
         for axis_obj in self.figure.axes:
-            limits = self._original_limits.get(id(axis_obj))
+            axis_key = axis_obj
+            limits = self._original_limits.get(axis_key)
             if not limits:
                 continue
             axis_obj.set_xlim(limits[0])
@@ -90,7 +91,8 @@ class PlotViewer(ttk.Frame):
 
         self._original_limits = {}
         for axis_obj in self.figure.axes:
-            self._original_limits[id(axis_obj)] = (
+            axis_key = axis_obj
+            self._original_limits[axis_key] = (
                 axis_obj.get_xlim(),
                 axis_obj.get_ylim(),
             )

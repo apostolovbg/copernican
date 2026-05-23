@@ -21,7 +21,7 @@ import logging
 import time
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
-import numpy as np
+import numpy
 from scipy.optimize import minimize
 
 from . import console_output as console
@@ -81,7 +81,7 @@ def minimize_with_progress(
 
     logger = logging.getLogger()
     try:
-        np.dot(np.ones(1), np.ones(1))
+        numpy.dot(numpy.ones(1), numpy.ones(1))
         from scipy import linalg as _linalg
 
         _linalg.det([[1.0]])
@@ -100,7 +100,7 @@ def minimize_with_progress(
         )
         return None, 0, float("inf"), list(initial_guess)
     eval_count = {"count": 0}
-    best_objective_value = [np.inf]
+    best_objective_value = [numpy.inf]
     best_parameter_vector = [list(initial_guess)]
     start_time = time.time()
     last_update = start_time
@@ -113,8 +113,8 @@ def minimize_with_progress(
 
         eval_count["count"] += 1
         objective_value = func(parameter_vector, *wrapped_args)
-        if not np.isfinite(objective_value):
-            objective_value = np.inf
+        if not numpy.isfinite(objective_value):
+            objective_value = numpy.inf
         if objective_value < best_objective_value[0]:
             best_objective_value[0] = float(objective_value)
             best_parameter_vector[0] = list(parameter_vector)
@@ -141,7 +141,7 @@ def minimize_with_progress(
             last_update = now
             last_eval = eval_count["count"]
 
-        return objective_value if np.isfinite(objective_value) else 1e12
+        return objective_value if numpy.isfinite(objective_value) else 1e12
 
     result = None
     try:

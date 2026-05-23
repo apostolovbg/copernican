@@ -26,7 +26,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
-import numpy as np
+import numpy
 import yaml
 
 from .utils import get_timestamp
@@ -40,9 +40,9 @@ def _to_serialisable(payload: Any) -> Any:
     heavier dependency such as ``pandas`` for simple transformations.
     """
 
-    if isinstance(payload, np.ndarray):
+    if isinstance(payload, numpy.ndarray):
         return payload.tolist()
-    if isinstance(payload, (np.floating, np.integer)):
+    if isinstance(payload, (numpy.floating, numpy.integer)):
         return payload.item()
     return payload
 
@@ -125,10 +125,10 @@ def save_summary(
     base_name = f"parameter-summary_{summary_timestamp}"
     json_path = out_path / f"{base_name}.json"
     yaml_path = out_path / f"{base_name}.yml"
-    with open(json_path, "w", encoding="utf-8") as jh:
-        json.dump(summary, jh, indent=2)
-    with open(yaml_path, "w", encoding="utf-8") as yh:
-        yaml.safe_dump(summary, yh, sort_keys=False)
+    with open(json_path, "w", encoding="utf-8") as json_file_handle:
+        json.dump(summary, json_file_handle, indent=2)
+    with open(yaml_path, "w", encoding="utf-8") as yaml_file_handle:
+        yaml.safe_dump(summary, yaml_file_handle, sort_keys=False)
     return json_path, yaml_path
 
 

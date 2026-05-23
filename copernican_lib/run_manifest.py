@@ -236,16 +236,16 @@ def save_manifest(
     else:
         timestamp = utils.get_timestamp()
         target = Path(output_dir) / f"run_manifest_{timestamp}.yml"
-    with open(target, "w", encoding="utf-8") as fh:
-        yaml.safe_dump(manifest, fh, sort_keys=False)
+    with open(target, "w", encoding="utf-8") as file_handle:
+        yaml.safe_dump(manifest, file_handle, sort_keys=False)
     return str(target)
 
 
 def load_manifest(path: str) -> dict:
     """Load a manifest from disk for reuse in a new run."""
 
-    with open(path, "r", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+    with open(path, "r", encoding="utf-8") as file_handle:
+        return yaml.safe_load(file_handle)
 
 
 def annotate_outcome(

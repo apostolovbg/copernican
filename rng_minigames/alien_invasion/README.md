@@ -8,6 +8,11 @@ identifier, and the finalized kill order plus the run duration are hashed into
 the manifest seed. Like every title in `rng_minigames/`, the game remains
 deterministic for a given sequence of inputs so reproducibility never suffers.
 
+## Overview
+This title combines mouse-driven combat, persistent AI training and runtime
+storage under `_storage/`. The launcher can run human play, autopilot and
+learning loops without changing the deterministic seed contract.
+
 ## Controls and Flow
 
 - **Movement** – Move the cursor horizontally; the ship chases your pointer

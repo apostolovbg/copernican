@@ -14,8 +14,10 @@ ignore_dirs:
 assets: []
 project-governance:
   project_name: Copernican Suite
-  project_description: A Python toolkit for evaluating cosmological models against SNe Ia, BAO, and CMB observations.
-  copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
+  project_description: A Python toolkit for evaluating cosmological models
+    against SNe Ia, BAO, and CMB observations.
+  copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd.,
+    Republic of Bulgaria
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -79,6 +81,8 @@ policy_overlays:
   line-length-limit:
     exclude_globs:
       - .matplotlib-cache/**
+      - rng_minigames/registry.json
+      - validation/manifests/**
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py

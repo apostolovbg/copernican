@@ -22,7 +22,7 @@ import os
 import random
 from datetime import datetime, timezone
 
-import numpy as np
+import numpy
 import yaml
 
 
@@ -60,8 +60,8 @@ def compute_sha256(path: str) -> str:
     """
 
     sha256 = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for block in iter(lambda: fh.read(8192), b""):
+    with open(path, "rb") as file_handle:
+        for block in iter(lambda: file_handle.read(8192), b""):
             sha256.update(block)
     return sha256.hexdigest()
 
@@ -76,7 +76,9 @@ def check_dataset_id(dataset_id: str) -> str:
     """
 
     forbidden = set(r' \\/:*?"<>|')
-    return "".join(ch for ch in dataset_id if ch not in forbidden)
+    return "".join(
+        character for character in dataset_id if character not in forbidden
+    )
 
 
 def generate_filename(
@@ -148,8 +150,8 @@ def load_metadata_from_dir(data_dir: str) -> dict:
 
     path = os.path.join(data_dir, sorted(meta_files)[0])
     try:
-        with open(path, "r", encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
+        with open(path, "r", encoding="utf-8") as file_handle:
+            return yaml.safe_load(file_handle)
     except (OSError, yaml.YAMLError) as exc:
         logger.warning("Failed to load metadata from %s: %s", path, exc)
         raise
@@ -171,7 +173,7 @@ def set_random_seed(seed: int = 0) -> None:
 
     global CURRENT_SEED
     CURRENT_SEED = seed
-    np.random.seed(seed)
+    numpy.random.seed(seed)
     random.seed(seed)
     logger = logging.getLogger()
     try:  # pragma: no cover - CAMB is optional

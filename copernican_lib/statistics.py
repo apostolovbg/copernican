@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Mapping, Sequence
 
-import numpy as np
+import numpy
 
 from copernican_lib import engine_plugin_validation
 from copernican_lib.likelihoods import (
@@ -49,16 +49,16 @@ def chi_squared_sne(
     like = SNeLike(mu_model_func, sne_data_df)
     loglike = like.loglike(cosmo_params)
     chi2 = float(like.state.get("chi2", float("inf")))
-    if not np.isfinite(loglike):
+    if not numpy.isfinite(loglike):
         return float("inf")
-    return chi2 if np.isfinite(chi2) else float("inf")
+    return chi2 if numpy.isfinite(chi2) else float("inf")
 
 
 def chi_squared_bao(
-    redshifts: np.ndarray,
-    observable_types: np.ndarray,
-    observable_values: np.ndarray,
-    observable_errors: np.ndarray,
+    redshifts: numpy.ndarray,
+    observable_types: numpy.ndarray,
+    observable_values: numpy.ndarray,
+    observable_errors: numpy.ndarray,
     model_plugin,
     cosmo_params: Sequence[float],
     model_rs_Mpc: float,
@@ -78,9 +78,9 @@ def chi_squared_bao(
     )
     loglike = like.loglike(cosmo_params)
     chi2 = float(like.state.get("chi2", float("inf")))
-    if not np.isfinite(loglike):
+    if not numpy.isfinite(loglike):
         return float("inf")
-    return chi2 if np.isfinite(chi2) else float("inf")
+    return chi2 if numpy.isfinite(chi2) else float("inf")
 
 
 def chi_squared_cmb(
@@ -94,9 +94,9 @@ def chi_squared_cmb(
     like = CMBLike(cmb_data_df, plugin, extra_params=extra_params or {})
     loglike = like.loglike(cosmo_params)
     chi2 = float(like.state.get("chi2", float("inf")))
-    if not np.isfinite(loglike):
+    if not numpy.isfinite(loglike):
         return float("inf")
-    return chi2 if np.isfinite(chi2) else float("inf")
+    return chi2 if numpy.isfinite(chi2) else float("inf")
 
 
 def calculate_bao_observables(
@@ -104,7 +104,7 @@ def calculate_bao_observables(
     model_plugin,
     cosmo_params: Sequence[float],
     *,
-    z_smooth: np.ndarray | None = None,
+    z_smooth: numpy.ndarray | None = None,
 ):
     """Return BAO predictions and optional smooth curves for plotting."""
 
@@ -113,12 +113,12 @@ def calculate_bao_observables(
     model_name = model_plugin.MODEL_NAME
 
     bao_pred_df = bao_data_df.copy()
-    bao_pred_df["model_prediction"] = np.nan
+    bao_pred_df["model_prediction"] = numpy.nan
     if getattr(model_plugin, "valid_for_bao", True) is False:
         logger.warning("Model invalid for BAO; skipping.")
-        return bao_pred_df, np.nan, None
+        return bao_pred_df, numpy.nan, None
 
-    param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
+    param_str = ", ".join([f"{parameter:.4g}" for parameter in cosmo_params])
     logger.info(
         "Calculating BAO observables for %s with parameters: [%s]",
         model_name,
@@ -133,7 +133,7 @@ def calculate_bao_observables(
 
     z_smooth_arr = None
     if z_smooth is not None:
-        z_smooth_arr = np.asarray(z_smooth, dtype=float)
+        z_smooth_arr = numpy.asarray(z_smooth, dtype=float)
         if z_smooth_arr.size == 0:
             z_smooth_arr = None
 
@@ -188,17 +188,17 @@ def calculate_bao_observables(
     rs_mpc = float("nan")
     if background is not None:
         rs_candidate = background.get("rs_drag", float("nan"))
-        if np.isfinite(rs_candidate) and rs_candidate > 0:
+        if numpy.isfinite(rs_candidate) and rs_candidate > 0:
             rs_mpc = float(rs_candidate)
 
     def _fill_from_background() -> bool:
         """Populate BAO predictions from the CAMB background table."""
-        if background is None or not np.isfinite(rs_mpc):
+        if background is None or not numpy.isfinite(rs_mpc):
             return False
         try:
-            dm_vals = np.asarray(background["DM"], dtype=float)
-            dh_vals = np.asarray(background["DH"], dtype=float)
-            dv_vals = np.asarray(background["DV"], dtype=float)
+            dm_vals = numpy.asarray(background["DM"], dtype=float)
+            dh_vals = numpy.asarray(background["DH"], dtype=float)
+            dv_vals = numpy.asarray(background["DV"], dtype=float)
         except KeyError as exc:
             logger.warning(
                 "CAMB background missing %s for %s.",
@@ -217,32 +217,32 @@ def calculate_bao_observables(
             )
             return False
 
-        if np.any(mask_dm):
+        if numpy.any(mask_dm):
             bao_pred_df.loc[mask_dm, "model_prediction"] = (
                 dm_vals[mask_dm] / rs_mpc
             )
-        if np.any(mask_dh):
+        if numpy.any(mask_dh):
             bao_pred_df.loc[mask_dh, "model_prediction"] = (
                 dh_vals[mask_dh] / rs_mpc
             )
-        if np.any(mask_dv):
+        if numpy.any(mask_dv):
             bao_pred_df.loc[mask_dv, "model_prediction"] = (
                 dv_vals[mask_dv] / rs_mpc
             )
         return True
 
-    def _smooth_from_background() -> dict[str, np.ndarray] | None:
+    def _smooth_from_background() -> dict[str, numpy.ndarray] | None:
         """Return the smoothed CAMB observables for plotting."""
         if (
             smooth_background is None
             or z_smooth_arr is None
-            or not np.isfinite(rs_mpc)
+            or not numpy.isfinite(rs_mpc)
         ):
             return None
         try:
-            dm_smooth = np.asarray(smooth_background["DM"], dtype=float)
-            dh_smooth = np.asarray(smooth_background["DH"], dtype=float)
-            dv_smooth = np.asarray(smooth_background["DV"], dtype=float)
+            dm_smooth = numpy.asarray(smooth_background["DM"], dtype=float)
+            dh_smooth = numpy.asarray(smooth_background["DH"], dtype=float)
+            dv_smooth = numpy.asarray(smooth_background["DV"], dtype=float)
         except KeyError as exc:
             logger.warning(
                 "CAMB background missing smooth BAO observable %s for %s.",
@@ -262,7 +262,7 @@ def calculate_bao_observables(
 
     def _fill_from_plugin(
         rs_guess: float,
-    ) -> tuple[float, dict[str, np.ndarray] | None]:
+    ) -> tuple[float, dict[str, numpy.ndarray] | None]:
         """Fallback to plugin-supplied BAO predictions when available."""
         try:
             get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
@@ -282,7 +282,7 @@ def calculate_bao_observables(
             return float("nan"), None
 
         rs_value = rs_guess
-        if not (np.isfinite(rs_value) and rs_value > 0):
+        if not (numpy.isfinite(rs_value) and rs_value > 0):
             try:
                 rs_value = float(
                     model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
@@ -302,7 +302,7 @@ def calculate_bao_observables(
                     exc_info=True,
                 )
                 return float("nan"), None
-            if not (np.isfinite(rs_value) and rs_value > 0):
+            if not (numpy.isfinite(rs_value) and rs_value > 0):
                 logger.warning(
                     "Model '%s' returned invalid r_s (%.3f Mpc).",
                     model_name,
@@ -313,13 +313,13 @@ def calculate_bao_observables(
         for index, row in bao_pred_df.iterrows():
             z_val = row["redshift"]
             obs = row["observable_type"]
-            model_pred_numerator = np.nan
+            model_pred_numerator = numpy.nan
             try:
                 if obs == "DM_over_rs":
                     model_pred_numerator = get_DM_model(z_val, *cosmo_params)
                 elif obs == "DH_over_rs":
                     hz_val = get_Hz_model(z_val, *cosmo_params)
-                    if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
+                    if numpy.isfinite(hz_val) and abs(hz_val) > 1e-9:
                         model_pred_numerator = C_LIGHT / hz_val
                 elif obs == "DV_over_rs":
                     if get_DV_model_specific:
@@ -331,20 +331,20 @@ def calculate_bao_observables(
                         dm_val = get_DM_model(z_val, *cosmo_params)
                         hz_val = get_Hz_model(z_val, *cosmo_params)
                         if (
-                            np.isfinite(dm_val)
+                            numpy.isfinite(dm_val)
                             and dm_val >= 0
-                            and np.isfinite(hz_val)
+                            and numpy.isfinite(hz_val)
                             and abs(hz_val) > 1e-9
                             and z_val > 1e-9
                         ):
                             term = (dm_val**2) * C_LIGHT * z_val / hz_val
                             model_pred_numerator = (
-                                term ** (1.0 / 3.0) if term >= 0 else np.nan
+                                term ** (1.0 / 3.0) if term >= 0 else numpy.nan
                             )
                         elif abs(z_val) < 1e-9:
                             model_pred_numerator = 0.0
 
-                if np.isfinite(model_pred_numerator):
+                if numpy.isfinite(model_pred_numerator):
                     bao_pred_df.loc[index, "model_prediction"] = (
                         model_pred_numerator / rs_value
                     )
@@ -372,8 +372,8 @@ def calculate_bao_observables(
             try:
                 dm_smooth = get_DM_model(z_smooth_arr, *cosmo_params)
                 hz_smooth = get_Hz_model(z_smooth_arr, *cosmo_params)
-                dh_smooth = np.where(
-                    hz_smooth > 0, C_LIGHT / hz_smooth, np.nan
+                dh_smooth = numpy.where(
+                    hz_smooth > 0, C_LIGHT / hz_smooth, numpy.nan
                 )
 
                 if get_DV_model_specific:
@@ -384,17 +384,17 @@ def calculate_bao_observables(
                 else:
                     da_smooth = get_DA_model(z_smooth_arr, *cosmo_params)
                     term = (
-                        np.power(1 + z_smooth_arr, 2)
-                        * np.power(da_smooth, 2)
+                        numpy.power(1 + z_smooth_arr, 2)
+                        * numpy.power(da_smooth, 2)
                         * C_LIGHT
                         * z_smooth_arr
                         / hz_smooth
                     )
-                    dv_smooth = np.power(
+                    dv_smooth = numpy.power(
                         term,
                         1 / 3,
                         where=term >= 0,
-                        out=np.full_like(z_smooth_arr, np.nan),
+                        out=numpy.full_like(z_smooth_arr, numpy.nan),
                     )
 
                 smooth_preds = {
@@ -420,12 +420,12 @@ def calculate_bao_observables(
         return rs_value, smooth_preds
 
     if not background_used:
-        bao_pred_df["model_prediction"] = np.nan
+        bao_pred_df["model_prediction"] = numpy.nan
         rs_mpc, smooth_predictions = _fill_from_plugin(rs_mpc)
     else:
         smooth_predictions = _smooth_from_background()
 
-    if not (np.isfinite(rs_mpc) and rs_mpc > 0):
+    if not (numpy.isfinite(rs_mpc) and rs_mpc > 0):
         return bao_pred_df, float("nan"), None
 
     logger.info(

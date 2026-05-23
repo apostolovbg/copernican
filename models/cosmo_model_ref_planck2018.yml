@@ -1,10 +1,11 @@
 model_name: Planck 2018 Reference LambdaCDM
 version: '1.0'
 description: >-
-  Reference base-ΛCDM parameter set pinned to the Planck 2018 TT,TE,EE+lowE
-  best-fit values reported in Planck Collaboration VI (2018, Table 2). All
-  cosmological degrees of freedom are fixed so runs reproduce the legacy inference
-  that validated the Copernican likelihood implementations.
+  Reference base-ΛCDM parameter set pinned to the Planck 2018
+  TT,TE,EE+lowE best-fit values reported in Planck Collaboration VI
+  (2018, Table 2). All cosmological degrees of freedom are fixed so
+  runs reproduce the legacy inference that validated the Copernican
+  likelihood implementations.
 abstract: >-
   Fixed-parameter ΛCDM calibrated to Planck 2018. This model anchors the
   validation manifests and is not intended for exploration; every parameter is
