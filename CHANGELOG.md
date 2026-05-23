@@ -79,6 +79,16 @@ suffixes. Follow this template:
 
 ## Version 12.0.3
 
+- 2026-05-23:
+  Change: Updated the DevCovenant fail threshold from `error` to `warning`.
+  Why: Treat warning-level policy drift as gate-blocking so the open session
+    exposes the full repository hygiene surface before closure.
+  Impact: Warnings now block gate progression and require source-level fixes
+    rather than being deferred until later sessions.
+  Files:
+  CHANGELOG.md
+  devcovenant/config.yaml
+
 - 2026-05-23 [semver:patch]:
   Change: Tightened the DevCovenant cache ignore surface and converted the
     mirrored GUI and plotter tests to explicit unittest assertions.

@@ -197,7 +197,7 @@ install:
 # file_suffixes and ignore_dirs define broad scan boundaries.
 
 engine:
-  fail_threshold: error
+  fail_threshold: warning
   output_mode: verbose
   tests_output_mode: verbose
   logs_keep_last: 0
