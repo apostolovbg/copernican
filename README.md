@@ -1,7 +1,7 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.7
+**Project Version:** 12.0.8
 **Last Updated:** 2026-05-23
 **DevCovenant Version:** 1.0.1b5
 
@@ -107,6 +107,9 @@ the CLI prompts (walkers, burn-in, production, pool size) so GUI runs and CLI
 runs share the same configuration metadata. Quick actions keep the dataset
 catalog health overview, import manifest flow and output directory helpers
 within reach.
+Folder-open actions use the operating system's native handlers so the GUI can
+open output locations without changing the launch behavior that operators
+already expect.
 
 The Run Monitor threads CLI stdout/stderr into a log box that tails
 `logs/runs/*.txt`, mirrors the counter-based progress updates from the sampler

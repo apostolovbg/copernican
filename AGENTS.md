@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.7
+**Project Version:** 12.0.8
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -49,6 +49,9 @@ DevCovenant lifecycle and command behavior used by the project.
 
 - YYYY-MM-DD: Add project-specific notes here. This section is preserved
   across install and refresh runs.
+- 2026-05-24: GUI file-manager open helpers use reviewed OS launch
+  boundaries; keep launcher docs and changelog entries aligned when
+  adjusting user-facing launch behavior.
 
 <!-- DEVCOV-WORKFLOW:BEGIN -->
 
@@ -186,7 +189,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.7
+- Project Version: 12.0.8
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only

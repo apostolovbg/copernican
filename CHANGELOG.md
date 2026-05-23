@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.7
+**Project Version:** 12.0.8
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,27 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.8
+
+- 2026-05-23 [semver:patch]:
+  Change: Added reviewed launcher-boundary annotations and refreshed the
+    user-facing docs for the GUI folder-open flow.
+  Why: Preserve the existing native launcher behavior, document the
+    intentional OS-level process boundary, and satisfy the current gate
+    session.
+  Impact: Clears the remaining security-scanner and documentation-growth
+    complaints without changing the user-visible GUI flow.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/gui/app.py
+  devcovenant/config.yaml
+  copernican_lib/VERSION
+  pyproject.toml
 
 ## Version 12.0.7
 

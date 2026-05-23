@@ -1453,7 +1453,7 @@ class CopernicanGUI:
             return
         try:
             if os.name == "nt":
-                os.startfile(path)
+                os.startfile(path)  # type: ignore[attr-defined]  # nosec B606
             elif sys.platform == "darwin":
                 subprocess.run(["open", path], check=False)  # nosec
             else:
@@ -1516,7 +1516,7 @@ class CopernicanGUI:
 
         try:
             if sys.platform.startswith("win"):
-                os.startfile(path)  # type: ignore[attr-defined]
+                os.startfile(path)  # type: ignore[attr-defined]  # nosec B606
             elif sys.platform == "darwin":
                 subprocess.run(["open", path], check=False)  # nosec
             else:

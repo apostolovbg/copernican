@@ -1,7 +1,7 @@
 # Project Plan
 **Doc ID:** PLAN
 **Doc Type:** project-plan
-**Project Version:** 12.0.7
+**Project Version:** 12.0.8
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -18,6 +18,8 @@ It stays short and current so it can serve as a live project note.
 - Preserve behavior while clearing gate blockers.
 - Keep the mirrored test layout consistent with `tests/`.
 - Keep notes synchronized with the current gate session and warnings.
+- Keep user-facing launcher boundaries documented alongside the current
+  changelog entry and GUI notes.
 
 ## Next Steps
 1. Stabilize the DevCovenant-managed config and policy overlays.
