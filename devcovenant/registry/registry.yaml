@@ -15896,6 +15896,7 @@ profiles:
     - data
     - models/cache
     - cache
+    - licenses
     - vendor
     - third_party
     - node_modules

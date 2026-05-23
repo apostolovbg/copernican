@@ -73,6 +73,7 @@ exclude: |-
     | data
     | models/cache
     | cache
+    | licenses
     | \.git
     | \.python
     | output

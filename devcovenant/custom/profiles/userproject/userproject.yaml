@@ -6,6 +6,7 @@ ignore_dirs:
   - data
   - models/cache
   - cache
+  - licenses
   - vendor
   - third_party
   - node_modules
