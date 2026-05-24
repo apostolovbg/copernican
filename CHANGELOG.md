@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.10
+**Project Version:** 12.0.11
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,50 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.11
+
+- 2026-05-24 [semver:patch]:
+  Change: Synchronized the repo version metadata to 12.0.11, added
+    generated-license line-length exclusions to the repo-owned profile,
+    and fixed the BAO coverage path with a real related unittest.
+  Why: Aligned the repo-local DevCovenant upgrade with the current
+    release metadata, kept generated license artifacts from tripping
+    line-length policy checks, and replaced the CSV comment hack with a
+    real assertion signal.
+  Impact: Updated the version-bearing docs, `pyproject.toml`,
+    `copernican_lib/VERSION`, the DevCovenant config and registry, the
+    repo-owned `userproject` profile, the synthetic BAO fixtures and
+    parser, and the new BAO coverage test.
+  Files:
+  CHANGELOG.md
+  AGENTS.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  devcovenant/config.yaml
+  devcovenant/README.md
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_bao.py
+
+- 2026-05-24 [semver:patch]:
+  Change: Fixed the BAO coverage gap by restoring the synthetic BAO
+    fixture parser to plain CSV handling and resetting the synthetic BAO
+    hash to the clean value.
+  Why: Replaced the CSV comment hack because it did not satisfy the
+    assertion-signal policy and the module needed a real related test file.
+  Impact: Restored a genuine related test signal for
+    `copernican_lib/likelihoods/bao.py` and aligned the synthetic BAO
+    fixtures with the current parser behavior.
+  Files:
+  CHANGELOG.md
+  tests/data/synthetic/bao.csv
+  tests/data/synthetic/cosmo_parser_synthetic.py
+  tests/data/synthetic/test_synthetic_integration.py
 
 ## Version 12.0.10
 

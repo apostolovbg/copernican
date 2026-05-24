@@ -1,4 +1,3 @@
-# assert synthetic BAO dataset contract
 redshift,observable_type,value,error
 0.15,DV_over_rs,4.8,0.1
 0.35,DM_over_rs,7.2,0.2

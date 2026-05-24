@@ -82,6 +82,8 @@ policy_overlays:
       - .matplotlib-cache/**
       - rng_minigames/registry.json
       - validation/manifests/**
+      - licenses/THIRD_PARTY_LICENSES.md
+      - copernican_lib/licenses/*.txt
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py

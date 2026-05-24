@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: f0969e863c358032546273b3485d61f824ad5c309f2763b590e3b718f6babfe3
+  policy_registry_input_hash: d7096e3d659ca2d1d0ff1d4e4d06a2f70d80b97827cd0a19319f070e7b495567
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.9
+  project_version: 12.0.10
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -33,6 +33,7 @@ managed-docs:
   descriptor_roots:
   - devcovenant/builtin/profiles/global/assets
   - devcovenant/builtin/profiles/github/assets
+  - devcovenant/custom/profiles/github/assets
   - devcovenant/builtin/profiles/python/assets
   enabled_docs:
   - AGENTS.md
@@ -6914,6 +6915,8 @@ policies:
       - .matplotlib-cache/**
       - rng_minigames/registry.json
       - validation/manifests/**
+      - licenses/THIRD_PARTY_LICENSES.md
+      - copernican_lib/licenses/*.txt
       - devcovenant/**
       include_prefixes: []
       include_globs:
@@ -7284,6 +7287,8 @@ policies:
           - .matplotlib-cache/**
           - rng_minigames/registry.json
           - validation/manifests/**
+          - licenses/THIRD_PARTY_LICENSES.md
+          - copernican_lib/licenses/*.txt
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7298,6 +7303,8 @@ policies:
           - .matplotlib-cache/**
           - rng_minigames/registry.json
           - validation/manifests/**
+          - licenses/THIRD_PARTY_LICENSES.md
+          - copernican_lib/licenses/*.txt
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7336,6 +7343,8 @@ policies:
           - .matplotlib-cache/**
           - rng_minigames/registry.json
           - validation/manifests/**
+          - licenses/THIRD_PARTY_LICENSES.md
+          - copernican_lib/licenses/*.txt
           - devcovenant/**
       include_prefixes:
         descriptor:
@@ -7660,6 +7669,8 @@ policies:
       - .matplotlib-cache/**
       - rng_minigames/registry.json
       - validation/manifests/**
+      - licenses/THIRD_PARTY_LICENSES.md
+      - copernican_lib/licenses/*.txt
       - devcovenant/**
       include_prefixes: []
       include_globs: &id044
@@ -7751,6 +7762,7 @@ policies:
     - .yml
     - __pycache__/**
     - build/**
+    - copernican_lib/licenses/*.txt
     - data:/**
     - devcovenant/**
     - devcovenant/custom/**
@@ -7772,6 +7784,7 @@ policies:
     - https:/**
     - https://
     - licenses/*.txt
+    - licenses/THIRD_PARTY_LICENSES.md
     - magnet:/**
     - mailto:/**
     - node_modules/**
@@ -16338,6 +16351,8 @@ profiles:
         - .matplotlib-cache/**
         - rng_minigames/registry.json
         - validation/manifests/**
+        - licenses/THIRD_PARTY_LICENSES.md
+        - copernican_lib/licenses/*.txt
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py

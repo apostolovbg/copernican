@@ -1155,6 +1155,8 @@ autogen_metadata_overlays:
     - .matplotlib-cache/**
     - rng_minigames/registry.json
     - validation/manifests/**
+    - licenses/THIRD_PARTY_LICENSES.md
+    - copernican_lib/licenses/*.txt
     exclude_prefixes:
     - build
     - dist
