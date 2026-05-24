@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.9
+**Project Version:** 12.0.10
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,26 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.10
+
+- 2026-05-24 [semver:patch]:
+  Change: Shadowed the builtin GitHub CI profile with a repo-owned custom
+    profile that sets the workflow Python version to 3.11.
+  Why: Aligned CI with the package support matrix in `pyproject.toml`
+    without editing the shipped builtin profile asset.
+  Impact: Regenerates `.github/workflows/ci.yml` from the custom
+    `github` profile and leaves the builtin profile untouched.
+  Files:
+  CHANGELOG.md
+  devcovenant/custom/profiles/github/github.yaml
+  devcovenant/custom/profiles/github/assets/ci.yml
+  .github/workflows/ci.yml
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  pyproject.toml
 
 ## Version 12.0.9
 

@@ -14645,10 +14645,10 @@ profiles:
               implementation: cp
               python_version: '3.14'
               abi: cp314
-    source: builtin
-    path: devcovenant/builtin/profiles/github
+    source: custom
+    path: devcovenant/custom/profiles/github
     assets_available:
-    - devcovenant/builtin/profiles/github/assets/ci.yml
+    - devcovenant/custom/profiles/github/assets/ci.yml
     active: true
   global:
     version: 1
