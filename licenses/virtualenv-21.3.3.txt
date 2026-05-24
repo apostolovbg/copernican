@@ -1,7 +1,7 @@
-# virtualenv 21.2.4
+# virtualenv 21.3.3
 
 This file aggregates the upstream license texts resolved for
-`virtualenv==21.2.4`.
+`virtualenv==21.3.3`.
 
 Resolved from: installed distribution metadata
 

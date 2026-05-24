@@ -1,13 +1,13 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.8
+**Project Version:** 12.0.9
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-23
-**DevCovenant Version:** 1.0.1b5
+**Last Updated:** 2026-05-24
+**DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
 ## DevCovenant Change Logging Rules
@@ -76,6 +76,158 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.9
+
+- 2026-05-24 [semver:patch]:
+  Change: Upgraded the repo-local DevCovenant install to 1.0.1b6,
+    refreshed the dependency and license surfaces, and removed `licenses`
+    from the active userproject ignore set.
+  Why: Align Copernican with the upstream DevCovenant b6 release and keep
+    generated license artifacts tracked during refresh.
+  Impact: Regenerates the managed dependency outputs, keeps the new license
+    files under version control, and preserves the repo-local DevCovenant
+    tree on b6.
+  Files:
+  .gitignore
+  .pre-commit-config.yaml
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  README.md
+  devcovenant/README.md
+  devcovenant/VERSION
+  devcovenant/builtin/policies/README.md
+  devcovenant/builtin/policies/dependency_management/autofix/global.py
+  devcovenant/builtin/policies/dependency_management/dependency_lock_runtime.py
+  devcovenant/builtin/policies/dependency_management/dependency_management.py
+  devcovenant/builtin/policies/dependency_management/dependency_management.yaml
+  devcovenant/builtin/policies/dependency_management/test_blueprints.yaml
+  devcovenant/builtin/policies/package_artifact_mirror/__init__.py
+  devcovenant/builtin/policies/package_artifact_mirror/autofix/__init__.py
+  devcovenant/builtin/policies/package_artifact_mirror/autofix/global.py
+  devcovenant/builtin/policies/package_artifact_mirror/\
+    package_artifact_mirror.py
+  devcovenant/builtin/policies/package_artifact_mirror/\
+    package_artifact_mirror.yaml
+  devcovenant/builtin/policies/package_artifact_mirror/test_blueprints.yaml
+  devcovenant/builtin/policies/package_doc_sync/__init__.py
+  devcovenant/builtin/policies/package_doc_sync/autofix/__init__.py
+  devcovenant/builtin/policies/package_doc_sync/autofix/global.py
+  devcovenant/builtin/policies/package_doc_sync/package_doc_sync.py
+  devcovenant/builtin/policies/package_doc_sync/package_doc_sync.yaml
+  devcovenant/builtin/policies/package_doc_sync/test_blueprints.yaml
+  devcovenant/builtin/profiles/README.md
+  devcovenant/config.yaml
+  devcovenant/core/README.md
+  devcovenant/custom/README.md
+  devcovenant/custom/policies/README.md
+  devcovenant/custom/profiles/README.md
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/docs/architecture.md
+  devcovenant/docs/config.md
+  devcovenant/docs/contracts.md
+  devcovenant/docs/customization.md
+  devcovenant/docs/installation.md
+  devcovenant/docs/policies.md
+  devcovenant/docs/profiles.md
+  devcovenant/docs/project_governance.md
+  devcovenant/docs/refresh.md
+  devcovenant/docs/registry.md
+  devcovenant/docs/troubleshooting.md
+  devcovenant/docs/workflow.md
+  devcovenant/registry/README.md
+  devcovenant/registry/registry.yaml
+  devcovenant/runtime-requirements.lock
+  copernican_lib/VERSION
+  copernican_lib/licenses/PyYAML-6.0.3.txt
+  copernican_lib/licenses/README.md
+  copernican_lib/licenses/THIRD_PARTY_LICENSES.md
+  copernican_lib/licenses/semver-3.0.4.txt
+  licenses/PyYAML-6.0.3.txt
+  licenses/Pygments-2.20.0.txt
+  licenses/README.md
+  licenses/arviz-0.16.1.txt
+  licenses/astropy-6.0.0.txt
+  licenses/astropy-iers-data-0.2026.5.18.1.11.28.txt
+  licenses/attrs-26.1.0.txt
+  licenses/bandit-1.9.4.txt
+  licenses/camb-1.6.0.txt
+  licenses/cfgv-3.5.0.txt
+  licenses/contourpy-1.3.3.txt
+  licenses/cycler-0.12.1.txt
+  licenses/distlib-0.4.0.txt
+  licenses/emcee-3.1.4.txt
+  licenses/filelock-3.29.0.txt
+  licenses/fonttools-4.63.0.txt
+  licenses/h5netcdf-1.3.0.txt
+  licenses/h5py-3.10.0.txt
+  licenses/identify-2.6.19.txt
+  licenses/iniconfig-2.3.0.txt
+  licenses/jsonschema-4.21.1.txt
+  licenses/jsonschema-specifications-2025.9.1.txt
+  licenses/kiwisolver-1.5.0.txt
+  licenses/matplotlib-3.8.2.txt
+  licenses/mdurl-0.1.2.txt
+  licenses/mpmath-1.3.0.txt
+  licenses/nodeenv-1.10.0.txt
+  licenses/numpy-1.26.4.txt
+  licenses/packaging-26.2.txt
+  licenses/pandas-2.2.1.txt
+  licenses/pillow-12.2.0.txt
+  licenses/pip-tools-7.5.3.txt
+  licenses/platformdirs-4.9.6.txt
+  licenses/pluggy-1.6.0.txt
+  licenses/pre_commit-4.6.0.txt
+  licenses/psutil-5.9.8.txt
+  licenses/pyerfa-2.0.1.5.txt
+  licenses/pyparsing-3.3.2.txt
+  licenses/pyproject_hooks-1.2.0.txt
+  licenses/pytest-9.0.3.txt
+  licenses/python-dateutil-2.9.0.post0.txt
+  licenses/pytz-2026.2.txt
+  licenses/referencing-0.37.0.txt
+  licenses/rich-15.0.0.txt
+  licenses/rpds-py-0.30.0.txt
+  licenses/scipy-1.12.0.txt
+  licenses/semver-3.0.4.txt
+  licenses/setuptools-82.0.1.txt
+  licenses/six-1.17.0.txt
+  licenses/sympy-1.13.0.txt
+  licenses/typing_extensions-4.10.0.txt
+  licenses/tzdata-2026.2.txt
+  licenses/wheel-0.47.0.txt
+  licenses/xarray-2023.12.0.txt
+  licenses/xarray-einstats-0.6.0.txt
+  licenses/THIRD_PARTY_LICENSES.md
+  licenses/build-1.5.0.txt
+  licenses/click-8.4.1.txt
+  licenses/markdown-it-py-4.2.0.txt
+  licenses/pip-26.1.1.txt
+  licenses/python-discovery-1.3.1.txt
+  licenses/stevedore-5.8.0.txt
+  licenses/virtualenv-21.3.3.txt
+  PLAN.md
+  pyproject.toml
+  README.md
+  requirements.lock
+  SPEC.md
+
+- 2026-05-24 [semver:patch]:
+  Change: Removed the superseded legacy license snapshots after the
+    dependency refresh replaced them with newer tracked outputs.
+  Why: Keep the repository's tracked license surface aligned with the
+    regenerated dependency artifacts.
+  Impact: Deletes the old versioned license snapshots while preserving the
+    refreshed license files and reports.
+  Files:
+  licenses/build-1.4.4.txt
+  licenses/click-8.3.3.txt
+  licenses/markdown-it-py-4.0.0.txt
+  licenses/pip-26.1.txt
+  licenses/python-discovery-1.2.2.txt
+  licenses/stevedore-5.7.0.txt
+  licenses/virtualenv-21.2.4.txt
 
 ## Version 12.0.8
 

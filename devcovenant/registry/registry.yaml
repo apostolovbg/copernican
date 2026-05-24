@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 6d5b3b7505dec7dcf0465a3f1595db9d2c35a88a96ebe0601055c8cf3cbd341a
+  policy_registry_input_hash: f0969e863c358032546273b3485d61f824ad5c309f2763b590e3b718f6babfe3
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.5
+  project_version: 12.0.9
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -2269,7 +2269,13 @@ policies:
             implementation: cp
             python_version: '3.12'
             abi: cp312
-      license_source_overrides: []
+      license_source_overrides:
+      - id: click
+        kind: archive_url
+        url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+        member_globs:
+        - click-{version}/LICENSE.txt
+        - click-{version}/docs/license.md
       selector_roles: dependency
       dependency_globs: []
       dependency_files: []
@@ -3633,13 +3639,25 @@ policies:
       license_source_overrides:
         descriptor:
           values:
-          - '[]'
+          - |-
+            - id: click
+              kind: archive_url
+              url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+              member_globs:
+              - click-{version}/LICENSE.txt
+              - click-{version}/docs/license.md
           behavior: base
           replaced_inherited_values:
           - ()
         effective:
           values:
-          - '[]'
+          - |-
+            - id: click
+              kind: archive_url
+              url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+              member_globs:
+              - click-{version}/LICENSE.txt
+              - click-{version}/docs/license.md
       selector_roles:
         descriptor:
           values:
@@ -4192,10 +4210,17 @@ policies:
     - id: refresh-all
       description: Refresh configured dependency lockfiles and compliance artifacts.
       mutates_repo: true
+    - id: refresh-force
+      description: Force refresh configured dependency lockfiles and compliance artifacts.
+      mutates_repo: true
     commands:
     - name: refresh-all
       help: Refresh configured dependency lockfiles and compliance artifacts.
       runtime_action: refresh-all
+      mutates_repo: true
+    - name: refresh-force
+      help: Force refresh dependency lockfiles and compliance artifacts.
+      runtime_action: refresh-force
       mutates_repo: true
     runtime_metadata_options:
       id: dependency-management
@@ -4394,7 +4419,13 @@ policies:
             implementation: cp
             python_version: 3.12
             abi: cp312
-      license_source_overrides: []
+      license_source_overrides: &id013
+      - id: click
+        kind: archive_url
+        url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+        member_globs:
+        - click-{version}/LICENSE.txt
+        - click-{version}/docs/license.md
       selector_roles: dependency
       dependency_globs: []
       dependency_files: []
@@ -4598,27 +4629,31 @@ policies:
       enabled: true
       custom: false
       surfaces: *id012
+      license_source_overrides: *id013
       selector_roles: dependency
     assets:
+    - click-{version}/LICENSE.txt
+    - click-{version}/docs/license.md
     - copernican_lib/licenses
     - copernican_lib/licenses/THIRD_PARTY_LICENSES.md
     - copernican_lib/runtime-requirements.lock
     - devcovenant/licenses
     - devcovenant/licenses/THIRD_PARTY_LICENSES.md
     - devcovenant/runtime-requirements.lock
+    - https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
     - licenses/THIRD_PARTY_LICENSES.md
     origin: builtin
     script_exists: true
-    hash: 77d4b93515f2a078b92958f7f6f8176bd8105c240889896ebc7d4ea50738e49d
+    hash: bc971295bb8cc699ce765d63d736f231633dbe027f31f77b0e11a97a8d5b18a5
     script_path: builtin/dependency_management.py
     runtime_state:
       surfaces:
         root_workspace:
-          input_fingerprint: 42288a7a3d826b1c4d25cedf1477f011c9848bc695fd539b0518b0674401e7e0
+          input_fingerprint: 9478fdac0627ad06a5c6a236d822dcca5709adef8ccea1c1a853af36071d336a
           output_fingerprints:
-            lock_file: 0a336b13fb272fe5930c059309f395700d3786aa8b52ca1b3004a4d9845d00a1
-            third_party_file: 9f5c17382662783fc35bcf742cc357bdb02de15ef1e7fb76001ea2eedd3488a2
-            licenses_dir: 6babf212b228a4ae1675c59b377cee644f4f0fff4f512121083def48653ee102
+            lock_file: 8974e1e169412c890caab9cb3934ecdcfcd47d09af1fe8ccb55c979c8c53d810
+            third_party_file: e758b35f7da7a57bc75a7d6967a7a3c29502251f853a6d96db07c6f5462bb14d
+            licenses_dir: be57a0cf220cdc796d56daf87e8292d13cefb6303120f8be83cd88765ba541e6
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -4958,28 +4993,28 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id013
+      include_suffixes: &id014
       - .py
-      exclude_prefixes: &id014
+      exclude_prefixes: &id015
       - build
       - dist
       - node_modules
       - devcovenant
       - tests
       include_prefixes: []
-      include_globs: &id015
+      include_globs: &id016
       - '*.py'
       exclude_suffixes: []
-      exclude_globs: &id016
+      exclude_globs: &id017
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
       - tests/**
-      force_include_globs: &id017
+      force_include_globs: &id018
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      selector_roles: &id018
+      selector_roles: &id019
       - include
       - exclude
       - force_include
@@ -4997,12 +5032,12 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id013
-      exclude_prefixes: *id014
-      include_globs: *id015
-      exclude_globs: *id016
-      force_include_globs: *id017
-      selector_roles: *id018
+      include_suffixes: *id014
+      exclude_prefixes: *id015
+      include_globs: *id016
+      exclude_globs: *id017
+      force_include_globs: *id018
+      selector_roles: *id019
     assets:
     - build/**
     - devcovenant/**
@@ -6073,20 +6108,20 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: &id019
+      selector_roles: &id020
       - user_facing
       - user_visible
       - doc_quality
       include_prefixes: []
-      exclude_prefixes: &id020
+      exclude_prefixes: &id021
       - devcovenant
       - tests/devcovenant
       user_facing_prefixes: []
-      user_facing_exclude_prefixes: &id021
+      user_facing_exclude_prefixes: &id022
       - tests
       - devcovenant
       - tests/devcovenant
-      user_facing_suffixes: &id022
+      user_facing_suffixes: &id023
       - .py
       - .js
       - .ts
@@ -6104,10 +6139,10 @@ policies:
       - .yaml
       - .json
       - .toml
-      user_facing_files: &id023
+      user_facing_files: &id024
       - .pre-commit-config.yaml
       - pyproject.toml
-      user_facing_globs: &id024
+      user_facing_globs: &id025
       - .github/workflows/*.yml
       - .github/workflows/*.yaml
       - '*.py'
@@ -6127,7 +6162,7 @@ policies:
       - '*.yaml'
       - '*.json'
       - '*.toml'
-      user_facing_keywords: &id025
+      user_facing_keywords: &id026
       - api
       - endpoint
       - endpoints
@@ -6159,19 +6194,19 @@ policies:
       - forms
       - workflow
       - workflows
-      user_visible_files: &id026
+      user_visible_files: &id027
       - README.md
       - CONTRIBUTING.md
       - AGENTS.md
       - SPEC.md
       - PLAN.md
-      doc_quality_files: &id027
+      doc_quality_files: &id028
       - README.md
       - CONTRIBUTING.md
       - AGENTS.md
       - SPEC.md
       - PLAN.md
-      required_headings: &id028
+      required_headings: &id029
       - Overview
       require_toc: false
       min_section_count: 3
@@ -6179,7 +6214,7 @@ policies:
       doc_routes: []
       require_mentions: true
       mention_min_length: 3
-      mention_stopwords: &id029
+      mention_stopwords: &id030
       - devcovenant
       - tools
       - common
@@ -6202,11 +6237,11 @@ policies:
       include_suffixes: []
       include_globs: []
       exclude_suffixes: []
-      exclude_globs: &id030
+      exclude_globs: &id031
       - devcovenant/**
       - tests/devcovenant/**
       force_include_globs: []
-      user_facing_exclude_globs: &id031
+      user_facing_exclude_globs: &id032
       - .vscode/**
       - .idea/**
       - .venv/**
@@ -6240,9 +6275,9 @@ policies:
       include_dirs: []
       exclude_files: []
       exclude_dirs: []
-      user_facing_exclude_files: &id032
+      user_facing_exclude_files: &id033
       - devcovenant/config.yaml
-      user_facing_exclude_dirs: &id033
+      user_facing_exclude_dirs: &id034
       - tests/**
       force_include_files: []
       force_include_dirs: []
@@ -6254,26 +6289,26 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id019
-      exclude_prefixes: *id020
-      user_facing_exclude_prefixes: *id021
-      user_facing_suffixes: *id022
-      user_facing_files: *id023
-      user_facing_globs: *id024
-      user_facing_keywords: *id025
-      user_visible_files: *id026
-      doc_quality_files: *id027
-      required_headings: *id028
+      selector_roles: *id020
+      exclude_prefixes: *id021
+      user_facing_exclude_prefixes: *id022
+      user_facing_suffixes: *id023
+      user_facing_files: *id024
+      user_facing_globs: *id025
+      user_facing_keywords: *id026
+      user_visible_files: *id027
+      doc_quality_files: *id028
+      required_headings: *id029
       require_toc: false
       min_section_count: 3
       min_word_count: 120
       require_mentions: true
       mention_min_length: 3
-      mention_stopwords: *id029
-      exclude_globs: *id030
-      user_facing_exclude_globs: *id031
-      user_facing_exclude_files: *id032
-      user_facing_exclude_dirs: *id033
+      mention_stopwords: *id030
+      exclude_globs: *id031
+      user_facing_exclude_globs: *id032
+      user_facing_exclude_files: *id033
+      user_facing_exclude_dirs: *id034
     assets:
     - '*.egg-info/**'
     - '*.json'
@@ -6709,9 +6744,9 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id034
+      include_suffixes: &id035
       - .md
-      allowed_globs: &id035
+      allowed_globs: &id036
       - devcovenant/README.md
       - devcovenant/core/README.md
       - devcovenant/custom/README.md
@@ -6732,7 +6767,7 @@ policies:
       allowed_files: []
       allowed_suffixes: []
       required_files: []
-      required_globs: &id036
+      required_globs: &id037
       - devcovenant/README.md
       - devcovenant/core/README.md
       - devcovenant/custom/README.md
@@ -6750,11 +6785,11 @@ policies:
       - CHANGELOG.md
       - SPEC.md
       - PLAN.md
-      selector_roles: &id037
+      selector_roles: &id038
       - include
       - allowed
       - required
-      include_globs: &id038
+      include_globs: &id039
       - '*.md'
       include_files: []
       include_dirs: []
@@ -6768,11 +6803,11 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id034
-      allowed_globs: *id035
-      required_globs: *id036
-      selector_roles: *id037
-      include_globs: *id038
+      include_suffixes: *id035
+      allowed_globs: *id036
+      required_globs: *id037
+      selector_roles: *id038
+      include_globs: *id039
     assets:
     - '*.md'
     - .md
@@ -7561,7 +7596,7 @@ policies:
       custom: false
       max_length: 79
       allow_long_url_lines: true
-      url_prefixes: &id039
+      url_prefixes: &id040
       - https://
       - http://
       - ftp://
@@ -7582,7 +7617,7 @@ policies:
       allow_long_lines: true
       long_lines_contain: []
       long_lines_between: []
-      include_suffixes: &id040
+      include_suffixes: &id041
       - .py
       - .md
       - .rst
@@ -7592,12 +7627,12 @@ policies:
       - .json
       - .toml
       - .cff
-      exclude_prefixes: &id041
+      exclude_prefixes: &id042
       - build
       - dist
       - node_modules
       - devcovenant
-      exclude_globs: &id042
+      exclude_globs: &id043
       - .vscode/**
       - .idea/**
       - .venv/**
@@ -7627,7 +7662,7 @@ policies:
       - validation/manifests/**
       - devcovenant/**
       include_prefixes: []
-      include_globs: &id043
+      include_globs: &id044
       - '*.py'
       - '*.md'
       - '*.rst'
@@ -7638,16 +7673,16 @@ policies:
       - '*.toml'
       - '*.cff'
       exclude_suffixes: []
-      force_include_globs: &id044
+      force_include_globs: &id045
       - devcovenant/custom/**
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      selector_roles: &id045
+      selector_roles: &id046
       - include
       - exclude
       - force_include
-      url_globs: &id046
+      url_globs: &id047
       - https:/**
       - http:/**
       - ftp:/**
@@ -7683,15 +7718,15 @@ policies:
       custom: false
       max_length: 79
       allow_long_url_lines: true
-      url_prefixes: *id039
+      url_prefixes: *id040
       allow_long_lines: true
-      include_suffixes: *id040
-      exclude_prefixes: *id041
-      exclude_globs: *id042
-      include_globs: *id043
-      force_include_globs: *id044
-      selector_roles: *id045
-      url_globs: *id046
+      include_suffixes: *id041
+      exclude_prefixes: *id042
+      exclude_globs: *id043
+      include_globs: *id044
+      force_include_globs: *id045
+      selector_roles: *id046
+      url_globs: *id047
     assets:
     - '**/*.egg-info/**'
     - '*.egg-info/**'
@@ -8079,20 +8114,20 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      expected_paths: &id047
+      expected_paths: &id048
       - .venv
-      expected_interpreters: &id048
+      expected_interpreters: &id049
       - .venv/bin/python
       - .venv/Scripts/python.exe
       command_search_paths: []
       cleanup_protected_paths: []
-      required_commands: &id049
+      required_commands: &id050
       - pre-commit
       allow_current_interpreter_fallback: false
-      manual_commands: &id050
+      manual_commands: &id051
       - '{current_python} -m venv .venv'
       - '{managed_python} -m pip install -r requirements.lock'
-      managed_commands: &id051
+      managed_commands: &id052
       - bootstrap=>{current_python} -m venv .venv
       - bootstrap=>{managed_python} -m pip install -r requirements.lock
       - open=>{current_python} -m venv .venv
@@ -8105,12 +8140,12 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      expected_paths: *id047
-      expected_interpreters: *id048
-      required_commands: *id049
+      expected_paths: *id048
+      expected_interpreters: *id049
+      required_commands: *id050
       allow_current_interpreter_fallback: false
-      manual_commands: *id050
-      managed_commands: *id051
+      manual_commands: *id051
+      managed_commands: *id052
     assets:
     - .venv/Scripts/python.exe
     - .venv/bin/python
@@ -8599,45 +8634,45 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id052
+      include_suffixes: &id053
       - .py
       include_prefixes: []
-      exclude_prefixes: &id053
+      exclude_prefixes: &id054
       - build
       - dist
       - node_modules
       - tests
       - devcovenant
-      exclude_globs: &id054
+      exclude_globs: &id055
       - build/**
       - dist/**
       - node_modules/**
       - tests/**
       - devcovenant/**
-      watch_dirs: &id055
+      watch_dirs: &id056
       - tests
-      tests_watch_dirs: &id056
+      tests_watch_dirs: &id057
       - tests
-      mirror_roots: &id057
+      mirror_roots: &id058
       - devcovenant/custom=>tests/devcovenant/custom
-      mirror_test_name_templates: &id058
+      mirror_test_name_templates: &id059
       - python=>test_{stem}.py
       - python=>{stem}_test.py
-      test_style_requirements: &id059
+      test_style_requirements: &id060
       - python=>python_unittest
-      include_globs: &id060
+      include_globs: &id061
       - '*.py'
       exclude_suffixes: []
-      force_include_globs: &id061
+      force_include_globs: &id062
       - devcovenant/custom/**/*.py
       watch_files: []
-      placeholder_test_methods: &id062
+      placeholder_test_methods: &id063
       - test_placeholder
-      placeholder_text_markers: &id063
+      placeholder_text_markers: &id064
       - placeholder-marker-alpha
       - placeholder-marker-beta
       - placeholder-marker-gamma
-      selector_roles: &id064
+      selector_roles: &id065
       - include
       - exclude
       - watch
@@ -8660,19 +8695,19 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id052
-      exclude_prefixes: *id053
-      exclude_globs: *id054
-      watch_dirs: *id055
-      tests_watch_dirs: *id056
-      mirror_roots: *id057
-      mirror_test_name_templates: *id058
-      test_style_requirements: *id059
-      include_globs: *id060
-      force_include_globs: *id061
-      placeholder_test_methods: *id062
-      placeholder_text_markers: *id063
-      selector_roles: *id064
+      include_suffixes: *id053
+      exclude_prefixes: *id054
+      exclude_globs: *id055
+      watch_dirs: *id056
+      tests_watch_dirs: *id057
+      mirror_roots: *id058
+      mirror_test_name_templates: *id059
+      test_style_requirements: *id060
+      include_globs: *id061
+      force_include_globs: *id062
+      placeholder_test_methods: *id063
+      placeholder_text_markers: *id064
+      selector_roles: *id065
     assets:
     - build/**
     - devcovenant/**
@@ -9039,27 +9074,27 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_prefixes: &id065
+      exclude_prefixes: &id066
       - build
       - dist
       - node_modules
       - devcovenant
-      include_suffixes: &id066
+      include_suffixes: &id067
       - .py
       include_prefixes: []
-      include_globs: &id067
+      include_globs: &id068
       - '*.py'
       exclude_suffixes: []
-      exclude_globs: &id068
+      exclude_globs: &id069
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
-      force_include_globs: &id069
+      force_include_globs: &id070
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       - tests/**/*.py
-      selector_roles: &id070
+      selector_roles: &id071
       - exclude
       - include
       - force_include
@@ -9077,12 +9112,12 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_prefixes: *id065
-      include_suffixes: *id066
-      include_globs: *id067
-      exclude_globs: *id068
-      force_include_globs: *id069
-      selector_roles: *id070
+      exclude_prefixes: *id066
+      include_suffixes: *id067
+      include_globs: *id068
+      exclude_globs: *id069
+      force_include_globs: *id070
+      selector_roles: *id071
     assets:
     - build/**
     - devcovenant/**
@@ -9555,7 +9590,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: &id071
+      selector_roles: &id072
       - include
       - exclude
       - force_include
@@ -9574,7 +9609,7 @@ policies:
       exclude_dirs: []
       force_include_files: []
       force_include_dirs: []
-      sink_call_targets: &id072
+      sink_call_targets: &id073
       - python=>print
       - python=>builtins.print
       sink_attr_targets: []
@@ -9590,8 +9625,8 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id071
-      sink_call_targets: *id072
+      selector_roles: *id072
+      sink_call_targets: *id073
     assets: []
     origin: builtin
     script_exists: true
@@ -10090,29 +10125,29 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: &id073
+      selector_roles: &id074
       - include
       - exclude
       - force_include
-      include_suffixes: &id074
+      include_suffixes: &id075
       - .py
       include_prefixes: []
-      include_globs: &id075
+      include_globs: &id076
       - '*.py'
       exclude_suffixes: []
-      exclude_prefixes: &id076
+      exclude_prefixes: &id077
       - build
       - dist
       - node_modules
       - devcovenant
       - tests
-      exclude_globs: &id077
+      exclude_globs: &id078
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
       - tests/**
-      force_include_globs: &id078
+      force_include_globs: &id079
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       include_files: []
@@ -10125,9 +10160,9 @@ policies:
       forbid_raise_exception: true
       forbid_broad_exception_handlers: true
       forbid_silent_exception_pass: true
-      broad_exception_waiver_markers: &id079
+      broad_exception_waiver_markers: &id080
       - DEVCOV_ALLOW_BROAD_ONCE
-      broad_exception_waiver_between: &id080
+      broad_exception_waiver_between: &id081
       - DEVCOV_BROAD_BEGIN=>DEVCOV_BROAD_END
     runtime_config_overrides: {}
     runtime_effective_options:
@@ -10137,18 +10172,18 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id073
-      include_suffixes: *id074
-      include_globs: *id075
-      exclude_prefixes: *id076
-      exclude_globs: *id077
-      force_include_globs: *id078
+      selector_roles: *id074
+      include_suffixes: *id075
+      include_globs: *id076
+      exclude_prefixes: *id077
+      exclude_globs: *id078
+      force_include_globs: *id079
       forbid_bare_except: true
       forbid_raise_exception: true
       forbid_broad_exception_handlers: true
       forbid_silent_exception_pass: true
-      broad_exception_waiver_markers: *id079
-      broad_exception_waiver_between: *id080
+      broad_exception_waiver_markers: *id080
+      broad_exception_waiver_between: *id081
     assets:
     - build/**
     - devcovenant/**
@@ -10484,7 +10519,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id081
+      include_suffixes: &id082
       - .py
       - .pyi
       - .pyw
@@ -10500,11 +10535,11 @@ policies:
       - .swift
       - .php
       - .rb
-      selector_roles: &id082
+      selector_roles: &id083
       - include
       - exclude
       - force_include
-      include_globs: &id083
+      include_globs: &id084
       - '*.py'
       - '*.pyi'
       - '*.pyw'
@@ -10543,9 +10578,9 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id081
-      selector_roles: *id082
-      include_globs: *id083
+      include_suffixes: *id082
+      selector_roles: *id083
+      include_globs: *id084
     assets: []
     origin: builtin
     script_exists: true
@@ -10816,7 +10851,7 @@ policies:
       exclude_prefixes: []
       exclude_globs: []
       force_include_globs: []
-      selector_roles: &id084
+      selector_roles: &id085
       - include
       - exclude
       - force_include
@@ -10834,7 +10869,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id084
+      selector_roles: *id085
     assets: []
     origin: builtin
     script_exists: true
@@ -11226,23 +11261,23 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: &id085
+      exclude_globs: &id086
       - tests/**
       - '**/tests/**'
       - devcovenant/**
-      include_suffixes: &id086
+      include_suffixes: &id087
       - .py
       include_prefixes: []
-      include_globs: &id087
+      include_globs: &id088
       - '*.py'
       exclude_suffixes: []
-      exclude_prefixes: &id088
+      exclude_prefixes: &id089
       - devcovenant
-      force_include_globs: &id089
+      force_include_globs: &id090
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       - tests/**/*.py
-      selector_roles: &id090
+      selector_roles: &id091
       - exclude
       - include
       - force_include
@@ -11252,7 +11287,7 @@ policies:
       include_dirs: []
       force_include_files: []
       force_include_dirs: []
-      scanners: &id091
+      scanners: &id092
       - id: bandit
         kind: bandit
         config_file: bandit.yaml
@@ -11266,13 +11301,13 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: *id085
-      include_suffixes: *id086
-      include_globs: *id087
-      exclude_prefixes: *id088
-      force_include_globs: *id089
-      selector_roles: *id090
-      scanners: *id091
+      exclude_globs: *id086
+      include_suffixes: *id087
+      include_globs: *id088
+      exclude_prefixes: *id089
+      force_include_globs: *id090
+      selector_roles: *id091
+      scanners: *id092
     assets:
     - '**/tests/**'
     - bandit.yaml
@@ -11825,48 +11860,48 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: &id092
+      symbol_kinds: &id093
       - function
       - class
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: &id093
+      assertion_signal_patterns: &id094
       - '*=>\bassert\b'
       - python=>\bassert\b
       - python=>\bself\.assert[A-Za-z_]*\s*\(
-      tautology_patterns: &id094
+      tautology_patterns: &id095
       - '*=>^\s*assert\s*\(\s*true\s*\)\s*;?\s*$'
       - '*=>^\s*assert\s+true\s*;?\s*$'
       - rust=>^\s*assert!\s*\(\s*true\s*\)\s*;?\s*$
       - python=>^\s*assert\s+True\s*$
       - python=>^\s*self\.assertTrue\s*\(\s*True\s*\)\s*$
-      include_suffixes: &id095
+      include_suffixes: &id096
       - .py
       include_prefixes: []
-      exclude_prefixes: &id096
+      exclude_prefixes: &id097
       - build
       - dist
       - node_modules
       - tests
       - devcovenant
-      exclude_globs: &id097
+      exclude_globs: &id098
       - build/**
       - dist/**
       - node_modules/**
       - tests/**
       - devcovenant/**
-      watch_dirs: &id098
+      watch_dirs: &id099
       - tests
-      tests_watch_dirs: &id099
+      tests_watch_dirs: &id100
       - tests
-      include_globs: &id100
+      include_globs: &id101
       - '*.py'
       exclude_suffixes: []
-      force_include_globs: &id101
+      force_include_globs: &id102
       - devcovenant/custom/**/*.py
       watch_files: []
-      selector_roles: &id102
+      selector_roles: &id103
       - include
       - exclude
       - watch
@@ -11890,20 +11925,20 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: *id092
+      symbol_kinds: *id093
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: *id093
-      tautology_patterns: *id094
-      include_suffixes: *id095
-      exclude_prefixes: *id096
-      exclude_globs: *id097
-      watch_dirs: *id098
-      tests_watch_dirs: *id099
-      include_globs: *id100
-      force_include_globs: *id101
-      selector_roles: *id102
+      assertion_signal_patterns: *id094
+      tautology_patterns: *id095
+      include_suffixes: *id096
+      exclude_prefixes: *id097
+      exclude_globs: *id098
+      watch_dirs: *id099
+      tests_watch_dirs: *id100
+      include_globs: *id101
+      force_include_globs: *id102
+      selector_roles: *id103
     assets:
     - build/**
     - devcovenant/**
@@ -12348,7 +12383,7 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: &id103
+      ignored_prefixes: &id104
       - devcovenant
       semver_scope_tags_required: true
       pep440_allow_prereleases: true
@@ -12358,7 +12393,7 @@ policies:
       custom_regex_pattern: []
       custom_adapter_path: []
       selector_roles: ignored
-      ignored_globs: &id104
+      ignored_globs: &id105
       - devcovenant/**
       ignored_files: []
       ignored_dirs: []
@@ -12376,13 +12411,13 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: *id103
+      ignored_prefixes: *id104
       semver_scope_tags_required: true
       pep440_allow_prereleases: true
       pep440_allow_dev_releases: true
       pep440_allow_post_releases: true
       selector_roles: ignored
-      ignored_globs: *id104
+      ignored_globs: *id105
     assets:
     - CHANGELOG.md
     - copernican_lib/VERSION
@@ -12762,17 +12797,17 @@ policies:
       enabled: true
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: &id105
+      target_roles: &id106
       - docs
       - changelog
       - package_manifest
-      role_extractors: &id106
+      role_extractors: &id107
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      role_legality_schemes: &id107
+      role_legality_schemes: &id108
       - package_manifest=>pep440
-      target_role_files: &id108
+      target_role_files: &id109
       - docs=>README.md
       - docs=>AGENTS.md
       - docs=>CONTRIBUTING.md
@@ -12784,7 +12819,7 @@ policies:
       target_role_dirs: []
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: &id109
+      selector_roles: &id110
       - target
       target_globs: []
       target_files: []
@@ -12798,13 +12833,13 @@ policies:
       enabled: true
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: *id105
-      role_extractors: *id106
-      role_legality_schemes: *id107
-      target_role_files: *id108
+      target_roles: *id106
+      role_extractors: *id107
+      role_legality_schemes: *id108
+      target_role_files: *id109
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: *id109
+      selector_roles: *id110
     assets:
     - CHANGELOG.md
     - changelog=>CHANGELOG.md
@@ -12965,11 +13000,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id110
+      launcher_files: &id111
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id111
+      selector_roles: &id112
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -12981,8 +13016,8 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id110
-      selector_roles: *id111
+      launcher_files: *id111
+      selector_roles: *id112
     assets: []
     origin: custom
     script_exists: true
@@ -13134,11 +13169,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id112
+      launcher_files: &id113
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id113
+      selector_roles: &id114
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -13150,13 +13185,320 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id112
-      selector_roles: *id113
+      launcher_files: *id113
+      selector_roles: *id114
     assets: []
     origin: custom
     script_exists: true
     hash: 8d90247980aec23d3378cd3aea06555c2aed69f99f5859688d962898e02c61c4
     script_path: custom/start_script_parity.py
+  package-artifact-mirror:
+    enabled: true
+    custom: false
+    description: Package Artifact Mirror
+    policy_text: |-
+      Ensure package-shipped artifacts that are true mirrors stay in exact sync
+      with their canonical repository-root sources. `file_mirrors` and
+      `dir_mirrors` declare `source=>target` pairs. `dir_skip_paths` declares
+      repo-relative mirror exceptions in `source_dir=>relative/path` form.
+      Dependency lockfiles and third-party license inventories are not mirrors
+      unless the repository explicitly declares them here. Auto-fix rewrites the
+      configured exact mirrors from their source paths, preserves separately
+      mirrored files that live inside mirrored directories, preserves package-owned
+      skipped paths, and removes stale mirrored files.
+    metadata:
+      id: package-artifact-mirror
+      severity: error
+      auto_fix: 'true'
+      enforcement: active
+      enabled: 'true'
+      custom: 'false'
+      file_mirrors: []
+      dir_mirrors: []
+      dir_skip_paths: []
+    metadata_resolution:
+      id:
+        descriptor:
+          values:
+          - package-artifact-mirror
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_identity:
+          values:
+          - package-artifact-mirror
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - package-artifact-mirror
+      severity:
+        descriptor:
+          values:
+          - error
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - error
+      auto_fix:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'true'
+      enforcement:
+        descriptor:
+          values:
+          - active
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - active
+      file_mirrors:
+        descriptor:
+          values:
+          - '[]'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - '[]'
+      dir_mirrors:
+        descriptor:
+          values:
+          - '[]'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - '[]'
+      dir_skip_paths:
+        descriptor:
+          values:
+          - '[]'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - '[]'
+      enabled:
+        runtime_defaults:
+          values:
+          - 'true'
+          behavior: default
+          replaced_inherited_values:
+          - ()
+        policy_state:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
+        effective:
+          values:
+          - 'true'
+      custom:
+        runtime_defaults:
+          values:
+          - 'false'
+          behavior: default
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'false'
+    metadata_warnings: []
+    runtime_actions: []
+    commands: []
+    runtime_metadata_options:
+      id: package-artifact-mirror
+      severity: error
+      auto_fix: true
+      enforcement: active
+      enabled: true
+      custom: false
+      file_mirrors: []
+      dir_mirrors: []
+      dir_skip_paths: []
+    runtime_config_overrides: {}
+    runtime_effective_options:
+      id: package-artifact-mirror
+      severity: error
+      auto_fix: true
+      enforcement: active
+      enabled: true
+      custom: false
+    assets: []
+    origin: builtin
+    script_exists: true
+    hash: 59d36e32a6377ae39fae5d4a131f860b75027e8bbb4f3a6c1bd04db0dbde0cf1
+    script_path: builtin/package_artifact_mirror.py
+  package-doc-sync:
+    enabled: true
+    custom: false
+    description: Package Doc Sync
+    policy_text: |-
+      Ensure package-facing documentation files stay synchronized with their
+      canonical repository-source docs. Configured `sync_pairs` map
+      `source=>target` doc paths. Configured `omit_block_pairs` remove
+      repo-only sections between paired begin/end markers before comparison.
+      When `rewrite_repo_relative_links` is true, repo-relative Markdown links are
+      rewritten to `main`-branch repository URLs resolved from `pyproject.toml`,
+      and repo-relative images are rewritten to the repository's `main`-branch raw
+      URLs so PyPI renders them. Auto-fix rewrites the configured package docs from
+      their source docs after those transforms.
+    metadata:
+      id: package-doc-sync
+      severity: error
+      auto_fix: 'true'
+      enforcement: active
+      enabled: 'true'
+      custom: 'false'
+      sync_pairs: []
+      omit_block_pairs: []
+      rewrite_repo_relative_links: 'true'
+    metadata_resolution:
+      id:
+        descriptor:
+          values:
+          - package-doc-sync
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_identity:
+          values:
+          - package-doc-sync
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - package-doc-sync
+      severity:
+        descriptor:
+          values:
+          - error
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - error
+      auto_fix:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'true'
+      enforcement:
+        descriptor:
+          values:
+          - active
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - active
+      sync_pairs:
+        descriptor:
+          values:
+          - '[]'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - '[]'
+      omit_block_pairs:
+        descriptor:
+          values:
+          - '[]'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - '[]'
+      rewrite_repo_relative_links:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'true'
+      enabled:
+        runtime_defaults:
+          values:
+          - 'true'
+          behavior: default
+          replaced_inherited_values:
+          - ()
+        policy_state:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
+        effective:
+          values:
+          - 'true'
+      custom:
+        runtime_defaults:
+          values:
+          - 'false'
+          behavior: default
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'false'
+    metadata_warnings: []
+    runtime_actions: []
+    commands: []
+    runtime_metadata_options:
+      id: package-doc-sync
+      severity: error
+      auto_fix: true
+      enforcement: active
+      enabled: true
+      custom: false
+      sync_pairs: []
+      omit_block_pairs: []
+      rewrite_repo_relative_links: true
+    runtime_config_overrides: {}
+    runtime_effective_options:
+      id: package-doc-sync
+      severity: error
+      auto_fix: true
+      enforcement: active
+      enabled: true
+      custom: false
+      rewrite_repo_relative_links: true
+    assets: []
+    origin: builtin
+    script_exists: true
+    hash: a56d8f2b5edc6ab7d3f71deaff0f0a99a16300f29b7310683e015428d5ff6cc6
+    script_path: builtin/package_doc_sync.py
 profiles:
   csharp:
     version: 1
@@ -15921,7 +16263,6 @@ profiles:
     - models/cache
     - cache
     - .matplotlib-cache
-    - licenses
     - vendor
     - third_party
     - node_modules

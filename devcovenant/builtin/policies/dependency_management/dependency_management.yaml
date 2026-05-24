@@ -42,15 +42,29 @@ metadata:
   auto_fix: 'true'
   enforcement: active
   surfaces: []
-  license_source_overrides: []
+  license_source_overrides:
+  - id: click
+    kind: archive_url
+    url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+    member_globs:
+    - click-{version}/LICENSE.txt
+    - click-{version}/docs/license.md
   selector_roles: dependency
 runtime_actions:
   - id: refresh-all
     description: >-
       Refresh configured dependency lockfiles and compliance artifacts.
     mutates_repo: true
+  - id: refresh-force
+    description: >-
+      Force refresh configured dependency lockfiles and compliance artifacts.
+    mutates_repo: true
 commands:
   - name: refresh-all
     help: Refresh configured dependency lockfiles and compliance artifacts.
     runtime_action: refresh-all
+    mutates_repo: true
+  - name: refresh-force
+    help: Force refresh dependency lockfiles and compliance artifacts.
+    runtime_action: refresh-force
     mutates_repo: true

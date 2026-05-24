@@ -1,7 +1,7 @@
-# markdown-it-py 4.0.0
+# markdown-it-py 4.2.0
 
 This file aggregates the upstream license texts resolved for
-`markdown-it-py==4.0.0`.
+`markdown-it-py==4.2.0`.
 
 Resolved from: installed distribution metadata
 

@@ -414,6 +414,8 @@ policy_state:
   no-future-dates: true
   no-print-outside-output-runtime: true
   no-raw-errors: true
+  package-artifact-mirror: true
+  package-doc-sync: true
   raw-string-escapes: true
   read-only-directories: true
   security-scanner: true

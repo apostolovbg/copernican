@@ -1,7 +1,7 @@
-# stevedore 5.7.0
+# stevedore 5.8.0
 
 This file aggregates the upstream license texts resolved for
-`stevedore==5.7.0`.
+`stevedore==5.8.0`.
 
 Resolved from: installed distribution metadata
 

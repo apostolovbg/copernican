@@ -7,7 +7,6 @@ ignore_dirs:
   - models/cache
   - cache
   - .matplotlib-cache
-  - licenses
   - vendor
   - third_party
   - node_modules

@@ -1,13 +1,13 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.8
+**Project Version:** 12.0.9
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-23
-**DevCovenant Version:** 1.0.1b5
+**Last Updated:** 2026-05-24
+**DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
 # Message from DevCovenant's Human (Read First)
@@ -189,7 +189,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.8
+- Project Version: 12.0.9
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -736,7 +736,13 @@ surfaces:
       implementation: cp
       python_version: '3.12'
       abi: cp312
-license_source_overrides: []
+license_source_overrides:
+- id: click
+  kind: archive_url
+  url: https://files.pythonhosted.org/packages/source/c/click/click-{version}.tar.gz
+  member_globs:
+  - click-{version}/LICENSE.txt
+  - click-{version}/docs/license.md
 selector_roles: dependency
 dependency_globs: []
 dependency_files: []
@@ -1537,6 +1543,60 @@ This policy flags bare `except`, broad `except Exception` handlers,
 generic `raise Exception(...)`, and silent `except Exception: pass`
 handlers in selected source files. Broad-handler waivers are explicit
 through marker comments or marker regions.
+
+
+---
+
+## Policy: Package Artifact Mirror
+
+```policy-def
+id: package-artifact-mirror
+severity: error
+auto_fix: 'true'
+enforcement: active
+enabled: 'true'
+custom: 'false'
+file_mirrors: []
+dir_mirrors: []
+dir_skip_paths: []
+```
+
+Ensure package-shipped artifacts that are true mirrors stay in exact sync
+with their canonical repository-root sources. `file_mirrors` and
+`dir_mirrors` declare `source=>target` pairs. `dir_skip_paths` declares
+repo-relative mirror exceptions in `source_dir=>relative/path` form.
+Dependency lockfiles and third-party license inventories are not mirrors
+unless the repository explicitly declares them here. Auto-fix rewrites the
+configured exact mirrors from their source paths, preserves separately
+mirrored files that live inside mirrored directories, preserves package-owned
+skipped paths, and removes stale mirrored files.
+
+
+---
+
+## Policy: Package Doc Sync
+
+```policy-def
+id: package-doc-sync
+severity: error
+auto_fix: 'true'
+enforcement: active
+enabled: 'true'
+custom: 'false'
+sync_pairs: []
+omit_block_pairs: []
+rewrite_repo_relative_links: 'true'
+```
+
+Ensure package-facing documentation files stay synchronized with their
+canonical repository-source docs. Configured `sync_pairs` map
+`source=>target` doc paths. Configured `omit_block_pairs` remove
+repo-only sections between paired begin/end markers before comparison.
+When `rewrite_repo_relative_links` is true, repo-relative Markdown links are
+rewritten to `main`-branch repository URLs resolved from `pyproject.toml`,
+and repo-relative images are rewritten to the repository's `main`-branch raw
+URLs so PyPI renders them. Auto-fix rewrites the configured package docs from
+their source docs after those transforms.
 
 
 ---

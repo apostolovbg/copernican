@@ -73,6 +73,28 @@ def _normalize_repo_relative_path_token(raw_value: object) -> str:
     return str(raw_value or "").replace("\\", "/").strip()
 
 
+def _normalize_surface_definition_value(raw_value: object) -> object:
+    """Normalize dependency surface definitions for stable fingerprinting."""
+
+    if isinstance(raw_value, Mapping):
+        normalized: dict[str, object] = {}
+        for key, value in raw_value.items():
+            key_name = str(key).strip()
+            if not key_name:
+                continue
+            normalized[key_name] = _normalize_surface_definition_value(value)
+        return normalized
+    if isinstance(raw_value, (list, tuple)):
+        return [
+            _normalize_surface_definition_value(value) for value in raw_value
+        ]
+    if isinstance(raw_value, Path):
+        return raw_value.as_posix()
+    if raw_value is None or isinstance(raw_value, (str, int, float, bool)):
+        return raw_value
+    return str(raw_value)
+
+
 @dataclass(frozen=True)
 class LockFilePieces:
     """Describe the body of a generated requirements.lock snapshot."""
@@ -230,6 +252,8 @@ def _surface_input_fingerprint(
     repo_root: Path,
     *,
     surface: dependency_management.DependencySurface,
+    surface_definitions: object,
+    license_source_overrides_definitions: object,
 ) -> str:
     """Return one stable fingerprint for a surface's refresh inputs."""
 
@@ -261,6 +285,12 @@ def _surface_input_fingerprint(
             "manage_licenses_readme": surface.manage_licenses_readme,
             "generate_hashes": surface.generate_hashes,
             "hash_targets": _serialize_hash_targets(surface.hash_targets),
+            "surface_definitions": _normalize_surface_definition_value(
+                surface_definitions or []
+            ),
+            "license_source_overrides": _normalize_surface_definition_value(
+                license_source_overrides_definitions or []
+            ),
             "dependency_inputs": {
                 path_text: _file_hash_or_missing(repo_root / path_text)
                 for path_text in dependency_inputs
@@ -299,6 +329,8 @@ def _surface_runtime_state_is_current(
     repo_root: Path,
     *,
     surface: dependency_management.DependencySurface,
+    surface_definitions: object,
+    license_source_overrides_definitions: object,
     runtime_state: Mapping[str, object] | None,
 ) -> bool:
     """Return True when one stored runtime-state still matches disk."""
@@ -324,7 +356,14 @@ def _surface_runtime_state_is_current(
         return False
     return (
         stored_input_fingerprint
-        == _surface_input_fingerprint(repo_root, surface=surface)
+        == _surface_input_fingerprint(
+            repo_root,
+            surface=surface,
+            surface_definitions=surface_definitions,
+            license_source_overrides_definitions=(
+                license_source_overrides_definitions
+            ),
+        )
         and dict(output_fingerprints) == current_outputs
     )
 
@@ -333,6 +372,8 @@ def _build_surface_runtime_state(
     repo_root: Path,
     *,
     surface: dependency_management.DependencySurface,
+    surface_definitions: object,
+    license_source_overrides_definitions: object,
 ) -> dict[str, object]:
     """Build one runtime-state snapshot for a managed dependency surface."""
 
@@ -340,6 +381,10 @@ def _build_surface_runtime_state(
         "input_fingerprint": _surface_input_fingerprint(
             repo_root,
             surface=surface,
+            surface_definitions=surface_definitions,
+            license_source_overrides_definitions=(
+                license_source_overrides_definitions
+            ),
         ),
         "output_fingerprints": _surface_output_fingerprints(
             repo_root,
@@ -786,6 +831,7 @@ def _refresh_python_surface_lock(
     all_surfaces: Sequence[dependency_management.DependencySurface] | None = (
         None
     ),
+    force_refresh: bool = False,
 ) -> LockHandlerResult:
     """Refresh one declared Python dependency surface."""
 
@@ -891,6 +937,18 @@ def _refresh_python_surface_lock(
                     f"Normalized {normalized_lock} without changing "
                     "resolved pins."
                 ),
+            )
+        if force_refresh:
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            lock_path.write_text(
+                "\n".join(compiled_cleaned.body) + "\n",
+                encoding="utf-8",
+            )
+            return LockHandlerResult(
+                normalized_lock,
+                changed=True,
+                attempted=True,
+                message=f"Refreshed {normalized_lock}.",
             )
         return LockHandlerResult(
             normalized_lock,
@@ -2816,6 +2874,10 @@ def _resolve_dependency_metadata(repo_root: Path) -> Dict[str, object]:
         )
     )
     return {
+        "surface_definitions": options.get("surfaces", []),
+        "license_source_overrides_definitions": options.get(
+            "license_source_overrides", []
+        ),
         "surfaces": surfaces,
         "license_source_overrides": license_source_overrides,
     }
@@ -2825,10 +2887,16 @@ def refresh_all(
     repo_root: Path,
     *,
     payload: dict[str, object] | None = None,
+    force_refresh: bool = False,
 ) -> dict[str, object]:
     """Refresh selected lockfiles and dependency-management artifacts."""
 
     metadata = _resolve_dependency_metadata(repo_root)
+    surface_definitions = metadata.get("surface_definitions", [])
+    license_source_overrides_definitions = metadata.get(
+        "license_source_overrides_definitions",
+        [],
+    )
     surfaces = [
         surface
         for surface in metadata.get("surfaces", [])
@@ -2858,10 +2926,15 @@ def refresh_all(
         lock_name = surface.lock_file
         stored_surface_state = stored_surface_states.get(surface.surface_id)
         if (
-            not requested_dependency_files
+            not force_refresh
+            and not requested_dependency_files
             and _surface_runtime_state_is_current(
                 repo_root,
                 surface=surface,
+                surface_definitions=surface_definitions,
+                license_source_overrides_definitions=(
+                    license_source_overrides_definitions
+                ),
                 runtime_state=stored_surface_state,
             )
         ):
@@ -2878,10 +2951,13 @@ def refresh_all(
             )
             current_surface_ids.add(surface.surface_id)
             continue
-        if not dependency_management.dependency_surface_lock_refresh_requested(
-            surface,
-            requested_dependency_files,
-        ):
+        lock_refresh_requested = (
+            dependency_management.dependency_surface_lock_refresh_requested(
+                surface,
+                requested_dependency_files,
+            )
+        )
+        if not force_refresh and not lock_refresh_requested:
             results.append(
                 LockHandlerResult(
                     lock_name,
@@ -2895,9 +2971,10 @@ def refresh_all(
             repo_root,
             surface=surface,
             all_surfaces=surfaces,
+            force_refresh=force_refresh,
         )
         results.append(result)
-        if result.changed:
+        if result.attempted and (force_refresh or result.changed):
             changed_lockfiles.append(lock_name)
     changed_dependency_files: List[str] = []
     for dependency_file in requested_dependency_files:
@@ -2919,18 +2996,25 @@ def refresh_all(
             continue
         if not surface.direct_dependency_files:
             continue
-        surface_changed_dependency_files = [
-            entry
-            for entry in changed_dependency_files
-            if dependency_management.dependency_surface_matches(
-                surface,
-                entry,
-            )
-        ]
-        if not requested_dependency_files:
+        if force_refresh:
             surface_changed_dependency_files = sorted(
                 dependency_management.dependency_surface_trigger_files(surface)
             )
+        else:
+            surface_changed_dependency_files = [
+                entry
+                for entry in changed_dependency_files
+                if dependency_management.dependency_surface_matches(
+                    surface,
+                    entry,
+                )
+            ]
+            if not requested_dependency_files:
+                surface_changed_dependency_files = sorted(
+                    dependency_management.dependency_surface_trigger_files(
+                        surface
+                    )
+                )
         modified_license_files.extend(
             dependency_management.refresh_license_artifacts(
                 repo_root,
@@ -2942,12 +3026,17 @@ def refresh_all(
                 direct_dependency_files=surface.direct_dependency_files,
                 manage_licenses_readme=surface.manage_licenses_readme,
                 license_source_overrides=license_source_overrides,
+                force_refresh=force_refresh,
             )
         )
         updated_surface_states[surface.surface_id] = (
             _build_surface_runtime_state(
                 repo_root,
                 surface=surface,
+                surface_definitions=surface_definitions,
+                license_source_overrides_definitions=(
+                    license_source_overrides_definitions
+                ),
             )
         )
     registry.update_policy_runtime_state(
@@ -2993,3 +3082,17 @@ def refresh_all(
         "lock_results": result_payload,
         "refreshed_artifacts": refreshed_artifacts,
     }
+
+
+def refresh_force(
+    repo_root: Path,
+    *,
+    payload: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Force refresh selected lockfiles and dependency-management artifacts."""
+
+    return refresh_all(
+        repo_root,
+        payload=payload,
+        force_refresh=True,
+    )

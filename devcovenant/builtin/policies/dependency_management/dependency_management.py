@@ -32,6 +32,7 @@ CANONICAL_DEPENDENCY_ROLES = (
     "package_manifest",
 )
 RUNTIME_ACTION_REFRESH_ALL = "refresh-all"
+RUNTIME_ACTION_REFRESH_FORCE = "refresh-force"
 _PROJECT_DEPENDENCIES_RE = re.compile(
     r"^\s*dependencies\s*=\s*\[(?P<rest>.*)$"
 )
@@ -1384,12 +1385,15 @@ def _render_dependency_license_text(
     for source_name, _ in sources:
         lines.append(f"- {source_name}")
     for source_name, source_text in sources:
+        normalized_source_text = "\n".join(
+            line.rstrip() for line in source_text.splitlines()
+        ).rstrip()
         lines.extend(
             [
                 "",
                 f"===== {source_name} =====",
                 "",
-                source_text.rstrip(),
+                normalized_source_text,
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
@@ -1540,6 +1544,7 @@ def _sync_dependency_license_files(
     license_source_overrides: (
         Mapping[str, DependencyLicenseSourceOverride] | None
     ) = None,
+    force_refresh: bool = False,
 ) -> list[Path]:
     """Materialize current dependency license texts and prune stale ones."""
     modified: list[Path] = []
@@ -1565,8 +1570,10 @@ def _sync_dependency_license_files(
             origin_description=bundle.origin_description,
             sources=bundle.sources,
         )
-        if not target_path.exists() or (
-            target_path.read_text(encoding="utf-8") != rendered
+        if (
+            force_refresh
+            or not target_path.exists()
+            or (target_path.read_text(encoding="utf-8") != rendered)
         ):
             target_path.parent.mkdir(parents=True, exist_ok=True)
             target_path.write_text(rendered, encoding="utf-8")
@@ -1599,11 +1606,12 @@ def _ensure_licenses_readme(
     *,
     licenses_dir_path: Path,
     third_party_file: str,
+    force_refresh: bool = False,
 ) -> Path | None:
     """Ensure licenses/README.md exists with generic, metadata-driven text."""
     readme_path = licenses_dir_path / LICENSES_README_NAME
     desired = _render_licenses_readme(third_party_file)
-    if readme_path.exists():
+    if readme_path.exists() and not force_refresh:
         existing = readme_path.read_text(encoding="utf-8")
         if existing == desired:
             return None
@@ -1755,6 +1763,7 @@ def refresh_license_artifacts(
     license_source_overrides: (
         Mapping[str, DependencyLicenseSourceOverride] | None
     ) = None,
+    force_refresh: bool = False,
 ) -> List[Path]:
     """Refresh configured report file and licenses marker files."""
 
@@ -1793,7 +1802,7 @@ def refresh_license_artifacts(
         report_section=report_section,
         inventory_section=inventory_section,
     )
-    if updated_report != existing:
+    if force_refresh or updated_report != existing:
         third_party_path.parent.mkdir(parents=True, exist_ok=True)
         third_party_path.write_text(updated_report, encoding="utf-8")
         modified.append(third_party_path)
@@ -1806,6 +1815,7 @@ def refresh_license_artifacts(
             inventory=inventory,
             existing_inventory_paths=existing_inventory_paths,
             license_source_overrides=license_source_overrides,
+            force_refresh=force_refresh,
         )
     )
 
@@ -1813,6 +1823,7 @@ def refresh_license_artifacts(
         readme_path = _ensure_licenses_readme(
             licenses_dir_path=licenses_dir_path,
             third_party_file=third_party_rel,
+            force_refresh=force_refresh,
         )
         if readme_path is not None:
             modified.append(readme_path)
@@ -2098,18 +2109,22 @@ class DependencyManagementCheck(PolicyCheck):
         payload: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Run declared dependency-management runtime actions."""
-        if action != RUNTIME_ACTION_REFRESH_ALL:
-            raise ValueError(
-                "Unsupported dependency-management runtime action: "
-                f"`{action}`."
-            )
         from devcovenant.builtin.policies.dependency_management import (
             dependency_lock_runtime,
         )
 
-        return dependency_lock_runtime.refresh_all(
-            repo_root,
-            payload=payload,
+        if action == RUNTIME_ACTION_REFRESH_ALL:
+            return dependency_lock_runtime.refresh_all(
+                repo_root,
+                payload=payload,
+            )
+        if action == RUNTIME_ACTION_REFRESH_FORCE:
+            return dependency_lock_runtime.refresh_force(
+                repo_root,
+                payload=payload,
+            )
+        raise ValueError(
+            "Unsupported dependency-management runtime action: " f"`{action}`."
         )
 
     def check(self, context: CheckContext):

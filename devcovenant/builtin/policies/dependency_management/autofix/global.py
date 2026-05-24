@@ -27,11 +27,21 @@ class DependencyManagementFixer(PolicyFixer):
                 success=False,
                 message="Autofix repository root is unavailable.",
             )
+        force_refresh = any(
+            bool(violation.context.get(key))
+            for key in (
+                "force_refresh",
+                "refresh_force",
+                "surface_definition_changed",
+                "surface_definitions_changed",
+            )
+        )
+        action = "refresh-force" if force_refresh else "refresh-all"
         try:
             payload = run_policy_runtime_action(
                 repo_root,
                 policy_id=self.policy_id,
-                action="refresh-all",
+                action=action,
                 payload={
                     "changed_dependency_files": list(
                         violation.context.get("changed_dependency_files", [])

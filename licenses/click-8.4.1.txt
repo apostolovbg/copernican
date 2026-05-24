@@ -1,7 +1,7 @@
-# click 8.3.3
+# click 8.4.1
 
 This file aggregates the upstream license texts resolved for
-`click==8.3.3`.
+`click==8.4.1`.
 
 Resolved from: installed distribution metadata
 
