@@ -29,7 +29,7 @@ def parse_sne(data_dir: str):
 @register_bao_parser(name="synthetic_integration", data_dir=DATA_DIR)
 def parse_bao(data_dir: str):
     bao_path = os.path.join(data_dir, "bao.csv")
-    df = pd.read_csv(bao_path)
+    df = pd.read_csv(bao_path, comment="#")
     df.attrs["dataset_name"] = "Synthetic Integration Suite"
     df.attrs["dataset_id"] = "synthetic_integration"
     df.attrs["dataset_version"] = "0.1"
