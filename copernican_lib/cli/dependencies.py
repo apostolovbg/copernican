@@ -236,7 +236,7 @@ def _gather_required_packages(
         "platform",
         "builtins",
         "dataset_registry",
-        "engine_plugin_validation",
+        "engine_adapter",
         "model_spec_validator",
         "csv_writer",
         "plotter",

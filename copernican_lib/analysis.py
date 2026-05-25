@@ -918,8 +918,8 @@ def format_run_summary_text(result: RunAnalysisResult) -> str:
         for dataset_id, info in result.datasets.items():
             count = result.dataset_counts.get(dataset_id, "n/a")
             lines.append(
-                f"  {dataset_id} ({info.get('type','unknown')}): "
-                f"{info.get('name','unknown')} – {count} rows"
+                f"  {dataset_id} ({info.get('type', 'unknown')}): "
+                f"{info.get('name', 'unknown')} – {count} rows"
             )
         lines.append("")
 
@@ -927,15 +927,15 @@ def format_run_summary_text(result: RunAnalysisResult) -> str:
     if diagnostics.rhat:
         lines.append(
             "R‑hat summary: "
-            f"{diagnostics.rhat.get('min','?')}/"
-            f"{diagnostics.rhat.get('median','?')}/"
-            f"{diagnostics.rhat.get('max','?')}"
+            f"{diagnostics.rhat.get('min', '?')}/"
+            f"{diagnostics.rhat.get('median', '?')}/"
+            f"{diagnostics.rhat.get('max', '?')}"
         )
     if diagnostics.ess:
         lines.append(
             "Effective sample sizes: "
-            f"bulk={diagnostics.ess.get('bulk_median','?')}, "
-            f"tail={diagnostics.ess.get('tail_median','?')}"
+            f"bulk={diagnostics.ess.get('bulk_median', '?')}, "
+            f"tail={diagnostics.ess.get('tail_median', '?')}"
         )
     lines.append("")
 
@@ -947,9 +947,9 @@ def format_run_summary_text(result: RunAnalysisResult) -> str:
             if summary.acceptance:
                 lines.append(
                     "  Acceptance "
-                    f"mean={summary.acceptance.get('mean','?')}, "
-                    f"min={summary.acceptance.get('min','?')}, "
-                    f"max={summary.acceptance.get('max','?')}"
+                    f"mean={summary.acceptance.get('mean', '?')}, "
+                    f"min={summary.acceptance.get('min', '?')}, "
+                    f"max={summary.acceptance.get('max', '?')}"
                 )
             if summary.bao_rs is not None:
                 lines.append(f"  BAO r_s = {summary.bao_rs:.2f} Mpc")

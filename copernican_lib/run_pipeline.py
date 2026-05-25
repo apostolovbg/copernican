@@ -483,8 +483,12 @@ def execute_run_pipeline(
             )
             summary["chi2_cmb"] = float("inf")
             return summary
+        get_camb_contract = getattr(model_plugin, "get_camb_contract", None)
         try:
-            camb_params = model_plugin.get_camb_params(cosmo_params)
+            if callable(get_camb_contract):
+                camb_params = get_camb_contract(cosmo_params)
+            else:
+                camb_params = model_plugin.get_camb_params(cosmo_params)
         except (
             AttributeError,
             ImportError,
@@ -505,11 +509,27 @@ def execute_run_pipeline(
             components.append("TE")
         if "Dl_ee_obs" in cmb_data_df.columns:
             components.append("EE")
-        theory = engine_module.compute_cmb_spectrum(
-            camb_params,
-            cmb_data_df["ell"].values,
-            spectra=tuple(components),
-        )
+        try:
+            theory = engine_module.compute_cmb_spectrum(
+                camb_params,
+                cmb_data_df["ell"].values,
+                spectra=tuple(components),
+            )
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            logger.warning(
+                "%s failed to compute CMB spectrum: %s",
+                model_plugin.MODEL_NAME,
+                exc,
+            )
+            summary["chi2_cmb"] = float("inf")
+            return summary
         summary["theory_spectrum"] = theory
         for line in CMB_DIAG(
             cmb_data_df,

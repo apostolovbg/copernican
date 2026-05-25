@@ -161,12 +161,11 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
     omch2: (Omega_m0 - Omega_b) * (H0/100)**2
-    w0: w0
-    wa: wa
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -174,9 +173,21 @@ cmb:
     num_massive_neutrinos: 3
     sum_mnu: 0.06
     omk: Omega_k
+  grids: {}
+  values:
+    w0_cmb:
+      expression: w0
+    wa_cmb:
+      expression: wa
+  calls:
+    - method: set_dark_energy
+      kwargs:
+        w0: "@value.w0_cmb"
+        wa: "@value.wa_cmb"
+        dark_energy_model: ppf
 notes: >-
   The CPL dark-energy density multiplies the derived dark-energy
-  density so the manifest records both w0 and wa along with
+  density so the manifest records the evaluated CPL values along with
   curvature. When wa → 0 the expression collapses to wCDM, making
   this sample useful for continuity tests in the sampler pipeline.
   Radiation now multiplies Omega_gamma by (1 + 0.2271 * Neff) so the

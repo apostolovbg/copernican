@@ -97,6 +97,7 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H_0
     ombh2: Omega_b * (H_0/100)**2
@@ -107,6 +108,9 @@ cmb:
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
+  grids: {}
+  values: {}
+  calls: []
 notes: >-
   Every parameter is anchored to Planck Collaboration VI (2018) Table 2
   (TT,TE,EE+lowE) base-ΛCDM best-fit values. These priors are declared as

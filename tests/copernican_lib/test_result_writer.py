@@ -10,12 +10,8 @@ import unittest
 import pandas
 import yaml
 
-from copernican_lib import (
-    engine_plugin_validation,
-    model_coder,
-    model_spec_validator,
-    result_writer,
-)
+from copernican_lib import engine_adapter as engine_plugin_validation
+from copernican_lib import model_coder, model_spec_validator, result_writer
 from engines import cosmo_engine_mcmc
 
 

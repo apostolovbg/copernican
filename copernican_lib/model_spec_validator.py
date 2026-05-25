@@ -21,6 +21,7 @@ import yaml
 from jsonschema import ValidationError, validate
 
 from . import error_handler, latex_utils, priors
+from .camb_contract import _validate_camb_contract_definition
 
 
 def _sanitise_name_to_var(name: str) -> str:
@@ -221,6 +222,22 @@ def validate_and_cache_model(path, cache_dir):
                     "Transforms require a prior declaration to anchor them"
                 )
             param.pop("transform", None)
+
+    if bool(model_spec.get("valid_for_cmb", True)):
+        cmb_block = model_spec.get("cmb")
+        if not isinstance(cmb_block, dict):
+            raise ValueError("valid_for_cmb models must declare cmb")
+        _validate_camb_contract_definition(
+            cmb_block,
+            [
+                param.get("python_var", param.get("name", ""))
+                for param in model_spec.get("parameters", [])
+            ],
+            [
+                param.get("latex_name", "")
+                for param in model_spec.get("parameters", [])
+            ],
+        )
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
     model_spec["Hz_expression"] = _ensure_delim(

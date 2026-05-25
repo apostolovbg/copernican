@@ -4,17 +4,17 @@
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
 The combined optimiser has been retired entirely, leaving this sampler as the
-sole runtime engine.  It continues to focus on Supernova Ia posteriors while
+sole runtime engine. It continues to focus on Supernova Ia posteriors while
 delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
-acts as the canonical engine façade.  Future backends can slot in beside it
-without changing the orchestration code.  Verbose progress logging tracks
-both burn-in and production phases with percentage updates so long chains
-always report their status.  Version 6.2.0 routes all likelihood evaluations
-through the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
-new :func:`copernican_lib.engine_plugin_validation.make_logposterior` helper so
-posterior calculations automatically honour per-parameter priors, declared
-bounds and optional reparameterisation transforms while exposing diagnostic
-metadata alongside sampled chains.
+acts as the canonical engine façade. Future backends can slot in beside it
+without changing the orchestration code. Verbose progress logging tracks both
+burn-in and production phases with percentage updates so long chains always
+report their status. Version 6.2.0 routes all likelihood evaluations through
+the :class:`copernican_lib.likelihoods.JointLike` aggregator and the new
+:func:`copernican_lib.engine_adapter.make_logposterior` helper so posterior
+calculations automatically honour per-parameter priors, declared bounds and
+optional reparameterisation transforms while exposing diagnostic metadata
+alongside sampled chains.
 
 Version 7.6.20 removes walker snapshot logging entirely, dedicates the output
 channel to concise diagnostics, and now emits simple counter lines instead of
@@ -59,7 +59,7 @@ import emcee
 import numpy
 import pandas
 
-from copernican_lib import engine_plugin_validation
+from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib.engine_capabilities import (
     EngineProgressChunk,
     EngineSetting,
@@ -377,8 +377,8 @@ def _build_joint_logposterior(
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
     once, attaches the plugin's bounds and optional transformations to the
     underlying log-likelihood callable and finally hands everything to
-    :func:`engine_plugin_validation.make_logposterior` so priors and Jacobian
-    adjustments remain consistent across engines.
+    :func:`copernican_lib.engine_adapter.make_logposterior` so priors and
+    Jacobian adjustments remain consistent across engines.
     """
 
     sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)

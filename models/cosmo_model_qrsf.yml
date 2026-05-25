@@ -211,6 +211,7 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H_star
     ombh2: Omega_b * (H_star/100)**2
@@ -222,6 +223,18 @@ cmb:
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
+  grids: {}
+  values:
+    w_rel0_cmb:
+      expression: w_rel0
+    w_rel_a_cmb:
+      expression: w_rel_a
+  calls:
+    - method: set_dark_energy
+      kwargs:
+        w0: "@value.w_rel0_cmb"
+        wa: "@value.w_rel_a_cmb"
+        dark_energy_model: ppf
 notes: >-
   The entanglement enhancement saturates to xi_high at early times and relaxes
   toward xi_low today, so CMB-era inertia matches a cold-matter analogue while
@@ -233,5 +246,7 @@ notes: >-
   inertia arising from the entanglement channel rather than particulate matter.
   The BAO radiation term multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
   sonic scale shares the same relativistic density as the CAMB background.
+  The backend contract now declares the relational fluid through CAMB's dark-
+  energy adapter instead of flattening the parameters into a scalar-only map.
 title: Quantum Relational Scale Field Cosmology
 date: '2025-11-08'

@@ -1,9 +1,9 @@
 # Copernican Suite Architecture
 
-The Copernican Suite splits functionality across orchestration, data, plugins,
-engines, and presentation layers. This document captures how these layers work
-together, describes the manifest lifecycle, and highlights key guardrails such
-as policy enforcement and dataset validation.
+The Copernican Suite splits functionality across orchestration, data, model
+adapters, engines, and presentation layers. This document captures how these
+layers work together, describes the manifest lifecycle, and highlights key
+guardrails such as policy enforcement and dataset validation.
 
 ## Component Layers
 
@@ -14,7 +14,7 @@ as policy enforcement and dataset validation.
   (including `faulthandler` and SIG handlers), and then delegates to
   `copernican_lib.run_executor.execute_run_from_manifest`.
 - `copernican_lib/run_executor.py` – reads manifests, revalidates datasets and
-  plugins, sets up logging via `copernican_lib.logger`, and invokes
+  model adapters, sets up logging via `copernican_lib.logger`, and invokes
   `copernican_lib.run_pipeline`.
 - `copernican_lib/run_pipeline.py` – shared pipeline that drives Stage 1–5,
   updates manifest diagnostics, writes results, and orchestrates plotting plus
@@ -27,11 +27,11 @@ as policy enforcement and dataset validation.
 
 - `dataset_registry` – loads SNe/BAO/CMB datasets, verifies parser digests, and
   attaches metadata to `DataFrame.attrs`.
-- `model_spec_validator`, `model_coder`, and `plugins` – validate YAML models,
-  cache sanitized copies, convert equations into callables, and assemble
-  picklable engine plugins compliant with the expected interface.
-- `engine_plugin_validation` – ensures plugins declare required functions and
-  dataset compatibility before any engine consumes them.
+- `model_spec_validator`, `model_coder`, and `engine_adapter` – validate YAML
+  models, cache sanitized copies, convert equations into callables, and
+  assemble picklable engine adapters compliant with the expected interface.
+- `engine_adapter` – ensures adapters declare required functions, structured
+  CAMB contracts and dataset compatibility before any engine consumes them.
 - `posterior`, `statistics`, `chain_io`, `csv_writer`, `result_writer` –
   provide shared likelihoods, chi-squared helpers, NetCDF/CSV writers, and
   summary serialization that every engine reuses.
@@ -77,11 +77,11 @@ as policy enforcement and dataset validation.
    same questions.
 3. **Manifest composition** – `copernican_lib.run_manifest.build_manifest`
    aggregates seed, model metadata, dataset digests, engine settings, run plan
-   notes, Git hash, environment hints, and plugin metadata. The manifest is
+   notes, Git hash, environment hints, and adapter metadata. The manifest is
    saved in the temporary workspace until `copernican_lib.gui.run_worker` or
    the CLI worker renames the folder to `copernican-run_<timestamp>`.
 4. **Execution** – `copernican_lib.run_executor.execute_run_from_manifest`
-   rebuilds the dataset loaders, the plugin, and the run configuration,
+   rebuilds the dataset loaders, the adapter, and the run configuration,
    launches the selected engine, and streams diagnostics into the GUI Run
    Monitor or the console.
 5. **Results** – `result_writer.save_summary` outputs JSON/YAML summaries,
@@ -131,5 +131,5 @@ as policy enforcement and dataset validation.
   changed in `docs/data_overview.md` and the changelog.
 
 This architecture keeps CLI, GUI, dataset loaders, engines, and documentation
-aligned so new frontends can build upon the same manifest and plugin services
+aligned so new frontends can build upon the same manifest and adapter services
 without diverging from the canonical execution flow.

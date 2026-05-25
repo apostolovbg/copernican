@@ -1,13 +1,11 @@
 r"""Cosmic Microwave Background likelihood helper.
 
 Provides cache-aware CAMB interfaces shared by the CMB likelihood and the BAO
-background evaluator.  Earlier revisions duplicated CAMB configuration across
-modules which let the BAO pipeline drift from the spectra settings used during
-Stage 2.  The refactor below consolidates parameter normalisation, neutrino
-sector handling and accuracy knobs so every observable consumes the same
-cosmology and the run manifest can record the exact CAMB controls.  The spectra
-returned here are expressed as :math:`D_\ell` so downstream tests comparing
-against published Planck-lite tables use consistent conventions.
+background evaluator. The helpers consume structured CAMB contracts so scalar
+parameters, declared grids, evaluated values and ordered backend calls stay
+aligned across the spectrum and background paths. The spectra returned here
+are expressed as :math:`D_\ell` so downstream tests comparing against
+published Planck-lite tables use consistent conventions.
 """
 
 from __future__ import annotations
@@ -39,7 +37,7 @@ _FAKE_CMB_OFFSET = 3.0
 # physics evaluations while still exercising the chi-squared plumbing.
 _FAKE_CMB_PROVIDER: (
     Callable[
-        [Mapping[str, float], Iterable[int], Sequence[str]],
+        [Mapping[str, Any], Iterable[int], Sequence[str]],
         Mapping[str, numpy.ndarray] | numpy.ndarray,
     ]
     | None
@@ -128,83 +126,157 @@ def _fake_background_payload(z_arr: numpy.ndarray) -> dict[str, numpy.ndarray]:
     }
 
 
+def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
+    """Return ``value`` as a finite scalar float."""
+
+    array_value = numpy.asarray(value, dtype=float)
+    if array_value.ndim != 0:
+        raise ValueError(f"{name} must evaluate to a scalar")
+    scalar = float(array_value)
+    if not numpy.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _coerce_numeric_array(value: Any, *, name: str) -> numpy.ndarray:
+    """Return ``value`` as a finite one-dimensional array."""
+
+    array_value = numpy.asarray(value, dtype=float)
+    if array_value.ndim != 1:
+        raise ValueError(f"{name} must evaluate to a one-dimensional array")
+    if array_value.size == 0:
+        raise ValueError(f"{name} must not be empty")
+    if not numpy.all(numpy.isfinite(array_value)):
+        raise ValueError(f"{name} must contain only finite values")
+    return array_value
+
+
+def _normalise_camb_contract(
+    contract_or_params: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return a structured CAMB contract from legacy or new inputs."""
+
+    keys = {str(key) for key in contract_or_params.keys()}
+    if {"backend", "param_map", "grids", "values", "calls"}.issubset(keys):
+        return contract_or_params
+    if keys.intersection({"backend", "param_map", "grids", "values", "calls"}):
+        return contract_or_params
+    return {
+        "backend": "camb",
+        "param_map": dict(contract_or_params),
+        "grids": {},
+        "values": {},
+        "calls": [],
+    }
+
+
+def _is_structured_camb_contract(
+    contract_or_params: Mapping[str, Any],
+) -> bool:
+    """Return ``True`` when ``contract_or_params`` uses the new contract."""
+
+    keys = {str(key) for key in contract_or_params.keys()}
+    return bool(
+        keys.intersection({"backend", "param_map", "grids", "values", "calls"})
+    )
+
+
 def _make_camb_params(
-    param_dict: Mapping[str, Any], *, lmax: int | None = None
+    contract_or_params: Mapping[str, Any], *, lmax: int | None = None
 ) -> camb.CAMBparams:
-    """Return CAMB parameters mirroring the engine reference implementation."""
+    """Return CAMB parameters from a structured contract or legacy mapping."""
+
+    contract = _normalise_camb_contract(contract_or_params)
+    if contract.get("backend") != "camb":
+        raise ValueError("Only the CAMB backend is supported")
+
+    param_map = contract.get("param_map", {})
+    if not isinstance(param_map, Mapping):
+        raise ValueError("cmb.param_map must be a mapping")
 
     params = camb.CAMBparams()
     cosmo_kwargs: dict[str, Any] = {}
-    # CAMB insists on either ``H0`` or an angular scale parameter.  We mirror
-    # the defaults used in ``_cached_cmb`` so helper calls remain backward
-    # compatible when optional keys are omitted from ``param_dict``.
-    cosmo_kwargs["H0"] = float(param_dict.get("H0", 67.5))
-    cosmo_kwargs["ombh2"] = float(param_dict.get("ombh2", 0.022))
-    cosmo_kwargs["omch2"] = float(param_dict.get("omch2", 0.12))
-    if "tau" in param_dict:
-        cosmo_kwargs["tau"] = float(param_dict["tau"])
-    else:
-        cosmo_kwargs["tau"] = float(0.06)
-    if "omk" in param_dict:
-        cosmo_kwargs["omk"] = float(param_dict["omk"])
-    if "YHe" in param_dict:
-        cosmo_kwargs["YHe"] = float(param_dict["YHe"])
-    if "theta_H0_range" in param_dict:
-        theta_range = param_dict["theta_H0_range"]
+    consumed_keys: set[str] = set()
+
+    # Consume one scalar CAMB key and mark it as forwarded.
+    def _use_scalar(key: str) -> float:
+        value = _coerce_numeric_scalar(param_map[key], name=key)
+        consumed_keys.add(key)
+        return value
+
+    if "H0" in param_map:
+        cosmo_kwargs["H0"] = _use_scalar("H0")
+    if "ombh2" in param_map:
+        cosmo_kwargs["ombh2"] = _use_scalar("ombh2")
+    if "omch2" in param_map:
+        cosmo_kwargs["omch2"] = _use_scalar("omch2")
+    if "omk" in param_map:
+        cosmo_kwargs["omk"] = _use_scalar("omk")
+    if "tau" in param_map:
+        cosmo_kwargs["tau"] = _use_scalar("tau")
+    if "YHe" in param_map:
+        cosmo_kwargs["YHe"] = _use_scalar("YHe")
+    if "theta_H0_range" in param_map:
+        theta_range = _coerce_numeric_array(
+            param_map["theta_H0_range"], name="theta_H0_range"
+        )
+        if theta_range.size < 2:
+            raise ValueError("theta_H0_range must contain at least two values")
         cosmo_kwargs["theta_H0_range"] = tuple(
-            float(value) for value in numpy.atleast_1d(theta_range)[:2]
+            float(value) for value in theta_range[:2]
         )
+        consumed_keys.add("theta_H0_range")
 
-    # Translate high-level neutrino controls into the names CAMB expects.  The
-    # helper accepts both the effective relativistic degrees of freedom and the
-    # standard reference value so users can keep oscillation-motivated deltas
-    # explicit in their parameter maps.
-    if "Neff" in param_dict:
-        cosmo_kwargs["nnu"] = float(param_dict["Neff"])
-    if "standard_neutrino_neff" in param_dict:
-        cosmo_kwargs["standard_neutrino_neff"] = float(
-            param_dict["standard_neutrino_neff"]
+    if "Neff" in param_map:
+        cosmo_kwargs["nnu"] = _use_scalar("Neff")
+    if "standard_neutrino_neff" in param_map:
+        cosmo_kwargs["standard_neutrino_neff"] = _use_scalar(
+            "standard_neutrino_neff"
         )
-    if "num_massive_neutrinos" in param_dict:
+    if "num_massive_neutrinos" in param_map:
         cosmo_kwargs["num_massive_neutrinos"] = int(
-            float(param_dict["num_massive_neutrinos"])
+            _use_scalar("num_massive_neutrinos")
         )
-    if "neutrino_hierarchy" in param_dict:
-        cosmo_kwargs["neutrino_hierarchy"] = param_dict["neutrino_hierarchy"]
+    if "neutrino_hierarchy" in param_map:
+        cosmo_kwargs["neutrino_hierarchy"] = param_map["neutrino_hierarchy"]
+        consumed_keys.add("neutrino_hierarchy")
 
-    # The YAML layer lets models expose individual mass eigenstates via keys
-    # such as ``mnu1`` and ``mnu2``.  CAMB only receives the summed mass, so we
-    # aggregate the ordered entries before forwarding them.  When a direct
-    # ``sum_mnu`` mapping is supplied it overrides the individual masses, while
-    # ``mnu`` remains available for historical parameterisations.
     dynamic_mass_keys = [
-        key for key in param_dict if _MNU_PATTERN.match(str(key))
+        key for key in param_map if _MNU_PATTERN.match(str(key))
     ]
     if dynamic_mass_keys:
         ordered = sorted(
             dynamic_mass_keys,
             key=lambda item: int(_MNU_PATTERN.match(str(item)).group(1)),
         )
-        masses = [float(param_dict[key]) for key in ordered]
+        masses = [
+            _coerce_numeric_scalar(param_map[key], name=str(key))
+            for key in ordered
+        ]
         cosmo_kwargs.setdefault("num_massive_neutrinos", len(masses))
         cosmo_kwargs["mnu"] = float(numpy.sum(masses))
-    if "sum_mnu" in param_dict:
-        cosmo_kwargs["mnu"] = float(param_dict["sum_mnu"])
-    elif "mnu" in param_dict:
-        cosmo_kwargs["mnu"] = float(param_dict["mnu"])
+        consumed_keys.update(ordered)
+    if "sum_mnu" in param_map:
+        cosmo_kwargs["mnu"] = _use_scalar("sum_mnu")
+    elif "mnu" in param_map:
+        cosmo_kwargs["mnu"] = _use_scalar("mnu")
+
+    if "Alens" in param_map:
+        cosmo_kwargs["Alens"] = _use_scalar("Alens")
 
     params.set_cosmology(**cosmo_kwargs)
-    if "omnuh2" in param_dict:
-        params.omnuh2 = float(param_dict["omnuh2"])
+
+    if "omnuh2" in param_map:
+        params.omnuh2 = _use_scalar("omnuh2")
 
     accuracy = getattr(params, "Accuracy", None)
     if accuracy is not None:
-        if "AccuracyBoost" in param_dict:
-            accuracy.AccuracyBoost = float(param_dict["AccuracyBoost"])
-        if "lAccuracyBoost" in param_dict:
-            accuracy.LAccuracyBoost = float(param_dict["lAccuracyBoost"])
-        if "kAccuracyBoost" in param_dict:
-            accuracy.KAccuracyBoost = float(param_dict["kAccuracyBoost"])
+        if "AccuracyBoost" in param_map:
+            accuracy.AccuracyBoost = _use_scalar("AccuracyBoost")
+        if "lAccuracyBoost" in param_map:
+            accuracy.LAccuracyBoost = _use_scalar("lAccuracyBoost")
+        if "kAccuracyBoost" in param_map:
+            accuracy.KAccuracyBoost = _use_scalar("kAccuracyBoost")
 
     if lmax is not None:
         params.set_for_lmax(
@@ -213,18 +285,70 @@ def _make_camb_params(
         )
 
     power_kwargs: dict[str, Any] = {}
-    if "As" in param_dict:
-        power_kwargs["As"] = float(param_dict["As"])
-    if "ns" in param_dict:
-        power_kwargs["ns"] = float(param_dict["ns"])
-    if "nrun" in param_dict:
-        power_kwargs["nrun"] = float(param_dict["nrun"])
-    if "nrunrun" in param_dict:
-        power_kwargs["nrunrun"] = float(param_dict["nrunrun"])
-    if "r" in param_dict:
-        power_kwargs["r"] = float(param_dict["r"])
+    if "As" in param_map:
+        power_kwargs["As"] = _use_scalar("As")
+    if "ns" in param_map:
+        power_kwargs["ns"] = _use_scalar("ns")
+    if "nrun" in param_map:
+        power_kwargs["nrun"] = _use_scalar("nrun")
+    if "nrunrun" in param_map:
+        power_kwargs["nrunrun"] = _use_scalar("nrunrun")
+    if "r" in param_map:
+        power_kwargs["r"] = _use_scalar("r")
     if power_kwargs:
         params.InitPower.set_params(**power_kwargs)
+
+    for call in contract.get("calls", []) or []:
+        method = call.get("method")
+        if method == "set_dark_energy":
+            call_kwargs = dict(call.get("kwargs", {}) or {})
+            call_args = call.get("args", {}) or {}
+            if call_args:
+                raise ValueError("set_dark_energy does not accept args")
+            if "w0" in call_kwargs and "w" not in call_kwargs:
+                call_kwargs["w"] = call_kwargs.pop("w0")
+            elif "w0" in call_kwargs and "w" in call_kwargs:
+                raise ValueError(
+                    "set_dark_energy cannot receive both w and w0"
+                )
+            for numeric_key in ("w", "wa", "cs2"):
+                if numeric_key in call_kwargs:
+                    call_kwargs[numeric_key] = _coerce_numeric_scalar(
+                        call_kwargs[numeric_key], name=numeric_key
+                    )
+            params.set_dark_energy(**call_kwargs)
+        elif method == "set_dark_energy_w_a":
+            call_args = dict(call.get("args", {}) or {})
+            call_kwargs = dict(call.get("kwargs", {}) or {})
+            if set(call_args) != {"a", "w"}:
+                raise ValueError(
+                    "set_dark_energy_w_a requires args 'a' and 'w'"
+                )
+            a_array = _coerce_numeric_array(call_args["a"], name="a")
+            w_array = _coerce_numeric_array(call_args["w"], name="w")
+            if a_array.shape != w_array.shape:
+                raise ValueError("set_dark_energy_w_a arrays must match")
+            if not numpy.all(numpy.diff(a_array) > 0.0):
+                raise ValueError(
+                    "set_dark_energy_w_a scale-factor array must be "
+                    "strictly increasing"
+                )
+            params.set_dark_energy_w_a(
+                a=a_array,
+                w=w_array,
+                **call_kwargs,
+            )
+        else:
+            raise ValueError(f"Unsupported CAMB call method: {method!r}")
+
+    unused_keys = sorted(
+        str(key) for key in param_map if key not in consumed_keys
+    )
+    if unused_keys:
+        raise ValueError(
+            "Unconsumed scalar CAMB parameter(s): " + ", ".join(unused_keys)
+        )
+
     return params
 
 
@@ -315,8 +439,94 @@ def _cached_background(
     )
 
 
+def _compute_cmb_spectrum_direct(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    spectra: Sequence[str] = ("TT",),
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
+    """Return spectra directly without routing through the scalar cache."""
+
+    ell_arr = numpy.asarray(list(ells), dtype=int)
+    if ell_arr.size == 0:
+        raise ValueError("ells must not be empty")
+    lmax = int(ell_arr.max())
+    params = _make_camb_params(contract_or_params, lmax=lmax)
+    results = camb.get_results(params)
+    cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    out: dict[str, numpy.ndarray] = {}
+    if "TT" in spectra:
+        out["TT"] = cls[:, 0]
+    if "EE" in spectra:
+        out["EE"] = cls[:, 1]
+    if "TE" in spectra:
+        out["TE"] = cls[:, 3]
+    result = {spec: out[spec][ell_arr] for spec in spectra}
+    if len(result) == 1:
+        return next(iter(result.values()))
+    return result
+
+
+def _compute_camb_background_direct(
+    contract_or_params: Mapping[str, Any],
+    redshifts: Sequence[float],
+) -> dict[str, numpy.ndarray]:
+    """Return background observables directly without cached scalars."""
+
+    z_arr = numpy.asarray(redshifts, dtype=float)
+    params = _make_camb_params(contract_or_params, lmax=None)
+    results = camb.get_results(params)
+    derived = results.get_derived_params()
+    rs_drag = float(derived.get("rdrag", float("nan")))
+
+    comoving_distances: list[float] = []
+    angular_distance_values: list[float] = []
+    hubble_parameters: list[float] = []
+    for z_val in z_arr:
+        comoving_distances.append(
+            float(results.comoving_radial_distance(float(z_val)))
+        )
+        angular_distance_values.append(
+            float(results.angular_diameter_distance(float(z_val)))
+        )
+        hubble_parameters.append(float(results.hubble_parameter(float(z_val))))
+
+    comoving_distance_array = numpy.asarray(comoving_distances, dtype=float)
+    angular_distance_array = numpy.asarray(
+        angular_distance_values, dtype=float
+    )
+    hubble_parameter_array = numpy.asarray(hubble_parameters, dtype=float)
+    with numpy.errstate(divide="ignore", invalid="ignore"):
+        hubble_distance_array = numpy.where(
+            numpy.abs(hubble_parameter_array) > 1e-12,
+            _C_LIGHT_KM_S / hubble_parameter_array,
+            numpy.nan,
+        )
+    term = comoving_distance_array * comoving_distance_array
+    term *= z_arr
+    with numpy.errstate(divide="ignore", invalid="ignore"):
+        term = term * hubble_distance_array
+    volume_average_distance_array = numpy.full_like(
+        term, numpy.nan, dtype=float
+    )
+    mask = numpy.isfinite(term) & (term >= 0.0)
+    volume_average_distance_array[mask] = numpy.power(term[mask], 1.0 / 3.0)
+    zero = numpy.isfinite(term) & (z_arr == 0.0)
+    volume_average_distance_array[zero] = 0.0
+
+    return {
+        "rs_drag": rs_drag,
+        "DM": comoving_distance_array,
+        "DH": hubble_distance_array,
+        "DA": angular_distance_array,
+        "DV": volume_average_distance_array,
+        "Hz": hubble_parameter_array,
+        "z": z_arr.copy(),
+    }
+
+
 def compute_camb_background_observables(
-    param_dict: Mapping[str, Any], redshifts: Sequence[float]
+    contract_or_params: Mapping[str, Any], redshifts: Sequence[float]
 ) -> dict[str, numpy.ndarray]:
     """Return CAMB background quantities for ``redshifts``.
 
@@ -336,11 +546,14 @@ def compute_camb_background_observables(
         z_arr = numpy.asarray(redshifts, dtype=float)
         return _fake_background_payload(z_arr)
 
+    if _is_structured_camb_contract(contract_or_params):
+        return _compute_camb_background_direct(contract_or_params, redshifts)
+
     z_arr = numpy.asarray(redshifts, dtype=float)
     z_tuple = tuple(
         float(f"{float(value):.{_CACHE_PRECISION}g}") for value in z_arr
     )
-    items = _normalise_items(param_dict)
+    items = _normalise_items(contract_or_params)
     (
         rs_drag,
         comoving_distance_tuple,
@@ -383,7 +596,7 @@ def describe_camb_configuration() -> dict[str, Any]:
 
 
 def compute_cmb_spectrum_from_dict(
-    param_dict: Mapping[str, float],
+    contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
@@ -403,7 +616,7 @@ def compute_cmb_spectrum_from_dict(
             "(compute_cmb_spectrum_from_dict): Using injected CMB stub "
             "provider",
         )
-        fake = fake_provider(param_dict, ells, spectra=spectra)
+        fake = fake_provider(contract_or_params, ells, spectra=spectra)
         return _coerce_fake_output(fake, spectra)
 
     if _fake_cmb_enabled():
@@ -415,10 +628,24 @@ def compute_cmb_spectrum_from_dict(
         return result
 
     try:
-        items = _normalise_items(param_dict)
-        lmax = int(numpy.max(list(ells)))
+        if _is_structured_camb_contract(contract_or_params):
+            return _compute_cmb_spectrum_direct(
+                contract_or_params,
+                ells,
+                spectra=spectra,
+            )
+
+        ell_arr = numpy.asarray(list(ells), dtype=int)
+        if ell_arr.size == 0:
+            raise ValueError("ells must not be empty")
+        items = _normalise_items(contract_or_params)
+        lmax = int(ell_arr.max())
         cache_key = ("dict", items, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
+        result = {spec: full[spec][ell_arr] for spec in spectra}
+        if len(result) == 1:
+            return next(iter(result.values()))
+        return result
     except (
         AttributeError,
         ImportError,
@@ -426,17 +653,9 @@ def compute_cmb_spectrum_from_dict(
         RuntimeError,
         TypeError,
         ValueError,
-    ) as exc:  # pragma: no cover - camb errors are logged
+    ) as exc:
         logger.error("(compute_cmb_spectrum_from_dict): %s", exc)
-        return numpy.full_like(
-            numpy.asarray(list(ells)), numpy.nan, dtype=float
-        )
-
-    ell_arr = numpy.asarray(list(ells), dtype=int)
-    result = {spec: full[spec][ell_arr] for spec in spectra}
-    if len(result) == 1:
-        return next(iter(result.values()))
-    return result
+        raise
 
 
 def compute_cmb_spectrum_cached(
@@ -448,42 +667,23 @@ def compute_cmb_spectrum_cached(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
-    logger = logging.getLogger()
-    try:
+    get_contract = getattr(plugin, "get_camb_contract", None)
+    if callable(get_contract):
+        camb_params = get_contract(cosmo_params)
+    else:
         camb_params = plugin.get_camb_params(cosmo_params)
-    except (
-        AttributeError,
-        ImportError,
-        OSError,
-        RuntimeError,
-        TypeError,
-        ValueError,
-    ) as exc:
-        logger.error("(compute_cmb_spectrum_cached): %s", exc)
-        return numpy.full_like(
-            numpy.asarray(list(ells)), numpy.nan, dtype=float
-        )
-
     return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
 
 def compute_cmb_spectrum(
-    param_dict: Mapping[str, float],
+    param_dict: Mapping[str, Any],
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Backward-compatible wrapper accepting a CAMB parameter dictionary."""
 
-    dummy = type(
-        "_Dummy",
-        (),
-        {
-            "MODEL_NAME": "direct",
-            "get_camb_params": lambda self, _: param_dict,
-        },
-    )()
-    return compute_cmb_spectrum_cached(dummy, [], ells, spectra=spectra)
+    return compute_cmb_spectrum_from_dict(param_dict, ells, spectra=spectra)
 
 
 @dataclass(slots=True)
@@ -559,7 +759,7 @@ class CMBLike(LikelihoodProtocol):
             return float("-inf")
 
         try:
-            camb_params = self.plugin.get_camb_params(params)
+            camb_contract = self.plugin.get_camb_contract(params)
         except (
             AttributeError,
             ImportError,
@@ -567,25 +767,38 @@ class CMBLike(LikelihoodProtocol):
             RuntimeError,
             TypeError,
             ValueError,
-        ):
+        ) as exc:
+            logger.error("(cmb_like): %s", exc)
             self._state = LikelihoodState()
             return float("-inf")
 
-        if not isinstance(camb_params, Mapping):
+        if not isinstance(camb_contract, Mapping):
             self._state = LikelihoodState()
             return float("-inf")
 
-        params_dict = {
-            str(key): float(value) for key, value in camb_params.items()
-        }
         if self._extra_params_cached:
-            params_dict.update(self._extra_params_cached)
+            camb_contract = dict(camb_contract)
+            param_map = dict(camb_contract.get("param_map", {}))
+            param_map.update(self._extra_params_cached)
+            camb_contract["param_map"] = param_map
 
-        theory = compute_cmb_spectrum_from_dict(
-            params_dict,
-            self._ells,
-            spectra=("TT",),
-        )
+        try:
+            theory = compute_cmb_spectrum_from_dict(
+                camb_contract,
+                self._ells,
+                spectra=("TT",),
+            )
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            logger.error("(cmb_like): %s", exc)
+            self._state = LikelihoodState()
+            return float("-inf")
         if not isinstance(theory, numpy.ndarray):
             theory = numpy.asarray(theory, dtype=float)
         if theory.shape != self._observed.shape or numpy.any(

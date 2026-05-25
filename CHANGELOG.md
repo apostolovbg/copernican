@@ -1,12 +1,12 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.11
+**Project Version:** 12.0.12
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-24
+**Last Updated:** 2026-05-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -77,6 +77,76 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 12.0.12
+
+- 2026-05-25 [semver:patch]:
+  Change: Upgraded Copernican's CAMB adapter contract, moved the adapter
+    implementation into root modules, migrated all CMB-valid models to the
+    new `cmb` shape, and refreshed the related docs and tests.
+  Why: Clarified that CMB-valid models now declare the backend inputs CAMB
+    needs instead of relying on implicit ΛCDM-shaped assumptions, and the
+    repo no longer needs a misleading `plugins` package.
+  Impact: Engine adapters now preserve structured CAMB contracts, the
+    migrated models validate and evaluate against CAMB, and the
+    documentation and manifest metadata describe the root-module adapter
+    flow.
+  Files:
+  AGENTS.md
+  CONTRIBUTING.md
+  README.md
+  CHANGELOG.md
+  copernican.py
+  copernican_lib/analysis.py
+  copernican_lib/camb_contract.py
+  copernican_lib/cli/dependencies.py
+  copernican_lib/engine_adapter.py
+  copernican_lib/engine_plugin_validation.py
+  copernican_lib/likelihoods/bao.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/model_spec_validator.py
+  copernican_lib/VERSION
+  copernican_lib/plugins/__init__.py
+  copernican_lib/posterior.py
+  copernican_lib/run_executor.py
+  copernican_lib/run_manifest.py
+  copernican_lib/run_pipeline.py
+  copernican_lib/statistics.py
+  cosmo_model_template.yml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/dataset_metadata.md
+  docs/design_overview.md
+  docs/orchestration_services.md
+  engines/cosmo_engine_mcmc.py
+  engines/cosmo_engine_nested.py
+  models/cosmo_model_lcdm.yml
+  models/cosmo_model_lcdm_mnu.yml
+  models/cosmo_model_qauc.yml
+  models/cosmo_model_qrsf.yml
+  models/cosmo_model_ref_planck2018.yml
+  models/cosmo_model_tog.yml
+  models/cosmo_model_usmf2.yml
+  models/cosmo_model_w0wa.yml
+  models/cosmo_model_wcdm.yml
+  PLAN.md
+  SPEC.md
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_core.py
+  tests/copernican_lib/test_camb_contract.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_likelihoods.py
+  tests/copernican_lib/test_model_priors.py
+  tests/copernican_lib/test_plugins.py
+  tests/copernican_lib/test_posterior.py
+  tests/copernican_lib/test_result_writer.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/copernican_lib/test_run_executor.py
+  tests/engines/test_cosmo_engine_mcmc.py
+  tests/engines/test_cosmo_engine_nested.py
+
 ## Version 12.0.11
 
 - 2026-05-24 [semver:patch]:
@@ -111,7 +181,8 @@ suffixes. Follow this template:
     fixture parser to plain CSV handling and resetting the synthetic BAO
     hash to the clean value.
   Why: Replaced the CSV comment hack because it did not satisfy the
-    assertion-signal policy and the module needed a real related test file.
+    assertion-signal policy and the module needed a real related test
+    file.
   Impact: Restored a genuine related test signal for
     `copernican_lib/likelihoods/bao.py` and aligned the synthetic BAO
     fixtures with the current parser behavior.

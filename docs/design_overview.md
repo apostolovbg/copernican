@@ -38,12 +38,12 @@ described throughout this document.
   shortcut while production evaluations still query the physics engine. Nested
   sampling and ensemble MCMC both rely on the shared Stage 2 helper so the
   counter lines and listener events stay consistent regardless of backend.
-* `models/` holds YAML descriptions that declare bounds, priors, transforms and
-  dataset compatibility. Each file is compiled into a picklable
-  :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
-  reconstruct Stage 2 state deterministically. Plugin validation allows only
-  vetted attributes and functions and preserves constants, transforms and
-  priors exactly as written in the model file.
+* `models/` holds YAML descriptions that declare bounds, priors, transforms
+  and dataset compatibility. Each file is compiled into a picklable
+  :class:`copernican_lib.engine_adapter.EnginePlugin` so multiprocessing pools
+  can reconstruct Stage 2 state deterministically. Adapter validation allows
+  only vetted attributes and functions and preserves constants, transforms,
+  priors and structured CAMB contracts exactly as written in the model file.
 * `data/` curates vetted catalogues with parser code and metadata that record
   citations, licensing information and SHA256 digests. Loaders validate the
   digests before the observations flow into the likelihood pipeline. Parsers
@@ -100,11 +100,10 @@ Stage 1 focuses on reproducibility and validation:
 * Model parsing normalises YAML files via
   :mod:`copernican_lib.model_spec_validator` and compiles the expressions into
   NumPy-ready callables through :mod:`copernican_lib.model_coder`. Engine
-  plugins built with
-  :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds,
-  priors, transforms and optional CMB parameter mappings. Validation errors are
-  aggregated and displayed as bullet points before the user is asked whether to
-  restart Stage 1 or exit entirely.
+  adapters built with :func:`copernican_lib.engine_adapter.build_plugin`
+  collect bounds, priors, transforms and optional structured CAMB contracts.
+  Validation errors are aggregated and displayed as bullet points before the
+  user is asked whether to restart Stage 1 or exit entirely.
 * Engine selection is dynamic: any file matching `engines/cosmo_engine_*.py`
   appears in the menu. Prompts reflect the selected backend so ensemble MCMC
   users configure burn-in, walkers and worker pools while nested sampling users
@@ -138,7 +137,8 @@ it logs a conservative Gelman–Rubin fallback.
 BAO and CMB analyses reuse the sampler output. BAO observables are computed
 from maximum-posterior parameters and logged alongside residual norms so
 operators can monitor fit quality as plots render. CMB spectra pull additional
-plugin-provided constants from `cmb.param_map` when present and stream TT/TE/EE
+adapter-provided constants from `cmb.param_map` when present and stream
+TT/TE/EE
 residual statistics to the console. Both stages respect dataset independence
 statements stored in :mod:`copernican_lib.dataset_registry` so assumptions
 remain explicit in manifests and plots.
@@ -152,7 +152,7 @@ the axes: the model comparison, dataset description and citation. Footer
 spacing maintains both a fixed gap above the axes and a clearance above the
 canvas edge so long labels or future gravitational-wave annotations do not
 collide with data. The corner-plot validator thins samples when necessary,
-labels every parameter using the names stored on the plugin and exposes a
+labels every parameter using the names stored on the adapter and exposes a
 legacy wrapper so older tooling can still import `_validate_corner_inputs`
 without linter noise.
 
@@ -181,14 +181,13 @@ summaries always describe which probes are assumed uncorrelated.
 
 ## Plugin interface and posterior construction
 
-Plugins produced by
-:func:`copernican_lib.engine_plugin_validation.build_plugin` expose dataset
-compatibility flags (`valid_for_distance_metrics`, `valid_for_bao`,
-`valid_for_cmb`) and optional `cmb.param_map` entries for engines that compute
-spectra. The interface includes required attributes and functions listed in
-:mod:`copernican_lib.plugins`; validation errors identify missing hooks and
-incompatible parameter maps, preventing engines from receiving incomplete
-models. Posterior evaluation routes through
+Adapters produced by :func:`copernican_lib.engine_adapter.build_plugin`
+expose dataset compatibility flags (`valid_for_distance_metrics`,
+`valid_for_bao`, `valid_for_cmb`) and a structured `cmb` backend contract for
+engines that compute spectra. The interface includes required attributes and
+functions listed in :mod:`copernican_lib.engine_adapter`; validation errors
+identify missing hooks and incompatible contracts, preventing engines from
+receiving incomplete models. Posterior evaluation routes through
 :func:`copernican_lib.posterior.make_logposterior`, which merges priors,
 transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.
@@ -225,7 +224,7 @@ metadata validators across Linux, macOS and Windows runners.
 
 The current architecture keeps engines, parsers and models pluggable. New
 datasets can register via the loader decorators, and new engines need only
-honour the progress, logging and plugin interfaces to fit seamlessly into the
+honour the progress, logging and adapter interfaces to fit seamlessly into the
 menu system. Placeholder directories allow in-progress probes—such as
 gravitational-wave standard sirens—to coexist without appearing in user menus
 until their metadata and digests are finalised.

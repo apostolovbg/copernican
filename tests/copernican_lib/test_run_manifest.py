@@ -19,6 +19,18 @@ def _dummy_plugin():
         PARAMETER_NAMES=["p1"],
         PARAMETER_PRIORS=[{"type": "uniform", "lower": 0, "upper": 1}],
         valid_for_cmb=True,
+        CMB_CONTRACT={
+            "backend": "camb",
+            "param_map": {
+                "H0": "p1",
+                "ombh2": 0.022,
+                "omch2": 0.12,
+                "Neff": 3.044,
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
+        },
         CMB_PARAM_MAP={
             "H0": "p1",
             "ombh2": 0.022,
@@ -81,7 +93,16 @@ class TestRunManifest(unittest.TestCase):
             self.assertIn("camb", loaded)
             camb_entry = loaded["camb"]
             self.assertIn("version", camb_entry)
-            self.assertEqual(camb_entry["models"][0]["model"], "DummyModel")
+            model_entry = camb_entry["models"][0]
+            self.assertEqual(model_entry["model"], "DummyModel")
+            self.assertEqual(model_entry["backend"], "camb")
+            self.assertEqual(
+                model_entry["param_map_keys"],
+                ["H0", "Neff", "ombh2", "omch2"],
+            )
+            self.assertEqual(model_entry["call_methods"], [])
+            self.assertEqual(model_entry["grids"], {})
+            self.assertEqual(model_entry["value_names"], [])
 
     def test_manifest_import_export_cycle(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

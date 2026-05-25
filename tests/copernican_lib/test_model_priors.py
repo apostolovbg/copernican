@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-import copernican_lib.engine_plugin_validation as engine_plugin_validation
+import copernican_lib.engine_adapter as engine_plugin_validation
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 from copernican_lib import priors as prior_mod
@@ -44,6 +44,7 @@ class PriorParsingTestCase(unittest.TestCase):
         model = {
             "model_name": "LogUniformModel",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "alpha",
@@ -92,6 +93,7 @@ class PriorParsingTestCase(unittest.TestCase):
         model = {
             "model_name": "FixedModel",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "c_light",
@@ -139,6 +141,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "BadPrior",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "a",
@@ -168,6 +171,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "BadLogUniform",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "beta",
@@ -201,6 +205,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "BadType",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "gamma",
@@ -230,6 +235,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "BadUniform",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "gamma",
@@ -263,6 +269,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "BadFixed",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "delta",
@@ -292,6 +299,7 @@ class PriorValidationTestCase(unittest.TestCase):
         model = {
             "model_name": "CanonicalPriorModel",
             "version": "1.0",
+            "valid_for_cmb": False,
             "parameters": [
                 {
                     "name": "delta",

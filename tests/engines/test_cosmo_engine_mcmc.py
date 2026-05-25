@@ -15,12 +15,9 @@ import numpy
 import pandas
 import xarray as xarray_dataset
 
-from copernican_lib import (
-    chain_io,
-    engine_plugin_validation,
-    model_coder,
-    model_spec_validator,
-)
+from copernican_lib import chain_io
+from copernican_lib import engine_adapter as engine_plugin_validation
+from copernican_lib import model_coder, model_spec_validator
 from copernican_lib.progress import BatchProgressBar
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc as module
@@ -85,6 +82,7 @@ def _build_short_chain_plugin():
         valid_for_distance_metrics=True,
         valid_for_bao=False,
         valid_for_cmb=False,
+        CMB_CONTRACT={},
         CMB_PARAM_MAP={},
         LIKELIHOOD_CONFIG={},
         MODEL_EQUATIONS_LATEX_SN=(),

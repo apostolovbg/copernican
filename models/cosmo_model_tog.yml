@@ -145,6 +145,7 @@ valid_for_distance_metrics: true
 valid_for_cmb: true
 
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -155,15 +156,21 @@ cmb:
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
+  grids: {}
+  values:
+    w_tog:
+      expression: epsilon_T - 1
+  calls:
+    - method: set_dark_energy
+      kwargs:
+        w0: "@value.w_tog"
+        dark_energy_model: fluid
 
 notes: >-
-  CAMB is enabled through the standard Copernican cmb.param_map. In the current
-  Copernican CAMB helper, epsilon_T is not forwarded into CAMB because the
-  helper does not yet expose CAMB dark-energy controls such as set_dark_energy.
-  Therefore CMB constrains H0, Omega_b, Omega_m0 and Neff through the
-  LambdaCDM-compatible projection, while SNe and BAO use the full
-  epsilon_T-deformed H(z). To make CMB constrain epsilon_T directly, extend
-  copernican_lib/likelihoods/cmb.py so _make_camb_params maps a YAML
-  key such as w or epsilon_T into CAMB's dark-energy parameterisation.
+  CAMB is enabled through the backend adapter contract. The TOG deformation
+  enters CAMB through the evaluated dark-energy call while SNe and BAO use the
+  full epsilon_T-deformed H(z). The manifest records the backend call so the
+  same model file drives the scalar CAMB inputs and the explicit dark-energy
+  adapter.
 
 date: '2026-05-21'

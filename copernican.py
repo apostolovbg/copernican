@@ -56,7 +56,7 @@ from copernican_lib import run_manifest
 from copernican_lib import settings as settings_mod
 from copernican_lib import utils
 import copernican_lib.version as version_module
-from copernican_lib.plugins import PluginValidationError
+from copernican_lib.engine_adapter import PluginValidationError
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -1506,8 +1506,8 @@ def main_workflow(manifest_path: Path | None = None):
     numpy_module, plt, multiprocessing_module = (
         cli_dependencies.load_third_party_modules()
     )
+    import copernican_lib.engine_adapter as engine_plugin_validation
     from copernican_lib import (
-        engine_plugin_validation,
         error_handler,
         model_coder,
         model_spec_validator,

@@ -9,11 +9,8 @@ from typing import Any, Callable, Sequence
 
 import yaml
 
-from copernican_lib import (
-    console_output,
-    dataset_registry,
-    engine_plugin_validation,
-)
+from copernican_lib import console_output, dataset_registry
+from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib import logger as log_mod
 from copernican_lib import (
     model_coder,

@@ -1,15 +1,20 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican_lib.engine_plugin_validation`` helpers."""
+"""Tests for ``copernican_lib.engine_adapter`` helpers."""
 
+import copy
 import math
 import multiprocessing as multiprocessing_module
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
-from copernican_lib import engine_plugin_validation
-from copernican_lib.plugins import PluginValidationError
+import numpy
+
+from copernican_lib import engine_adapter as engine_plugin_validation
+from copernican_lib import model_coder, model_spec_validator
+from copernican_lib.engine_adapter import PluginValidationError
 
 MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
 
@@ -32,10 +37,25 @@ def _evaluate_posterior(posterior):
 
 
 class EngineInterfaceTestCase(unittest.TestCase):
-    """Validate plugin construction and associated helpers."""
+    """Validate engine adapter construction and associated helpers."""
 
     def setUp(self):
-        """Build a minimal plugin for reuse across tests."""
+        """Build a minimal engine adapter for reuse across tests."""
+        self.base_param_map = {
+            "H0": "H_0",
+            "ombh2": 0.022,
+            "omch2": 0.12,
+            "Neff": 3.044,
+            "num_massive_neutrinos": 3,
+            "sum_mnu": 0.06,
+        }
+        self.base_cmb_contract = {
+            "backend": "camb",
+            "param_map": self.base_param_map,
+            "grids": {},
+            "values": {},
+            "calls": [],
+        }
         self.model_data = {
             "model_name": "Dummy",
             "description": "desc",
@@ -48,22 +68,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             ],
             "equations": {"sne": ["$$E=mc^2$$"], "bao": []},
-            "cmb": {
-                "param_map": {
-                    "H0": "H_0",
-                    "ombh2": 0.022,
-                    "omch2": 0.12,
-                    "Neff": 3.044,
-                    "num_massive_neutrinos": 3,
-                    "sum_mnu": 0.06,
-                }
-            },
+            "valid_for_cmb": True,
+            "cmb": copy.deepcopy(self.base_cmb_contract),
         }
         req = engine_plugin_validation.REQUIRED_FUNCTIONS
         funcs = {name: _dummy_func for name in req}
-        self.plugin = engine_plugin_validation.build_plugin(
-            self.model_data, funcs
-        )
+        self.funcs = funcs
+        build_plugin = engine_plugin_validation.build_plugin
+        self.plugin = build_plugin(self.model_data, funcs)
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
@@ -83,25 +95,87 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.assertEqual(camb["H0"], 70.0)
         self.assertAlmostEqual(camb["ombh2"], 0.022)
 
+    def test_empty_calls_preserve_scalar_camb_params(self):
+        """An explicit empty call list keeps scalar CAMB mapping intact."""
+
+        camb = self.plugin.get_camb_params([70.0])
+        self.assertEqual(camb["Neff"], 3.044)
+        self.assertEqual(camb["sum_mnu"], 0.06)
+
+    def test_get_camb_contract_preserves_strings_and_arrays(self):
+        """Structured contracts keep arrays and string kwargs intact."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["parameters"].append(
+            {
+                "python_var": "a_T",
+                "latex_name": "a_T",
+                "bounds": [0.5, 2.0],
+            }
+        )
+        model_data["cmb"] = {
+            "backend": "camb",
+            "param_map": copy.deepcopy(self.base_param_map),
+            "grids": {
+                "a_grid": {
+                    "symbol": "a",
+                    "lower": 0.001,
+                    "upper": 1.0,
+                    "points": 4,
+                    "spacing": "linear",
+                }
+            },
+            "values": {
+                "x": {
+                    "grid": "a_grid",
+                    "expression": "(a/a_T)**3",
+                }
+            },
+            "calls": [
+                {
+                    "method": "set_dark_energy_w_a",
+                    "args": {
+                        "a": "@grid.a_grid",
+                        "w": "@value.x",
+                    },
+                    "kwargs": {"dark_energy_model": "ppf"},
+                }
+            ],
+        }
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
+        self.assertEqual(contract["backend"], "camb")
+        self.assertEqual(contract["param_map"]["H0"], 70.0)
+        numpy.testing.assert_allclose(
+            contract["grids"]["a_grid"],
+            numpy.linspace(0.001, 1.0, 4),
+        )
+        self.assertIsInstance(contract["values"]["x"], numpy.ndarray)
+        self.assertEqual(
+            contract["calls"][0]["kwargs"]["dark_energy_model"],
+            "ppf",
+        )
+        self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
+        self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
+
     def test_get_camb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
-        self.plugin.CMB_PARAM_MAP["bad"] = (
-            "np.__class__.__mro__[2].__subclasses__()"
-        )
+        bad_expression = "np.__class__.__mro__[2].__subclasses__()"
+        self.plugin.CMB_CONTRACT["param_map"]["bad"] = bad_expression
         with self.assertRaises(ValueError):
             self.plugin.get_camb_params([70.0])
 
     def test_get_camb_params_rejects_recursion_depth(self):
         """Deeply nested calls exceed the evaluator's recursion limit."""
         expr = "exp(" * 30 + "1" + ")" * 30
-        self.plugin.CMB_PARAM_MAP["deep"] = expr
+        self.plugin.CMB_CONTRACT["param_map"]["deep"] = expr
         with self.assertRaises(ValueError):
             self.plugin.get_camb_params([70.0])
 
     def test_get_camb_params_rejects_node_blowup(self):
         """Expressions with too many nodes trigger a ``ValueError``."""
         expr = "+".join(["1"] * 200)
-        self.plugin.CMB_PARAM_MAP["wide"] = expr
+        self.plugin.CMB_CONTRACT["param_map"]["wide"] = expr
         with self.assertRaises(ValueError):
             self.plugin.get_camb_params([70.0])
 
@@ -109,33 +183,205 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Engine interface should reject unsupported CAMB parameters."""
 
         bad_model = dict(self.model_data)
-        bad_model["cmb"] = {"param_map": {"H0": "H_0", "bad_key": 1}}
-        funcs = {
-            name: _dummy_func
-            for name in engine_plugin_validation.REQUIRED_FUNCTIONS
+        bad_model["cmb"] = {
+            "backend": "camb",
+            "param_map": {"H0": "H_0", "bad_key": 1},
+            "grids": {},
+            "values": {},
+            "calls": [],
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, funcs)
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_param_map_rejects_conflicting_neutrino_specs(self):
         """Sum and individual neutrino masses cannot be combined."""
 
         clash = dict(self.model_data)
         clash["cmb"] = {
+            "backend": "camb",
             "param_map": {
                 "H0": "H_0",
                 "ombh2": 0.022,
                 "omch2": 0.12,
                 "sum_mnu": 0.06,
                 "mnu1": 0.01,
-            }
-        }
-        funcs = {
-            name: _dummy_func
-            for name in engine_plugin_validation.REQUIRED_FUNCTIONS
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(clash, funcs)
+            engine_plugin_validation.build_plugin(clash, self.funcs)
+
+    def test_cmb_valid_model_without_backend_fails(self):
+        """A CMB-capable model must declare its backend."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        del bad_model["cmb"]["backend"]
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_cmb_valid_model_without_calls_fails(self):
+        """A CMB-capable model must declare its adapter calls."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        del bad_model["cmb"]["calls"]
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_cmb_invalid_model_does_not_require_cmb(self):
+        """Models that opt out of CMB do not need a contract block."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["valid_for_cmb"] = False
+        model_data.pop("cmb", None)
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        self.assertFalse(plugin.valid_for_cmb)
+        self.assertEqual(plugin.CMB_CONTRACT, {})
+
+    def test_migrated_cmb_models_validate(self):
+        """All migrated CMB models should build and validate cleanly."""
+
+        repo_root = Path(__file__).resolve().parents[2]
+        models_dir = repo_root / "models"
+        cache_dir = models_dir / "cache"
+        model_names = [
+            "cosmo_model_lcdm.yml",
+            "cosmo_model_lcdm_mnu.yml",
+            "cosmo_model_ref_planck2018.yml",
+            "cosmo_model_tog.yml",
+            "cosmo_model_wcdm.yml",
+            "cosmo_model_w0wa.yml",
+            "cosmo_model_qauc.yml",
+            "cosmo_model_qrsf.yml",
+            "cosmo_model_usmf2.yml",
+        ]
+        for model_name in model_names:
+            with self.subTest(model_name=model_name):
+                yaml_path = models_dir / model_name
+                cache_path = model_spec_validator.validate_and_cache_model(
+                    yaml_path, cache_dir
+                )
+                funcs, parsed = model_coder.generate_callables(cache_path)
+                plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+                validate_plugin = engine_plugin_validation.validate_plugin
+                self.assertTrue(validate_plugin(plugin))
+                contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
+                self.assertEqual(contract["backend"], "camb")
+
+    def test_unknown_cmb_key_fails(self):
+        """Unknown contract keys are rejected early."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        bad_model["cmb"]["unexpected"] = 1
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_unknown_call_method_fails(self):
+        """Unsupported CAMB methods are rejected."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        bad_model["cmb"]["calls"] = [{"method": "set_unknown"}]
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_unknown_call_reference_fails(self):
+        """Unknown grid and value references are rejected."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        bad_model["cmb"] = {
+            "backend": "camb",
+            "param_map": copy.deepcopy(self.base_param_map),
+            "grids": {
+                "a_grid": {
+                    "symbol": "a",
+                    "lower": 0.001,
+                    "upper": 1.0,
+                    "points": 16,
+                    "spacing": "linear",
+                }
+            },
+            "values": {
+                "w_tog": {
+                    "grid": "a_grid",
+                    "expression": "-1 - x",
+                }
+            },
+            "calls": [
+                {
+                    "method": "set_dark_energy_w_a",
+                    "args": {
+                        "a": "@grid.a_grid",
+                        "w": "@value.missing",
+                    },
+                    "kwargs": {"dark_energy_model": "ppf"},
+                }
+            ],
+        }
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_declared_value_parameter_is_accepted(self):
+        """Declared parameters used only by values pass validation."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["parameters"].append(
+            {
+                "python_var": "a_T",
+                "latex_name": "a_T",
+                "bounds": [0.5, 2.0],
+            }
+        )
+        model_data["cmb"] = {
+            "backend": "camb",
+            "param_map": copy.deepcopy(self.base_param_map),
+            "grids": {
+                "a_grid": {
+                    "symbol": "a",
+                    "lower": 0.001,
+                    "upper": 1.0,
+                    "points": 8,
+                    "spacing": "linear",
+                }
+            },
+            "values": {
+                "x": {
+                    "grid": "a_grid",
+                    "expression": "(a/a_T)**3",
+                }
+            },
+            "calls": [],
+        }
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
+        self.assertIn("x", contract["values"])
+
+    def test_undeclared_value_parameter_fails(self):
+        """Values referencing undeclared parameters fail validation."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["cmb"] = {
+            "backend": "camb",
+            "param_map": copy.deepcopy(self.base_param_map),
+            "grids": {
+                "a_grid": {
+                    "symbol": "a",
+                    "lower": 0.001,
+                    "upper": 1.0,
+                    "points": 8,
+                    "spacing": "linear",
+                }
+            },
+            "values": {
+                "x": {
+                    "grid": "a_grid",
+                    "expression": "(a/a_T)**3",
+                }
+            },
+            "calls": [],
+        }
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""

@@ -24,11 +24,17 @@ parameters:
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: 0.022
     omch2: 0.12
     Neff: 3.046
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+  grids: {}
+  values: {}
+  calls: []
 likelihood:
   independent_sne_bao: true
 equations:

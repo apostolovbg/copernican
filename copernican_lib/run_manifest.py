@@ -77,8 +77,8 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     for plugin, _ in models:
         if getattr(plugin, "valid_for_cmb", True) is False:
             continue
-        param_map = getattr(plugin, "CMB_PARAM_MAP", {}) or {}
-        if param_map:
+        contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
+        if contract:
             camb_models.append(plugin)
     if not camb_models:
         return None
@@ -93,11 +93,32 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     configuration = cmb_module.describe_camb_configuration()
     models_meta: list[dict[str, Any]] = []
     for plugin in camb_models:
-        keys = sorted(str(key) for key in getattr(plugin, "CMB_PARAM_MAP", {}))
+        contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
+        param_map = contract.get("param_map", {}) or {}
+        grids = contract.get("grids", {}) or {}
+        values = contract.get("values", {}) or {}
+        calls = contract.get("calls", []) or []
+        grid_meta = {
+            str(grid_name): {
+                "lower": grid_def.get("lower"),
+                "upper": grid_def.get("upper"),
+                "points": grid_def.get("points"),
+                "spacing": grid_def.get("spacing"),
+            }
+            for grid_name, grid_def in grids.items()
+        }
         models_meta.append(
             {
                 "model": getattr(plugin, "MODEL_NAME", "unknown"),
-                "param_map_keys": keys,
+                "backend": contract.get("backend", "unknown"),
+                "param_map_keys": sorted(str(key) for key in param_map),
+                "call_methods": [
+                    str(call.get("method"))
+                    for call in calls
+                    if call.get("method") is not None
+                ],
+                "grids": grid_meta,
+                "value_names": [str(key) for key in values],
             }
         )
 

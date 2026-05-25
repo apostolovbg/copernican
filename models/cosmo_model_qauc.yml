@@ -152,6 +152,7 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -162,6 +163,34 @@ cmb:
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.1
+  grids:
+    a_grid:
+      symbol: a
+      lower: 0.001
+      upper: 1.0
+      points: 256
+      spacing: linear
+  values:
+    x_qauc:
+      grid: a_grid
+      expression: "(1/a) - 1"
+    envelope_qauc:
+      grid: a_grid
+      expression: "1 + A*exp(-alpha*x_qauc)*cos(omega*x_qauc + phi0)"
+    w_qauc:
+      grid: a_grid
+      expression: >-
+        -1 - (
+          A*exp(-alpha*x_qauc)
+          * (alpha*cos(omega*x_qauc + phi0) + omega*sin(omega*x_qauc + phi0))
+        ) / (3*a*envelope_qauc)
+  calls:
+    - method: set_dark_energy_w_a
+      args:
+        a: "@grid.a_grid"
+        w: "@value.w_qauc"
+      kwargs:
+        dark_energy_model: ppf
 notes: >-
   Provide explicit sound-horizon integrals so BAO fits remain physically
   consistent with the Quasi-Accelerating Unified Cosmology background. The
@@ -171,3 +200,5 @@ notes: >-
   Neff now ranges between 2.5 and 3.5 so the BAO integrals and CAMB inputs
   share the same effective relativistic density even when the sampler explores
   departures from the classic 3.044 value.
+  The CAMB adapter contract evaluates the oscillatory dark-energy envelope on a
+  scale-factor grid and forwards the generated w(a) table into CAMB directly.

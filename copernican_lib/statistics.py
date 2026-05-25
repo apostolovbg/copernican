@@ -17,7 +17,7 @@ from typing import Mapping, Sequence
 
 import numpy
 
-from copernican_lib import engine_plugin_validation
+from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib.likelihoods import (
     BAOLike,
     CMBLike,
@@ -140,8 +140,24 @@ def calculate_bao_observables(
     background = None
     smooth_background = None
     camb_params = None
+    get_camb_contract = getattr(model_plugin, "get_camb_contract", None)
     get_camb_params = getattr(model_plugin, "get_camb_params", None)
-    if get_camb_params is not None:
+    if get_camb_contract is not None:
+        try:
+            camb_params = get_camb_contract(cosmo_params)
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            logger.warning(
+                "Failed to obtain CAMB contract for BAO predictions: %s",
+                exc,
+            )
+    elif get_camb_params is not None:
         try:
             camb_params = get_camb_params(cosmo_params)
         except (
@@ -156,34 +172,34 @@ def calculate_bao_observables(
                 "Failed to obtain CAMB parameters for BAO predictions: %s",
                 exc,
             )
-        else:
 
-            def _load_background(redshifts):
-                """Return CAMB background values for a set of redshifts."""
-                if redshifts is None or redshifts.size == 0:
-                    return None
-                try:
-                    return compute_camb_background_observables(
-                        camb_params,
-                        redshifts,
-                    )
-                except (
-                    AttributeError,
-                    ImportError,
-                    OSError,
-                    RuntimeError,
-                    TypeError,
-                    ValueError,
-                ) as exc:  # pragma: no cover - CAMB errors are logged
-                    logger.warning(
-                        "Failed to compute CAMB background for BAO plots: %s",
-                        exc,
-                    )
-                    return None
+    def _load_background(redshifts):
+        """Return CAMB background values for a set of redshifts."""
 
-            background = _load_background(z_array)
-            if z_smooth_arr is not None:
-                smooth_background = _load_background(z_smooth_arr)
+        if camb_params is None or redshifts is None or redshifts.size == 0:
+            return None
+        try:
+            return compute_camb_background_observables(
+                camb_params,
+                redshifts,
+            )
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:  # pragma: no cover - CAMB errors are logged
+            logger.warning(
+                "Failed to compute CAMB background for BAO plots: %s",
+                exc,
+            )
+            return None
+
+    background = _load_background(z_array)
+    if z_smooth_arr is not None:
+        smooth_background = _load_background(z_smooth_arr)
 
     rs_mpc = float("nan")
     if background is not None:

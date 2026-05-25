@@ -4,15 +4,15 @@
 """Nested sampling cosmology engine.
 
 This backend implements a lightweight nested-sampling routine that remains
-compatible with the Copernican plugin architecture.  The sampler focuses on
+compatible with the Copernican engine adapter. The sampler focuses on
 robustness and reproducibility rather than asymptotic optimality: it draws
 initial live points uniformly from declared parameter bounds, replaces the
 lowest-likelihood point with constrained proposals and accumulates evidence
-estimates using a simple log-sum-exp accumulator.  The goal is to provide a
-complementary alternative to the ensemble MCMC engine so operators can compare
-posterior summaries produced by markedly different inference strategies while
-sharing the same likelihood, prior and transform helpers supplied by
-``copernican_lib.engine_plugin_validation``.
+estimates using a simple log-sum-exp accumulator. The goal is to provide a
+complementary alternative to the ensemble MCMC engine so operators can
+compare posterior summaries produced by markedly different inference
+strategies while sharing the same likelihood, prior and transform helpers
+supplied by ``copernican_lib.engine_adapter``.
 
 The implementation intentionally mirrors the result dictionary produced by the
 MCMC backend so downstream tooling—Stage 3 diagnostics, NetCDF exporters and
@@ -32,7 +32,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 import numpy
 import pandas
 
-from copernican_lib import engine_plugin_validation
+from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib.engine_capabilities import (
     EngineProgressChunk,
     EngineSetting,

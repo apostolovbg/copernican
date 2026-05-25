@@ -8,13 +8,14 @@ directly without using the command-line interface.  The core modules are:
   and clean a `cosmo_model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
-- `engine_plugin_validation.build_plugin(parsed_data, funcs)` – construct an
-  :class:`copernican_lib.plugins.EnginePlugin` instance with dataset toggles,
-  priors, bounds and distance functions ready for engine consumption.
-- `copernican_lib.plugins` – home of the picklable plugin dataclass and
-  validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
-  from here when building custom tooling that needs to confirm interface
-  compliance.
+- `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
+  :class:`copernican_lib.engine_adapter.EnginePlugin` instance with dataset
+  toggles, priors, bounds, distance functions and structured CAMB contracts
+  ready for engine consumption.
+- `copernican_lib.engine_adapter` – home of the picklable adapter dataclass,
+  `EnginePlugin.CMB_CONTRACT`, `REQUIRED_ATTRIBUTES` and
+  `REQUIRED_FUNCTIONS`. Import it when building custom tooling that needs to
+  confirm interface compliance.
 - `copernican_lib.progress` – shared progress reporting helpers. Engines import
   `BatchProgressBar` so CLI runs log simple counters such as “Burn-in stage
   batch 1: 3/200 steps completed (1%)” while still emitting the structured
@@ -95,7 +96,7 @@ directly without using the command-line interface.  The core modules are:
   ``fit_sne_parameters`` alias remains for backward compatibility but now logs
   a deprecation warning.
 - `engines.cosmo_engine_nested.fit_cosmology_parameters` – wraps a lightweight
-  nested-sampling routine that evaluates the same plugin-provided posterior
+  nested-sampling routine that evaluates the same adapter-provided posterior
   while reporting log-evidence estimates, live-point counts, enlargement
   factors and iteration diagnostics. The CLI surfaces backend-specific prompts
   for live points, evidence tolerances and enlargement fractions so interactive
@@ -123,14 +124,15 @@ directly without using the command-line interface.  The core modules are:
     structure produced by the MCMC engine while adding nested-specific
     diagnostics so downstream tooling remains backend agnostic.
 
-Plugins are validated through ``engine_plugin_validation.validate_plugin``—a
-thin wrapper around :func:`copernican_lib.plugins.validate_plugin`—before use.
-Chi-squared helpers assume this step has already succeeded, so validation
-should occur once before any iterative evaluation begins. Engines expect the
-attributes listed in ``copernican_lib.plugins.REQUIRED_ATTRIBUTES``. The
-resulting :class:`EnginePlugin` exposes distance functions, CMB helpers and
-initial parameter guesses derived from the model YAML while remaining fully
-picklable for multiprocessing workloads.
+Engine adapters are validated through ``engine_adapter.validate_plugin``—a
+thin wrapper around
+:func:`copernican_lib.engine_adapter.validate_plugin`—before use. Chi-squared
+helpers assume this step has already succeeded, so validation should occur
+once before any iterative evaluation begins. Engines expect the attributes
+listed in ``copernican_lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
+:class:`EnginePlugin` exposes distance functions, CMB helpers, initial
+parameter guesses and the structured CAMB contract derived from the model YAML
+while remaining fully picklable for multiprocessing workloads.
 
 ## Standardised Dataset Format
 
@@ -151,19 +153,15 @@ Third-party tools may import these modules directly. A typical scripting
 session looks like this:
 
 ```python
-from copernican_lib import (
-    dataset_registry,
-    engine_plugin_validation,
-    model_coder,
-    model_spec_validator,
-)
+from copernican_lib import dataset_registry, engine_adapter, model_coder
+from copernican_lib import model_spec_validator
 import engines.cosmo_engine_mcmc as engine
 
 cache = model_spec_validator.validate_and_cache_model(
     'models/cosmo_model_lcdm.yml', 'models/cache'
 )
 funcs, parsed = model_coder.generate_callables(cache)
-plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+plugin = engine_adapter.build_plugin(parsed, funcs)
 sne = dataset_registry.load_sne_data('jla_2014')
 result = engine.fit_cosmology_parameters(sne, plugin, burn_in_steps=20)
 ```

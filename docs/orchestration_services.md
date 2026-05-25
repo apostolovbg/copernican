@@ -8,7 +8,8 @@ summarises three GUI-safe services:
    `validate_and_cache_model` for turning YAML models into cached callables
    without importing menu helpers.
 2. **Manifest generation**: `copernican_lib.run_manifest.build_manifest`
-   assembles dataset digests, plugin metadata and Git state for every run and
+   assembles dataset digests, engine-adapter metadata and Git state for every
+   run and
    remains identical across CLI and GUI launches.
 3. **Run control**: `copernican_lib.result_writer.save_summary` serialises
    sampler outputs while `copernican_lib.cli.dependencies.get_runtime_options`
@@ -16,7 +17,7 @@ summarises three GUI-safe services:
    runners should now call
    `copernican_lib.run_executor.execute_run_from_manifest` so the shared
    pipeline in `copernican_lib/run_pipeline.py`, the dataset rebuild helpers in
-   `copernican_lib/run_config.py`, and the YAML-backed model plugins all
+   `copernican_lib/run_config.py`, and the YAML-backed model adapters all
    execute uniformly for both GUI and headless runs.
 
 `copernican.main_workflow`, the console script entrypoint, now relays manifests

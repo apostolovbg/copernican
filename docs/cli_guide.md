@@ -37,7 +37,7 @@ The CLI mirrors the Run Builder pages:
    request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
 2. **Model selection** – Choose any `cosmo_model_*.yml` discovered under
    `models/`. The CLI validates YAML using the cached schema before generating
-   plugins.
+   engine adapters.
 3. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
    Parsers are verified by SHA256 digest before their modules are imported.
 4. **Engine selection** – Choose a sampler backend from `engines/`. The default
@@ -127,7 +127,7 @@ before sampling begins, so CLI and validation runs archive the manifest even
 when they only receive a reference to an existing YAML file.
 
 The executor rebuilds the declared models via
-`copernican_lib.plugins.build_engine_plugin`, reloads datasets using the
+`copernican_lib.engine_adapter.build_plugin`, reloads datasets using the
 recorded hashes, and hands sampling to the selected engine. Progress updates
 and log output match the GUI’s Run Monitor display.
 

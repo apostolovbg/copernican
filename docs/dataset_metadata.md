@@ -63,10 +63,12 @@ fields are preserved and can be used by new engines or analysis scripts.
   specific keys for downstream tools.
 - BAO datasets expose a `model_prediction` column during analysis. The
   prediction now remains identical for baseline and alternative models when
-  their plugins match because the Stage 2 sampler reuses the first SNe chain.
-- Stage 5 summary files include `parameter-summary_*.yml/json`. Supernova-only
-  MCMC runs now copy the SNe chi-squared into ``χ²_Total`` so both sides of a
-  self-consistency test report the same totals when models share a plugin.
+  their adapters match because the Stage 2 sampler reuses the first SNe
+  chain.
+- Stage 5 summary files include `parameter-summary_*.yml/json`.
+  Supernova-only MCMC runs now copy the SNe chi-squared into ``χ²_Total`` so
+  both sides of a self-consistency test report the same totals when models
+  share an adapter.
 
 ### Union3 metadata example
 

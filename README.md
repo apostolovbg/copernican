@@ -1,15 +1,15 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.11
-**Last Updated:** 2026-05-24
+**Project Version:** 12.0.12
+**Last Updated:** 2026-05-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
 
 <!-- DEVCOV:END -->
 
-**Version:** 12.0.10
+**Version:** 12.0.12
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -23,7 +23,7 @@ the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
 
 ## Highlights
-- **Manifest-driven orchestration:** `copernican.py` consumes theory, data and
+- **Manifest-driven orchestration:** `copernican.py` consumes model, data and
   engine selections, writes every run into `output/copernican-run_*`, and re-
   uses `copernican_lib/run_pipeline.py` helpers so CLI and GUI paths stay
   consistent.
@@ -64,9 +64,12 @@ enforces its laws through pre-commit checks.
    couples `emcee` with ArviZ when available; the nested sampler mirrors the
    same schema while exposing evidences. Both reuse the shared progress
    renderer and manifest helpers.
- - `models/` houses YAML theories with priors, transforms and dataset
-   compatibility metadata. Each definition is converted into a picklable plugin
-   so manifest generation stays deterministic even under multiprocessing.
+- `models/` houses YAML model definitions with priors, transforms and dataset
+  compatibility metadata. Each definition is converted into a picklable
+  engine adapter so manifest generation stays deterministic even under
+  multiprocessing. CMB-valid models declare a backend contract under `cmb`
+  with `backend`, `param_map`, `grids`, `values` and `calls`; the suite
+  evaluates that contract instead of classifying a theory type.
  - `data/` bundles vetted observations and parsers. The loaders validate SHA256
    digests, register citations, and tag each manifest with the hashes used for
    the run; the directory remains read-only except when a human explicitly

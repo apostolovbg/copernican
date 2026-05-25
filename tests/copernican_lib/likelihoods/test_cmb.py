@@ -5,16 +5,58 @@ from __future__ import annotations
 import os
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import camb
 import numpy
+import pandas
 
-from copernican_lib import (
-    engine_plugin_validation,
-    model_coder,
-    model_spec_validator,
-)
+from copernican_lib import engine_adapter as engine_plugin_validation
+from copernican_lib import model_coder, model_spec_validator
 from copernican_lib.likelihoods import cmb
+
+
+class _FakeAccuracy:
+    """Lightweight accuracy container used by CAMB adapter tests."""
+
+    def __init__(self) -> None:
+        self.AccuracyBoost = 1.0
+        self.LAccuracyBoost = 1.0
+        self.KAccuracyBoost = 1.0
+
+
+class _FakeInitPower:
+    """Minimal power-spectrum helper used by CAMB adapter tests."""
+
+    def __init__(self) -> None:
+        self.kwargs: dict[str, float] | None = None
+
+    def set_params(self, **kwargs) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _FakeCAMBParams:
+    """Capture CAMB parameter calls without invoking the real backend."""
+
+    def __init__(self) -> None:
+        self.Accuracy = _FakeAccuracy()
+        self.InitPower = _FakeInitPower()
+        self.cosmology_kwargs: dict[str, object] | None = None
+        self.dark_energy_kwargs: dict[str, object] | None = None
+        self.dark_energy_w_a_kwargs: dict[str, object] | None = None
+        self.lmax_args: tuple[int, dict[str, object]] | None = None
+
+    def set_cosmology(self, **kwargs) -> None:
+        self.cosmology_kwargs = dict(kwargs)
+
+    def set_dark_energy(self, **kwargs) -> None:
+        self.dark_energy_kwargs = dict(kwargs)
+
+    def set_dark_energy_w_a(self, **kwargs) -> None:
+        self.dark_energy_w_a_kwargs = dict(kwargs)
+
+    def set_for_lmax(self, lmax, **kwargs) -> None:
+        self.lmax_args = (int(lmax), dict(kwargs))
 
 
 class CMBBackgroundTestCase(unittest.TestCase):
@@ -175,6 +217,181 @@ class CMBBackgroundTestCase(unittest.TestCase):
                 rtol=1e-8,
                 atol=1e-8,
             )
+
+    def test_make_camb_params_reaches_set_dark_energy(self) -> None:
+        """Structured contracts should call CAMB dark-energy hooks."""
+
+        fake_params = _FakeCAMBParams()
+        contract = {
+            "backend": "camb",
+            "param_map": {
+                "H0": 68.0,
+                "ombh2": 0.022,
+                "omch2": 0.12,
+                "tau": 0.054,
+                "As": 2.1e-9,
+                "ns": 0.965,
+            },
+            "grids": {},
+            "values": {},
+            "calls": [
+                {
+                    "method": "set_dark_energy",
+                    "kwargs": {
+                        "w0": -0.95,
+                        "wa": 0.1,
+                        "cs2": 1.0,
+                        "dark_energy_model": "ppf",
+                    },
+                }
+            ],
+        }
+        with mock.patch(
+            "copernican_lib.likelihoods.cmb.camb.CAMBparams",
+            return_value=fake_params,
+        ):
+            returned = cmb._make_camb_params(contract, lmax=12)
+
+        self.assertIs(returned, fake_params)
+        self.assertEqual(fake_params.dark_energy_kwargs["w"], -0.95)
+        self.assertEqual(fake_params.dark_energy_kwargs["wa"], 0.1)
+        self.assertEqual(fake_params.dark_energy_kwargs["cs2"], 1.0)
+        self.assertEqual(
+            fake_params.dark_energy_kwargs["dark_energy_model"],
+            "ppf",
+        )
+
+    def test_make_camb_params_reaches_set_dark_energy_w_a(self) -> None:
+        """Structured contracts should forward arrays to CAMB."""
+
+        fake_params = _FakeCAMBParams()
+        scale_factors = numpy.array([0.1, 0.4, 0.7, 1.0], dtype=float)
+        equation_of_state = numpy.array([-1.0, -0.95, -0.9, -0.85])
+        contract = {
+            "backend": "camb",
+            "param_map": {
+                "H0": 68.0,
+                "ombh2": 0.022,
+                "omch2": 0.12,
+                "tau": 0.054,
+                "As": 2.1e-9,
+                "ns": 0.965,
+            },
+            "grids": {},
+            "values": {},
+            "calls": [
+                {
+                    "method": "set_dark_energy_w_a",
+                    "args": {
+                        "a": scale_factors,
+                        "w": equation_of_state,
+                    },
+                    "kwargs": {"dark_energy_model": "ppf"},
+                }
+            ],
+        }
+        with mock.patch(
+            "copernican_lib.likelihoods.cmb.camb.CAMBparams",
+            return_value=fake_params,
+        ):
+            returned = cmb._make_camb_params(contract, lmax=12)
+
+        self.assertIs(returned, fake_params)
+        self.assertIsInstance(
+            fake_params.dark_energy_w_a_kwargs["a"], numpy.ndarray
+        )
+        self.assertIsInstance(
+            fake_params.dark_energy_w_a_kwargs["w"], numpy.ndarray
+        )
+        numpy.testing.assert_allclose(
+            fake_params.dark_energy_w_a_kwargs["a"], scale_factors
+        )
+        numpy.testing.assert_allclose(
+            fake_params.dark_energy_w_a_kwargs["w"],
+            equation_of_state,
+        )
+        self.assertEqual(
+            fake_params.dark_energy_w_a_kwargs["dark_energy_model"],
+            "ppf",
+        )
+
+    def test_cmb_loglike_preserves_structured_contract(self) -> None:
+        """The CMB likelihood should pass the structured contract through."""
+
+        captured: dict[str, object] = {}
+
+        def fake_compute(contract, ells, *, spectra=("TT",)):
+            captured["contract"] = contract
+            captured["ells"] = tuple(ells)
+            captured["spectra"] = tuple(spectra)
+            return numpy.ones(len(tuple(ells)), dtype=float)
+
+        class StructuredPlugin:
+            """Plugin stub returning a structured CAMB contract."""
+
+            def get_camb_contract(self, _params):
+                return {
+                    "model_name": "StructuredModel",
+                    "backend": "camb",
+                    "param_map": {
+                        "H0": 68.0,
+                        "ombh2": 0.022,
+                        "omch2": 0.12,
+                    },
+                    "grids": {
+                        "a_grid": {
+                            "symbol": "a",
+                            "lower": 0.1,
+                            "upper": 1.0,
+                            "points": 4,
+                            "spacing": "linear",
+                        }
+                    },
+                    "values": {
+                        "w_tog": {
+                            "grid": "a_grid",
+                            "expression": "-1",
+                        }
+                    },
+                    "calls": [
+                        {
+                            "method": "set_dark_energy_w_a",
+                            "args": {
+                                "a": numpy.array(
+                                    [0.1, 0.4, 0.7, 1.0], dtype=float
+                                ),
+                                "w": numpy.array(
+                                    [-1.0, -0.95, -0.9, -0.85],
+                                    dtype=float,
+                                ),
+                            },
+                            "kwargs": {
+                                "dark_energy_model": "ppf",
+                            },
+                        }
+                    ],
+                }
+
+        cmb_df = pandas.DataFrame(
+            {"ell": [2, 3, 4], "Dl_obs": [1.0, 1.0, 1.0]}
+        )
+        cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(3)
+        with mock.patch(
+            "copernican_lib.likelihoods.cmb.compute_cmb_spectrum_from_dict",
+            side_effect=fake_compute,
+        ):
+            like = cmb.CMBLike(cmb_df, StructuredPlugin())
+            loglike = like.loglike([68.0])
+
+        self.assertTrue(numpy.isfinite(loglike))
+        self.assertEqual(captured["spectra"], ("TT",))
+        contract = captured["contract"]
+        self.assertIsInstance(contract, dict)
+        self.assertEqual(
+            contract["calls"][0]["kwargs"]["dark_energy_model"], "ppf"
+        )
+        self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
+        self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

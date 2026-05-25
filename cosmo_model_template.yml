@@ -4,7 +4,7 @@ description: |
   This template is the canonical source of truth for generative agents and
   reviewers. It documents every field that a valid `cosmo_model_*.yml` may
   contain. The `parameters` list combines real physics knobs with instructive
-  metadata so you can infer the required structure when composing a new theory.
+  metadata so you can infer the required structure when composing a new model.
   * Define each parameter with `name`, `python_var` if the default identifier
     is too verbose, `latex_name`, `unit`, `definition` and a `prior`. The
     `prior` block must always declare `type` (`gaussian`, `uniform`,
@@ -19,9 +19,17 @@ description: |
     `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
     aligned with the CAMB background while letting relativistic species
     float.
+  * The `cmb` block is a CAMB backend adapter contract, not a theory label.
+    Use `backend: camb`, keep scalar CAMB inputs in `param_map`, declare any
+    generated numerical grids in `grids`, put evaluated expressions in
+    `values`, and list backend calls in `calls`.
+  * `valid_for_cmb: true` requires a complete CAMB adapter contract. A
+    scalar-only model uses `calls: []`; models with effective dark-energy
+    inputs can declare `set_dark_energy` or `set_dark_energy_w_a` without
+    being renamed as a model type.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
-  physical motivation and which datasets the theory was designed to confront.
+  physical motivation and which datasets the model was designed to confront.
 parameters:
   - name: Hubble constant
     python_var: H0
@@ -125,6 +133,7 @@ valid_for_bao: true
 valid_for_distance_metrics: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -133,6 +142,9 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
+  grids: {}
+  values: {}
+  calls: []
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV

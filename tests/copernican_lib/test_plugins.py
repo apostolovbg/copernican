@@ -1,12 +1,12 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Regression tests for :mod:`copernican_lib.plugins` pickling helpers."""
+"""Regression tests for :mod:`copernican_lib.engine_adapter` helpers."""
 
 import multiprocessing as multiprocessing_module
 import unittest
 
-from copernican_lib import plugins
+from copernican_lib import engine_adapter as plugins
 
 
 def distance_modulus_model(z_val, hubble_parameter):

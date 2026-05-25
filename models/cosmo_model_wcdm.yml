@@ -152,11 +152,11 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
     omch2: (Omega_m0 - Omega_b) * (H0/100)**2
-    w0: w_de
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -164,10 +164,19 @@ cmb:
     num_massive_neutrinos: 3
     sum_mnu: 0.06
     omk: Omega_k
+  grids: {}
+  values:
+    w_cdm:
+      expression: w_de
+  calls:
+    - method: set_dark_energy
+      kwargs:
+        w0: "@value.w_cdm"
+        dark_energy_model: fluid
 notes: >-
   The constant-w dark energy couples to the same densities that feed
   the BAO and CMB integrals; deviations from -1 show up both in the
-  H(z) polynomial and in the CAMB w0 parameter. Curvature and w_de
+  H(z) polynomial and in the CAMB dark-energy call. Curvature and w_de
   share the same redshift leverage, which exposes the degeneracy
   between curvature and running dark energy while keeping the matter
   density anchored to the baryon fraction. The radiation term now

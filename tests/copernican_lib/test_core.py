@@ -14,7 +14,7 @@ import numpy
 import pandas
 
 import copernican_lib.dataset_registry as dataset_registry
-import copernican_lib.engine_plugin_validation as engine_plugin_validation
+import copernican_lib.engine_adapter as engine_plugin_validation
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 import engines.cosmo_engine_mcmc as engine

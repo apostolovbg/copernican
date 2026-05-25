@@ -130,6 +130,7 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
+  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -141,6 +142,9 @@ cmb:
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: sum_mnu
+  grids: {}
+  values: {}
+  calls: []
 notes: >-
   The neutrino contribution enters only through omnuh2, which is
   derived from the declared sum_mnu. The radiation term multiplies

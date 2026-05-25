@@ -3,14 +3,11 @@
 
 """Posterior assembly utilities shared across engine implementations.
 
-The posterior helper formerly lived in
-:mod:`copernican_lib.engine_plugin_validation` where it relied on nested
-closures. Multiprocessing pools that use the ``spawn`` start method must
-pickle the callable they execute, yet closures defined inside
-``make_logposterior`` produced ``AttributeError: Can't pickle local object``
-whenever engines requested worker pools. This module extracts the evaluation
-logic into the picklable :class:`PosteriorEvaluator` class and keeps the
-normalisation and validation steps readable for future backends.
+These helpers stay picklable so multiprocessing pools that use the ``spawn``
+start method can execute them without closure-related failures. The module
+exposes the :class:`PosteriorEvaluator` class and the ``make_logposterior``
+factory used by :mod:`copernican_lib.engine_adapter` and the engine backends
+that wrap it.
 """
 
 from __future__ import annotations

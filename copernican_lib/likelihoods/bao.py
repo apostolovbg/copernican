@@ -1,13 +1,10 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-Computes BAO observables using CAMB background distances aligned with the CMB
-likelihood configuration.  Previous revisions mixed direct model integrals with
-sound-horizon fallbacks, producing unphysical predictions for exotic models.
-Tying the calculations to CAMB eliminates the fallback path and guarantees that
-Stage 2 evaluates a self-consistent cosmology across SNe, BAO and CMB data.
-When CAMB parameters are unavailable the helper gracefully falls back to the
-model's distance functions so legacy tests and simplified benchmarks continue
-to operate.
+Computes BAO observables using CAMB background distances when a structured
+CAMB contract is available. If CAMB background evaluation fails, the helper
+falls back to the model's native distance functions and explicit
+``rs_expression`` support so existing benchmark models and defensive test
+fixtures continue to operate.
 """
 
 from __future__ import annotations
@@ -50,6 +47,9 @@ class BAOLike(LikelihoodProtocol):
     _mask_dv: numpy.ndarray = field(init=False, repr=False)
     _prediction_buffer: numpy.ndarray = field(init=False, repr=False)
     _residual_buffer: numpy.ndarray = field(init=False, repr=False)
+    _get_camb_contract: (
+        Callable[[Sequence[float]], Mapping[str, Any]] | None
+    ) = field(init=False, repr=False)
     _get_camb_params: Callable[[Sequence[float]], Mapping[str, Any]] | None = (
         field(
             init=False,
@@ -94,12 +94,15 @@ class BAOLike(LikelihoodProtocol):
         self._prediction_buffer.fill(numpy.nan)
         self._residual_buffer = numpy.empty_like(self._observed, dtype=float)
 
+        self._get_camb_contract = getattr(
+            self.model_plugin, "get_camb_contract", None
+        )
         self._get_camb_params = getattr(
             self.model_plugin, "get_camb_params", None
         )
-        if self._get_camb_params is None:
+        if self._get_camb_contract is None and self._get_camb_params is None:
             self._setup_error = (
-                "(bao_like): Model plugin does not expose get_camb_params."
+                "(bao_like): Model plugin does not expose a CAMB contract."
             )
 
         if self._z_values.size == 0:
@@ -138,7 +141,23 @@ class BAOLike(LikelihoodProtocol):
 
         background = None
         camb_params: Mapping[str, Any] | None = None
-        if self._get_camb_params is not None:
+        get_camb_contract = self._get_camb_contract
+        if get_camb_contract is not None:
+            try:
+                camb_params = get_camb_contract(params)
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                logger.warning(
+                    "(bao_like): Failed to obtain CAMB contract; %s",
+                    exc,
+                )
+        elif self._get_camb_params is not None:
             try:
                 camb_params = self._get_camb_params(params)
             except (
@@ -153,26 +172,26 @@ class BAOLike(LikelihoodProtocol):
                     "(bao_like): Failed to obtain CAMB parameters; %s",
                     exc,
                 )
-            else:
-                if camb_params:
-                    try:
-                        background = compute_camb_background_observables(
-                            camb_params,
-                            self._z_values,
-                        )
-                    except (
-                        AttributeError,
-                        ImportError,
-                        OSError,
-                        RuntimeError,
-                        TypeError,
-                        ValueError,
-                    ) as exc:
-                        logger.warning(
-                            "(bao_like): CAMB background failed; falling back "
-                            "to model distances: %s",
-                            exc,
-                        )
+
+        if camb_params is not None:
+            try:
+                background = compute_camb_background_observables(
+                    camb_params,
+                    self._z_values,
+                )
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                logger.warning(
+                    "(bao_like): CAMB background failed; falling back "
+                    "to model distances: %s",
+                    exc,
+                )
 
         if background is None:
             background = self._compute_plugin_background(params)

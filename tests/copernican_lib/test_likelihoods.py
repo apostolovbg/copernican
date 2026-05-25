@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy
 
 import copernican_lib.dataset_registry as dataset_registry
-import copernican_lib.engine_plugin_validation as engine_plugin_validation
+import copernican_lib.engine_adapter as engine_plugin_validation
 import copernican_lib.likelihoods as likelihoods
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
@@ -97,6 +97,9 @@ class LikelihoodTestCase(unittest.TestCase):
             def __getattr__(self, name):
                 return getattr(self._base, name)
 
+            def get_camb_contract(self, *_args, **_kwargs):
+                raise RuntimeError("CAMB unavailable for test fallback path")
+
             def get_camb_params(self, *_args, **_kwargs):
                 raise RuntimeError("CAMB unavailable for test fallback path")
 
@@ -160,6 +163,9 @@ class LikelihoodTestCase(unittest.TestCase):
 
             def __getattr__(self, name):
                 return getattr(self._base, name)
+
+            def get_camb_contract(self, *_args, **_kwargs):
+                raise RuntimeError("CAMB disabled to exercise fallback path")
 
             def get_camb_params(self, *_args, **_kwargs):
                 raise RuntimeError("CAMB disabled to exercise fallback path")

@@ -29,6 +29,13 @@ class TestRunExecutor(unittest.TestCase):
         self.console_write_patch.start()
         self.addCleanup(self.console_write_patch.stop)
 
+    def test_execute_run_from_manifest_symbol_is_exported(self) -> None:
+        self.assertTrue(callable(run_executor.execute_run_from_manifest))
+        self.assertEqual(
+            run_executor.execute_run_from_manifest.__module__,
+            "copernican_lib.run_executor",
+        )
+
     def _base_manifest(self, seed: int = 123):
         return {
             "seed": seed,
