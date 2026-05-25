@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.12
+**Project Version:** 12.0.13
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,29 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.13
+
+- 2026-05-25 [semver:patch]:
+  Change: Updated the repo-owned DevCovenant profile so models/ is excluded
+    by version-governance, and kept the TOG model change within the same
+    session.
+  Why: Align model files with the repo-owned version-governance profile so
+    this tool repository does not treat model edits as version-bearing, and
+    this gate session already included the TOG model replacement.
+  Impact: Gate verification can now distinguish tool configuration and model
+    edits from version-bearing changes without adding another changelog entry.
+  Files:
+  CHANGELOG.md
+  copernican_lib/VERSION
+  PLAN.md
+  README.md
+  SPEC.md
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  CONTRIBUTING.md
+  devcovenant/README.md
+  models/cosmo_model_tog.yml
+  pyproject.toml
 
 ## Version 12.0.12
 

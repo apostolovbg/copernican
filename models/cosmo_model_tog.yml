@@ -1,25 +1,25 @@
-model_name: Temporal Opposition Geometry CAMB
-version: '0.2'
+model_name: Temporal Opposition Geometry
+version: '1.0'
 description: >-
-  Temporal Opposition Geometry (TOG) encodes the hypothesis that time is
-  not a fourth spatial axis but a Lorentz-opposed temporal direction.
-  This CAMB-enabled Copernican implementation keeps the
-  temporal-opposition deformation in the suite-native background
-  expansion while mapping the shared base cosmological parameters into
-  CAMB for CMB likelihood evaluation.
+  Temporal Opposition Geometry models cosmic acceleration as a
+  volume-activated temporal-opposition contribution. The theory does
+  not treat time as a fourth spatial axis. It treats the temporal
+  contribution as Lorentz-opposed to spatial extension and activated
+  by the growth of three-dimensional spatial volume.
 abstract: >-
-  A flat FLRW background model with standard matter/radiation content plus a
-  temporal-opposition deformation parameter epsilon_T. The model reduces to
-  LambdaCDM when epsilon_T = 0. In the current Copernican CAMB bridge, CMB
-  evaluation uses the LambdaCDM-compatible projection of the shared parameters;
-  SNe and BAO evaluate the full epsilon_T-deformed H(z).
+  TOG defines a flat FLRW background with standard matter and
+  radiation plus a bounded temporal-opposition activation law. The
+  temporal term is negligible at small scale factor, activates with
+  spatial volume, and saturates toward the future. The parameter a_T
+  controls the activation scale. LambdaCDM is recovered in the limit
+  where the activation is already saturated over the observed range.
 
 parameters:
   - name: Hubble constant
     python_var: H0
     bounds: [50.0, 80.0]
     unit: km/s/Mpc
-    latex_name: 'H_0'
+    latex_name: H_0
     definition: Present-day Hubble expansion rate.
     prior:
       type: gaussian
@@ -30,8 +30,8 @@ parameters:
     python_var: Omega_m0
     bounds: [0.05, 0.45]
     unit: ''
-    latex_name: '\Omega_{m0}'
-    definition: Present-day total non-relativistic matter density fraction.
+    latex_name: \Omega_{m0}
+    definition: Present-day non-relativistic matter density fraction.
     prior:
       type: uniform
       lower: 0.05
@@ -41,7 +41,7 @@ parameters:
     python_var: Omega_b
     bounds: [0.03, 0.06]
     unit: ''
-    latex_name: '\Omega_b'
+    latex_name: \Omega_b
     definition: Present-day baryonic matter density fraction.
     prior:
       type: uniform
@@ -52,7 +52,7 @@ parameters:
     python_var: Omega_gamma
     bounds: [5.38e-05, 5.38e-05]
     unit: ''
-    latex_name: '\Omega_{\gamma}'
+    latex_name: \Omega_{\gamma}
     definition: Fixed photon density parameter at z=0.
     prior:
       type: fixed
@@ -62,36 +62,30 @@ parameters:
     python_var: Neff
     bounds: [2.5, 3.5]
     unit: ''
-    latex_name: 'N_{\rm eff}'
-    definition: >-
-      Effective relativistic neutrino count used in radiation and CAMB
-      mapping.
+    latex_name: N_{\rm eff}
+    definition: Effective relativistic neutrino count.
     prior:
       type: uniform
       lower: 2.5
       upper: 3.5
 
-  - name: Temporal opposition deformation
-    python_var: epsilon_T
-    bounds: [-0.35, 0.35]
+  - name: Temporal activation scale
+    python_var: a_T
+    bounds: [0.05, 2.0]
     unit: ''
-    latex_name: '\epsilon_T'
-    definition: >-
-      Dimensionless deformation of the opposed-time sector;
-      epsilon_T = 0 recovers LambdaCDM.
+    latex_name: a_T
+    definition: Scale factor where temporal opposition activates.
     prior:
-      type: gaussian
-      mean: 0.0
-      sigma: 0.08
+      type: uniform
+      lower: 0.05
+      upper: 2.0
 
   - name: Recombination redshift
     python_var: z_rec
     bounds: [1089.92, 1089.92]
     unit: ''
-    latex_name: 'z_{\rm rec}'
-    definition: >-
-      Fixed photon-decoupling redshift used as the sound-horizon lower
-      limit.
+    latex_name: z_{\rm rec}
+    definition: Fixed photon-decoupling redshift.
     prior:
       type: fixed
       value: 1089.92
@@ -100,10 +94,8 @@ parameters:
     python_var: c_light
     bounds: [299792.458, 299792.458]
     unit: km/s
-    latex_name: 'c'
-    definition: >-
-      Fixed speed of light used by distance and sound-horizon
-      expressions.
+    latex_name: c
+    definition: Fixed speed of light.
     prior:
       type: fixed
       value: 299792.458
@@ -113,17 +105,21 @@ Hz_expression: >-
     Omega_m0 * (1 + z)**3
     + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
     + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff))
-      * (1 + z)**(3 * epsilon_T)
+      * (
+        1 - exp(-((1 / (1 + z)) / a_T)**3)
+      ) / (
+        1 - exp(-(1 / a_T)**3)
+      )
   )
 
 equations:
   sne:
-    - 'd_L(z) = (1 + z) \int_0^z \frac{c_light\,dz^\prime}{H(z^\prime)}'
-    - '\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25'
+    - d_L(z) = (1 + z) Integral(c_light / H(zp), (zp, 0, z))
+    - mu(z) = 5 log10(d_L(z)) + 25
   bao:
-    - 'D_M(z) = \int_0^z \frac{c_light\,dz^\prime}{H(z^\prime)}'
-    - 'D_H(z) = \frac{c_light}{H(z)}'
-    - 'D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)'
+    - D_M(z) = Integral(c_light / H(zp), (zp, 0, z))
+    - D_H(z) = c_light / H(z)
+    - D_V(z) = (D_M(z)**2 * D_H(z))**(1/3)
 
 rs_expression: >-
   r_s = Integral(
@@ -134,7 +130,11 @@ rs_expression: >-
         Omega_m0 * (1 + z)**3
         + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
         + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff))
-          * (1 + z)**(3 * epsilon_T)
+          * (
+            1 - exp(-((1 / (1 + z)) / a_T)**3)
+          ) / (
+            1 - exp(-(1 / a_T)**3)
+          )
       )
     ), (z, z_rec, oo)
   )
@@ -148,29 +148,43 @@ cmb:
   backend: camb
   param_map:
     H0: H0
-    ombh2: Omega_b * (H0/100)**2
-    omch2: (Omega_m0 - Omega_b) * (H0/100)**2
+    ombh2: Omega_b * (H0 / 100)**2
+    omch2: (Omega_m0 - Omega_b) * (H0 / 100)**2
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
     Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
-  grids: {}
+  grids:
+    a_grid:
+      symbol: a
+      lower: 0.001
+      upper: 1.0
+      points: 256
+      spacing: linear
   values:
+    x_tog:
+      grid: a_grid
+      expression: (a / a_T)**3
     w_tog:
-      expression: epsilon_T - 1
+      grid: a_grid
+      expression: -1 - x_tog * exp(-x_tog) / (1 - exp(-x_tog))
   calls:
-    - method: set_dark_energy
+    - method: set_dark_energy_w_a
+      args:
+        a: '@grid.a_grid'
+        w: '@value.w_tog'
       kwargs:
-        w0: "@value.w_tog"
-        dark_energy_model: fluid
+        dark_energy_model: ppf
 
 notes: >-
-  CAMB is enabled through the backend adapter contract. The TOG deformation
-  enters CAMB through the evaluated dark-energy call while SNe and BAO use the
-  full epsilon_T-deformed H(z). The manifest records the backend call so the
-  same model file drives the scalar CAMB inputs and the explicit dark-energy
-  adapter.
+  This model uses the TOG volume-activation law. The background temporal
+  factor is A(a) = [1 - exp(-(a / a_T)**3)] /
+  [1 - exp(-(1 / a_T)**3)]. The CAMB contract evaluates the derived
+  w(a) table on a scale-factor grid and forwards it to CAMB through
+  set_dark_energy_w_a using PPF. The PPF setting is the CAMB adapter
+  representation for the declared w(a) table; it is not a Copernican
+  theory class.
 
-date: '2026-05-21'
+date: '2026-05-25'

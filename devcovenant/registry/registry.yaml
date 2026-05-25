@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: d7096e3d659ca2d1d0ff1d4e4d06a2f70d80b97827cd0a19319f070e7b495567
+  policy_registry_input_hash: af946f6afcbf897bb33a86568638fcd563356678656d030dc94c9489c4085e54
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.10
+  project_version: 12.0.12
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -5243,6 +5243,7 @@ policies:
       - devcovenant/config.yaml
       user_facing_exclude_dirs:
       - tests/**
+      - models/**
       force_include_files: []
       force_include_dirs: []
     metadata_resolution:
@@ -6041,18 +6042,21 @@ policies:
         profile_overlays:
           values:
           - tests/**
+          - models/**
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - tests/**
+          - models/**
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - tests/**
+          - models/**
       force_include_files:
         descriptor:
           values:
@@ -6280,6 +6284,7 @@ policies:
       - devcovenant/config.yaml
       user_facing_exclude_dirs: &id034
       - tests/**
+      - models/**
       force_include_files: []
       force_include_dirs: []
     runtime_config_overrides: {}
@@ -6344,6 +6349,7 @@ policies:
     - devcovenant/registry/runtime/**
     - dist/**
     - htmlcov/**
+    - models/**
     - pip-wheel-metadata/**
     - tests/**
     - tests/devcovenant
@@ -11992,6 +11998,7 @@ policies:
       changelog_header_prefix: '## Version'
       ignored_prefixes:
       - devcovenant
+      - models
       semver_scope_tags_required: 'true'
       pep440_allow_prereleases: 'true'
       pep440_allow_dev_releases: 'true'
@@ -12002,6 +12009,7 @@ policies:
       selector_roles: ignored
       ignored_globs:
       - devcovenant/**
+      - models/**
       ignored_files: []
       ignored_dirs: []
     metadata_resolution:
@@ -12181,18 +12189,21 @@ policies:
         profile_overlays:
           values:
           - devcovenant
+          - models
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - devcovenant
+          - models
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - devcovenant
+          - models
       semver_scope_tags_required:
         descriptor:
           values:
@@ -12328,12 +12339,14 @@ policies:
         derived_selectors:
           values:
           - devcovenant/**
+          - models/**
           behavior: derive
           replaced_inherited_values:
           - ()
         effective:
           values:
           - devcovenant/**
+          - models/**
       ignored_files:
         descriptor:
           values:
@@ -12398,6 +12411,7 @@ policies:
       changelog_header_prefix: '## Version'
       ignored_prefixes: &id104
       - devcovenant
+      - models
       semver_scope_tags_required: true
       pep440_allow_prereleases: true
       pep440_allow_dev_releases: true
@@ -12408,6 +12422,7 @@ policies:
       selector_roles: ignored
       ignored_globs: &id105
       - devcovenant/**
+      - models/**
       ignored_files: []
       ignored_dirs: []
     runtime_config_overrides: {}
@@ -12435,6 +12450,7 @@ policies:
     - CHANGELOG.md
     - copernican_lib/VERSION
     - devcovenant/**
+    - models/**
     origin: builtin
     script_exists: true
     hash: ae76928adcea8bf38adb4fe7e5ca4edf16a124c92f5a16b5b4d790a49851586f
@@ -16292,6 +16308,9 @@ profiles:
       versioning_mode: versioned
       changelog_file: CHANGELOG.md
     policy_overlays:
+      documentation-growth-tracking:
+        user_facing_exclude_dirs:
+        - models/**
       dependency-management:
         surfaces:
         - id: root_workspace
@@ -16326,6 +16345,7 @@ profiles:
         semver_scope_tags_required: true
         ignored_prefixes:
         - devcovenant
+        - models
       version-sync:
         version_file: copernican_lib/VERSION
         changelog_file: CHANGELOG.md

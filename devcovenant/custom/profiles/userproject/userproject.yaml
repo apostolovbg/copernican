@@ -23,6 +23,9 @@ project-governance:
   versioning_mode: versioned
   changelog_file: CHANGELOG.md
 policy_overlays:
+  documentation-growth-tracking:
+    user_facing_exclude_dirs:
+      - models/**
   dependency-management:
     surfaces:
       - id: root_workspace
@@ -57,6 +60,7 @@ policy_overlays:
     semver_scope_tags_required: true
     ignored_prefixes:
       - devcovenant
+      - models
   version-sync:
     version_file: copernican_lib/VERSION
     changelog_file: CHANGELOG.md

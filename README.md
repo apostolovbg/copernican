@@ -1,7 +1,7 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.12
+**Project Version:** 12.0.13
 **Last Updated:** 2026-05-25
 **DevCovenant Version:** 1.0.1b6
 

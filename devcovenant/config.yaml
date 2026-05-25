@@ -1087,6 +1087,7 @@ autogen_metadata_overlays:
     - tests/devcovenant
     user_facing_exclude_dirs:
     - tests/**
+    - models/**
     user_facing_exclude_files:
     - devcovenant/config.yaml
     user_facing_exclude_prefixes:
@@ -1341,6 +1342,7 @@ autogen_metadata_overlays:
     enforce_bumping: 'true'
     ignored_prefixes:
     - devcovenant
+    - models
     pep440_allow_dev_releases: 'true'
     pep440_allow_post_releases: 'true'
     pep440_allow_prereleases: 'true'

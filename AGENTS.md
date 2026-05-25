@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.12
+**Project Version:** 12.0.13
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -189,7 +189,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.12
+- Project Version: 12.0.13
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -1018,6 +1018,7 @@ user_facing_exclude_files:
 - devcovenant/config.yaml
 user_facing_exclude_dirs:
 - tests/**
+- models/**
 force_include_files: []
 force_include_dirs: []
 ```
@@ -1908,6 +1909,7 @@ changelog_file: CHANGELOG.md
 changelog_header_prefix: '## Version'
 ignored_prefixes:
 - devcovenant
+- models
 semver_scope_tags_required: 'true'
 pep440_allow_prereleases: 'true'
 pep440_allow_dev_releases: 'true'
@@ -1918,6 +1920,7 @@ custom_adapter_path: []
 selector_roles: ignored
 ignored_globs:
 - devcovenant/**
+- models/**
 ignored_files: []
 ignored_dirs: []
 ```
