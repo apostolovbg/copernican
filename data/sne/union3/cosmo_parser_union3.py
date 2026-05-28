@@ -17,13 +17,14 @@ from copernican_lib.dataset_registry import register_sne_parser
 DATA_DIR = os.path.dirname(__file__)
 
 
+def looks_like_mu_mat(name: str) -> bool:
+    """Return True when a file name matches the mu_mat pattern."""
+    lower = name.lower()
+    return lower.endswith(".fits") and "mu_mat" in lower
+
+
 def _find_matching_fits(data_dir: str) -> list[str]:
     """Return FITS files that look like the compressed `mu_mat` outputs."""
-
-    def looks_like_mu_mat(name: str) -> bool:
-        """Return True when a file name matches the mu_mat pattern."""
-        lower = name.lower()
-        return lower.endswith(".fits") and "mu_mat" in lower
 
     return [
         os.path.join(data_dir, entry)
@@ -62,7 +63,7 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     path = fits_paths[0]
     try:
         matrix = _load_mu_matrix(path)
-    except Exception as exc:
+    except (OSError, ValueError, TypeError) as exc:
         logger.error(
             "Unable to interpret Union3 matrix: %s",
             exc,

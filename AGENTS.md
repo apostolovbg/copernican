@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.18
+**Project Version:** 12.0.19
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -192,7 +192,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.18
+- Project Version: 12.0.19
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -1344,6 +1344,10 @@ tests_watch_dirs:
 - tests
 mirror_roots:
 - devcovenant/custom=>tests/devcovenant/custom
+- data/bao=>tests/data/bao
+- data/cmb=>tests/data/cmb
+- data/gw=>tests/data/gw
+- data/sne=>tests/data/sne
 mirror_test_name_templates:
 - python=>test_{stem}.py
 - python=>{stem}_test.py
@@ -1685,12 +1689,17 @@ auto_fix: 'false'
 enforcement: active
 enabled: 'true'
 custom: 'false'
-include_globs: []
+include_globs:
+- data/**
 include_suffixes: []
-include_prefixes: []
+include_prefixes:
+- data
 exclude_suffixes: []
 exclude_prefixes: []
-exclude_globs: []
+exclude_globs:
+- data/**/cosmo_parser_*.py
+- data/**/metadata_*.yml
+- data/**/metadata_*.yaml
 force_include_globs: []
 selector_roles:
 - include

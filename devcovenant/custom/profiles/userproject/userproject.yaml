@@ -3,7 +3,6 @@ profile: userproject
 category: application
 suffixes: []
 ignore_dirs:
-  - data
   - models/cache
   - cache
   - .matplotlib-cache
@@ -11,6 +10,9 @@ ignore_dirs:
   - third_party
   - node_modules
 assets: []
+pre_commit:
+  exclude: >-
+    (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
 doc_assets:
   user:
     - devcovenant/README.md
@@ -29,6 +31,13 @@ policy_overlays:
   documentation-growth-tracking:
     user_facing_exclude_dirs:
       - models/**
+  read-only-directories:
+    include_prefixes:
+      - data
+    exclude_globs:
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
   dependency-management:
     surfaces:
       - id: root_workspace
@@ -95,6 +104,10 @@ policy_overlays:
       - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
+  pre_commit:
+    overlays:
+      exclude: >-
+        (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
   changelog-coverage:
     skipped_globs:
       - .matplotlib-cache/**
@@ -130,4 +143,8 @@ policy_overlays:
     tests_watch_dirs:
       - tests
     mirror_roots:
+      - data/bao=>tests/data/bao
+      - data/cmb=>tests/data/cmb
+      - data/gw=>tests/data/gw
+      - data/sne=>tests/data/sne
       - devcovenant/custom=>tests/devcovenant/custom

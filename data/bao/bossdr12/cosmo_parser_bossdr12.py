@@ -59,7 +59,7 @@ def parse_boss_dr12(data_dir, **kwargs):
             header=None,
             names=["z", "label", "value"],
         )
-    except Exception as exc:
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 dM/Hz results file: {exc}")
         return None
 
@@ -80,7 +80,7 @@ def parse_boss_dr12(data_dir, **kwargs):
 
     try:
         cov_dm = np.loadtxt(dm_cov_path)
-    except Exception as exc:
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 dM/Hz covariance: {exc}")
         return None
 
@@ -103,7 +103,7 @@ def parse_boss_dr12(data_dir, **kwargs):
             header=None,
             names=["z", "label", "value"],
         )
-    except Exception as exc:
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 D_V/F_AP results file: {exc}")
         return None
 
@@ -128,7 +128,7 @@ def parse_boss_dr12(data_dir, **kwargs):
 
     try:
         cov_dv = np.loadtxt(dv_cov_path)
-    except Exception as exc:
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 D_V/F_AP covariance: {exc}")
         return None
 
@@ -201,7 +201,7 @@ def parse_boss_dr12(data_dir, **kwargs):
             cov_inv = np.linalg.inv(cov_y)
         else:
             cov_inv = None
-    except Exception as exc:
+    except (np.linalg.LinAlgError, ValueError) as exc:
         logger.warning(f"BOSS DR12 covariance inversion failed: {exc}")
         cov_inv = None
 

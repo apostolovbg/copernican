@@ -145,6 +145,11 @@ def parse_pantheon_plus(data_dir, **kwargs):
         # loader. Only the numerical data and covariance information are
         # handled here.
         return output_df
-    except Exception as e:
+    except (
+        OSError,
+        ValueError,
+        pd.errors.ParserError,
+        np.linalg.LinAlgError,
+    ) as e:
         logger.error(f"Error processing Pantheon+ data: {e}", exc_info=True)
         return None
