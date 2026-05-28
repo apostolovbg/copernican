@@ -15,7 +15,9 @@ import numpy
 from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib import model_coder, model_spec_validator
 from copernican_lib.engine_adapter import PluginValidationError
+from copernican_lib.perturbation_contract import PerturbationContractIR
 
+# fmt: off
 MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
 
 
@@ -55,6 +57,32 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
+            "perturbations": {
+                "contract_version": 1,
+                "standard": True,
+                "gauge": "unspecified",
+                "variables": {},
+                "derived": {},
+                "equations": {},
+                "closures": {},
+                "sources": {},
+                "validity": {
+                    "regimes": ["standard_camb"],
+                    "notes": (
+                        "Uses the backend standard perturbation machinery."
+                    ),
+                },
+                "backend_mapping": {
+                    "camb": {
+                        "uses_standard_perturbations": True,
+                    }
+                },
+                "notes": (
+                    "This model declares that its CMB perturbations are "
+                    "represented by the selected backend's standard "
+                    "perturbation system."
+                ),
+            },
         }
         self.model_data = {
             "model_name": "Dummy",
@@ -76,6 +104,114 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.funcs = funcs
         build_plugin = engine_plugin_validation.build_plugin
         self.plugin = build_plugin(self.model_data, funcs)
+
+    def _make_standard_perturbations(
+        self, *, background_adapter: bool = False
+    ) -> dict[str, object]:
+        """Return a standard CAMB perturbation contract for tests."""
+
+        perturbations = copy.deepcopy(self.base_cmb_contract["perturbations"])
+        if background_adapter:
+            perturbations["validity"]["regimes"] = [
+                "standard_camb_with_declared_background_adapter"
+            ]
+            perturbations["validity"]["notes"] = (
+                "Uses standard backend perturbations with the model's "
+                "declared background adapter contract."
+            )
+            perturbations["notes"] = (
+                "Native non-standard perturbation equations are not "
+                "declared in this model file."
+            )
+        return perturbations
+
+    def _make_nonstandard_perturbations(
+        self,
+        *,
+        implemented: bool = False,
+        solver: str = "template_native_solver",
+    ) -> dict[str, object]:
+        """Return a fully declared non-standard perturbation contract."""
+
+        return {
+            "contract_version": 1,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {
+                "delta_x": {
+                    "kind": "density_contrast",
+                    "description": "Example density perturbation.",
+                },
+                "theta_x": {
+                    "kind": "velocity_divergence",
+                    "description": "Example velocity perturbation.",
+                },
+                "rho_x": {
+                    "kind": "background_density",
+                    "description": "Example density source.",
+                },
+                "sigma_x": {
+                    "kind": "anisotropic_stress",
+                    "description": "Example stress source.",
+                },
+            },
+            "derived": {
+                "Phi_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "Phi",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": "First conformal-time derivative.",
+                },
+                "delta_rho_eff": {
+                    "expression": "rho_x * delta_x",
+                    "description": "Effective density perturbation.",
+                },
+            },
+            "equations": {
+                "continuity_x": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "delta_x",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "-theta_x + 3 * Phi_tau",
+                },
+                "euler_x": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "theta_x",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "-Hconf * theta_x + k**2 * Psi",
+                },
+            },
+            "closures": {
+                "no_anisotropic_stress": {
+                    "expression": "sigma_x",
+                    "equals": "0",
+                }
+            },
+            "sources": {
+                "poisson": {
+                    "expression": "delta_rho_eff + delta_x + theta_x",
+                }
+            },
+            "validity": {
+                "regimes": ["linear", "scalar"],
+                "notes": "Declared for first-order scalar perturbations.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "solver": solver,
+                    "implemented": implemented,
+                }
+            },
+            "notes": "Native perturbation mathematics are declared here.",
+        }
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
@@ -141,11 +277,19 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
+            "perturbations": self._make_standard_perturbations(
+                background_adapter=True
+            ),
         }
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
         contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
         self.assertEqual(contract["backend"], "camb")
         self.assertEqual(contract["param_map"]["H0"], 70.0)
+        self.assertTrue(numpy.all(numpy.isfinite(contract["grids"]["a_grid"])))
+        self.assertTrue(
+            numpy.all(numpy.diff(contract["grids"]["a_grid"]) > 0.0)
+        )
+        self.assertTrue(numpy.all(numpy.isfinite(contract["values"]["x"])))
         numpy.testing.assert_allclose(
             contract["grids"]["a_grid"],
             numpy.linspace(0.001, 1.0, 4),
@@ -157,6 +301,26 @@ class EngineInterfaceTestCase(unittest.TestCase):
         )
         self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
         self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
+
+    def test_get_cmb_perturbation_contract_preserves_structure(self):
+        """Perturbation contracts keep the declared YAML shape intact."""
+
+        contract = self.plugin.get_cmb_perturbation_contract(
+            self.plugin.INITIAL_GUESSES
+        )
+        self.assertEqual(contract["model_name"], self.plugin.MODEL_NAME)
+        self.assertEqual(contract["backend"], "camb")
+        self.assertTrue(contract["standard"])
+        self.assertEqual(contract["gauge"], "unspecified")
+        self.assertEqual(
+            contract["backend_mapping"]["camb"]["uses_standard_perturbations"],
+            True,
+        )
+        perturbation_ir = self.plugin.get_cmb_perturbation_ir(
+            self.plugin.INITIAL_GUESSES
+        )
+        self.assertIsInstance(perturbation_ir, PerturbationContractIR)
+        self.assertTrue(perturbation_ir.standard)
 
     def test_get_camb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
@@ -189,6 +353,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
+            "perturbations": self._make_standard_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
@@ -209,6 +374,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
+            "perturbations": self._make_standard_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(clash, self.funcs)
@@ -229,6 +395,202 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
+    def test_cmb_valid_model_without_perturbations_fails(self):
+        """A CMB-capable model must declare perturbations."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        del bad_model["cmb"]["perturbations"]
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_cmb_valid_model_without_perturbation_standard_fails(self):
+        """The perturbation contract must declare the standard flag."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        del bad_model["cmb"]["perturbations"]["standard"]
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_cmb_valid_model_with_invalid_perturbation_gauge_fails(self):
+        """Invalid perturbation gauges are rejected."""
+
+        bad_model = copy.deepcopy(self.model_data)
+        bad_model["cmb"]["perturbations"]["gauge"] = "galactic"
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+
+    def test_standard_false_perturbation_contract_validates(self):
+        """A non-standard perturbation contract validates when declared."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["cmb"]["perturbations"] = (
+            self._make_nonstandard_perturbations()
+        )
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        self.assertTrue(plugin.valid_for_cmb)
+        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        self.assertEqual(
+            plugin.CMB_PERTURBATION_CONTRACT["gauge"],
+            "conformal_newtonian",
+        )
+        self.assertIsInstance(
+            plugin.get_cmb_perturbation_ir(plugin.INITIAL_GUESSES),
+            PerturbationContractIR,
+        )
+
+    def test_standard_false_perturbation_contract_without_math_fails(self):
+        """Non-standard perturbations need declared mathematical content."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["cmb"]["perturbations"] = {
+            "contract_version": 1,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {
+                "delta_x": {
+                    "kind": "density_contrast",
+                    "description": "Example density perturbation.",
+                }
+            },
+            "derived": {},
+            "equations": {},
+            "closures": {},
+            "sources": {},
+            "validity": {
+                "regimes": ["linear"],
+                "notes": "Declared but incomplete.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "solver": "template_native_solver",
+                    "implemented": False,
+                }
+            },
+            "notes": "Missing mathematical content.",
+        }
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_standard_true_rejects_non_empty_math_sections(self):
+        """Standard perturbations must keep the math sections empty."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["cmb"]["perturbations"]["variables"] = {
+            "delta_x": {"kind": "density_contrast"}
+        }
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_free_text_equation_lhs_fails(self):
+        """Equation left-hand sides must use typed derivative syntax."""
+
+        model_data = copy.deepcopy(self.model_data)
+        model_data["cmb"]["perturbations"] = (
+            self._make_nonstandard_perturbations()
+        )
+        model_data["cmb"]["perturbations"]["equations"]["continuity_x"][
+            "lhs"
+        ] = "delta_x"
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_undeclared_perturbation_symbol_fails(self):
+        """Perturbation expressions must not reference undeclared symbols."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["derived"]["delta_rho_eff"]["expression"] = "unknown_x"
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_unsafe_perturbation_expression_fails(self):
+        """Unsafe perturbation expressions are rejected."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["sources"]["poisson"]["expression"] = "delta_x.__class__"
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_unknown_perturbation_key_fails(self):
+        """Unknown perturbation contract keys are rejected."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["unexpected"] = {}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_missing_nonstandard_variables_fails(self):
+        """Non-standard perturbations must declare variables."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["variables"] = {}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_missing_nonstandard_equations_fails(self):
+        """Non-standard perturbations must declare equations."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["equations"] = {}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_missing_nonstandard_sources_fails(self):
+        """Non-standard perturbations must declare sources."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["sources"] = {}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_missing_nonstandard_backend_mapping_fails(self):
+        """Non-standard perturbations must declare backend mapping."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["backend_mapping"] = {}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_nonstandard_standard_mapping_fails(self):
+        """Non-standard perturbations cannot declare standard support."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["backend_mapping"]["camb"]["native_solver_required"] = (
+            True
+        )
+        perturbations["backend_mapping"]["camb"][
+            "uses_standard_perturbations"
+        ] = True
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
+    def test_derived_cycle_fails(self):
+        """Derived perturbation expressions must not cycle."""
+
+        model_data = copy.deepcopy(self.model_data)
+        perturbations = self._make_nonstandard_perturbations()
+        perturbations["derived"]["alpha"] = {"expression": "beta"}
+        perturbations["derived"]["beta"] = {"expression": "alpha"}
+        model_data["cmb"]["perturbations"] = perturbations
+        with self.assertRaises(ValueError):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
+
     def test_cmb_invalid_model_does_not_require_cmb(self):
         """Models that opt out of CMB do not need a contract block."""
 
@@ -238,6 +600,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertFalse(plugin.valid_for_cmb)
         self.assertEqual(plugin.CMB_CONTRACT, {})
+        self.assertIsNone(plugin.CMB_PERTURBATION_IR)
 
     def test_migrated_cmb_models_validate(self):
         """All migrated CMB models should build and validate cleanly."""
@@ -250,6 +613,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "cosmo_model_lcdm_mnu.yml",
             "cosmo_model_ref_planck2018.yml",
             "cosmo_model_tog.yml",
+            "cosmo_model_torg.yml",
             "cosmo_model_wcdm.yml",
             "cosmo_model_w0wa.yml",
             "cosmo_model_qauc.yml",
@@ -268,6 +632,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 self.assertTrue(validate_plugin(plugin))
                 contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
                 self.assertEqual(contract["backend"], "camb")
+                self.assertIsNotNone(
+                    plugin.get_cmb_perturbation_ir(plugin.INITIAL_GUESSES)
+                )
 
     def test_unknown_cmb_key_fails(self):
         """Unknown contract keys are rejected early."""
@@ -317,6 +684,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
+            "perturbations": self._make_standard_perturbations(
+                background_adapter=True
+            ),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
@@ -351,6 +721,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
+            "perturbations": self._make_standard_perturbations(),
         }
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
         contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
@@ -379,6 +750,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
+            "perturbations": self._make_standard_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
@@ -452,3 +824,4 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+# fmt: on

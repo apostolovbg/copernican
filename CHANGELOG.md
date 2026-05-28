@@ -1,12 +1,12 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.13
+**Project Version:** 12.0.16
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-25
+**Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -77,6 +77,112 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 12.0.16
+
+- 2026-05-28 [semver:patch]:
+  Change: Bumped the tracked release version, fixed the engine adapter
+    export test import, and recorded the latest session changelog entry.
+  Why: Aligned the changelog release header with the version file after
+    the gate requested a version update and kept the registry import
+    explicit.
+  Impact: Preserved the previous 12.0.15 entry below while validating the
+    adapter export test against the canonical registry module.
+  Files:
+  CHANGELOG.md
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/test_engine_adapter.py
+
+## Version 12.0.15
+
+- 2026-05-28 [semver:patch]:
+  Change: Hardened perturbation-contract symbol coverage and restored the
+    changelog snapshot hierarchy for the current session.
+  Why: Preserve the prior top entry unchanged below the new session entry
+    and validate the exported perturbation IR surface explicitly.
+  Impact: Record explicit symbol assertions and preserve the prior top
+    entry unchanged while keeping the current session's file set accounted
+    for.
+  Files:
+  CHANGELOG.md
+  AGENTS.md
+  CONTRIBUTING.md
+  README.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/cmb_backend_registry.py
+  copernican_lib/VERSION
+  copernican_lib/engine_adapter.py
+  copernican_lib/likelihoods/__init__.py
+  copernican_lib/likelihoods/bao.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/perturbation_contract.py
+  copernican_lib/run_manifest.py
+  copernican_lib/run_pipeline.py
+  copernican_lib/statistics.py
+  cosmo_model_template.yml
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/run_manifest.md
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_cmb_backend_registry.py
+  tests/copernican_lib/test_core.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_likelihoods.py
+  tests/copernican_lib/test_perturbation_contract.py
+  tests/copernican_lib/test_plugins.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/engines/test_cosmo_engine_mcmc.py
+
+## Version 12.0.14
+
+- 2026-05-27 [semver:patch]:
+  Change: Added explicit CAMB perturbation contracts, migrated CMB-valid
+    models, and refreshed the manifest and docs.
+  Why: Validate that CMB-valid models declare both background and
+    perturbation contracts so the backend can validate supported math and
+    reject unsupported non-standard perturbations.
+  Impact: Preserves explicit `standard: true` models, exposes unsupported
+    perturbation contracts as clear setup errors, and records perturbation
+    summaries in manifests.
+  Files:
+  README.md
+  CHANGELOG.md
+  AGENTS.md
+  CONTRIBUTING.md
+  copernican_lib/VERSION
+  cosmo_model_template.yml
+  copernican_lib/camb_contract.py
+  copernican_lib/engine_adapter.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/model_spec_validator.py
+  copernican_lib/run_manifest.py
+  copernican_lib/run_pipeline.py
+  PLAN.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/run_manifest.md
+  SPEC.md
+  models/cosmo_model_lcdm.yml
+  models/cosmo_model_lcdm_mnu.yml
+  models/cosmo_model_qauc.yml
+  models/cosmo_model_qrsf.yml
+  models/cosmo_model_ref_planck2018.yml
+  models/cosmo_model_tog.yml
+  models/cosmo_model_torg.yml
+  models/cosmo_model_usmf2.yml
+  models/cosmo_model_w0wa.yml
+  models/cosmo_model_wcdm.yml
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_camb_contract.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/engines/test_cosmo_engine_mcmc.py
+
 ## Version 12.0.13
 
 - 2026-05-25 [semver:patch]:
@@ -99,6 +205,16 @@ suffixes. Follow this template:
   devcovenant/README.md
   models/cosmo_model_tog.yml
   pyproject.toml
+
+- 2026-05-27:
+  Change: Migrated the synthetic test fixture to the explicit CMB
+    perturbation contract.
+  Why: Keep the synthetic fixture aligned with the validated CMB model
+    schema used by the test suite.
+  Impact: The test fixture now exercises the same perturbation metadata as
+    the migrated CMB-valid models.
+  Files:
+  tests/data/synthetic/model.yml
 
 ## Version 12.0.12
 

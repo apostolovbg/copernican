@@ -4,7 +4,8 @@ The manifest records critical information required to reproduce a run. It
 captures the Copernican Suite version, model and engine details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
-back unambiguously.
+back unambiguously. CMB entries now include both the background adapter
+summary and the perturbation-contract metadata declared on each model.
 """
 
 from __future__ import annotations
@@ -94,6 +95,17 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     models_meta: list[dict[str, Any]] = []
     for plugin in camb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
+        perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
+        perturbation_ir = getattr(plugin, "CMB_PERTURBATION_IR", None)
+        dependency_summary = getattr(
+            perturbation_ir, "dependency_graph_summary", None
+        )
+        backend_mapping_ir = getattr(perturbation_ir, "backend_mapping", {})
+        backend_mapping_camb = (
+            backend_mapping_ir.get("camb", {})
+            if hasattr(backend_mapping_ir, "get")
+            else {}
+        )
         param_map = contract.get("param_map", {}) or {}
         grids = contract.get("grids", {}) or {}
         values = contract.get("values", {}) or {}
@@ -119,6 +131,95 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 ],
                 "grids": grid_meta,
                 "value_names": [str(key) for key in values],
+                "perturbation_contract_version": getattr(
+                    perturbation_ir, "contract_version", None
+                ),
+                "perturbation_standard": getattr(
+                    perturbation_ir, "standard", perturbations.get("standard")
+                ),
+                "perturbation_gauge": getattr(
+                    perturbation_ir, "gauge", perturbations.get("gauge")
+                ),
+                "perturbation_variable_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_ir, "variables", {}) or {}
+                    )
+                ),
+                "perturbation_derived_names": sorted(
+                    str(key)
+                    for key in (getattr(perturbation_ir, "derived", {}) or {})
+                ),
+                "perturbation_equation_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_ir, "equations", {}) or {}
+                    )
+                ),
+                "perturbation_closure_names": sorted(
+                    str(key)
+                    for key in (getattr(perturbation_ir, "closures", {}) or {})
+                ),
+                "perturbation_source_names": sorted(
+                    str(key)
+                    for key in (getattr(perturbation_ir, "sources", {}) or {})
+                ),
+                "perturbation_independent_variables_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "independent_variables_used", ()
+                    )
+                ),
+                "perturbation_model_parameters_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "model_parameters_used", ()
+                    )
+                ),
+                "perturbation_background_references_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "background_references_used", ()
+                    )
+                ),
+                "perturbation_backend": getattr(
+                    perturbation_ir, "backend", contract.get("backend")
+                ),
+                "perturbation_backend_solver": getattr(
+                    backend_mapping_camb, "solver", None
+                ),
+                "perturbation_backend_implemented": getattr(
+                    backend_mapping_camb, "implemented", None
+                ),
+                "perturbation_backend_uses_standard_perturbations": getattr(
+                    backend_mapping_camb,
+                    "uses_standard_perturbations",
+                    None,
+                ),
+                "perturbation_backend_native_solver_required": getattr(
+                    backend_mapping_camb, "native_solver_required", None
+                ),
+                "perturbation_backend_mapping_summary": {
+                    str(backend_name): (
+                        {
+                            "keys": sorted(
+                                str(key) for key in backend_mapping.keys()
+                            ),
+                            "implemented": backend_mapping.get("implemented"),
+                            "native_solver_required": backend_mapping.get(
+                                "native_solver_required"
+                            ),
+                            "uses_standard_perturbations": backend_mapping.get(
+                                "uses_standard_perturbations"
+                            ),
+                        }
+                        if isinstance(backend_mapping, dict)
+                        else backend_mapping
+                    )
+                    for backend_name, backend_mapping in (
+                        perturbations.get("backend_mapping", {}) or {}
+                    ).items()
+                },
             }
         )
 

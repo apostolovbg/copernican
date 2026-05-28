@@ -10,12 +10,13 @@ directly without using the command-line interface.  The core modules are:
   into Python callables.
 - `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
   :class:`copernican_lib.engine_adapter.EnginePlugin` instance with dataset
-  toggles, priors, bounds, distance functions and structured CAMB contracts
-  ready for engine consumption.
+  toggles, priors, bounds, distance functions and structured CAMB background
+  and perturbation contracts ready for engine consumption.
 - `copernican_lib.engine_adapter` – home of the picklable adapter dataclass,
-  `EnginePlugin.CMB_CONTRACT`, `REQUIRED_ATTRIBUTES` and
-  `REQUIRED_FUNCTIONS`. Import it when building custom tooling that needs to
-  confirm interface compliance.
+  `EnginePlugin.CMB_CONTRACT`, `EnginePlugin.CMB_PERTURBATION_CONTRACT`,
+  `EnginePlugin.CMB_PERTURBATION_STANDARD`, `EnginePlugin.CMB_PERTURBATION_IR`,
+  `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`. Import it when building
+  custom tooling that needs to confirm interface compliance.
 - `copernican_lib.progress` – shared progress reporting helpers. Engines import
   `BatchProgressBar` so CLI runs log simple counters such as “Burn-in stage
   batch 1: 3/200 steps completed (1%)” while still emitting the structured
@@ -53,7 +54,8 @@ directly without using the command-line interface.  The core modules are:
   back to them reliably. CI runners that lack CAMB can opt into
   ``COPERNICAN_FAKE_CMB=1`` so the CMB helpers return deterministic synthetic
   spectra instead of performing heavy physics evaluations, leaving production
-  calculations untouched.
+  calculations untouched. Structured CMB contracts are required in the
+  production path; the explicit legacy helper is reserved for tests.
   - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
     interactive prompt lists the human readable `dataset_name` and description,
@@ -131,8 +133,9 @@ helpers assume this step has already succeeded, so validation should occur
 once before any iterative evaluation begins. Engines expect the attributes
 listed in ``copernican_lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
 :class:`EnginePlugin` exposes distance functions, CMB helpers, initial
-parameter guesses and the structured CAMB contract derived from the model YAML
-while remaining fully picklable for multiprocessing workloads.
+parameter guesses, the structured CAMB contract derived from the model YAML
+and the compiled perturbation IR while remaining fully picklable for
+multiprocessing workloads.
 
 ## Standardised Dataset Format
 
@@ -158,7 +161,8 @@ from copernican_lib import model_spec_validator
 import engines.cosmo_engine_mcmc as engine
 
 cache = model_spec_validator.validate_and_cache_model(
-    'models/cosmo_model_lcdm.yml', 'models/cache'
+    "models/cosmo_model_ref_planck2018.yml",
+    "models/cache",
 )
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_adapter.build_plugin(parsed, funcs)
@@ -186,7 +190,7 @@ Example::
 
     from copernican_lib import result_writer
 
-    summary = {"LCDM": engine_results}
+    summary = {"ReferenceModel": engine_results}
     result_writer.save_summary(summary, "output/run")
 
 ## Run Analysis Helpers
@@ -207,7 +211,7 @@ produces a serialisable representation for downstream APIs:
 from copernican_lib import analysis
 
 result = analysis.analyze_run("output/copernican-run_20251207_200254")
-print(result.model_summaries["LambdaCDM"].chi2["chi2_total"])
+print(result.model_summaries["ReferenceModel"].chi2["chi2_total"])
 print(result.duration_seconds)
 ```
 

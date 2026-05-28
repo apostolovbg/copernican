@@ -7,6 +7,9 @@ This module performs schema validation, normalises LaTeX-heavy fields and
 writes a cleaned cache file used by child processes. The behaviour evolved
 beyond simple parsing, so the name now reflects its responsibility for
 validation, sanitisation and cache management rather than mere text parsing.
+The CMB path now validates both the background adapter contract and the
+required perturbation contract whenever a model declares
+``valid_for_cmb: true``.
 """
 
 # This module validates model definition files against a JSON schema and writes

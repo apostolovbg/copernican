@@ -1,15 +1,15 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.13
-**Last Updated:** 2026-05-25
+**Project Version:** 12.0.16
+**Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
 
 <!-- DEVCOV:END -->
 
-**Version:** 12.0.12
+**Version:** 12.0.15
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -64,12 +64,14 @@ enforces its laws through pre-commit checks.
    couples `emcee` with ArviZ when available; the nested sampler mirrors the
    same schema while exposing evidences. Both reuse the shared progress
    renderer and manifest helpers.
-- `models/` houses YAML model definitions with priors, transforms and dataset
+ - `models/` houses YAML model definitions with priors, transforms and dataset
   compatibility metadata. Each definition is converted into a picklable
   engine adapter so manifest generation stays deterministic even under
   multiprocessing. CMB-valid models declare a backend contract under `cmb`
-  with `backend`, `param_map`, `grids`, `values` and `calls`; the suite
-  evaluates that contract instead of classifying a theory type.
+  with `backend`, `param_map`, `grids`, `values`, `calls` and a mandatory
+  `perturbations` block; `standard: true` keeps the perturbation sections
+  empty, while `standard: false` requires typed derivative equations and
+  explicit backend mapping for the compiled perturbation IR.
  - `data/` bundles vetted observations and parsers. The loaders validate SHA256
    digests, register citations, and tag each manifest with the hashes used for
    the run; the directory remains read-only except when a human explicitly
@@ -153,11 +155,11 @@ The Validation tab runs `python copernican.py --run-validation`, streams CLI
 output into a log box, and stores the summaries inside
 `validation/output/<manifest_stem>/validation_run_<timestamp>/` plus the
 gitignored `VALIDATION.md`. The fixed Planck 2018 manifest evaluates a
-reference ΛCDM model against Union3 UNITY SNe, BOSS DR12 BAO and Planck 2018
-Lite CMB data with constant priors, so regression checks stay deterministic.
+reference model against Union3 UNITY SNe, BOSS DR12 BAO and Planck 2018 Lite
+CMB data with constant priors, so regression checks stay deterministic.
 “Cancel validation” terminates the worker, “Clear validation” removes the
-outputs and summary, and GUI progress bars mirror the counter-based batches the
-sampler emits. The Validation button stays disabled while a worker runs so
+outputs and summary, and GUI progress bars mirror the counter-based batches
+the sampler emits. The Validation button stays disabled while a worker runs so
 overlapping validation jobs cannot start.
 
 ## Documentation & policy

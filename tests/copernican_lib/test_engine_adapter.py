@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+import copernican_lib.cmb_backend_registry as cmb_backend_registry
 from copernican_lib import camb_contract, engine_adapter
 
 
@@ -28,6 +29,19 @@ class TestEngineAdapterExports(unittest.TestCase):
         )
         self.assertTrue(
             hasattr(engine_adapter.EnginePlugin, "get_camb_contract")
+        )
+        self.assertTrue(
+            hasattr(
+                engine_adapter.EnginePlugin, "get_cmb_perturbation_contract"
+            )
+        )
+        self.assertTrue(
+            hasattr(engine_adapter.EnginePlugin, "get_cmb_perturbation_ir")
+        )
+        self.assertTrue(hasattr(engine_adapter, "CMB_BACKEND_CAPABILITIES"))
+        self.assertIs(
+            engine_adapter.CMB_BACKEND_CAPABILITIES,
+            cmb_backend_registry.CMB_BACKEND_CAPABILITIES,
         )
         self.assertIn("EnginePlugin", engine_adapter.__all__)
         self.assertIn("validate_plugin", engine_adapter.__all__)
@@ -56,6 +70,22 @@ class TestEngineAdapterExports(unittest.TestCase):
                 "grids": {},
                 "values": {},
                 "calls": [],
+                "perturbations": {
+                    "contract_version": 1,
+                    "standard": True,
+                    "gauge": "unspecified",
+                    "variables": {},
+                    "derived": {},
+                    "equations": {},
+                    "closures": {},
+                    "sources": {},
+                    "validity": {"regimes": ["standard_camb"]},
+                    "backend_mapping": {
+                        "camb": {
+                            "uses_standard_perturbations": True,
+                        }
+                    },
+                },
             },
         )
         self.assertEqual(evaluator.evaluate_param_map((4.0,))["H0"], 4.0)

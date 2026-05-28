@@ -84,6 +84,9 @@ def _build_short_chain_plugin():
         valid_for_cmb=False,
         CMB_CONTRACT={},
         CMB_PARAM_MAP={},
+        CMB_PERTURBATION_CONTRACT={},
+        CMB_PERTURBATION_STANDARD=False,
+        CMB_PERTURBATION_IR=None,
         LIKELIHOOD_CONFIG={},
         MODEL_EQUATIONS_LATEX_SN=(),
         MODEL_EQUATIONS_LATEX_BAO=(),
@@ -608,9 +611,14 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 )
             )
 
-            camb_params = plugin.get_camb_params(initial)
+            camb_contract = plugin.get_camb_contract(initial)
+            perturbation_contract = plugin.get_cmb_perturbation_contract(
+                initial
+            )
+            structured_contract = dict(camb_contract)
+            structured_contract["perturbations"] = perturbation_contract
             dl_vals = module.compute_cmb_spectrum(
-                camb_params,
+                structured_contract,
                 ells,
                 spectra=("TT",),
             )

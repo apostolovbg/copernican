@@ -79,6 +79,7 @@ def _build_sample_plugin() -> plugins.EnginePlugin:
 
     model_data = {
         "model_name": "TestModel",
+        "valid_for_cmb": False,
         "description": "Synthetic plugin used for pickling tests.",
         "abstract": "Ensures FrozenMapping wrappers survive pickle.",
         "parameters": [

@@ -35,6 +35,25 @@ cmb:
   grids: {}
   values: {}
   calls: []
+  perturbations:
+    contract_version: 1
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
+    validity:
+      regimes:
+        - standard_camb
+      notes: Uses the backend standard perturbation machinery.
+    backend_mapping:
+      camb:
+        uses_standard_perturbations: true
+    notes: >-
+      This model declares that its CMB perturbations are represented by the
+      selected backend's standard perturbation system.
 likelihood:
   independent_sne_bao: true
 equations:

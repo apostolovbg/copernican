@@ -13,20 +13,29 @@ description: |
     automatically add the `transform: log` metadata in the cached YAML.
   * Every physics observable that can appear in `H(z)` or the sound-horizon
     integrand must already be a declared parameter (or a fixed constant).
+  * Model YAMLs are declarative mathematical files, not Python modules.
+    Copernican validates the declared math and compiles it into executable
+    callables elsewhere in the codebase.
   * Always pair the photon density `Omega_gamma` with a sampled `Neff`
     parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
     (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
     `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
     aligned with the CAMB background while letting relativistic species
     float.
-  * The `cmb` block is a CAMB backend adapter contract, not a theory label.
+  * The `cmb` block is a backend adapter contract, not a model class tag.
     Use `backend: camb`, keep scalar CAMB inputs in `param_map`, declare any
     generated numerical grids in `grids`, put evaluated expressions in
-    `values`, and list backend calls in `calls`.
-  * `valid_for_cmb: true` requires a complete CAMB adapter contract. A
-    scalar-only model uses `calls: []`; models with effective dark-energy
-    inputs can declare `set_dark_energy` or `set_dark_energy_w_a` without
-    being renamed as a model type.
+    `values`, list backend calls in `calls`, and add a perturbation contract
+    under `cmb.perturbations`.
+  * `valid_for_cmb: true` requires a complete backend contract. A
+    scalar-only model uses `calls: []`; models with additional backend method
+    calls may declare them explicitly without changing the model's declared
+    mathematics.
+  * Every CMB-valid model also declares a perturbation contract under
+    `cmb.perturbations`. `standard: true` means the backend owns the full
+    perturbation machinery and the math sections stay empty. `standard: false`
+    requires a fully declared perturbation contract with typed derivative
+    equations and backend mapping.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -71,6 +80,15 @@ parameters:
       type: uniform
       lower: 1.0e-05
       upper: 1.0e-04
+  - name: Recombination redshift
+    python_var: z_rec
+    bounds: [1089.92, 1089.92]
+    unit: ""
+    latex_name: z_{\rm rec}
+    definition: Fixed photon-decoupling redshift used by the sound horizon.
+    prior:
+      type: fixed
+      value: 1089.92
   - name: Effective number of relativistic neutrino species
     python_var: Neff
     bounds: [2.5, 3.5]
@@ -145,6 +163,69 @@ cmb:
   grids: {}
   values: {}
   calls: []
+  perturbations:
+    contract_version: 1
+    standard: false
+    gauge: conformal_newtonian
+    variables:
+      delta_x:
+        kind: density_contrast
+        description: Template density contrast for a custom sector.
+      theta_x:
+        kind: velocity_divergence
+        description: Template velocity divergence for a custom sector.
+      rho_x:
+        kind: background_density
+        description: Template density source for a custom sector.
+      sigma_x:
+        kind: anisotropic_stress
+        description: Template anisotropic-stress source for a custom sector.
+    derived:
+      Phi_tau:
+        kind: derivative_symbol
+        variable: Phi
+        wrt: tau
+        order: 1
+        description: First conformal-time derivative of Phi.
+      delta_rho_eff:
+        expression: rho_x * delta_x
+        description: Template effective density perturbation.
+    equations:
+      continuity_x:
+        lhs:
+          kind: derivative
+          variable: delta_x
+          wrt: tau
+          order: 1
+        rhs: -theta_x + 3 * Phi_tau
+      euler_x:
+        lhs:
+          kind: derivative
+          variable: theta_x
+          wrt: tau
+          order: 1
+        rhs: -Hconf * theta_x + k**2 * Psi
+    closures:
+      no_anisotropic_stress_x:
+        expression: sigma_x
+        equals: "0"
+    sources:
+      poisson_x:
+        expression: delta_rho_eff + delta_x + theta_x
+    validity:
+      regimes:
+        - linear
+        - scalar
+      notes: Template first-order scalar perturbation declaration.
+    backend_mapping:
+      camb:
+        native_solver_required: true
+        solver: template_native_solver
+        implemented: false
+    notes: >-
+      This template demonstrates the complete non-standard perturbation
+      contract. It is not executable until a matching native backend solver is
+      registered.
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV

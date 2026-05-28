@@ -50,12 +50,6 @@ class BAOLike(LikelihoodProtocol):
     _get_camb_contract: (
         Callable[[Sequence[float]], Mapping[str, Any]] | None
     ) = field(init=False, repr=False)
-    _get_camb_params: Callable[[Sequence[float]], Mapping[str, Any]] | None = (
-        field(
-            init=False,
-            repr=False,
-        )
-    )
     _fallback_dm: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_hz: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_dv: Callable[..., Any] | None = field(init=False, repr=False)
@@ -97,10 +91,7 @@ class BAOLike(LikelihoodProtocol):
         self._get_camb_contract = getattr(
             self.model_plugin, "get_camb_contract", None
         )
-        self._get_camb_params = getattr(
-            self.model_plugin, "get_camb_params", None
-        )
-        if self._get_camb_contract is None and self._get_camb_params is None:
+        if self._get_camb_contract is None:
             self._setup_error = (
                 "(bao_like): Model plugin does not expose a CAMB contract."
             )
@@ -135,10 +126,6 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if self._get_camb_params is None:
-            self._state = LikelihoodState()
-            return float("-inf")
-
         background = None
         camb_params: Mapping[str, Any] | None = None
         get_camb_contract = self._get_camb_contract
@@ -155,21 +142,6 @@ class BAOLike(LikelihoodProtocol):
             ) as exc:
                 logger.warning(
                     "(bao_like): Failed to obtain CAMB contract; %s",
-                    exc,
-                )
-        elif self._get_camb_params is not None:
-            try:
-                camb_params = self._get_camb_params(params)
-            except (
-                AttributeError,
-                ImportError,
-                OSError,
-                RuntimeError,
-                TypeError,
-                ValueError,
-            ) as exc:
-                logger.warning(
-                    "(bao_like): Failed to obtain CAMB parameters; %s",
                     exc,
                 )
 

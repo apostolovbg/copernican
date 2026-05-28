@@ -46,8 +46,8 @@ class FunctionalTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Prepare a validated ΛCDM plugin used by several test cases."""
-        # Prepare a validated ΛCDM plugin used by several test cases.
+        """Prepare a validated reference plugin used by several tests."""
+        # Prepare a validated reference plugin used by several tests.
         base = Path(__file__).resolve().parents[2]
         models_dir = base / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
@@ -108,7 +108,10 @@ class FunctionalTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.isfinite(chi2_bao))
 
-        camb_params = self.plugin.get_camb_params(params)
+        camb_params = self.plugin.get_camb_contract(params)
+        camb_params["perturbations"] = (
+            self.plugin.get_cmb_perturbation_contract(params)
+        )
         chi2_cmb = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         spec = engine.compute_cmb_spectrum(
             camb_params, cmb_df["ell"].values, spectra=("TT", "TE", "EE")
@@ -184,7 +187,14 @@ class FunctionalTestCase(unittest.TestCase):
         """Ensure cached CAMB spectra match Dl convention."""
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         ells = cmb_df["ell"].values[:5]
-        camb_params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
+        camb_params = self.plugin.get_camb_contract(
+            self.plugin.INITIAL_GUESSES
+        )
+        camb_params["perturbations"] = (
+            self.plugin.get_cmb_perturbation_contract(
+                self.plugin.INITIAL_GUESSES
+            )
+        )
         result = engine.compute_cmb_spectrum_from_dict(
             camb_params, ells, spectra=("TT",)
         )
@@ -195,7 +205,10 @@ class FunctionalTestCase(unittest.TestCase):
         # regression aligned with whichever optional neutrino knobs the plugin
         # exposes.
         params = cmb._make_camb_params(camb_params, lmax=int(numpy.max(ells)))
-        params.InitPower.set_params(As=camb_params["As"], ns=camb_params["ns"])
+        params.InitPower.set_params(
+            As=camb_params["param_map"]["As"],
+            ns=camb_params["param_map"]["ns"],
+        )
         ref = camb.get_results(params).get_unlensed_scalar_cls(
             lmax=int(numpy.max(ells)), CMB_unit="muK"
         )

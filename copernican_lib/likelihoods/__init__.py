@@ -21,6 +21,7 @@ from .cmb import (
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_dict,
+    compute_cmb_spectrum_from_legacy_params_for_tests,
     describe_camb_configuration,
 )
 from .joint import JointLike
@@ -37,5 +38,6 @@ __all__ = [
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_legacy_params_for_tests",
     "describe_camb_configuration",
 ]

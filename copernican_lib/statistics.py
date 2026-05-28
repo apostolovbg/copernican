@@ -26,6 +26,7 @@ from copernican_lib.likelihoods import (
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_dict,
+    compute_cmb_spectrum_from_legacy_params_for_tests,
 )
 
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_legacy_params_for_tests",
 ]
 
 
@@ -141,7 +143,6 @@ def calculate_bao_observables(
     smooth_background = None
     camb_params = None
     get_camb_contract = getattr(model_plugin, "get_camb_contract", None)
-    get_camb_params = getattr(model_plugin, "get_camb_params", None)
     if get_camb_contract is not None:
         try:
             camb_params = get_camb_contract(cosmo_params)
@@ -155,21 +156,6 @@ def calculate_bao_observables(
         ) as exc:
             logger.warning(
                 "Failed to obtain CAMB contract for BAO predictions: %s",
-                exc,
-            )
-    elif get_camb_params is not None:
-        try:
-            camb_params = get_camb_params(cosmo_params)
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.warning(
-                "Failed to obtain CAMB parameters for BAO predictions: %s",
                 exc,
             )
 

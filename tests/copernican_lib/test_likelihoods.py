@@ -20,7 +20,7 @@ class LikelihoodTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Load a validated ΛCDM plugin for likelihood evaluation."""
+        """Load a validated reference plugin for likelihood evaluation."""
 
         repo_root = Path(__file__).resolve().parents[2]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
@@ -88,7 +88,8 @@ class LikelihoodTestCase(unittest.TestCase):
         """BAO helper should reuse model distance functions when CAMB fails."""
 
         class TrackingPlugin:
-            """Proxy raising ``get_camb_params`` and tracking fallbacks."""
+            """Proxy raising the structured CAMB contract and tracking
+            fallbacks."""
 
             def __init__(self, base_plugin):
                 self._base = base_plugin
@@ -98,9 +99,6 @@ class LikelihoodTestCase(unittest.TestCase):
                 return getattr(self._base, name)
 
             def get_camb_contract(self, *_args, **_kwargs):
-                raise RuntimeError("CAMB unavailable for test fallback path")
-
-            def get_camb_params(self, *_args, **_kwargs):
                 raise RuntimeError("CAMB unavailable for test fallback path")
 
             def get_comoving_distance_Mpc(self, *args, **kwargs):
@@ -165,9 +163,6 @@ class LikelihoodTestCase(unittest.TestCase):
                 return getattr(self._base, name)
 
             def get_camb_contract(self, *_args, **_kwargs):
-                raise RuntimeError("CAMB disabled to exercise fallback path")
-
-            def get_camb_params(self, *_args, **_kwargs):
                 raise RuntimeError("CAMB disabled to exercise fallback path")
 
             def get_sound_horizon_rs_Mpc(self, *params):
