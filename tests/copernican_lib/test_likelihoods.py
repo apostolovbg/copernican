@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 import numpy
+import pandas
 
 import copernican_lib.dataset_registry as dataset_registry
 import copernican_lib.engine_adapter as engine_plugin_validation
@@ -44,6 +45,43 @@ class LikelihoodTestCase(unittest.TestCase):
             diag = attrs["diag_errors_for_plot"]
             attrs["diag_errors_for_plot"] = diag[:3]
         return sne_df
+
+    @staticmethod
+    def _static_sne_model(z_values, *params):
+        baseline = numpy.array([10.0, 11.0, 12.0], dtype=float)
+        return baseline[: z_values.shape[0]].copy()
+
+    def _make_intercept_sne_df(
+        self,
+        residuals: numpy.ndarray,
+        *,
+        covariance_matrix_inv: numpy.ndarray | None = None,
+        diag_errors: numpy.ndarray | None = None,
+        requires_intercept: bool = False,
+    ) -> pandas.DataFrame:
+        z_values = numpy.array([0.1, 0.2, 0.3], dtype=float)
+        mu_model = self._static_sne_model(z_values)
+        observations_df = pandas.DataFrame(
+            {
+                "zcmb": z_values,
+                "mu_obs": mu_model + numpy.asarray(residuals, dtype=float),
+                "e_mu_obs": (
+                    numpy.asarray(diag_errors, dtype=float)
+                    if diag_errors is not None
+                    else numpy.full(z_values.shape, 0.1, dtype=float)
+                ),
+            }
+        )
+        if covariance_matrix_inv is not None:
+            observations_df.attrs["covariance_matrix_inv"] = (
+                covariance_matrix_inv
+            )
+        if requires_intercept:
+            observations_df.attrs["requires_sne_intercept_marginalization"] = (
+                True
+            )
+            observations_df.attrs["sne_intercept_name"] = "Delta_mu"
+        return observations_df
 
     def _prepare_bao(self):
         bao_df = dataset_registry.load_bao_data("boss_dr12_bao").head(3).copy()
@@ -327,6 +365,123 @@ class LikelihoodTestCase(unittest.TestCase):
             cmb_like_mutated.loglike(params),
             cmb_baseline,
         )
+
+    def test_sne_intercept_marginalization_for_full_covariance(self):
+        """Union-style intercept shifts should be removed with full COV."""
+
+        cov_inv = numpy.array(
+            [
+                [4.0, 0.2, 0.0],
+                [0.2, 3.0, 0.1],
+                [0.0, 0.1, 2.5],
+            ],
+            dtype=float,
+        )
+        baseline = self._make_intercept_sne_df(
+            numpy.zeros(3, dtype=float),
+            covariance_matrix_inv=cov_inv,
+            requires_intercept=True,
+        )
+        shifted = self._make_intercept_sne_df(
+            numpy.full(3, 1.25, dtype=float),
+            covariance_matrix_inv=cov_inv,
+            requires_intercept=True,
+        )
+
+        baseline_like = likelihoods.SNeLike(
+            self._static_sne_model,
+            baseline,
+        )
+        shifted_like = likelihoods.SNeLike(
+            self._static_sne_model,
+            shifted,
+        )
+
+        baseline_loglike = baseline_like.loglike(())
+        shifted_loglike = shifted_like.loglike(())
+
+        self.assertAlmostEqual(shifted_loglike, baseline_loglike, places=8)
+        self.assertTrue(
+            shifted_like.state["metadata"]["sne_intercept_marginalized"]
+        )
+        self.assertAlmostEqual(
+            shifted_like.state["metadata"]["sne_intercept_delta_mu"],
+            -1.25,
+            places=8,
+        )
+
+    def test_sne_intercept_marginalization_for_diagonal_fallback(self):
+        """Union-style intercept shifts should be removed with diagonal COV."""
+
+        diag_errors = numpy.array([0.1, 0.2, 0.3], dtype=float)
+        baseline = self._make_intercept_sne_df(
+            numpy.zeros(3, dtype=float),
+            diag_errors=diag_errors,
+            requires_intercept=True,
+        )
+        shifted = self._make_intercept_sne_df(
+            numpy.full(3, -0.75, dtype=float),
+            diag_errors=diag_errors,
+            requires_intercept=True,
+        )
+
+        baseline_like = likelihoods.SNeLike(
+            self._static_sne_model,
+            baseline,
+        )
+        shifted_like = likelihoods.SNeLike(
+            self._static_sne_model,
+            shifted,
+        )
+
+        baseline_loglike = baseline_like.loglike(())
+        shifted_loglike = shifted_like.loglike(())
+
+        self.assertAlmostEqual(shifted_loglike, baseline_loglike, places=8)
+        self.assertTrue(
+            shifted_like.state["metadata"]["sne_intercept_marginalized"]
+        )
+        self.assertAlmostEqual(
+            shifted_like.state["metadata"]["sne_intercept_delta_mu"],
+            0.75,
+            places=8,
+        )
+
+    def test_sne_intercept_is_disabled_by_default(self):
+        """Ordinary datasets should keep the raw residual convention."""
+
+        raw_df = self._make_intercept_sne_df(
+            numpy.full(3, 1.0, dtype=float),
+            diag_errors=numpy.array([0.1, 0.1, 0.1], dtype=float),
+            requires_intercept=False,
+        )
+        raw_like = likelihoods.SNeLike(self._static_sne_model, raw_df)
+
+        loglike = raw_like.loglike(())
+
+        self.assertTrue(numpy.isfinite(loglike))
+        self.assertFalse(
+            raw_like.state["metadata"]["sne_intercept_marginalized"]
+        )
+        self.assertGreater(raw_like.state["chi2"], 0.0)
+
+    def test_sne_intercept_shaped_residuals_still_have_cost(self):
+        """Non-constant residual structure should not collapse to zero."""
+
+        shaped_df = self._make_intercept_sne_df(
+            numpy.array([1.0, -1.0, 0.5], dtype=float),
+            diag_errors=numpy.array([0.1, 0.2, 0.3], dtype=float),
+            requires_intercept=True,
+        )
+        shaped_like = likelihoods.SNeLike(self._static_sne_model, shaped_df)
+
+        loglike = shaped_like.loglike(())
+
+        self.assertTrue(numpy.isfinite(loglike))
+        self.assertTrue(
+            shaped_like.state["metadata"]["sne_intercept_marginalized"]
+        )
+        self.assertGreater(shaped_like.state["chi2"], 0.0)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

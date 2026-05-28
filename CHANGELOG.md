@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.16
+**Project Version:** 12.0.17
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,48 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.17
+
+- 2026-05-28 [semver:patch]:
+  Change: Hardened Union3 SNe intercept handling across the parser,
+    likelihood, CSV export, plot residuals, dataset trust registry, and
+    repo-facing docs.
+  Why: Keep compressed Union3 residuals on the same additive intercept
+    convention after restoring the version bump and leaving this entry
+    until the rest of the session settled.
+  Impact: Records the intercept correction path and keeps the session
+    files tied to the new version header.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  copernican_lib/csv_writer.py
+  copernican_lib/dataset_registry.py
+  copernican_lib/likelihoods/sne.py
+  copernican_lib/plotter.py
+  devcovenant/README.md
+  docs/data_overview.md
+  docs/dataset_metadata.md
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_sne.py
+  tests/copernican_lib/test_csv_writer.py
+  tests/copernican_lib/test_likelihoods.py
+
+- 2026-05-28:
+  Change: Updated the Union3 parser metadata to advertise intercept
+    marginalization.
+  Why: Make the dataset parser signal the additive intercept convention
+    without touching the vendored README.
+  Impact: Records the Union3 parser intercept requirement for the SNe
+    likelihood.
+  Files:
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/metadata_union3.yml
 
 ## Version 12.0.16
 

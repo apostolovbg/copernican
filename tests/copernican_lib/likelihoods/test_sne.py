@@ -18,6 +18,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(hasattr(module, "SNeLike"))
         self.assertTrue(callable(module.SNeLike))
+        self.assertTrue(hasattr(module, "compute_sne_intercept_delta"))
+        self.assertTrue(callable(module.compute_sne_intercept_delta))
 
     def test_loglike_and_state_symbols_are_exposed(self) -> None:
         loglike = module.SNeLike.loglike

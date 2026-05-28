@@ -83,6 +83,9 @@ Bayesian Framework” (Rubin et al. 2025). *Location:* `data/sne/union3/`.
 *Parser:* `cosmo_parser_union3.py` loads `mu_mat_union3_cosmo=2_mu.fits`,
 exposing the 22 redshift nodes (first row), the compressed distance moduli
 (first column) and the inverse covariance block the likelihood uses directly.
+The SNe likelihood applies an additive intercept marginalization before
+forming residuals, matching the compressed UNITY convention without changing
+the stored distance vector.
 *Status:* The release includes the UNITY bookkeeping (Stan models, helper
 utilities, `read_and_sample.py`, all inputs and the UNITY tarball), but the CLI
 and GUI only consume the compressed µ/cov matrix today. When the FITS file is

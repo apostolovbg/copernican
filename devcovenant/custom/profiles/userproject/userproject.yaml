@@ -11,6 +11,9 @@ ignore_dirs:
   - third_party
   - node_modules
 assets: []
+doc_assets:
+  user:
+    - devcovenant/README.md
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models

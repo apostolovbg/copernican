@@ -1,7 +1,7 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.16
+**Project Version:** 12.0.17
 **Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
@@ -21,6 +21,10 @@ Python 3.11 environment inside `.venv` so the tooling stays portable across
 macOS, Linux and Windows. Developers must consult [AGENTS.md](AGENTS.md) and
 the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
+
+Union3 compressed SNe data require additive intercept marginalization in the
+SNe likelihood, CSV export and plot residual paths so all residual views use
+the same convention.
 
 ## Highlights
 - **Manifest-driven orchestration:** `copernican.py` consumes model, data and

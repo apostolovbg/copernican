@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy
 
+from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename
 
@@ -44,12 +45,30 @@ def save_sne_results_detailed_csv(
 
     z_data = df_out["zcmb"].values
     mu_data = df_out["mu_obs"].values
+    diag_errors = (
+        df_out["e_mu_obs"].to_numpy(dtype=float, copy=True)
+        if "e_mu_obs" in df_out
+        else None
+    )
+    requires_intercept = bool(
+        sne_data_df.attrs.get("requires_sne_intercept_marginalization")
+    )
 
     if lcdm_fit_results and lcdm_fit_results.get("success"):
         p_lcdm = list(lcdm_fit_results["fitted_cosmological_params"].values())
         mu_model_lcdm = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
         df_out["mu_model_lcdm"] = mu_model_lcdm
-        df_out["residual_lcdm"] = mu_data - mu_model_lcdm
+        residual_lcdm = mu_data - mu_model_lcdm
+        if requires_intercept:
+            delta_lcdm = compute_sne_intercept_delta(
+                residual_lcdm,
+                covariance_matrix_inv=sne_data_df.attrs.get(
+                    "covariance_matrix_inv"
+                ),
+                diag_errors=diag_errors,
+            )
+            residual_lcdm = residual_lcdm + delta_lcdm
+        df_out["residual_lcdm"] = residual_lcdm
     else:
         df_out["mu_model_lcdm"] = numpy.nan
         df_out["residual_lcdm"] = numpy.nan
@@ -62,7 +81,17 @@ def save_sne_results_detailed_csv(
         )
         mu_model_alt = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
         df_out[f"mu_model_{alt_model_name}"] = mu_model_alt
-        df_out[f"residual_{alt_model_name}"] = mu_data - mu_model_alt
+        residual_alt = mu_data - mu_model_alt
+        if requires_intercept:
+            delta_alt = compute_sne_intercept_delta(
+                residual_alt,
+                covariance_matrix_inv=sne_data_df.attrs.get(
+                    "covariance_matrix_inv"
+                ),
+                diag_errors=diag_errors,
+            )
+            residual_alt = residual_alt + delta_alt
+        df_out[f"residual_{alt_model_name}"] = residual_alt
     else:
         df_out[f"mu_model_{alt_model_name}"] = numpy.nan
         df_out[f"residual_{alt_model_name}"] = numpy.nan

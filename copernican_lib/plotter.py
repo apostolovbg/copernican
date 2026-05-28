@@ -18,6 +18,7 @@ from matplotlib.colors import ListedColormap
 
 from . import latex_utils
 from . import version as version_module
+from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
 
@@ -1102,6 +1103,23 @@ def plot_hubble_diagram(
     diag_errors_plot = sne_data_df.attrs.get(
         "diag_errors_for_plot", numpy.ones_like(z_data) * 0.2
     )
+    covariance_matrix_inv = sne_data_df.attrs.get("covariance_matrix_inv")
+    requires_intercept = bool(
+        sne_data_df.attrs.get("requires_sne_intercept_marginalization")
+    )
+
+    def _apply_sne_intercept(residuals: numpy.ndarray) -> numpy.ndarray:
+        """Return residuals after optional dataset-specific intercept fit."""
+
+        if not requires_intercept:
+            return residuals
+        delta_mu = compute_sne_intercept_delta(
+            residuals,
+            covariance_matrix_inv=covariance_matrix_inv,
+            diag_errors=diag_errors_plot,
+        )
+        return residuals + delta_mu
+
     z_plot_smooth = numpy.geomspace(
         max(numpy.min(z_data) * 0.9, 0.001), numpy.max(z_data) * 1.05, 200
     )
@@ -1159,7 +1177,7 @@ def plot_hubble_diagram(
             z_data,
             *p_lcdm,
         )
-        res_lcdm = mu_obs_data - mu_model_lcdm_points
+        res_lcdm = _apply_sne_intercept(mu_obs_data - mu_model_lcdm_points)
         chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,
@@ -1206,7 +1224,7 @@ def plot_hubble_diagram(
             z_data,
             *p_alt,
         )
-        res_alt = mu_obs_data - mu_model_alt_points
+        res_alt = _apply_sne_intercept(mu_obs_data - mu_model_alt_points)
         chi2_alt = f"{alt_model_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,

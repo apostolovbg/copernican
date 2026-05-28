@@ -106,4 +106,10 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     distance_df.attrs["diag_errors_for_plot"] = diag_errors
     distance_df.attrs["redshift_nodes"] = redshift
     distance_df.attrs["mu_matrix_path"] = path
+    distance_df.attrs["requires_sne_intercept_marginalization"] = True
+    distance_df.attrs["sne_intercept_name"] = "Delta_mu"
+    distance_df.attrs["sne_intercept_reason"] = (
+        "Union3 compressed UNITY distances require an additive distance-"
+        "modulus intercept before direct comparison with model distances."
+    )
     return distance_df
