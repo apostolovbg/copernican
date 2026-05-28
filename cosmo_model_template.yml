@@ -80,6 +80,15 @@ parameters:
       type: uniform
       lower: 1.0e-05
       upper: 1.0e-04
+  - name: Recombination redshift
+    python_var: z_rec
+    bounds: [1089.92, 1089.92]
+    unit: ""
+    latex_name: z_{\rm rec}
+    definition: Fixed photon-decoupling redshift used by the sound horizon.
+    prior:
+      type: fixed
+      value: 1089.92
   - name: Effective number of relativistic neutrino species
     python_var: Neff
     bounds: [2.5, 3.5]
@@ -199,7 +208,7 @@ cmb:
     closures:
       no_anisotropic_stress_x:
         expression: sigma_x
-        equals: 0
+        equals: "0"
     sources:
       poisson_x:
         expression: delta_rho_eff + delta_x + theta_x

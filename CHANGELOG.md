@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.15
+**Project Version:** 12.0.16
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,22 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.16
+
+- 2026-05-28 [semver:patch]:
+  Change: Bumped the tracked release version, fixed the engine adapter
+    export test import, and recorded the latest session changelog entry.
+  Why: Aligned the changelog release header with the version file after
+    the gate requested a version update and kept the registry import
+    explicit.
+  Impact: Preserved the previous 12.0.15 entry below while validating the
+    adapter export test against the canonical registry module.
+  Files:
+  CHANGELOG.md
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/test_engine_adapter.py
 
 ## Version 12.0.15
 

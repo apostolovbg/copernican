@@ -23,6 +23,83 @@ from copernican_lib.perturbation_contract import (
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation contract compiler."""
 
+    def _make_nonstandard_contract(
+        self,
+        *,
+        equals: object = "0",
+        lhs: object | None = None,
+    ) -> dict[str, object]:
+        """Return a reusable non-standard perturbation contract fixture."""
+
+        contract: dict[str, object] = {
+            "contract_version": 1,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {
+                "delta_x": {
+                    "kind": "density_contrast",
+                    "description": "Template density contrast.",
+                },
+                "theta_x": {
+                    "kind": "velocity_divergence",
+                    "description": "Template velocity divergence.",
+                },
+                "rho_x": {
+                    "kind": "background_density",
+                    "description": "Template density source.",
+                },
+                "sigma_x": {
+                    "kind": "anisotropic_stress",
+                    "description": "Template stress source.",
+                },
+            },
+            "derived": {
+                "Phi_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "Phi",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": "Template derivative symbol.",
+                },
+                "delta_rho_eff": {
+                    "expression": "rho_x * delta_x",
+                    "description": "Template effective density.",
+                },
+            },
+            "equations": {
+                "continuity_x": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "delta_x",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "-theta_x + 3 * Phi_tau",
+                }
+            },
+            "closures": {
+                "no_anisotropic_stress": {
+                    "expression": "sigma_x",
+                    "equals": equals,
+                }
+            },
+            "sources": {"poisson": {"expression": "delta_rho_eff + delta_x"}},
+            "validity": {
+                "regimes": ["linear", "scalar"],
+                "notes": "Declared for first-order scalar perturbations.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "solver": "template_native_solver",
+                    "implemented": False,
+                }
+            },
+        }
+        if lhs is not None:
+            contract["equations"]["continuity_x"]["lhs"] = lhs
+        return contract
+
     def test_module_symbols_are_exported(self) -> None:
         """The module should export the declared IR symbols."""
 
@@ -112,75 +189,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         """Non-standard contracts should preserve typed equation metadata."""
 
         nonstandard_contract_ir = compile_perturbation_contract(
-            {
-                "contract_version": 1,
-                "standard": False,
-                "gauge": "conformal_newtonian",
-                "variables": {
-                    "delta_x": {
-                        "kind": "density_contrast",
-                        "description": "Template density contrast.",
-                    },
-                    "theta_x": {
-                        "kind": "velocity_divergence",
-                        "description": "Template velocity divergence.",
-                    },
-                    "rho_x": {
-                        "kind": "background_density",
-                        "description": "Template density source.",
-                    },
-                    "sigma_x": {
-                        "kind": "anisotropic_stress",
-                        "description": "Template stress source.",
-                    },
-                },
-                "derived": {
-                    "Phi_tau": {
-                        "kind": "derivative_symbol",
-                        "variable": "Phi",
-                        "wrt": "tau",
-                        "order": 1,
-                        "description": "Template derivative symbol.",
-                    },
-                    "delta_rho_eff": {
-                        "expression": "rho_x * delta_x",
-                        "description": "Template effective density.",
-                    },
-                },
-                "equations": {
-                    "continuity_x": {
-                        "lhs": {
-                            "kind": "derivative",
-                            "variable": "delta_x",
-                            "wrt": "tau",
-                            "order": 1,
-                        },
-                        "rhs": "-theta_x + 3 * Phi_tau",
-                    }
-                },
-                "closures": {
-                    "no_anisotropic_stress": {
-                        "expression": "sigma_x",
-                        "equals": "0",
-                    }
-                },
-                "sources": {
-                    "poisson": {
-                        "expression": "delta_rho_eff + delta_x",
-                    }
-                },
-                "validity": {
-                    "regimes": ["linear", "scalar"],
-                    "notes": "Declared for first-order scalar perturbations.",
-                },
-                "backend_mapping": {
-                    "camb": {
-                        "native_solver_required": True,
-                        "solver": "template_native_solver",
-                        "implemented": False,
-                    }
-                },
-            },
+            self._make_nonstandard_contract(),
             model_name="TemplateModel",
             backend="camb",
             parameter_names=("H0",),
@@ -200,6 +209,47 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         dependency_summary = nonstandard_contract_ir.dependency_graph_summary
         self.assertIn("tau", dependency_summary.independent_variables_used)
+
+    def test_numeric_closure_equals_is_rejected(self) -> None:
+        """Closure equality expressions must remain string literals."""
+
+        with self.assertRaises(ValueError):
+            compile_perturbation_contract(
+                self._make_nonstandard_contract(equals=0),
+                model_name="TemplateModel",
+                backend="camb",
+                parameter_names=("H0",),
+                latex_names=("H_0",),
+                background_reference_names=("H0",),
+            )
+
+    def test_quoted_closure_equals_compiles(self) -> None:
+        """Quoted closure equality expressions should compile cleanly."""
+
+        contract_ir = compile_perturbation_contract(
+            self._make_nonstandard_contract(equals="0"),
+            model_name="TemplateModel",
+            backend="camb",
+            parameter_names=("H0",),
+            latex_names=("H_0",),
+            background_reference_names=("H0",),
+        )
+        self.assertEqual(
+            contract_ir.closures["no_anisotropic_stress"].equals, "0"
+        )
+
+    def test_string_equation_lhs_is_rejected(self) -> None:
+        """Free-text equation left-hand sides are not accepted."""
+
+        with self.assertRaises(ValueError):
+            compile_perturbation_contract(
+                self._make_nonstandard_contract(lhs="delta_x"),
+                model_name="TemplateModel",
+                backend="camb",
+                parameter_names=("H0",),
+                latex_names=("H_0",),
+                background_reference_names=("H0",),
+            )
 
     def test_perturbation_dataclasses_are_constructible(self) -> None:
         """The typed perturbation objects should be individually usable."""
