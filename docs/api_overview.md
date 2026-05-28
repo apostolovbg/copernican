@@ -10,10 +10,11 @@ directly without using the command-line interface.  The core modules are:
   into Python callables.
 - `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
   :class:`copernican_lib.engine_adapter.EnginePlugin` instance with dataset
-  toggles, priors, bounds, distance functions and structured CAMB contracts
-  ready for engine consumption.
+  toggles, priors, bounds, distance functions and structured CAMB background
+  and perturbation contracts ready for engine consumption.
 - `copernican_lib.engine_adapter` – home of the picklable adapter dataclass,
-  `EnginePlugin.CMB_CONTRACT`, `REQUIRED_ATTRIBUTES` and
+  `EnginePlugin.CMB_CONTRACT`, `EnginePlugin.CMB_PERTURBATION_CONTRACT`,
+  `EnginePlugin.CMB_PERTURBATION_STANDARD`, `REQUIRED_ATTRIBUTES` and
   `REQUIRED_FUNCTIONS`. Import it when building custom tooling that needs to
   confirm interface compliance.
 - `copernican_lib.progress` – shared progress reporting helpers. Engines import

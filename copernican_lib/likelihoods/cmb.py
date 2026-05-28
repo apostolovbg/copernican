@@ -6,6 +6,9 @@ parameters, declared grids, evaluated values and ordered backend calls stay
 aligned across the spectrum and background paths. The spectra returned here
 are expressed as :math:`D_\ell` so downstream tests comparing against
 published Planck-lite tables use consistent conventions.
+The helper also enforces the declared perturbation contract so CMB-valid
+models cannot silently fall back to standard CAMB perturbations when they
+claim a non-standard backend mapping.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import camb
 import numpy
 import pandas
 
+from ..engine_adapter import CMB_BACKEND_CAPABILITIES
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
@@ -177,8 +181,78 @@ def _is_structured_camb_contract(
 
     keys = {str(key) for key in contract_or_params.keys()}
     return bool(
-        keys.intersection({"backend", "param_map", "grids", "values", "calls"})
+        keys.intersection(
+            {
+                "backend",
+                "calls",
+                "grids",
+                "param_map",
+                "perturbations",
+                "values",
+            }
+        )
     )
+
+
+def _combine_camb_contracts(
+    background_contract: Mapping[str, Any],
+    perturbation_contract: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Return a structured CAMB contract with perturbation metadata."""
+
+    combined = dict(background_contract)
+    if perturbation_contract:
+        combined["perturbations"] = dict(perturbation_contract)
+    return combined
+
+
+def _validate_camb_perturbation_execution(
+    contract: Mapping[str, Any],
+) -> None:
+    """Reject unsupported perturbation declarations before CAMB runs."""
+
+    perturbations = contract.get("perturbations")
+    if perturbations is None:
+        raise ValueError("Structured CAMB contract is missing perturbations")
+    if not isinstance(perturbations, Mapping):
+        raise ValueError("cmb.perturbations must be a mapping")
+
+    model_name = contract.get("model_name", "unknown model")
+    backend = str(contract.get("backend", "camb"))
+    backend_capabilities = CMB_BACKEND_CAPABILITIES.get(backend, {})
+    if not isinstance(backend_capabilities, Mapping):
+        backend_capabilities = {}
+
+    standard = perturbations.get("standard")
+    if not isinstance(standard, bool):
+        raise ValueError("cmb.perturbations.standard must be boolean")
+    if standard:
+        return
+
+    backend_mapping = perturbations.get("backend_mapping", {})
+    backend_entry = {}
+    if isinstance(backend_mapping, Mapping):
+        backend_entry = backend_mapping.get(backend, {}) or {}
+
+    if not backend_capabilities.get("native_nonstandard_perturbations", False):
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for backend "
+            f"'{backend}' (standard={standard}), but the backend capability "
+            "registry does not support native non-standard perturbations. "
+            "A native backend implementation is required."
+        )
+
+    if not isinstance(backend_entry, Mapping) or not backend_entry.get(
+        "implemented", False
+    ):
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for backend "
+            f"'{backend}' (standard={standard}), but the declared backend "
+            "mapping does not mark a native implementation as available. "
+            "A native backend implementation is required."
+        )
 
 
 def _make_camb_params(
@@ -629,6 +703,7 @@ def compute_cmb_spectrum_from_dict(
 
     try:
         if _is_structured_camb_contract(contract_or_params):
+            _validate_camb_perturbation_execution(contract_or_params)
             return _compute_cmb_spectrum_direct(
                 contract_or_params,
                 ells,
@@ -672,6 +747,16 @@ def compute_cmb_spectrum_cached(
         camb_params = get_contract(cosmo_params)
     else:
         camb_params = plugin.get_camb_params(cosmo_params)
+    get_perturbation_contract = getattr(
+        plugin, "get_cmb_perturbation_contract", None
+    )
+    if callable(get_perturbation_contract):
+        perturbation_contract = get_perturbation_contract(cosmo_params)
+        if perturbation_contract:
+            camb_params = _combine_camb_contracts(
+                camb_params,
+                perturbation_contract,
+            )
     return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
 
@@ -760,6 +845,18 @@ class CMBLike(LikelihoodProtocol):
 
         try:
             camb_contract = self.plugin.get_camb_contract(params)
+            get_perturbation_contract = getattr(
+                self.plugin,
+                "get_cmb_perturbation_contract",
+                None,
+            )
+            if callable(get_perturbation_contract):
+                perturbation_contract = get_perturbation_contract(params)
+                if perturbation_contract:
+                    camb_contract = _combine_camb_contracts(
+                        camb_contract,
+                        perturbation_contract,
+                    )
         except (
             AttributeError,
             ImportError,

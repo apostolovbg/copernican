@@ -13,6 +13,9 @@ description: |
     automatically add the `transform: log` metadata in the cached YAML.
   * Every physics observable that can appear in `H(z)` or the sound-horizon
     integrand must already be a declared parameter (or a fixed constant).
+  * Model YAMLs are declarative mathematical files, not Python modules.
+    Copernican validates the declared math and compiles it into executable
+    callables elsewhere in the codebase.
   * Always pair the photon density `Omega_gamma` with a sampled `Neff`
     parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
     (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
@@ -27,6 +30,10 @@ description: |
     scalar-only model uses `calls: []`; models with effective dark-energy
     inputs can declare `set_dark_energy` or `set_dark_energy_w_a` without
     being renamed as a model type.
+  * Every CMB-valid model also declares a perturbation contract under
+    `cmb.perturbations`. `standard: true` is the explicit shortcut for the
+    backend's standard perturbation machinery, while `standard: false`
+    requires declared perturbation variables, equations and backend mapping.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -145,6 +152,25 @@ cmb:
   grids: {}
   values: {}
   calls: []
+  perturbations:
+    contract_version: 1
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
+    validity:
+      regimes:
+        - standard_camb
+      notes: Uses the backend standard perturbation machinery.
+    backend_mapping:
+      camb:
+        uses_standard_perturbations: true
+    notes: >-
+      This model declares that its CMB perturbations are represented by the
+      selected backend's standard perturbation system.
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV

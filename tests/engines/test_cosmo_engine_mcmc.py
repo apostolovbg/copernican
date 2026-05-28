@@ -84,6 +84,8 @@ def _build_short_chain_plugin():
         valid_for_cmb=False,
         CMB_CONTRACT={},
         CMB_PARAM_MAP={},
+        CMB_PERTURBATION_CONTRACT={},
+        CMB_PERTURBATION_STANDARD=False,
         LIKELIHOOD_CONFIG={},
         MODEL_EQUATIONS_LATEX_SN=(),
         MODEL_EQUATIONS_LATEX_BAO=(),

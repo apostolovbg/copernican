@@ -8,6 +8,9 @@ metadata, validates the required callables, and evaluates structured CAMB
 adapter contracts. The adapter keeps model metadata, priors, distance
 helpers, and CAMB contract state in a picklable dataclass so engines and run
 manifest code can share the same object without a package-level plugin layer.
+It also validates the declared CMB perturbation contract and exposes the
+backend capability registry used by the likelihood layer to reject unsupported
+non-standard perturbation declarations.
 
 The module exposes the main adapter entry points:
 
@@ -34,6 +37,7 @@ The module exposes the main adapter entry points:
 from __future__ import annotations
 
 import ast
+import copy
 import inspect
 import logging
 import math
@@ -70,6 +74,9 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "FIXED_PARAMS",
     "PARAMETER_PRIORS",
     "CMB_CONTRACT",
+    "CMB_PARAM_MAP",
+    "CMB_PERTURBATION_CONTRACT",
+    "CMB_PERTURBATION_STANDARD",
 ]
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
@@ -107,6 +114,16 @@ _BIN_OPS = {
 }
 _UNARY_OPS = {ast.UAdd: lambda x: x, ast.USub: numpy.negative}
 _SUPPORTED_CMB_BACKEND = "camb"
+_SUPPORTED_CMB_BACKEND_CAPABILITIES = {
+    "scalar_param_map": True,
+    "grids_values_calls": True,
+    "standard_perturbations": True,
+    "native_nonstandard_perturbations": False,
+}
+_SUPPORTED_CMB_BACKEND_CAPABILITIES_BY_NAME = {
+    _SUPPORTED_CMB_BACKEND: _SUPPORTED_CMB_BACKEND_CAPABILITIES,
+}
+CMB_BACKEND_CAPABILITIES = _SUPPORTED_CMB_BACKEND_CAPABILITIES_BY_NAME
 _SUPPORTED_CMB_CALL_METHODS = {
     "set_dark_energy",
     "set_dark_energy_w_a",
@@ -141,6 +158,7 @@ _SUPPORTED_CMB_CONTRACT_KEYS = {
     "calls",
     "grids",
     "param_map",
+    "perturbations",
     "values",
 }
 _SUPPORTED_CMB_GRID_KEYS = {
@@ -152,7 +170,46 @@ _SUPPORTED_CMB_GRID_KEYS = {
 }
 _SUPPORTED_CMB_VALUE_KEYS = {"expression", "grid"}
 _SUPPORTED_CMB_CALL_KEYS = {"args", "kwargs", "method"}
+_SUPPORTED_CMB_PERTURBATION_KEYS = {
+    "backend_mapping",
+    "closures",
+    "contract_version",
+    "derived",
+    "equations",
+    "gauge",
+    "notes",
+    "sources",
+    "standard",
+    "validity",
+    "variables",
+}
+_SUPPORTED_CMB_PERTURBATION_VALUE_KEYS = {
+    "description",
+    "equals",
+    "expression",
+    "kind",
+    "notes",
+    "rhs",
+    "lhs",
+}
 _SUPPORTED_CMB_GRID_SPACING = {"linear"}
+_SUPPORTED_CMB_PERTURBATION_GAUGES = {
+    "conformal_newtonian",
+    "gauge_invariant",
+    "synchronous",
+    "unspecified",
+}
+_SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES = {
+    "a",
+    "z",
+    "k",
+    "tau",
+    "eta",
+    "H",
+    "Hconf",
+    "Phi",
+    "Psi",
+}
 _CMB_REFERENCE_PATTERN = re.compile(
     r"^@(grid|value)\.([A-Za-z_][A-Za-z0-9_]*)$"
 )
@@ -645,6 +702,302 @@ def _validate_camb_contract_definition(
                     "set_dark_energy_w_a requires args 'a' and 'w'"
                 )
 
+    perturbations = contract.get("perturbations")
+    if not isinstance(perturbations, Mapping):
+        raise ValueError("cmb.perturbations must be a mapping")
+    background_reference_names = set(param_map_keys)
+    background_reference_names.update(grid_symbols.values())
+    background_reference_names.update(value_names)
+    _validate_cmb_perturbation_definition(
+        perturbations,
+        parameter_names=parameter_names,
+        latex_names=latex_names,
+        background_reference_names=background_reference_names,
+    )
+
+
+def _validate_cmb_perturbation_definition(
+    perturbations: Mapping[str, Any],
+    *,
+    parameter_names: Sequence[str],
+    latex_names: Sequence[str],
+    background_reference_names: set[str],
+) -> None:
+    """Validate the declared CMB perturbation contract."""
+
+    if not isinstance(perturbations, Mapping):
+        raise ValueError("cmb.perturbations must be a mapping")
+
+    perturbation_keys = {str(key) for key in perturbations.keys()}
+    missing_keys = {
+        "backend_mapping",
+        "contract_version",
+        "gauge",
+        "standard",
+    } - perturbation_keys
+    if missing_keys:
+        missing_str = ", ".join(sorted(missing_keys))
+        raise ValueError(
+            f"Missing perturbation contract key(s): {missing_str}"
+        )
+    invalid_keys = perturbation_keys - _SUPPORTED_CMB_PERTURBATION_KEYS
+    if invalid_keys:
+        invalid_str = ", ".join(sorted(invalid_keys))
+        raise ValueError(
+            f"Unknown perturbation contract key(s): {invalid_str}"
+        )
+
+    contract_version = perturbations.get("contract_version")
+    if (
+        not isinstance(contract_version, int)
+        or isinstance(contract_version, bool)
+        or contract_version != 1
+    ):
+        raise ValueError("cmb.perturbations.contract_version must be 1")
+
+    standard = perturbations.get("standard")
+    if not isinstance(standard, bool):
+        raise ValueError("cmb.perturbations.standard must be boolean")
+
+    gauge = perturbations.get("gauge")
+    if gauge not in _SUPPORTED_CMB_PERTURBATION_GAUGES:
+        raise ValueError("cmb.perturbations.gauge is invalid")
+
+    notes = perturbations.get("notes")
+    if notes is not None and not isinstance(notes, str):
+        raise ValueError("cmb.perturbations.notes must be a string")
+
+    backend_mapping = perturbations.get("backend_mapping")
+    if not isinstance(backend_mapping, Mapping) or not backend_mapping:
+        raise ValueError("cmb.perturbations.backend_mapping must be a mapping")
+    backend_name = _SUPPORTED_CMB_BACKEND
+    backend_contract = backend_mapping.get(backend_name)
+    if not isinstance(backend_contract, Mapping):
+        raise ValueError(
+            "cmb.perturbations.backend_mapping must include camb mapping"
+        )
+
+    for flag_name in (
+        "implemented",
+        "native_solver_required",
+        "uses_standard_perturbations",
+    ):
+        if flag_name in backend_contract and not isinstance(
+            backend_contract[flag_name], bool
+        ):
+            raise ValueError(
+                "cmb.perturbations.backend_mapping.camb."
+                f"{flag_name} must be boolean"
+            )
+
+    if standard:
+        if backend_contract.get("uses_standard_perturbations") is not True:
+            raise ValueError(
+                "cmb.perturbations.backend_mapping.camb must declare "
+                "uses_standard_perturbations: true"
+            )
+        return
+
+    if backend_contract.get("uses_standard_perturbations") is True:
+        raise ValueError(
+            "Non-standard perturbations cannot declare standard CAMB "
+            "perturbation support"
+        )
+
+    replacements = _build_parameter_replacements(
+        parameter_names,
+        latex_names,
+    )
+    allowed_names = set(background_reference_names)
+    allowed_names.update(_SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES)
+    allowed_names.update(str(name) for name in parameter_names)
+
+    variables = perturbations.get("variables")
+    derived = perturbations.get("derived")
+    equations = perturbations.get("equations")
+    closures = perturbations.get("closures")
+    sources = perturbations.get("sources")
+    validity = perturbations.get("validity")
+    for section_name, section_value in (
+        ("variables", variables),
+        ("derived", derived),
+        ("equations", equations),
+        ("closures", closures),
+        ("sources", sources),
+        ("validity", validity),
+    ):
+        if not isinstance(section_value, Mapping):
+            raise ValueError(
+                f"cmb.perturbations.{section_name} must be a mapping"
+            )
+
+    if not any(
+        section_value
+        for section_value in (variables, derived, equations, closures, sources)
+    ):
+        raise ValueError(
+            "Non-standard perturbations must declare mathematical content"
+        )
+
+    variable_names: set[str] = set()
+    derived_names: set[str] = set()
+    math_content_seen = False
+
+    for variable_name, variable_def in variables.items():
+        if not isinstance(variable_name, str) or not variable_name.strip():
+            raise ValueError("Perturbation variable names must be strings")
+        if not isinstance(variable_def, Mapping):
+            raise ValueError(
+                f"Perturbation variable '{variable_name}' must be a mapping"
+            )
+        if variable_name in allowed_names or variable_name in variable_names:
+            raise ValueError(
+                f"Perturbation variable '{variable_name}' collides with an "
+                "existing symbol"
+            )
+        expression = variable_def.get("expression")
+        if expression is None:
+            variable_names.add(variable_name)
+            continue
+        if not isinstance(expression, str) or not expression.strip():
+            raise ValueError(
+                f"Perturbation variable '{variable_name}' expression must be "
+                "a string"
+            )
+        clean_expr = _replace_latex_tokens(expression, replacements)
+        _validate_safe_expression(
+            clean_expr,
+            allowed_names | variable_names | derived_names,
+        )
+        variable_names.add(variable_name)
+        allowed_names.add(variable_name)
+        math_content_seen = True
+
+    for derived_name, derived_def in derived.items():
+        if not isinstance(derived_name, str) or not derived_name.strip():
+            raise ValueError("Derived perturbation names must be strings")
+        if not isinstance(derived_def, Mapping):
+            raise ValueError(
+                f"Perturbation derived '{derived_name}' must be a mapping"
+            )
+        if (
+            derived_name in allowed_names
+            or derived_name in variable_names
+            or derived_name in derived_names
+        ):
+            raise ValueError(
+                f"Perturbation derived '{derived_name}' collides with an "
+                "existing symbol"
+            )
+        expression = derived_def.get("expression")
+        if not isinstance(expression, str) or not expression.strip():
+            raise ValueError(
+                f"Perturbation derived '{derived_name}' needs expression"
+            )
+        clean_expr = _replace_latex_tokens(expression, replacements)
+        _validate_safe_expression(
+            clean_expr,
+            allowed_names | variable_names | derived_names,
+        )
+        allowed_names.add(derived_name)
+        derived_names.add(derived_name)
+        math_content_seen = True
+
+    for equation_name, equation_def in equations.items():
+        if not isinstance(equation_name, str) or not equation_name.strip():
+            raise ValueError("Equation names must be strings")
+        if not isinstance(equation_def, Mapping):
+            raise ValueError(
+                f"Perturbation equation '{equation_name}' must be a mapping"
+            )
+        lhs = equation_def.get("lhs")
+        rhs = equation_def.get("rhs")
+        if not isinstance(lhs, str) or not lhs.strip():
+            raise ValueError(
+                f"Perturbation equation '{equation_name}' needs lhs"
+            )
+        if not isinstance(rhs, str) or not rhs.strip():
+            raise ValueError(
+                f"Perturbation equation '{equation_name}' needs rhs"
+            )
+        clean_lhs = _replace_latex_tokens(lhs, replacements)
+        clean_rhs = _replace_latex_tokens(rhs, replacements)
+        _validate_safe_expression(
+            clean_lhs,
+            allowed_names | variable_names | derived_names,
+        )
+        _validate_safe_expression(
+            clean_rhs,
+            allowed_names | variable_names | derived_names,
+        )
+        math_content_seen = True
+
+    for closure_name, closure_def in closures.items():
+        if not isinstance(closure_name, str) or not closure_name.strip():
+            raise ValueError("Closure names must be strings")
+        if not isinstance(closure_def, Mapping):
+            raise ValueError(
+                f"Perturbation closure '{closure_name}' must be a mapping"
+            )
+        expression = closure_def.get("expression")
+        if not isinstance(expression, str) or not expression.strip():
+            raise ValueError(
+                f"Perturbation closure '{closure_name}' needs expression"
+            )
+        clean_expr = _replace_latex_tokens(expression, replacements)
+        _validate_safe_expression(
+            clean_expr,
+            allowed_names | variable_names | derived_names,
+        )
+        equals = closure_def.get("equals")
+        if isinstance(equals, str) and equals.strip():
+            clean_equals = _replace_latex_tokens(equals, replacements)
+            _validate_safe_expression(
+                clean_equals,
+                allowed_names | variable_names | derived_names,
+            )
+        math_content_seen = True
+
+    for source_name, source_def in sources.items():
+        if not isinstance(source_name, str) or not source_name.strip():
+            raise ValueError("Source names must be strings")
+        if not isinstance(source_def, Mapping):
+            raise ValueError(
+                f"Perturbation source '{source_name}' must be a mapping"
+            )
+        expression = source_def.get("expression")
+        if not isinstance(expression, str) or not expression.strip():
+            raise ValueError(
+                f"Perturbation source '{source_name}' needs expression"
+            )
+        clean_expr = _replace_latex_tokens(expression, replacements)
+        _validate_safe_expression(
+            clean_expr,
+            allowed_names | variable_names | derived_names,
+        )
+        math_content_seen = True
+
+    regimes = validity.get("regimes")
+    if regimes is not None:
+        if not isinstance(regimes, Sequence) or isinstance(
+            regimes,
+            (str, bytes),
+        ):
+            raise ValueError(
+                "cmb.perturbations.validity.regimes must be a list"
+            )
+        for regime in regimes:
+            if not isinstance(regime, str) or not regime.strip():
+                raise ValueError(
+                    "cmb.perturbations.validity.regimes entries must be "
+                    "strings"
+                )
+
+    if not math_content_seen:
+        raise ValueError(
+            "Non-standard perturbations must declare mathematical content"
+        )
+
 
 def _evaluate_contract_reference(value: Any, env: Mapping[str, Any]) -> Any:
     """Resolve reference tokens while preserving literal strings."""
@@ -946,7 +1299,7 @@ class FrozenMapping(Mapping[str, Any]):
 
 @dataclass(slots=True)
 class EnginePlugin:
-    """Container describing a generated cosmological model."""
+    """Container describing a generated model and CAMB contracts."""
 
     MODEL_NAME: str
     MODEL_DESCRIPTION: str
@@ -965,6 +1318,8 @@ class EnginePlugin:
     valid_for_cmb: bool
     CMB_CONTRACT: Mapping[str, Any]
     CMB_PARAM_MAP: Mapping[str, Any]
+    CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
+    CMB_PERTURBATION_STANDARD: bool
     LIKELIHOOD_CONFIG: Mapping[str, Any]
     MODEL_EQUATIONS_LATEX_SN: tuple[str, ...]
     MODEL_EQUATIONS_LATEX_BAO: tuple[str, ...]
@@ -984,11 +1339,18 @@ class EnginePlugin:
     )
 
     def __post_init__(self) -> None:
-        """Normalise extras and prepare the CAMB parameter evaluator."""
+        """Normalise extras and prepare the CAMB evaluators."""
 
         self.extras = FrozenMapping(self.extras)
-        self.CMB_CONTRACT = dict(self.CMB_CONTRACT or {})
-        self.CMB_PARAM_MAP = dict(self.CMB_PARAM_MAP or {})
+        self.CMB_CONTRACT = copy.deepcopy(self.CMB_CONTRACT or {})
+        self.CMB_PARAM_MAP = copy.deepcopy(self.CMB_PARAM_MAP or {})
+        self.CMB_PERTURBATION_CONTRACT = copy.deepcopy(
+            self.CMB_PERTURBATION_CONTRACT or {}
+        )
+        self.CMB_PERTURBATION_STANDARD = self.CMB_PERTURBATION_CONTRACT.get(
+            "standard",
+            False,
+        )
         if self.valid_for_cmb and self.CMB_CONTRACT:
             evaluator = CAMBContractEvaluator(
                 self.PARAMETER_NAMES,
@@ -1042,6 +1404,23 @@ class EnginePlugin:
             "backend", _SUPPORTED_CMB_BACKEND
         )
         return evaluated
+
+    def get_cmb_perturbation_contract(
+        self, values: Sequence[float]
+    ) -> dict[str, Any]:
+        """Return the declared CMB perturbation contract."""
+
+        del values
+        if not self.CMB_PERTURBATION_CONTRACT:
+            raise ValueError(
+                "Model does not declare a CMB perturbation contract"
+            )
+        contract = copy.deepcopy(self.CMB_PERTURBATION_CONTRACT)
+        contract["model_name"] = self.MODEL_NAME
+        contract["backend"] = self.CMB_CONTRACT.get(
+            "backend", _SUPPORTED_CMB_BACKEND
+        )
+        return contract
 
 
 def sanitize_equation(equation_line: str) -> str:
@@ -1171,6 +1550,12 @@ def build_engine_plugin(
         valid_for_cmb=model_data.get("valid_for_cmb", True),
         CMB_CONTRACT=model_data.get("cmb", {}),
         CMB_PARAM_MAP=model_data.get("cmb", {}).get("param_map", {}),
+        CMB_PERTURBATION_CONTRACT=model_data.get("cmb", {}).get(
+            "perturbations", {}
+        ),
+        CMB_PERTURBATION_STANDARD=model_data.get("cmb", {})
+        .get("perturbations", {})
+        .get("standard", False),
         LIKELIHOOD_CONFIG=likelihood_config,
         MODEL_EQUATIONS_LATEX_SN=sne_eqs,
         MODEL_EQUATIONS_LATEX_BAO=bao_eqs,
@@ -1249,6 +1634,15 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
     if not required_funcs:
         required_funcs = ["distance_modulus_model"]
 
+    if getattr(plugin, "valid_for_cmb", True):
+        required_funcs.extend(
+            [
+                "get_camb_params",
+                "get_camb_contract",
+                "get_cmb_perturbation_contract",
+            ]
+        )
+
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
         if not callable(func):
@@ -1263,6 +1657,18 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
             errors.append(
                 f"Callable '{fname}' must accept at least one parameter"
             )
+
+    if getattr(plugin, "valid_for_cmb", True):
+        perturbation_contract = getattr(
+            plugin, "CMB_PERTURBATION_CONTRACT", {}
+        )
+        if not isinstance(perturbation_contract, Mapping):
+            errors.append("CMB_PERTURBATION_CONTRACT must be a mapping")
+        if not isinstance(
+            getattr(plugin, "CMB_PERTURBATION_STANDARD", None),
+            bool,
+        ):
+            errors.append("CMB_PERTURBATION_STANDARD must be boolean")
 
     try:
         _validate_plugin_cmb_contract(plugin)
@@ -1284,6 +1690,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
 
 
 __all__ = [
+    "CMB_BACKEND_CAPABILITIES",
     "EnginePlugin",
     "CAMBParameterEvaluator",
     "CAMBContractEvaluator",

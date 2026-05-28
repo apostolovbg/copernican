@@ -137,9 +137,9 @@ it logs a conservative Gelman–Rubin fallback.
 BAO and CMB analyses reuse the sampler output. BAO observables are computed
 from maximum-posterior parameters and logged alongside residual norms so
 operators can monitor fit quality as plots render. CMB spectra pull additional
-adapter-provided constants from `cmb.param_map` when present and stream
-TT/TE/EE
-residual statistics to the console. Both stages respect dataset independence
+adapter-provided constants from `cmb.param_map` when present, validate the
+declared `cmb.perturbations` contract, and stream TT/TE/EE residual
+statistics to the console. Both stages respect dataset independence
 statements stored in :mod:`copernican_lib.dataset_registry` so assumptions
 remain explicit in manifests and plots.
 
@@ -183,11 +183,12 @@ summaries always describe which probes are assumed uncorrelated.
 
 Adapters produced by :func:`copernican_lib.engine_adapter.build_plugin`
 expose dataset compatibility flags (`valid_for_distance_metrics`,
-`valid_for_bao`, `valid_for_cmb`) and a structured `cmb` backend contract for
-engines that compute spectra. The interface includes required attributes and
-functions listed in :mod:`copernican_lib.engine_adapter`; validation errors
-identify missing hooks and incompatible contracts, preventing engines from
-receiving incomplete models. Posterior evaluation routes through
+`valid_for_bao`, `valid_for_cmb`) and structured `cmb` background and
+perturbation contracts for engines that compute spectra. The interface
+includes required attributes and functions listed in
+:mod:`copernican_lib.engine_adapter`; validation errors identify missing hooks
+and incompatible contracts, preventing engines from receiving incomplete
+models. Posterior evaluation routes through
 :func:`copernican_lib.posterior.make_logposterior`, which merges priors,
 transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.

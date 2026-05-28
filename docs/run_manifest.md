@@ -41,6 +41,9 @@ directories change.
   files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
   treated as statistically separate when building the joint posterior.
+- CMB adapter metadata summarising the backend contract and the perturbation
+  contract names, gauge, standard flag and backend mapping summary for each
+  CMB-capable model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
   burn-in, production steps, pool/core hints and nested-sampling parameters
   stay tied to the manifest that produced a run.

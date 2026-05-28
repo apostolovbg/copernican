@@ -37,6 +37,31 @@ def _dummy_plugin():
             "omch2": 0.12,
             "Neff": 3.044,
         },
+        CMB_PERTURBATION_CONTRACT={
+            "contract_version": 1,
+            "standard": True,
+            "gauge": "unspecified",
+            "variables": {},
+            "derived": {},
+            "equations": {},
+            "closures": {},
+            "sources": {},
+            "validity": {
+                "regimes": ["standard_camb"],
+                "notes": "Uses the backend standard perturbation machinery.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "uses_standard_perturbations": True,
+                }
+            },
+            "notes": (
+                "This model declares that its CMB perturbations are "
+                "represented by the selected backend's standard "
+                "perturbation system."
+            ),
+        },
+        CMB_PERTURBATION_STANDARD=True,
     )
 
 
@@ -103,6 +128,18 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(model_entry["call_methods"], [])
             self.assertEqual(model_entry["grids"], {})
             self.assertEqual(model_entry["value_names"], [])
+            self.assertEqual(model_entry["perturbation_contract_version"], 1)
+            self.assertTrue(model_entry["perturbation_standard"])
+            self.assertEqual(model_entry["perturbation_gauge"], "unspecified")
+            self.assertEqual(model_entry["perturbation_variable_names"], [])
+            self.assertEqual(model_entry["perturbation_derived_names"], [])
+            self.assertEqual(model_entry["perturbation_equation_names"], [])
+            self.assertEqual(model_entry["perturbation_closure_names"], [])
+            self.assertEqual(model_entry["perturbation_source_names"], [])
+            self.assertIn(
+                "camb",
+                model_entry["perturbation_backend_mapping_summary"],
+            )
 
     def test_manifest_import_export_cycle(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

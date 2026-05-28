@@ -489,6 +489,16 @@ def execute_run_pipeline(
                 camb_params = get_camb_contract(cosmo_params)
             else:
                 camb_params = model_plugin.get_camb_params(cosmo_params)
+            get_perturbation_contract = getattr(
+                model_plugin,
+                "get_cmb_perturbation_contract",
+                None,
+            )
+            if callable(get_perturbation_contract):
+                perturbation_contract = get_perturbation_contract(cosmo_params)
+                if perturbation_contract:
+                    camb_params = dict(camb_params)
+                    camb_params["perturbations"] = perturbation_contract
         except (
             AttributeError,
             ImportError,

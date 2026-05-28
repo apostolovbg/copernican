@@ -177,7 +177,26 @@ cmb:
         w: '@value.w_tog'
       kwargs:
         dark_energy_model: ppf
-
+  perturbations:
+    contract_version: 1
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
+    validity:
+      regimes:
+        - standard_camb_with_declared_background_adapter
+      notes: Uses standard backend perturbations with the model's declared
+        background adapter contract.
+    backend_mapping:
+      camb:
+        uses_standard_perturbations: true
+    notes: >-
+      Native non-standard perturbation equations are not declared in this model
+      file.
 notes: >-
   This model uses the TOG volume-activation law. The background temporal
   factor is A(a) = [1 - exp(-(a / a_T)**3)] /

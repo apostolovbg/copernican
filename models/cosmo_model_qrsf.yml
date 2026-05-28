@@ -235,6 +235,26 @@ cmb:
         w0: "@value.w_rel0_cmb"
         wa: "@value.w_rel_a_cmb"
         dark_energy_model: ppf
+  perturbations:
+    contract_version: 1
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
+    validity:
+      regimes:
+        - standard_camb_with_declared_background_adapter
+      notes: Uses standard backend perturbations with the model's declared
+        background adapter contract.
+    backend_mapping:
+      camb:
+        uses_standard_perturbations: true
+    notes: >-
+      Native non-standard perturbation equations are not declared in this model
+      file.
 notes: >-
   The entanglement enhancement saturates to xi_high at early times and relaxes
   toward xi_low today, so CMB-era inertia matches a cold-matter analogue while

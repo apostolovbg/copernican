@@ -4,7 +4,8 @@ The manifest records critical information required to reproduce a run. It
 captures the Copernican Suite version, model and engine details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
-back unambiguously.
+back unambiguously. CMB entries now include both the background adapter
+summary and the perturbation-contract metadata declared on each model.
 """
 
 from __future__ import annotations
@@ -94,6 +95,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     models_meta: list[dict[str, Any]] = []
     for plugin in camb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
+        perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
         param_map = contract.get("param_map", {}) or {}
         grids = contract.get("grids", {}) or {}
         values = contract.get("values", {}) or {}
@@ -119,6 +121,52 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 ],
                 "grids": grid_meta,
                 "value_names": [str(key) for key in values],
+                "perturbation_contract_version": perturbations.get(
+                    "contract_version"
+                ),
+                "perturbation_standard": perturbations.get("standard"),
+                "perturbation_gauge": perturbations.get("gauge"),
+                "perturbation_variable_names": sorted(
+                    str(key)
+                    for key in (perturbations.get("variables", {}) or {})
+                ),
+                "perturbation_derived_names": sorted(
+                    str(key)
+                    for key in (perturbations.get("derived", {}) or {})
+                ),
+                "perturbation_equation_names": sorted(
+                    str(key)
+                    for key in (perturbations.get("equations", {}) or {})
+                ),
+                "perturbation_closure_names": sorted(
+                    str(key)
+                    for key in (perturbations.get("closures", {}) or {})
+                ),
+                "perturbation_source_names": sorted(
+                    str(key)
+                    for key in (perturbations.get("sources", {}) or {})
+                ),
+                "perturbation_backend_mapping_summary": {
+                    str(backend_name): (
+                        {
+                            "keys": sorted(
+                                str(key) for key in backend_mapping.keys()
+                            ),
+                            "implemented": backend_mapping.get("implemented"),
+                            "native_solver_required": backend_mapping.get(
+                                "native_solver_required"
+                            ),
+                            "uses_standard_perturbations": backend_mapping.get(
+                                "uses_standard_perturbations"
+                            ),
+                        }
+                        if isinstance(backend_mapping, dict)
+                        else backend_mapping
+                    )
+                    for backend_name, backend_mapping in (
+                        perturbations.get("backend_mapping", {}) or {}
+                    ).items()
+                },
             }
         )
 

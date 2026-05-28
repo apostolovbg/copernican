@@ -372,6 +372,36 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     ],
                 }
 
+            def get_cmb_perturbation_contract(self, _params):
+                return {
+                    "model_name": "StructuredModel",
+                    "backend": "camb",
+                    "contract_version": 1,
+                    "standard": True,
+                    "gauge": "unspecified",
+                    "variables": {},
+                    "derived": {},
+                    "equations": {},
+                    "closures": {},
+                    "sources": {},
+                    "validity": {
+                        "regimes": ["standard_camb"],
+                        "notes": (
+                            "Uses the backend standard perturbation machinery."
+                        ),
+                    },
+                    "backend_mapping": {
+                        "camb": {
+                            "uses_standard_perturbations": True,
+                        }
+                    },
+                    "notes": (
+                        "This model declares that its CMB perturbations are "
+                        "represented by the selected backend's standard "
+                        "perturbation system."
+                    ),
+                }
+
         cmb_df = pandas.DataFrame(
             {"ell": [2, 3, 4], "Dl_obs": [1.0, 1.0, 1.0]}
         )
@@ -392,6 +422,79 @@ class CMBBackgroundTestCase(unittest.TestCase):
         )
         self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
         self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
+
+    def test_cmb_loglike_rejects_unsupported_nonstandard_perturbations(self):
+        """The CMB likelihood should reject unsupported perturbations."""
+
+        class NonStandardPlugin:
+            """Plugin stub for an unsupported non-standard perturbation set."""
+
+            def get_camb_contract(self, _params):
+                return {
+                    "model_name": "NonStandardModel",
+                    "backend": "camb",
+                    "param_map": {
+                        "H0": 68.0,
+                        "ombh2": 0.022,
+                        "omch2": 0.12,
+                    },
+                    "grids": {},
+                    "values": {},
+                    "calls": [],
+                }
+
+            def get_cmb_perturbation_contract(self, _params):
+                return {
+                    "model_name": "NonStandardModel",
+                    "backend": "camb",
+                    "contract_version": 1,
+                    "standard": False,
+                    "gauge": "conformal_newtonian",
+                    "variables": {
+                        "delta_x": {
+                            "kind": "density_contrast",
+                            "description": "Example density perturbation.",
+                        }
+                    },
+                    "derived": {
+                        "delta_rho_eff": {
+                            "expression": "delta_x",
+                        }
+                    },
+                    "equations": {
+                        "continuity_x": {
+                            "lhs": "delta_x",
+                            "rhs": "-theta_x + 3 * Phi",
+                        }
+                    },
+                    "closures": {},
+                    "sources": {
+                        "poisson": {
+                            "expression": "delta_x",
+                        }
+                    },
+                    "validity": {
+                        "regimes": ["linear"],
+                        "notes": "Declared for setup failure coverage.",
+                    },
+                    "backend_mapping": {
+                        "camb": {
+                            "native_solver_required": True,
+                            "implemented": False,
+                        }
+                    },
+                    "notes": (
+                        "Native perturbation mathematics are declared but "
+                        "unsupported by CAMB."
+                    ),
+                }
+
+        cmb_df = pandas.DataFrame(
+            {"ell": [2, 3, 4], "Dl_obs": [1.0, 1.0, 1.0]}
+        )
+        cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(3)
+        like = cmb.CMBLike(cmb_df, NonStandardPlugin())
+        self.assertEqual(like.loglike([68.0]), float("-inf"))
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

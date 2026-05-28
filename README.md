@@ -1,15 +1,15 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.13
-**Last Updated:** 2026-05-25
+**Project Version:** 12.0.14
+**Last Updated:** 2026-05-27
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
 
 <!-- DEVCOV:END -->
 
-**Version:** 12.0.12
+**Version:** 12.0.14
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -64,12 +64,13 @@ enforces its laws through pre-commit checks.
    couples `emcee` with ArviZ when available; the nested sampler mirrors the
    same schema while exposing evidences. Both reuse the shared progress
    renderer and manifest helpers.
-- `models/` houses YAML model definitions with priors, transforms and dataset
+ - `models/` houses YAML model definitions with priors, transforms and dataset
   compatibility metadata. Each definition is converted into a picklable
   engine adapter so manifest generation stays deterministic even under
   multiprocessing. CMB-valid models declare a backend contract under `cmb`
-  with `backend`, `param_map`, `grids`, `values` and `calls`; the suite
-  evaluates that contract instead of classifying a theory type.
+  with `backend`, `param_map`, `grids`, `values`, `calls` and a mandatory
+  `perturbations` block; the suite validates and routes that math instead of
+  classifying a theory type.
  - `data/` bundles vetted observations and parsers. The loaders validate SHA256
    digests, register citations, and tag each manifest with the hashes used for
    the run; the directory remains read-only except when a human explicitly
