@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 61793c27456e0054c7d6747b596a630450a7071117ed21b6e6c1503433e54cda
+  policy_registry_input_hash: 966067f64d1e6ca5348bfb7fe8a339f570cb7642d5b0c2a4b85114a345f335a2
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
@@ -5226,6 +5226,7 @@ policies:
       - htmlcov/**
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
+      - models/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -5243,7 +5244,6 @@ policies:
       - devcovenant/config.yaml
       user_facing_exclude_dirs:
       - tests/**
-      - models/**
       force_include_files: []
       force_include_dirs: []
     metadata_resolution:
@@ -5877,6 +5877,18 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - models/**
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - models/**
+          behavior: append
+          replaced_inherited_values:
+          - ()
         derived_selectors:
           values:
           - tests/**
@@ -5907,6 +5919,7 @@ policies:
           - htmlcov/**
           - devcovenant/logs/**
           - devcovenant/registry/runtime/**
+          - models/**
           - tests/**
           - devcovenant/**
           - tests/devcovenant/**
@@ -6042,21 +6055,18 @@ policies:
         profile_overlays:
           values:
           - tests/**
-          - models/**
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - tests/**
-          - models/**
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - tests/**
-          - models/**
       force_include_files:
         descriptor:
           values:
@@ -6267,6 +6277,7 @@ policies:
       - htmlcov/**
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
+      - models/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -6284,7 +6295,6 @@ policies:
       - devcovenant/config.yaml
       user_facing_exclude_dirs: &id034
       - tests/**
-      - models/**
       force_include_files: []
       force_include_dirs: []
     runtime_config_overrides: {}
@@ -16390,7 +16400,7 @@ profiles:
       changelog_file: CHANGELOG.md
     policy_overlays:
       documentation-growth-tracking:
-        user_facing_exclude_dirs:
+        user_facing_exclude_globs:
         - models/**
       read-only-directories:
         include_prefixes:

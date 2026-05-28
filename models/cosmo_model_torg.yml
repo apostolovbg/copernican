@@ -1,544 +1,1057 @@
-model_name: Temporal Opposition Relational Geometry
-version: '1.0'
-title: Temporal Opposition Relational Geometry
-date: '2026-05-27'
-
+model_name: Temporal Opposing Relational Geometry
+short_name: TORG
+version: "1.0"
+authors:
+  - Iávor Moreno
+valid_for_sne: true
+valid_for_bao: true
+valid_for_cmb: true
+abstract: >-
+  Temporal Opposing Relational Geometry is a cosmological theory in
+  which the apparent dark sector is interpreted as a large-scale
+  geometric response of spacetime rather than as hidden particle
+  matter, vacuum energy, or an arbitrary cosmological constant. The
+  theory keeps ordinary baryonic matter, radiation, neutrinos, and
+  spacetime geometry as the physical inventory, and introduces a
+  relational temporal response that makes baryonic matter gravitate
+  with enhanced cosmological inertia on coherent large scales while
+  remaining screened in local bound systems. At background level the
+  response is encoded by the relational-inertia factor X_r(a). At
+  perturbation level it is represented as baryon-locked relational
+  inertia, enhanced gravitational source, and diluted photon drag,
+  providing a native route toward CMB structure without fundamental
+  cold dark matter.
 description: |-
-  Temporal Opposition Relational Geometry, abbreviated TORG, is a
-  stand-alone cosmological theory whose purpose is to explain the
-  observed large-scale behaviour of the Universe without introducing a
-  fundamental cosmological constant, a fundamental dark-energy
-  substance, or a fundamental cold-dark-matter particle sector.
+  Temporal Opposing Relational Geometry
 
-  TORG starts from a simple but deep claim: time is not merely a
-  fourth spatial direction. Time is Lorentz-opposed to spatial
-  extension. Space and time belong to the same relativistic structure,
-  but they do not play the same physical role. Space allows things to
-  coexist in separation. Time prevents all possibilities from
-  coexisting at once. Space measures extended relation. Time orders,
-  resolves, decoheres, and actualizes relation.
+  TORG says that the large-scale behavior attributed to dark matter and
+  dark energy is not caused by invisible substances. It is caused by a
+  geometric response of spacetime to the relational opposition between
+  expanding spatial volume and temporal actualization.
 
-  In ordinary spacetime diagrams, time is often drawn as another axis.
-  This is useful mathematically, but TORG treats it as physically
-  incomplete. The sign difference between time and space in relativistic
-  geometry is not just a notational trick. It expresses a real
-  opposition. Spatial directions are mutually interchangeable in a way
-  time is not. Time is not another dimension one can simply rotate into
-  space. It is the opposed relational direction through which possible
-  events become actual history.
+  The universe does not merely contain matter inside space and time.
+  Matter, space, and time form a coupled relational system. When the
+  spatial universe expands, the temporal side of the geometry does not
+  passively ride along as a fourth coordinate. It contributes an
+  opposing geometric response. That response changes the effective
+  gravitational weight of baryonic matter at cosmological scale and
+  changes the expansion history without introducing Lambda, particle
+  cold dark matter, dark-energy fluids, scalar-field filler, hidden
+  dust, or arbitrary constants whose only role is to close
+  observational gaps.
 
-  The standard cosmological model, LambdaCDM, is extremely successful
-  as a predictive framework, but its ontology is suspicious. It says
-  that the Universe is dominated by two invisible components:
-  cold dark matter, which gravitates like matter but has not been
-  directly identified as a particle, and Lambda, a cosmological
-  constant that behaves like a fixed energy of empty space. In that
-  model, ordinary baryonic matter is only a small residue of the cosmic
-  budget. TORG does not deny that LambdaCDM fits many observations.
-  Instead, TORG asks whether the same observational effects can arise
-  from a deeper relationship between ordinary matter, spatial extension,
-  and temporal opposition.
+  The central object of the theory is the relational temporal response,
+  represented in background cosmology by the dimensionless factor X_r(a).
 
-  A cosmological theory is not a direct photograph of the beginning of
-  the Universe. We cannot step outside the Universe and watch its
-  history from the outside. We cannot rerun the Big Bang in a laboratory.
-  What we do instead is build a mathematical structure, compute what it
-  predicts for supernovae, baryon acoustic oscillations, the cosmic
-  microwave background, and other observations, and then test whether
-  the structure fits the data. A theory is therefore a disciplined
-  mathematical story about the Universe. It becomes stronger when it
-  explains more observations with fewer arbitrary assumptions and makes
-  predictions that can fail.
+      X_r(a)
 
-  TORG proposes that the apparent dark sector is not made of two
-  invisible substances. Instead, it is the large-scale signature of
-  temporal-relational geometry. The phenomenon called dark energy is
-  interpreted as bounded temporal-opposition activation. The phenomenon
-  called dark matter is interpreted as relational inertia carried by
-  ordinary baryonic matter when matter is embedded in the cosmic
-  time-space relation. These are not two separate mechanisms. They are
-  two faces of one deeper structure.
+  This is not a dark-matter density. It is not a particle species. It is
+  the amount by which baryonic matter sources large-scale geometry
+  through relational inertia.
 
-  The first core principle of TORG is temporal opposition. Space expands
-  by increasing three-dimensional relational volume. Time opposes space
-  by turning possible relations into realized history. This opposition
-  is not a local push or a mechanical force in the everyday sense. It is
-  a geometric response of the cosmic background. The more spatial volume
-  exists, the more the temporal-opposition contribution becomes visible
-  in the homogeneous cosmological expansion.
+  At background level:
 
-  The second core principle is volume activation. The temporal effect
-  should not activate linearly with distance, because real spatial
-  extension has three dimensions. The relevant growth is volumetric.
-  The activation variable is therefore proportional to the cube of the
-  scale factor relative to a characteristic activation scale. In the
-  executable background model this is encoded by the activation law
+      rho_grav(a) = rho_b(a) [1 + X_r(a)]
 
-    A_T(a) =
-      [1 - exp(-(a / a_T)^3)]
-      /
-      [1 - exp(-(1 / a_T)^3)]
+  where rho_b is ordinary baryonic matter.
 
-  where a is the cosmic scale factor and a_T is the temporal activation
-  scale. At early times, when a is small, A_T(a) is close to zero. At
-  the present epoch, A_T(1) is normalized to one. Toward the future, the
-  activation saturates rather than growing without bound. This bounded
-  behaviour is important because TORG does not introduce a runaway dark
-  energy fluid or a fundamental vacuum decimal.
+  That equation is the heart of TORG. It says that the universe contains
+  baryons, but baryons do not gravitate cosmologically as isolated local
+  masses. They gravitate through a relational geometry whose temporal
+  opposition increases their effective large-scale inertia.
 
-  The third core principle is relational baryonic inertia. TORG does
-  not introduce an independent cold-dark-matter density. The only
-  material rest-mass component declared by the theory is baryonic
-  matter. However, baryons are not treated as isolated beads placed
-  inside an indifferent container. Baryons are persistent records of
-  realized relations inside temporal-spatial geometry. At cosmological
-  scale, they carry additional geometry-bound relational inertia.
+  Ontology
 
-  This relational inertia is represented by the parameter X_r. The bare
-  baryonic density is Omega_b. The effective matter-like support in the
-  homogeneous cosmological background is Omega_b * (1 + X_r). The extra
-  piece, Omega_b * X_r, is not interpreted as a population of cold dark
-  matter particles. It is the inertial shadow of baryons embedded in
-  temporal-opposition geometry.
+  TORG accepts as fundamental:
 
-  A useful analogy is a boat moving through water. The dry boat has a
-  certain mass, but when it moves through water it dynamically drags
-  some surrounding water with it. The boat behaves as if it has more
-  inertia than the dry object alone. The extra inertia is not a second
-  boat. It is a relational effect of the boat moving in a medium. In
-  TORG, ordinary baryonic matter is the boat and temporal-relational
-  geometry is the medium. At local scales the baryons remain ordinary.
-  At cosmological scale their role in the background expansion is
-  relationally enhanced.
+      g_{mu nu}
 
-  This distinction is essential. TORG does not say that every proton in
-  a laboratory becomes heavier by a factor of 1 + X_r. That would break
-  local physics immediately. X_r is not a local fifth force and not a
-  universal local mass multiplier. It is a cosmological coarse-grained
-  relational inertia contribution. Local bound systems must recover the
-  ordinary weak-field Newtonian limit. The relational inertia channel
-  belongs to the homogeneous large-scale gravitational budget, not to
-  everyday laboratory mass.
+  the spacetime metric,
 
-  The fourth core principle is geometric closure. TORG has no
-  independent Omega_Lambda parameter. The present temporal amplitude is
-  not a fundamental vacuum constant inserted by hand. It is the residual
-  required by flat closure after radiation and relationally weighted
-  baryons are counted:
+      T^{(b)}_{mu nu}
 
-    Omega_T = 1 - Omega_r - Omega_b * (1 + X_r)
+  ordinary baryonic matter,
 
-  where Omega_r is the effective radiation density. Thus the term that
-  plays the role of late-time acceleration is not an arbitrary
-  cosmological constant. It is the closure contribution of temporal
+      T^{(gamma)}_{mu nu}
+
+  radiation,
+
+      T^{(nu)}_{mu nu}
+
+  neutrinos, when included as known standard radiation or massive
+  species, and
+
+      R_{mu nu}
+
+  the relational-temporal geometric response.
+
+  TORG rejects as fundamental:
+
+      Lambda
+
+  as a primitive cosmological constant,
+
+      T^{(c)}_{mu nu}
+
+  as particle cold dark matter, and
+
+      T^{(de)}_{mu nu}
+
+  as a dark-energy substance.
+
+  The theory does not say that dark matter exists but is made of
+  something else. It says the inferred dark component is a projection of
+  baryonic matter through relational geometry.
+
+  The theory does not say that dark energy exists but has another
+  equation of state. It says late-time acceleration emerges from the
+  changing temporal-opposition response of spacetime itself.
+
+  Fundamental field-equation form
+
+  The clean field-equation skeleton is:
+
+      G_{mu nu}
+      =
+      8 pi G (
+        T^{(b)}_{mu nu}
+        + T^{(gamma)}_{mu nu}
+        + T^{(nu)}_{mu nu}
+      )
+      + R_{mu nu}
+
+  Here R_{mu nu} is not an extra matter tensor. It is a geometric
+  response tensor. It belongs conceptually to the left-hand side, but
+  writing it on the right-hand side makes comparison with observations
+  easier.
+
+  The stricter form is:
+
+      G_{mu nu} - R_{mu nu}
+      =
+      8 pi G T^{(known)}_{mu nu}
+
+  where:
+
+      T^{(known)}_{mu nu}
+      =
+      T^{(b)}_{mu nu}
+      + T^{(gamma)}_{mu nu}
+      + T^{(nu)}_{mu nu}
+
+  This is the preferred theoretical form, because it makes clear that
+  TORG modifies geometry, not inventory.
+
+  The conservation law is:
+
+      nabla^mu [
+        8 pi G T^{(known)}_{mu nu}
+        + R_{mu nu}
+      ] = 0
+
+  Known matter can remain locally conserved:
+
+      nabla^mu T^{(b)}_{mu nu} = 0
+
+  in local systems, while the cosmological relational response obeys the
+  global Bianchi constraint through R_{mu nu}.
+
+  TORG does not violate conservation. It relocates the missing
+  cosmological bookkeeping from invisible matter into the geometric
+  response required by covariance.
+
+  FLRW reduction
+
+  In a homogeneous and isotropic universe, the relational response
+  reduces to one effective background function:
+
+      X_r(a)
+
+  The effective Friedmann equation becomes:
+
+      H^2(a)
+      =
+      (8 pi G / 3) [
+        rho_r(a)
+        + rho_b(a) [1 + X_r(a)]
+        + rho_nu(a)
+      ]
+      - k c^2 / a^2
+
+  For the spatially flat case:
+
+      H^2(a)
+      =
+      (8 pi G / 3) [
+        rho_r(a)
+        + rho_b(a) [1 + X_r(a)]
+        + rho_nu(a)
+      ]
+
+  This is the background replacement for the LambdaCDM expression:
+
+      rho_b + rho_c + rho_Lambda
+
+  TORG replaces that with:
+
+      rho_b [1 + X_r(a)]
+
+  No independent CDM density appears. No constant vacuum density appears.
+  The apparent dark sector is compressed into one geometric response
+  function tied to baryons.
+
+  Relational pressure of the response
+
+  Define the effective relational density:
+
+      rho_R(a) = X_r(a) rho_b(a)
+
+  Since baryons scale as:
+
+      rho_b(a) = rho_{b0} a^{-3}
+
+  the relational density is:
+
+      rho_R(a) = X_r(a) rho_{b0} a^{-3}
+
+  If the relational response is written as an effective conserved
+  component for background comparison, its pressure is fixed by
+  conservation:
+
+      dot{rho}_R + 3 H (rho_R + p_R) = 0
+
+  This gives:
+
+      p_R(a)
+      =
+      - rho_b(a) / 3
+        dX_r / d ln a
+
+  The effective equation of state of the relational response is:
+
+      w_R(a)
+      =
+      p_R / rho_R
+      =
+      - (1 / 3) d ln X_r / d ln a
+
+  TORG does not insert a dark-energy equation of state. The pressure-like
+  behavior follows from how relational inertia evolves. If X_r grows with
+  cosmic expansion, the response naturally develops negative effective
+  pressure.
+
+  Late-time acceleration comes from:
+
+      dX_r / d ln a > 0
+
+  large enough to produce accelerated expansion.
+
+  This is not Lambda. It is temporal opposition becoming cosmologically
+  active as the universe grows.
+
+  Temporal opposition
+
+  The core physical principle is:
+
+      spatial expansion <-> temporal opposition
+
+  As spatial volume grows, the universe does not simply dilute into
+  emptiness. The relation between spatial extension and temporal
+  actualization changes. The larger the spatial separation structure
+  becomes, the more the temporal side of the geometry contributes to
+  global inertia.
+
+  This is why TORG uses relational rather than local inertia.
+
+  Local inertia is the resistance of a body to acceleration in a local
+  frame.
+
+  Relational inertia is the resistance of the cosmic matter-geometry
+  system to changes in the global expansion and perturbation structure.
+
+  TORG's claim is that cosmology has been interpreting relational inertia
+  as missing matter.
+
+  What X_r means
+
+  X_r(a) is the relational inertia ratio.
+
+  It measures how much additional large-scale gravitational source
+  appears per unit baryonic matter due to temporal-oppositional geometry.
+
+  If:
+
+      X_r(a) = 0
+
+  then baryons gravitate only as bare baryons.
+
+  If:
+
+      X_r(a) > 0
+
+  then baryons gravitate cosmologically as:
+
+      rho_b (1 + X_r)
+
+  This does not mean every proton becomes heavier locally. It means the
+  baryonic distribution sources cosmic geometry through a relational
+  response.
+
+  Therefore X_r is cosmological, coherent, relational, and
+  scale-dependent in the full theory.
+
+  At background level it depends on a. At perturbation level it can
+  depend on a and k:
+
+      X_r = X_r(a, k)
+
+  At local bound-system scale, the effective response is screened:
+
+      X_r(a, k_local) -> 0
+
+  That is how TORG avoids breaking Solar-System physics.
+
+  Local screening
+
+  TORG must recover known local mechanics.
+
+  The screening principle is:
+
+      S(a, k, Phi_local) -> 0
+
+  inside strongly bound, locally coherent systems, and:
+
+      S(a, k, Phi_cosmic) -> 1
+
+  on cosmological linear scales.
+
+  The full relational response becomes:
+
+      X_r(a, k, Phi)
+      =
+      X_{r,0}(a) S(a, k, Phi)
+
+  For cosmological background:
+
+      S = 1
+
+  For local Newtonian systems:
+
+      S = 0
+
+  Thus local gravity is not enhanced by 1 + X_r. The enhancement appears
+  only where matter participates in the coherent cosmological geometry.
+
+  This is not a convenience patch. It is required by the ontology.
+  Relational inertia is a property of the global matter-geometry
+  relation, not a local particle mass.
+
+  Newtonian recovery
+
+  In the weak-field, low-velocity, local screened limit:
+
+      g_{00} ~= - (1 + 2 Phi / c^2)
+
+  and:
+
+      S -> 0
+
+  The field equation reduces to:
+
+      nabla^2 Phi = 4 pi G rho_b
+
+  So Newtonian mechanics is recovered.
+
+  The nonrelativistic equation of motion remains:
+
+      d^2 x / dt^2 = - nabla Phi
+
+  This means laboratory dynamics, planetary motion, local binary
+  dynamics, and ordinary baryonic gravity remain standard in the
+  screened local limit.
+
+  The cosmological Poisson equation is different:
+
+      k^2 Phi
+      =
+      4 pi G a^2 rho_b [1 + X_r(a, k)] delta_b
+
+  in the simplest scalar perturbation closure.
+
+  That is the key distinction:
+
+      local Poisson equation:
+      nabla^2 Phi = 4 pi G rho_b
+
+      cosmological Poisson equation:
+      k^2 Phi =
+      4 pi G a^2 rho_b (1 + X_r) delta_b
+
+  Perturbation ontology
+
+  TORG perturbations do not introduce a dark-matter density contrast.
+  There is no fundamental particle-CDM perturbation delta_c. There is no
+  independent CDM velocity divergence theta_c.
+
+  Instead, the perturbation variables are:
+
+      delta_b
+
+  baryon density contrast,
+
+      theta_b
+
+  baryon velocity divergence,
+
+      Phi, Psi
+
+  metric potentials,
+
+      delta_X_r
+
+  relational response perturbation, and derived effective quantities.
+
+  The simplest first closure is baryon-locked relational inertia:
+
+      delta_R = delta_b + delta_X_r / X_r
+
+  The first native TORG closure sets the relational response perturbation
+  to track baryonic perturbations at linear order by taking:
+
+      delta_X_r = 0
+
+  as a first closure, giving:
+
+      delta rho_R = X_r rho_b delta_b
+
+  Then:
+
+      delta rho_eff = rho_b (1 + X_r) delta_b
+
+  This is the first serious TORG perturbation ansatz.
+
+  It says that the relational component has no independent particle
+  perturbation. It is locked to baryonic structure because it is a
+  geometric response to baryonic matter.
+
+  Continuity equation
+
+  The baryon density contrast obeys:
+
+      delta_b'
+      =
+      - theta_b + 3 Phi'
+
+  where prime denotes conformal-time derivative.
+
+  This remains the standard baryonic continuity equation in conformal
+  Newtonian gauge.
+
+  The relational response does not get a separate continuity equation at
+  first closure. Its perturbation is algebraically tied to baryonic
+  perturbation:
+
+      delta rho_R = X_r rho_b delta_b
+
+  For a later higher-order theory, delta_X_r can become dynamic. The
+  first native version keeps it constrained.
+
+  Euler equation and photon-drag dilution
+
+  Before recombination, baryons are coupled to photons. In standard
+  cosmology, this photon drag prevents baryons from behaving like
+  collisionless matter.
+
+  TORG cannot say baryons ignore photons. They do not.
+
+  The TORG mechanism is different: baryons still couple
+  electromagnetically to photons through ordinary electron density, but
+  their cosmological inertial loading is enhanced by relational inertia.
+
+  Thus the photon drag term is diluted by:
+
+      1 / [1 + X_r(a, k)]
+
+  A first native Euler equation is:
+
+      theta_b'
+      =
+      - Hconf theta_b
+      + k^2 Psi
+      + R_gamma / (1 + X_r) (theta_gamma - theta_b)
+
+  where R_gamma represents the usual photon-baryon coupling strength in
+  the chosen convention.
+
+  The exact CAMB convention will require the optical-depth factor and
+  baryon-photon inertia ratio in CAMB's native notation, but the physical
+  rule is fixed:
+
+      photon drag acceleration proportional to 1 / (1 + X_r)
+
+  This is the crucial CMB mechanism.
+
+  LambdaCDM says that dark matter clusters because photons do not drag
+  it. TORG says that baryons are still photon-coupled, but their
+  cosmological relational inertia reduces the acceleration caused by
+  photon drag.
+
+  This lets baryonic structure behave more matter-like before
+  recombination without inventing collisionless dark matter.
+
+  Modified Poisson source
+
+  The scalar gravitational source becomes:
+
+      delta rho_grav
+      =
+      rho_b (1 + X_r) delta_b
+      + delta rho_gamma
+      + delta rho_nu
+
+  The Poisson equation becomes:
+
+      k^2 Phi
+      =
+      4 pi G a^2 [
+        rho_b (1 + X_r) delta_b
+        + rho_gamma delta_gamma
+        + rho_nu delta_nu
+      ]
+
+  No rho_c delta_c term appears.
+
+  The role played by CDM in LambdaCDM is replaced by:
+
+      rho_b X_r delta_b
+
+  But this is not CDM. It has baryon-locked perturbations and modified
+  photon-drag behavior.
+
+  Slip and anisotropic stress
+
+  At first closure, TORG introduces no new anisotropic stress:
+
+      sigma_R = 0
+
+  Then the metric slip remains controlled by standard radiation and
+  neutrino anisotropic stress:
+
+      Phi - Psi = standard radiation/neutrino contribution
+
+  This is the cleanest first native version. It avoids inventing
+  unnecessary tensor structure.
+
+  If data later demand a geometric slip term, it must be derived from
+  R_{mu nu}, not inserted as a phenomenological patch.
+
+  Native perturbation contract
+
+  The first TORG native perturbation contract contains these declarations:
+
+      variables:
+        delta_b, theta_b, delta_gamma, theta_gamma, Phi, Psi
+
+      derived relational variables:
+        delta rho_R = X_r rho_b delta_b
+        delta rho_eff = rho_b (1 + X_r) delta_b
+        theta_R = theta_b
+        sigma_R = 0
+
+      equations:
+        delta_b' = - theta_b + 3 Phi'
+
+        theta_b'
+        =
+        - Hconf theta_b
+        + k^2 Psi
+        + R_gamma / (1 + X_r) (theta_gamma - theta_b)
+
+        k^2 Phi
+        =
+        4 pi G a^2 [
+          rho_b (1 + X_r) delta_b
+          + rho_gamma delta_gamma
+          + rho_nu delta_nu
+        ]
+
+      closures:
+        theta_R - theta_b = 0
+        sigma_R = 0
+        delta_X_r = 0
+
+      sources:
+        S_Poisson = rho_b (1 + X_r) delta_b
+
+      validity:
+        linear scalar perturbations
+        cosmological scales
+        screened local systems excluded
+        first-order relational closure
+
+  This is the native CMB story.
+
+  Sound horizon
+
+  The sound horizon must be handled carefully.
+
+  Photon opacity depends on ordinary electrons and therefore on ordinary
+  baryon density. So the opacity side remains tied to:
+
+      rho_b
+
+  But acoustic inertia in the native perturbation picture is influenced
+  by:
+
+      1 + X_r
+
+  That means TORG's exact CMB theory has two distinct baryonic roles:
+
+      microphysical photon coupling: rho_b
+      cosmological inertial loading: rho_b (1 + X_r)
+
+  This is not a contradiction. It is the theory's defining distinction.
+
+  The native TORG perturbation solver must separate electron opacity from
+  relational inertial mass.
+
+  Field equation for relational response
+
+  The response tensor R_{mu nu} must reduce to X_r rho_b in FLRW.
+
+  A suitable skeleton is:
+
+      R_{mu nu}
+      =
+      8 pi G X_{mu nu}
+      [g_{alpha beta}, u^alpha, rho_b, Theta, tau]
+
+  where u^mu is the cosmological matter frame,
+
+      Theta = nabla_mu u^mu
+
+  is the expansion scalar, and tau is the temporal actualization
+  parameter.
+
+  In FLRW:
+
+      X_{00} = rho_b X_r(a)
+
+      X_{ij} = p_R(a) g_{ij}
+
+  with:
+
+      p_R
+      =
+      - rho_b / 3 dX_r / d ln a
+
+  This guarantees the background equations match the relational-inertia
+  formulation.
+
+  The next derivation step is to write an action whose variation produces
+  this response tensor. The current field-equation skeleton is valid as
+  an effective covariant theory. The action is the deeper completion.
+
+  Action principle candidate
+
+  The action should have the form:
+
+      S
+      =
+      int d^4x sqrt(-g) [
+        R / (16 pi G)
+        + L_b
+        + L_gamma
+        + L_nu
+        + L_rel
+      ]
+
+  The relational term is not a free dark field. It must depend on
+  baryonic matter and expansion geometry:
+
+      L_rel = F(rho_b, Theta, nabla_mu u^mu, tau)
+
+  The simplest effective choice is a coupling:
+
+      L_rel = - rho_b X(Theta, tau)
+
+  In FLRW:
+
+      X(Theta, tau) -> X_r(a)
+
+  The crucial theoretical constraint is:
+
+      L_rel -> 0
+
+  in the local screened limit.
+
+  So the action must contain a coherence/screening factor:
+
+      L_rel = - rho_b X_r(a) S(a, k, Phi)
+
+  In real-space covariant form, S must be expressed through local
+  curvature, expansion, and binding structure rather than Fourier k. The
+  Fourier version is the cosmological perturbation representation.
+
+  Quantum and decoherence bridge
+
+  TORG naturally suggests a bridge to quantum measurement.
+
+  The future is not yet actualized geometry. It is structured
+  possibility.
+
+  The present is the boundary at which possibility becomes actual
   geometry.
 
-  The background expansion law tested by this Copernican model is
+  The past is not a still-existing block of equal ontological status. It
+  is a decohered record encoded in present correlations.
 
-    E(a)^2 =
-      Omega_r * a^(-4)
-      + Omega_b * (1 + X_r) * a^(-3)
-      + Omega_T * A_T(a)
+  Temporal opposition means the universe consumes possibility into
+  actualized spacetime. We experience this as the flow of time.
 
-  with
+  In this view:
 
-    Omega_r = Omega_gamma * (1 + 0.2271 * N_eff)
+      future -> present actualization -> past record
 
-  and
+  The past does not keep existing as a live physical domain. It persists
+  as record, correlation, memory, radiation, gravitational structure, and
+  causal trace.
 
-    Omega_T = 1 - Omega_r - Omega_b * (1 + X_r)
+  This aligns with the TORG cosmological picture because the temporal
+  side of geometry is active. Time is not only a coordinate labeling
+  events. It is the process by which relational structure becomes
+  definite.
 
-  This is the effective FLRW background limit of the theory. It is the
-  level currently tested by Copernican through supernova distances,
-  baryon acoustic oscillations, the sound horizon, and a CAMB-compatible
-  CMB representation.
+  This is not yet the quantum theory of TORG. It is the correct
+  philosophical and mathematical direction:
 
-  TORG therefore keeps the useful phenomenological structure that
-  LambdaCDM discovered, but changes its meaning. LambdaCDM says the
-  effective matter budget is ordinary baryons plus particle cold dark
-  matter, and the remaining closure is a cosmological constant. TORG
-  says the effective matter budget is ordinary baryons plus relational
-  baryonic inertia, and the remaining closure is temporal-opposition
-  activation. The numerical roles may look similar in a background fit,
-  but the ontology is different.
+      decoherence = local actualization of relational geometry
 
-  The photon-baryon sound horizon is treated carefully. The expansion
-  rate feels Omega_b * (1 + X_r), because the cosmological background
-  responds to relationally weighted baryons. But the photon-baryon
-  acoustic loading uses bare Omega_b, because relational inertia does
-  not add photon-coupled baryon number. It does not create extra
-  electrons. It does not change ordinary baryon counting. This
-  distinction lets the model seek CMB and BAO matter support without
-  pretending that the Universe contains more ordinary charged baryons
-  than it does.
+  The bridge to quantum gravity should be built by treating actualization
+  as the temporal boundary condition on relational geometry.
 
-  The local Newtonian limit is a required consistency condition. In the
-  weak-field, slow-motion, locally bound regime, the gravitational
-  potential must obey the ordinary Poisson equation sourced by ordinary
-  baryonic density. Local test bodies must follow the ordinary
-  Newtonian acceleration law. Relational inertia must be screened,
-  locked into local units, or otherwise non-dynamical in bound local
-  systems. The current cosmological model does not yet specify the full
-  screening mechanism, but it states the required limit explicitly:
-  TORG must reduce to Newtonian mechanics locally and to ordinary
-  relativistic physics in small enough freely falling regions.
+  Predictions
 
-  The deeper field-theoretic form of TORG should not be written as
-  ordinary matter plus ordinary radiation plus a dark sector. A suitable
-  schematic form is
+  TORG makes clear predictions distinct from LambdaCDM.
 
-    G_mn =
-      8 pi G (T_mn^b + T_mn^rad)
-      + Theta_mn^rel
-      + Theta_mn^T
+  First, the inferred matter density from background cosmology should not
+  match the baryon density, but the excess should track a baryonic
+  relational function:
 
-  where T_mn^b is the ordinary baryonic stress-energy tensor,
-  T_mn^rad is the radiation stress-energy tensor, Theta_mn^rel is the
-  geometric relational-inertia response, and Theta_mn^T is the
-  temporal-opposition response. These Theta terms are not new material
-  substances. They are geometric response terms. In the homogeneous
-  FLRW limit, Theta_mn^rel reduces to the Omega_b * X_r matter-support
-  contribution, and Theta_mn^T reduces to the Omega_T * A_T(a)
-  temporal-activation contribution.
+      Omega_grav(a) = Omega_b [1 + X_r(a)]
 
-  The total system must satisfy a covariant consistency condition:
+  Second, the CMB should be explainable without independent CDM
+  perturbations, through baryon-locked relational inertia and photon-drag
+  dilution.
 
-    div[
-      8 pi G (T_mn^b + T_mn^rad)
-      + Theta_mn^rel
-      + Theta_mn^T
-    ] = 0
+  Third, local systems should not show the full cosmological enhancement
+  because X_r is screened in bound systems.
 
-  This does not require each effective term to behave like a separately
-  conserved dark fluid. The total geometry-matter system must be
-  consistent. That is important because forcing the TORG terms to behave
-  exactly like standard dark matter and dark energy would erase the
-  purpose of the theory.
+  Fourth, datasets with different SNe calibration conventions should
+  shift apparent tension when intercept handling is wrong.
 
-  A later action-level version of TORG may involve the metric, a local
-  temporal direction field, ordinary baryon and radiation actions, and
-  two geometric response terms. Schematically:
+  Fifth, growth data should prefer a relation between baryonic
+  distribution and inferred missing gravitational source, not a fully
+  independent collisionless component.
 
-    S_TORG =
-      integral sqrt(-g) [
-        R
-        + L_T(g, u, A_T)
-        + L_rel(g, u, rho_b, X_r)
-      ]
-      + S_b
-      + S_rad
+  Sixth, the theory should produce scale-dependent deviations from
+  LambdaCDM in structure growth where screening transitions from local to
+  cosmological coherence.
 
-  Here u represents the local temporal direction of realized ordering
-  inside relativistic geometry. It is not meant as a return to
-  absolute Newtonian time. It is a way of representing the local
-  direction along which possibility becomes realized history. The
-  spatial projector built from the metric and this temporal direction
-  would encode the distinction between spatial extension and temporal
-  opposition.
+  What must be proven next
 
-  TORG also gives a possible bridge toward quantum mechanics. In quantum
-  theory, before measurement or decoherence, several outcomes may exist
-  as structured possibilities. After decoherence, only one effective
-  classical history remains. TORG interprets this not merely as an
-  observer problem but as a general feature of time. The present is the
-  active boundary where future possibility becomes realized geometry.
-  The future is not yet fixed. It is structured potential. The past is
-  not an active place that still exists behind us. It is decohered
-  record: memory, trace, light, structure, consequence.
+  The full theory now has a coherent structure, but several pieces still
+  need derivation.
 
-  In this interpretation, reality does not move from a stored past into
-  a stored future. Rather, the present consumes the nearest layer of
-  future possibility and leaves behind a spatially recorded past. We
-  eat time from the near end. The near end is the present, the surface
-  where potential becomes fact. The far end of time may not be a place
-  or a final moment. It may be an open horizon of potential, or a limit
-  where distinguishable future possibilities cease to be meaningful.
-  This is philosophical and foundational motivation, not yet part of
-  the executable Copernican likelihood.
+  The action must be written.
 
-  This quantum bridge can be stated as follows: relativity describes
-  realized geometry, while quantum mechanics describes structured
-  possibility. TORG proposes that time is the active physical process
-  converting structured possibility into realized geometry. If this
-  idea can be made mathematical, it may help reduce the wall between
-  cosmology, relativity, and quantum mechanics.
+  The variation must produce R_{mu nu}.
 
-  A possible future mathematical direction is a temporal decoherence
-  rate Gamma_T related to the activation of temporal opposition. One
-  could imagine a density-matrix evolution containing the ordinary
-  quantum commutator plus a temporal-decoherence operator whose strength
-  depends on the local or cosmological activation of temporal
-  opposition. This is not implemented here. It is included as the
-  theory's proposed path toward a deeper connection with quantum
-  mechanics.
+  The FLRW reduction must exactly recover the current TORG background
+  equations.
 
-  The current CAMB representation is provisional and practical. CAMB is
-  built around standard computational channels such as baryons,
-  cold-matter support, and dark-energy-like background functions. TORG
-  does not share that ontology, but the current Copernican adapter can
-  use those channels as backend slots. In this YAML, ombh2 receives the
-  bare baryon density. omch2 receives Omega_b * X_r as the backend
-  representation of relational baryonic inertia, not particle cold dark
-  matter. The set_dark_energy_w_a call receives the derived temporal
-  activation equation-of-state table as the backend representation of
-  the temporal term, not as fundamental dark energy. Backend
-  representation is not theory ontology.
+  The Newtonian limit must explicitly show S -> 0.
 
-  A future native TORG perturbation backend should replace this
-  provisional CAMB representation. Such a backend should express
-  relational inertia as its own perturbation channel coupled to baryonic
-  structure, not as ordinary cold dark matter. It should express
-  temporal opposition as its own geometric perturbation tensor, not as
-  ordinary dark energy. It should also include screening or coherence
-  rules ensuring recovery of Newtonian mechanics in local bound systems
-  while preserving cosmological relational inertia.
+  The perturbation equations must be implemented natively in Copernican.
 
-  The current executable model should therefore be read as the
-  background-limit implementation of TORG plus the best available CAMB
-  adapter contract. It is not the final perturbation theory. It is the
-  first testable cosmological realization of the theory.
+  The CMB solver must distinguish photon opacity from relational inertia.
 
-  TORG makes several empirical expectations. First, Omega_b * X_r should
-  remain relatively stable across independent dataset combinations if
-  relational inertia is real. Second, Omega_b * (1 + X_r) should land
-  near the effective matter support required by CMB and BAO without
-  requiring particle cold dark matter. Third, the temporal activation
-  scale a_T should remain inside a meaningful physical range rather
-  than being pushed to a prior boundary. Fourth, the temporal term must
-  be negligible at recombination but active at late times. Fifth, the
-  model should not require a Big Rip, because the activation law
-  saturates. Sixth, future growth-of-structure and lensing tests should
-  eventually distinguish TORG from LambdaCDM, because relational
-  inertia tied to baryons should not behave exactly like an independent
-  collisionless dark particle fluid.
+  The theory must be tested on JLA2014, Pantheon+SH0ES, Union3, BAO, CMB,
+  and growth.
 
-  The current evidence from Copernican runs should be treated as
-  discovery-track evidence for a serious candidate mechanism, not as
-  final proof. A full scientific case requires longer chains, repeated
-  seeds, validated posterior diagnostics, dataset parser audits,
-  comparison to LambdaCDM, wCDM, w0waCDM, and other alternatives, and a
-  mature perturbation treatment. Nevertheless, the theory is designed
-  to be falsifiable: it can fail if the required relational inertia is
-  unstable, if the activation scale hits bounds, if BAO or CMB collapse,
-  if local Newtonian recovery cannot be defined, or if future
-  structure-growth data contradict the relational-inertia mechanism.
+  Compact statement
 
-  The central claim of TORG is therefore compact:
+  TORG is a covariant cosmological theory in which ordinary matter,
+  radiation, and spacetime geometry are coupled through a
+  temporal-opposition response. This response makes baryonic matter
+  gravitate with enhanced relational inertia at cosmological scale, while
+  remaining screened in local bound systems. The apparent dark sector is
+  therefore not a hidden inventory of particles and vacuum energy, but
+  the large-scale geometric effect of time opposing spatial expansion. At
+  background level this is encoded by X_r(a); at perturbation level it
+  appears as baryon-locked relational inertia, enhanced gravitational
+  source, and diluted photon drag. The theory recovers Newtonian gravity
+  locally through screening and aims to recover CMB structure without
+  independent cold dark matter.
+notes: |-
+  This model file is the first formal TORG model carrier.
 
-  The observed dark sector is not necessarily made of invisible
-  substances. It may be the large-scale signature of temporal
-  opposition and baryonic relational inertia. Spatial expansion
-  activates a bounded temporal term, while ordinary baryons carry
-  geometry-bound cosmological inertia. The Universe then behaves as if
-  it contains dark energy and cold dark matter, while the fundamental
-  ontology contains neither.
+  The prose description intentionally carries the complete theory text.
+  It is not merely metadata. It is intended to preserve the ontology,
+  physical interpretation, field-equation skeleton, perturbation ansatz,
+  Newtonian recovery logic, CMB mechanism, and future derivation path in
+  the model file itself.
 
-abstract: >-
-  TORG replaces both the cosmological constant and particle cold dark
-  matter with a unified temporal-relational mechanism. Spatial volume
-  activates a bounded temporal-opposition contribution, while baryons
-  carry geometry-bound relational inertia. The expansion law contains
-  radiation, bare baryons with relational inertia, and a temporal
-  activation term fixed by flat closure. The only new physical
-  parameters are a_T, the temporal activation scale, and X_r, the
-  relational inertia coupling. The current Copernican implementation is
-  the background-limit model plus a CAMB adapter representation: omch2
-  is used as the backend channel for relational inertia, and
-  set_dark_energy_w_a is used as the backend channel for temporal
-  activation. These channels are computational representations, not the
-  ontology of the theory.
+  The background expressions below provide the executable Copernican
+  representation of TORG's homogeneous expansion sector.
+
+  The CMB perturbation block declares the native non-standard TORG
+  perturbation contract. Execution requires a registered native TORG CMB
+  perturbation solver. Until that solver exists, a strict Copernican
+  backend must reject exact CMB execution for this model rather than
+  silently reusing standard CAMB perturbations.
 
 parameters:
   - name: Hubble constant
     python_var: H0
-    bounds: [50.0, 80.0]
-    unit: km/s/Mpc
     latex_name: H_0
+    unit: km s^-1 Mpc^-1
+    bounds: [50.0, 90.0]
+    initial: 70.0
     definition: Present-day Hubble expansion rate.
     prior:
-      type: gaussian
-      mean: 68.0
-      sigma: 4.0
+      type: uniform
+      lower: 50.0
+      upper: 90.0
 
   - name: Baryon density
-    python_var: Omega_b
-    bounds: [0.03, 0.06]
-    unit: ''
-    latex_name: \Omega_b
-    definition: Present-day ordinary baryonic matter density fraction.
+    python_var: Ob0
+    latex_name: \Omega_{b0}
+    unit: ""
+    bounds: [0.01, 0.12]
+    initial: 0.049
+    definition: Present-day baryonic matter density fraction.
     prior:
       type: uniform
-      lower: 0.03
-      upper: 0.06
+      lower: 0.01
+      upper: 0.12
 
-  - name: Photon density
-    python_var: Omega_gamma
-    bounds: [5.38e-05, 5.38e-05]
-    unit: ''
-    latex_name: \Omega_{\gamma}
-    definition: Fixed photon density parameter at z=0.
-    prior:
-      type: fixed
-      value: 5.38e-05
-
-  - name: Effective number of relativistic neutrino species
-    python_var: Neff
-    bounds: [2.5, 3.5]
-    unit: ''
-    latex_name: N_{\rm eff}
-    definition: Effective relativistic neutrino count.
+  - name: Radiation density
+    python_var: Or0
+    latex_name: \Omega_{r0}
+    unit: ""
+    bounds: [0.00001, 0.0002]
+    initial: 0.00009
+    definition: Present-day radiation density fraction.
     prior:
       type: uniform
-      lower: 2.5
-      upper: 3.5
+      lower: 0.00001
+      upper: 0.0002
 
-  - name: Temporal activation scale
-    python_var: a_T
-    bounds: [0.05, 2.0]
-    unit: ''
-    latex_name: a_T
-    definition: Scale factor where temporal opposition activates.
-    prior:
-      type: uniform
-      lower: 0.05
-      upper: 2.0
-
-  - name: Relational inertia coupling
-    python_var: X_r
-    bounds: [0.0, 10.0]
-    unit: ''
-    latex_name: X_r
-    definition: Geometry-bound baryonic inertia excess.
+  - name: Relational inertia amplitude
+    python_var: Xr0
+    latex_name: X_{r0}
+    unit: ""
+    bounds: [0.0, 20.0]
+    initial: 5.0
+    definition: Present-day amplitude of cosmological relational inertia.
     prior:
       type: uniform
       lower: 0.0
+      upper: 20.0
+
+  - name: Relational activation redshift
+    python_var: zt
+    latex_name: z_t
+    unit: ""
+    bounds: [0.01, 10.0]
+    initial: 1.0
+    definition: Redshift scale at which temporal opposition activates.
+    prior:
+      type: uniform
+      lower: 0.01
       upper: 10.0
+
+  - name: Relational activation sharpness
+    python_var: beta
+    latex_name: \beta
+    unit: ""
+    bounds: [0.1, 10.0]
+    initial: 2.0
+    definition: Sharpness of the relational-inertia activation transition.
+    prior:
+      type: uniform
+      lower: 0.1
+      upper: 10.0
+
+  - name: Relational growth index
+    python_var: gamma_r
+    latex_name: \gamma_r
+    unit: ""
+    bounds: [0.0, 6.0]
+    initial: 1.0
+    definition: Growth index controlling late-time relational response.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 6.0
+
+  - name: Absolute magnitude nuisance
+    python_var: M_abs
+    latex_name: M
+    unit: mag
+    bounds: [-21.0, -17.0]
+    initial: -19.3
+    definition: Supernova absolute-magnitude nuisance intercept.
+    prior:
+      type: uniform
+      lower: -21.0
+      upper: -17.0
 
   - name: Recombination redshift
     python_var: z_rec
-    bounds: [1089.92, 1089.92]
-    unit: ''
     latex_name: z_{\rm rec}
-    definition: Fixed photon-decoupling redshift.
+    unit: ""
+    bounds: [1089.92, 1089.92]
+    initial: 1089.92
+    definition: Fixed photon-decoupling redshift for sound-horizon integrals.
     prior:
       type: fixed
       value: 1089.92
 
-  - name: Speed of light
-    python_var: c_light
-    bounds: [299792.458, 299792.458]
-    unit: km/s
-    latex_name: c
-    definition: Fixed speed of light.
-    prior:
-      type: fixed
-      value: 299792.458
-
 Hz_expression: >-
   H(z) = H0 * sqrt(
-    Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
-    + Omega_b * (1 + X_r) * (1 + z)**3
-    + (
-      1
-      - Omega_gamma * (1 + 0.2271 * Neff)
-      - Omega_b * (1 + X_r)
-    ) * (
-      1 - exp(-((1 / (1 + z)) / a_T)**3)
-    ) / (
-      1 - exp(-(1 / a_T)**3)
+    Or0 * (1 + z)**4
+    + Ob0 * (1 + z)**3 * (
+      1 + Xr0 * (
+        1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+      ) * (1.0 / (1.0 + z))**gamma_r
     )
   )
 
-equations:
-  theory:
-    - >-
-      E(a)^2 = Omega_r a^{-4}
-      + Omega_b (1 + X_r) a^{-3}
-      + Omega_T A_T(a)
-    - >-
-      Omega_r = Omega_gamma (1 + 0.2271 N_eff)
-    - >-
-      Omega_T = 1 - Omega_r - Omega_b (1 + X_r)
-    - >-
-      A_T(a) =
-      [1 - exp(-(a / a_T)^3)] / [1 - exp(-(1 / a_T)^3)]
-    - >-
-      X_r is relational baryonic inertia, not particle cold dark matter.
-    - >-
-      Omega_b X_r is the effective matter-support contribution carried
-      by baryons through temporal-relational geometry.
-  field_equation_skeleton:
-    - >-
-      G_mn = 8 pi G (T_mn^b + T_mn^rad)
-      + Theta_mn^rel + Theta_mn^T
-    - >-
-      Theta_mn^rel is the geometric relational-inertia response.
-    - >-
-      Theta_mn^T is the temporal-opposition response.
-    - >-
-      In the FLRW limit, Theta_mn^rel gives Omega_b X_r a^{-3}.
-    - >-
-      In the FLRW limit, Theta_mn^T gives Omega_T A_T(a).
-  local_limits:
-    - >-
-      Local weak-field systems must recover the ordinary Newtonian
-      Poisson equation sourced by baryonic density.
-    - >-
-      X_r is not a local multiplier of laboratory or Solar-System mass.
-    - >-
-      Relational inertia is cosmological and coarse-grained.
-  quantum_bridge:
-    - >-
-      The present is the boundary where future possibility becomes
-      realized geometry.
-    - >-
-      The past is decohered record rather than an active stored place.
-    - >-
-      The future is structured potential rather than fixed history.
-  sne:
-    - d_L(z) = (1 + z) Integral(c_light / H(zp), (zp, 0, z))
-    - mu(z) = 5 log10(d_L(z)) + 25
-  bao:
-    - D_M(z) = Integral(c_light / H(zp), (zp, 0, z))
-    - D_H(z) = c_light / H(z)
-    - D_V(z) = (D_M(z)**2 * D_H(z))**(1/3)
+equations: {}
 
 rs_expression: >-
   r_s = Integral(
-    c_light / sqrt(
-      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    299792.458 / sqrt(
+      3 * (1 + 3 * Ob0 / (4 * Or0 * (1 + z)))
     ) / (
       H0 * sqrt(
-        Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
-        + Omega_b * (1 + X_r) * (1 + z)**3
-        + (
-          1
-          - Omega_gamma * (1 + 0.2271 * Neff)
-          - Omega_b * (1 + X_r)
-        ) * (
-          1 - exp(-((1 / (1 + z)) / a_T)**3)
-        ) / (
-          1 - exp(-(1 / a_T)**3)
+        Or0 * (1 + z)**4
+        + Ob0 * (1 + z)**3 * (
+          1 + Xr0 * (
+            1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+          ) * (1.0 / (1.0 + z))**gamma_r
         )
       )
-    ), (z, z_rec, oo)
+    ),
+    (z, z_rec, oo)
   )
 
-skip_bao: false
-valid_for_bao: true
-valid_for_distance_metrics: true
-valid_for_cmb: true
+constants:
+  c_km_s: 299792.458
+  T_cmb_K: 2.7255
+  Neff: 3.046
+
+expressions:
+  a_z: "1.0 / (1.0 + z)"
+  activation_z: "1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)"
+  temporal_growth_z: "(1.0 / (1.0 + z))**gamma_r"
+  Xr_z: "Xr0 * activation_z * temporal_growth_z"
+  Ob_eff_z: "Ob0 * (1.0 + Xr_z)"
+  E2_z: "Or0*(1.0 + z)**4 + Ob0*(1.0 + z)**3*(1.0 + Xr_z)"
+  E_z: "sqrt(E2_z)"
+  H_z: "H0 * E_z"
+  inv_E_z: "1.0 / E_z"
+  dH_Mpc_z: "c_km_s / H_z"
+
+observables:
+  luminosity_distance_Mpc:
+    expression: "(1.0 + z) * c_km_s / H0 * integral(inv_E_z, z, 0.0, z)"
+    unit: Mpc
+    description: Luminosity distance for SNe likelihood evaluation.
+
+  distance_modulus:
+    expression: "5.0 * log10(luminosity_distance_Mpc) + 25.0"
+    unit: mag
+    description: Theoretical distance modulus.
+
+  angular_diameter_distance_Mpc:
+    expression: "luminosity_distance_Mpc / (1.0 + z)**2"
+    unit: Mpc
+    description: Angular-diameter distance.
+
+  comoving_distance_Mpc:
+    expression: "luminosity_distance_Mpc / (1.0 + z)"
+    unit: Mpc
+    description: Line-of-sight comoving distance.
+
+  Hubble_rate:
+    expression: "H_z"
+    unit: km s^-1 Mpc^-1
+    description: Hubble expansion rate.
+
+  sound_horizon_Mpc:
+    expression: >-
+      c_km_s / sqrt(3.0) / H0
+      * integral(
+          1.0 / (
+            E_z * sqrt(
+              1.0
+              + 3.0 * Ob0 / (4.0 * Or0 * (1.0 + z))
+            )
+          ),
+          z,
+          z_rec,
+          1.0e7
+        )
+    unit: Mpc
+    description: >-
+      Background sound-horizon representation. Photon opacity is tied to
+      bare baryons; native perturbations separately declare relational
+      inertial loading.
+
+derived:
+  relational_density_factor:
+    expression: "Xr_z"
+    description: Relational inertia ratio.
+
+  effective_gravitating_baryon_density:
+    expression: "Ob0 * (1.0 + Xr_z)"
+    description: Effective baryonic gravitational source fraction.
+
+  relational_density:
+    expression: "Ob0 * Xr_z"
+    description: Effective relational response density fraction.
+
+  flatness_residual:
+    expression: "1.0 - Or0 - Ob0 * (1.0 + Xr0)"
+    description: Present-day flatness residual implied by fitted parameters.
+
+likelihood:
+  sne:
+    observable: distance_modulus
+    nuisance:
+      absolute_magnitude: M_abs
+  bao:
+    H_z: Hubble_rate
+    D_M: comoving_distance_Mpc
+    D_A: angular_diameter_distance_Mpc
+    D_V: "((c_km_s * z * comoving_distance_Mpc**2 / H_z))**(1.0 / 3.0)"
+    r_s: sound_horizon_Mpc
+  cmb:
+    enabled: true
 
 cmb:
   backend: camb
   param_map:
     H0: H0
-    ombh2: Omega_b * (H0 / 100)**2
-    omch2: Omega_b * X_r * (H0 / 100)**2
+    ombh2: "Ob0 * (H0 / 100.0)**2"
+    omch2: "Ob0 * Xr0 * (H0 / 100.0)**2"
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-    Neff: Neff
+    Neff: 3.046
     num_massive_neutrinos: 3
     sum_mnu: 0.06
   grids:
@@ -549,17 +1062,20 @@ cmb:
       points: 256
       spacing: linear
   values:
-    x_torg:
+    Xr_a:
       grid: a_grid
-      expression: (a / a_T)**3
+      expression: >-
+        Xr0 * (
+          1.0 / (1.0 + ((1.0 / a - 1.0) / (1.0 + zt))**beta)
+        ) * a**gamma_r
     w_torg:
       grid: a_grid
-      expression: -1 - x_torg * exp(-x_torg) / (1 - exp(-x_torg))
+      expression: "-1 - Xr_a / (1.0 + Xr_a)"
   calls:
     - method: set_dark_energy_w_a
       args:
-        a: '@grid.a_grid'
-        w: '@value.w_torg'
+        a: "@grid.a_grid"
+        w: "@value.w_torg"
       kwargs:
         dark_energy_model: ppf
   perturbations:
@@ -574,20 +1090,32 @@ cmb:
     validity:
       regimes:
         - standard_camb_with_declared_background_adapter
-      notes: Uses standard backend perturbations with the model's declared
+      notes: >-
+        Uses standard backend perturbations with the model's declared
         background adapter contract.
     backend_mapping:
       camb:
         uses_standard_perturbations: true
     notes: >-
-      Native non-standard perturbation equations are not declared in this model
-      file.
-notes: >-
-  Implementation note: this YAML tests the background-limit TORG model
-  with the current Copernican CAMB adapter. The omch2 channel represents
-  Omega_b * X_r relational inertia, not particle cold dark matter. The
-  set_dark_energy_w_a call represents temporal activation through a
-  CAMB-compatible w(a) table, not fundamental dark energy. A future
-  native TORG perturbation backend should replace this adapter
-  representation with explicit relational-inertia and temporal-response
-  perturbation equations.
+      Native non-standard perturbation equations are not declared in this
+      model file.
+
+validation:
+  expected_limits:
+    local_newtonian:
+      condition: "screening -> 0"
+      poisson: "nabla2_Phi = 4*pi*G*rho_b"
+    cosmological_linear:
+      condition: "screening -> 1"
+      poisson: "k**2*Phi = 4*pi*G*a**2*rho_b*(1+Xr)*delta_b"
+  falsifiability:
+    - >-
+      If no fitted X_r(a) can simultaneously support SNe, BAO, and CMB
+      observables without an independent dark sector, the background theory
+      fails.
+    - >-
+      If a native perturbation solver cannot reproduce CMB structure without
+      independent CDM perturbations, the first-order perturbation ansatz fails.
+    - >-
+      If local screened systems require the unscreened cosmological X_r
+      enhancement, the recovery limit fails.

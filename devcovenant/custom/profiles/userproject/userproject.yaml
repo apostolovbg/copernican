@@ -29,7 +29,7 @@ project-governance:
   changelog_file: CHANGELOG.md
 policy_overlays:
   documentation-growth-tracking:
-    user_facing_exclude_dirs:
+    user_facing_exclude_globs:
       - models/**
   read-only-directories:
     include_prefixes:
