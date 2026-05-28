@@ -138,10 +138,11 @@ BAO and CMB analyses reuse the sampler output. BAO observables are computed
 from maximum-posterior parameters and logged alongside residual norms so
 operators can monitor fit quality as plots render. CMB spectra pull additional
 adapter-provided constants from `cmb.param_map` when present, validate the
-declared `cmb.perturbations` contract, and stream TT/TE/EE residual
-statistics to the console. Both stages respect dataset independence
-statements stored in :mod:`copernican_lib.dataset_registry` so assumptions
-remain explicit in manifests and plots.
+declared `cmb.perturbations` contract, compile the typed perturbation IR and
+stream TT/TE/EE residual statistics to the console. Both stages respect
+dataset independence statements stored in
+:mod:`copernican_lib.dataset_registry` so assumptions remain explicit in
+manifests and plots.
 
 ### Stage 5 visualisation
 
@@ -188,7 +189,9 @@ perturbation contracts for engines that compute spectra. The interface
 includes required attributes and functions listed in
 :mod:`copernican_lib.engine_adapter`; validation errors identify missing hooks
 and incompatible contracts, preventing engines from receiving incomplete
-models. Posterior evaluation routes through
+models. The perturbation compiler produces a typed IR that records the
+declared derivative equations, derived symbols and backend mapping before any
+scientific execution begins. Posterior evaluation routes through
 :func:`copernican_lib.posterior.make_logposterior`, which merges priors,
 transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.

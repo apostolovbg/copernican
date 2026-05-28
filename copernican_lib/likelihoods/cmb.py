@@ -24,7 +24,7 @@ import camb
 import numpy
 import pandas
 
-from ..engine_adapter import CMB_BACKEND_CAPABILITIES
+from ..cmb_backend_registry import validate_native_perturbation_execution
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
@@ -174,24 +174,31 @@ def _normalise_camb_contract(
     }
 
 
+def _is_structured_camb_background_contract(
+    contract_or_params: Mapping[str, Any],
+) -> bool:
+    """Return ``True`` when ``contract_or_params`` uses the CAMB adapter."""
+
+    keys = {str(key) for key in contract_or_params.keys()}
+    required = {"backend", "calls", "grids", "param_map", "values"}
+    return required.issubset(keys)
+
+
 def _is_structured_camb_contract(
     contract_or_params: Mapping[str, Any],
 ) -> bool:
-    """Return ``True`` when ``contract_or_params`` uses the new contract."""
+    """Return ``True`` when ``contract_or_params`` includes perturbations."""
 
     keys = {str(key) for key in contract_or_params.keys()}
-    return bool(
-        keys.intersection(
-            {
-                "backend",
-                "calls",
-                "grids",
-                "param_map",
-                "perturbations",
-                "values",
-            }
-        )
-    )
+    required = {
+        "backend",
+        "calls",
+        "grids",
+        "param_map",
+        "perturbations",
+        "values",
+    }
+    return required.issubset(keys)
 
 
 def _combine_camb_contracts(
@@ -219,9 +226,6 @@ def _validate_camb_perturbation_execution(
 
     model_name = contract.get("model_name", "unknown model")
     backend = str(contract.get("backend", "camb"))
-    backend_capabilities = CMB_BACKEND_CAPABILITIES.get(backend, {})
-    if not isinstance(backend_capabilities, Mapping):
-        backend_capabilities = {}
 
     standard = perturbations.get("standard")
     if not isinstance(standard, bool):
@@ -234,25 +238,19 @@ def _validate_camb_perturbation_execution(
     if isinstance(backend_mapping, Mapping):
         backend_entry = backend_mapping.get(backend, {}) or {}
 
-    if not backend_capabilities.get("native_nonstandard_perturbations", False):
-        raise ValueError(
-            "Model "
-            f"'{model_name}' declares non-standard perturbations for backend "
-            f"'{backend}' (standard={standard}), but the backend capability "
-            "registry does not support native non-standard perturbations. "
-            "A native backend implementation is required."
-        )
+    solver = None
+    implemented = None
+    if isinstance(backend_entry, Mapping):
+        solver = backend_entry.get("solver")
+        implemented = backend_entry.get("implemented")
 
-    if not isinstance(backend_entry, Mapping) or not backend_entry.get(
-        "implemented", False
-    ):
-        raise ValueError(
-            "Model "
-            f"'{model_name}' declares non-standard perturbations for backend "
-            f"'{backend}' (standard={standard}), but the declared backend "
-            "mapping does not mark a native implementation as available. "
-            "A native backend implementation is required."
-        )
+    validate_native_perturbation_execution(
+        model_name=str(model_name),
+        backend=backend,
+        standard=standard,
+        solver=solver if isinstance(solver, str) else None,
+        implemented=implemented if isinstance(implemented, bool) else None,
+    )
 
 
 def _make_camb_params(
@@ -611,6 +609,12 @@ def compute_camb_background_observables(
     behaviour.
     """
 
+    if not _is_structured_camb_background_contract(contract_or_params):
+        raise ValueError(
+            "Structured CAMB background contracts must include backend, "
+            "param_map, grids, values and calls"
+        )
+
     if _fake_cmb_enabled() or _FAKE_CMB_PROVIDER is not None:
         logger = logging.getLogger()
         logger.info(
@@ -620,31 +624,7 @@ def compute_camb_background_observables(
         z_arr = numpy.asarray(redshifts, dtype=float)
         return _fake_background_payload(z_arr)
 
-    if _is_structured_camb_contract(contract_or_params):
-        return _compute_camb_background_direct(contract_or_params, redshifts)
-
-    z_arr = numpy.asarray(redshifts, dtype=float)
-    z_tuple = tuple(
-        float(f"{float(value):.{_CACHE_PRECISION}g}") for value in z_arr
-    )
-    items = _normalise_items(contract_or_params)
-    (
-        rs_drag,
-        comoving_distance_tuple,
-        hubble_distance_tuple,
-        angular_distance_tuple,
-        volume_average_distance_tuple,
-        hubble_parameter_tuple,
-    ) = _cached_background(("background", items, z_tuple))
-    return {
-        "rs_drag": float(rs_drag),
-        "DM": numpy.asarray(comoving_distance_tuple, dtype=float),
-        "DH": numpy.asarray(hubble_distance_tuple, dtype=float),
-        "DA": numpy.asarray(angular_distance_tuple, dtype=float),
-        "DV": numpy.asarray(volume_average_distance_tuple, dtype=float),
-        "Hz": numpy.asarray(hubble_parameter_tuple, dtype=float),
-        "z": numpy.asarray(z_tuple, dtype=float),
-    }
+    return _compute_camb_background_direct(contract_or_params, redshifts)
 
 
 def describe_camb_configuration() -> dict[str, Any]:
@@ -683,6 +663,11 @@ def compute_cmb_spectrum_from_dict(
     scientific fidelity.
     """
 
+    if not _is_structured_camb_contract(contract_or_params):
+        raise ValueError(
+            "Structured CAMB contracts must include perturbations"
+        )
+
     logger = logging.getLogger()
     fake_provider = _FAKE_CMB_PROVIDER
     if fake_provider is not None:
@@ -702,25 +687,12 @@ def compute_cmb_spectrum_from_dict(
         return result
 
     try:
-        if _is_structured_camb_contract(contract_or_params):
-            _validate_camb_perturbation_execution(contract_or_params)
-            return _compute_cmb_spectrum_direct(
-                contract_or_params,
-                ells,
-                spectra=spectra,
-            )
-
-        ell_arr = numpy.asarray(list(ells), dtype=int)
-        if ell_arr.size == 0:
-            raise ValueError("ells must not be empty")
-        items = _normalise_items(contract_or_params)
-        lmax = int(ell_arr.max())
-        cache_key = ("dict", items, lmax, tuple(sorted(spectra)))
-        full = _cached_cmb(cache_key)
-        result = {spec: full[spec][ell_arr] for spec in spectra}
-        if len(result) == 1:
-            return next(iter(result.values()))
-        return result
+        _validate_camb_perturbation_execution(contract_or_params)
+        return _compute_cmb_spectrum_direct(
+            contract_or_params,
+            ells,
+            spectra=spectra,
+        )
     except (
         AttributeError,
         ImportError,
@@ -730,6 +702,57 @@ def compute_cmb_spectrum_from_dict(
         ValueError,
     ) as exc:
         logger.error("(compute_cmb_spectrum_from_dict): %s", exc)
+        raise
+
+
+def compute_cmb_spectrum_from_legacy_params_for_tests(
+    param_dict: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    spectra: Sequence[str] = ("TT",),
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
+    """Test-only legacy helper that accepts flat CAMB parameter mappings."""
+
+    logger = logging.getLogger()
+    fake_provider = _FAKE_CMB_PROVIDER
+    if fake_provider is not None:
+        logger.info(
+            "(compute_cmb_spectrum_from_legacy_params_for_tests): Using "
+            "injected CMB stub provider",
+        )
+        fake = fake_provider(param_dict, ells, spectra=spectra)
+        return _coerce_fake_output(fake, spectra)
+
+    if _fake_cmb_enabled():
+        ell_arr = numpy.asarray(list(ells), dtype=int)
+        template = _FAKE_CMB_BASELINE / (ell_arr + _FAKE_CMB_OFFSET)
+        result = {spec: template.copy() for spec in spectra}
+        if len(result) == 1:
+            return template
+        return result
+
+    try:
+        ell_arr = numpy.asarray(list(ells), dtype=int)
+        if ell_arr.size == 0:
+            raise ValueError("ells must not be empty")
+        legacy_contract = _normalise_camb_contract(param_dict)
+        result = _compute_cmb_spectrum_direct(
+            legacy_contract,
+            ell_arr,
+            spectra=spectra,
+        )
+        return result
+    except (
+        AttributeError,
+        ImportError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        logger.error(
+            "(compute_cmb_spectrum_from_legacy_params_for_tests): %s", exc
+        )
         raise
 
 
@@ -743,10 +766,9 @@ def compute_cmb_spectrum_cached(
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
     get_contract = getattr(plugin, "get_camb_contract", None)
-    if callable(get_contract):
-        camb_params = get_contract(cosmo_params)
-    else:
-        camb_params = plugin.get_camb_params(cosmo_params)
+    if not callable(get_contract):
+        raise ValueError("Model plugin does not expose a CAMB contract")
+    camb_params = get_contract(cosmo_params)
     get_perturbation_contract = getattr(
         plugin, "get_cmb_perturbation_contract", None
     )
@@ -766,7 +788,7 @@ def compute_cmb_spectrum(
     *,
     spectra: Sequence[str] = ("TT",),
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
-    r"""Backward-compatible wrapper accepting a CAMB parameter dictionary."""
+    r"""Return spectra using a structured CAMB contract."""
 
     return compute_cmb_spectrum_from_dict(param_dict, ells, spectra=spectra)
 
@@ -953,4 +975,5 @@ __all__ = [
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_legacy_params_for_tests",
 ]

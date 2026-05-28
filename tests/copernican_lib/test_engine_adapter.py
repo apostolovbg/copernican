@@ -34,6 +34,9 @@ class TestEngineAdapterExports(unittest.TestCase):
                 engine_adapter.EnginePlugin, "get_cmb_perturbation_contract"
             )
         )
+        self.assertTrue(
+            hasattr(engine_adapter.EnginePlugin, "get_cmb_perturbation_ir")
+        )
         self.assertTrue(hasattr(engine_adapter, "CMB_BACKEND_CAPABILITIES"))
         self.assertIn("EnginePlugin", engine_adapter.__all__)
         self.assertIn("validate_plugin", engine_adapter.__all__)

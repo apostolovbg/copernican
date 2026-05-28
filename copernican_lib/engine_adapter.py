@@ -77,6 +77,7 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "CMB_PARAM_MAP",
     "CMB_PERTURBATION_CONTRACT",
     "CMB_PERTURBATION_STANDARD",
+    "CMB_PERTURBATION_IR",
 ]
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
@@ -708,11 +709,15 @@ def _validate_camb_contract_definition(
     background_reference_names = set(param_map_keys)
     background_reference_names.update(grid_symbols.values())
     background_reference_names.update(value_names)
-    _validate_cmb_perturbation_definition(
+    from .perturbation_contract import compile_perturbation_contract
+
+    compile_perturbation_contract(
         perturbations,
+        model_name=str(contract.get("model_name", "unknown model")),
+        backend=_SUPPORTED_CMB_BACKEND,
         parameter_names=parameter_names,
         latex_names=latex_names,
-        background_reference_names=background_reference_names,
+        background_reference_names=tuple(background_reference_names),
     )
 
 
@@ -725,8 +730,17 @@ def _validate_cmb_perturbation_definition(
 ) -> None:
     """Validate the declared CMB perturbation contract."""
 
-    if not isinstance(perturbations, Mapping):
-        raise ValueError("cmb.perturbations must be a mapping")
+    from .perturbation_contract import compile_perturbation_contract
+
+    compile_perturbation_contract(
+        perturbations,
+        model_name="unknown model",
+        backend=_SUPPORTED_CMB_BACKEND,
+        parameter_names=parameter_names,
+        latex_names=latex_names,
+        background_reference_names=tuple(background_reference_names),
+    )
+    return
 
     perturbation_keys = {str(key) for key in perturbations.keys()}
     missing_keys = {
@@ -1320,6 +1334,7 @@ class EnginePlugin:
     CMB_PARAM_MAP: Mapping[str, Any]
     CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
     CMB_PERTURBATION_STANDARD: bool
+    CMB_PERTURBATION_IR: Any
     LIKELIHOOD_CONFIG: Mapping[str, Any]
     MODEL_EQUATIONS_LATEX_SN: tuple[str, ...]
     MODEL_EQUATIONS_LATEX_BAO: tuple[str, ...]
@@ -1422,6 +1437,15 @@ class EnginePlugin:
         )
         return contract
 
+    def get_cmb_perturbation_ir(self, values: Sequence[float]) -> Any:
+        """Return the compiled CMB perturbation IR."""
+
+        del values
+        perturbation_ir = getattr(self, "CMB_PERTURBATION_IR", None)
+        if perturbation_ir is None:
+            raise ValueError("Model does not declare a CMB perturbation IR")
+        return perturbation_ir
+
 
 def sanitize_equation(equation_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
@@ -1514,6 +1538,32 @@ def build_engine_plugin(
     ) = _prepare_priors(params)
 
     likelihood_config = model_data.get("likelihood", {}) or {}
+    cmb_contract = model_data.get("cmb", {}) or {}
+    perturbation_contract = cmb_contract.get("perturbations", {}) or {}
+    background_reference_names = {
+        str(key) for key in (cmb_contract.get("param_map", {}) or {})
+    }
+    for grid_def in (cmb_contract.get("grids", {}) or {}).values():
+        if isinstance(grid_def, Mapping):
+            symbol = grid_def.get("symbol")
+            if isinstance(symbol, str) and symbol.strip():
+                background_reference_names.add(symbol.strip())
+    background_reference_names.update(
+        str(key) for key in (cmb_contract.get("values", {}) or {})
+    )
+
+    perturbation_ir = None
+    if model_data.get("valid_for_cmb", True):
+        from .perturbation_contract import compile_perturbation_contract
+
+        perturbation_ir = compile_perturbation_contract(
+            perturbation_contract,
+            model_name=model_data.get("model_name", "GeneratedModel"),
+            backend=cmb_contract.get("backend", _SUPPORTED_CMB_BACKEND),
+            parameter_names=names,
+            latex_names=latex_names,
+            background_reference_names=tuple(background_reference_names),
+        )
 
     extras: MutableMapping[str, Any] = {}
     known_names = set(REQUIRED_FUNCTIONS).union(_OPTIONAL_FUNCTIONS)
@@ -1548,14 +1598,11 @@ def build_engine_plugin(
         ),
         valid_for_bao=model_data.get("valid_for_bao", True),
         valid_for_cmb=model_data.get("valid_for_cmb", True),
-        CMB_CONTRACT=model_data.get("cmb", {}),
-        CMB_PARAM_MAP=model_data.get("cmb", {}).get("param_map", {}),
-        CMB_PERTURBATION_CONTRACT=model_data.get("cmb", {}).get(
-            "perturbations", {}
-        ),
-        CMB_PERTURBATION_STANDARD=model_data.get("cmb", {})
-        .get("perturbations", {})
-        .get("standard", False),
+        CMB_CONTRACT=cmb_contract,
+        CMB_PARAM_MAP=cmb_contract.get("param_map", {}),
+        CMB_PERTURBATION_CONTRACT=perturbation_contract,
+        CMB_PERTURBATION_STANDARD=perturbation_contract.get("standard", False),
+        CMB_PERTURBATION_IR=perturbation_ir,
         LIKELIHOOD_CONFIG=likelihood_config,
         MODEL_EQUATIONS_LATEX_SN=sne_eqs,
         MODEL_EQUATIONS_LATEX_BAO=bao_eqs,
@@ -1640,6 +1687,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
                 "get_camb_params",
                 "get_camb_contract",
                 "get_cmb_perturbation_contract",
+                "get_cmb_perturbation_ir",
             ]
         )
 
@@ -1669,6 +1717,8 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
             bool,
         ):
             errors.append("CMB_PERTURBATION_STANDARD must be boolean")
+        if getattr(plugin, "CMB_PERTURBATION_IR", None) is None:
+            errors.append("CMB_PERTURBATION_IR must be present")
 
     try:
         _validate_plugin_cmb_contract(plugin)

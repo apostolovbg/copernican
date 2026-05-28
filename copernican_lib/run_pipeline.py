@@ -488,7 +488,9 @@ def execute_run_pipeline(
             if callable(get_camb_contract):
                 camb_params = get_camb_contract(cosmo_params)
             else:
-                camb_params = model_plugin.get_camb_params(cosmo_params)
+                raise AttributeError(
+                    "Model plugin does not expose a CAMB contract"
+                )
             get_perturbation_contract = getattr(
                 model_plugin,
                 "get_cmb_perturbation_contract",

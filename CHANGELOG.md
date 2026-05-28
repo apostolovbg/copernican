@@ -1,12 +1,12 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.14
+**Project Version:** 12.0.15
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -76,6 +76,49 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.15
+
+- 2026-05-28 [semver:patch]:
+  Change: Hardened perturbation-contract symbol coverage and restored the
+    changelog snapshot hierarchy for the current session.
+  Why: Preserve the prior top entry unchanged below the new session entry
+    and validate the exported perturbation IR surface explicitly.
+  Impact: Record explicit symbol assertions and preserve the prior top
+    entry unchanged while keeping the current session's file set accounted
+    for.
+  Files:
+  CHANGELOG.md
+  AGENTS.md
+  CONTRIBUTING.md
+  README.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/cmb_backend_registry.py
+  copernican_lib/VERSION
+  copernican_lib/engine_adapter.py
+  copernican_lib/likelihoods/__init__.py
+  copernican_lib/likelihoods/bao.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/perturbation_contract.py
+  copernican_lib/run_manifest.py
+  copernican_lib/run_pipeline.py
+  copernican_lib/statistics.py
+  cosmo_model_template.yml
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/run_manifest.md
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_cmb_backend_registry.py
+  tests/copernican_lib/test_core.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_likelihoods.py
+  tests/copernican_lib/test_perturbation_contract.py
+  tests/copernican_lib/test_plugins.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/engines/test_cosmo_engine_mcmc.py
 
 ## Version 12.0.14
 

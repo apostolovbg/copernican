@@ -1,12 +1,12 @@
 # Project Plan
 **Doc ID:** PLAN
 **Doc Type:** project-plan
-**Project Version:** 12.0.14
+**Project Version:** 12.0.15
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
 ## Overview

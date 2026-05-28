@@ -96,6 +96,16 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     for plugin in camb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
         perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
+        perturbation_ir = getattr(plugin, "CMB_PERTURBATION_IR", None)
+        dependency_summary = getattr(
+            perturbation_ir, "dependency_graph_summary", None
+        )
+        backend_mapping_ir = getattr(perturbation_ir, "backend_mapping", {})
+        backend_mapping_camb = (
+            backend_mapping_ir.get("camb", {})
+            if hasattr(backend_mapping_ir, "get")
+            else {}
+        )
         param_map = contract.get("param_map", {}) or {}
         grids = contract.get("grids", {}) or {}
         values = contract.get("values", {}) or {}
@@ -121,30 +131,73 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 ],
                 "grids": grid_meta,
                 "value_names": [str(key) for key in values],
-                "perturbation_contract_version": perturbations.get(
-                    "contract_version"
+                "perturbation_contract_version": getattr(
+                    perturbation_ir, "contract_version", None
                 ),
-                "perturbation_standard": perturbations.get("standard"),
-                "perturbation_gauge": perturbations.get("gauge"),
+                "perturbation_standard": getattr(
+                    perturbation_ir, "standard", perturbations.get("standard")
+                ),
+                "perturbation_gauge": getattr(
+                    perturbation_ir, "gauge", perturbations.get("gauge")
+                ),
                 "perturbation_variable_names": sorted(
                     str(key)
-                    for key in (perturbations.get("variables", {}) or {})
+                    for key in (
+                        getattr(perturbation_ir, "variables", {}) or {}
+                    )
                 ),
                 "perturbation_derived_names": sorted(
                     str(key)
-                    for key in (perturbations.get("derived", {}) or {})
+                    for key in (getattr(perturbation_ir, "derived", {}) or {})
                 ),
                 "perturbation_equation_names": sorted(
                     str(key)
-                    for key in (perturbations.get("equations", {}) or {})
+                    for key in (
+                        getattr(perturbation_ir, "equations", {}) or {}
+                    )
                 ),
                 "perturbation_closure_names": sorted(
                     str(key)
-                    for key in (perturbations.get("closures", {}) or {})
+                    for key in (getattr(perturbation_ir, "closures", {}) or {})
                 ),
                 "perturbation_source_names": sorted(
                     str(key)
-                    for key in (perturbations.get("sources", {}) or {})
+                    for key in (getattr(perturbation_ir, "sources", {}) or {})
+                ),
+                "perturbation_independent_variables_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "independent_variables_used", ()
+                    )
+                ),
+                "perturbation_model_parameters_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "model_parameters_used", ()
+                    )
+                ),
+                "perturbation_background_references_used": sorted(
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "background_references_used", ()
+                    )
+                ),
+                "perturbation_backend": getattr(
+                    perturbation_ir, "backend", contract.get("backend")
+                ),
+                "perturbation_backend_solver": getattr(
+                    backend_mapping_camb, "solver", None
+                ),
+                "perturbation_backend_implemented": getattr(
+                    backend_mapping_camb, "implemented", None
+                ),
+                "perturbation_backend_uses_standard_perturbations": getattr(
+                    backend_mapping_camb,
+                    "uses_standard_perturbations",
+                    None,
+                ),
+                "perturbation_backend_native_solver_required": getattr(
+                    backend_mapping_camb, "native_solver_required", None
                 ),
                 "perturbation_backend_mapping_summary": {
                     str(backend_name): (

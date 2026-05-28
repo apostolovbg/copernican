@@ -64,7 +64,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Prepare a ΛCDM plugin for evaluating CAMB helpers."""
+        """Prepare a reference plugin for evaluating CAMB helpers."""
 
         repo_root = Path(__file__).resolve().parents[3]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
@@ -79,7 +79,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
     def test_background_observables_match_input_length(self) -> None:
         """Background helper should return one entry per requested redshift."""
 
-        params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
+        params = self.plugin.get_camb_contract(self.plugin.INITIAL_GUESSES)
         redshifts = numpy.array([0.15, 0.35, 0.57])
         background = cmb.compute_camb_background_observables(params, redshifts)
 
@@ -92,7 +92,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
     def test_background_cache_collapses_duplicate_redshifts(self) -> None:
         """Repeated redshifts should produce identical background distances."""
 
-        params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
+        params = self.plugin.get_camb_contract(self.plugin.INITIAL_GUESSES)
         redshifts = numpy.array([0.35, 0.35, 0.60])
         background = cmb.compute_camb_background_observables(params, redshifts)
 
@@ -124,9 +124,16 @@ class CMBBackgroundTestCase(unittest.TestCase):
         redshifts = numpy.array([0.15, 0.60, 1.0])
 
         helper_background = cmb.compute_camb_background_observables(
-            custom_params, redshifts
+            {
+                "backend": "camb",
+                "param_map": custom_params,
+                "grids": {},
+                "values": {},
+                "calls": [],
+            },
+            redshifts,
         )
-        helper_cls = cmb.compute_cmb_spectrum_from_dict(
+        helper_cls = cmb.compute_cmb_spectrum_from_legacy_params_for_tests(
             custom_params, ell_range, spectra=("TT", "EE", "TE")
         )
 
@@ -454,23 +461,52 @@ class CMBBackgroundTestCase(unittest.TestCase):
                         "delta_x": {
                             "kind": "density_contrast",
                             "description": "Example density perturbation.",
-                        }
+                        },
+                        "theta_x": {
+                            "kind": "velocity_divergence",
+                            "description": "Example velocity perturbation.",
+                        },
+                        "rho_x": {
+                            "kind": "background_density",
+                            "description": "Example density source.",
+                        },
+                        "sigma_x": {
+                            "kind": "anisotropic_stress",
+                            "description": "Example stress source.",
+                        },
                     },
                     "derived": {
+                        "Phi_tau": {
+                            "kind": "derivative_symbol",
+                            "variable": "Phi",
+                            "wrt": "tau",
+                            "order": 1,
+                            "description": "First conformal-time derivative.",
+                        },
                         "delta_rho_eff": {
-                            "expression": "delta_x",
-                        }
+                            "expression": "rho_x * delta_x",
+                        },
                     },
                     "equations": {
                         "continuity_x": {
-                            "lhs": "delta_x",
-                            "rhs": "-theta_x + 3 * Phi",
+                            "lhs": {
+                                "kind": "derivative",
+                                "variable": "delta_x",
+                                "wrt": "tau",
+                                "order": 1,
+                            },
+                            "rhs": "-theta_x + 3 * Phi_tau",
                         }
                     },
-                    "closures": {},
+                    "closures": {
+                        "no_anisotropic_stress": {
+                            "expression": "sigma_x",
+                            "equals": "0",
+                        }
+                    },
                     "sources": {
                         "poisson": {
-                            "expression": "delta_x",
+                            "expression": "delta_rho_eff + delta_x + theta_x",
                         }
                     },
                     "validity": {
@@ -480,6 +516,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     "backend_mapping": {
                         "camb": {
                             "native_solver_required": True,
+                            "solver": "template_native_solver",
                             "implemented": False,
                         }
                     },
@@ -496,6 +533,70 @@ class CMBBackgroundTestCase(unittest.TestCase):
         like = cmb.CMBLike(cmb_df, NonStandardPlugin())
         self.assertEqual(like.loglike([68.0]), float("-inf"))
 
+    def test_compute_cmb_spectrum_from_dict_rejects_flat_params(self) -> None:
+        """Scientific spectrum helpers must reject flat parameter maps."""
+
+        with self.assertRaises(ValueError):
+            cmb.compute_cmb_spectrum_from_dict(
+                {"H0": 68.0, "ombh2": 0.022},
+                numpy.array([2, 3, 4]),
+            )
+
+    def test_legacy_helper_accepts_flat_params(self) -> None:
+        """The legacy-only helper still accepts flat parameter maps."""
+
+        spectrum = cmb.compute_cmb_spectrum_from_legacy_params_for_tests(
+            {
+                "H0": 68.0,
+                "ombh2": 0.022,
+                "omch2": 0.12,
+                "tau": 0.054,
+                "As": 2.1e-9,
+                "ns": 0.965,
+            },
+            numpy.array([2, 3, 4]),
+        )
+        self.assertEqual(spectrum.shape, (3,))
+
+    def test_fake_cmb_mode_still_works(self) -> None:
+        """The fake-CMB path still returns a deterministic spectrum."""
+
+        contract = {
+            "backend": "camb",
+            "param_map": {
+                "H0": 68.0,
+                "ombh2": 0.022,
+                "omch2": 0.12,
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "perturbations": {
+                "contract_version": 1,
+                "standard": True,
+                "gauge": "unspecified",
+                "variables": {},
+                "derived": {},
+                "equations": {},
+                "closures": {},
+                "sources": {},
+                "validity": {},
+                "backend_mapping": {
+                    "camb": {
+                        "uses_standard_perturbations": True,
+                    }
+                },
+            },
+        }
+        with mock.patch.dict(os.environ, {"COPERNICAN_FAKE_CMB": "1"}):
+            spectrum = cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.array([2, 3, 4]),
+                spectra=("TT",),
+            )
+        self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
+        self.assertEqual(spectrum.shape, (3,))
+
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):
     """Expose the CMB helper API to the coverage policy."""
@@ -505,6 +606,9 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(cmb.compute_cmb_spectrum))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_from_dict))
+        self.assertTrue(
+            callable(cmb.compute_cmb_spectrum_from_legacy_params_for_tests)
+        )
         self.assertTrue(callable(cmb.describe_camb_configuration))
 
     def test_loglike_and_state_symbols_are_exposed(self) -> None:

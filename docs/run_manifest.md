@@ -12,10 +12,10 @@ until the operator confirms Start Run, at which point the manifest is finalised
 the datasets via `copernican_lib.run_config`, instantiates the chosen engine,
 and hands everything to `copernican_lib/run_pipeline.execute_run_pipeline` so
 the CLI and GUI share an identical sampling, diagnostics, plotting and export
-sequence. The executor also reconstructs both the ΛCDM reference plugin and the
-manifest’s alternative model directly from their YAML caches before sampling,
-ensuring every run reuses the exact symbolic definitions recorded in the
-manifest regardless of how the configuration was authored.
+sequence. The executor reconstructs the selected model plugins directly from
+their YAML caches before sampling, ensuring every run reuses the exact
+symbolic definitions recorded in the manifest regardless of how the
+configuration was authored.
 
 When editing via the GUI the Save Manifest page first writes the working
 configuration into
@@ -41,9 +41,10 @@ directories change.
   files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
   treated as statistically separate when building the joint posterior.
-- CMB adapter metadata summarising the backend contract and the perturbation
-  contract names, gauge, standard flag and backend mapping summary for each
-  CMB-capable model.
+- CMB adapter metadata summarising the backend contract plus the perturbation
+  contract summary, including the contract version, gauge, standard flag,
+  declared symbol names and backend mapping summary for each CMB-capable
+  model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
   burn-in, production steps, pool/core hints and nested-sampling parameters
   stay tied to the manifest that produced a run.
@@ -102,7 +103,7 @@ notebooks or cited in publications. Recording the suite version makes it clear
 which behaviour and documentation set applied to the run, especially when a
 development branch has diverged from the last tagged release.
 
-When both models point to the same YAML file the manifest will list matching
-`MODEL_FILENAME` entries. That shared marker indicates the Stage 2 workflow
-reused a single SNe posterior, keeping BAO and CMB chi-squared totals in lock
-step for LCDM self-consistency checks.
+When multiple selections point to the same YAML file the manifest will list
+matching `MODEL_FILENAME` entries. That shared marker indicates the Stage 2
+workflow reused a single posterior, keeping BAO and CMB chi-squared totals in
+lock step for same-model regression checks.

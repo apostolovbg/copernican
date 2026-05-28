@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import yaml
 
 from copernican_lib import run_manifest, utils
+from copernican_lib.perturbation_contract import PerturbationContractIR
 from copernican_lib.version import get_version
 
 
@@ -62,6 +63,46 @@ def _dummy_plugin():
             ),
         },
         CMB_PERTURBATION_STANDARD=True,
+        CMB_PERTURBATION_IR=PerturbationContractIR(
+            model_name="DummyModel",
+            backend="camb",
+            contract_version=1,
+            standard=True,
+            gauge="unspecified",
+            variables={
+                "delta_x": object(),
+            },
+            derived={
+                "Phi_tau": object(),
+            },
+            equations={
+                "continuity_x": object(),
+            },
+            closures={
+                "no_anisotropic_stress": object(),
+            },
+            sources={
+                "poisson": object(),
+            },
+            validity=SimpleNamespace(
+                regimes=("standard_camb",),
+                notes="Uses standard backend.",
+            ),
+            backend_mapping={
+                "camb": SimpleNamespace(
+                    uses_standard_perturbations=True,
+                    native_solver_required=None,
+                    solver=None,
+                    implemented=None,
+                )
+            },
+            dependency_graph_summary=SimpleNamespace(
+                independent_variables_used=("tau",),
+                model_parameters_used=("p1",),
+                background_references_used=("H0",),
+            ),
+            manifest_summary={},
+        ),
     )
 
 
@@ -131,14 +172,49 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(model_entry["perturbation_contract_version"], 1)
             self.assertTrue(model_entry["perturbation_standard"])
             self.assertEqual(model_entry["perturbation_gauge"], "unspecified")
-            self.assertEqual(model_entry["perturbation_variable_names"], [])
-            self.assertEqual(model_entry["perturbation_derived_names"], [])
-            self.assertEqual(model_entry["perturbation_equation_names"], [])
-            self.assertEqual(model_entry["perturbation_closure_names"], [])
-            self.assertEqual(model_entry["perturbation_source_names"], [])
+            self.assertEqual(
+                model_entry["perturbation_variable_names"],
+                ["delta_x"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_derived_names"],
+                ["Phi_tau"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_equation_names"],
+                ["continuity_x"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_closure_names"],
+                ["no_anisotropic_stress"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_source_names"],
+                ["poisson"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_independent_variables_used"],
+                ["tau"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_model_parameters_used"],
+                ["p1"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_background_references_used"],
+                ["H0"],
+            )
+            self.assertEqual(model_entry["perturbation_backend"], "camb")
+            self.assertIsNone(model_entry["perturbation_backend_solver"])
+            self.assertIsNone(model_entry["perturbation_backend_implemented"])
+            self.assertTrue(
+                model_entry["perturbation_backend_uses_standard_perturbations"]
+            )
+            self.assertIsNone(
+                model_entry["perturbation_backend_native_solver_required"]
+            )
             self.assertIn(
-                "camb",
-                model_entry["perturbation_backend_mapping_summary"],
+                "camb", model_entry["perturbation_backend_mapping_summary"]
             )
 
     def test_manifest_import_export_cycle(self) -> None:
