@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.17
+**Project Version:** 12.0.18
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,23 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.18
+
+- 2026-05-28 [semver:patch]:
+  Change: Added Union3 and SNe intercept-marginalization regression
+    coverage and aligned the versioned docs with the bumped release.
+  Why: Keep the analytic additive-intercept path covered while satisfying
+    version-governance and version-sync for the new release.
+  Impact: Locks the new unit coverage and the versioned docs to the
+    current session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_sne.py
 
 ## Version 12.0.17
 
