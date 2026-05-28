@@ -31,5 +31,8 @@ notes: >-
   node redshifts in the first row, the compressed distance modulus column, and
   the inverse covariance in the remaining block. BAO distances used in the
   UNITY fits are archived in `BAO_results.txt`, but the Copernican workflow only
-  requires the compressed distances and covariance. Additional processing
-  scripts and UNITY helpers live alongside the dataset for transparency.
+  requires the compressed distances and covariance. Copernican applies an
+  additive SNe intercept marginalization before comparing the compressed
+  distances to model distance moduli, while leaving the stored FITS values
+  untouched. Additional processing scripts and UNITY helpers live alongside
+  the dataset for transparency.

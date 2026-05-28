@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.16
+**Project Version:** 12.0.20
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -52,6 +52,9 @@ DevCovenant lifecycle and command behavior used by the project.
 - 2026-05-24: GUI file-manager open helpers use reviewed OS launch
   boundaries; keep launcher docs and changelog entries aligned when
   adjusting user-facing launch behavior.
+- 2026-05-28: Union3 compressed SNe inputs require additive intercept
+  marginalization; keep parser, likelihood, CSV export and plot residuals
+  aligned on that convention.
 
 <!-- DEVCOV-WORKFLOW:BEGIN -->
 
@@ -189,7 +192,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.16
+- Project Version: 12.0.20
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -1001,6 +1004,7 @@ user_facing_exclude_globs:
 - htmlcov/**
 - devcovenant/logs/**
 - devcovenant/registry/runtime/**
+- models/**
 - tests/**
 - devcovenant/**
 - tests/devcovenant/**
@@ -1018,7 +1022,6 @@ user_facing_exclude_files:
 - devcovenant/config.yaml
 user_facing_exclude_dirs:
 - tests/**
-- models/**
 force_include_files: []
 force_include_dirs: []
 ```
@@ -1341,6 +1344,10 @@ tests_watch_dirs:
 - tests
 mirror_roots:
 - devcovenant/custom=>tests/devcovenant/custom
+- data/bao=>tests/data/bao
+- data/cmb=>tests/data/cmb
+- data/gw=>tests/data/gw
+- data/sne=>tests/data/sne
 mirror_test_name_templates:
 - python=>test_{stem}.py
 - python=>{stem}_test.py
@@ -1682,12 +1689,17 @@ auto_fix: 'false'
 enforcement: active
 enabled: 'true'
 custom: 'false'
-include_globs: []
+include_globs:
+- data/**
 include_suffixes: []
-include_prefixes: []
+include_prefixes:
+- data
 exclude_suffixes: []
 exclude_prefixes: []
-exclude_globs: []
+exclude_globs:
+- data/**/cosmo_parser_*.py
+- data/**/metadata_*.yml
+- data/**/metadata_*.yaml
 force_include_globs: []
 selector_roles:
 - include

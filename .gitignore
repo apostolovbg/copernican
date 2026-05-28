@@ -59,7 +59,6 @@ site
 build
 
 # Profile: userproject
-data
 models/cache
 cache
 .matplotlib-cache

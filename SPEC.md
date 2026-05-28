@@ -1,7 +1,7 @@
 # Project Specification
 **Doc ID:** SPEC
 **Doc Type:** project-spec
-**Project Version:** 12.0.16
+**Project Version:** 12.0.20
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -21,6 +21,8 @@ It evaluates models against SNe Ia, BAO, and CMB observations.
   cosmetic drift checks.
 - Keep GUI folder-open actions on native OS handlers while preserving the
   existing launcher flow.
+- Keep Union3 compressed SNe handling aligned on additive intercept
+  marginalization across parser, likelihood and exported diagnostics.
 
 ## Repository Constraints
 - Do not edit managed DevCovenant blocks directly.

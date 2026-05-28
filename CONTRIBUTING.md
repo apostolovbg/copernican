@@ -1,7 +1,7 @@
 # Contributing
 **Doc ID:** CONTRIBUTING
 **Doc Type:** contributing-guide
-**Project Version:** 12.0.16
+**Project Version:** 12.0.20
 **Last Updated:** 2026-05-28
 **DevCovenant Version:** 1.0.1b6
 
@@ -17,6 +17,8 @@ Copernican contributions should preserve behavior, keep the mirrored test
 layout aligned with the source tree, and record changes in the changelog.
 The repository uses DevCovenant-managed gates, so contributor work must stay
 compatible with the active policy surface instead of bypassing it.
+Dataset parser changes should keep the parser, likelihood and exported
+diagnostics aligned when a dataset requires a special residual convention.
 
 ## Workflow
 1. Read `AGENTS.md` before making changes so the current repository rules are

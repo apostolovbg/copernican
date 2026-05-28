@@ -76,7 +76,9 @@ fields are preserved and can be used by new engines or analysis scripts.
   so the loaders attach them once the compressed FITS is parsed.
 - Use the `notes` field to explain that `mu_mat_union3_cosmo=2_mu.fits`
   contains the redshift nodes, compressed distance modulus column and inverse
-  covariance block consumed by `cosmo_parser_union3.py`.
+  covariance block consumed by `cosmo_parser_union3.py`. If the dataset
+  requires an additive SNe intercept treatment, say so explicitly so the
+  likelihood can marginalize it before residual comparison.
 - Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt)
   whenever spelling out the dataset's usage terms in release notes or
   documentation.

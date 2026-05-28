@@ -19,6 +19,55 @@ import pandas
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
+def compute_sne_intercept_delta(
+    residuals: numpy.ndarray,
+    *,
+    covariance_matrix_inv: numpy.ndarray | None = None,
+    diag_errors: numpy.ndarray | None = None,
+) -> float:
+    """Return the additive intercept that minimizes SNe residuals."""
+
+    residual_vector = numpy.asarray(residuals, dtype=float)
+    if residual_vector.ndim != 1:
+        raise ValueError("SNe residual vector must be one-dimensional.")
+    if not numpy.all(numpy.isfinite(residual_vector)):
+        raise ValueError("SNe residual vector must be finite.")
+
+    if covariance_matrix_inv is not None:
+        cov_inv = numpy.asarray(covariance_matrix_inv, dtype=float)
+        if cov_inv.ndim != 2 or cov_inv.shape[0] != cov_inv.shape[1]:
+            raise ValueError("SNe covariance inverse must be square.")
+        if cov_inv.shape[0] != residual_vector.size:
+            raise ValueError("SNe covariance mismatch for intercept fit.")
+        ones = numpy.ones(residual_vector.size, dtype=float)
+        numerator = float(ones @ cov_inv @ residual_vector)
+        denominator = float(ones @ cov_inv @ ones)
+        if not numpy.isfinite(denominator) or denominator == 0.0:
+            raise ValueError("SNe intercept denominator is invalid.")
+        delta_mu = -numerator / denominator
+        if not numpy.isfinite(delta_mu):
+            raise ValueError("SNe intercept delta is invalid.")
+        return float(delta_mu)
+
+    if diag_errors is None:
+        raise ValueError("SNe diagonal errors are required for intercept fit.")
+
+    errors = numpy.asarray(diag_errors, dtype=float)
+    if errors.ndim != 1 or errors.size != residual_vector.size:
+        raise ValueError("SNe diagonal errors mismatch for intercept fit.")
+    errors = numpy.where(
+        ~numpy.isfinite(errors) | (errors <= 0), 1e-12, errors
+    )
+    weights = 1.0 / (errors**2)
+    denominator = float(numpy.sum(weights))
+    if not numpy.isfinite(denominator) or denominator == 0.0:
+        raise ValueError("SNe intercept denominator is invalid.")
+    delta_mu = -float(numpy.sum(weights * residual_vector)) / denominator
+    if not numpy.isfinite(delta_mu):
+        raise ValueError("SNe intercept delta is invalid.")
+    return float(delta_mu)
+
+
 @dataclass(slots=True)
 class SNeLike(LikelihoodProtocol):
     """Evaluate the Supernova Ia log-likelihood for a given dataset."""
@@ -91,6 +140,7 @@ class SNeLike(LikelihoodProtocol):
     def loglike(self, params: Sequence[float]) -> float:
         """Return the log-likelihood for ``params`` with the stored data."""
 
+        observations_df = self.observations
         logger = logging.getLogger()
         if not self.enabled:
             self._state = LikelihoodState(chi2=0.0, loglike=0.0)
@@ -129,12 +179,60 @@ class SNeLike(LikelihoodProtocol):
 
         cov_inv = self._covariance_matrix_inv
         metadata: dict[str, Any] = {}
-
-        chi2 = float("inf")
+        use_full_covariance = False
         if cov_inv is not None:
             try:
                 if cov_inv.shape[0] != self._residual_buffer.size:
                     raise ValueError("Covariance mismatch for SNe data")
+                use_full_covariance = True
+            except (
+                numpy.linalg.LinAlgError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                logger.warning(
+                    "Falling back to diagonal covariance due to issue: %s",
+                    exc,
+                )
+                cov_inv = None
+
+        if bool(
+            observations_df.attrs.get(
+                "requires_sne_intercept_marginalization",
+            )
+        ):
+            try:
+                delta_mu = compute_sne_intercept_delta(
+                    self._residual_buffer,
+                    covariance_matrix_inv=(
+                        cov_inv if use_full_covariance else None
+                    ),
+                    diag_errors=self._diag_errors,
+                )
+            except ValueError as exc:
+                logger.error(
+                    "Unable to marginalize SNe intercept: %s",
+                    exc,
+                )
+                self._state = LikelihoodState()
+                return float("-inf")
+            numpy.add(
+                self._residual_buffer,
+                delta_mu,
+                out=self._residual_buffer,
+            )
+            metadata["sne_intercept_marginalized"] = True
+            metadata["sne_intercept_delta_mu"] = float(delta_mu)
+            metadata["sne_intercept_name"] = str(
+                observations_df.attrs.get("sne_intercept_name", "Delta_mu")
+            )
+        else:
+            metadata["sne_intercept_marginalized"] = False
+
+        chi2 = float("inf")
+        if use_full_covariance and cov_inv is not None:
+            try:
                 chi2 = float(
                     self._residual_buffer @ cov_inv @ self._residual_buffer
                 )
@@ -150,8 +248,9 @@ class SNeLike(LikelihoodProtocol):
                     exc,
                 )
                 cov_inv = None
+                use_full_covariance = False
 
-        if cov_inv is None:
+        if not use_full_covariance or cov_inv is None:
             if self._diag_errors is None:
                 logger.error("No diagonal errors available for SNe data.")
                 self._state = LikelihoodState()

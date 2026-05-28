@@ -96,7 +96,7 @@ def parse_jla2014(
             dtype=str,
             comment="#",
         )
-    except Exception as e:
+    except (OSError, ValueError) as e:
         logger.error(f"Error reading JLA data file: {e}")
         return None
 
@@ -132,7 +132,7 @@ def parse_jla2014(
     # --- covariance matrix ---
     try:
         cov_params = fits.getdata(covpath)
-    except Exception as e:
+    except (OSError, ValueError, TypeError, IndexError) as e:
         logger.error(f"Failed reading covariance matrix: {e}")
         return None
 
@@ -153,7 +153,7 @@ def parse_jla2014(
             return None
         covariance_matrix_inv = np.linalg.inv(mu_cov_total)
         diag_errors_for_plot = np.sqrt(np.diag(mu_cov_total))
-    except Exception as e:
+    except (np.linalg.LinAlgError, ValueError) as e:
         logger.error(f"Could not process JLA covariance matrix: {e}")
         return None
 

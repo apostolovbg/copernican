@@ -162,6 +162,6 @@ def parse_planck2018lite(data_dir, **kwargs):
             "ns",
         ]
         return spectrum_df
-    except Exception as e:
+    except (OSError, ValueError, pd.errors.ParserError) as e:
         logger.error(f"Error parsing Planck2018lite data: {e}", exc_info=True)
         return None

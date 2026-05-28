@@ -211,25 +211,25 @@ def register_gw_parser(name=None, description="", data_dir=None):
 TRUSTED_PARSER_DIGESTS = {
     # ``relative_path`` -> ``sha256``
     "sne/pantheon/cosmo_parser_pantheon.py": (
-        "a2abf7b2bc92f6ef60b81b6a3f91f440fff9661905d92468c52153db20983a99"
+        "37e03b025a9f52a5a12c919c02e1bd7cc67a822fc64f77d4ec78c8a7a27fe86e"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
-        "80e0dc13052cde00b59d25bb5015d48959e14302ec73e2f540dd3193248f1062"
+        "1b409e3180a48dcf001f5fb01c5b1c444300dcc78844809639644c3b8afd44c2"
     ),
     "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "8c616a272133ca7c2ab86ae48139ae3f297734014f0806ed4f6538152957bbaf"
+        "29ce68ebbb94dc5f064bbda5cae01c52f43013e303f0d22a076a4506dd287751"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "84960483a29c6691e99ae8fc6eb5f741952ab281c6a44a5a0ded5e98ccebbe69"
+        "0b6b07113c8c3df63174d44fe840c87b189462d5b3d4421b1a86a9d18530459b"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "8ce91c97a5cb67a68b04803b010fb46d0a337c289ad4fa8aeda98cf37b2af60a"
+        "b064926e9cde25b497ef51abc4e57891c6c84c1f4c7f1eb4efeeb3c01c65c60b"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
         "0af702546dcc5fac872fa7b68892176ec2400789b18f22e1dce0759093c3ef08"
     ),
     "sne/union3/cosmo_parser_union3.py": (
-        "7b5891a3677457ee3444689af79dc8ea648536c75568b1294b4aa1d406e1450a"
+        "1d2bbea0988e47c4db3794203c4d4222b7db40b2d02581440d8f4c198283ad47"
     ),
 }
 

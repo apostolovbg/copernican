@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.16
+**Project Version:** 12.0.20
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,207 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.20
+
+- 2026-05-28 [semver:patch]:
+  Change: Redirected documentation-growth tracking to ignore model YAMLs,
+    refreshed the DevCovenant registry, and wrapped the TORG source
+    description.
+  Why: Kept model edits from forcing prose-doc churn while preserving
+    policy refresh consistency and line-length compliance.
+  Impact: Reduce gate noise by keeping model edits inside the model
+    surface.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  pyproject.toml
+  models/cosmo_model_torg.yml
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/LICENSE
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_CfA2_\
+    CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99_\
+    Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_knop03_\
+    Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+
+## Version 12.0.19
+
+- 2026-05-28 [semver:patch]:
+  Change: Aligned DevCovenant config, pre-commit exclusion, mirror tests,
+    and BAO test naming so raw `data/` payloads stay out of hook churn
+    while parser and metadata files stay covered.
+  Why: Preserve vendored dataset blobs, keep parser and metadata review
+    scope intact, and clear the remaining name-clarity warnings without
+    changing dataset behavior.
+  Impact: Prevents pre-commit from rewriting raw dataset files and records
+    the current parser coverage, synthetic fixtures, and test renames for
+    this session.
+  Files:
+  .gitignore
+  .pre-commit-config.yaml
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  copernican_lib/dataset_registry.py
+  devcovenant/README.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_bao.py
+  tests/copernican_lib/test_data_hashes.py
+  tests/data/__init__.py
+  tests/data/bao/__init__.py
+  tests/data/bao/bossdr12/__init__.py
+  tests/data/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/data/bao/compound/__init__.py
+  tests/data/bao/compound/test_cosmo_parser_compound.py
+  tests/data/cmb/__init__.py
+  tests/data/cmb/planck2018lite/__init__.py
+  tests/data/cmb/planck2018lite/test_cosmo_parser_cmb_planck2018lite.py
+  tests/data/gw/__init__.py
+  tests/data/gw/placeholder/__init__.py
+  tests/data/gw/placeholder/test_cosmo_parser_gw_placeholder.py
+  tests/data/sne/__init__.py
+  tests/data/sne/jla2014/__init__.py
+  tests/data/sne/jla2014/test_cosmo_parser_jla2014.py
+  tests/data/sne/pantheon/__init__.py
+  tests/data/sne/pantheon/test_cosmo_parser_pantheon.py
+  tests/data/sne/union3/__init__.py
+  tests/data/sne/union3/test_cosmo_parser_union3.py
+  tests/data/synthetic/bao.csv
+  tests/data/synthetic/cmb.csv
+  tests/data/synthetic/cosmo_parser_synthetic.py
+  tests/data/synthetic/metadata_synthetic.yml
+  tests/data/synthetic/model.yml
+  tests/data/synthetic/model_plugin.py
+  tests/data/synthetic/sne.csv
+  tests/data/synthetic/test_synthetic_integration.py
+
+## Version 12.0.18
+
+- 2026-05-28 [semver:patch]:
+  Change: Added Union3 and SNe intercept-marginalization regression
+    coverage and aligned the versioned docs with the bumped release.
+  Why: Keep the analytic additive-intercept path covered while satisfying
+    version-governance and version-sync for the new release.
+  Impact: Locks the new unit coverage and the versioned docs to the
+    current session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_sne.py
+
+- 2026-05-28:
+  Change: Updated the Union3 parser metadata to advertise intercept
+    marginalization.
+  Why: Make the dataset parser signal the additive intercept convention
+    without touching the vendored README.
+  Impact: Records the Union3 parser intercept requirement for the SNe
+    likelihood.
+  Files:
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/metadata_union3.yml
+
+- 2026-05-28 [semver:patch]:
+  Change: Added Union3 and SNe intercept-marginalization regression
+    coverage and aligned the versioned docs with the bumped release.
+  Why: Keep the analytic additive-intercept path covered while satisfying
+    version-governance and version-sync for the new release.
+  Impact: Locks the new unit coverage and the versioned docs to the
+    current session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/VERSION
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_sne.py
+
+## Version 12.0.17
+
+- 2026-05-28 [semver:patch]:
+  Change: Hardened Union3 SNe intercept handling across the parser,
+    likelihood, CSV export, plot residuals, dataset trust registry, and
+    repo-facing docs.
+  Why: Keep compressed Union3 residuals on the same additive intercept
+    convention after restoring the version bump and leaving this entry
+    until the rest of the session settled.
+  Impact: Records the intercept correction path and keeps the session
+    files tied to the new version header.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  copernican_lib/csv_writer.py
+  copernican_lib/dataset_registry.py
+  copernican_lib/likelihoods/sne.py
+  copernican_lib/plotter.py
+  devcovenant/README.md
+  docs/data_overview.md
+  docs/dataset_metadata.md
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_sne.py
+  tests/copernican_lib/test_csv_writer.py
+  tests/copernican_lib/test_likelihoods.py
+
+- 2026-05-28:
+  Change: Updated the Union3 parser metadata to advertise intercept
+    marginalization.
+  Why: Make the dataset parser signal the additive intercept convention
+    without touching the vendored README.
+  Impact: Records the Union3 parser intercept requirement for the SNe
+    likelihood.
+  Files:
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/metadata_union3.yml
 
 ## Version 12.0.16
 

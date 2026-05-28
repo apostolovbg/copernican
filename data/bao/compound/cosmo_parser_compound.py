@@ -30,7 +30,7 @@ DATA_DIR = os.path.dirname(__file__)
 # Explicitly register under the metadata ``dataset_id`` so that
 # ``load_bao_data('compound_bao_set')`` locates this parser.
 @register_bao_parser(name="compound_bao_set", data_dir=DATA_DIR)
-def parse_bao_v1(data_dir, **kwargs):
+def parse_bao(data_dir, **kwargs):
     """Parse a BAO dataset defined in a small YAML table."""
     logger = logging.getLogger()
     data_files = [
@@ -74,7 +74,7 @@ def parse_bao_v1(data_dir, **kwargs):
         # ``load_bao_data`` and attached to the DataFrame after this function
         # returns.
         return bao_dataframe
-    except Exception as e:
+    except (OSError, ValueError, TypeError, yaml.YAMLError) as e:
         logger.error(
             f"Error reading or parsing BAO data file {filepath}: {e}",
             exc_info=True,

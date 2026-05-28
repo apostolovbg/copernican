@@ -1,4 +1,3 @@
-dataset_name: Compound BAO dataset
 dataset_name: Compound BAO compilation
 dataset_id: compound_bao_set
 version: "1.0"

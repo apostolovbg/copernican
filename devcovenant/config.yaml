@@ -296,7 +296,15 @@ ci_and_test:
 # `overrides` replace generated payload when non-empty.
 
 pre_commit:
-  overlays: {}
+  overlays:
+    exclude: "(?x) (\n  (^|/)\n  (\n    vendor\n    | third_party\n    | node_modules\n\
+      \    | \\.gha\\-pycache\n    | \\.venv\n    | __pycache__\n    | \\.pytest_cache\n\
+      \    | \\.mypy_cache\n    | build\n    | dist\n    | _site\n    | site\n   \
+      \ | models/cache\n    | cache\n    | \\.matplotlib\\-cache\n    | \\.git\n \
+      \   | \\.python\n    | output\n    | logs\n    | \\.ruff_cache\n    | \\.tox\n\
+      \    | \\.nox\n    | \\.hypothesis\n    | \\.cache\n    | \\.venv\\.lock\n \
+      \   | [^/]+\\.egg-info\n  )\n  (/|$)\n  |\n  ^data/(?!.*(?:cosmo_parser_|metadata_))\n\
+      )"
   overrides: {}
 
 # -------------------------------------------------------------------
@@ -436,6 +444,7 @@ policy_state:
 ignore:
   patterns:
   - devcovenant/config.yaml
+  - data/**
   - .vscode/**
   - .idea/**
   - '*.egg-info/**'
@@ -1087,9 +1096,10 @@ autogen_metadata_overlays:
     - tests/devcovenant
     user_facing_exclude_dirs:
     - tests/**
-    - models/**
     user_facing_exclude_files:
     - devcovenant/config.yaml
+    user_facing_exclude_globs:
+    - models/**
     user_facing_exclude_prefixes:
     - tests
     - devcovenant
@@ -1236,6 +1246,10 @@ autogen_metadata_overlays:
     - .py
     mirror_roots:
     - devcovenant/custom=>tests/devcovenant/custom
+    - data/bao=>tests/data/bao
+    - data/cmb=>tests/data/cmb
+    - data/gw=>tests/data/gw
+    - data/sne=>tests/data/sne
     mirror_test_name_templates:
     - python=>test_{stem}.py
     - python=>{stem}_test.py
@@ -1291,6 +1305,16 @@ autogen_metadata_overlays:
     - '*.py'
     include_suffixes:
     - .py
+  pre_commit:
+    overlays:
+      exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
+  read-only-directories:
+    exclude_globs:
+    - data/**/cosmo_parser_*.py
+    - data/**/metadata_*.yml
+    - data/**/metadata_*.yaml
+    include_prefixes:
+    - data
   security-scanner:
     exclude_globs:
     - tests/**
