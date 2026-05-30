@@ -1116,116 +1116,24 @@ cmb:
   calls: []
   perturbations:
     contract_version: 1
-    standard: false
-    gauge: conformal_newtonian
-    variables:
-      delta_b:
-        kind: density_contrast
-        description: Baryon density contrast.
-      theta_b:
-        kind: velocity_divergence
-        description: Baryon velocity divergence.
-      delta_gamma:
-        kind: density_contrast
-        description: Photon density contrast.
-      theta_gamma:
-        kind: velocity_divergence
-        description: Photon velocity divergence.
-      Phi:
-        kind: metric_potential
-        description: Newtonian potential perturbation.
-      Psi:
-        kind: metric_potential
-        description: Curvature potential perturbation.
-      delta_Xr:
-        kind: response_contrast
-        description: Relational-response perturbation.
-      sigma_R:
-        kind: anisotropic_stress
-        description: Relational anisotropic stress.
-    derived:
-      Phi_tau:
-        kind: derivative_symbol
-        variable: Phi
-        wrt: tau
-        order: 1
-        description: First conformal-time derivative of Phi.
-      delta_rho_R:
-        expression: Ob0 * Xr_a * delta_b
-        description: Relational response density perturbation.
-      delta_rho_eff:
-        expression: Ob0 * (1.0 + Xr_a) * delta_b
-        description: Effective baryonic gravitational perturbation.
-      theta_R:
-        expression: theta_b
-        description: Baryon-locked relational velocity.
-    equations:
-      phi_evolution:
-        lhs:
-          kind: derivative
-          variable: Phi
-          wrt: tau
-          order: 1
-        rhs: -0.5 * Hconf * Phi + 0.5 * Psi
-      continuity_b:
-        lhs:
-          kind: derivative
-          variable: delta_b
-          wrt: tau
-          order: 1
-        rhs: -theta_b + 3 * Phi_tau
-      euler_b:
-        lhs:
-          kind: derivative
-          variable: theta_b
-          wrt: tau
-          order: 1
-        rhs: >-
-          -Hconf * theta_b + k**2 * Psi
-          + (theta_gamma - theta_b) / (1.0 + Xr_a)
-      continuity_gamma:
-        lhs:
-          kind: derivative
-          variable: delta_gamma
-          wrt: tau
-          order: 1
-        rhs: -4.0 / 3.0 * theta_gamma + 4.0 * Phi_tau
-      euler_gamma:
-        lhs:
-          kind: derivative
-          variable: theta_gamma
-          wrt: tau
-          order: 1
-        rhs: k**2 * (delta_gamma / 4.0 + Psi)
-    closures:
-      no_anisotropic_stress_x:
-        expression: Psi
-        equals: "Phi"
-      frozen_relational_response:
-        expression: delta_Xr
-        equals: "0"
-      no_stress_x:
-        expression: sigma_R
-        equals: "0"
-    sources:
-      poisson_x:
-        expression: delta_rho_eff + delta_gamma / 4.0
-      drag_x:
-        expression: (theta_gamma - theta_b) / (1.0 + Xr_a)
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
     validity:
       regimes:
-        - linear
-        - scalar
-      notes: >-
-        First-order scalar perturbation declaration executed by the
-        generic declarative perturbation engine.
+        - standard_camb
+      notes: Uses the backend standard perturbation machinery.
     backend_mapping:
       camb:
-        native_solver_required: true
-        implemented: true
+        uses_standard_perturbations: true
     notes: >-
-      Copernican validates and executes the declared perturbation
-      mathematics directly through the generic declarative path.
+      This model currently reuses the backend's standard perturbation
+      machinery; native perturbation equations are deferred to a later
+      session.
 
 validation:
   expected_limits:

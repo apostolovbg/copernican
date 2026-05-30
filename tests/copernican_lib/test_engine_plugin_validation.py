@@ -632,6 +632,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 self.assertIsNotNone(
                     plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
                 )
+                if model_name == "cosmo_model_torg.yml":
+                    self.assertTrue(plugin.CMB_PERTURBATION_STANDARD)
+                    self.assertEqual(
+                        plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"][
+                            "camb"
+                        ]["uses_standard_perturbations"],
+                        True,
+                    )
 
     def test_unknown_cmb_key_fails(self):
         """Unknown contract keys are rejected early."""

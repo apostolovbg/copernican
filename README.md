@@ -1,8 +1,8 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.22
-**Last Updated:** 2026-05-29
+**Project Version:** 12.0.23
+**Last Updated:** 2026-05-30
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -37,8 +37,9 @@ the same convention.
   roots.
 - **CMB capability checks:** `copernican_lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
-  `standard: false` models run through the generic declarative path or
-  fail clearly when a required capability is missing.
+  `standard: false` models run through the generic declarative
+  perturbation solver or fail clearly when a required capability is
+  missing.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the detached launcher preserve the historic
@@ -79,8 +80,8 @@ the same convention.
   with `backend`, `param_map`, `grids`, `values`, `calls` and a mandatory
   `perturbations` block; `standard: true` keeps the perturbation sections
   empty, while `standard: false` requires typed derivative equations and
-  explicit backend mapping for the compiled perturbation internal
-  representation.
+  explicit backend mapping for the compiled declarative perturbation
+  solver.
  - `data/` bundles vetted observations and parsers. The loaders validate SHA256
    digests, register citations, and tag each manifest with the hashes used for
    the run; the directory remains read-only except when a human explicitly

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import unittest
 from pathlib import Path
@@ -746,6 +747,137 @@ class CMBBackgroundTestCase(unittest.TestCase):
 
         self.assertEqual(spectrum.shape, (3,))
         self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
+
+    def test_cmb_spectrum_from_dict_uses_generic_nonstandard_executor(self):
+        """Structured non-standard contracts should execute without CAMB."""
+
+        contract = {
+            "model_name": "GenericNonStandardModel",
+            "backend": "camb",
+            "param_map": {
+                "hubble_constant": 68.0,
+                "baryon_density_h2": 0.022,
+                "cdm_density_h2": 0.0,
+                "tau": 0.054,
+                "As": 2.1e-09,
+                "ns": 0.965,
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "perturbations": {
+                "contract_version": 1,
+                "standard": False,
+                "gauge": "conformal_newtonian",
+                "variables": {
+                    "delta_x": {
+                        "kind": "density_contrast",
+                        "description": "Example density perturbation.",
+                    },
+                    "theta_x": {
+                        "kind": "velocity_divergence",
+                        "description": "Example velocity perturbation.",
+                    },
+                    "rho_x": {
+                        "kind": "background_density",
+                        "description": "Example density source.",
+                    },
+                    "sigma_x": {
+                        "kind": "anisotropic_stress",
+                        "description": "Example stress source.",
+                    },
+                },
+                "derived": {
+                    "Phi_tau": {
+                        "kind": "derivative_symbol",
+                        "variable": "Phi",
+                        "wrt": "tau",
+                        "order": 1,
+                        "description": "First conformal-time derivative.",
+                    },
+                    "delta_rho_eff": {
+                        "expression": "rho_x * delta_x",
+                    },
+                },
+                "equations": {
+                    "continuity_x": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-theta_x + 3 * Phi_tau",
+                    }
+                },
+                "closures": {
+                    "no_anisotropic_stress": {
+                        "expression": "sigma_x",
+                        "equals": "0",
+                    }
+                },
+                "sources": {
+                    "poisson": {
+                        "expression": "delta_rho_eff + delta_x + theta_x",
+                    }
+                },
+                "validity": {
+                    "regimes": ["linear"],
+                    "notes": "Declared for setup coverage.",
+                },
+                "backend_mapping": {
+                    "camb": {
+                        "native_solver_required": True,
+                        "implemented": True,
+                    }
+                },
+                "notes": (
+                    "Native perturbation mathematics are declared and "
+                    "supported by the generic executor."
+                ),
+            },
+        }
+
+        with mock.patch(
+            "copernican_lib.likelihoods.cmb._compute_cmb_spectrum_direct",
+            side_effect=AssertionError("standard CAMB path should not run"),
+        ):
+            with mock.patch(
+                "copernican_lib.likelihoods.cmb."
+                "compute_camb_background_observables",
+                side_effect=AssertionError(
+                    "CAMB background path should not run"
+                ),
+            ):
+                spectrum = cmb.compute_cmb_spectrum_from_dict(
+                    contract,
+                    numpy.array([2, 3, 4]),
+                    spectra=("TT", "TE", "EE"),
+                )
+
+        self.assertIsInstance(spectrum, dict)
+        self.assertEqual(set(spectrum), {"TT", "TE", "EE"})
+        for spec in ("TT", "TE", "EE"):
+            self.assertEqual(spectrum[spec].shape, (3,))
+            self.assertTrue(numpy.all(numpy.isfinite(spectrum[spec])))
+
+        changed_contract = copy.deepcopy(contract)
+        changed_contract["perturbations"]["equations"]["continuity_x"][
+            "rhs"
+        ] = "-10 * theta_x + 30 * Phi_tau"
+        changed_spectrum = cmb.compute_cmb_spectrum_from_dict(
+            changed_contract,
+            numpy.array([2, 3, 4]),
+            spectra=("TT",),
+        )
+        self.assertFalse(
+            numpy.allclose(
+                spectrum["TT"],
+                changed_spectrum,
+                rtol=1e-8,
+                atol=0.0,
+            )
+        )
 
     def test_compute_cmb_spectrum_from_dict_rejects_flat_params(self) -> None:
         """Scientific spectrum helpers must reject flat parameter maps."""

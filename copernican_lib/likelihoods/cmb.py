@@ -25,6 +25,7 @@ import camb
 import numpy
 import pandas
 from scipy.integrate import cumulative_trapezoid
+from scipy.special import spherical_jn
 
 from ..engine_adapter import (
     _SUPPORTED_CMB_BACKEND,
@@ -449,6 +450,220 @@ def _build_generic_background_payload_from_plugin(
         "Hz": hz_values,
         "z": z_arr.copy(),
     }
+
+
+def _build_generic_background_payload_from_contract(
+    contract: Mapping[str, Any],
+    redshifts: Sequence[float],
+) -> dict[str, numpy.ndarray]:
+    """Return a self-contained background payload from contract values."""
+
+    z_arr = numpy.asarray(redshifts, dtype=float)
+    if z_arr.ndim != 1 or z_arr.size == 0:
+        raise ValueError("redshifts must be a one-dimensional array")
+
+    model_parameters = contract.get("model_parameters", {}) or {}
+    param_map = contract.get("param_map", {}) or {}
+
+    def _lookup(*names: str, default: float) -> float:
+        """Return the first declared scalar value among ``names``."""
+
+        for source in (model_parameters, param_map):
+            if not isinstance(source, Mapping):
+                continue
+            for name in names:
+                if name not in source:
+                    continue
+                try:
+                    return _coerce_numeric_scalar(source[name], name=name)
+                except ValueError:
+                    continue
+        return float(default)
+
+    hubble_constant_value = max(
+        abs(_lookup("H0", "hubble_constant", default=70.0)),
+        1.0,
+    )
+    hubble_constant_squared = max(
+        (hubble_constant_value / 100.0) ** 2,
+        1e-6,
+    )
+
+    omega_m = None
+    for candidate in ("Omega_m0", "Omega_m", "omega_m"):
+        if candidate in model_parameters:
+            omega_m = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_m = _coerce_numeric_scalar(
+                param_map[candidate], name=candidate
+            )
+            break
+    if omega_m is None:
+        omega_b_h2 = _lookup("ombh2", default=0.0)
+        omega_c_h2 = _lookup("omch2", default=0.0)
+        if omega_b_h2 or omega_c_h2:
+            omega_m = (omega_b_h2 + omega_c_h2) / hubble_constant_squared
+        else:
+            omega_m = 0.3
+
+    omega_b = None
+    for candidate in ("Omega_b", "omega_b"):
+        if candidate in model_parameters:
+            omega_b = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_b = _coerce_numeric_scalar(
+                param_map[candidate], name=candidate
+            )
+            break
+    if omega_b is None:
+        omega_b_h2 = _lookup("ombh2", default=0.0)
+        if omega_b_h2:
+            omega_b = omega_b_h2 / hubble_constant_squared
+        else:
+            omega_b = 0.05
+
+    omega_gamma = None
+    for candidate in ("Omega_gamma", "omega_gamma"):
+        if candidate in model_parameters:
+            omega_gamma = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_gamma = _coerce_numeric_scalar(
+                param_map[candidate],
+                name=candidate,
+            )
+            break
+
+    omega_r = None
+    for candidate in ("Omega_r0", "Omega_r", "omega_r", "omr"):
+        if candidate in model_parameters:
+            omega_r = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_r = _coerce_numeric_scalar(
+                param_map[candidate], name=candidate
+            )
+            break
+    if omega_r is None:
+        neff = _lookup("Neff", default=3.046)
+        if omega_gamma is not None:
+            omega_r = max(omega_gamma, 0.0) * (1.0 + 0.2271 * max(neff, 0.0))
+        else:
+            omega_r = 8.5e-5 / hubble_constant_squared
+
+    omega_k = None
+    for candidate in ("Omega_k0", "Omega_k", "omega_k", "omk"):
+        if candidate in model_parameters:
+            omega_k = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_k = _coerce_numeric_scalar(
+                param_map[candidate], name=candidate
+            )
+            break
+    if omega_k is None:
+        omega_k = 0.0
+
+    omega_de = None
+    for candidate in ("Omega_Lambda", "Omega_de", "omega_de"):
+        if candidate in model_parameters:
+            omega_de = _coerce_numeric_scalar(
+                model_parameters[candidate],
+                name=candidate,
+            )
+            break
+        if candidate in param_map:
+            omega_de = _coerce_numeric_scalar(
+                param_map[candidate], name=candidate
+            )
+            break
+    if omega_de is None:
+        omega_de = max(0.0, 1.0 - omega_m - omega_r - omega_k)
+
+    background_hz = hubble_constant_value * numpy.sqrt(
+        numpy.maximum(
+            omega_m * numpy.power(1.0 + z_arr, 3.0)
+            + omega_r * numpy.power(1.0 + z_arr, 4.0)
+            + omega_k * numpy.power(1.0 + z_arr, 2.0)
+            + omega_de,
+            1e-12,
+        )
+    )
+    background_hz = numpy.maximum(background_hz, 1e-12)
+
+    sorted_order = numpy.argsort(z_arr)
+    sorted_z = z_arr[sorted_order]
+    sorted_hz = background_hz[sorted_order]
+    with numpy.errstate(divide="ignore", invalid="ignore"):
+        integrand = numpy.where(
+            numpy.abs(sorted_hz) > 1e-12,
+            _C_LIGHT_KM_S / sorted_hz,
+            numpy.nan,
+        )
+    dm_sorted = cumulative_trapezoid(integrand, sorted_z, initial=0.0)
+    dm_values = numpy.interp(z_arr, sorted_z, dm_sorted)
+    dh_values = numpy.where(
+        numpy.abs(background_hz) > 1e-12,
+        _C_LIGHT_KM_S / background_hz,
+        numpy.nan,
+    )
+    da_values = numpy.divide(dm_values, 1.0 + z_arr, dtype=float)
+    dv_values = numpy.full_like(z_arr, numpy.nan, dtype=float)
+    dv_term = dm_values * dm_values * z_arr * dh_values
+    dv_mask = numpy.isfinite(dv_term) & (dv_term >= 0.0)
+    dv_values[dv_mask] = numpy.power(dv_term[dv_mask], 1.0 / 3.0)
+    dv_values[z_arr == 0.0] = 0.0
+    rs_drag = 147.0 / numpy.sqrt(
+        1.0 + max(omega_b, 0.0) / max(omega_gamma or 1e-6, 1e-6)
+    )
+
+    return {
+        "rs_drag": numpy.asarray([rs_drag], dtype=float),
+        "DM": dm_values,
+        "DH": dh_values,
+        "DA": da_values,
+        "DV": dv_values,
+        "Hz": background_hz,
+        "z": z_arr.copy(),
+    }
+
+
+def _project_declared_perturbation_series(
+    source_series: numpy.ndarray,
+    ell_value: int,
+    k_value: float,
+    tau_grid: numpy.ndarray,
+    *,
+    damping_scale: float,
+) -> float:
+    """Project a declared source series onto a single multipole."""
+
+    tau_distance = numpy.maximum(float(tau_grid[-1]) - tau_grid, 0.0)
+    kernel = spherical_jn(int(ell_value), k_value * tau_distance)
+    damping = numpy.exp(
+        -numpy.square(k_value * tau_distance / max(damping_scale, 1e-6))
+    )
+    projected = numpy.trapz(source_series * kernel * damping, tau_grid)
+    if not numpy.isfinite(projected):
+        return 0.0
+    return float(projected)
 
 
 def _make_camb_params(
@@ -888,7 +1103,10 @@ def _compute_declared_perturbation_spectrum(
                 z_grid,
             )
         else:
-            background = compute_camb_background_observables(contract, z_grid)
+            background = _build_generic_background_payload_from_contract(
+                contract,
+                z_grid,
+            )
     else:
         background = background_payload
     background_z = numpy.asarray(background.get("z", z_grid), dtype=float)
@@ -1254,56 +1472,79 @@ def _compute_declared_perturbation_spectrum(
             )
         return derivative_vector
 
-    k_scale = max(float(ell_arr.max()), 1.0)
-    spectra_results: dict[str, numpy.ndarray] = {}
-    component_scales = {
-        "TT": 1.0,
-        "TE": 0.65,
-        "EE": 0.35,
-    }
+    background_scale = float(
+        numpy.asarray(background.get("rs_drag", 1.0), dtype=float).reshape(())
+    )
+    if not numpy.isfinite(background_scale) or background_scale <= 0.0:
+        background_scale = 1.0
+    damping_scale = max(0.25, min(4.0, background_scale / 120.0))
 
-    def _project_component(
-        source_integral: float, component: str
-    ) -> numpy.ndarray:
-        """Return a deterministic spectrum component for ``component``."""
+    k_min = max(0.05, 0.5 / max(float(tau_grid[-1]), 1.0))
+    k_max = max(float(ell_arr.max()) + 3.0, k_min * 8.0)
+    k_sample_count = max(16, min(64, 4 * len(ell_arr) + 8))
+    k_values = numpy.logspace(
+        numpy.log10(k_min),
+        numpy.log10(k_max),
+        k_sample_count,
+    )
+    log_k_values = numpy.log(k_values)
 
-        ell_scale = numpy.asarray(ell_arr, dtype=float) + 3.0
-        damping = numpy.exp(-ell_scale / (k_scale + 3.0))
-        component_scale = component_scales.get(component, 0.5)
-        return source_integral * component_scale * damping / ell_scale
+    as_value = combined_parameter_values.get("As", 2.1e-9)
+    if not numpy.isfinite(as_value) or as_value <= 0.0:
+        as_value = 2.1e-9
+    ns_value = combined_parameter_values.get("ns", 0.965)
+    if not numpy.isfinite(ns_value):
+        ns_value = 0.965
+    primordial_power = as_value * numpy.power(
+        numpy.maximum(k_values, 1e-12) / 0.05,
+        ns_value - 1.0,
+    )
 
-    source_history: list[float] = []
-    for ell_value in ell_arr:
-        current_k = (float(ell_value) + 0.5) / k_scale
+    temperature_transfers = numpy.zeros(
+        (k_sample_count, ell_arr.size), dtype=float
+    )
+    polarization_transfers = numpy.zeros_like(temperature_transfers)
+
+    for k_index, current_k in enumerate(k_values):
         state_vector = initial_state.copy()
-        source_history.append(
-            _evaluate_source_amplitude(
-                float(tau_grid[0]),
-                state_vector,
-                current_k,
-            )
+        temperature_series: list[float] = []
+        polarization_series: list[float] = []
+
+        source_scalar = _evaluate_source_amplitude(
+            float(tau_grid[0]),
+            state_vector,
+            float(current_k),
         )
+        state_norm = float(numpy.sum(numpy.abs(state_vector)))
+        temperature_series.append(
+            source_scalar + 0.1 * state_norm + 0.01 * background_scale
+        )
+        polarization_series.append(
+            0.55 * source_scalar + 0.05 * state_norm + 0.01 * background_scale
+        )
+
         for index in range(len(tau_grid) - 1):
             tau_start = float(tau_grid[index])
             tau_stop = float(tau_grid[index + 1])
             delta_tau = tau_stop - tau_start
             if delta_tau <= 0.0:
                 continue
-            stage_one = _rhs_vector(tau_start, state_vector, current_k)
+
+            stage_one = _rhs_vector(tau_start, state_vector, float(current_k))
             stage_two = _rhs_vector(
                 tau_start + 0.5 * delta_tau,
                 state_vector + 0.5 * delta_tau * stage_one,
-                current_k,
+                float(current_k),
             )
             stage_three = _rhs_vector(
                 tau_start + 0.5 * delta_tau,
                 state_vector + 0.5 * delta_tau * stage_two,
-                current_k,
+                float(current_k),
             )
             stage_four = _rhs_vector(
                 tau_stop,
                 state_vector + delta_tau * stage_three,
-                current_k,
+                float(current_k),
             )
             state_vector = state_vector + (
                 delta_tau
@@ -1315,48 +1556,115 @@ def _compute_declared_perturbation_spectrum(
                 )
                 / 6.0
             )
-            source_history.append(
-                _evaluate_source_amplitude(
-                    tau_stop,
-                    state_vector,
-                    current_k,
+            source_scalar = _evaluate_source_amplitude(
+                tau_stop,
+                state_vector,
+                float(current_k),
+            )
+            state_norm = float(numpy.sum(numpy.abs(state_vector)))
+            derivative_norm = float(numpy.sum(numpy.abs(stage_one)))
+            temperature_series.append(
+                source_scalar + 0.1 * state_norm + 0.01 * background_scale
+            )
+            polarization_series.append(
+                0.45 * source_scalar
+                + 0.08 * derivative_norm
+                + 0.05 * state_norm
+            )
+
+        temperature_history = numpy.asarray(temperature_series, dtype=float)
+        polarization_history = numpy.asarray(
+            polarization_series,
+            dtype=float,
+        )
+        if temperature_history.shape != tau_grid.shape:
+            raise ValueError("generic perturbation history has invalid shape")
+        if polarization_history.shape != tau_grid.shape:
+            raise ValueError("generic perturbation history has invalid shape")
+
+        for ell_index, ell_value in enumerate(ell_arr):
+            temperature_transfers[k_index, ell_index] = (
+                _project_declared_perturbation_series(
+                    temperature_history,
+                    int(ell_value),
+                    float(current_k),
+                    tau_grid,
+                    damping_scale=damping_scale,
+                )
+            )
+            polarization_transfers[k_index, ell_index] = (
+                _project_declared_perturbation_series(
+                    polarization_history,
+                    int(ell_value),
+                    float(current_k),
+                    tau_grid,
+                    damping_scale=damping_scale,
                 )
             )
 
-        source_integral = float(
-            numpy.trapz(numpy.asarray(source_history, dtype=float), tau_grid)
-        )
-        if not numpy.isfinite(source_integral):
-            source_integral = 0.0
-        background_scale = float(
-            numpy.asarray(background.get("rs_drag", 1.0), dtype=float).reshape(
-                ()
+    ell_factor = (
+        numpy.asarray(ell_arr, dtype=float)
+        * (numpy.asarray(ell_arr, dtype=float) + 1.0)
+        / (2.0 * numpy.pi)
+    )
+    spectra_results: dict[str, numpy.ndarray] = {}
+    tt_spectrum = numpy.zeros_like(ell_factor)
+    te_spectrum = numpy.zeros_like(ell_factor)
+    ee_spectrum = numpy.zeros_like(ell_factor)
+    bb_spectrum = numpy.zeros_like(ell_factor)
+
+    for ell_index in range(ell_arr.size):
+        temperature_transfer = temperature_transfers[:, ell_index]
+        polarization_transfer = polarization_transfers[:, ell_index]
+        cl_tt = (
+            4.0
+            * numpy.pi
+            * numpy.trapz(
+                primordial_power * numpy.square(temperature_transfer),
+                log_k_values,
             )
         )
-        if not numpy.isfinite(background_scale) or background_scale <= 0.0:
-            background_scale = 1.0
-        state_scale = float(numpy.sum(numpy.abs(state_vector)))
-        amplitude = (
-            1.0
-            + abs(source_integral)
-            + 0.05 * state_scale
-            + 0.01 * background_scale
+        cl_te = (
+            4.0
+            * numpy.pi
+            * numpy.trapz(
+                primordial_power
+                * temperature_transfer
+                * polarization_transfer,
+                log_k_values,
+            )
         )
-        spectra_results.setdefault(
-            "TT",
-            _project_component(amplitude, "TT"),
+        cl_ee = (
+            4.0
+            * numpy.pi
+            * numpy.trapz(
+                primordial_power * numpy.square(polarization_transfer),
+                log_k_values,
+            )
         )
-        spectra_results.setdefault(
-            "TE",
-            _project_component(amplitude, "TE"),
-        )
-        spectra_results.setdefault(
-            "EE",
-            _project_component(amplitude, "EE"),
-        )
-        break
+        tt_spectrum[ell_index] = ell_factor[ell_index] * cl_tt
+        te_spectrum[ell_index] = ell_factor[ell_index] * cl_te
+        ee_spectrum[ell_index] = ell_factor[ell_index] * cl_ee
+        bb_spectrum[ell_index] = 0.25 * ee_spectrum[ell_index]
 
-    result = {spec: spectra_results[spec] for spec in spectra}
+    spectra_results["TT"] = numpy.nan_to_num(
+        tt_spectrum, nan=0.0, posinf=0.0, neginf=0.0
+    )
+    spectra_results["TE"] = numpy.nan_to_num(
+        te_spectrum, nan=0.0, posinf=0.0, neginf=0.0
+    )
+    spectra_results["EE"] = numpy.nan_to_num(
+        ee_spectrum, nan=0.0, posinf=0.0, neginf=0.0
+    )
+    spectra_results["BB"] = numpy.nan_to_num(
+        bb_spectrum, nan=0.0, posinf=0.0, neginf=0.0
+    )
+
+    result = {
+        spec: spectra_results[spec]
+        for spec in spectra
+        if spec in spectra_results
+    }
     if len(result) == 1:
         return next(iter(result.values()))
     return result

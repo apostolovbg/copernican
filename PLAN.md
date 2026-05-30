@@ -1,12 +1,12 @@
 # Project Plan
 **Doc ID:** PLAN
 **Doc Type:** project-plan
-**Project Version:** 12.0.22
+**Project Version:** 12.0.23
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-29
+**Last Updated:** 2026-05-30
 **DevCovenant Version:** 1.0.1b6
 
 ## Overview
@@ -18,7 +18,7 @@ It stays short and current so it can serve as a live project note.
 - Preserve behavior while clearing gate blockers.
 - Keep the mirrored test layout consistent with `tests/`.
 - Keep CMB capability helpers in `model_coder.py`, the generic
-  declarative executor, and the focused perturbation tests aligned.
+  declarative solver, and the focused perturbation tests aligned.
 - Keep notes synchronized with the current gate session and warnings.
 - Keep user-facing launcher boundaries documented alongside the current
   changelog entry and GUI notes.
