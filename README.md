@@ -1,7 +1,7 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.25
+**Project Version:** 12.0.26
 **Last Updated:** 2026-05-30
 **DevCovenant Version:** 1.0.1b6
 
@@ -9,7 +9,7 @@
 
 <!-- DEVCOV:END -->
 
-**Version:** 12.0.25
+**Version:** 12.0.26
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -38,8 +38,8 @@ the same convention.
 - **CMB capability checks:** `copernican_lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the generic declarative
-  perturbation solver or fail clearly when a required capability is
-  missing.
+  Boltzmann-hierarchy solver or fail clearly when a required capability
+  is missing.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the detached launcher preserve the historic

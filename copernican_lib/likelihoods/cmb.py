@@ -6,7 +6,8 @@ parameters, declared grids, evaluated values and ordered backend calls stay
 aligned across the spectrum and background paths. The spectra returned here
 are expressed as :math:`D_\ell` so downstream tests comparing against
 published Planck-lite tables use consistent conventions.
-The helper also enforces the declared perturbation contract so CMB-valid
+The generic nonstandard path evaluates declared perturbation equations and
+projects them through a Boltzmann-hierarchy line-of-sight solver so CMB-valid
 models cannot silently fall back to standard CAMB perturbations when they
 claim a non-standard backend mapping.
 """
@@ -652,7 +653,6 @@ def _project_declared_perturbation_series(
     k_value: float,
     tau_grid: numpy.ndarray,
     *,
-    damping_scale: float,
     kernel_kind: str = "scalar",
 ) -> float:
     """Project a declared source series onto a single multipole."""
@@ -673,8 +673,7 @@ def _project_declared_perturbation_series(
         kernel = factor * spherical_jn(int(ell_value), x_values) / denominator
     else:
         kernel = spherical_jn(int(ell_value), x_values)
-    damping = numpy.exp(-numpy.square(x_values / max(damping_scale, 1e-6)))
-    projected = numpy.trapz(source_series * kernel * damping, tau_grid)
+    projected = numpy.trapz(source_series * kernel, tau_grid)
     if not numpy.isfinite(projected):
         return 0.0
     return float(projected)
@@ -1644,6 +1643,16 @@ def _compute_declared_perturbation_spectrum(
             0.5 * anisotropic_term
         )
         source_channels["tensor"] += visibility_weight * tensor_term
+        source_channels["_visibility_weight"] = visibility_weight
+        source_channels["_optical_depth"] = optical_depth
+        source_channels["_monopole_term"] = monopole_term
+        source_channels["_doppler_term"] = doppler_term
+        source_channels["_anisotropic_term"] = anisotropic_term
+        source_channels["_tensor_term"] = tensor_term
+        source_channels["_phi_term"] = phi_term
+        source_channels["_psi_term"] = psi_term
+        source_channels["_phi_dot_term"] = phi_dot_term
+        source_channels["_psi_dot_term"] = psi_dot_term
         return source_channels
 
     def _rhs_vector(
@@ -1721,13 +1730,6 @@ def _compute_declared_perturbation_spectrum(
             )
         return derivative_vector
 
-    background_scale = float(
-        numpy.asarray(background.get("rs_drag", 1.0), dtype=float).reshape(())
-    )
-    if not numpy.isfinite(background_scale) or background_scale <= 0.0:
-        background_scale = 1.0
-    damping_scale = max(5.0, min(60.0, background_scale / 10.0))
-
     tau0 = max(float(tau_grid[-1]), 1.0)
     k_min = max(1.0e-4, 0.25 / tau0)
     k_max = max(
@@ -1765,6 +1767,7 @@ def _compute_declared_perturbation_spectrum(
         temperature_series: list[float] = []
         polarization_series: list[float] = []
         tensor_series: list[float] = []
+        doppler_series: list[float] = []
 
         source_channels = _evaluate_source_channels(
             float(tau_grid[0]),
@@ -1772,12 +1775,12 @@ def _compute_declared_perturbation_spectrum(
             float(current_k),
         )
         temperature_series.append(source_channels["temperature"])
-        polarization_series.append(
-            source_channels["polarization"]
-            if source_channels["polarization"] != 0.0
-            else source_channels["temperature"]
-        )
+        polarization_series.append(source_channels["polarization"])
         tensor_series.append(source_channels["tensor"])
+        doppler_series.append(
+            source_channels["_visibility_weight"]
+            * source_channels["_doppler_term"]
+        )
 
         for index in range(len(tau_grid) - 1):
             tau_start = float(tau_grid[index])
@@ -1818,12 +1821,12 @@ def _compute_declared_perturbation_spectrum(
                 float(current_k),
             )
             temperature_series.append(source_channels["temperature"])
-            polarization_series.append(
-                source_channels["polarization"]
-                if source_channels["polarization"] != 0.0
-                else source_channels["temperature"]
-            )
+            polarization_series.append(source_channels["polarization"])
             tensor_series.append(source_channels["tensor"])
+            doppler_series.append(
+                source_channels["_visibility_weight"]
+                * source_channels["_doppler_term"]
+            )
 
         temperature_history = numpy.asarray(temperature_series, dtype=float)
         polarization_history = numpy.asarray(
@@ -1831,6 +1834,15 @@ def _compute_declared_perturbation_spectrum(
             dtype=float,
         )
         tensor_history = numpy.asarray(tensor_series, dtype=float)
+        doppler_history = numpy.asarray(doppler_series, dtype=float)
+        if doppler_history.shape != tau_grid.shape:
+            raise ValueError("generic perturbation history has invalid shape")
+        if tau_grid.size >= 3:
+            temperature_history = temperature_history + numpy.gradient(
+                doppler_history,
+                tau_grid,
+                edge_order=2,
+            ) / max(float(current_k), 1.0e-6)
         if temperature_history.shape != tau_grid.shape:
             raise ValueError("generic perturbation history has invalid shape")
         if polarization_history.shape != tau_grid.shape:
@@ -1845,7 +1857,6 @@ def _compute_declared_perturbation_spectrum(
                     int(ell_value),
                     float(current_k),
                     tau_grid,
-                    damping_scale=damping_scale,
                 )
             )
             tensor_transfers[k_index, ell_index] = (
@@ -1854,7 +1865,6 @@ def _compute_declared_perturbation_spectrum(
                     int(ell_value),
                     float(current_k),
                     tau_grid,
-                    damping_scale=damping_scale,
                     kernel_kind="spin2",
                 )
             )
@@ -1864,7 +1874,6 @@ def _compute_declared_perturbation_spectrum(
                     int(ell_value),
                     float(current_k),
                     tau_grid,
-                    damping_scale=damping_scale,
                     kernel_kind="spin2",
                 )
             )

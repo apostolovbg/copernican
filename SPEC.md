@@ -1,7 +1,7 @@
 # Project Specification
 **Doc ID:** SPEC
 **Doc Type:** project-spec
-**Project Version:** 12.0.25
+**Project Version:** 12.0.26
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -18,8 +18,9 @@ It evaluates models against SNe Ia, BAO, and CMB observations.
 - Preserve native background expressions such as `Hz_expression`.
 - Keep backend adapters narrow and behavior-preserving.
 - Keep CMB capability checks beside `model_coder.py` so the declarative
-  perturbation path can execute through the generic solver or fail clearly
-  without a separate registry file.
+  perturbation path can execute through the generic
+  Boltzmann-hierarchy solver or fail clearly without a separate
+  registry file.
 - Validation runs and mirrored tests should stay behavior-focused, not
   cosmetic drift checks.
 - Keep GUI folder-open actions on native OS handlers while preserving the
