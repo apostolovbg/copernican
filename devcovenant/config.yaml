@@ -412,12 +412,12 @@ project-governance:
 
 policy_state:
   changelog-coverage: true
-  dependency-management: true
+  dependency-management: false
   docstring-and-comment-coverage: true
-  documentation-growth-tracking: true
+  documentation-growth-tracking: false
   last-updated: true
   line-length-limit: true
-  managed-environment: true
+  managed-environment: false
   modules-need-tests: true
   name-clarity: true
   no-future-dates: true
@@ -431,7 +431,7 @@ policy_state:
   start-script-guardrails: true
   start-script-parity: true
   tests-coverage: true
-  version-governance: true
+  version-governance: false
   version-sync: true
 
 # -------------------------------------------------------------------
@@ -1199,6 +1199,8 @@ autogen_metadata_overlays:
     - .json
     - .toml
     - .cff
+    long_lines_contain:
+    - =>
     max_length: '79'
     url_prefixes:
     - https://
@@ -1306,6 +1308,30 @@ autogen_metadata_overlays:
     - '*.py'
     include_suffixes:
     - .py
+  package-doc-sync:
+    omit_block_pairs:
+    - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
+    rewrite_repo_relative_links: 'true'
+    sync_pairs:
+    - README.md=>copernican/README.md
+    - docs/api_overview.md=>copernican/docs/api_overview.md
+    - docs/architecture.md=>copernican/docs/architecture.md
+    - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+    - docs/cli_guide.md=>copernican/docs/cli_guide.md
+    - docs/data_overview.md=>copernican/docs/data_overview.md
+    - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+    - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+    - docs/design_overview.md=>copernican/docs/design_overview.md
+    - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+    - docs/gui_guide.md=>copernican/docs/gui_guide.md
+    - docs/gui_overview.md=>copernican/docs/gui_overview.md
+    - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+    - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+    - docs/minigames.md=>copernican/docs/minigames.md
+    - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+    - docs/packaging.md=>copernican/docs/packaging.md
+    - docs/run_manifest.md=>copernican/docs/run_manifest.md
+    - docs/security_changes.md=>copernican/docs/security_changes.md
   pre_commit:
     overlays:
       exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*

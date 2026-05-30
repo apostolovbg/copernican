@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-05-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,20 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-05-31:
+  Change: Disabled version-governance, documentation-growth-tracking,
+    dependency-management, and managed-environment in the active config,
+    and added package-doc sync for the root README and docs source tree in
+    the userproject profile.
+  Why: This trims policy noise before the package-layout refactor while
+    keeping the source docs and package docs on one synced path.
+  Impact: The repo can prepare the new package layout without version,
+    dependency, and environment churn blocking the prep slice.
+  Files:
+  CHANGELOG.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
 
 - 2026-05-30 [semver:patch]:
   Change: Implemented the Boltzmann-hierarchy line-of-sight CMB solver

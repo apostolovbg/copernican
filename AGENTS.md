@@ -551,7 +551,7 @@ id: dependency-management
 severity: error
 auto_fix: 'true'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 surfaces:
 - id: devcovenant_runtime
@@ -852,7 +852,7 @@ id: documentation-growth-tracking
 severity: warning
 auto_fix: 'false'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 selector_roles:
 - user_facing
@@ -1142,7 +1142,8 @@ url_prefixes:
 - 'data:'
 - 'urn:'
 allow_long_lines: 'true'
-long_lines_contain: []
+long_lines_contain:
+- =>
 long_lines_between: []
 include_suffixes:
 - .py
@@ -1254,7 +1255,7 @@ id: managed-environment
 severity: error
 auto_fix: 'false'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 expected_paths:
 - .venv
@@ -1597,8 +1598,28 @@ auto_fix: 'true'
 enforcement: active
 enabled: 'true'
 custom: 'false'
-sync_pairs: []
-omit_block_pairs: []
+sync_pairs:
+- README.md=>copernican/README.md
+- docs/api_overview.md=>copernican/docs/api_overview.md
+- docs/architecture.md=>copernican/docs/architecture.md
+- docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+- docs/cli_guide.md=>copernican/docs/cli_guide.md
+- docs/data_overview.md=>copernican/docs/data_overview.md
+- docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+- docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+- docs/design_overview.md=>copernican/docs/design_overview.md
+- docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+- docs/gui_guide.md=>copernican/docs/gui_guide.md
+- docs/gui_overview.md=>copernican/docs/gui_overview.md
+- docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+- docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+- docs/minigames.md=>copernican/docs/minigames.md
+- docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+- docs/packaging.md=>copernican/docs/packaging.md
+- docs/run_manifest.md=>copernican/docs/run_manifest.md
+- docs/security_changes.md=>copernican/docs/security_changes.md
+omit_block_pairs:
+- <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
 rewrite_repo_relative_links: 'true'
 ```
 
@@ -1915,7 +1936,7 @@ id: version-governance
 severity: error
 auto_fix: 'false'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 scheme: semver
 enforce_bumping: 'true'

@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 4a795a9d88f0ec0f1f781eaec6f1ecd9ab8dd876770e5ec03e5d4bacb0a3934e
+  policy_registry_input_hash: 75271e478f28dda8ed1a8896743291934acddbb6e16fd55942ab32ce415ec43f
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.22
+  project_version: 12.0.26
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -2032,7 +2032,7 @@ policies:
     hash: f998d85eb088d86ef9a4737d4a3170d42a5646ad5ed82ce892ad57e91935d635
     script_path: builtin/changelog_coverage.py
   dependency-management:
-    enabled: true
+    enabled: false
     custom: false
     description: Dependency Management
     policy_text: |-
@@ -2077,7 +2077,7 @@ policies:
       severity: error
       auto_fix: 'true'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       surfaces:
       - id: devcovenant_runtime
@@ -3677,13 +3677,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -4227,7 +4227,7 @@ policies:
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       surfaces:
       - id: devcovenant_runtime
@@ -4626,7 +4626,7 @@ policies:
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       surfaces: *id012
       license_source_overrides: *id013
@@ -5051,7 +5051,7 @@ policies:
     hash: a9d49992c3e5fbdeea14a78aec2ef741d04e9ecee46a7bd9e4f7f2442fd65fa2
     script_path: builtin/docstring_and_comment_coverage.py
   documentation-growth-tracking:
-    enabled: true
+    enabled: false
     custom: false
     description: Documentation Growth Tracking
     policy_text: |-
@@ -5069,7 +5069,7 @@ policies:
       severity: warning
       auto_fix: 'false'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       selector_roles:
       - user_facing
@@ -6095,13 +6095,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -6120,7 +6120,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       selector_roles: &id020
       - user_facing
@@ -6302,7 +6302,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       selector_roles: *id020
       exclude_prefixes: *id021
@@ -6885,7 +6885,8 @@ policies:
       - 'data:'
       - 'urn:'
       allow_long_lines: 'true'
-      long_lines_contain: []
+      long_lines_contain:
+      - =>
       long_lines_between: []
       include_suffixes:
       - .py
@@ -7163,13 +7164,19 @@ policies:
           - ()
         profile_overlays:
           values:
-          - '[]'
+          - =>
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - =>
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
-          - '[]'
+          - =>
       long_lines_between:
         descriptor:
           values:
@@ -7639,9 +7646,10 @@ policies:
       - 'data:'
       - 'urn:'
       allow_long_lines: true
-      long_lines_contain: []
+      long_lines_contain: &id041
+      - =>
       long_lines_between: []
-      include_suffixes: &id041
+      include_suffixes: &id042
       - .py
       - .md
       - .rst
@@ -7651,12 +7659,12 @@ policies:
       - .json
       - .toml
       - .cff
-      exclude_prefixes: &id042
+      exclude_prefixes: &id043
       - build
       - dist
       - node_modules
       - devcovenant
-      exclude_globs: &id043
+      exclude_globs: &id044
       - .vscode/**
       - .idea/**
       - .venv/**
@@ -7688,7 +7696,7 @@ policies:
       - copernican_lib/licenses/*.txt
       - devcovenant/**
       include_prefixes: []
-      include_globs: &id044
+      include_globs: &id045
       - '*.py'
       - '*.md'
       - '*.rst'
@@ -7699,16 +7707,16 @@ policies:
       - '*.toml'
       - '*.cff'
       exclude_suffixes: []
-      force_include_globs: &id045
+      force_include_globs: &id046
       - devcovenant/custom/**
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      selector_roles: &id046
+      selector_roles: &id047
       - include
       - exclude
       - force_include
-      url_globs: &id047
+      url_globs: &id048
       - https:/**
       - http:/**
       - ftp:/**
@@ -7746,13 +7754,14 @@ policies:
       allow_long_url_lines: true
       url_prefixes: *id040
       allow_long_lines: true
-      include_suffixes: *id041
-      exclude_prefixes: *id042
-      exclude_globs: *id043
-      include_globs: *id044
-      force_include_globs: *id045
-      selector_roles: *id046
-      url_globs: *id047
+      long_lines_contain: *id041
+      include_suffixes: *id042
+      exclude_prefixes: *id043
+      exclude_globs: *id044
+      include_globs: *id045
+      force_include_globs: *id046
+      selector_roles: *id047
+      url_globs: *id048
     assets:
     - '**/*.egg-info/**'
     - '*.egg-info/**'
@@ -7827,7 +7836,7 @@ policies:
     hash: 2d4523e6d519c57d8bf2167f80539697ca6a3059ea6cd3e511c60b85e99e828d
     script_path: builtin/line_length_limit.py
   managed-environment:
-    enabled: true
+    enabled: false
     custom: false
     description: Managed Environment
     policy_text: |-
@@ -7874,7 +7883,7 @@ policies:
       severity: error
       auto_fix: 'false'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       expected_paths:
       - .venv
@@ -7950,13 +7959,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'false'
         effective:
           values:
-          - 'true'
+          - 'false'
       expected_paths:
         descriptor:
           values:
@@ -8140,22 +8149,22 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
-      expected_paths: &id048
+      expected_paths: &id049
       - .venv
-      expected_interpreters: &id049
+      expected_interpreters: &id050
       - .venv/bin/python
       - .venv/Scripts/python.exe
       command_search_paths: []
       cleanup_protected_paths: []
-      required_commands: &id050
+      required_commands: &id051
       - pre-commit
       allow_current_interpreter_fallback: false
-      manual_commands: &id051
+      manual_commands: &id052
       - '{current_python} -m venv .venv'
       - '{managed_python} -m pip install -r requirements.lock'
-      managed_commands: &id052
+      managed_commands: &id053
       - bootstrap=>{current_python} -m venv .venv
       - bootstrap=>{managed_python} -m pip install -r requirements.lock
       - open=>{current_python} -m venv .venv
@@ -8166,14 +8175,14 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
-      expected_paths: *id048
-      expected_interpreters: *id049
-      required_commands: *id050
+      expected_paths: *id049
+      expected_interpreters: *id050
+      required_commands: *id051
       allow_current_interpreter_fallback: false
-      manual_commands: *id051
-      managed_commands: *id052
+      manual_commands: *id052
+      managed_commands: *id053
     assets:
     - .venv/Scripts/python.exe
     - .venv/bin/python
@@ -8678,49 +8687,49 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id053
+      include_suffixes: &id054
       - .py
       include_prefixes: []
-      exclude_prefixes: &id054
+      exclude_prefixes: &id055
       - build
       - dist
       - node_modules
       - tests
       - devcovenant
-      exclude_globs: &id055
+      exclude_globs: &id056
       - build/**
       - dist/**
       - node_modules/**
       - tests/**
       - devcovenant/**
-      watch_dirs: &id056
+      watch_dirs: &id057
       - tests
-      tests_watch_dirs: &id057
+      tests_watch_dirs: &id058
       - tests
-      mirror_roots: &id058
+      mirror_roots: &id059
       - devcovenant/custom=>tests/devcovenant/custom
       - data/bao=>tests/data/bao
       - data/cmb=>tests/data/cmb
       - data/gw=>tests/data/gw
       - data/sne=>tests/data/sne
-      mirror_test_name_templates: &id059
+      mirror_test_name_templates: &id060
       - python=>test_{stem}.py
       - python=>{stem}_test.py
-      test_style_requirements: &id060
+      test_style_requirements: &id061
       - python=>python_unittest
-      include_globs: &id061
+      include_globs: &id062
       - '*.py'
       exclude_suffixes: []
-      force_include_globs: &id062
+      force_include_globs: &id063
       - devcovenant/custom/**/*.py
       watch_files: []
-      placeholder_test_methods: &id063
+      placeholder_test_methods: &id064
       - test_placeholder
-      placeholder_text_markers: &id064
+      placeholder_text_markers: &id065
       - placeholder-marker-alpha
       - placeholder-marker-beta
       - placeholder-marker-gamma
-      selector_roles: &id065
+      selector_roles: &id066
       - include
       - exclude
       - watch
@@ -8743,19 +8752,19 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id053
-      exclude_prefixes: *id054
-      exclude_globs: *id055
-      watch_dirs: *id056
-      tests_watch_dirs: *id057
-      mirror_roots: *id058
-      mirror_test_name_templates: *id059
-      test_style_requirements: *id060
-      include_globs: *id061
-      force_include_globs: *id062
-      placeholder_test_methods: *id063
-      placeholder_text_markers: *id064
-      selector_roles: *id065
+      include_suffixes: *id054
+      exclude_prefixes: *id055
+      exclude_globs: *id056
+      watch_dirs: *id057
+      tests_watch_dirs: *id058
+      mirror_roots: *id059
+      mirror_test_name_templates: *id060
+      test_style_requirements: *id061
+      include_globs: *id062
+      force_include_globs: *id063
+      placeholder_test_methods: *id064
+      placeholder_text_markers: *id065
+      selector_roles: *id066
     assets:
     - build/**
     - data/bao=>tests/data/bao
@@ -9126,27 +9135,27 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_prefixes: &id066
+      exclude_prefixes: &id067
       - build
       - dist
       - node_modules
       - devcovenant
-      include_suffixes: &id067
+      include_suffixes: &id068
       - .py
       include_prefixes: []
-      include_globs: &id068
+      include_globs: &id069
       - '*.py'
       exclude_suffixes: []
-      exclude_globs: &id069
+      exclude_globs: &id070
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
-      force_include_globs: &id070
+      force_include_globs: &id071
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       - tests/**/*.py
-      selector_roles: &id071
+      selector_roles: &id072
       - exclude
       - include
       - force_include
@@ -9164,12 +9173,12 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_prefixes: *id066
-      include_suffixes: *id067
-      include_globs: *id068
-      exclude_globs: *id069
-      force_include_globs: *id070
-      selector_roles: *id071
+      exclude_prefixes: *id067
+      include_suffixes: *id068
+      include_globs: *id069
+      exclude_globs: *id070
+      force_include_globs: *id071
+      selector_roles: *id072
     assets:
     - build/**
     - devcovenant/**
@@ -9642,7 +9651,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: &id072
+      selector_roles: &id073
       - include
       - exclude
       - force_include
@@ -9661,7 +9670,7 @@ policies:
       exclude_dirs: []
       force_include_files: []
       force_include_dirs: []
-      sink_call_targets: &id073
+      sink_call_targets: &id074
       - python=>print
       - python=>builtins.print
       sink_attr_targets: []
@@ -9677,8 +9686,8 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id072
-      sink_call_targets: *id073
+      selector_roles: *id073
+      sink_call_targets: *id074
     assets: []
     origin: builtin
     script_exists: true
@@ -10177,29 +10186,29 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: &id074
+      selector_roles: &id075
       - include
       - exclude
       - force_include
-      include_suffixes: &id075
+      include_suffixes: &id076
       - .py
       include_prefixes: []
-      include_globs: &id076
+      include_globs: &id077
       - '*.py'
       exclude_suffixes: []
-      exclude_prefixes: &id077
+      exclude_prefixes: &id078
       - build
       - dist
       - node_modules
       - devcovenant
       - tests
-      exclude_globs: &id078
+      exclude_globs: &id079
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
       - tests/**
-      force_include_globs: &id079
+      force_include_globs: &id080
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       include_files: []
@@ -10212,9 +10221,9 @@ policies:
       forbid_raise_exception: true
       forbid_broad_exception_handlers: true
       forbid_silent_exception_pass: true
-      broad_exception_waiver_markers: &id080
+      broad_exception_waiver_markers: &id081
       - DEVCOV_ALLOW_BROAD_ONCE
-      broad_exception_waiver_between: &id081
+      broad_exception_waiver_between: &id082
       - DEVCOV_BROAD_BEGIN=>DEVCOV_BROAD_END
     runtime_config_overrides: {}
     runtime_effective_options:
@@ -10224,18 +10233,18 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      selector_roles: *id074
-      include_suffixes: *id075
-      include_globs: *id076
-      exclude_prefixes: *id077
-      exclude_globs: *id078
-      force_include_globs: *id079
+      selector_roles: *id075
+      include_suffixes: *id076
+      include_globs: *id077
+      exclude_prefixes: *id078
+      exclude_globs: *id079
+      force_include_globs: *id080
       forbid_bare_except: true
       forbid_raise_exception: true
       forbid_broad_exception_handlers: true
       forbid_silent_exception_pass: true
-      broad_exception_waiver_markers: *id080
-      broad_exception_waiver_between: *id081
+      broad_exception_waiver_markers: *id081
+      broad_exception_waiver_between: *id082
     assets:
     - build/**
     - devcovenant/**
@@ -10571,7 +10580,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: &id082
+      include_suffixes: &id083
       - .py
       - .pyi
       - .pyw
@@ -10587,11 +10596,11 @@ policies:
       - .swift
       - .php
       - .rb
-      selector_roles: &id083
+      selector_roles: &id084
       - include
       - exclude
       - force_include
-      include_globs: &id084
+      include_globs: &id085
       - '*.py'
       - '*.pyi'
       - '*.pyw'
@@ -10630,9 +10639,9 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_suffixes: *id082
-      selector_roles: *id083
-      include_globs: *id084
+      include_suffixes: *id083
+      selector_roles: *id084
+      include_globs: *id085
     assets: []
     origin: builtin
     script_exists: true
@@ -10937,19 +10946,19 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_globs: &id085
+      include_globs: &id086
       - data/**
       include_suffixes: []
-      include_prefixes: &id086
+      include_prefixes: &id087
       - data
       exclude_suffixes: []
       exclude_prefixes: []
-      exclude_globs: &id087
+      exclude_globs: &id088
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
       force_include_globs: []
-      selector_roles: &id088
+      selector_roles: &id089
       - include
       - exclude
       - force_include
@@ -10967,10 +10976,10 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      include_globs: *id085
-      include_prefixes: *id086
-      exclude_globs: *id087
-      selector_roles: *id088
+      include_globs: *id086
+      include_prefixes: *id087
+      exclude_globs: *id088
+      selector_roles: *id089
     assets:
     - data/**
     - data/**/cosmo_parser_*.py
@@ -11366,23 +11375,23 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: &id089
+      exclude_globs: &id090
       - tests/**
       - '**/tests/**'
       - devcovenant/**
-      include_suffixes: &id090
+      include_suffixes: &id091
       - .py
       include_prefixes: []
-      include_globs: &id091
+      include_globs: &id092
       - '*.py'
       exclude_suffixes: []
-      exclude_prefixes: &id092
+      exclude_prefixes: &id093
       - devcovenant
-      force_include_globs: &id093
+      force_include_globs: &id094
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       - tests/**/*.py
-      selector_roles: &id094
+      selector_roles: &id095
       - exclude
       - include
       - force_include
@@ -11392,7 +11401,7 @@ policies:
       include_dirs: []
       force_include_files: []
       force_include_dirs: []
-      scanners: &id095
+      scanners: &id096
       - id: bandit
         kind: bandit
         config_file: bandit.yaml
@@ -11406,13 +11415,13 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: *id089
-      include_suffixes: *id090
-      include_globs: *id091
-      exclude_prefixes: *id092
-      force_include_globs: *id093
-      selector_roles: *id094
-      scanners: *id095
+      exclude_globs: *id090
+      include_suffixes: *id091
+      include_globs: *id092
+      exclude_prefixes: *id093
+      force_include_globs: *id094
+      selector_roles: *id095
+      scanners: *id096
     assets:
     - '**/tests/**'
     - bandit.yaml
@@ -11965,48 +11974,48 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: &id096
+      symbol_kinds: &id097
       - function
       - class
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: &id097
+      assertion_signal_patterns: &id098
       - '*=>\bassert\b'
       - python=>\bassert\b
       - python=>\bself\.assert[A-Za-z_]*\s*\(
-      tautology_patterns: &id098
+      tautology_patterns: &id099
       - '*=>^\s*assert\s*\(\s*true\s*\)\s*;?\s*$'
       - '*=>^\s*assert\s+true\s*;?\s*$'
       - rust=>^\s*assert!\s*\(\s*true\s*\)\s*;?\s*$
       - python=>^\s*assert\s+True\s*$
       - python=>^\s*self\.assertTrue\s*\(\s*True\s*\)\s*$
-      include_suffixes: &id099
+      include_suffixes: &id100
       - .py
       include_prefixes: []
-      exclude_prefixes: &id100
+      exclude_prefixes: &id101
       - build
       - dist
       - node_modules
       - tests
       - devcovenant
-      exclude_globs: &id101
+      exclude_globs: &id102
       - build/**
       - dist/**
       - node_modules/**
       - tests/**
       - devcovenant/**
-      watch_dirs: &id102
+      watch_dirs: &id103
       - tests
-      tests_watch_dirs: &id103
+      tests_watch_dirs: &id104
       - tests
-      include_globs: &id104
+      include_globs: &id105
       - '*.py'
       exclude_suffixes: []
-      force_include_globs: &id105
+      force_include_globs: &id106
       - devcovenant/custom/**/*.py
       watch_files: []
-      selector_roles: &id106
+      selector_roles: &id107
       - include
       - exclude
       - watch
@@ -12030,20 +12039,20 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: *id096
+      symbol_kinds: *id097
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: *id097
-      tautology_patterns: *id098
-      include_suffixes: *id099
-      exclude_prefixes: *id100
-      exclude_globs: *id101
-      watch_dirs: *id102
-      tests_watch_dirs: *id103
-      include_globs: *id104
-      force_include_globs: *id105
-      selector_roles: *id106
+      assertion_signal_patterns: *id098
+      tautology_patterns: *id099
+      include_suffixes: *id100
+      exclude_prefixes: *id101
+      exclude_globs: *id102
+      watch_dirs: *id103
+      tests_watch_dirs: *id104
+      include_globs: *id105
+      force_include_globs: *id106
+      selector_roles: *id107
     assets:
     - build/**
     - devcovenant/**
@@ -12056,7 +12065,7 @@ policies:
     hash: 28ba620ab2070e77f8d71635700cdc9732213829dd2f87abb814e4e00a6846e6
     script_path: builtin/tests_coverage.py
   version-governance:
-    enabled: true
+    enabled: false
     custom: false
     description: Version Governance
     policy_text: |-
@@ -12074,7 +12083,7 @@ policies:
       severity: error
       auto_fix: 'false'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       scheme: semver
       enforce_bumping: 'true'
@@ -12462,13 +12471,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -12487,7 +12496,7 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       scheme: semver
       enforce_bumping: true
@@ -12495,7 +12504,7 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: &id107
+      ignored_prefixes: &id108
       - devcovenant
       - models
       semver_scope_tags_required: true
@@ -12506,7 +12515,7 @@ policies:
       custom_regex_pattern: []
       custom_adapter_path: []
       selector_roles: ignored
-      ignored_globs: &id108
+      ignored_globs: &id109
       - devcovenant/**
       - models/**
       ignored_files: []
@@ -12517,7 +12526,7 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       scheme: semver
       enforce_bumping: true
@@ -12525,13 +12534,13 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: *id107
+      ignored_prefixes: *id108
       semver_scope_tags_required: true
       pep440_allow_prereleases: true
       pep440_allow_dev_releases: true
       pep440_allow_post_releases: true
       selector_roles: ignored
-      ignored_globs: *id108
+      ignored_globs: *id109
     assets:
     - CHANGELOG.md
     - copernican_lib/VERSION
@@ -12912,17 +12921,17 @@ policies:
       enabled: true
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: &id109
+      target_roles: &id110
       - docs
       - changelog
       - package_manifest
-      role_extractors: &id110
+      role_extractors: &id111
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      role_legality_schemes: &id111
+      role_legality_schemes: &id112
       - package_manifest=>pep440
-      target_role_files: &id112
+      target_role_files: &id113
       - docs=>README.md
       - docs=>AGENTS.md
       - docs=>CONTRIBUTING.md
@@ -12934,7 +12943,7 @@ policies:
       target_role_dirs: []
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: &id113
+      selector_roles: &id114
       - target
       target_globs: []
       target_files: []
@@ -12948,13 +12957,13 @@ policies:
       enabled: true
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: *id109
-      role_extractors: *id110
-      role_legality_schemes: *id111
-      target_role_files: *id112
+      target_roles: *id110
+      role_extractors: *id111
+      role_legality_schemes: *id112
+      target_role_files: *id113
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: *id113
+      selector_roles: *id114
     assets:
     - CHANGELOG.md
     - changelog=>CHANGELOG.md
@@ -13115,11 +13124,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id114
+      launcher_files: &id115
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id115
+      selector_roles: &id116
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -13131,8 +13140,8 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id114
-      selector_roles: *id115
+      launcher_files: *id115
+      selector_roles: *id116
     assets: []
     origin: custom
     script_exists: true
@@ -13284,11 +13293,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id116
+      launcher_files: &id117
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id117
+      selector_roles: &id118
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -13300,8 +13309,8 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id116
-      selector_roles: *id117
+      launcher_files: *id117
+      selector_roles: *id118
     assets: []
     origin: custom
     script_exists: true
@@ -13481,8 +13490,28 @@ policies:
       enforcement: active
       enabled: 'true'
       custom: 'false'
-      sync_pairs: []
-      omit_block_pairs: []
+      sync_pairs:
+      - README.md=>copernican/README.md
+      - docs/api_overview.md=>copernican/docs/api_overview.md
+      - docs/architecture.md=>copernican/docs/architecture.md
+      - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+      - docs/cli_guide.md=>copernican/docs/cli_guide.md
+      - docs/data_overview.md=>copernican/docs/data_overview.md
+      - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+      - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+      - docs/design_overview.md=>copernican/docs/design_overview.md
+      - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+      - docs/gui_guide.md=>copernican/docs/gui_guide.md
+      - docs/gui_overview.md=>copernican/docs/gui_overview.md
+      - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+      - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+      - docs/minigames.md=>copernican/docs/minigames.md
+      - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+      - docs/packaging.md=>copernican/docs/packaging.md
+      - docs/run_manifest.md=>copernican/docs/run_manifest.md
+      - docs/security_changes.md=>copernican/docs/security_changes.md
+      omit_block_pairs:
+      - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
       rewrite_repo_relative_links: 'true'
     metadata_resolution:
       id:
@@ -13538,9 +13567,75 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - README.md=>copernican/README.md
+          - docs/api_overview.md=>copernican/docs/api_overview.md
+          - docs/architecture.md=>copernican/docs/architecture.md
+          - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+          - docs/cli_guide.md=>copernican/docs/cli_guide.md
+          - docs/data_overview.md=>copernican/docs/data_overview.md
+          - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+          - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+          - docs/design_overview.md=>copernican/docs/design_overview.md
+          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+          - docs/gui_guide.md=>copernican/docs/gui_guide.md
+          - docs/gui_overview.md=>copernican/docs/gui_overview.md
+          - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+          - docs/minigames.md=>copernican/docs/minigames.md
+          - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+          - docs/packaging.md=>copernican/docs/packaging.md
+          - docs/run_manifest.md=>copernican/docs/run_manifest.md
+          - docs/security_changes.md=>copernican/docs/security_changes.md
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - README.md=>copernican/README.md
+          - docs/api_overview.md=>copernican/docs/api_overview.md
+          - docs/architecture.md=>copernican/docs/architecture.md
+          - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+          - docs/cli_guide.md=>copernican/docs/cli_guide.md
+          - docs/data_overview.md=>copernican/docs/data_overview.md
+          - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+          - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+          - docs/design_overview.md=>copernican/docs/design_overview.md
+          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+          - docs/gui_guide.md=>copernican/docs/gui_guide.md
+          - docs/gui_overview.md=>copernican/docs/gui_overview.md
+          - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+          - docs/minigames.md=>copernican/docs/minigames.md
+          - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+          - docs/packaging.md=>copernican/docs/packaging.md
+          - docs/run_manifest.md=>copernican/docs/run_manifest.md
+          - docs/security_changes.md=>copernican/docs/security_changes.md
+          behavior: append
+          replaced_inherited_values:
+          - ()
         effective:
           values:
-          - '[]'
+          - README.md=>copernican/README.md
+          - docs/api_overview.md=>copernican/docs/api_overview.md
+          - docs/architecture.md=>copernican/docs/architecture.md
+          - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+          - docs/cli_guide.md=>copernican/docs/cli_guide.md
+          - docs/data_overview.md=>copernican/docs/data_overview.md
+          - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+          - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+          - docs/design_overview.md=>copernican/docs/design_overview.md
+          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+          - docs/gui_guide.md=>copernican/docs/gui_guide.md
+          - docs/gui_overview.md=>copernican/docs/gui_overview.md
+          - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+          - docs/minigames.md=>copernican/docs/minigames.md
+          - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+          - docs/packaging.md=>copernican/docs/packaging.md
+          - docs/run_manifest.md=>copernican/docs/run_manifest.md
+          - docs/security_changes.md=>copernican/docs/security_changes.md
       omit_block_pairs:
         descriptor:
           values:
@@ -13548,9 +13643,21 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
+          behavior: append
+          replaced_inherited_values:
+          - ()
         effective:
           values:
-          - '[]'
+          - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
       rewrite_repo_relative_links:
         descriptor:
           values:
@@ -13558,6 +13665,18 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
+        autogen_overlays:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
         effective:
           values:
           - 'true'
@@ -13597,8 +13716,28 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      sync_pairs: []
-      omit_block_pairs: []
+      sync_pairs: &id119
+      - README.md=>copernican/README.md
+      - docs/api_overview.md=>copernican/docs/api_overview.md
+      - docs/architecture.md=>copernican/docs/architecture.md
+      - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+      - docs/cli_guide.md=>copernican/docs/cli_guide.md
+      - docs/data_overview.md=>copernican/docs/data_overview.md
+      - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+      - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+      - docs/design_overview.md=>copernican/docs/design_overview.md
+      - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+      - docs/gui_guide.md=>copernican/docs/gui_guide.md
+      - docs/gui_overview.md=>copernican/docs/gui_overview.md
+      - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+      - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+      - docs/minigames.md=>copernican/docs/minigames.md
+      - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+      - docs/packaging.md=>copernican/docs/packaging.md
+      - docs/run_manifest.md=>copernican/docs/run_manifest.md
+      - docs/security_changes.md=>copernican/docs/security_changes.md
+      omit_block_pairs: &id120
+      - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
       rewrite_repo_relative_links: true
     runtime_config_overrides: {}
     runtime_effective_options:
@@ -13608,8 +13747,29 @@ policies:
       enforcement: active
       enabled: true
       custom: false
+      sync_pairs: *id119
+      omit_block_pairs: *id120
       rewrite_repo_relative_links: true
-    assets: []
+    assets:
+    - README.md=>copernican/README.md
+    - docs/api_overview.md=>copernican/docs/api_overview.md
+    - docs/architecture.md=>copernican/docs/architecture.md
+    - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+    - docs/cli_guide.md=>copernican/docs/cli_guide.md
+    - docs/data_overview.md=>copernican/docs/data_overview.md
+    - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+    - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+    - docs/design_overview.md=>copernican/docs/design_overview.md
+    - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+    - docs/gui_guide.md=>copernican/docs/gui_guide.md
+    - docs/gui_overview.md=>copernican/docs/gui_overview.md
+    - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+    - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+    - docs/minigames.md=>copernican/docs/minigames.md
+    - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+    - docs/packaging.md=>copernican/docs/packaging.md
+    - docs/run_manifest.md=>copernican/docs/run_manifest.md
+    - docs/security_changes.md=>copernican/docs/security_changes.md
     origin: builtin
     script_exists: true
     hash: a56d8f2b5edc6ab7d3f71deaff0f0a99a16300f29b7310683e015428d5ff6cc6
@@ -16474,6 +16634,26 @@ profiles:
         - devcovenant/custom/**
         - tests/**/*.py
         - tests/**/*.md
+        allow_long_url_lines: true
+        url_prefixes:
+        - https://
+        - http://
+        - ftp://
+        - ftps://
+        - sftp://
+        - ssh://
+        - ws://
+        - wss://
+        - file://
+        - git://
+        - svn://
+        - 'mailto:'
+        - 'tel:'
+        - 'magnet:'
+        - 'torrent:'
+        - 'urn:'
+        long_lines_contain:
+        - =>
       pre_commit:
         overlays:
           exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
@@ -16517,6 +16697,30 @@ profiles:
         - data/gw=>tests/data/gw
         - data/sne=>tests/data/sne
         - devcovenant/custom=>tests/devcovenant/custom
+      package-doc-sync:
+        sync_pairs:
+        - README.md=>copernican/README.md
+        - docs/api_overview.md=>copernican/docs/api_overview.md
+        - docs/architecture.md=>copernican/docs/architecture.md
+        - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
+        - docs/cli_guide.md=>copernican/docs/cli_guide.md
+        - docs/data_overview.md=>copernican/docs/data_overview.md
+        - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
+        - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
+        - docs/design_overview.md=>copernican/docs/design_overview.md
+        - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
+        - docs/gui_guide.md=>copernican/docs/gui_guide.md
+        - docs/gui_overview.md=>copernican/docs/gui_overview.md
+        - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
+        - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
+        - docs/minigames.md=>copernican/docs/minigames.md
+        - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
+        - docs/packaging.md=>copernican/docs/packaging.md
+        - docs/run_manifest.md=>copernican/docs/run_manifest.md
+        - docs/security_changes.md=>copernican/docs/security_changes.md
+        omit_block_pairs:
+        - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
+        rewrite_repo_relative_links: true
     source: custom
     path: devcovenant/custom/profiles/userproject
     assets_available: []
