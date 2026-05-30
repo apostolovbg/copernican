@@ -48,7 +48,7 @@ from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 import numpy
 
 from . import priors as prior_lib
-from .cmb_backend_registry import CMB_BACKEND_CAPABILITIES
+from .model_coder import CMB_BACKEND_CAPABILITIES
 from .posterior import PosteriorEvaluator, make_logposterior
 
 LOGGER = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "CMB_PARAM_MAP",
     "CMB_PERTURBATION_CONTRACT",
     "CMB_PERTURBATION_STANDARD",
-    "CMB_PERTURBATION_IR",
+    "CMB_PERTURBATION_DATA",
 ]
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
@@ -145,13 +145,18 @@ _SUPPORTED_CMB_PARAM_KEYS = {
     "tau",
     "theta_H0_range",
 }
-_SUPPORTED_CMB_CONTRACT_KEYS = {
+_REQUIRED_CMB_CONTRACT_KEYS = {
     "backend",
     "calls",
     "grids",
     "param_map",
     "perturbations",
     "values",
+}
+_SUPPORTED_CMB_CONTRACT_KEYS = {
+    *_REQUIRED_CMB_CONTRACT_KEYS,
+    "model_parameters",
+    "value_definitions",
 }
 _SUPPORTED_CMB_GRID_KEYS = {
     "lower",
@@ -437,7 +442,7 @@ def _validate_camb_contract_definition(
         raise ValueError("CMB_CONTRACT must be a mapping")
 
     contract_keys = {str(key) for key in contract.keys()}
-    missing_contract_keys = _SUPPORTED_CMB_CONTRACT_KEYS - contract_keys
+    missing_contract_keys = _REQUIRED_CMB_CONTRACT_KEYS - contract_keys
     if missing_contract_keys:
         missing_str = ", ".join(sorted(missing_contract_keys))
         raise ValueError(f"Missing CMB contract key(s): {missing_str}")
@@ -1054,7 +1059,7 @@ class EnginePlugin:
     CMB_PARAM_MAP: Mapping[str, Any]
     CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
     CMB_PERTURBATION_STANDARD: bool
-    CMB_PERTURBATION_IR: Any
+    CMB_PERTURBATION_DATA: Any
     LIKELIHOOD_CONFIG: Mapping[str, Any]
     MODEL_EQUATIONS_LATEX_SN: tuple[str, ...]
     MODEL_EQUATIONS_LATEX_BAO: tuple[str, ...]
@@ -1134,6 +1139,13 @@ class EnginePlugin:
         if evaluator is None:
             raise ValueError("Model does not declare a CAMB contract")
         evaluated = evaluator(values)
+        evaluated["model_parameters"] = {
+            name: float(value)
+            for name, value in zip(self.PARAMETER_NAMES, values, strict=False)
+        }
+        evaluated["value_definitions"] = copy.deepcopy(
+            self.CMB_CONTRACT.get("values", {}) or {}
+        )
         evaluated["model_name"] = self.MODEL_NAME
         evaluated["backend"] = self.CMB_CONTRACT.get(
             "backend", _SUPPORTED_CMB_BACKEND
@@ -1157,14 +1169,14 @@ class EnginePlugin:
         )
         return contract
 
-    def get_cmb_perturbation_ir(self, values: Sequence[float]) -> Any:
-        """Return the compiled CMB perturbation IR."""
+    def get_cmb_perturbation_data(self, values: Sequence[float]) -> Any:
+        """Return the compiled CMB perturbation data."""
 
         del values
-        perturbation_ir = getattr(self, "CMB_PERTURBATION_IR", None)
-        if perturbation_ir is None:
-            raise ValueError("Model does not declare a CMB perturbation IR")
-        return perturbation_ir
+        perturbation_data = getattr(self, "CMB_PERTURBATION_DATA", None)
+        if perturbation_data is None:
+            raise ValueError("Model does not declare CMB perturbation data")
+        return perturbation_data
 
 
 def sanitize_equation(equation_line: str) -> str:
@@ -1272,11 +1284,11 @@ def build_engine_plugin(
         str(key) for key in (cmb_contract.get("values", {}) or {})
     )
 
-    perturbation_ir = None
+    perturbation_data = None
     if model_data.get("valid_for_cmb", True):
         from .perturbation_contract import compile_perturbation_contract
 
-        perturbation_ir = compile_perturbation_contract(
+        perturbation_data = compile_perturbation_contract(
             perturbation_contract,
             model_name=model_data.get("model_name", "GeneratedModel"),
             backend=cmb_contract.get("backend", _SUPPORTED_CMB_BACKEND),
@@ -1322,7 +1334,7 @@ def build_engine_plugin(
         CMB_PARAM_MAP=cmb_contract.get("param_map", {}),
         CMB_PERTURBATION_CONTRACT=perturbation_contract,
         CMB_PERTURBATION_STANDARD=perturbation_contract.get("standard", False),
-        CMB_PERTURBATION_IR=perturbation_ir,
+        CMB_PERTURBATION_DATA=perturbation_data,
         LIKELIHOOD_CONFIG=likelihood_config,
         MODEL_EQUATIONS_LATEX_SN=sne_eqs,
         MODEL_EQUATIONS_LATEX_BAO=bao_eqs,
@@ -1407,7 +1419,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
                 "get_camb_params",
                 "get_camb_contract",
                 "get_cmb_perturbation_contract",
-                "get_cmb_perturbation_ir",
+                "get_cmb_perturbation_data",
             ]
         )
 
@@ -1437,8 +1449,8 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
             bool,
         ):
             errors.append("CMB_PERTURBATION_STANDARD must be boolean")
-        if getattr(plugin, "CMB_PERTURBATION_IR", None) is None:
-            errors.append("CMB_PERTURBATION_IR must be present")
+        if getattr(plugin, "CMB_PERTURBATION_DATA", None) is None:
+            errors.append("CMB_PERTURBATION_DATA must be present")
 
     try:
         _validate_plugin_cmb_contract(plugin)

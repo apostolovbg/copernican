@@ -86,7 +86,7 @@ def _build_short_chain_plugin():
         CMB_PARAM_MAP={},
         CMB_PERTURBATION_CONTRACT={},
         CMB_PERTURBATION_STANDARD=False,
-        CMB_PERTURBATION_IR=None,
+        CMB_PERTURBATION_DATA=None,
         LIKELIHOOD_CONFIG={},
         MODEL_EQUATIONS_LATEX_SN=(),
         MODEL_EQUATIONS_LATEX_BAO=(),

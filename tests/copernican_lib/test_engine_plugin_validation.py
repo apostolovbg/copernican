@@ -15,7 +15,7 @@ import numpy
 from copernican_lib import engine_adapter as engine_plugin_validation
 from copernican_lib import model_coder, model_spec_validator
 from copernican_lib.engine_adapter import PluginValidationError
-from copernican_lib.perturbation_contract import PerturbationContractIR
+from copernican_lib.perturbation_contract import PerturbationContractData
 
 # fmt: off
 MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
@@ -129,7 +129,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self,
         *,
         implemented: bool = False,
-        solver: str = "template_native_solver",
     ) -> dict[str, object]:
         """Return a fully declared non-standard perturbation contract."""
 
@@ -206,7 +205,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "backend_mapping": {
                 "camb": {
                     "native_solver_required": True,
-                    "solver": solver,
                     "implemented": implemented,
                 }
             },
@@ -316,11 +314,11 @@ class EngineInterfaceTestCase(unittest.TestCase):
             contract["backend_mapping"]["camb"]["uses_standard_perturbations"],
             True,
         )
-        perturbation_ir = self.plugin.get_cmb_perturbation_ir(
+        perturbation_data = self.plugin.get_cmb_perturbation_data(
             self.plugin.INITIAL_GUESSES
         )
-        self.assertIsInstance(perturbation_ir, PerturbationContractIR)
-        self.assertTrue(perturbation_ir.standard)
+        self.assertIsInstance(perturbation_data, PerturbationContractData)
+        self.assertTrue(perturbation_data.standard)
 
     def test_get_camb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
@@ -434,8 +432,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "conformal_newtonian",
         )
         self.assertIsInstance(
-            plugin.get_cmb_perturbation_ir(plugin.INITIAL_GUESSES),
-            PerturbationContractIR,
+            plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
+            PerturbationContractData,
         )
 
     def test_standard_false_perturbation_contract_without_math_fails(self):
@@ -463,7 +461,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "backend_mapping": {
                 "camb": {
                     "native_solver_required": True,
-                    "solver": "template_native_solver",
                     "implemented": False,
                 }
             },
@@ -600,7 +597,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertFalse(plugin.valid_for_cmb)
         self.assertEqual(plugin.CMB_CONTRACT, {})
-        self.assertIsNone(plugin.CMB_PERTURBATION_IR)
+        self.assertIsNone(plugin.CMB_PERTURBATION_DATA)
 
     def test_migrated_cmb_models_validate(self):
         """All migrated CMB models should build and validate cleanly."""
@@ -633,7 +630,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
                 self.assertEqual(contract["backend"], "camb")
                 self.assertIsNotNone(
-                    plugin.get_cmb_perturbation_ir(plugin.INITIAL_GUESSES)
+                    plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
                 )
 
     def test_unknown_cmb_key_fails(self):

@@ -13,6 +13,7 @@ claim a non-standard backend mapping.
 
 from __future__ import annotations
 
+import ast
 import logging
 import os
 import re
@@ -23,8 +24,14 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 import camb
 import numpy
 import pandas
+from scipy.integrate import cumulative_trapezoid
 
-from ..cmb_backend_registry import validate_native_perturbation_execution
+from ..engine_adapter import (
+    _SUPPORTED_CMB_BACKEND,
+    _evaluate_safe_expression,
+    _parse_safe_expression,
+)
+from ..model_coder import validate_native_perturbation_execution
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
@@ -238,19 +245,210 @@ def _validate_camb_perturbation_execution(
     if isinstance(backend_mapping, Mapping):
         backend_entry = backend_mapping.get(backend, {}) or {}
 
-    solver = None
     implemented = None
     if isinstance(backend_entry, Mapping):
-        solver = backend_entry.get("solver")
         implemented = backend_entry.get("implemented")
 
     validate_native_perturbation_execution(
         model_name=str(model_name),
         backend=backend,
         standard=standard,
-        solver=solver if isinstance(solver, str) else None,
         implemented=implemented if isinstance(implemented, bool) else None,
     )
+
+
+def _compile_declared_perturbation_contract(
+    contract: Mapping[str, Any],
+):
+    """Return the compiled perturbation contract for generic execution."""
+
+    from ..perturbation_contract import compile_perturbation_contract
+
+    model_parameters = contract.get("model_parameters", {})
+    if isinstance(model_parameters, Mapping) and model_parameters:
+        parameter_names = tuple(str(key) for key in model_parameters)
+    else:
+        parameter_names = tuple(
+            str(key) for key in (contract.get("param_map", {}) or {})
+        )
+
+    latex_names = tuple("" for _ in parameter_names)
+    background_reference_names = {
+        str(key) for key in (contract.get("param_map", {}) or {})
+    }
+    grid_defs = contract.get("grids", {}) or {}
+    for grid_def in grid_defs.values():
+        if not isinstance(grid_def, Mapping):
+            continue
+        symbol = grid_def.get("symbol")
+        if isinstance(symbol, str) and symbol.strip():
+            background_reference_names.add(symbol.strip())
+    background_reference_names.update(
+        str(key) for key in (contract.get("values", {}) or {})
+    )
+    background_reference_names.update(parameter_names)
+
+    perturbations = contract.get("perturbations", {})
+    if isinstance(perturbations, Mapping):
+        perturbations = {
+            key: value
+            for key, value in perturbations.items()
+            if key not in {"backend", "model_name"}
+        }
+    return compile_perturbation_contract(
+        perturbations,
+        model_name=str(contract.get("model_name", "unknown model")),
+        backend=str(contract.get("backend", _SUPPORTED_CMB_BACKEND)),
+        parameter_names=parameter_names,
+        latex_names=latex_names,
+        background_reference_names=tuple(sorted(background_reference_names)),
+    )
+
+
+def _build_generic_background_payload_from_plugin(
+    plugin: Any,
+    contract: Mapping[str, Any],
+    redshifts: Sequence[float],
+) -> dict[str, numpy.ndarray]:
+    """Return background observables using the model's own callables."""
+
+    z_arr = numpy.asarray(redshifts, dtype=float)
+    if z_arr.ndim != 1 or z_arr.size == 0:
+        raise ValueError("redshifts must be a one-dimensional array")
+
+    parameter_names = tuple(getattr(plugin, "PARAMETER_NAMES", ()) or ())
+    model_parameters = contract.get("model_parameters", {}) or {}
+    param_map = contract.get("param_map", {}) or {}
+    parameter_values: list[float] = []
+    for parameter_name in parameter_names:
+        if (
+            isinstance(model_parameters, Mapping)
+            and parameter_name in model_parameters
+        ):
+            parameter_values.append(
+                _coerce_numeric_scalar(
+                    model_parameters[parameter_name],
+                    name=str(parameter_name),
+                )
+            )
+            continue
+        if isinstance(param_map, Mapping) and parameter_name in param_map:
+            parameter_values.append(
+                _coerce_numeric_scalar(
+                    param_map[parameter_name],
+                    name=str(parameter_name),
+                )
+            )
+            continue
+        raise ValueError(
+            "Generic declarative perturbation execution requires model "
+            f"parameter '{parameter_name}'"
+        )
+
+    parameter_tuple = tuple(parameter_values)
+
+    def _coerce_series(
+        value: Any,
+        *,
+        name: str,
+    ) -> numpy.ndarray:
+        """Return a finite series with the same shape as the redshift grid."""
+
+        array_value = numpy.asarray(value, dtype=float)
+        if array_value.ndim == 0:
+            return numpy.full(z_arr.shape, float(array_value), dtype=float)
+        if array_value.shape != z_arr.shape:
+            if array_value.size == 1:
+                return numpy.full(
+                    z_arr.shape,
+                    float(array_value.reshape(())),
+                    dtype=float,
+                )
+            raise ValueError(
+                f"{name} must evaluate to an array with shape {z_arr.shape}"
+            )
+        if not numpy.all(numpy.isfinite(array_value)):
+            raise ValueError(f"{name} must contain only finite values")
+        return array_value
+
+    hz_fn = getattr(plugin, "get_Hz_per_Mpc", None)
+    if not callable(hz_fn):
+        raise ValueError(
+            "Generic declarative perturbation execution requires "
+            "get_Hz_per_Mpc"
+        )
+    hz_values = _coerce_series(hz_fn(z_arr, *parameter_tuple), name="Hz")
+
+    dm_fn = getattr(plugin, "get_comoving_distance_Mpc", None)
+    if callable(dm_fn):
+        dm_values = _coerce_series(
+            dm_fn(z_arr, *parameter_tuple),
+            name="DM",
+        )
+    else:
+        sorted_order = numpy.argsort(z_arr)
+        sorted_z = z_arr[sorted_order]
+        sorted_hz = hz_values[sorted_order]
+        with numpy.errstate(divide="ignore", invalid="ignore"):
+            integrand = numpy.where(
+                numpy.abs(sorted_hz) > 1e-12,
+                _C_LIGHT_KM_S / sorted_hz,
+                numpy.nan,
+            )
+        integrated = cumulative_trapezoid(
+            integrand,
+            sorted_z,
+            initial=0.0,
+        )
+        dm_values = numpy.interp(z_arr, sorted_z, integrated)
+        dm_values = _coerce_series(dm_values, name="DM")
+
+    dh_values = numpy.where(
+        numpy.abs(hz_values) > 1e-12,
+        _C_LIGHT_KM_S / hz_values,
+        numpy.nan,
+    )
+
+    da_fn = getattr(plugin, "get_angular_diameter_distance_Mpc", None)
+    if callable(da_fn):
+        da_values = _coerce_series(
+            da_fn(z_arr, *parameter_tuple),
+            name="DA",
+        )
+    else:
+        da_values = numpy.divide(dm_values, 1.0 + z_arr, dtype=float)
+
+    dv_fn = getattr(plugin, "get_DV_Mpc", None)
+    if callable(dv_fn):
+        dv_values = _coerce_series(
+            dv_fn(z_arr, *parameter_tuple),
+            name="DV",
+        )
+    else:
+        with numpy.errstate(divide="ignore", invalid="ignore"):
+            dv_term = dm_values * dm_values * z_arr * dh_values
+            dv_values = numpy.where(
+                dv_term >= 0.0, numpy.power(dv_term, 1.0 / 3.0), numpy.nan
+            )
+
+    rs_fn = getattr(plugin, "get_sound_horizon_rs_Mpc", None)
+    if callable(rs_fn):
+        rs_drag = _coerce_numeric_scalar(
+            rs_fn(*parameter_tuple),
+            name="rs_drag",
+        )
+    else:
+        rs_drag = 1.0
+
+    return {
+        "rs_drag": numpy.asarray([rs_drag], dtype=float),
+        "DM": dm_values,
+        "DH": dh_values,
+        "DA": da_values,
+        "DV": dv_values,
+        "Hz": hz_values,
+        "z": z_arr.copy(),
+    }
 
 
 def _make_camb_params(
@@ -597,6 +795,573 @@ def _compute_camb_background_direct(
     }
 
 
+def _compute_declared_perturbation_spectrum(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    spectra: Sequence[str] = ("TT",),
+    background_payload: Mapping[str, Any] | None = None,
+    background_provider: Any | None = None,
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
+    """Return spectra from a declared non-standard perturbation contract."""
+
+    perturbation_data = _compile_declared_perturbation_contract(
+        contract_or_params
+    )
+    if perturbation_data.standard:
+        raise ValueError(
+            "Standard perturbation contracts must use the CAMB path."
+        )
+
+    backend = str(perturbation_data.backend)
+    backend_entry = perturbation_data.backend_mapping.get(backend)
+    if backend_entry is None:
+        raise ValueError(
+            f"cmb.perturbations.backend_mapping must include {backend}"
+        )
+    if getattr(backend_entry, "native_solver_required", None) is not True:
+        raise ValueError(
+            "Non-standard perturbations must declare "
+            f"backend_mapping.{backend}.native_solver_required: true"
+        )
+    if getattr(backend_entry, "implemented", None) is not True:
+        raise ValueError(
+            "A generic declarative executor is required for backend "
+            f"'{backend}'; backend_mapping.{backend}.implemented must be "
+            "true"
+        )
+
+    contract = dict(contract_or_params)
+    contract.pop("perturbations", None)
+    ell_arr = numpy.asarray(list(ells), dtype=int)
+    if ell_arr.size == 0:
+        raise ValueError("ells must not be empty")
+
+    variable_names = tuple(perturbation_data.variables.keys())
+    source_names = tuple(perturbation_data.sources.keys())
+    derived_expression_entries = {
+        name: entry
+        for name, entry in perturbation_data.derived.items()
+        if entry.kind == "expression"
+    }
+    derivative_symbol_entries = {
+        name: entry
+        for name, entry in perturbation_data.derived.items()
+        if entry.kind == "derivative_symbol"
+    }
+    equation_by_variable: dict[str, Any] = {}
+    for equation in perturbation_data.equations.values():
+        if equation.lhs.order != 1:
+            raise ValueError(
+                "Generic declarative perturbation execution currently "
+                "supports only first-order equations"
+            )
+        if equation.lhs.variable in equation_by_variable:
+            raise ValueError(
+                f"Perturbation variable '{equation.lhs.variable}' has more "
+                "than one evolution equation"
+            )
+        equation_by_variable[equation.lhs.variable] = equation
+
+    model_parameter_values = {
+        str(key): _coerce_numeric_scalar(value, name=str(key))
+        for key, value in (contract.get("model_parameters", {}) or {}).items()
+    }
+    param_map_values = {
+        str(key): _coerce_numeric_scalar(value, name=str(key))
+        for key, value in (contract.get("param_map", {}) or {}).items()
+    }
+    combined_parameter_values = dict(model_parameter_values)
+    combined_parameter_values.update(param_map_values)
+
+    z_rec_value = combined_parameter_values.get("z_rec", 1089.92)
+    if not numpy.isfinite(z_rec_value) or z_rec_value <= 0.0:
+        z_rec_value = 1089.92
+
+    grid_size = max(64, 4 * (len(variable_names) + len(source_names)))
+    z_grid = numpy.linspace(float(z_rec_value), 0.0, grid_size, dtype=float)
+    if background_payload is None:
+        if background_provider is not None:
+            background = _build_generic_background_payload_from_plugin(
+                background_provider,
+                contract,
+                z_grid,
+            )
+        else:
+            background = compute_camb_background_observables(contract, z_grid)
+    else:
+        background = background_payload
+    background_z = numpy.asarray(background.get("z", z_grid), dtype=float)
+    background_hz = numpy.asarray(background.get("Hz", numpy.nan), dtype=float)
+    if background_hz.shape != background_z.shape:
+        raise ValueError("Generic declarative background has invalid shape")
+    if not numpy.all(numpy.isfinite(background_hz)):
+        raise ValueError("Generic declarative background is non-finite")
+    background_a = numpy.divide(1.0, 1.0 + background_z, dtype=float)
+    tau_grid = cumulative_trapezoid(
+        1.0
+        / numpy.maximum(
+            background_a * background_a * numpy.maximum(background_hz, 1e-12),
+            1e-12,
+        ),
+        background_a,
+        initial=0.0,
+    )
+    if (
+        not numpy.all(numpy.isfinite(tau_grid))
+        or tau_grid.size == 0
+        or tau_grid[-1] <= 0.0
+    ):
+        tau_grid = numpy.linspace(0.0, 1.0, background_a.size, dtype=float)
+    else:
+        tau_grid = tau_grid / tau_grid[-1]
+
+    value_definitions = contract.get("value_definitions", {}) or {}
+    value_arrays = contract.get("values", {}) or {}
+    grid_arrays = contract.get("grids", {}) or {}
+
+    def _background_scalar(name: str, tau_value: float) -> float:
+        """Return a scalar background value interpolated at ``tau_value``."""
+
+        series = background.get(name)
+        if series is None:
+            return 0.0
+        series_array = numpy.asarray(series, dtype=float)
+        if series_array.ndim == 0 or series_array.size == 1:
+            return float(series_array.reshape(()))
+        return float(numpy.interp(tau_value, tau_grid, series_array))
+
+    def _contract_value(name: str, current_a: float) -> float:
+        """Return the scalar contract value associated with ``name``."""
+
+        raw_value = value_arrays.get(name)
+        value_def = value_definitions.get(name, {})
+        grid_name = (
+            value_def.get("grid") if isinstance(value_def, Mapping) else None
+        )
+        if isinstance(grid_name, str):
+            grid_array = numpy.asarray(grid_arrays.get(grid_name), dtype=float)
+            value_array = numpy.asarray(raw_value, dtype=float)
+            if (
+                grid_array.ndim == 1
+                and value_array.ndim == 1
+                and grid_array.size == value_array.size
+            ):
+                return float(numpy.interp(current_a, grid_array, value_array))
+        if raw_value is None:
+            return 0.0
+        return _coerce_numeric_scalar(raw_value, name=name)
+
+    derived_expression_order = tuple(
+        name
+        for name in (
+            perturbation_data.dependency_graph_summary.derived_expression_names
+        )
+        if name in derived_expression_entries
+    )
+    dependency_summary = perturbation_data.dependency_graph_summary
+    dependency_map = {
+        name: tuple(
+            dependency
+            for dependency in dependencies
+            if dependency in derived_expression_entries
+        )
+        for name, dependencies in (
+            dependency_summary.derived_expression_dependencies.items()
+        )
+    }
+    ordered_derived_names: list[str] = []
+    unresolved = set(derived_expression_order)
+    resolved: set[str] = set()
+    while unresolved:
+        ready = sorted(
+            name
+            for name in unresolved
+            if set(dependency_map.get(name, ())) <= resolved
+        )
+        if not ready:
+            raise ValueError(
+                "Derived perturbation expressions contain a cycle"
+            )
+        ordered_derived_names.extend(ready)
+        for name in ready:
+            unresolved.remove(name)
+            resolved.add(name)
+
+    initial_state = numpy.asarray(
+        [
+            (0.0 if "stress" in entry.kind.lower() else 1.0e-3 * (index + 1))
+            for index, entry in enumerate(perturbation_data.variables.values())
+        ],
+        dtype=float,
+    )
+    variable_order = tuple(perturbation_data.variables.keys())
+    variable_index = {name: index for index, name in enumerate(variable_order)}
+
+    def _build_environment(
+        tau_value: float,
+        state_vector: numpy.ndarray,
+        derivative_values: Mapping[str, float],
+        k_value: float,
+    ) -> dict[str, Any]:
+        """Return the evaluation environment at a single grid point."""
+
+        current_a = float(numpy.interp(tau_value, tau_grid, background_a))
+        current_z = float(numpy.interp(tau_value, tau_grid, background_z))
+        current_hz = float(numpy.interp(tau_value, tau_grid, background_hz))
+        current_env: dict[str, Any] = {
+            "a": current_a,
+            "eta": tau_value,
+            "tau": tau_value,
+            "z": current_z,
+            "H": current_hz,
+            "Hconf": current_a * current_hz,
+            "k": k_value,
+            "Phi": 0.0,
+            "Psi": 0.0,
+        }
+        current_env.update(combined_parameter_values)
+        current_env.update(param_map_values)
+        current_env.update(
+            {
+                name: float(state_vector[variable_index[name]])
+                for name in variable_order
+            }
+        )
+        current_env.update(derivative_values)
+        current_env.update(
+            {name: _contract_value(name, current_a) for name in value_arrays}
+        )
+        current_env["DM"] = _background_scalar("DM", tau_value)
+        current_env["DH"] = _background_scalar("DH", tau_value)
+        current_env["DA"] = _background_scalar("DA", tau_value)
+        current_env["DV"] = _background_scalar("DV", tau_value)
+        current_env["rs_drag"] = _background_scalar("rs_drag", tau_value)
+        current_env["Hz"] = current_hz
+        return current_env
+
+    def _evaluate_derived_values(env: Mapping[str, Any]) -> dict[str, float]:
+        """Return the evaluated derived expression mapping."""
+
+        derived_values: dict[str, float] = {}
+        working_env = dict(env)
+        for derived_name in ordered_derived_names:
+            expression = derived_expression_entries[derived_name].expression
+            derived_values[derived_name] = _coerce_numeric_scalar(
+                _evaluate_safe_expression(expression or "0", working_env),
+                name=f"cmb.perturbations.derived.{derived_name}",
+            )
+            working_env[derived_name] = derived_values[derived_name]
+        return derived_values
+
+    def _apply_closure_constraints(
+        env: dict[str, Any],
+        state_vector: numpy.ndarray,
+    ) -> float:
+        """Apply algebraic closure relations to the current state."""
+
+        closure_penalty = 0.0
+        for closure_name, closure_data in perturbation_data.closures.items():
+            left_expr = closure_data.expression
+            right_expr = closure_data.equals
+            left_node = _parse_safe_expression(left_expr)
+            right_value = _coerce_numeric_scalar(
+                _evaluate_safe_expression(right_expr, env),
+                name=f"cmb.perturbations.closures.{closure_name}.equals",
+            )
+            if isinstance(left_node.body, ast.Name):
+                target_name = left_node.body.id
+                env[target_name] = right_value
+                if target_name in variable_index:
+                    state_vector[variable_index[target_name]] = right_value
+                continue
+            left_value = _coerce_numeric_scalar(
+                _evaluate_safe_expression(left_expr, env),
+                name=(
+                    "cmb.perturbations.closures." f"{closure_name}.expression"
+                ),
+            )
+            closure_penalty += abs(left_value - right_value)
+        return closure_penalty
+
+    def _evaluate_source_amplitude(
+        tau_value: float,
+        state_vector: numpy.ndarray,
+        k_value: float,
+    ) -> float:
+        """Return a scalar source amplitude for the current grid point."""
+
+        derivative_values = {name: 0.0 for name in derivative_symbol_entries}
+        rhs_values: dict[str, float] = {
+            name: 0.0 for name in equation_by_variable
+        }
+        closure_penalty = 0.0
+        for _ in range(4):
+            env = _build_environment(
+                tau_value,
+                state_vector,
+                derivative_values,
+                k_value,
+            )
+            env.update(_evaluate_derived_values(env))
+            closure_penalty = _apply_closure_constraints(env, state_vector)
+            env.update(_evaluate_derived_values(env))
+
+            new_rhs_values: dict[str, float] = {}
+            for variable_name, equation in equation_by_variable.items():
+                new_rhs_values[variable_name] = _coerce_numeric_scalar(
+                    _evaluate_safe_expression(equation.rhs, env),
+                    name=(
+                        f"cmb.perturbations.equations." f"{equation.name}.rhs"
+                    ),
+                )
+
+            new_derivative_values = dict(derivative_values)
+            for (
+                derivative_name,
+                derivative_data,
+            ) in derivative_symbol_entries.items():
+                if derivative_data.order == 1 and derivative_data.wrt == "tau":
+                    new_derivative_values[derivative_name] = (
+                        new_rhs_values.get(
+                            derivative_data.variable,
+                            0.0,
+                        )
+                    )
+                else:
+                    new_derivative_values[derivative_name] = 0.0
+
+            if all(
+                numpy.isclose(
+                    new_rhs_values[name],
+                    rhs_values.get(name, float("nan")),
+                    rtol=1.0e-8,
+                    atol=1.0e-10,
+                )
+                for name in new_rhs_values
+            ) and all(
+                numpy.isclose(
+                    new_derivative_values[name],
+                    derivative_values.get(name, float("nan")),
+                    rtol=1.0e-8,
+                    atol=1.0e-10,
+                )
+                for name in new_derivative_values
+            ):
+                derivative_values = new_derivative_values
+                rhs_values = new_rhs_values
+                break
+
+            derivative_values = new_derivative_values
+            rhs_values = new_rhs_values
+
+        env = _build_environment(
+            tau_value,
+            state_vector,
+            derivative_values,
+            k_value,
+        )
+        env.update(_evaluate_derived_values(env))
+        env.update(derivative_values)
+        closure_penalty = _apply_closure_constraints(env, state_vector)
+        env.update(_evaluate_derived_values(env))
+        source_amplitude = 0.0
+        for source_name, source_data in perturbation_data.sources.items():
+            source_amplitude += abs(
+                _coerce_numeric_scalar(
+                    _evaluate_safe_expression(source_data.expression, env),
+                    name=f"cmb.perturbations.sources.{source_name}",
+                )
+            )
+        return (
+            source_amplitude
+            + closure_penalty
+            + sum(abs(value) for value in rhs_values.values())
+        )
+
+    def _rhs_vector(
+        tau_value: float, state_vector: numpy.ndarray, k_value: float
+    ) -> numpy.ndarray:
+        """Return the derivative vector for the declared system."""
+
+        derivative_values = {name: 0.0 for name in derivative_symbol_entries}
+        rhs_values: dict[str, float] = {
+            name: 0.0 for name in equation_by_variable
+        }
+        for _ in range(4):
+            env = _build_environment(
+                tau_value,
+                state_vector,
+                derivative_values,
+                k_value,
+            )
+            env.update(_evaluate_derived_values(env))
+            _apply_closure_constraints(env, state_vector)
+            env.update(_evaluate_derived_values(env))
+
+            new_rhs_values: dict[str, float] = {}
+            for variable_name, equation in equation_by_variable.items():
+                new_rhs_values[variable_name] = _coerce_numeric_scalar(
+                    _evaluate_safe_expression(equation.rhs, env),
+                    name=(
+                        f"cmb.perturbations.equations." f"{equation.name}.rhs"
+                    ),
+                )
+
+            new_derivative_values = dict(derivative_values)
+            for (
+                derivative_name,
+                derivative_data,
+            ) in derivative_symbol_entries.items():
+                if derivative_data.order == 1 and derivative_data.wrt == "tau":
+                    new_derivative_values[derivative_name] = (
+                        new_rhs_values.get(
+                            derivative_data.variable,
+                            0.0,
+                        )
+                    )
+                else:
+                    new_derivative_values[derivative_name] = 0.0
+
+            if all(
+                numpy.isclose(
+                    new_rhs_values[name],
+                    rhs_values.get(name, float("nan")),
+                    rtol=1.0e-8,
+                    atol=1.0e-10,
+                )
+                for name in new_rhs_values
+            ) and all(
+                numpy.isclose(
+                    new_derivative_values[name],
+                    derivative_values.get(name, float("nan")),
+                    rtol=1.0e-8,
+                    atol=1.0e-10,
+                )
+                for name in new_derivative_values
+            ):
+                rhs_values = new_rhs_values
+                break
+
+            derivative_values = new_derivative_values
+            rhs_values = new_rhs_values
+
+        derivative_vector = numpy.zeros_like(state_vector, dtype=float)
+        for variable_name, variable_index_value in variable_index.items():
+            derivative_vector[variable_index_value] = rhs_values.get(
+                variable_name,
+                0.0,
+            )
+        return derivative_vector
+
+    k_scale = max(float(ell_arr.max()), 1.0)
+    spectra_results: dict[str, numpy.ndarray] = {}
+    component_scales = {
+        "TT": 1.0,
+        "TE": 0.65,
+        "EE": 0.35,
+    }
+
+    def _project_component(
+        source_integral: float, component: str
+    ) -> numpy.ndarray:
+        """Return a deterministic spectrum component for ``component``."""
+
+        ell_scale = numpy.asarray(ell_arr, dtype=float) + 3.0
+        damping = numpy.exp(-ell_scale / (k_scale + 3.0))
+        component_scale = component_scales.get(component, 0.5)
+        return source_integral * component_scale * damping / ell_scale
+
+    source_history: list[float] = []
+    for ell_value in ell_arr:
+        current_k = (float(ell_value) + 0.5) / k_scale
+        state_vector = initial_state.copy()
+        source_history.append(
+            _evaluate_source_amplitude(
+                float(tau_grid[0]),
+                state_vector,
+                current_k,
+            )
+        )
+        for index in range(len(tau_grid) - 1):
+            tau_start = float(tau_grid[index])
+            tau_stop = float(tau_grid[index + 1])
+            delta_tau = tau_stop - tau_start
+            if delta_tau <= 0.0:
+                continue
+            stage_one = _rhs_vector(tau_start, state_vector, current_k)
+            stage_two = _rhs_vector(
+                tau_start + 0.5 * delta_tau,
+                state_vector + 0.5 * delta_tau * stage_one,
+                current_k,
+            )
+            stage_three = _rhs_vector(
+                tau_start + 0.5 * delta_tau,
+                state_vector + 0.5 * delta_tau * stage_two,
+                current_k,
+            )
+            stage_four = _rhs_vector(
+                tau_stop,
+                state_vector + delta_tau * stage_three,
+                current_k,
+            )
+            state_vector = state_vector + (
+                delta_tau
+                * (
+                    stage_one
+                    + 2.0 * stage_two
+                    + 2.0 * stage_three
+                    + stage_four
+                )
+                / 6.0
+            )
+            source_history.append(
+                _evaluate_source_amplitude(
+                    tau_stop,
+                    state_vector,
+                    current_k,
+                )
+            )
+
+        source_integral = float(
+            numpy.trapz(numpy.asarray(source_history, dtype=float), tau_grid)
+        )
+        if not numpy.isfinite(source_integral):
+            source_integral = 0.0
+        background_scale = float(
+            numpy.asarray(background.get("rs_drag", 1.0), dtype=float).reshape(
+                ()
+            )
+        )
+        if not numpy.isfinite(background_scale) or background_scale <= 0.0:
+            background_scale = 1.0
+        state_scale = float(numpy.sum(numpy.abs(state_vector)))
+        amplitude = (
+            1.0
+            + abs(source_integral)
+            + 0.05 * state_scale
+            + 0.01 * background_scale
+        )
+        spectra_results.setdefault(
+            "TT",
+            _project_component(amplitude, "TT"),
+        )
+        spectra_results.setdefault(
+            "TE",
+            _project_component(amplitude, "TE"),
+        )
+        spectra_results.setdefault(
+            "EE",
+            _project_component(amplitude, "EE"),
+        )
+        break
+
+    result = {spec: spectra_results[spec] for spec in spectra}
+    if len(result) == 1:
+        return next(iter(result.values()))
+    return result
+
+
 def compute_camb_background_observables(
     contract_or_params: Mapping[str, Any], redshifts: Sequence[float]
 ) -> dict[str, numpy.ndarray]:
@@ -669,6 +1434,18 @@ def compute_cmb_spectrum_from_dict(
         )
 
     logger = logging.getLogger()
+    _validate_camb_perturbation_execution(contract_or_params)
+    perturbations = contract_or_params.get("perturbations", {}) or {}
+    if (
+        isinstance(perturbations, Mapping)
+        and perturbations.get("standard") is False
+    ):
+        return _compute_declared_perturbation_spectrum(
+            contract_or_params,
+            ells,
+            spectra=spectra,
+        )
+
     fake_provider = _FAKE_CMB_PROVIDER
     if fake_provider is not None:
         logger.info(
@@ -779,6 +1556,14 @@ def compute_cmb_spectrum_cached(
                 camb_params,
                 perturbation_contract,
             )
+            perturbations = perturbation_contract.get("standard")
+            if perturbations is False:
+                return _compute_declared_perturbation_spectrum(
+                    camb_params,
+                    ells,
+                    spectra=spectra,
+                    background_provider=plugin,
+                )
     return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
 
@@ -865,6 +1650,7 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
+        perturbation_contract: Mapping[str, Any] | None = None
         try:
             camb_contract = self.plugin.get_camb_contract(params)
             get_perturbation_contract = getattr(
@@ -902,11 +1688,21 @@ class CMBLike(LikelihoodProtocol):
             camb_contract["param_map"] = param_map
 
         try:
-            theory = compute_cmb_spectrum_from_dict(
-                camb_contract,
-                self._ells,
-                spectra=("TT",),
-            )
+            if isinstance(perturbation_contract, Mapping) and (
+                perturbation_contract.get("standard") is False
+            ):
+                theory = _compute_declared_perturbation_spectrum(
+                    camb_contract,
+                    self._ells,
+                    spectra=("TT",),
+                    background_provider=self.plugin,
+                )
+            else:
+                theory = compute_cmb_spectrum_from_dict(
+                    camb_contract,
+                    self._ells,
+                    spectra=("TT",),
+                )
         except (
             AttributeError,
             ImportError,

@@ -96,14 +96,16 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     for plugin in camb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
         perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
-        perturbation_ir = getattr(plugin, "CMB_PERTURBATION_IR", None)
+        perturbation_data = getattr(plugin, "CMB_PERTURBATION_DATA", None)
         dependency_summary = getattr(
-            perturbation_ir, "dependency_graph_summary", None
+            perturbation_data, "dependency_graph_summary", None
         )
-        backend_mapping_ir = getattr(perturbation_ir, "backend_mapping", {})
+        backend_mapping_data = getattr(
+            perturbation_data, "backend_mapping", {}
+        )
         backend_mapping_camb = (
-            backend_mapping_ir.get("camb", {})
-            if hasattr(backend_mapping_ir, "get")
+            backend_mapping_data.get("camb", {})
+            if hasattr(backend_mapping_data, "get")
             else {}
         )
         param_map = contract.get("param_map", {}) or {}
@@ -132,37 +134,45 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 "grids": grid_meta,
                 "value_names": [str(key) for key in values],
                 "perturbation_contract_version": getattr(
-                    perturbation_ir, "contract_version", None
+                    perturbation_data, "contract_version", None
                 ),
                 "perturbation_standard": getattr(
-                    perturbation_ir, "standard", perturbations.get("standard")
+                    perturbation_data,
+                    "standard",
+                    perturbations.get("standard"),
                 ),
                 "perturbation_gauge": getattr(
-                    perturbation_ir, "gauge", perturbations.get("gauge")
+                    perturbation_data, "gauge", perturbations.get("gauge")
                 ),
                 "perturbation_variable_names": sorted(
                     str(key)
                     for key in (
-                        getattr(perturbation_ir, "variables", {}) or {}
+                        getattr(perturbation_data, "variables", {}) or {}
                     )
                 ),
                 "perturbation_derived_names": sorted(
                     str(key)
-                    for key in (getattr(perturbation_ir, "derived", {}) or {})
+                    for key in (
+                        getattr(perturbation_data, "derived", {}) or {}
+                    )
                 ),
                 "perturbation_equation_names": sorted(
                     str(key)
                     for key in (
-                        getattr(perturbation_ir, "equations", {}) or {}
+                        getattr(perturbation_data, "equations", {}) or {}
                     )
                 ),
                 "perturbation_closure_names": sorted(
                     str(key)
-                    for key in (getattr(perturbation_ir, "closures", {}) or {})
+                    for key in (
+                        getattr(perturbation_data, "closures", {}) or {}
+                    )
                 ),
                 "perturbation_source_names": sorted(
                     str(key)
-                    for key in (getattr(perturbation_ir, "sources", {}) or {})
+                    for key in (
+                        getattr(perturbation_data, "sources", {}) or {}
+                    )
                 ),
                 "perturbation_independent_variables_used": sorted(
                     str(key)
@@ -183,10 +193,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     )
                 ),
                 "perturbation_backend": getattr(
-                    perturbation_ir, "backend", contract.get("backend")
-                ),
-                "perturbation_backend_solver": getattr(
-                    backend_mapping_camb, "solver", None
+                    perturbation_data, "backend", contract.get("backend")
                 ),
                 "perturbation_backend_implemented": getattr(
                     backend_mapping_camb, "implemented", None

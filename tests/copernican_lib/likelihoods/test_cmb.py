@@ -516,7 +516,6 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     "backend_mapping": {
                         "camb": {
                             "native_solver_required": True,
-                            "solver": "template_native_solver",
                             "implemented": False,
                         }
                     },
@@ -532,6 +531,221 @@ class CMBBackgroundTestCase(unittest.TestCase):
         cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(3)
         like = cmb.CMBLike(cmb_df, NonStandardPlugin())
         self.assertEqual(like.loglike([68.0]), float("-inf"))
+
+    def test_cmb_cached_spectrum_uses_generic_nonstandard_executor(self):
+        """Structured non-standard models should use the generic executor."""
+
+        class GenericNonStandardPlugin:
+            """Plugin stub for a supported non-standard perturbation set."""
+
+            PARAMETER_NAMES = (
+                "hubble_constant",
+                "baryon_density_h2",
+                "cdm_density_h2",
+            )
+            INITIAL_GUESSES = (68.0, 0.022, 0.0)
+
+            def get_camb_contract(self, values):
+                hubble_constant, baryon_density_h2, cdm_density_h2 = values
+                return {
+                    "model_name": "GenericNonStandardModel",
+                    "backend": "camb",
+                    "param_map": {
+                        "hubble_constant": hubble_constant,
+                        "baryon_density_h2": baryon_density_h2,
+                        "cdm_density_h2": cdm_density_h2,
+                        "tau": 0.054,
+                        "As": 2.1e-09,
+                        "ns": 0.965,
+                    },
+                    "grids": {},
+                    "values": {},
+                    "calls": [],
+                    "model_parameters": {
+                        "hubble_constant": hubble_constant,
+                        "baryon_density_h2": baryon_density_h2,
+                        "cdm_density_h2": cdm_density_h2,
+                    },
+                    "value_definitions": {},
+                }
+
+            def get_cmb_perturbation_contract(self, _values):
+                return {
+                    "model_name": "GenericNonStandardModel",
+                    "backend": "camb",
+                    "contract_version": 1,
+                    "standard": False,
+                    "gauge": "conformal_newtonian",
+                    "variables": {
+                        "delta_x": {
+                            "kind": "density_contrast",
+                            "description": "Example density perturbation.",
+                        },
+                        "theta_x": {
+                            "kind": "velocity_divergence",
+                            "description": "Example velocity perturbation.",
+                        },
+                        "rho_x": {
+                            "kind": "background_density",
+                            "description": "Example density source.",
+                        },
+                        "sigma_x": {
+                            "kind": "anisotropic_stress",
+                            "description": "Example stress source.",
+                        },
+                    },
+                    "derived": {
+                        "Phi_tau": {
+                            "kind": "derivative_symbol",
+                            "variable": "Phi",
+                            "wrt": "tau",
+                            "order": 1,
+                            "description": "First conformal-time derivative.",
+                        },
+                        "delta_rho_eff": {
+                            "expression": "rho_x * delta_x",
+                        },
+                    },
+                    "equations": {
+                        "continuity_x": {
+                            "lhs": {
+                                "kind": "derivative",
+                                "variable": "delta_x",
+                                "wrt": "tau",
+                                "order": 1,
+                            },
+                            "rhs": "-theta_x + 3 * Phi_tau",
+                        }
+                    },
+                    "closures": {
+                        "no_anisotropic_stress": {
+                            "expression": "sigma_x",
+                            "equals": "0",
+                        }
+                    },
+                    "sources": {
+                        "poisson": {
+                            "expression": "delta_rho_eff + delta_x + theta_x",
+                        }
+                    },
+                    "validity": {
+                        "regimes": ["linear"],
+                        "notes": "Declared for generic executor coverage.",
+                    },
+                    "backend_mapping": {
+                        "camb": {
+                            "native_solver_required": True,
+                            "implemented": True,
+                        }
+                    },
+                    "notes": (
+                        "Native perturbation mathematics are declared and "
+                        "supported by the generic executor."
+                    ),
+                }
+
+            def get_Hz_per_Mpc(
+                self,
+                redshift,
+                hubble_constant,
+                baryon_density_h2,
+                cdm_density_h2,
+            ):
+                redshift_arr = numpy.asarray(redshift, dtype=float)
+                del baryon_density_h2, cdm_density_h2
+                return hubble_constant * numpy.sqrt(
+                    0.3 * numpy.power(1.0 + redshift_arr, 3.0) + 0.7
+                )
+
+            def get_comoving_distance_Mpc(
+                self,
+                redshift,
+                hubble_constant,
+                baryon_density_h2,
+                cdm_density_h2,
+            ):
+                redshift_arr = numpy.asarray(redshift, dtype=float)
+                hubble = numpy.maximum(
+                    self.get_Hz_per_Mpc(
+                        redshift_arr,
+                        hubble_constant,
+                        baryon_density_h2,
+                        cdm_density_h2,
+                    ),
+                    1.0e-12,
+                )
+                return 299792.458 * redshift_arr / hubble
+
+            def get_angular_diameter_distance_Mpc(
+                self,
+                redshift,
+                hubble_constant,
+                baryon_density_h2,
+                cdm_density_h2,
+            ):
+                redshift_arr = numpy.asarray(redshift, dtype=float)
+                return self.get_comoving_distance_Mpc(
+                    redshift_arr,
+                    hubble_constant,
+                    baryon_density_h2,
+                    cdm_density_h2,
+                ) / (1.0 + redshift_arr)
+
+            def get_DV_Mpc(
+                self,
+                redshift,
+                hubble_constant,
+                baryon_density_h2,
+                cdm_density_h2,
+            ):
+                redshift_arr = numpy.asarray(redshift, dtype=float)
+                comoving = self.get_comoving_distance_Mpc(
+                    redshift_arr,
+                    hubble_constant,
+                    baryon_density_h2,
+                    cdm_density_h2,
+                )
+                hubble = numpy.maximum(
+                    self.get_Hz_per_Mpc(
+                        redshift_arr,
+                        hubble_constant,
+                        baryon_density_h2,
+                        cdm_density_h2,
+                    ),
+                    1.0e-12,
+                )
+                term = comoving * comoving
+                term *= 299792.458 * redshift_arr / hubble
+                return numpy.power(term, 1.0 / 3.0)
+
+            def get_sound_horizon_rs_Mpc(
+                self,
+                hubble_constant,
+                baryon_density_h2,
+                cdm_density_h2,
+            ):
+                del hubble_constant, baryon_density_h2, cdm_density_h2
+                return 147.0
+
+        with mock.patch(
+            "copernican_lib.likelihoods.cmb._compute_cmb_spectrum_direct",
+            side_effect=AssertionError("standard CAMB path should not run"),
+        ):
+            with mock.patch(
+                "copernican_lib.likelihoods.cmb."
+                "compute_camb_background_observables",
+                side_effect=AssertionError(
+                    "CAMB background path should not run"
+                ),
+            ):
+                spectrum = cmb.compute_cmb_spectrum_cached(
+                    GenericNonStandardPlugin(),
+                    GenericNonStandardPlugin.INITIAL_GUESSES,
+                    numpy.array([2, 3, 4]),
+                )
+
+        self.assertEqual(spectrum.shape, (3,))
+        self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
 
     def test_compute_cmb_spectrum_from_dict_rejects_flat_params(self) -> None:
         """Scientific spectrum helpers must reject flat parameter maps."""

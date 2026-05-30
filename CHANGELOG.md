@@ -1,12 +1,12 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.20
+**Project Version:** 12.0.22
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-28
+**Last Updated:** 2026-05-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -77,7 +77,207 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 12.0.22
+
+- 2026-05-29 [semver:patch]:
+  Change: Implemented the generic declarative CMB executor, removed the
+    standalone backend registry, and updated the TORG model, data
+    parsers, and tests.
+  Why: Enabled `standard: false` perturbation contracts to execute through
+    the declarative path instead of theory-specific solver plumbing.
+  Impact: Supports declarative CMB execution for `standard:false` models
+    and keeps failures explicit when capabilities are missing.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  copernican_lib/engine_adapter.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/model_coder.py
+  copernican_lib/model_spec_validator.py
+  copernican_lib/perturbation_contract.py
+  copernican_lib/run_manifest.py
+  cosmo_model_template.yml
+  devcovenant/registry/registry.yaml
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/LICENSE
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_CfA2_CfA3_\
+    CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99_\
+    Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_\
+    knop03_Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  models/cosmo_model_torg.yml
+  pyproject.toml
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_cmb_capabilities.py
+  tests/copernican_lib/test_cosmo_model_template.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_model_coder.py
+  tests/copernican_lib/test_perturbation_contract.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/engines/test_cosmo_engine_mcmc.py
+
+## Version 12.0.21
+
+- 2026-05-29 [semver:patch]:
+  Change: Removed the standalone CMB backend registry, moved capability
+    checks into `model_coder`, updated the TORG source model, and added
+    focused coverage for the helper surface.
+  Why: Aligned the declarative perturbation path with the backend-gated
+    execution helpers while aligning the TORG model, docs, and tests
+    with the new layout.
+  Impact: Supports a test-covered generic CMB execution path and keeps
+    repository guidance current.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  copernican_lib/cmb_backend_registry.py
+  copernican_lib/engine_adapter.py
+  copernican_lib/likelihoods/cmb.py
+  copernican_lib/model_coder.py
+  copernican_lib/perturbation_contract.py
+  copernican_lib/run_manifest.py
+  cosmo_model_template.yml
+  models/cosmo_model_torg.yml
+  pyproject.toml
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/LICENSE
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_CfA2_\
+    CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99_\
+    Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_knop03_\
+    Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  tests/copernican_lib/likelihoods/test_cmb.py
+  tests/copernican_lib/test_cmb_backend_registry.py
+  tests/copernican_lib/test_cmb_capabilities.py
+  tests/copernican_lib/test_cosmo_model_template.py
+  tests/copernican_lib/test_engine_adapter.py
+  tests/copernican_lib/test_engine_plugin_validation.py
+  tests/copernican_lib/test_model_coder.py
+  tests/copernican_lib/test_perturbation_contract.py
+  tests/copernican_lib/test_run_manifest.py
+
 ## Version 12.0.20
+
+- 2026-05-28 [semver:patch]:
+  Change: Redirected documentation-growth tracking to ignore model YAMLs,
+    refreshed the DevCovenant registry, and wrapped the TORG source
+    description.
+  Why: Kept model edits from forcing prose-doc churn while preserving
+    policy refresh consistency and line-length compliance.
+  Impact: Reduce gate noise by keeping model edits inside the model
+    surface.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  CONTRIBUTING.md
+  PLAN.md
+  README.md
+  SPEC.md
+  copernican_lib/VERSION
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  pyproject.toml
+  models/cosmo_model_torg.yml
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/LICENSE
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_CfA2_\
+    CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99_\
+    Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_knop03_\
+    Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
 
 - 2026-05-28 [semver:patch]:
   Change: Redirected documentation-growth tracking to ignore model YAMLs,

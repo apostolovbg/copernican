@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-import copernican_lib.cmb_backend_registry as cmb_backend_registry
-from copernican_lib import camb_contract, engine_adapter
+from copernican_lib import camb_contract, engine_adapter, model_coder
 
 
 class TestEngineAdapterExports(unittest.TestCase):
@@ -36,12 +35,12 @@ class TestEngineAdapterExports(unittest.TestCase):
             )
         )
         self.assertTrue(
-            hasattr(engine_adapter.EnginePlugin, "get_cmb_perturbation_ir")
+            hasattr(engine_adapter.EnginePlugin, "get_cmb_perturbation_data")
         )
         self.assertTrue(hasattr(engine_adapter, "CMB_BACKEND_CAPABILITIES"))
         self.assertIs(
             engine_adapter.CMB_BACKEND_CAPABILITIES,
-            cmb_backend_registry.CMB_BACKEND_CAPABILITIES,
+            model_coder.CMB_BACKEND_CAPABILITIES,
         )
         self.assertIn("EnginePlugin", engine_adapter.__all__)
         self.assertIn("validate_plugin", engine_adapter.__all__)

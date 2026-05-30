@@ -230,6 +230,8 @@ def validate_and_cache_model(path, cache_dir):
         cmb_block = model_spec.get("cmb")
         if not isinstance(cmb_block, dict):
             raise ValueError("valid_for_cmb models must declare cmb")
+        cmb_block.setdefault("model_parameters", {})
+        cmb_block.setdefault("value_definitions", {})
         _validate_camb_contract_definition(
             cmb_block,
             [

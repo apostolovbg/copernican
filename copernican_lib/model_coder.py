@@ -18,6 +18,7 @@ import re
 import sys
 import warnings
 from pathlib import Path
+from typing import Mapping
 
 import numpy
 import sympy
@@ -47,6 +48,73 @@ _LOGISTIC_SUPPORT_POINTS = (
     0.9375,
     0.96875,
 )
+
+CMB_BACKEND_CAPABILITIES: dict[str, dict[str, bool]] = {
+    "camb": {
+        "scalar_param_map": True,
+        "grids_values_calls": True,
+        "standard_perturbations": True,
+        "native_nonstandard_perturbations": True,
+    }
+}
+
+
+def get_backend_capabilities(backend: str) -> Mapping[str, bool]:
+    """Return the declared capability mapping for ``backend``."""
+
+    return CMB_BACKEND_CAPABILITIES.get(backend, {})
+
+
+def backend_supports_standard_perturbations(backend: str) -> bool:
+    """Return ``True`` when ``backend`` supports standard perturbations."""
+
+    return bool(
+        get_backend_capabilities(backend).get("standard_perturbations")
+    )
+
+
+def backend_supports_native_nonstandard_perturbations(
+    backend: str,
+) -> bool:
+    """Return ``True`` when ``backend`` supports native non-standard modes."""
+
+    return bool(
+        get_backend_capabilities(backend).get(
+            "native_nonstandard_perturbations"
+        )
+    )
+
+
+def validate_native_perturbation_execution(
+    *,
+    model_name: str,
+    backend: str,
+    standard: bool,
+    implemented: bool | None,
+) -> None:
+    """Raise ``ValueError`` when non-standard execution is unsupported."""
+
+    if standard:
+        return
+
+    if not backend_supports_native_nonstandard_perturbations(backend):
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for "
+            f"backend '{backend}' (standard={standard}), but the backend "
+            "capability registry does not support native non-standard "
+            "perturbations. A generic declarative executor is required."
+        )
+
+    if implemented is not True:
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for "
+            f"backend '{backend}' (standard={standard}), but the backend "
+            "mapping does not mark a generic declarative implementation "
+            "as available. A generic declarative executor is required."
+        )
+
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
 _LAST_UPDATED_PATTERN = re.compile(

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import yaml
 
 from copernican_lib import run_manifest, utils
-from copernican_lib.perturbation_contract import PerturbationContractIR
+from copernican_lib.perturbation_contract import PerturbationContractData
 from copernican_lib.version import get_version
 
 
@@ -63,7 +63,7 @@ def _dummy_plugin():
             ),
         },
         CMB_PERTURBATION_STANDARD=True,
-        CMB_PERTURBATION_IR=PerturbationContractIR(
+        CMB_PERTURBATION_DATA=PerturbationContractData(
             model_name="DummyModel",
             backend="camb",
             contract_version=1,
@@ -92,7 +92,6 @@ def _dummy_plugin():
                 "camb": SimpleNamespace(
                     uses_standard_perturbations=True,
                     native_solver_required=None,
-                    solver=None,
                     implemented=None,
                 )
             },
@@ -205,7 +204,6 @@ class TestRunManifest(unittest.TestCase):
                 ["H0"],
             )
             self.assertEqual(model_entry["perturbation_backend"], "camb")
-            self.assertIsNone(model_entry["perturbation_backend_solver"])
             self.assertIsNone(model_entry["perturbation_backend_implemented"])
             self.assertTrue(
                 model_entry["perturbation_backend_uses_standard_perturbations"]

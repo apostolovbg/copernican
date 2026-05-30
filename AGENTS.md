@@ -1,12 +1,12 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.20
+**Project Version:** 12.0.22
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-28
+**Last Updated:** 2026-05-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -55,6 +55,9 @@ DevCovenant lifecycle and command behavior used by the project.
 - 2026-05-28: Union3 compressed SNe inputs require additive intercept
   marginalization; keep parser, likelihood, CSV export and plot residuals
   aligned on that convention.
+- 2026-05-29: Generic declarative CMB execution now runs through
+  `likelihoods/cmb.py`; keep `model_coder.py` capability checks and the
+  focused perturbation tests aligned with that layout.
 
 <!-- DEVCOV-WORKFLOW:BEGIN -->
 
@@ -192,7 +195,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.20
+- Project Version: 12.0.22
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only

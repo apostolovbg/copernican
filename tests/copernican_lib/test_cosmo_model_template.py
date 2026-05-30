@@ -10,7 +10,7 @@ from unittest import mock
 
 from copernican_lib import engine_adapter, model_coder, model_spec_validator
 from copernican_lib.likelihoods import cmb
-from copernican_lib.perturbation_contract import PerturbationContractIR
+from copernican_lib.perturbation_contract import PerturbationContractData
 
 
 class CosmoModelTemplateTestCase(unittest.TestCase):
@@ -30,34 +30,30 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
             return engine_adapter.build_plugin(parsed, funcs)
 
     def test_template_schema_and_plugin_validation(self) -> None:
-        """The root template should validate and expose typed IR."""
+        """The root template should validate and expose typed data."""
 
         plugin = self._build_template_plugin()
         self.assertTrue(engine_adapter.validate_plugin(plugin))
         self.assertIs(plugin.CMB_PERTURBATION_STANDARD, False)
-        perturbation_ir = plugin.get_cmb_perturbation_ir(
+        perturbation_data = plugin.get_cmb_perturbation_data(
             plugin.INITIAL_GUESSES
         )
-        self.assertIsInstance(perturbation_ir, PerturbationContractIR)
-        self.assertFalse(perturbation_ir.standard)
-        self.assertEqual(perturbation_ir.gauge, "conformal_newtonian")
-        self.assertIn("delta_x", perturbation_ir.variables)
-        self.assertIn("theta_x", perturbation_ir.variables)
-        self.assertIn("Phi_tau", perturbation_ir.derived)
-        self.assertIn("delta_rho_eff", perturbation_ir.derived)
-        self.assertIn("continuity_x", perturbation_ir.equations)
-        self.assertIn("euler_x", perturbation_ir.equations)
-        self.assertIn("poisson_x", perturbation_ir.sources)
-        self.assertEqual(
-            perturbation_ir.backend_mapping["camb"].solver,
-            "template_native_solver",
-        )
-        self.assertFalse(perturbation_ir.backend_mapping["camb"].implemented)
+        self.assertIsInstance(perturbation_data, PerturbationContractData)
+        self.assertFalse(perturbation_data.standard)
+        self.assertEqual(perturbation_data.gauge, "conformal_newtonian")
+        self.assertIn("delta_x", perturbation_data.variables)
+        self.assertIn("theta_x", perturbation_data.variables)
+        self.assertIn("Phi_tau", perturbation_data.derived)
+        self.assertIn("delta_rho_eff", perturbation_data.derived)
+        self.assertIn("continuity_x", perturbation_data.equations)
+        self.assertIn("euler_x", perturbation_data.equations)
+        self.assertIn("poisson_x", perturbation_data.sources)
+        self.assertFalse(perturbation_data.backend_mapping["camb"].implemented)
 
-    def test_template_execution_rejects_unsupported_native_solver(
+    def test_template_execution_rejects_unsupported_generic_execution(
         self,
     ) -> None:
-        """The root template should fail on unsupported native execution."""
+        """The root template should fail on unsupported generic execution."""
 
         plugin = self._build_template_plugin()
         with mock.patch.dict(
@@ -67,8 +63,8 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
         ):
             with self.assertRaisesRegex(
                 ValueError,
-                "native non-standard perturbations|native backend "
-                "implementation is required",
+                "native non-standard perturbations|generic declarative "
+                "executor is required",
             ):
                 cmb.compute_cmb_spectrum_cached(
                     plugin,

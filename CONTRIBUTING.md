@@ -1,8 +1,8 @@
 # Contributing
 **Doc ID:** CONTRIBUTING
 **Doc Type:** contributing-guide
-**Project Version:** 12.0.20
-**Last Updated:** 2026-05-28
+**Project Version:** 12.0.22
+**Last Updated:** 2026-05-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -19,6 +19,8 @@ The repository uses DevCovenant-managed gates, so contributor work must stay
 compatible with the active policy surface instead of bypassing it.
 Dataset parser changes should keep the parser, likelihood and exported
 diagnostics aligned when a dataset requires a special residual convention.
+Capability-helper changes should update the focused model coder tests,
+the generic CMB executor checks, and the contract tests together.
 
 ## Workflow
 1. Read `AGENTS.md` before making changes so the current repository rules are

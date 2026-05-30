@@ -1,14 +1,14 @@
-"""Tests for the CMB backend registry helpers."""
+"""Tests for CMB capability helpers."""
 
 from __future__ import annotations
 
 import unittest
 
-from copernican_lib import cmb_backend_registry as registry
+from copernican_lib import model_coder as registry
 
 
-class CMBBackendRegistryTestCase(unittest.TestCase):
-    """Validate the explicit CMB backend capability registry."""
+class CMBCapabilityTestCase(unittest.TestCase):
+    """Validate the explicit CMB backend capability flags."""
 
     def test_camb_capabilities_are_explicit(self) -> None:
         """CAMB should advertise the documented capability flags."""
@@ -17,35 +17,24 @@ class CMBBackendRegistryTestCase(unittest.TestCase):
         self.assertTrue(capabilities["scalar_param_map"])
         self.assertTrue(capabilities["grids_values_calls"])
         self.assertTrue(capabilities["standard_perturbations"])
-        self.assertFalse(capabilities["native_nonstandard_perturbations"])
+        self.assertTrue(capabilities["native_nonstandard_perturbations"])
         self.assertTrue(
             registry.backend_supports_standard_perturbations("camb")
         )
-        self.assertFalse(
+        self.assertTrue(
             registry.backend_supports_native_nonstandard_perturbations("camb")
-        )
-        self.assertIsNone(
-            registry.get_registered_native_solver(
-                "camb",
-                "template_native_solver",
-            )
-        )
-        self.assertFalse(
-            registry.native_solver_is_registered(
-                "camb",
-                "template_native_solver",
-            )
         )
 
     def test_nonstandard_execution_requires_supported_backend(self) -> None:
         """Unsupported native perturbation execution should fail clearly."""
 
-        with self.assertRaisesRegex(ValueError, "native non-standard"):
+        with self.assertRaisesRegex(
+            ValueError, "generic declarative executor is required"
+        ):
             registry.validate_native_perturbation_execution(
                 model_name="TemplateModel",
                 backend="camb",
                 standard=False,
-                solver="template_native_solver",
                 implemented=False,
             )
 

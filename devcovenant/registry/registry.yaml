@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 966067f64d1e6ca5348bfb7fe8a339f570cb7642d5b0c2a4b85114a345f335a2
+  policy_registry_input_hash: 4a795a9d88f0ec0f1f781eaec6f1ecd9ab8dd876770e5ec03e5d4bacb0a3934e
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.19
+  project_version: 12.0.22
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -40,7 +40,6 @@ managed-docs:
   - README.md
   - CONTRIBUTING.md
   - CHANGELOG.md
-  - devcovenant/README.md
   descriptors:
     AGENTS.md:
       enabled: true
@@ -113,7 +112,7 @@ managed-docs:
       authoritative_source: true
       body_fingerprint: d054ddccca65842a971c930dcfe0e4f1e82df601e0dcac401e9f63403ce70791
     devcovenant/README.md:
-      enabled: true
+      enabled: false
       descriptor_path: devcovenant/builtin/profiles/global/assets/devcovenant/README.yaml
       project_governance_headers: false
       import_seed: false
@@ -16615,7 +16614,6 @@ inventory:
     - README.md
     - CONTRIBUTING.md
     - CHANGELOG.md
-    - devcovenant/README.md
   custom:
     dirs:
     - devcovenant/custom

@@ -220,12 +220,11 @@ cmb:
     backend_mapping:
       camb:
         native_solver_required: true
-        solver: template_native_solver
         implemented: false
     notes: >-
       This template demonstrates the complete non-standard perturbation
-      contract. It is not executable until a matching native backend solver is
-      registered.
+      contract. It is not executable until the backend mapping marks the
+      generic declarative implementation as available.
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV

@@ -60,12 +60,11 @@ _STANDARD_BACKEND_KEYS = {"uses_standard_perturbations"}
 _NONSTANDARD_BACKEND_KEYS = {
     "implemented",
     "native_solver_required",
-    "solver",
 }
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationVariableIR:
+class PerturbationVariableData:
     """Typed representation of a declared perturbation variable."""
 
     name: str
@@ -75,7 +74,7 @@ class PerturbationVariableIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationDerivedIR:
+class PerturbationDerivedData:
     """Typed representation of a declared derived perturbation symbol."""
 
     name: str
@@ -90,7 +89,7 @@ class PerturbationDerivedIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationDerivativeLHSIR:
+class PerturbationDerivativeLhsData:
     """Typed representation of a derivative equation left-hand side."""
 
     kind: str
@@ -100,11 +99,11 @@ class PerturbationDerivativeLHSIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationEquationIR:
+class PerturbationEquationData:
     """Typed representation of a perturbation evolution equation."""
 
     name: str
-    lhs: PerturbationDerivativeLHSIR
+    lhs: PerturbationDerivativeLhsData
     rhs: str
     description: str | None = None
     notes: str | None = None
@@ -112,7 +111,7 @@ class PerturbationEquationIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationClosureIR:
+class PerturbationClosureData:
     """Typed representation of a perturbation closure relation."""
 
     name: str
@@ -124,7 +123,7 @@ class PerturbationClosureIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationSourceIR:
+class PerturbationSourceData:
     """Typed representation of a perturbation source term."""
 
     name: str
@@ -135,7 +134,7 @@ class PerturbationSourceIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationValidityIR:
+class PerturbationValidityData:
     """Typed representation of a perturbation validity declaration."""
 
     regimes: tuple[str, ...] = ()
@@ -143,18 +142,17 @@ class PerturbationValidityIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationBackendMappingIR:
+class PerturbationBackendMappingData:
     """Typed representation of the backend execution mapping."""
 
     backend: str
     uses_standard_perturbations: bool | None = None
     native_solver_required: bool | None = None
-    solver: str | None = None
     implemented: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationDependencyGraphSummaryIR:
+class PerturbationDependencyGraphSummaryData:
     """Summary of perturbation symbol dependencies."""
 
     variable_names: tuple[str, ...]
@@ -173,7 +171,7 @@ class PerturbationDependencyGraphSummaryIR:
 
 
 @dataclass(frozen=True, slots=True)
-class PerturbationContractIR:
+class PerturbationContractData:
     """Immutable internal representation of a perturbation contract."""
 
     model_name: str
@@ -186,9 +184,9 @@ class PerturbationContractIR:
     equations: FrozenMapping
     closures: FrozenMapping
     sources: FrozenMapping
-    validity: PerturbationValidityIR
+    validity: PerturbationValidityData
     backend_mapping: FrozenMapping
-    dependency_graph_summary: PerturbationDependencyGraphSummaryIR
+    dependency_graph_summary: PerturbationDependencyGraphSummaryData
     manifest_summary: FrozenMapping
 
 
@@ -320,9 +318,9 @@ def _build_manifest_summary(
     equations: tuple[str, ...],
     closures: tuple[str, ...],
     sources: tuple[str, ...],
-    validity: PerturbationValidityIR,
-    backend_mapping: PerturbationBackendMappingIR,
-    dependency_summary: PerturbationDependencyGraphSummaryIR,
+    validity: PerturbationValidityData,
+    backend_mapping: PerturbationBackendMappingData,
+    dependency_summary: PerturbationDependencyGraphSummaryData,
 ) -> dict[str, Any]:
     """Return a manifest-safe summary of the perturbation contract."""
 
@@ -338,7 +336,6 @@ def _build_manifest_summary(
         "closure_names": closures,
         "source_names": sources,
         "validity_regimes": validity.regimes,
-        "backend_solver": backend_mapping.solver,
         "backend_implemented": backend_mapping.implemented,
         (
             "backend_native_solver_required"
@@ -364,8 +361,8 @@ def compile_perturbation_contract(
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
     background_reference_names: Sequence[str],
-) -> PerturbationContractIR:
-    """Validate and compile a perturbation contract into typed IR."""
+) -> PerturbationContractData:
+    """Validate and compile a perturbation contract into typed data."""
 
     if not isinstance(contract, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
@@ -481,18 +478,12 @@ def compile_perturbation_contract(
             invalid_str = ", ".join(sorted(invalid_nonstandard_keys))
             raise ValueError(
                 "Non-standard perturbation mappings may only declare "
-                f"native_solver_required, solver, implemented: {invalid_str}"
+                f"native_solver_required, implemented: {invalid_str}"
             )
         if backend_contract.get("native_solver_required") is not True:
             raise ValueError(
                 "cmb.perturbations.backend_mapping.camb must declare "
                 "native_solver_required: true"
-            )
-        solver = backend_contract.get("solver")
-        if not isinstance(solver, str) or not solver.strip():
-            raise ValueError(
-                "cmb.perturbations.backend_mapping.camb.solver must be a "
-                "non-empty string"
             )
         implemented = backend_contract.get("implemented")
         if not isinstance(implemented, bool):
@@ -501,12 +492,12 @@ def compile_perturbation_contract(
                 "boolean"
             )
 
-    variable_entries: dict[str, PerturbationVariableIR] = {}
-    derivative_symbol_entries: dict[str, PerturbationDerivedIR] = {}
-    derived_expression_entries: dict[str, PerturbationDerivedIR] = {}
-    equation_entries: dict[str, PerturbationEquationIR] = {}
-    closure_entries: dict[str, PerturbationClosureIR] = {}
-    source_entries: dict[str, PerturbationSourceIR] = {}
+    variable_entries: dict[str, PerturbationVariableData] = {}
+    derivative_symbol_entries: dict[str, PerturbationDerivedData] = {}
+    derived_expression_entries: dict[str, PerturbationDerivedData] = {}
+    equation_entries: dict[str, PerturbationEquationData] = {}
+    closure_entries: dict[str, PerturbationClosureData] = {}
+    source_entries: dict[str, PerturbationSourceData] = {}
 
     if standard:
         for section_name, section_value in (
@@ -587,7 +578,7 @@ def compile_perturbation_contract(
                 f"Perturbation variable '{variable_name}' notes must be a "
                 "string"
             )
-        variable_entries[variable_name] = PerturbationVariableIR(
+        variable_entries[variable_name] = PerturbationVariableData(
             name=variable_name,
             kind=kind,
             description=description,
@@ -671,7 +662,7 @@ def compile_perturbation_contract(
                 | derived_symbol_names,
             )
             dependencies = _collect_expression_names(clean_expr)
-            derived_expression_entries[derived_name] = PerturbationDerivedIR(
+            derived_expression_entries[derived_name] = PerturbationDerivedData(
                 name=derived_name,
                 kind="expression",
                 expression=clean_expr,
@@ -717,7 +708,7 @@ def compile_perturbation_contract(
                 "positive integer"
             )
         dependencies = (variable_name, wrt_name)
-        derivative_symbol_entries[derived_name] = PerturbationDerivedIR(
+        derivative_symbol_entries[derived_name] = PerturbationDerivedData(
             name=derived_name,
             kind="derivative_symbol",
             variable=variable_name,
@@ -740,13 +731,13 @@ def compile_perturbation_contract(
     )
 
     derived_expression_dependencies: dict[str, tuple[str, ...]] = {}
-    for derived_name, derived_ir in derived_expression_entries.items():
+    for derived_name, derived_data in derived_expression_entries.items():
         names = tuple(
             name
-            for name in derived_ir.dependencies
+            for name in derived_data.dependencies
             if name in allowed_expression_names
         )
-        unknown_names = set(derived_ir.dependencies) - set(names)
+        unknown_names = set(derived_data.dependencies) - set(names)
         if unknown_names:
             unknown_str = ", ".join(sorted(unknown_names))
             raise ValueError(
@@ -754,7 +745,7 @@ def compile_perturbation_contract(
                 f"symbol(s): {unknown_str}"
             )
         _validate_safe_expression(
-            derived_ir.expression or "",
+            derived_data.expression or "",
             allowed_expression_names,
         )
         derived_expression_dependencies[derived_name] = names
@@ -854,9 +845,9 @@ def compile_perturbation_contract(
                 f"symbol(s): {unknown_str}"
             )
         _validate_safe_expression(clean_rhs, allowed_expression_names)
-        equation_entries[equation_name] = PerturbationEquationIR(
+        equation_entries[equation_name] = PerturbationEquationData(
             name=equation_name,
-            lhs=PerturbationDerivativeLHSIR(
+            lhs=PerturbationDerivativeLhsData(
                 kind="derivative",
                 variable=lhs_variable,
                 wrt=lhs_wrt,
@@ -936,7 +927,7 @@ def compile_perturbation_contract(
             )
         _validate_safe_expression(clean_expression, allowed_expression_names)
         _validate_safe_expression(clean_equals, allowed_expression_names)
-        closure_entries[closure_name] = PerturbationClosureIR(
+        closure_entries[closure_name] = PerturbationClosureData(
             name=closure_name,
             expression=clean_expression,
             equals=clean_equals,
@@ -994,7 +985,7 @@ def compile_perturbation_contract(
                 f"symbol(s): {unknown_str}"
             )
         _validate_safe_expression(clean_expression, allowed_expression_names)
-        source_entries[source_name] = PerturbationSourceIR(
+        source_entries[source_name] = PerturbationSourceData(
             name=source_name,
             expression=clean_expression,
             description=description,
@@ -1015,24 +1006,23 @@ def compile_perturbation_contract(
             "Non-standard perturbations must declare validity.regimes"
         )
 
-    validity_ir = PerturbationValidityIR(
+    validity_data = PerturbationValidityData(
         regimes=regimes,
         notes=validity_notes,
     )
-    if standard and not validity_ir.regimes and validity_ir.notes is None:
-        validity_ir = PerturbationValidityIR()
+    if standard and not validity_data.regimes and validity_data.notes is None:
+        validity_data = PerturbationValidityData()
 
-    backend_ir = PerturbationBackendMappingIR(
+    backend_data = PerturbationBackendMappingData(
         backend=backend,
         uses_standard_perturbations=backend_contract.get(
             "uses_standard_perturbations"
         ),
         native_solver_required=backend_contract.get("native_solver_required"),
-        solver=backend_contract.get("solver"),
         implemented=backend_contract.get("implemented"),
     )
 
-    dependency_graph = PerturbationDependencyGraphSummaryIR(
+    dependency_graph = PerturbationDependencyGraphSummaryData(
         variable_names=tuple(sorted(variable_names)),
         derived_expression_names=tuple(sorted(derived_expression_names)),
         derivative_symbol_names=tuple(sorted(derived_symbol_names)),
@@ -1223,13 +1213,13 @@ def compile_perturbation_contract(
             equations=tuple(sorted(equation_names)),
             closures=tuple(sorted(closure_names)),
             sources=tuple(sorted(source_names)),
-            validity=validity_ir,
-            backend_mapping=backend_ir,
+            validity=validity_data,
+            backend_mapping=backend_data,
             dependency_summary=dependency_graph,
         )
     )
 
-    return PerturbationContractIR(
+    return PerturbationContractData(
         model_name=model_name,
         backend=backend,
         contract_version=contract_version,
@@ -1245,23 +1235,23 @@ def compile_perturbation_contract(
         equations=FrozenMapping(equation_entries),
         closures=FrozenMapping(closure_entries),
         sources=FrozenMapping(source_entries),
-        validity=validity_ir,
-        backend_mapping=FrozenMapping({backend: backend_ir}),
+        validity=validity_data,
+        backend_mapping=FrozenMapping({backend: backend_data}),
         dependency_graph_summary=dependency_graph,
         manifest_summary=manifest_summary,
     )
 
 
 __all__ = [
-    "PerturbationBackendMappingIR",
-    "PerturbationClosureIR",
-    "PerturbationContractIR",
-    "PerturbationDependencyGraphSummaryIR",
-    "PerturbationDerivedIR",
-    "PerturbationDerivativeLHSIR",
-    "PerturbationEquationIR",
-    "PerturbationSourceIR",
-    "PerturbationValidityIR",
-    "PerturbationVariableIR",
+    "PerturbationBackendMappingData",
+    "PerturbationClosureData",
+    "PerturbationContractData",
+    "PerturbationDependencyGraphSummaryData",
+    "PerturbationDerivedData",
+    "PerturbationDerivativeLhsData",
+    "PerturbationEquationData",
+    "PerturbationSourceData",
+    "PerturbationValidityData",
+    "PerturbationVariableData",
     "compile_perturbation_contract",
 ]

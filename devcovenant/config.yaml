@@ -156,7 +156,8 @@ doc_assets:
   - CONTRIBUTING.md
   - CHANGELOG.md
   - devcovenant/README.md
-  user: []
+  user:
+  - devcovenant/README.md
 
 # -------------------------------------------------------------------
 # Install/deploy safety

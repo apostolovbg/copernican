@@ -6,16 +6,16 @@ import unittest
 
 import copernican_lib.perturbation_contract as perturbation_contract_module
 from copernican_lib.perturbation_contract import (
-    PerturbationBackendMappingIR,
-    PerturbationClosureIR,
-    PerturbationContractIR,
-    PerturbationDependencyGraphSummaryIR,
-    PerturbationDerivativeLHSIR,
-    PerturbationDerivedIR,
-    PerturbationEquationIR,
-    PerturbationSourceIR,
-    PerturbationValidityIR,
-    PerturbationVariableIR,
+    PerturbationBackendMappingData,
+    PerturbationClosureData,
+    PerturbationContractData,
+    PerturbationDependencyGraphSummaryData,
+    PerturbationDerivativeLhsData,
+    PerturbationDerivedData,
+    PerturbationEquationData,
+    PerturbationSourceData,
+    PerturbationValidityData,
+    PerturbationVariableData,
     compile_perturbation_contract,
 )
 
@@ -91,7 +91,6 @@ class PerturbationContractTestCase(unittest.TestCase):
             "backend_mapping": {
                 "camb": {
                     "native_solver_required": True,
-                    "solver": "template_native_solver",
                     "implemented": False,
                 }
             },
@@ -101,57 +100,57 @@ class PerturbationContractTestCase(unittest.TestCase):
         return contract
 
     def test_module_symbols_are_exported(self) -> None:
-        """The module should export the declared IR symbols."""
+        """The module should export the declared data symbols."""
 
         self.assertIs(
             perturbation_contract_module.compile_perturbation_contract,
             compile_perturbation_contract,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationContractIR,
-            PerturbationContractIR,
+            perturbation_contract_module.PerturbationContractData,
+            PerturbationContractData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationVariableIR,
-            PerturbationVariableIR,
+            perturbation_contract_module.PerturbationVariableData,
+            PerturbationVariableData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationDerivedIR,
-            PerturbationDerivedIR,
+            perturbation_contract_module.PerturbationDerivedData,
+            PerturbationDerivedData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationDerivativeLHSIR,
-            PerturbationDerivativeLHSIR,
+            perturbation_contract_module.PerturbationDerivativeLhsData,
+            PerturbationDerivativeLhsData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationEquationIR,
-            PerturbationEquationIR,
+            perturbation_contract_module.PerturbationEquationData,
+            PerturbationEquationData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationClosureIR,
-            PerturbationClosureIR,
+            perturbation_contract_module.PerturbationClosureData,
+            PerturbationClosureData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationSourceIR,
-            PerturbationSourceIR,
+            perturbation_contract_module.PerturbationSourceData,
+            PerturbationSourceData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationValidityIR,
-            PerturbationValidityIR,
+            perturbation_contract_module.PerturbationValidityData,
+            PerturbationValidityData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationBackendMappingIR,
-            PerturbationBackendMappingIR,
+            perturbation_contract_module.PerturbationBackendMappingData,
+            PerturbationBackendMappingData,
         )
-        self.assertIs(
-            perturbation_contract_module.PerturbationDependencyGraphSummaryIR,
-            PerturbationDependencyGraphSummaryIR,
+        summary_data = (
+            perturbation_contract_module.PerturbationDependencyGraphSummaryData
         )
+        self.assertIs(summary_data, PerturbationDependencyGraphSummaryData)
 
     def test_standard_contract_compiles(self) -> None:
-        """Standard contracts should compile into immutable IR."""
+        """Standard contracts should compile into immutable data."""
 
-        standard_contract_ir = compile_perturbation_contract(
+        standard_contract_data = compile_perturbation_contract(
             {
                 "contract_version": 1,
                 "standard": True,
@@ -176,11 +175,11 @@ class PerturbationContractTestCase(unittest.TestCase):
             background_reference_names=("H0",),
         )
 
-        self.assertIsInstance(standard_contract_ir, PerturbationContractIR)
-        self.assertTrue(standard_contract_ir.standard)
-        self.assertEqual(standard_contract_ir.gauge, "unspecified")
+        self.assertIsInstance(standard_contract_data, PerturbationContractData)
+        self.assertTrue(standard_contract_data.standard)
+        self.assertEqual(standard_contract_data.gauge, "unspecified")
         self.assertTrue(
-            standard_contract_ir.backend_mapping[
+            standard_contract_data.backend_mapping[
                 "camb"
             ].uses_standard_perturbations
         )
@@ -188,7 +187,7 @@ class PerturbationContractTestCase(unittest.TestCase):
     def test_nonstandard_contract_compiles(self) -> None:
         """Non-standard contracts should preserve typed equation metadata."""
 
-        nonstandard_contract_ir = compile_perturbation_contract(
+        nonstandard_contract_data = compile_perturbation_contract(
             self._make_nonstandard_contract(),
             model_name="TemplateModel",
             backend="camb",
@@ -197,17 +196,19 @@ class PerturbationContractTestCase(unittest.TestCase):
             background_reference_names=("H0",),
         )
 
-        self.assertIsInstance(nonstandard_contract_ir, PerturbationContractIR)
-        self.assertFalse(nonstandard_contract_ir.standard)
+        self.assertIsInstance(
+            nonstandard_contract_data, PerturbationContractData
+        )
+        self.assertFalse(nonstandard_contract_data.standard)
         self.assertEqual(
-            nonstandard_contract_ir.equations["continuity_x"].lhs.variable,
+            nonstandard_contract_data.equations["continuity_x"].lhs.variable,
             "delta_x",
         )
         self.assertEqual(
-            nonstandard_contract_ir.derived["Phi_tau"].kind,
+            nonstandard_contract_data.derived["Phi_tau"].kind,
             "derivative_symbol",
         )
-        dependency_summary = nonstandard_contract_ir.dependency_graph_summary
+        dependency_summary = nonstandard_contract_data.dependency_graph_summary
         self.assertIn("tau", dependency_summary.independent_variables_used)
 
     def test_numeric_closure_equals_is_rejected(self) -> None:
@@ -226,7 +227,7 @@ class PerturbationContractTestCase(unittest.TestCase):
     def test_quoted_closure_equals_compiles(self) -> None:
         """Quoted closure equality expressions should compile cleanly."""
 
-        contract_ir = compile_perturbation_contract(
+        contract_data = compile_perturbation_contract(
             self._make_nonstandard_contract(equals="0"),
             model_name="TemplateModel",
             backend="camb",
@@ -235,7 +236,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             background_reference_names=("H0",),
         )
         self.assertEqual(
-            contract_ir.closures["no_anisotropic_stress"].equals, "0"
+            contract_data.closures["no_anisotropic_stress"].equals, "0"
         )
 
     def test_string_equation_lhs_is_rejected(self) -> None:
@@ -254,46 +255,46 @@ class PerturbationContractTestCase(unittest.TestCase):
     def test_perturbation_dataclasses_are_constructible(self) -> None:
         """The typed perturbation objects should be individually usable."""
 
-        variable_ir = PerturbationVariableIR(
+        variable_data = PerturbationVariableData(
             name="delta_x",
             kind="density_contrast",
         )
-        derived_symbol_ir = PerturbationDerivedIR(
+        derived_symbol_data = PerturbationDerivedData(
             name="Phi_tau",
             kind="derivative_symbol",
             variable="Phi",
             wrt="tau",
             order=1,
         )
-        lhs_ir = PerturbationDerivativeLHSIR(
+        lhs_data = PerturbationDerivativeLhsData(
             kind="derivative",
             variable="delta_x",
             wrt="tau",
             order=1,
         )
-        equation_ir = PerturbationEquationIR(
+        equation_data = PerturbationEquationData(
             name="continuity_x",
-            lhs=lhs_ir,
+            lhs=lhs_data,
             rhs="-theta_x + 3 * Phi_tau",
         )
-        closure_ir = PerturbationClosureIR(
+        closure_data = PerturbationClosureData(
             name="no_anisotropic_stress",
             expression="sigma_x",
             equals="0",
         )
-        source_ir = PerturbationSourceIR(
+        source_data = PerturbationSourceData(
             name="poisson",
             expression="delta_x",
         )
-        validity_ir = PerturbationValidityIR(
+        validity_data = PerturbationValidityData(
             regimes=("linear",),
             notes="Template",
         )
-        backend_mapping_ir = PerturbationBackendMappingIR(
+        backend_mapping_data = PerturbationBackendMappingData(
             backend="camb",
             uses_standard_perturbations=True,
         )
-        dependency_graph_ir = PerturbationDependencyGraphSummaryIR(
+        dependency_graph_data = PerturbationDependencyGraphSummaryData(
             variable_names=("delta_x",),
             derived_expression_names=("delta_rho_eff",),
             derivative_symbol_names=("Phi_tau",),
@@ -309,14 +310,14 @@ class PerturbationContractTestCase(unittest.TestCase):
             source_dependencies={"poisson": ("delta_x",)},
         )
 
-        self.assertEqual(variable_ir.kind, "density_contrast")
-        self.assertEqual(derived_symbol_ir.wrt, "tau")
-        self.assertEqual(equation_ir.lhs.variable, "delta_x")
-        self.assertEqual(closure_ir.equals, "0")
-        self.assertEqual(source_ir.expression, "delta_x")
-        self.assertEqual(validity_ir.regimes, ("linear",))
-        self.assertTrue(backend_mapping_ir.uses_standard_perturbations)
-        self.assertIn("tau", dependency_graph_ir.independent_variables_used)
+        self.assertEqual(variable_data.kind, "density_contrast")
+        self.assertEqual(derived_symbol_data.wrt, "tau")
+        self.assertEqual(equation_data.lhs.variable, "delta_x")
+        self.assertEqual(closure_data.equals, "0")
+        self.assertEqual(source_data.expression, "delta_x")
+        self.assertEqual(validity_data.regimes, ("linear",))
+        self.assertTrue(backend_mapping_data.uses_standard_perturbations)
+        self.assertIn("tau", dependency_graph_data.independent_variables_used)
 
 
 if __name__ == "__main__":

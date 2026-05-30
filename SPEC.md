@@ -1,12 +1,12 @@
 # Project Specification
 **Doc ID:** SPEC
 **Doc Type:** project-spec
-**Project Version:** 12.0.20
+**Project Version:** 12.0.22
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-28
+**Last Updated:** 2026-05-29
 **DevCovenant Version:** 1.0.1b6
 
 ## Overview
@@ -17,6 +17,9 @@ It evaluates models against SNe Ia, BAO, and CMB observations.
 - Keep model evaluation declarative through YAML manifests.
 - Preserve native background expressions such as `Hz_expression`.
 - Keep backend adapters narrow and behavior-preserving.
+- Keep CMB capability checks beside `model_coder.py` so the declarative
+  perturbation path can execute through the generic engine or fail clearly
+  without a separate registry file.
 - Validation runs and mirrored tests should stay behavior-focused, not
   cosmetic drift checks.
 - Keep GUI folder-open actions on native OS handlers while preserving the

@@ -394,5 +394,48 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(transformed))
 
 
+class CMBBackendCapabilityTestCase(unittest.TestCase):
+    """Cover the backend capability helpers exposed by model_coder."""
+
+    def test_declared_backend_capabilities_are_accessible(self) -> None:
+        """The declared CAMB capabilities should be available by name."""
+
+        capabilities = model_coder.get_backend_capabilities("camb")
+        self.assertTrue(capabilities["scalar_param_map"])
+        self.assertTrue(capabilities["grids_values_calls"])
+        self.assertTrue(capabilities["standard_perturbations"])
+        self.assertTrue(capabilities["native_nonstandard_perturbations"])
+        self.assertTrue(
+            model_coder.backend_supports_standard_perturbations("camb")
+        )
+        self.assertTrue(
+            model_coder.backend_supports_native_nonstandard_perturbations(
+                "camb"
+            )
+        )
+
+    def test_nonstandard_execution_helper_enforces_capabilities(self) -> None:
+        """Unsupported declarative execution should fail clearly."""
+
+        with self.assertRaisesRegex(
+            ValueError, "generic declarative executor is required"
+        ):
+            model_coder.validate_native_perturbation_execution(
+                model_name="TemplateModel",
+                backend="camb",
+                standard=False,
+                implemented=False,
+            )
+
+        self.assertIsNone(
+            model_coder.validate_native_perturbation_execution(
+                model_name="TemplateModel",
+                backend="camb",
+                standard=True,
+                implemented=False,
+            )
+        )
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

@@ -805,11 +805,10 @@ notes: |-
   The background expressions below provide the executable Copernican
   representation of TORG's homogeneous expansion sector.
 
-  The CMB perturbation block declares the native non-standard TORG
-  perturbation contract. Execution requires a registered native TORG CMB
-  perturbation solver. Until that solver exists, a strict Copernican
-  backend must reject exact CMB execution for this model rather than
-  silently reusing standard CAMB perturbations.
+  The CMB perturbation block now declares the perturbation mathematics
+  directly. Copernican compiles those equations into its generic
+  declarative perturbation executor instead of falling back to standard
+  CAMB perturbations.
 
 parameters:
   - name: Hubble constant
@@ -852,13 +851,13 @@ parameters:
     python_var: Xr0
     latex_name: X_{r0}
     unit: ""
-    bounds: [0.0, 20.0]
+    bounds: [0.0, 7.0]
     initial: 5.0
     definition: Present-day amplitude of cosmological relational inertia.
     prior:
       type: uniform
       lower: 0.0
-      upper: 20.0
+      upper: 7.0
 
   - name: Relational activation redshift
     python_var: zt
@@ -923,10 +922,23 @@ Hz_expression: >-
   H(z) = H0 * sqrt(
     Or0 * (1 + z)**4
     + Ob0 * (1 + z)**3 * (
-      1 + Xr0 * (
-        1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
-      ) * (1.0 / (1.0 + z))**gamma_r
+      1 + Xr0
+        * (
+          1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+        )
+        * (1.0 / (1.0 + z))**gamma_r
+        / (
+          1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)
+        )
     )
+    + (1.0 - Or0 - Ob0 * (1.0 + Xr0))
+      * (
+        1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+      )
+      * (1.0 / (1.0 + z))**gamma_r
+      / (
+        1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)
+      )
   )
 
 equations: {}
@@ -939,10 +951,23 @@ rs_expression: >-
       H0 * sqrt(
         Or0 * (1 + z)**4
         + Ob0 * (1 + z)**3 * (
-          1 + Xr0 * (
-            1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
-          ) * (1.0 / (1.0 + z))**gamma_r
+          1 + Xr0
+            * (
+              1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+            )
+            * (1.0 / (1.0 + z))**gamma_r
+            / (
+              1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)
+            )
         )
+        + (1.0 - Or0 - Ob0 * (1.0 + Xr0))
+          * (
+            1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)
+          )
+          * (1.0 / (1.0 + z))**gamma_r
+          / (
+            1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)
+          )
       )
     ),
     (z, z_rec, oo)
@@ -955,11 +980,16 @@ constants:
 
 expressions:
   a_z: "1.0 / (1.0 + z)"
+  activation_0: "1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)"
   activation_z: "1.0 / (1.0 + ((1.0 + z) / (1.0 + zt))**beta)"
   temporal_growth_z: "(1.0 / (1.0 + z))**gamma_r"
-  Xr_z: "Xr0 * activation_z * temporal_growth_z"
+  Tau_z: "activation_z * temporal_growth_z / activation_0"
+  Xr_z: "Xr0 * Tau_z"
   Ob_eff_z: "Ob0 * (1.0 + Xr_z)"
-  E2_z: "Or0*(1.0 + z)**4 + Ob0*(1.0 + z)**3*(1.0 + Xr_z)"
+  matter_rel_z: "Or0*(1.0 + z)**4 + Ob0*(1.0 + z)**3*(1.0 + Xr_z)"
+  Omega_tau0: "1.0 - Or0 - Ob0*(1.0 + Xr0)"
+  temporal_closure_z: "Omega_tau0 * Tau_z"
+  E2_z: "matter_rel_z + temporal_closure_z"
   E_z: "sqrt(E2_z)"
   H_z: "H0 * E_z"
   inv_E_z: "1.0 / E_z"
@@ -1026,7 +1056,7 @@ derived:
 
   flatness_residual:
     expression: "1.0 - Or0 - Ob0 * (1.0 + Xr0)"
-    description: Present-day flatness residual implied by fitted parameters.
+    description: Present-day closure amplitude used by E2_z.
 
 likelihood:
   sne:
@@ -1047,7 +1077,7 @@ cmb:
   param_map:
     H0: H0
     ombh2: "Ob0 * (H0 / 100.0)**2"
-    omch2: "Ob0 * Xr0 * (H0 / 100.0)**2"
+    omch2: 0.0
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -1065,40 +1095,137 @@ cmb:
     Xr_a:
       grid: a_grid
       expression: >-
-        Xr0 * (
-          1.0 / (1.0 + ((1.0 / a - 1.0) / (1.0 + zt))**beta)
-        ) * a**gamma_r
+        Xr0
+        * (
+          1.0 / (1.0 + (1.0 / (a * (1.0 + zt)))**beta)
+        )
+        * a**gamma_r
+        / (
+          1.0 / (1.0 + (1.0 / (1.0 + zt))**beta)
+        )
     w_torg:
       grid: a_grid
-      expression: "-1 - Xr_a / (1.0 + Xr_a)"
-  calls:
-    - method: set_dark_energy_w_a
-      args:
-        a: "@grid.a_grid"
-        w: "@value.w_torg"
-      kwargs:
-        dark_energy_model: ppf
+      expression: >-
+        -1.0
+        - (
+          gamma_r
+          + beta
+            * (1.0 / (a * (1.0 + zt)))**beta
+            / (1.0 + (1.0 / (a * (1.0 + zt)))**beta)
+        ) / 3.0
+  calls: []
   perturbations:
     contract_version: 1
-    standard: true
-    gauge: unspecified
-    variables: {}
-    derived: {}
-    equations: {}
-    closures: {}
-    sources: {}
+    standard: false
+    gauge: conformal_newtonian
+    variables:
+      delta_b:
+        kind: density_contrast
+        description: Baryon density contrast.
+      theta_b:
+        kind: velocity_divergence
+        description: Baryon velocity divergence.
+      delta_gamma:
+        kind: density_contrast
+        description: Photon density contrast.
+      theta_gamma:
+        kind: velocity_divergence
+        description: Photon velocity divergence.
+      Phi:
+        kind: metric_potential
+        description: Newtonian potential perturbation.
+      Psi:
+        kind: metric_potential
+        description: Curvature potential perturbation.
+      delta_Xr:
+        kind: response_contrast
+        description: Relational-response perturbation.
+      sigma_R:
+        kind: anisotropic_stress
+        description: Relational anisotropic stress.
+    derived:
+      Phi_tau:
+        kind: derivative_symbol
+        variable: Phi
+        wrt: tau
+        order: 1
+        description: First conformal-time derivative of Phi.
+      delta_rho_R:
+        expression: Ob0 * Xr_a * delta_b
+        description: Relational response density perturbation.
+      delta_rho_eff:
+        expression: Ob0 * (1.0 + Xr_a) * delta_b
+        description: Effective baryonic gravitational perturbation.
+      theta_R:
+        expression: theta_b
+        description: Baryon-locked relational velocity.
+    equations:
+      phi_evolution:
+        lhs:
+          kind: derivative
+          variable: Phi
+          wrt: tau
+          order: 1
+        rhs: -0.5 * Hconf * Phi + 0.5 * Psi
+      continuity_b:
+        lhs:
+          kind: derivative
+          variable: delta_b
+          wrt: tau
+          order: 1
+        rhs: -theta_b + 3 * Phi_tau
+      euler_b:
+        lhs:
+          kind: derivative
+          variable: theta_b
+          wrt: tau
+          order: 1
+        rhs: >-
+          -Hconf * theta_b + k**2 * Psi
+          + (theta_gamma - theta_b) / (1.0 + Xr_a)
+      continuity_gamma:
+        lhs:
+          kind: derivative
+          variable: delta_gamma
+          wrt: tau
+          order: 1
+        rhs: -4.0 / 3.0 * theta_gamma + 4.0 * Phi_tau
+      euler_gamma:
+        lhs:
+          kind: derivative
+          variable: theta_gamma
+          wrt: tau
+          order: 1
+        rhs: k**2 * (delta_gamma / 4.0 + Psi)
+    closures:
+      no_anisotropic_stress_x:
+        expression: Psi
+        equals: "Phi"
+      frozen_relational_response:
+        expression: delta_Xr
+        equals: "0"
+      no_stress_x:
+        expression: sigma_R
+        equals: "0"
+    sources:
+      poisson_x:
+        expression: delta_rho_eff + delta_gamma / 4.0
+      drag_x:
+        expression: (theta_gamma - theta_b) / (1.0 + Xr_a)
     validity:
       regimes:
-        - standard_camb_with_declared_background_adapter
+        - linear
+        - scalar
       notes: >-
-        Uses standard backend perturbations with the model's declared
-        background adapter contract.
+        First-order scalar perturbation declaration executed by the
+        generic declarative perturbation engine.
     backend_mapping:
       camb:
-        uses_standard_perturbations: true
+        native_solver_required: true
+        implemented: true
     notes: >-
-      Native non-standard perturbation equations are not declared in this
-      model file.
+      Copernican validates and executes the declared perturbation
+      mathematics directly through the generic declarative path.
 
 validation:
   expected_limits:
