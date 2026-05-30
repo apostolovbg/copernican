@@ -17,7 +17,7 @@ doc_assets:
   user:
     - devcovenant/README.md
 project-governance:
-  project_name: Copernican Suite
+  project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models
     against SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd.,
@@ -55,6 +55,39 @@ policy_overlays:
           - requirements.in
           - devcovenant/runtime-requirements.lock
           - copernican_lib/runtime-requirements.lock
+        hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311
+            marker: >-
+              sys_platform == "darwin" and platform_machine == "x86_64"
+              and python_version == "3.11"
+            pip:
+              platform: macosx_13_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311-arm64
+            marker: >-
+              sys_platform == "darwin" and platform_machine == "arm64"
+              and python_version == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
       - id: package_runtime
         lock_file: copernican_lib/runtime-requirements.lock
         third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
@@ -62,6 +95,39 @@ policy_overlays:
         required_paths:
           - pyproject.toml
           - copernican_lib
+        hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311
+            marker: >-
+              sys_platform == "darwin" and platform_machine == "x86_64"
+              and python_version == "3.11"
+            pip:
+              platform: macosx_13_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311-arm64
+            marker: >-
+              sys_platform == "darwin" and platform_machine == "arm64"
+              and python_version == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
   version-governance:
     scheme: semver
     version_file: copernican_lib/VERSION
@@ -193,3 +259,14 @@ policy_overlays:
     omit_block_pairs:
       - "<!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->"
     rewrite_repo_relative_links: true
+  last-updated:
+    allowed_globs:
+      - README.md
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
+      - 'copernican/README.md'
+      - 'copernican/docs/*.md'
+      - 'copernican/docs/**/*.md'

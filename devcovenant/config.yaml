@@ -204,7 +204,7 @@ engine:
   logs_keep_last: 0
   pycache_prefix_enabled: false
   pycache_prefix: ''
-  auto_fix_enabled: false
+  auto_fix_enabled: true
   file_suffixes:
   - .md
   - .rst
@@ -372,7 +372,7 @@ workflow:
 # When unversioned, the top visible changelog heading must match `unreleased_heading` exactly.
 
 project-governance:
-  project_name: Copernican Suite
+  project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
@@ -948,9 +948,10 @@ autogen_metadata_overlays:
           python_version: '3.14'
           abi: cp314
       - id: macos-py311
-        marker: sys_platform == "darwin" and python_version == "3.11"
+        marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+          == "3.11"
         pip:
-          platform: macosx_11_0_x86_64
+          platform: macosx_13_0_x86_64
           implementation: cp
           python_version: '3.11'
           abi: cp311
@@ -975,6 +976,14 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.14'
           abi: cp314
+      - id: macos-py311-arm64
+        marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+          == "3.11"
+        pip:
+          platform: macosx_13_0_arm64
+          implementation: cp
+          python_version: '3.11'
+          abi: cp311
     - id: package_runtime
       lock_file: copernican_lib/runtime-requirements.lock
       direct_dependency_files:
@@ -1049,9 +1058,10 @@ autogen_metadata_overlays:
           python_version: '3.14'
           abi: cp314
       - id: macos-py311
-        marker: sys_platform == "darwin" and python_version == "3.11"
+        marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+          == "3.11"
         pip:
-          platform: macosx_11_0_x86_64
+          platform: macosx_13_0_x86_64
           implementation: cp
           python_version: '3.11'
           abi: cp311
@@ -1076,6 +1086,14 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.14'
           abi: cp314
+      - id: macos-py311-arm64
+        marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+          == "3.11"
+        pip:
+          platform: macosx_13_0_arm64
+          implementation: cp
+          python_version: '3.11'
+          abi: cp311
   docstring-and-comment-coverage:
     exclude_prefixes:
     - devcovenant
@@ -1143,6 +1161,9 @@ autogen_metadata_overlays:
     - CHANGELOG.md
     - SPEC.md
     - PLAN.md
+    - copernican/README.md
+    - copernican/docs/*.md
+    - copernican/docs/**/*.md
     include_globs:
     - '*.md'
     include_suffixes:

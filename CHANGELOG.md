@@ -80,6 +80,152 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-05-31:
+  Change: Aligned the generated runtime config and package metadata with
+    the lowercase `copernican` project identity.
+  Why: `resolve_runtime_state()` reads `devcovenant/config.yaml`, and the
+    package name must match the package-path token it derives.
+  Impact: `PROJECT_NAME_PATH` resolves to `copernican`, so the package
+    runtime surface can remain active for refreshes.
+  Files:
+  CHANGELOG.md
+  devcovenant/config.yaml
+  pyproject.toml
+
+- 2026-05-31:
+  Change: Renamed the governance project identity to `copernican` and
+    aligned `pyproject.toml` with the package path token.
+  Why: `PROJECT_NAME_PATH` derives from `project_name`, so the package
+    runtime surface needs the repo identity to resolve to `copernican`.
+  Impact: `package_runtime` can stay active and refresh against the intended
+    package path without dropping the placeholder.
+  Files:
+  CHANGELOG.md
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  pyproject.toml
+
+- 2026-05-30:
+  Change: Added repo-specific dependency hash targets to the userproject
+    profile and pinned CAMB to 1.6.5 in pyproject.toml.
+  Why: This aligns the supported Linux, Windows, Intel macOS, and Apple
+    Silicon matrix with a CAMB release that ships both macOS wheels.
+  Impact: Future lock refreshes can resolve hashes for the supported
+    platforms without keeping the old CAMB pin.
+  Files:
+  CHANGELOG.md
+  requirements.lock
+  copernican_lib/runtime-requirements.lock
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/LICENSE
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_\
+    CfA1_CfA2_CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_\
+    LOSS_MCT_NB99_Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_\
+    LSQ+LCO_LSQ_knop03_Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  licenses/THIRD_PARTY_LICENSES.md
+  licenses/arviz-0.16.1.txt
+  licenses/astropy-6.0.0.txt
+  licenses/astropy-iers-data-0.2026.5.18.1.11.28.txt
+  licenses/attrs-26.1.0.txt
+  licenses/bandit-1.9.4.txt
+  licenses/camb-1.6.0.txt
+  licenses/contourpy-1.3.3.txt
+  licenses/cycler-0.12.1.txt
+  licenses/emcee-3.1.4.txt
+  licenses/fonttools-4.63.0.txt
+  licenses/h5netcdf-1.3.0.txt
+  licenses/h5py-3.10.0.txt
+  licenses/jsonschema-4.21.1.txt
+  licenses/jsonschema-specifications-2025.9.1.txt
+  licenses/kiwisolver-1.5.0.txt
+  licenses/markdown-it-py-4.2.0.txt
+  licenses/matplotlib-3.8.2.txt
+  licenses/mdurl-0.1.2.txt
+  licenses/mpmath-1.3.0.txt
+  licenses/numpy-1.26.4.txt
+  licenses/pandas-2.2.1.txt
+  licenses/pillow-12.2.0.txt
+  licenses/pip-26.1.1.txt
+  licenses/psutil-5.9.8.txt
+  licenses/pyerfa-2.0.1.5.txt
+  licenses/pyparsing-3.3.2.txt
+  licenses/python-dateutil-2.9.0.post0.txt
+  licenses/pytz-2026.2.txt
+  licenses/referencing-0.37.0.txt
+  licenses/rich-15.0.0.txt
+  licenses/rpds-py-0.30.0.txt
+  licenses/scipy-1.12.0.txt
+  licenses/six-1.17.0.txt
+  licenses/stevedore-5.8.0.txt
+  licenses/sympy-1.13.0.txt
+  licenses/typing_extensions-4.10.0.txt
+  licenses/tzdata-2026.2.txt
+  licenses/xarray-2023.12.0.txt
+  licenses/xarray-einstats-0.6.0.txt
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  pyproject.toml
+
+- 2026-05-30:
+  Change: Added the missing astropy wheel hash to the root and package
+    lockfiles.
+  Why: This unblocks the current install path while dependency
+    management stays deferred for the refactor.
+  Impact: The existing lockfile install can accept the resolved macOS
+    wheel without changing the deferred dependency surface.
+  Files:
+  CHANGELOG.md
+  copernican_lib/runtime-requirements.lock
+  requirements.lock
+
+- 2026-05-30:
+  Change: Enabled gate-managed autofix in the engine config and expanded the
+    userproject last-updated allowlist to include package doc clones.
+  Why: This lets package-doc sync run during gate open without tripping the
+    warning on the synced package README.
+  Impact: Gate-open autofix can rewrite the package docs and registry while
+    keeping the package README inside the policy allowlist.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  copernican/README.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_licenses.md
+  copernican/docs/dataset_metadata.md
+  copernican/docs/documentation_policy.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/launcher_gui.md
+
+- 2026-05-30:
   Change: Disabled version-governance, documentation-growth-tracking,
     dependency-management, and managed-environment in the active config,
     and added package-doc sync for the root README and docs source tree in

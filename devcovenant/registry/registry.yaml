@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 75271e478f28dda8ed1a8896743291934acddbb6e16fd55942ab32ce415ec43f
+  policy_registry_input_hash: 1fed48c9cfcecb3bea5214d8be0427222a548c5d4aec03295ca2daa6bfe3a45a
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
@@ -2510,9 +2510,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -2537,6 +2538,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
               direct_dependency_files:
@@ -2611,9 +2620,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -2638,6 +2648,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
           behavior: append
           replaced_inherited_values:
           - ()
@@ -2817,9 +2835,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -2844,6 +2863,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
               direct_dependency_files:
@@ -2918,9 +2945,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -2945,6 +2973,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
           behavior: append
           replaced_inherited_values:
           - ()
@@ -3316,9 +3352,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -3343,6 +3380,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
               direct_dependency_files:
@@ -3417,9 +3462,10 @@ policies:
                   python_version: '3.14'
                   abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
+                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+                  == "3.11"
                 pip:
-                  platform: macosx_11_0_x86_64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
@@ -3444,6 +3490,14 @@ policies:
                   implementation: cp
                   python_version: '3.14'
                   abi: cp314
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+                  == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
         effective:
           values:
           - |-
@@ -3885,9 +3939,10 @@ policies:
               python_version: '3.14'
               abi: cp314
           - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
+            marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+              == "3.11"
             pip:
-              platform: macosx_11_0_x86_64
+              platform: macosx_13_0_x86_64
               implementation: cp
               python_version: '3.11'
               abi: cp311
@@ -3912,6 +3967,14 @@ policies:
               implementation: cp
               python_version: '3.14'
               abi: cp314
+          - id: macos-py311-arm64
+            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+              == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
         - id: package_runtime
           lock_file: copernican_lib/runtime-requirements.lock
           direct_dependency_files:
@@ -3986,9 +4049,10 @@ policies:
               python_version: '3.14'
               abi: cp314
           - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
+            marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
+              == "3.11"
             pip:
-              platform: macosx_11_0_x86_64
+              platform: macosx_13_0_x86_64
               implementation: cp
               python_version: '3.11'
               abi: cp311
@@ -4013,6 +4077,14 @@ policies:
               implementation: cp
               python_version: '3.14'
               abi: cp314
+          - id: macos-py311-arm64
+            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+              == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
       replacement_values:
       - |-
         - id: devcovenant_runtime
@@ -4652,8 +4724,8 @@ policies:
           input_fingerprint: 9478fdac0627ad06a5c6a236d822dcca5709adef8ccea1c1a853af36071d336a
           output_fingerprints:
             lock_file: 8974e1e169412c890caab9cb3934ecdcfcd47d09af1fe8ccb55c979c8c53d810
-            third_party_file: e758b35f7da7a57bc75a7d6967a7a3c29502251f853a6d96db07c6f5462bb14d
-            licenses_dir: be57a0cf220cdc796d56daf87e8292d13cefb6303120f8be83cd88765ba541e6
+            third_party_file: 471fc6845d528ff6444be188ba9e931e4c2498e0ca76767b3b7b7db3e0254894
+            licenses_dir: 37b84360ad3f35b0f039dc5b4494770f3497f21a5a7e647d8ba61f42e5f05230
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -6402,6 +6474,9 @@ policies:
       - CHANGELOG.md
       - SPEC.md
       - PLAN.md
+      - copernican/README.md
+      - copernican/docs/*.md
+      - copernican/docs/**/*.md
       allowed_files: []
       allowed_suffixes: []
       required_files: []
@@ -6527,6 +6602,9 @@ policies:
           - CHANGELOG.md
           - SPEC.md
           - PLAN.md
+          - copernican/README.md
+          - copernican/docs/*.md
+          - copernican/docs/**/*.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6538,6 +6616,9 @@ policies:
           - CHANGELOG.md
           - SPEC.md
           - PLAN.md
+          - copernican/README.md
+          - copernican/docs/*.md
+          - copernican/docs/**/*.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6560,6 +6641,9 @@ policies:
           - CHANGELOG.md
           - SPEC.md
           - PLAN.md
+          - copernican/README.md
+          - copernican/docs/*.md
+          - copernican/docs/**/*.md
       allowed_files:
         descriptor:
           values:
@@ -6780,6 +6864,9 @@ policies:
       - CHANGELOG.md
       - SPEC.md
       - PLAN.md
+      - copernican/README.md
+      - copernican/docs/*.md
+      - copernican/docs/**/*.md
       allowed_files: []
       allowed_suffixes: []
       required_files: []
@@ -6833,6 +6920,9 @@ policies:
     - PLAN.md
     - README.md
     - SPEC.md
+    - copernican/README.md
+    - copernican/docs/**/*.md
+    - copernican/docs/*.md
     - devcovenant/README.md
     - devcovenant/builtin/policies/README.md
     - devcovenant/builtin/profiles/README.md
@@ -16547,7 +16637,7 @@ profiles:
       user:
       - devcovenant/README.md
     project-governance:
-      project_name: Copernican Suite
+      project_name: copernican
       project_description: A Python toolkit for evaluating cosmological models against
         SNe Ia, BAO, and CMB observations.
       copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of
@@ -16585,6 +16675,37 @@ profiles:
           - requirements.in
           - devcovenant/runtime-requirements.lock
           - copernican_lib/runtime-requirements.lock
+          hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311
+            marker: sys_platform == "darwin" and platform_machine == "x86_64" and
+              python_version == "3.11"
+            pip:
+              platform: macosx_13_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311-arm64
+            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+              == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
         - id: package_runtime
           lock_file: copernican_lib/runtime-requirements.lock
           third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
@@ -16592,6 +16713,37 @@ profiles:
           required_paths:
           - pyproject.toml
           - copernican_lib
+          hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311
+            marker: sys_platform == "darwin" and platform_machine == "x86_64" and
+              python_version == "3.11"
+            pip:
+              platform: macosx_13_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py311-arm64
+            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
+              == "3.11"
+            pip:
+              platform: macosx_13_0_arm64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
       version-governance:
         scheme: semver
         version_file: copernican_lib/VERSION
@@ -16721,6 +16873,17 @@ profiles:
         omit_block_pairs:
         - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
         rewrite_repo_relative_links: true
+      last-updated:
+        allowed_globs:
+        - README.md
+        - AGENTS.md
+        - CONTRIBUTING.md
+        - CHANGELOG.md
+        - SPEC.md
+        - PLAN.md
+        - copernican/README.md
+        - copernican/docs/*.md
+        - copernican/docs/**/*.md
     source: custom
     path: devcovenant/custom/profiles/userproject
     assets_available: []

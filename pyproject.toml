@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Copernican Suite"
+name = "copernican"
 description = """
 A Python toolkit for evaluating cosmological models \
 against SNe Ia, BAO, and CMB observations."""
@@ -19,7 +19,7 @@ dependencies = [
     "pandas==2.2.1",
     "sympy==1.13.0",
     "jsonschema==4.21.1",
-    "camb==1.6.0",
+    "camb==1.6.5",
     "PyYAML==6.0.3",
     "astropy==6.0.0",
     "psutil==5.9.8",
@@ -43,6 +43,10 @@ classifiers = [
 dev = [
     "pip-tools==7.4.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/apostolovbg/copernican"
+Repository = "https://github.com/apostolovbg/copernican"
 
 [project.scripts]
 copernican = "copernican:main_workflow"

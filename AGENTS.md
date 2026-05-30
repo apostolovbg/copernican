@@ -1072,6 +1072,9 @@ allowed_globs:
 - CHANGELOG.md
 - SPEC.md
 - PLAN.md
+- copernican/README.md
+- copernican/docs/*.md
+- copernican/docs/**/*.md
 allowed_files: []
 allowed_suffixes: []
 required_files: []
