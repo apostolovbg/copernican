@@ -64,10 +64,12 @@ hybrid layout:
 * `engines/` is treated as importable runtime code from the root;
 * `models/` is a repository-level model library;
 * `models/` is not package code;
-* `app.py` exists as a GUI surface beside the CLI/script history;
+* `data/` still holds curated datasets and parser modules today;
+* the installed package should own those curated datasets and parsers;
 * dependency and license surfaces are manually pointed at `copernican_lib`;
 * package metadata still has to explain the mixed shape to setuptools;
 * generated dependency and license refreshes are vulnerable to mismatch.
+* the old start scripts and parity policy still encode launcher history;
 
 This is why the Astropy hash problem should not be treated as the root
 issue.
@@ -85,10 +87,13 @@ The fix is to make Copernican structurally normal:
 * the import package should be `copernican/`;
 * the distribution name should be `copernican`;
 * the CLI command should be `copernican`;
-* the old root `copernican.py` should be removed as a root module;
+* many current modules should move into `copernican/lib/`;
+* some runtime modules should remain at package root;
+* curated datasets and parsers should ship inside the package;
+* external dataset discovery should not be supported;
+* `cosmo_` should be dropped only from model and parser names;
+* the old start scripts, parity policy, and linked tests should go;
 * orchestration logic should live inside the package;
-* GUI logic from `app.py` should be a first-class package surface;
-* model files should remain loadable from arbitrary filesystem paths;
 * `models/` should stay at the repository root;
 * `models/` should remain YAML/YML examples and configurations;
 * both `.yml` and `.yaml` model extensions should be accepted;
@@ -111,8 +116,8 @@ After the refactor, Copernican should have a coherent identity:
 * root workspace lock: `requirements.lock`;
 * root license report: `licenses/THIRD_PARTY_LICENSES.md`.
 
-The package should own runtime Python code. The repository root should own
-repository-level assets, datasets, model examples, governance files,
+The package should own runtime Python code, curated datasets, and parser
+modules. The repository root should own model examples, governance files,
 dependency locks, and output defaults.
 
 The migration must preserve existing scientific behavior. This plan is not a
@@ -120,6 +125,10 @@ model-behavior redesign, not an output-format redesign, and not a GUI rewrite
 for its own sake. It is a structural migration so that the existing runtime,
 GUI, CLI, model loading, output production, dependency locking, and license
 reporting can operate from a clean project shape.
+
+Token conservation is a first-class requirement. Prefer commands that
+rename, move, or copy files when they can preserve meaning. Rewrite code or
+whole files only when no path-preserving command can carry the change.
 
 ## Overview
 
@@ -130,12 +139,18 @@ reporting can operate from a clean project shape.
 * The target is a standard package layout with `copernican/` as the real
   package.
 * `copernican_lib/` should be retired as the package surface.
-* `copernican_lib/` should be replaced by `copernican/`.
+* `copernican_lib/` should be replaced by `copernican/` with a
+  `copernican/lib/` subtree.
 * `copernican.py` should stop being a root-level runtime module.
 * Runtime orchestration should move into package modules.
 * CLI behavior should be exposed through `copernican.cli`.
-* GUI behavior currently represented by `app.py` should move into the
-  package.
+* GUI behavior currently represented by
+  `copernican_lib/gui/app.py` should move into the package.
+* Curated datasets and parsers should ship in the package.
+* External dataset discovery is not part of the support model.
+* `cosmo_` should be removed only from model and parser names.
+* `cosmo_model_*` should become `model_*`.
+* `cosmo_parser_*` should become `parser_*`.
 * `models/` should remain at repository root because models are YAML/YML
   configuration assets, not importable Python code.
 * Copernican must load model files from arbitrary filesystem paths.
@@ -150,6 +165,8 @@ reporting can operate from a clean project shape.
 * Headless, installed, or supercomputer usage must not assume a desktop.
 * Headless, installed, or supercomputer usage must not assume package-adjacent
   output.
+* The start scripts, their parity policy, and their linked tests should be
+  removed.
 * DevCovenant dependency and license surfaces should be repaired after the
   package layout is real.
 * The migration should leave Codex and human maintainers with a reviewable
@@ -171,6 +188,9 @@ reporting can operate from a clean project shape.
 * Do not manually patch generated lock hashes as the durable fix.
 * Do not create a copied custom `python` profile to compensate for package
   layout problems.
+* Prefer copy, rename, or move commands when they can preserve the change.
+* Avoid rewriting whole files when a path-preserving command can do the job.
+* Treat token conservation as a first-class requirement.
 * Use DevCovenant's normal package, root workspace, and DevCovenant runtime
   surfaces after the package structure is corrected.
 * Keep generated artifacts generated.
@@ -180,6 +200,8 @@ reporting can operate from a clean project shape.
   or governance changes.
 * Use the configured local governance workflow around each completed slice.
 * Keep every slice small enough to review, but complete enough to run.
+* Remove obsolete start scripts, parity policy, and legacy tests rather than
+  preserving them.
 
 ## Execution Slices
 
@@ -193,7 +215,7 @@ reporting can operate from a clean project shape.
 
    * `pyproject.toml`
    * `copernican.py`
-   * `app.py`
+   * `copernican_lib/gui/app.py`
    * `copernican_lib/`
    * `engines/`
    * `models/`
@@ -216,12 +238,15 @@ reporting can operate from a clean project shape.
 
    * Inspect the current runtime entrypoints.
    * Identify CLI runtime, GUI runtime, shared workflow logic, package code,
-     model data, dataset data, generated output, and governance artifacts.
+     model data, curated dataset data, parser code, generated output, and
+     governance artifacts.
    * Document the current start-script behavior.
-   * Document how `app.py` is launched and what runtime code it imports.
+   * Document how `copernican_lib/gui/app.py` is launched and what runtime
+     code it imports.
    * Document how `copernican.py` is launched and what runtime code it
      imports.
    * Document how model files are currently discovered and loaded.
+   * Document how curated datasets and parsers are currently discovered.
    * Document which output files are currently produced.
    * Preserve the current output structure as the migration baseline.
    * Confirm that `models/` is repository-level YAML/YML model data.
@@ -252,9 +277,10 @@ reporting can operate from a clean project shape.
    Surfaces:
 
    * `copernican/`
+   * `copernican/lib/`
+   * `copernican/datasets/`
    * `copernican_lib/`
    * `copernican.py`
-   * `app.py`
    * `engines/`
    * `pyproject.toml`
    * imports
@@ -264,11 +290,16 @@ reporting can operate from a clean project shape.
 
    * Rename or replace `copernican_lib/` with `copernican/`.
    * Preserve `copernican/VERSION`.
+   * Move many shared runtime helpers into `copernican/lib/`.
+   * Keep some runtime modules at the package root.
    * Preserve package runtime dependency artifact locations under the new
      package path.
    * Preserve package license artifact locations under the new package path.
    * Move shared runtime/orchestration logic out of root `copernican.py`.
    * Move shared runtime/orchestration logic into package modules.
+   * Move curated datasets and parser modules into `copernican/datasets/`.
+   * Keep bundled datasets and parsers loadable as package resources.
+   * Do not support external dataset discovery.
    * Do not create `copernican/copernican.py` as the long-term orchestrator
      name.
    * Use a clearer package module name for orchestration, such as
@@ -276,7 +307,8 @@ reporting can operate from a clean project shape.
    * Move importable runtime engine code into `copernican/` if Slice 1
      confirms that `engines/` is package code.
    * Keep `models/` at repository root.
-   * Keep `data/` at repository root.
+   * Keep `data/` as source-tree migration input until the bundled package
+     data is in place.
    * Keep `output/` out of the package.
    * Add or preserve `copernican/__init__.py`.
    * Add `copernican/__main__.py` for `python -m copernican`.
@@ -286,10 +318,11 @@ reporting can operate from a clean project shape.
    Done when:
 
    * `copernican/` is the real import package;
-   * runtime code imports through `copernican`;
+   * runtime code imports through `copernican` and `copernican.lib`;
    * root `copernican.py` is no longer required as an import module;
+   * curated datasets and parsers ship in the wheel;
    * `models/` remains root-level non-package data;
-   * `data/` remains root-level dataset data;
+   * `data/` remains a source-tree asset only;
    * package imports are clean;
    * basic import tests pass.
 
@@ -303,9 +336,13 @@ reporting can operate from a clean project shape.
 
    * `copernican/cli.py`
    * `copernican/__main__.py`
-   * GUI package module replacing root-owned `app.py` behavior
-   * `app.py`
-   * start scripts
+   * `copernican/lib/gui/app.py`
+   * `start.bat`
+   * `start.sh`
+   * `start.command`
+   * `tests/test_start_scripts.py`
+   * `tests/devcovenant/custom/policies/start_script_parity/`
+   * `tests/devcovenant/custom/policies/start_script_guardrails/`
    * `pyproject.toml`
    * tests
    * docs
@@ -314,28 +351,27 @@ reporting can operate from a clean project shape.
 
    * Create or finalize `copernican.cli:main` as the command-line entrypoint.
    * Preserve existing CLI behavior.
-   * Preserve existing GUI behavior currently represented by `app.py`.
+   * Preserve existing GUI behavior currently represented by
+     `copernican_lib/gui/app.py`.
    * Move GUI implementation into a package-owned module.
-   * Decide whether root `app.py` should become a thin compatibility launcher
-     or be retired.
-   * If root `app.py` is kept temporarily, make it delegate into the package.
-   * If root `app.py` is kept temporarily, mark it as compatibility-only.
    * Ensure CLI and GUI share runtime workflow code.
    * Ensure CLI and GUI do not duplicate execution logic.
    * Ensure `python -m copernican` invokes the CLI path.
    * Ensure the installed console script invokes the CLI path.
-   * Update start scripts to use the package entrypoint.
+   * Remove the start scripts, their parity policy, and their linked tests.
    * Avoid hardcoded absolute checkout paths.
    * Avoid desktop assumptions.
+   * Avoid rewriting whole files when a move, rename, or copy command can
+     preserve the contents.
 
    Done when:
 
    * CLI starts from `copernican.cli:main`;
    * `python -m copernican` works;
    * GUI behavior still starts through a maintained entrypoint;
-   * start scripts use the corrected entrypoint;
+   * `start.bat`, `start.sh`, and `start.command` are deleted;
+   * the start-script parity policy and tests are deleted;
    * root `copernican.py` is removed or reduced to a compatibility shim;
-   * root `app.py` is removed or reduced to a compatibility shim;
    * tests or smoke checks cover CLI and GUI startup boundaries where local
      dependencies allow.
 
@@ -550,10 +586,10 @@ reporting can operate from a clean project shape.
    * `CONTRIBUTING.md`
    * `CHANGELOG.md`
    * `PLAN.md`
-   * start-script documentation
    * model-loading documentation
    * GUI documentation
    * output documentation
+   * legacy test cleanup
 
    Scope:
 
@@ -565,7 +601,10 @@ reporting can operate from a clean project shape.
    * Add model-loading tests for `.yaml`.
    * Add model-loading tests for model paths outside repo `models/`.
    * Add output-base-directory tests without changing output shape.
+   * Remove remnant tests such as `test_version_*.py`, start-script parity
+     tests, and other old-shape coverage.
    * Update docs to describe `copernican/` as the package.
+   * Update docs to describe packaged datasets and parsers.
    * Update docs to describe root `models/` as model examples/config data.
    * Update docs to describe CLI entrypoints.
    * Update docs to describe GUI entrypoints.
@@ -582,7 +621,7 @@ reporting can operate from a clean project shape.
    * model-loading checks pass for `.yml`;
    * model-loading checks pass for `.yaml`;
    * model-loading checks pass for root models;
-   * model-loading checks pass for external model paths;
+   * legacy tests tied to the old shape are removed or rewritten;
    * output behavior checks pass without output-shape redesign;
    * docs match the migrated structure;
    * changelog records the completed migration.
@@ -599,8 +638,8 @@ reporting can operate from a clean project shape.
    * installed package runtime
    * CLI
    * GUI
-   * start scripts
    * model loading
+   * packaged datasets and parsers
    * output writing
    * DevCovenant gates
    * dependency locks
@@ -613,6 +652,7 @@ reporting can operate from a clean project shape.
    * Validate `python -m copernican`.
    * Validate console script execution.
    * Validate GUI startup/import path.
+   * Validate packaged dataset and parser loading from resources.
    * Validate model loading from root `models/`.
    * Validate model loading from an arbitrary external path.
    * Validate `.yml`.
@@ -631,11 +671,11 @@ reporting can operate from a clean project shape.
    * local CLI run works;
    * installed CLI run works;
    * GUI entrypoint is preserved;
+   * packaged datasets and parsers load from package resources;
    * model loading works from expected filesystem locations;
    * output is written to a real, reported, writable location;
    * dependency locks are refreshed through DevCovenant;
    * license reports are complete;
-   * start scripts no longer rely on the old root-script shape;
    * remaining limitations are documented.
 
 ## Validation Routine
@@ -649,6 +689,7 @@ Minimum validation:
 * run import smoke checks for `copernican`;
 * run CLI startup smoke checks;
 * run GUI import/startup smoke checks where local dependencies allow;
+* check that packaged datasets and parsers are reachable from the package;
 * check that root `models/` remains outside the package;
 * check that `.yml` and `.yaml` model paths are accepted;
 * check that existing output shape is preserved;
@@ -661,6 +702,7 @@ Package validation after package-layout slices:
 
 * build the package;
 * verify package discovery includes `copernican` and `copernican.*`;
+* verify packaged datasets and parsers are included;
 * verify package discovery does not include root `models/` as code;
 * verify package discovery does not include root `data/` as code;
 * verify `python -m copernican` works;
@@ -685,8 +727,10 @@ Completion validation:
 
 * all migrated imports resolve;
 * CLI and GUI entrypoints are preserved;
+* packaged datasets and parsers resolve from package resources;
 * model loading is filesystem-based and extension-correct;
 * output shape is unchanged;
 * output base-directory behavior is safe for local and headless use;
+* legacy start scripts and their parity policy are gone;
 * DevCovenant dependency and license surfaces are aligned with the package;
 * docs and changelog match the migrated repository structure.
