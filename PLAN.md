@@ -1,7 +1,7 @@
 # Project Plan
 **Doc ID:** PLAN
 **Doc Type:** project-plan
-**Project Version:** 12.0.23
+**Project Version:** 12.0.25
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only

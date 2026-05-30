@@ -1,7 +1,7 @@
 # Copernican Suite
 **Doc ID:** README
 **Doc Type:** repo-readme
-**Project Version:** 12.0.23
+**Project Version:** 12.0.25
 **Last Updated:** 2026-05-30
 **DevCovenant Version:** 1.0.1b6
 
@@ -9,7 +9,7 @@
 
 <!-- DEVCOV:END -->
 
-**Version:** 12.0.22
+**Version:** 12.0.25
 
 ![Copernican Suite banner](docs/banner_github.png)
 

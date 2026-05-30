@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import logging
+import math
 import os
 import re
 from dataclasses import dataclass, field
@@ -652,18 +653,74 @@ def _project_declared_perturbation_series(
     tau_grid: numpy.ndarray,
     *,
     damping_scale: float,
+    kernel_kind: str = "scalar",
 ) -> float:
     """Project a declared source series onto a single multipole."""
 
     tau_distance = numpy.maximum(float(tau_grid[-1]) - tau_grid, 0.0)
-    kernel = spherical_jn(int(ell_value), k_value * tau_distance)
-    damping = numpy.exp(
-        -numpy.square(k_value * tau_distance / max(damping_scale, 1e-6))
-    )
+    x_values = k_value * tau_distance
+    if kernel_kind == "spin2":
+        if ell_value < 2:
+            return 0.0
+        factor = math.exp(
+            0.5
+            * (
+                math.lgamma(int(ell_value) + 3)
+                - math.lgamma(int(ell_value) - 1)
+            )
+        )
+        denominator = numpy.maximum(numpy.square(x_values), 1.0e-12)
+        kernel = factor * spherical_jn(int(ell_value), x_values) / denominator
+    else:
+        kernel = spherical_jn(int(ell_value), x_values)
+    damping = numpy.exp(-numpy.square(x_values / max(damping_scale, 1e-6)))
     projected = numpy.trapz(source_series * kernel * damping, tau_grid)
     if not numpy.isfinite(projected):
         return 0.0
     return float(projected)
+
+
+def _build_visibility_profile(
+    tau_grid: numpy.ndarray,
+    background_z: numpy.ndarray,
+    z_rec_value: float,
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Return a smooth visibility profile and remaining optical depth."""
+
+    if tau_grid.ndim != 1 or background_z.ndim != 1:
+        raise ValueError("visibility profile inputs must be one-dimensional")
+    if tau_grid.size != background_z.size or tau_grid.size == 0:
+        raise ValueError("visibility profile inputs must share the same size")
+
+    sorted_order = numpy.argsort(background_z)
+    sorted_z = background_z[sorted_order]
+    sorted_tau = tau_grid[sorted_order]
+    tau_rec = float(
+        numpy.interp(
+            float(z_rec_value),
+            sorted_z,
+            sorted_tau,
+            left=float(sorted_tau[0]),
+            right=float(sorted_tau[-1]),
+        )
+    )
+    visibility_width = max(0.05 * max(tau_rec, 1.0), 5.0)
+    visibility = numpy.exp(
+        -0.5 * numpy.square((tau_grid - tau_rec) / visibility_width)
+    )
+    visibility_area = float(numpy.trapz(visibility, tau_grid))
+    if numpy.isfinite(visibility_area) and visibility_area > 0.0:
+        visibility /= visibility_area
+    else:
+        visibility = numpy.full_like(tau_grid, 1.0 / max(tau_grid.size, 1))
+    visibility_strength = max(3.0, min(8.0, float(z_rec_value) / 180.0))
+    visibility *= visibility_strength
+    cumulative_visibility = cumulative_trapezoid(
+        visibility, tau_grid, initial=0.0
+    )
+    optical_depth = cumulative_visibility[-1] - cumulative_visibility
+    optical_depth = numpy.maximum(optical_depth, 0.0)
+    return visibility, optical_depth
 
 
 def _make_camb_params(
@@ -1117,7 +1174,7 @@ def _compute_declared_perturbation_spectrum(
         raise ValueError("Generic declarative background is non-finite")
     background_a = numpy.divide(1.0, 1.0 + background_z, dtype=float)
     tau_grid = cumulative_trapezoid(
-        1.0
+        _C_LIGHT_KM_S
         / numpy.maximum(
             background_a * background_a * numpy.maximum(background_hz, 1e-12),
             1e-12,
@@ -1132,7 +1189,16 @@ def _compute_declared_perturbation_spectrum(
     ):
         tau_grid = numpy.linspace(0.0, 1.0, background_a.size, dtype=float)
     else:
-        tau_grid = tau_grid / tau_grid[-1]
+        tau_grid = numpy.asarray(tau_grid, dtype=float)
+
+    visibility_profile, optical_depth_profile = _build_visibility_profile(
+        tau_grid,
+        background_z,
+        z_rec_value,
+    )
+    background = dict(background)
+    background["visibility"] = visibility_profile
+    background["optical_depth"] = optical_depth_profile
 
     value_definitions = contract.get("value_definitions", {}) or {}
     value_arrays = contract.get("values", {}) or {}
@@ -1206,10 +1272,88 @@ def _compute_declared_perturbation_spectrum(
             unresolved.remove(name)
             resolved.add(name)
 
+    def _classify_variable_role(kind: str) -> str:
+        """Return a coarse perturbation role for a variable kind string."""
+
+        lowered = kind.lower()
+        if any(
+            token in lowered
+            for token in ("tensor", "vector", "b-mode", "bmode", "b_mode")
+        ):
+            return "tensor"
+        if any(
+            token in lowered
+            for token in ("anisotropic", "stress", "shear", "pi")
+        ):
+            return "stress"
+        if any(
+            token in lowered
+            for token in ("velocity", "momentum", "divergence", "theta")
+        ):
+            return "velocity"
+        if any(
+            token in lowered
+            for token in (
+                "density",
+                "contrast",
+                "overdensity",
+                "background_density",
+            )
+        ):
+            return "density"
+        if any(
+            token in lowered
+            for token in ("potential", "metric", "curvature", "gravity")
+        ):
+            return "metric"
+        return "other"
+
+    def _classify_source_role(
+        source_name: str,
+        source_data: Any,
+    ) -> str:
+        """Return a coarse perturbation role for a source expression."""
+
+        lowered_name = source_name.lower()
+        if any(
+            token in lowered_name
+            for token in ("tensor", "bmode", "b_mode", "bb")
+        ):
+            return "tensor"
+        if any(
+            token in lowered_name
+            for token in ("polar", "e_mode", "e-mode", "ee")
+        ):
+            return "polarization"
+        dependencies = tuple(getattr(source_data, "dependencies", ()) or ())
+        dependency_roles = {
+            _classify_variable_role(
+                getattr(perturbation_data.variables[dependency], "kind", "")
+            )
+            for dependency in dependencies
+            if dependency in perturbation_data.variables
+        }
+        if "tensor" in dependency_roles or "stress" in dependency_roles:
+            return "polarization"
+        return "temperature"
+
+    variable_role_by_name = {
+        name: _classify_variable_role(entry.kind)
+        for name, entry in perturbation_data.variables.items()
+    }
+    source_role_by_name = {
+        name: _classify_source_role(name, entry)
+        for name, entry in perturbation_data.sources.items()
+    }
+
     initial_state = numpy.asarray(
         [
-            (0.0 if "stress" in entry.kind.lower() else 1.0e-3 * (index + 1))
-            for index, entry in enumerate(perturbation_data.variables.values())
+            (
+                0.0
+                if variable_role_by_name.get(name) in {"velocity", "stress"}
+                else 1.0e-5
+            )
+            for name in perturbation_data.variables.keys()
         ],
         dtype=float,
     )
@@ -1302,18 +1446,17 @@ def _compute_declared_perturbation_spectrum(
             closure_penalty += abs(left_value - right_value)
         return closure_penalty
 
-    def _evaluate_source_amplitude(
+    def _evaluate_source_channels(
         tau_value: float,
         state_vector: numpy.ndarray,
         k_value: float,
-    ) -> float:
-        """Return a scalar source amplitude for the current grid point."""
+    ) -> dict[str, float]:
+        """Return source-channel amplitudes for the current grid point."""
 
         derivative_values = {name: 0.0 for name in derivative_symbol_entries}
         rhs_values: dict[str, float] = {
             name: 0.0 for name in equation_by_variable
         }
-        closure_penalty = 0.0
         for _ in range(4):
             env = _build_environment(
                 tau_value,
@@ -1322,7 +1465,7 @@ def _compute_declared_perturbation_spectrum(
                 k_value,
             )
             env.update(_evaluate_derived_values(env))
-            closure_penalty = _apply_closure_constraints(env, state_vector)
+            _apply_closure_constraints(env, state_vector)
             env.update(_evaluate_derived_values(env))
 
             new_rhs_values: dict[str, float] = {}
@@ -1381,21 +1524,127 @@ def _compute_declared_perturbation_spectrum(
         )
         env.update(_evaluate_derived_values(env))
         env.update(derivative_values)
-        closure_penalty = _apply_closure_constraints(env, state_vector)
+        _apply_closure_constraints(env, state_vector)
         env.update(_evaluate_derived_values(env))
-        source_amplitude = 0.0
+        source_channels = {
+            "temperature": 0.0,
+            "polarization": 0.0,
+            "tensor": 0.0,
+        }
         for source_name, source_data in perturbation_data.sources.items():
-            source_amplitude += abs(
-                _coerce_numeric_scalar(
-                    _evaluate_safe_expression(source_data.expression, env),
-                    name=f"cmb.perturbations.sources.{source_name}",
+            source_value = _coerce_numeric_scalar(
+                _evaluate_safe_expression(source_data.expression, env),
+                name=f"cmb.perturbations.sources.{source_name}",
+            )
+            source_role = source_role_by_name.get(source_name, "temperature")
+            if source_role == "tensor":
+                source_channels["tensor"] += source_value
+                continue
+            if source_role == "polarization":
+                source_channels["polarization"] += source_value
+                continue
+            source_channels["temperature"] += source_value
+
+        role_values: dict[str, list[float]] = {
+            "density": [],
+            "velocity": [],
+            "metric": [],
+            "stress": [],
+            "tensor": [],
+        }
+        for variable_name in variable_order:
+            value = float(env[variable_name])
+            role = variable_role_by_name.get(variable_name, "other")
+            if role in role_values:
+                role_values[role].append(value)
+
+        def _mean(values: list[float]) -> float:
+            """Return the finite mean of ``values`` or zero when empty."""
+
+            if not values:
+                return 0.0
+            return float(numpy.mean(numpy.asarray(values, dtype=float)))
+
+        density_names = tuple(
+            name
+            for name in variable_order
+            if variable_role_by_name.get(name) == "density"
+        )
+        photon_like_density = any(
+            any(
+                token
+                in (
+                    f"{name.lower()} "
+                    f"{perturbation_data.variables[name].kind.lower()}"
+                )
+                for token in (
+                    "photon",
+                    "gamma",
+                    "radiation",
+                    "temperature",
                 )
             )
-        return (
-            source_amplitude
-            + closure_penalty
-            + sum(abs(value) for value in rhs_values.values())
+            for name in density_names
         )
+
+        monopole_term = _mean(role_values["density"])
+        if photon_like_density:
+            monopole_term *= 0.25
+        doppler_term = _mean(role_values["velocity"]) / max(
+            float(k_value),
+            1.0e-6,
+        )
+        anisotropic_term = _mean(role_values["stress"])
+        tensor_term = _mean(role_values["tensor"])
+        metric_term = _mean(role_values["metric"])
+        phi_term = (
+            float(env["Phi"]) if "Phi" in variable_index else metric_term
+        )
+        if "Psi" in variable_index:
+            psi_term = float(env["Psi"])
+        else:
+            psi_term = metric_term
+
+        phi_dot_values: list[float] = []
+        psi_dot_values: list[float] = []
+        for (
+            derivative_name,
+            derivative_data,
+        ) in derivative_symbol_entries.items():
+            derivative_value = float(
+                derivative_values.get(derivative_name, 0.0)
+            )
+            if derivative_data.variable == "Phi":
+                phi_dot_values.append(derivative_value)
+            elif derivative_data.variable == "Psi":
+                psi_dot_values.append(derivative_value)
+            elif (
+                variable_role_by_name.get(derivative_data.variable) == "metric"
+            ):
+                phi_dot_values.append(derivative_value)
+                psi_dot_values.append(derivative_value)
+
+        phi_dot_term = _mean(phi_dot_values)
+        psi_dot_term = (
+            _mean(psi_dot_values) if psi_dot_values else phi_dot_term
+        )
+        visibility_weight = _background_scalar("visibility", tau_value)
+        optical_depth = max(
+            _background_scalar("optical_depth", tau_value), 0.0
+        )
+        late_time_weight = float(numpy.exp(-optical_depth))
+
+        source_channels["temperature"] += visibility_weight * (
+            monopole_term
+            + 0.5 * (phi_term + psi_term)
+            + doppler_term
+            + 0.25 * anisotropic_term
+        ) + late_time_weight * (psi_dot_term - phi_dot_term)
+        source_channels["polarization"] += visibility_weight * (
+            0.5 * anisotropic_term
+        )
+        source_channels["tensor"] += visibility_weight * tensor_term
+        return source_channels
 
     def _rhs_vector(
         tau_value: float, state_vector: numpy.ndarray, k_value: float
@@ -1477,11 +1726,16 @@ def _compute_declared_perturbation_spectrum(
     )
     if not numpy.isfinite(background_scale) or background_scale <= 0.0:
         background_scale = 1.0
-    damping_scale = max(0.25, min(4.0, background_scale / 120.0))
+    damping_scale = max(5.0, min(60.0, background_scale / 10.0))
 
-    k_min = max(0.05, 0.5 / max(float(tau_grid[-1]), 1.0))
-    k_max = max(float(ell_arr.max()) + 3.0, k_min * 8.0)
-    k_sample_count = max(16, min(64, 4 * len(ell_arr) + 8))
+    tau0 = max(float(tau_grid[-1]), 1.0)
+    k_min = max(1.0e-4, 0.25 / tau0)
+    k_max = max(
+        0.35,
+        ((float(ell_arr.max()) + 10.0) / tau0) * 4.0,
+    )
+    k_max = max(k_max, k_min * 64.0)
+    k_sample_count = max(32, min(96, 4 * len(ell_arr) + 16))
     k_values = numpy.logspace(
         numpy.log10(k_min),
         numpy.log10(k_max),
@@ -1504,24 +1758,26 @@ def _compute_declared_perturbation_spectrum(
         (k_sample_count, ell_arr.size), dtype=float
     )
     polarization_transfers = numpy.zeros_like(temperature_transfers)
+    tensor_transfers = numpy.zeros_like(temperature_transfers)
 
     for k_index, current_k in enumerate(k_values):
         state_vector = initial_state.copy()
         temperature_series: list[float] = []
         polarization_series: list[float] = []
+        tensor_series: list[float] = []
 
-        source_scalar = _evaluate_source_amplitude(
+        source_channels = _evaluate_source_channels(
             float(tau_grid[0]),
             state_vector,
             float(current_k),
         )
-        state_norm = float(numpy.sum(numpy.abs(state_vector)))
-        temperature_series.append(
-            source_scalar + 0.1 * state_norm + 0.01 * background_scale
-        )
+        temperature_series.append(source_channels["temperature"])
         polarization_series.append(
-            0.55 * source_scalar + 0.05 * state_norm + 0.01 * background_scale
+            source_channels["polarization"]
+            if source_channels["polarization"] != 0.0
+            else source_channels["temperature"]
         )
+        tensor_series.append(source_channels["tensor"])
 
         for index in range(len(tau_grid) - 1):
             tau_start = float(tau_grid[index])
@@ -1556,30 +1812,30 @@ def _compute_declared_perturbation_spectrum(
                 )
                 / 6.0
             )
-            source_scalar = _evaluate_source_amplitude(
+            source_channels = _evaluate_source_channels(
                 tau_stop,
                 state_vector,
                 float(current_k),
             )
-            state_norm = float(numpy.sum(numpy.abs(state_vector)))
-            derivative_norm = float(numpy.sum(numpy.abs(stage_one)))
-            temperature_series.append(
-                source_scalar + 0.1 * state_norm + 0.01 * background_scale
-            )
+            temperature_series.append(source_channels["temperature"])
             polarization_series.append(
-                0.45 * source_scalar
-                + 0.08 * derivative_norm
-                + 0.05 * state_norm
+                source_channels["polarization"]
+                if source_channels["polarization"] != 0.0
+                else source_channels["temperature"]
             )
+            tensor_series.append(source_channels["tensor"])
 
         temperature_history = numpy.asarray(temperature_series, dtype=float)
         polarization_history = numpy.asarray(
             polarization_series,
             dtype=float,
         )
+        tensor_history = numpy.asarray(tensor_series, dtype=float)
         if temperature_history.shape != tau_grid.shape:
             raise ValueError("generic perturbation history has invalid shape")
         if polarization_history.shape != tau_grid.shape:
+            raise ValueError("generic perturbation history has invalid shape")
+        if tensor_history.shape != tau_grid.shape:
             raise ValueError("generic perturbation history has invalid shape")
 
         for ell_index, ell_value in enumerate(ell_arr):
@@ -1592,6 +1848,16 @@ def _compute_declared_perturbation_spectrum(
                     damping_scale=damping_scale,
                 )
             )
+            tensor_transfers[k_index, ell_index] = (
+                _project_declared_perturbation_series(
+                    tensor_history,
+                    int(ell_value),
+                    float(current_k),
+                    tau_grid,
+                    damping_scale=damping_scale,
+                    kernel_kind="spin2",
+                )
+            )
             polarization_transfers[k_index, ell_index] = (
                 _project_declared_perturbation_series(
                     polarization_history,
@@ -1599,6 +1865,7 @@ def _compute_declared_perturbation_spectrum(
                     float(current_k),
                     tau_grid,
                     damping_scale=damping_scale,
+                    kernel_kind="spin2",
                 )
             )
 
@@ -1616,6 +1883,7 @@ def _compute_declared_perturbation_spectrum(
     for ell_index in range(ell_arr.size):
         temperature_transfer = temperature_transfers[:, ell_index]
         polarization_transfer = polarization_transfers[:, ell_index]
+        tensor_transfer = tensor_transfers[:, ell_index]
         cl_tt = (
             4.0
             * numpy.pi
@@ -1642,10 +1910,18 @@ def _compute_declared_perturbation_spectrum(
                 log_k_values,
             )
         )
+        cl_bb = (
+            4.0
+            * numpy.pi
+            * numpy.trapz(
+                primordial_power * numpy.square(tensor_transfer),
+                log_k_values,
+            )
+        )
         tt_spectrum[ell_index] = ell_factor[ell_index] * cl_tt
         te_spectrum[ell_index] = ell_factor[ell_index] * cl_te
         ee_spectrum[ell_index] = ell_factor[ell_index] * cl_ee
-        bb_spectrum[ell_index] = 0.25 * ee_spectrum[ell_index]
+        bb_spectrum[ell_index] = ell_factor[ell_index] * cl_bb
 
     spectra_results["TT"] = numpy.nan_to_num(
         tt_spectrum, nan=0.0, posinf=0.0, neginf=0.0

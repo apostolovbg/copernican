@@ -558,6 +558,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
                         "tau": 0.054,
                         "As": 2.1e-09,
                         "ns": 0.965,
+                        "z_rec": 1089.92,
                     },
                     "grids": {},
                     "values": {},
@@ -594,6 +595,10 @@ class CMBBackgroundTestCase(unittest.TestCase):
                             "kind": "anisotropic_stress",
                             "description": "Example stress source.",
                         },
+                        "tensor_x": {
+                            "kind": "tensor_mode",
+                            "description": "Example tensor perturbation.",
+                        },
                     },
                     "derived": {
                         "Phi_tau": {
@@ -627,7 +632,10 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     "sources": {
                         "poisson": {
                             "expression": "delta_rho_eff + delta_x + theta_x",
-                        }
+                        },
+                        "tensor_wave": {
+                            "expression": "tensor_x",
+                        },
                     },
                     "validity": {
                         "regimes": ["linear"],
@@ -761,6 +769,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
                 "tau": 0.054,
                 "As": 2.1e-09,
                 "ns": 0.965,
+                "z_rec": 1089.92,
             },
             "grids": {},
             "values": {},
@@ -785,6 +794,10 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     "sigma_x": {
                         "kind": "anisotropic_stress",
                         "description": "Example stress source.",
+                    },
+                    "tensor_x": {
+                        "kind": "tensor_mode",
+                        "description": "Example tensor perturbation.",
                     },
                 },
                 "derived": {
@@ -811,15 +824,22 @@ class CMBBackgroundTestCase(unittest.TestCase):
                     }
                 },
                 "closures": {
+                    "velocity_seed": {
+                        "expression": "theta_x",
+                        "equals": "1e-3",
+                    },
                     "no_anisotropic_stress": {
                         "expression": "sigma_x",
                         "equals": "0",
-                    }
+                    },
                 },
                 "sources": {
                     "poisson": {
                         "expression": "delta_rho_eff + delta_x + theta_x",
-                    }
+                    },
+                    "tensor_wave": {
+                        "expression": "tensor_x",
+                    },
                 },
                 "validity": {
                     "regimes": ["linear"],
@@ -852,14 +872,15 @@ class CMBBackgroundTestCase(unittest.TestCase):
                 spectrum = cmb.compute_cmb_spectrum_from_dict(
                     contract,
                     numpy.array([2, 3, 4]),
-                    spectra=("TT", "TE", "EE"),
+                    spectra=("TT", "TE", "EE", "BB"),
                 )
 
         self.assertIsInstance(spectrum, dict)
-        self.assertEqual(set(spectrum), {"TT", "TE", "EE"})
-        for spec in ("TT", "TE", "EE"):
+        self.assertEqual(set(spectrum), {"TT", "TE", "EE", "BB"})
+        for spec in ("TT", "TE", "EE", "BB"):
             self.assertEqual(spectrum[spec].shape, (3,))
             self.assertTrue(numpy.all(numpy.isfinite(spectrum[spec])))
+        self.assertTrue(numpy.any(numpy.abs(spectrum["BB"]) > 0.0))
 
         changed_contract = copy.deepcopy(contract)
         changed_contract["perturbations"]["equations"]["continuity_x"][
@@ -874,6 +895,38 @@ class CMBBackgroundTestCase(unittest.TestCase):
             numpy.allclose(
                 spectrum["TT"],
                 changed_spectrum,
+                rtol=1e-8,
+                atol=0.0,
+            )
+        )
+        changed_tensor_contract = copy.deepcopy(contract)
+        changed_tensor_contract["perturbations"]["sources"]["tensor_wave"][
+            "expression"
+        ] = "2 * tensor_x"
+        changed_tensor_spectrum = cmb.compute_cmb_spectrum_from_dict(
+            changed_tensor_contract,
+            numpy.array([2, 3, 4]),
+            spectra=("BB",),
+        )
+        self.assertFalse(
+            numpy.allclose(
+                spectrum["BB"],
+                changed_tensor_spectrum,
+                rtol=1e-8,
+                atol=0.0,
+            )
+        )
+        visibility_shifted_contract = copy.deepcopy(contract)
+        visibility_shifted_contract["param_map"]["z_rec"] = 900.0
+        visibility_shifted_spectrum = cmb.compute_cmb_spectrum_from_dict(
+            visibility_shifted_contract,
+            numpy.array([2, 3, 4]),
+            spectra=("TT",),
+        )
+        self.assertFalse(
+            numpy.allclose(
+                spectrum["TT"],
+                visibility_shifted_spectrum,
                 rtol=1e-8,
                 atol=0.0,
             )
