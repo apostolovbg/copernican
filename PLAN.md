@@ -7,7 +7,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-05-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -74,11 +74,13 @@ hybrid layout:
 This is why the Astropy hash problem should not be treated as the root
 issue.
 
-The missing macOS Astropy wheel hash exposed that Copernican's dependency
-and license surfaces are not cleanly aligned with the package structure.
-Attempts to patch hash targets in custom profiles or generated config caused
-license-report collapse because the underlying repository shape is still
-transitional.
+The missing macOS Astropy wheel hash exposed stale generated dependency
+metadata, not just a bad wheel.
+`devcovenant/custom/profiles/userproject/userproject.yaml` owns the
+repo-specific hash-target matrix.
+`devcovenant/config.yaml` and the registry are derived outputs.
+Patching the generated config by hand caused license-report collapse
+because that layer was not yet rebuilt from the profile source of truth.
 
 The fix is not to keep patching `requirements.lock`.
 
@@ -136,6 +138,8 @@ whole files only when no path-preserving command can carry the change.
   SNe Ia, BAO, and CMB observations.
 * The current repository is stable in intent but structurally legacy in
   layout.
+* `devcovenant/custom/profiles/userproject/userproject.yaml` should own the
+  repo-specific dependency-matrix source of truth.
 * The target is a standard package layout with `copernican/` as the real
   package.
 * `copernican_lib/` should be retired as the package surface.
@@ -525,11 +529,12 @@ whole files only when no path-preserving command can carry the change.
 
    Surfaces:
 
-   * `devcovenant/custom/profiles/userproject/userproject.yaml`
-   * `devcovenant/config.yaml`
-   * `requirements.in`
-   * `requirements.lock`
-   * `copernican/runtime-requirements.lock`
+* `devcovenant/custom/profiles/userproject/userproject.yaml`
+* `devcovenant/config.yaml`
+* `devcovenant/registry/registry.yaml`
+* `requirements.in`
+* `requirements.lock`
+* `copernican/runtime-requirements.lock`
    * `copernican/licenses/`
    * `licenses/`
    * `devcovenant/runtime-requirements.lock`
@@ -541,6 +546,8 @@ whole files only when no path-preserving command can carry the change.
    * Replace `copernican_lib` package-surface paths with `copernican`.
    * Keep DevCovenant inherited behavior inherited where possible.
    * Keep `userproject` overrides limited to repo-specific facts.
+   * Keep `userproject` as the repo-specific source of truth for
+     dependency hash targets.
    * Ensure the package runtime surface uses `pyproject.toml`.
    * Ensure the package runtime surface writes
      `copernican/runtime-requirements.lock`.
@@ -551,6 +558,11 @@ whole files only when no path-preserving command can carry the change.
      `copernican/runtime-requirements.lock`.
    * Ensure root license surface writes `licenses/THIRD_PARTY_LICENSES.md`.
    * Ensure DevCovenant runtime dependency and license surfaces stay separate.
+   * Regenerate `devcovenant/config.yaml` and
+     `devcovenant/registry/registry.yaml` from `userproject` before any
+     dependency refresh.
+   * Ensure generated config mirrors the profile-owned hash-target matrix
+     before `refresh-force` is accepted.
    * Do not create a custom `python` profile to patch the package shape.
    * Do not manually edit generated lock hashes as the durable fix.
    * Run DevCovenant refresh after source paths are corrected.
@@ -563,9 +575,12 @@ whole files only when no path-preserving command can carry the change.
    * generated config points package runtime at
      `copernican/runtime-requirements.lock`;
    * generated config points package licenses at `copernican/licenses`;
+   * generated config and registry mirror the userproject hash-target
+     matrix;
    * root workspace includes the package runtime lock;
    * root workspace includes the DevCovenant runtime lock;
-   * package dependency lock refreshes through the normal force-refresh path;
+   * package dependency lock refreshes through the normal force-refresh path
+     after generated config is rebuilt from `userproject`;
    * root dependency lock refreshes through the normal force-refresh path;
    * package license report is populated;
    * root license report is populated;
@@ -660,10 +675,12 @@ whole files only when no path-preserving command can carry the change.
    * Validate output creation in an explicit output directory.
    * Validate output creation from a writable checkout.
    * Validate non-desktop/headless output behavior.
-   * Validate DevCovenant refresh.
-   * Validate dependency-management force refresh.
-   * Validate lock installation in a clean environment where local platform
-     constraints allow.
+* Validate DevCovenant refresh.
+* Validate dependency-management force refresh.
+* Verify generated config and registry mirror the userproject hash-target
+  matrix.
+* Validate lock installation in a clean environment where local platform
+  constraints allow.
    * Document any platform-specific limitations honestly.
 
    Done when:
