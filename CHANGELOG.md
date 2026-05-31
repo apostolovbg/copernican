@@ -80,6 +80,22 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-05-31:
+  Change: Tightened the Python mirror rule to `test_*.py` only and
+    added the matching mirror test for the Python translator.
+  Why: The gate expects the custom profile mirror to follow the
+    repository's `test_*.py` naming convention.
+  Impact: Mirror checks now target the translated Python profile test
+    file and the package README stays aligned with the repo README.
+  Files:
+  CHANGELOG.md
+  copernican/README.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/python/python.yaml
+  devcovenant/custom/profiles/python/python_translator.py
+  tests/devcovenant/custom/profiles/python/__init__.py
+  tests/devcovenant/custom/profiles/python/test_python_translator.py
+
+- 2026-05-31:
   Change: Updated CAMB to `1.6.5` in both generated lockfiles.
   Why: Removed the stale `1.6.0` pin so the lockfiles match the package
     manifest again.

@@ -1133,10 +1133,9 @@ autogen_metadata_overlays:
     - data/gw=>tests/data/gw
     - data/sne=>tests/data/sne
     mirror_test_name_templates:
-    - python=>test_{stem}.py
-    - python=>{stem}_test.py
+      - python=>test_{stem}.py
     test_style_requirements:
-    - python=>python_unittest
+      - python=>python_unittest
     tests_watch_dirs:
     - tests
     watch_dirs:

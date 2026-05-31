@@ -117,7 +117,6 @@ policy_overlays:
       - tests
     mirror_test_name_templates:
       - python=>test_{stem}.py
-      - python=>{stem}_test.py
     test_style_requirements:
       - python=>python_unittest
   tests-coverage:

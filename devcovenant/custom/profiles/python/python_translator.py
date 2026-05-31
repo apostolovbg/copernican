@@ -18,7 +18,7 @@ from devcovenant.core.translator import (
 )
 
 ALLOW_SECURITY = "security-scanner: allow"
-TEST_TEMPLATES = ("test_{stem}.py", "{stem}_test.py")
+TEST_TEMPLATES = ("test_{stem}.py",)
 RISK_PATTERNS = (
     # security-scanner: allow (pattern literals for policy translation)
     (re.compile(r"\beval\s*\("), "Avoid eval()."),
