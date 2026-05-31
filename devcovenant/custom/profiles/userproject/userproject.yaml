@@ -26,12 +26,20 @@ project-governance:
   changelog_file: CHANGELOG.md
 policy_overlays:
   documentation-growth-tracking:
+    doc_quality_files:
+      - ./README.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./CHANGELOG.md
+      - ./SPEC.md
+      - ./PLAN.md
+    exclude_globs:
+      - data/**
     user_facing_exclude_globs:
       - models/**
+      - data/**
   read-only-directories:
-    include_prefixes:
-      - data
-    exclude_globs:
+    include_globs:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
@@ -163,10 +171,14 @@ policy_overlays:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
+      - data/**
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
     allow_long_url_lines: true
     url_prefixes:
       - 'https://'
