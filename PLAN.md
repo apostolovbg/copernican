@@ -300,6 +300,9 @@ whole files only when no path-preserving command can carry the change.
    * Move shared runtime/orchestration logic into package modules.
    * Move curated datasets and parser modules into `copernican/datasets/`.
    * Keep bundled datasets and parsers loadable as package resources.
+   * Update the vendored-data exception in the same slice so the new
+     package data path stays protected and the parser/metadata carve-out
+     survives the move.
    * Do not support external dataset discovery.
    * Do not create `copernican/copernican.py` as the long-term orchestrator
      name.
@@ -324,6 +327,8 @@ whole files only when no path-preserving command can carry the change.
    * curated datasets and parsers ship in the wheel;
    * `models/` remains root-level non-package data;
    * `data/` remains a source-tree asset only;
+   * the vendored-data exception protects the new package data path;
+   * parser and metadata carve-outs still work after the move;
    * package imports are clean;
    * basic import tests pass.
 
