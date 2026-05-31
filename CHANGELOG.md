@@ -80,6 +80,48 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-05-31:
+  Change: Updated CAMB to `1.6.5` in both generated lockfiles.
+  Why: Removed the stale `1.6.0` pin so the lockfiles match the package
+    manifest again.
+  Impact: The generated locks now track the package version declared in
+    `pyproject.toml`.
+  Files:
+  CHANGELOG.md
+  requirements.lock
+  copernican_lib/runtime-requirements.lock
+
+- 2026-05-31:
+  Change: Added the missing FontTools wheel hash to the workspace lock.
+  Why: Kept the current macOS pip install moving while the generated
+    dependency surfaces still trail the package manifest.
+  Impact: Restored the current macOS wheel hash for `fonttools==4.63.0`
+    in `requirements.lock`.
+  Files:
+  CHANGELOG.md
+  requirements.lock
+
+- 2026-05-31:
+  Change: Added the missing CAMB wheel hash to the workspace lock.
+  Why: Kept pip installs moving while the dependency surface refresh is
+    still deferred to the refactor.
+  Impact: Restored the current macOS wheel hash for `camb==1.6.0` in the
+    generated workspace lock.
+  Files:
+  CHANGELOG.md
+  requirements.lock
+  copernican_lib/runtime-requirements.lock
+
+- 2026-05-31:
+  Change: Added the missing Astropy wheel hash back into both lockfiles.
+  Why: Kept the manual hash bridge in place while the matrix refresh path
+    is still being repaired.
+  Impact: Restored pip installs for the selected Astropy wheel on the
+    current macOS target.
+  Files:
+  requirements.lock
+  copernican_lib/runtime-requirements.lock
+
+- 2026-05-31:
   Change: Aligned the generated runtime config and package metadata with
     the lowercase `copernican` project identity.
   Why: `resolve_runtime_state()` reads `devcovenant/config.yaml`, and the
