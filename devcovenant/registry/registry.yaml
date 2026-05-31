@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: c5aa4ceae032fbce2a358b62e3fe028fa1ed902fdae914aefb373f8f1995a50d
+  policy_registry_input_hash: a24f8a8c1ea93159b977df6d25d4b6d02e9975bdf63c148f2c0dcad824fe3963
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3735,10 +3735,6 @@ policies:
       - PLAN.md
       doc_quality_files:
       - ./README.md
-      - CONTRIBUTING.md
-      - AGENTS.md
-      - SPEC.md
-      - PLAN.md
       - ./AGENTS.md
       - ./CONTRIBUTING.md
       - ./SPEC.md
@@ -3775,7 +3771,6 @@ policies:
       include_globs: []
       exclude_suffixes: []
       exclude_globs:
-      - data/**
       - devcovenant/**
       - tests/devcovenant/**
       force_include_globs: []
@@ -4227,39 +4222,41 @@ policies:
           - ()
         profile_overlays:
           values:
-          - ./README.md
+          - README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
           - PLAN.md
-          - ./AGENTS.md
-          - ./CONTRIBUTING.md
-          - ./SPEC.md
-          - ./PLAN.md
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
-          - ./README.md
+          - README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        user_overrides:
+          values:
+          - ./README.md
           - ./AGENTS.md
           - ./CONTRIBUTING.md
           - ./SPEC.md
           - ./PLAN.md
-          behavior: append
+          behavior: replace
           replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - ./README.md
+          - README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+        effective:
+          values:
+          - ./README.md
           - ./AGENTS.md
           - ./CONTRIBUTING.md
           - ./SPEC.md
@@ -4417,18 +4414,6 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
-        profile_overlays:
-          values:
-          - data/**
-          behavior: append
-          replaced_inherited_values:
-          - ()
-        autogen_overlays:
-          values:
-          - data/**
-          behavior: append
-          replaced_inherited_values:
-          - ()
         derived_selectors:
           values:
           - devcovenant/**
@@ -4438,7 +4423,6 @@ policies:
           - ()
         effective:
           values:
-          - data/**
           - devcovenant/**
           - tests/devcovenant/**
       force_include_globs:
@@ -4716,7 +4700,24 @@ policies:
         effective:
           values:
           - 'false'
-    metadata_warnings: []
+    metadata_warnings:
+    - policy_id: documentation-growth-tracking
+      key: doc_quality_files
+      layer: user_overrides
+      inherited_values:
+      - README.md
+      - CONTRIBUTING.md
+      - AGENTS.md
+      - SPEC.md
+      - PLAN.md
+      replacement_values:
+      - ./README.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./SPEC.md
+      - ./PLAN.md
+      message: user_overrides replaces inherited metadata for `documentation-growth-tracking.doc_quality_files`;
+        use overlays if you intended additive behavior.
     runtime_actions: []
     commands: []
     runtime_metadata_options:
@@ -4818,12 +4819,8 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
-      doc_quality_files: &id028
+      doc_quality_files:
       - ./README.md
-      - CONTRIBUTING.md
-      - AGENTS.md
-      - SPEC.md
-      - PLAN.md
       - ./AGENTS.md
       - ./CONTRIBUTING.md
       - ./SPEC.md
@@ -4860,7 +4857,6 @@ policies:
       include_globs: []
       exclude_suffixes: []
       exclude_globs: &id031
-      - data/**
       - devcovenant/**
       - tests/devcovenant/**
       force_include_globs: []
@@ -4906,7 +4902,13 @@ policies:
       - tests/**
       force_include_files: []
       force_include_dirs: []
-    runtime_config_overrides: {}
+    runtime_config_overrides:
+      doc_quality_files: &id028
+      - ./README.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./SPEC.md
+      - ./PLAN.md
     runtime_effective_options:
       id: documentation-growth-tracking
       severity: warning
@@ -12625,7 +12627,7 @@ profiles:
         - SPEC.md
         - PLAN.md
         doc_quality_files:
-        - ./README.md
+        - README.md
         - CONTRIBUTING.md
         - AGENTS.md
         - SPEC.md
@@ -13066,8 +13068,8 @@ profiles:
       - maintenance
       - frozen
       - sunset
-    source: custom
-    path: devcovenant/custom/profiles/defaults
+    source: builtin
+    path: devcovenant/builtin/profiles/defaults
     assets_available: []
     active: true
   devcovuser:
@@ -15006,13 +15008,6 @@ profiles:
       changelog_file: CHANGELOG.md
     policy_overlays:
       documentation-growth-tracking:
-        doc_quality_files:
-        - ./AGENTS.md
-        - ./CONTRIBUTING.md
-        - ./SPEC.md
-        - ./PLAN.md
-        exclude_globs:
-        - data/**
         user_facing_exclude_globs:
         - models/**
         - data/**

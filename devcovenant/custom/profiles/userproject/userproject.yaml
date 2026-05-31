@@ -26,13 +26,6 @@ project-governance:
   changelog_file: CHANGELOG.md
 policy_overlays:
   documentation-growth-tracking:
-    doc_quality_files:
-      - ./AGENTS.md
-      - ./CONTRIBUTING.md
-      - ./SPEC.md
-      - ./PLAN.md
-    exclude_globs:
-      - data/**
     user_facing_exclude_globs:
       - models/**
       - data/**

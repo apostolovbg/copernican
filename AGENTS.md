@@ -943,10 +943,6 @@ user_visible_files:
 - PLAN.md
 doc_quality_files:
 - ./README.md
-- CONTRIBUTING.md
-- AGENTS.md
-- SPEC.md
-- PLAN.md
 - ./AGENTS.md
 - ./CONTRIBUTING.md
 - ./SPEC.md
@@ -983,7 +979,6 @@ include_suffixes: []
 include_globs: []
 exclude_suffixes: []
 exclude_globs:
-- data/**
 - devcovenant/**
 - tests/devcovenant/**
 force_include_globs: []
