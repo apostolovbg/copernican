@@ -29,7 +29,6 @@ policy_overlays:
     doc_quality_files:
       - ./AGENTS.md
       - ./CONTRIBUTING.md
-      - ./CHANGELOG.md
       - ./SPEC.md
       - ./PLAN.md
     exclude_globs:

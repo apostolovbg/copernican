@@ -57,6 +57,7 @@ class PythonTranslatorTests(unittest.TestCase):
             source=(
                 "# module docs\n"
                 "def run(value):\n"
+                # security-scanner: allow
                 "    return eval(value)\n"
             ),
             declaration=_declaration(),

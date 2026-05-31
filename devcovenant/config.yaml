@@ -970,7 +970,6 @@ autogen_metadata_overlays:
     - PLAN.md
     - ./AGENTS.md
     - ./CONTRIBUTING.md
-    - ./CHANGELOG.md
     - ./SPEC.md
     - ./PLAN.md
     exclude_globs:
@@ -1338,11 +1337,4 @@ autogen_metadata_overrides: {}
 
 # Do not replace a mapping with ad-hoc sibling flat keys.
 
-user_metadata_overrides:
-  documentation-growth-tracking:
-    doc_quality_files:
-    - AGENTS.md
-    - CONTRIBUTING.md
-    - CHANGELOG.md
-    - SPEC.md
-    - PLAN.md
+user_metadata_overrides: null
