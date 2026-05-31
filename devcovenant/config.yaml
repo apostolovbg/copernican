@@ -298,7 +298,8 @@ ci_and_test:
 # `overrides` replace generated payload when non-empty.
 
 pre_commit:
-  overlays: {}
+  overlays:
+    exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
   overrides: {}
 
 # -------------------------------------------------------------------
@@ -1210,9 +1211,6 @@ autogen_metadata_overlays:
     - docs/packaging.md=>copernican/docs/packaging.md
     - docs/run_manifest.md=>copernican/docs/run_manifest.md
     - docs/security_changes.md=>copernican/docs/security_changes.md
-  pre_commit:
-    overlays:
-      exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
   read-only-directories:
     exclude_globs:
     - data/**/cosmo_parser_*.py

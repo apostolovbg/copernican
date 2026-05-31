@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 9b01b7d569aeb97229cc60cf63306ccc85b49f987ac666288f646799e2a55979
+  policy_registry_input_hash: 4c7dad0d249162ac9d3433ea32b31b8765d147400461e7eae07ee9d73b65c76d
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -14926,8 +14926,6 @@ profiles:
     - third_party
     - node_modules
     assets: []
-    pre_commit:
-      exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
     doc_assets:
       user:
       - devcovenant/README.md
@@ -15105,9 +15103,6 @@ profiles:
         - 'urn:'
         long_lines_contain:
         - =>
-      pre_commit:
-        overlays:
-          exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
       changelog-coverage:
         skipped_globs:
         - .matplotlib-cache/**

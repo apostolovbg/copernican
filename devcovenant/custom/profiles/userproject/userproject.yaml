@@ -10,9 +10,6 @@ ignore_dirs:
   - third_party
   - node_modules
 assets: []
-pre_commit:
-  exclude: >-
-    (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
 doc_assets:
   user:
     - devcovenant/README.md
@@ -190,10 +187,6 @@ policy_overlays:
       - 'urn:'
     long_lines_contain:
       - '=>'
-  pre_commit:
-    overlays:
-      exclude: >-
-        (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
   changelog-coverage:
     skipped_globs:
       - .matplotlib-cache/**
