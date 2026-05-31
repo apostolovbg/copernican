@@ -942,16 +942,11 @@ user_visible_files:
 - SPEC.md
 - PLAN.md
 doc_quality_files:
-- README.md
-- CONTRIBUTING.md
 - AGENTS.md
+- CONTRIBUTING.md
+- CHANGELOG.md
 - SPEC.md
 - PLAN.md
-- ./AGENTS.md
-- ./CONTRIBUTING.md
-- ./CHANGELOG.md
-- ./SPEC.md
-- ./PLAN.md
 required_headings:
 - Overview
 require_toc: 'false'

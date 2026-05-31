@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 0c45ac87887a099b977d1c99dea202555d47d10cd7ae92b722ce74c4374ffbab
+  policy_registry_input_hash: e8dda26e04e77c05d681f7b04f608055fe63e041d2e76b82f5aaea437d37bb7f
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3734,16 +3734,11 @@ policies:
       - SPEC.md
       - PLAN.md
       doc_quality_files:
-      - README.md
-      - CONTRIBUTING.md
       - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
       - SPEC.md
       - PLAN.md
-      - ./AGENTS.md
-      - ./CONTRIBUTING.md
-      - ./CHANGELOG.md
-      - ./SPEC.md
-      - ./PLAN.md
       required_headings:
       - Overview
       require_toc: 'false'
@@ -4256,8 +4251,15 @@ policies:
           behavior: append
           replaced_inherited_values:
           - ()
-        effective:
+        user_overrides:
           values:
+          - AGENTS.md
+          - CONTRIBUTING.md
+          - CHANGELOG.md
+          - SPEC.md
+          - PLAN.md
+          behavior: replace
+          replaced_inherited_values:
           - README.md
           - CONTRIBUTING.md
           - AGENTS.md
@@ -4268,6 +4270,13 @@ policies:
           - ./CHANGELOG.md
           - ./SPEC.md
           - ./PLAN.md
+        effective:
+          values:
+          - AGENTS.md
+          - CONTRIBUTING.md
+          - CHANGELOG.md
+          - SPEC.md
+          - PLAN.md
       required_headings:
         descriptor:
           values:
@@ -4720,7 +4729,29 @@ policies:
         effective:
           values:
           - 'false'
-    metadata_warnings: []
+    metadata_warnings:
+    - policy_id: documentation-growth-tracking
+      key: doc_quality_files
+      layer: user_overrides
+      inherited_values:
+      - README.md
+      - CONTRIBUTING.md
+      - AGENTS.md
+      - SPEC.md
+      - PLAN.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./CHANGELOG.md
+      - ./SPEC.md
+      - ./PLAN.md
+      replacement_values:
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
+      message: user_overrides replaces inherited metadata for `documentation-growth-tracking.doc_quality_files`;
+        use overlays if you intended additive behavior.
     runtime_actions: []
     commands: []
     runtime_metadata_options:
@@ -4822,17 +4853,12 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
-      doc_quality_files: &id028
-      - README.md
-      - CONTRIBUTING.md
+      doc_quality_files:
       - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
       - SPEC.md
       - PLAN.md
-      - ./AGENTS.md
-      - ./CONTRIBUTING.md
-      - ./CHANGELOG.md
-      - ./SPEC.md
-      - ./PLAN.md
       required_headings: &id029
       - Overview
       require_toc: false
@@ -4911,7 +4937,13 @@ policies:
       - tests/**
       force_include_files: []
       force_include_dirs: []
-    runtime_config_overrides: {}
+    runtime_config_overrides:
+      doc_quality_files: &id028
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
     runtime_effective_options:
       id: documentation-growth-tracking
       severity: warning
@@ -4944,11 +4976,6 @@ policies:
     - '*.json'
     - '*.yaml'
     - '*.yml'
-    - ./AGENTS.md
-    - ./CHANGELOG.md
-    - ./CONTRIBUTING.md
-    - ./PLAN.md
-    - ./SPEC.md
     - .github/workflows/*.yaml
     - .github/workflows/*.yml
     - .hypothesis/**
@@ -4966,6 +4993,7 @@ policies:
     - .yaml
     - .yml
     - AGENTS.md
+    - CHANGELOG.md
     - CONTRIBUTING.md
     - PLAN.md
     - README.md
