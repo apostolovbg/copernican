@@ -1084,7 +1084,9 @@ class CopernicanGUI:
         checks when the repository layout changes.
         """
 
-        return str(Path(__file__).resolve().parents[2] / "data")
+        return str(
+            Path(__file__).resolve().parents[2] / "copernican" / "datasets"
+        )
 
     def _models_root(self) -> str:
         """Return the absolute path to the packaged model definitions."""

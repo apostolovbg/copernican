@@ -33,8 +33,8 @@ the same convention.
   helpers so CLI and GUI paths stay consistent.
 - **Modular library layout:** `copernican_lib/` hosts shared helpers
   (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
-  while `models/`, `engines/`, `data/` and `output/` remain the canonical
-  asset roots.
+  while `models/`, `engines/`, `copernican/datasets/` and `output/`
+  remain the canonical asset roots.
 - **CMB capability checks:** `copernican_lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the generic declarative
@@ -82,10 +82,10 @@ the same convention.
   empty, while `standard: false` requires typed derivative equations and
   explicit backend mapping for the compiled declarative perturbation
   solver.
- - `data/` bundles vetted observations and parsers. The loaders validate SHA256
-   digests, register citations, and tag each manifest with the hashes used for
-   the run; the directory remains read-only except when a human explicitly
-   edits the datasets.
+- `copernican/datasets/` bundles vetted observations and parsers. The
+  loaders validate SHA256 digests, register citations, and tag each manifest
+  with the hashes used for the run; the directory remains read-only except
+  when a human explicitly edits the datasets.
 - `copernican_lib/gui/` provides a Tkinter scaffold with the navigation rail,
   Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
   page that renders Markdown assets inline; the package entrypoint launches
@@ -95,9 +95,9 @@ the same convention.
  - `models/`: YAML definitions for every supported cosmological model.
  - `engines/`: Computational backends; the default MCMC engine records
    diagnostics and writes NetCDF chains.
- - `data/`: Trusted datasets grouped by type (`sne`, `bao`, `cmb`) with parser
-   metadata. Parsers compute SHA256 values and register their digests via
-   `dataset_registry`.
+- `copernican/datasets/`: Trusted datasets grouped by type (`sne`, `bao`,
+  `cmb`) with parser metadata. Parsers compute SHA256 values and register
+  their digests via `dataset_registry`.
  - `output/`: Per-run folders such as `copernican-run_<timestamp>/` that store
    manifests, parameter summaries, logs and NetCDF chains.
  - `validation/`: Reference manifests, runner helpers and summaries used by the

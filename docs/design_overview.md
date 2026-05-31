@@ -1,9 +1,10 @@
 
-This document expands on the high-level summary in the README by tracing how
-the Copernican organises its architecture. The command-line launcher
+This document expands on the high-level summary in the README by tracing
+how the Copernican organises its architecture. The command-line launcher
 (`python -m copernican`) steers each run, the `copernican_lib/` package
-gathers shared infrastructure, and the `engines/`, `models/` and `data/`
-directories plug into that foundation to deliver repeatable analyses.
+gathers shared infrastructure, and the `engines/`, `models/` and
+`copernican/datasets/` directories plug into that foundation to deliver
+repeatable analyses.
 
 The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
 renderers invoked by the launcher. Keeping those prompts in a dedicated package
@@ -44,11 +45,12 @@ described throughout this document.
   can reconstruct Stage 2 state deterministically. Adapter validation allows
   only vetted attributes and functions and preserves constants, transforms,
   priors and structured CAMB contracts exactly as written in the model file.
-* `data/` curates vetted catalogues with parser code and metadata that record
-  citations, licensing information and SHA256 digests. Loaders validate the
-  digests before the observations flow into the likelihood pipeline. Parsers
-  must register under the `dataset_id` stated in their metadata so discovery
-  remains deterministic, and loaders reject symbolic links or paths that would
+* `copernican/datasets/` curates vetted catalogues with parser code and
+  metadata that record citations, licensing information and SHA256
+  digests. Loaders validate the digests before the observations flow
+  into the likelihood pipeline. Parsers must register under the
+  `dataset_id` stated in their metadata so discovery remains
+  deterministic, and loaders reject symbolic links or paths that would
   escape the repository tree. Folders named `placeholder` are ignored so
   unfinished datasets never pollute the menus.
 * `docs/` stores focused guidance on data formats, manifest contents,

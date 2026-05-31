@@ -1,10 +1,10 @@
 # BAO Compound Dataset Format
 
-This document describes the YAML format used for the **compound** BAO dataset
-shipped with the Copernican. The folder lives under `data/bao/compound/`
-and mirrors the structure expected for real BAO sources. JSON files were
-supported in early versions but have now been removed so that all datasets use
-a single YAML representation.
+This document describes the YAML format used for the **compound** BAO
+dataset shipped with the Copernican. The folder lives under
+`copernican/datasets/bao/compound/` and mirrors the structure expected for
+real BAO sources. JSON files were supported in early versions but have now
+been removed so that all datasets use a single YAML representation.
 
 Each dataset is stored in its own directory and contains a single YAML file
 with a `data_points` array. An optional `metadata_*.yml` file mirrors the

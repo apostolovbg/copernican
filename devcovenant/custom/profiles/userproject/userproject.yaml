@@ -28,16 +28,11 @@ policy_overlays:
   documentation-growth-tracking:
     user_facing_exclude_globs:
       - models/**
-      - data/**
       - copernican/datasets/**
   read-only-directories:
     include_prefixes:
-      - data
       - copernican/datasets
     exclude_globs:
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -169,15 +164,11 @@ policy_overlays:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
-      - data/**
       - copernican/datasets/**
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -236,10 +227,6 @@ policy_overlays:
     tests_watch_dirs:
       - tests
     mirror_roots:
-      - data/bao=>tests/data/bao
-      - data/cmb=>tests/data/cmb
-      - data/gw=>tests/data/gw
-      - data/sne=>tests/data/sne
       - copernican/datasets/bao=>tests/copernican/datasets/bao
       - copernican/datasets/cmb=>tests/copernican/datasets/cmb
       - copernican/datasets/gw=>tests/copernican/datasets/gw

@@ -1,8 +1,8 @@
 # Dataset Licenses
 
-Each observational source shipped inside `data/` lists its own usage terms via
-`metadata_*.yml`. The Copernican also aggregates the license texts for
-runtime dependencies in
+Each observational source shipped inside `copernican/datasets/` lists
+its own usage terms via `metadata_*.yml`. The Copernican also
+aggregates the license texts for runtime dependencies in
 [`licenses/THIRD_PARTY_LICENSES.md`](../licenses/THIRD_PARTY_LICENSES.md)
 and under [`licenses/`](licenses/).
 

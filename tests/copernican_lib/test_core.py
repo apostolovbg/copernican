@@ -3,7 +3,7 @@
 
 """Basic functional tests for the Copernican Suite."""
 
-import importlib.util
+import importlib
 import os
 import unittest
 from pathlib import Path
@@ -24,21 +24,10 @@ from copernican_lib.run_pipeline import extract_cosmological_param_vector
 REPO_ROOT = Path(__file__).resolve().parents[2]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
 
-# Ensure compound BAO parser registration without requiring package installs
-parser_path = (
-    Path(__file__).resolve().parents[2]
-    / "data"
-    / "bao"
-    / "compound"
-    / "cosmo_parser_compound.py"
+# Ensure compound BAO parser registration without requiring package installs.
+importlib.import_module(
+    "copernican.datasets.bao.compound.cosmo_parser_compound"
 )
-spec = importlib.util.spec_from_file_location(
-    "cosmo_parser_compound",
-    parser_path,
-)
-if spec and spec.loader:
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -121,7 +110,11 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_mcmc_fit_returns_expected_fields(self):
-        """Return posterior diagnostics and χ² totals from the MCMC engine."""
+        """Return posterior diagnostics and χ² totals.
+
+        The MCMC engine should report a finite total and component
+        breakdown.
+        """
         sne_df = dataset_registry.load_sne_data("jla_2014").head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
@@ -241,10 +234,19 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(
             latex_utils.latex_to_sympy(r"\frac{1}{\infty}"), "(1)/(sympy.oo)"
         )
-        self.assertEqual(latex_utils.latex_to_unicode(r"\Omega_{gamma}"), "Ωᵧ")
+        self.assertEqual(
+            latex_utils.latex_to_unicode(r"\Omega_{gamma}"),
+            "Ωᵧ",
+        )
         self.assertEqual(latex_utils.latex_to_unicode("H_0"), "H₀")
-        self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
-        self.assertEqual(latex_utils.latex_to_unicode("x_{(1+2)}"), "x₍₁₊₂₎")
+        self.assertEqual(
+            latex_utils.latex_to_unicode(r"z_{\rm rec}"),
+            "zᵣₑc",
+        )
+        self.assertEqual(
+            latex_utils.latex_to_unicode("x_{(1+2)}"),
+            "x₍₁₊₂₎",
+        )
         self.assertEqual(latex_utils.latex_to_unicode("y^{*}"), "y⁎")
 
 

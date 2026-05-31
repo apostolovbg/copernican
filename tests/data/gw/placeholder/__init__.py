@@ -1,1 +1,0 @@
-"""GW placeholder parser tests."""

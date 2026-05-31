@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: b18a79ab61dc732eae0bf0772d40a380feeb4bcb2b29a71e9f227596c357df9b
+  policy_registry_input_hash: 7fc288ef3b7f3a61b7851002fca0d1290d0be79a294bb61b968736aa7aa59c9a
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3796,7 +3796,6 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - models/**
-      - data/**
       - copernican/datasets/**
       - tests/**
       - devcovenant/**
@@ -4465,7 +4464,6 @@ policies:
         profile_overlays:
           values:
           - models/**
-          - data/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -4473,7 +4471,6 @@ policies:
         autogen_overlays:
           values:
           - models/**
-          - data/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -4509,7 +4506,6 @@ policies:
           - devcovenant/logs/**
           - devcovenant/registry/runtime/**
           - models/**
-          - data/**
           - copernican/datasets/**
           - tests/**
           - devcovenant/**
@@ -4886,7 +4882,6 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - models/**
-      - data/**
       - copernican/datasets/**
       - tests/**
       - devcovenant/**
@@ -4975,7 +4970,6 @@ policies:
     - __pycache__/**
     - build/**
     - copernican/datasets/**
-    - data/**
     - devcovenant/**
     - devcovenant/config.yaml
     - devcovenant/logs/**
@@ -5575,7 +5569,6 @@ policies:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
-      - data/**
       - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
@@ -5595,9 +5588,6 @@ policies:
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -5961,7 +5951,6 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
-          - data/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -5979,7 +5968,6 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
-          - data/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -6021,7 +6009,6 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
-          - data/**
           - copernican/datasets/**
           - devcovenant/**
       include_prefixes:
@@ -6103,9 +6090,6 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -6118,9 +6102,6 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -6133,9 +6114,6 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -6368,7 +6346,6 @@ policies:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
-      - data/**
       - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
@@ -6388,9 +6365,6 @@ policies:
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -6473,10 +6447,6 @@ policies:
     - copernican/datasets/**/metadata_*.yaml
     - copernican/datasets/**/metadata_*.yml
     - copernican_lib/licenses/*.txt
-    - data/**
-    - data/**/cosmo_parser_*.py
-    - data/**/metadata_*.yaml
-    - data/**/metadata_*.yml
     - data:/**
     - devcovenant/**
     - devcovenant/custom/**
@@ -6919,10 +6889,6 @@ policies:
       - tests
       mirror_roots:
       - devcovenant/custom=>tests/devcovenant/custom
-      - data/bao=>tests/data/bao
-      - data/cmb=>tests/data/cmb
-      - data/gw=>tests/data/gw
-      - data/sne=>tests/data/sne
       - copernican/datasets/bao=>tests/copernican/datasets/bao
       - copernican/datasets/cmb=>tests/copernican/datasets/cmb
       - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -7145,10 +7111,6 @@ policies:
         profile_overlays:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - data/bao=>tests/data/bao
-          - data/cmb=>tests/data/cmb
-          - data/gw=>tests/data/gw
-          - data/sne=>tests/data/sne
           - copernican/datasets/bao=>tests/copernican/datasets/bao
           - copernican/datasets/cmb=>tests/copernican/datasets/cmb
           - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -7159,10 +7121,6 @@ policies:
         autogen_overlays:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - data/bao=>tests/data/bao
-          - data/cmb=>tests/data/cmb
-          - data/gw=>tests/data/gw
-          - data/sne=>tests/data/sne
           - copernican/datasets/bao=>tests/copernican/datasets/bao
           - copernican/datasets/cmb=>tests/copernican/datasets/cmb
           - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -7173,10 +7131,6 @@ policies:
         effective:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - data/bao=>tests/data/bao
-          - data/cmb=>tests/data/cmb
-          - data/gw=>tests/data/gw
-          - data/sne=>tests/data/sne
           - copernican/datasets/bao=>tests/copernican/datasets/bao
           - copernican/datasets/cmb=>tests/copernican/datasets/cmb
           - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -7410,10 +7364,6 @@ policies:
       - tests
       mirror_roots: &id059
       - devcovenant/custom=>tests/devcovenant/custom
-      - data/bao=>tests/data/bao
-      - data/cmb=>tests/data/cmb
-      - data/gw=>tests/data/gw
-      - data/sne=>tests/data/sne
       - copernican/datasets/bao=>tests/copernican/datasets/bao
       - copernican/datasets/cmb=>tests/copernican/datasets/cmb
       - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -7476,10 +7426,6 @@ policies:
     - copernican/datasets/cmb=>tests/copernican/datasets/cmb
     - copernican/datasets/gw=>tests/copernican/datasets/gw
     - copernican/datasets/sne=>tests/copernican/datasets/sne
-    - data/bao=>tests/data/bao
-    - data/cmb=>tests/data/cmb
-    - data/gw=>tests/data/gw
-    - data/sne=>tests/data/sne
     - devcovenant/**
     - devcovenant/custom/**/*.py
     - devcovenant/custom=>tests/devcovenant/custom
@@ -9357,7 +9303,7 @@ policies:
     hash: fb80691eec0a876b9b48f371936e92ed95511e88dee77870782d4babd6658418
     script_path: builtin/raw_string_escapes.py
   read-only-directories:
-    enabled: false
+    enabled: true
     custom: false
     description: Read Only Directories
     policy_text: |-
@@ -9368,21 +9314,16 @@ policies:
       severity: error
       auto_fix: 'false'
       enforcement: active
-      enabled: 'false'
+      enabled: 'true'
       custom: 'false'
       include_globs:
-      - data/**
       - copernican/datasets/**
       include_suffixes: []
       include_prefixes:
-      - data
       - copernican/datasets
       exclude_suffixes: []
       exclude_prefixes: []
       exclude_globs:
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -9453,14 +9394,12 @@ policies:
           - ()
         derived_selectors:
           values:
-          - data/**
           - copernican/datasets/**
           behavior: derive
           replaced_inherited_values:
           - ()
         effective:
           values:
-          - data/**
           - copernican/datasets/**
       include_suffixes:
         descriptor:
@@ -9481,21 +9420,18 @@ policies:
           - ()
         profile_overlays:
           values:
-          - data
           - copernican/datasets
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
-          - data
           - copernican/datasets
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
-          - data
           - copernican/datasets
       exclude_suffixes:
         descriptor:
@@ -9526,9 +9462,6 @@ policies:
           - ()
         profile_overlays:
           values:
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -9537,9 +9470,6 @@ policies:
           - ()
         autogen_overlays:
           values:
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -9548,9 +9478,6 @@ policies:
           - ()
         effective:
           values:
-          - data/**/cosmo_parser_*.py
-          - data/**/metadata_*.yml
-          - data/**/metadata_*.yaml
           - copernican/datasets/**/cosmo_parser_*.py
           - copernican/datasets/**/metadata_*.yml
           - copernican/datasets/**/metadata_*.yaml
@@ -9647,13 +9574,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'false'
+          - 'true'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'false'
+          - 'true'
       custom:
         runtime_defaults:
           values:
@@ -9672,21 +9599,16 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       include_globs: &id086
-      - data/**
       - copernican/datasets/**
       include_suffixes: []
       include_prefixes: &id087
-      - data
       - copernican/datasets
       exclude_suffixes: []
       exclude_prefixes: []
       exclude_globs: &id088
-      - data/**/cosmo_parser_*.py
-      - data/**/metadata_*.yml
-      - data/**/metadata_*.yaml
       - copernican/datasets/**/cosmo_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
@@ -9707,7 +9629,7 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       include_globs: *id086
       include_prefixes: *id087
@@ -9719,10 +9641,6 @@ policies:
     - copernican/datasets/**/cosmo_parser_*.py
     - copernican/datasets/**/metadata_*.yaml
     - copernican/datasets/**/metadata_*.yml
-    - data/**
-    - data/**/cosmo_parser_*.py
-    - data/**/metadata_*.yaml
-    - data/**/metadata_*.yml
     origin: builtin
     script_exists: true
     hash: aa433f28fe2ee290de3be725967b537abacf83ff59241afe777e2f4a5223c249
@@ -14742,16 +14660,11 @@ profiles:
       documentation-growth-tracking:
         user_facing_exclude_globs:
         - models/**
-        - data/**
         - copernican/datasets/**
       read-only-directories:
         include_prefixes:
-        - data
         - copernican/datasets
         exclude_globs:
-        - data/**/cosmo_parser_*.py
-        - data/**/metadata_*.yml
-        - data/**/metadata_*.yaml
         - copernican/datasets/**/cosmo_parser_*.py
         - copernican/datasets/**/metadata_*.yml
         - copernican/datasets/**/metadata_*.yaml
@@ -14883,15 +14796,11 @@ profiles:
         - validation/manifests/**
         - licenses/THIRD_PARTY_LICENSES.md
         - copernican_lib/licenses/*.txt
-        - data/**
         - copernican/datasets/**
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py
         - tests/**/*.md
-        - data/**/cosmo_parser_*.py
-        - data/**/metadata_*.yml
-        - data/**/metadata_*.yaml
         - copernican/datasets/**/cosmo_parser_*.py
         - copernican/datasets/**/metadata_*.yml
         - copernican/datasets/**/metadata_*.yaml
@@ -14950,10 +14859,6 @@ profiles:
         tests_watch_dirs:
         - tests
         mirror_roots:
-        - data/bao=>tests/data/bao
-        - data/cmb=>tests/data/cmb
-        - data/gw=>tests/data/gw
-        - data/sne=>tests/data/sne
         - copernican/datasets/bao=>tests/copernican/datasets/bao
         - copernican/datasets/cmb=>tests/copernican/datasets/cmb
         - copernican/datasets/gw=>tests/copernican/datasets/gw

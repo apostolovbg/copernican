@@ -1,1 +1,0 @@
-"""Compound BAO parser tests."""

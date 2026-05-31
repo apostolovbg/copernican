@@ -80,6 +80,183 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-05-31:
+  Change: Removed the stale `tests/data` dataset tests, retargeted the
+    core smoke test to `copernican/datasets/`, and realigned the GUI
+    trust root to the packaged dataset tree.
+  Why: Eliminated broken `data/` imports after deleting the legacy
+    dataset tree and kept GUI parser trust checks on the packaged
+    paths.
+  Impact: Test discovery now exercises the packaged dataset tree only,
+    and the GUI correctly trusts packaged parsers again.
+  Files:
+  copernican_lib/gui/app.py
+  tests/copernican_lib/test_core.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_licenses.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_overview.md
+  docs/api_overview.md
+  docs/bao_compound_dataset_format.md
+  docs/data_overview.md
+  docs/dataset_licenses.md
+  docs/design_overview.md
+  docs/gui_overview.md
+  tests/data/__init__.py
+  tests/data/bao/__init__.py
+  tests/data/bao/bossdr12/__init__.py
+  tests/data/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/data/bao/compound/__init__.py
+  tests/data/bao/compound/test_cosmo_parser_compound.py
+  tests/data/cmb/__init__.py
+  tests/data/cmb/planck2018lite/__init__.py
+  tests/data/cmb/planck2018lite/test_cosmo_parser_cmb_planck2018lite.py
+  tests/data/gw/__init__.py
+  tests/data/gw/placeholder/__init__.py
+  tests/data/gw/placeholder/test_cosmo_parser_gw_placeholder.py
+  tests/data/sne/__init__.py
+  tests/data/sne/jla2014/__init__.py
+  tests/data/sne/jla2014/test_cosmo_parser_jla2014.py
+  tests/data/sne/pantheon/__init__.py
+  tests/data/sne/pantheon/test_cosmo_parser_pantheon.py
+  tests/data/sne/union3/__init__.py
+  tests/data/sne/union3/test_cosmo_parser_union3.py
+  tests/data/synthetic/bao.csv
+  tests/data/synthetic/cmb.csv
+  tests/data/synthetic/cosmo_parser_synthetic.py
+  tests/data/synthetic/metadata_synthetic.yml
+  tests/data/synthetic/model.yml
+  tests/data/synthetic/model_plugin.py
+  tests/data/synthetic/sne.csv
+  tests/data/synthetic/test_synthetic_integration.py
+  data/bao/bossdr12/BAO_consensus_covtot_dM_Hz.txt
+  data/bao/bossdr12/BAO_consensus_covtot_dV_FAP.txt
+  data/bao/bossdr12/BAO_consensus_results_dM_Hz.txt
+  data/bao/bossdr12/BAO_consensus_results_dV_FAP.txt
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/cmb/planck2018lite/readme_baseline.md
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/ReadMe.txt
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/README.txt
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/BAO_results.txt
+  data/sne/union3/LICENSE
+  data/sne/union3/README.md
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_CfA2_\
+    CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99_\
+    Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_knop03_\
+    Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  data/sne/union3/paramfile_Union3.txt
+  data/sne/union3/stan_code_fixed.txt
+  data/sne/union3/stan_code_simple.txt
+
+- 2026-05-31:
+  Change: Deleted the legacy `data/` tree, synced the packaged docs
+    mirror, and reflowed the README and guides for the new packaged
+    layout.
+  Why: Removed the obsolete repo-root dataset home so DevCovenant and
+    the user-facing docs track the packaged `copernican/datasets/`
+    tree instead.
+  Impact: Removed the old `data/` surface, kept parser and metadata
+    files editable in the packaged tree, and aligned both doc trees
+    with the current layout.
+  Files:
+  .pre-commit-config.yaml
+  AGENTS.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_licenses.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_overview.md
+  data/bao/bossdr12/BAO_consensus_covtot_dM_Hz.txt
+  data/bao/bossdr12/BAO_consensus_covtot_dV_FAP.txt
+  data/bao/bossdr12/BAO_consensus_results_dM_Hz.txt
+  data/bao/bossdr12/BAO_consensus_results_dV_FAP.txt
+  data/bao/bossdr12/cosmo_parser_bossdr12.py
+  data/bao/bossdr12/metadata_bossdr12.yml
+  data/bao/compound/compound.yml
+  data/bao/compound/cosmo_parser_compound.py
+  data/bao/compound/metadata_compound.yml
+  data/cmb/planck2018lite/c_matrix_plik_v22.dat
+  data/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  data/cmb/planck2018lite/metadata_planck2018lite.yml
+  data/cmb/planck2018lite/readme_baseline.md
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py
+  data/gw/placeholder/metadata_gw_placeholder.yml
+  data/sne/jla2014/+footg5.gif
+  data/sne/jla2014/+footg8.gif
+  data/sne/jla2014/ReadMe.txt
+  data/sne/jla2014/cosmo_parser_jla2014.py
+  data/sne/jla2014/metadata_jla2014.yml
+  data/sne/jla2014/tablef1.dat
+  data/sne/jla2014/tablef2.fit
+  data/sne/jla2014/tablef3.dat
+  data/sne/jla2014/tablef4.fit
+  data/sne/pantheon/Pantheon+SH0ES.dat
+  data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  data/sne/pantheon/README.txt
+  data/sne/pantheon/cosmo_parser_pantheon.py
+  data/sne/pantheon/metadata_pantheon.yml
+  data/sne/union3/.gitignore
+  data/sne/union3/BAO_results.txt
+  data/sne/union3/LICENSE
+  data/sne/union3/README.md
+  data/sne/union3/all_samples_union3_cosmo=2.npz
+  data/sne/union3/cosmo_parser_union3.py
+  data/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_CfA1_\
+    CfA2_CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_\
+    NB99_Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_\
+    LSQ_knop03_Krisciunas.pickle
+  data/sne/union3/lcfit_Union3.tar.gz
+  data/sne/union3/metadata_union3.yml
+  data/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  data/sne/union3/paramfile_Union3.txt
+  data/sne/union3/stan_code_fixed.txt
+  data/sne/union3/stan_code_simple.txt
+  docs/api_overview.md
+  docs/bao_compound_dataset_format.md
+  docs/data_overview.md
+  docs/dataset_licenses.md
+  docs/design_overview.md
+  docs/gui_overview.md
+  PLAN.md
+
+- 2026-05-31:
   Change: Moved the runtime boundary into `copernican/`, synced the
     mirrored docs, and removed the obsolete launcher surfaces.
   Why: Removed the stale script-era entrypoints and policy pages so

@@ -1004,7 +1004,6 @@ user_facing_exclude_globs:
 - devcovenant/logs/**
 - devcovenant/registry/runtime/**
 - models/**
-- data/**
 - copernican/datasets/**
 - tests/**
 - devcovenant/**
@@ -1190,7 +1189,6 @@ exclude_globs:
 - validation/manifests/**
 - licenses/THIRD_PARTY_LICENSES.md
 - copernican_lib/licenses/*.txt
-- data/**
 - copernican/datasets/**
 - devcovenant/**
 include_prefixes: []
@@ -1210,9 +1208,6 @@ force_include_globs:
 - tests/devcovenant/custom/**
 - tests/**/*.py
 - tests/**/*.md
-- data/**/cosmo_parser_*.py
-- data/**/metadata_*.yml
-- data/**/metadata_*.yaml
 - copernican/datasets/**/cosmo_parser_*.py
 - copernican/datasets/**/metadata_*.yml
 - copernican/datasets/**/metadata_*.yaml
@@ -1357,10 +1352,6 @@ tests_watch_dirs:
 - tests
 mirror_roots:
 - devcovenant/custom=>tests/devcovenant/custom
-- data/bao=>tests/data/bao
-- data/cmb=>tests/data/cmb
-- data/gw=>tests/data/gw
-- data/sne=>tests/data/sne
 - copernican/datasets/bao=>tests/copernican/datasets/bao
 - copernican/datasets/cmb=>tests/copernican/datasets/cmb
 - copernican/datasets/gw=>tests/copernican/datasets/gw
@@ -1721,21 +1712,16 @@ id: read-only-directories
 severity: error
 auto_fix: 'false'
 enforcement: active
-enabled: 'false'
+enabled: 'true'
 custom: 'false'
 include_globs:
-- data/**
 - copernican/datasets/**
 include_suffixes: []
 include_prefixes:
-- data
 - copernican/datasets
 exclude_suffixes: []
 exclude_prefixes: []
 exclude_globs:
-- data/**/cosmo_parser_*.py
-- data/**/metadata_*.yml
-- data/**/metadata_*.yaml
 - copernican/datasets/**/cosmo_parser_*.py
 - copernican/datasets/**/metadata_*.yml
 - copernican/datasets/**/metadata_*.yaml
