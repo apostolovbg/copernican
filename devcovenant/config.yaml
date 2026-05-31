@@ -411,7 +411,7 @@ policy_state:
   documentation-growth-tracking: true
   last-updated: true
   line-length-limit: true
-  managed-environment: false
+  managed-environment: true
   modules-need-tests: true
   name-clarity: true
   no-future-dates: true

@@ -18,8 +18,9 @@ def _load_translator_module():
     spec = importlib.util.spec_from_file_location(
         "python_translator", _TRANSLATOR_PATH
     )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load the Python translator module.")
     module = importlib.util.module_from_spec(spec)
-    assert spec is not None and spec.loader is not None
     spec.loader.exec_module(module)
     return module
 

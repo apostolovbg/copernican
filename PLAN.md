@@ -71,6 +71,15 @@ hybrid layout:
 This is why the Astropy hash problem should not be treated as the root
 issue.
 
+Current baseline on 2026-05-31:
+
+* `copernican.py` still owns the root orchestration path;
+* `copernican_lib/gui/app.py` still owns the GUI launch path;
+* `start.command` still bootstraps the managed `.venv` and legacy launcher
+  flow;
+* `models/` stays repository-level YAML data;
+* `data/` still carries curated datasets and parsers.
+
 The missing macOS Astropy wheel hash exposed stale generated dependency
 metadata, not just a bad wheel.
 `devcovenant/custom/profiles/userproject/userproject.yaml` owns the
@@ -212,6 +221,11 @@ whole files only when no path-preserving command can carry the change.
 
    * current repository state
 
+   Status:
+
+   * Open. The baseline is recorded below; the slice stays open until the
+     package migration work finishes.
+
    Surfaces:
 
    * `pyproject.toml`
@@ -258,6 +272,19 @@ whole files only when no path-preserving command can carry the change.
      artifacts.
    * Confirm the current DevCovenant dependency and license surface mismatch.
    * Do not change package layout in this slice.
+
+   Findings:
+
+   * `copernican.py` still owns the root orchestration path and imports
+     `copernican_lib` helpers directly.
+   * `copernican_lib/gui/app.py` still owns the GUI launch path.
+   * `engines/` remains importable runtime code from the repository root.
+   * `models/` remains repository-level YAML/YML data, not package code.
+   * `data/` still carries curated datasets and parser modules.
+   * `start.command` and sibling launchers still bootstrap the legacy
+     managed `.venv` flow.
+   * DevCovenant dependency and license surfaces still point at the legacy
+     `copernican_lib` layout.
 
    Done when:
 

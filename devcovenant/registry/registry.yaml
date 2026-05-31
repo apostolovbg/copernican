@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: ab126fe747ab67f4e265456768dd08fbfeb0c04a84b7ffdda03b0f5174429d99
+  policy_registry_input_hash: ad6e5fee655b64ba9dcefef47f6fe7e2f4ccdc901d01fb515fad7bb1a0acfb8a
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -6496,7 +6496,7 @@ policies:
     hash: 2d4523e6d519c57d8bf2167f80539697ca6a3059ea6cd3e511c60b85e99e828d
     script_path: builtin/line_length_limit.py
   managed-environment:
-    enabled: false
+    enabled: true
     custom: false
     description: Managed Environment
     policy_text: |-
@@ -6543,7 +6543,7 @@ policies:
       severity: error
       auto_fix: 'false'
       enforcement: active
-      enabled: 'false'
+      enabled: 'true'
       custom: 'false'
       expected_paths:
       - .venv
@@ -6619,13 +6619,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'false'
+          - 'true'
           behavior: replace
           replaced_inherited_values:
           - 'false'
         effective:
           values:
-          - 'false'
+          - 'true'
       expected_paths:
         descriptor:
           values:
@@ -6809,7 +6809,7 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       expected_paths: &id049
       - .venv
@@ -6835,7 +6835,7 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       expected_paths: *id049
       expected_interpreters: *id050

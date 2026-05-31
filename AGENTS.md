@@ -1258,7 +1258,7 @@ id: managed-environment
 severity: error
 auto_fix: 'false'
 enforcement: active
-enabled: 'false'
+enabled: 'true'
 custom: 'false'
 expected_paths:
 - .venv
