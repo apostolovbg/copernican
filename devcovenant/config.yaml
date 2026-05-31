@@ -968,12 +968,13 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
-    - ./README.md
     - ./AGENTS.md
     - ./CONTRIBUTING.md
     - ./CHANGELOG.md
     - ./SPEC.md
     - ./PLAN.md
+    exclude_globs:
+    - data/**
     exclude_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -1226,10 +1227,8 @@ autogen_metadata_overlays:
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yml
     - data/**/metadata_*.yaml
-    include_globs:
-    - data/**/cosmo_parser_*.py
-    - data/**/metadata_*.yml
-    - data/**/metadata_*.yaml
+    include_prefixes:
+    - data
   security-scanner:
     exclude_globs:
     - tests/**

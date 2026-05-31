@@ -947,7 +947,6 @@ doc_quality_files:
 - AGENTS.md
 - SPEC.md
 - PLAN.md
-- ./README.md
 - ./AGENTS.md
 - ./CONTRIBUTING.md
 - ./CHANGELOG.md
@@ -985,6 +984,7 @@ include_suffixes: []
 include_globs: []
 exclude_suffixes: []
 exclude_globs:
+- data/**
 - devcovenant/**
 - tests/devcovenant/**
 force_include_globs: []
@@ -1723,11 +1723,10 @@ enforcement: active
 enabled: 'true'
 custom: 'false'
 include_globs:
-- data/**/cosmo_parser_*.py
-- data/**/metadata_*.yml
-- data/**/metadata_*.yaml
+- data/**
 include_suffixes: []
-include_prefixes: []
+include_prefixes:
+- data
 exclude_suffixes: []
 exclude_prefixes: []
 exclude_globs:

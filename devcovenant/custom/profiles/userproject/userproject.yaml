@@ -27,7 +27,6 @@ project-governance:
 policy_overlays:
   documentation-growth-tracking:
     doc_quality_files:
-      - ./README.md
       - ./AGENTS.md
       - ./CONTRIBUTING.md
       - ./CHANGELOG.md
@@ -39,7 +38,9 @@ policy_overlays:
       - models/**
       - data/**
   read-only-directories:
-    include_globs:
+    include_prefixes:
+      - data
+    exclude_globs:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
