@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: f33d1a6e67593cf0fda2a97b36cecc4c99a583c00059a7e8ec8ad9133e4164da
+  policy_registry_input_hash: c5aa4ceae032fbce2a358b62e3fe028fa1ed902fdae914aefb373f8f1995a50d
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3734,7 +3734,7 @@ policies:
       - SPEC.md
       - PLAN.md
       doc_quality_files:
-      - README.md
+      - ./README.md
       - CONTRIBUTING.md
       - AGENTS.md
       - SPEC.md
@@ -4227,7 +4227,7 @@ policies:
           - ()
         profile_overlays:
           values:
-          - README.md
+          - ./README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
@@ -4241,7 +4241,7 @@ policies:
           - ()
         autogen_overlays:
           values:
-          - README.md
+          - ./README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
@@ -4255,7 +4255,7 @@ policies:
           - ()
         effective:
           values:
-          - README.md
+          - ./README.md
           - CONTRIBUTING.md
           - AGENTS.md
           - SPEC.md
@@ -4819,7 +4819,7 @@ policies:
       - SPEC.md
       - PLAN.md
       doc_quality_files: &id028
-      - README.md
+      - ./README.md
       - CONTRIBUTING.md
       - AGENTS.md
       - SPEC.md
@@ -4942,6 +4942,7 @@ policies:
     - ./AGENTS.md
     - ./CONTRIBUTING.md
     - ./PLAN.md
+    - ./README.md
     - ./SPEC.md
     - .github/workflows/*.yaml
     - .github/workflows/*.yml
@@ -12624,7 +12625,7 @@ profiles:
         - SPEC.md
         - PLAN.md
         doc_quality_files:
-        - README.md
+        - ./README.md
         - CONTRIBUTING.md
         - AGENTS.md
         - SPEC.md
@@ -13065,8 +13066,8 @@ profiles:
       - maintenance
       - frozen
       - sunset
-    source: builtin
-    path: devcovenant/builtin/profiles/defaults
+    source: custom
+    path: devcovenant/custom/profiles/defaults
     assets_available: []
     active: true
   devcovuser:

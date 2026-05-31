@@ -942,7 +942,7 @@ user_visible_files:
 - SPEC.md
 - PLAN.md
 doc_quality_files:
-- README.md
+- ./README.md
 - CONTRIBUTING.md
 - AGENTS.md
 - SPEC.md

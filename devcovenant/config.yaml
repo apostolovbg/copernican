@@ -963,7 +963,7 @@ autogen_metadata_overlays:
     - .py
   documentation-growth-tracking:
     doc_quality_files:
-    - README.md
+    - ./README.md
     - CONTRIBUTING.md
     - AGENTS.md
     - SPEC.md
