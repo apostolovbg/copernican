@@ -76,8 +76,7 @@ def parse_union3(data_dir: str, **kwargs) -> pandas.DataFrame | None:
     inv_covariance = matrix[1:, 1:]
 
     if not (
-        numpy.isfinite(redshift).all()
-        and numpy.isfinite(mu_values).all()
+        numpy.isfinite(redshift).all() and numpy.isfinite(mu_values).all()
     ):
         logger.warning(
             "Union3 mu_mat contains non-finite redshifts or mu values."
