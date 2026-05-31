@@ -439,7 +439,7 @@ policy_state:
 ignore:
   patterns:
   - devcovenant/config.yaml
-  - data/sne/union3/README.md
+  - data/**/README.*
   - .vscode/**
   - .idea/**
   - '*.egg-info/**'
