@@ -1,13 +1,18 @@
 # Project Specification
 **Doc ID:** SPEC
-**Doc Type:** project-spec
+**Doc Type:** specification
 **Project Version:** 12.0.26
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-05-31
 **DevCovenant Version:** 1.0.1b6
+
+<!-- DEVCOV:BEGIN -->
+This opening section is managed by DevCovenant.
+Use `SPEC.md` only for durable project rules below this block.
+<!-- DEVCOV:END -->
 
 ## Overview
 Copernican is a manifest-driven Python toolkit for cosmology workflows.

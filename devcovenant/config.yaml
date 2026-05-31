@@ -365,14 +365,14 @@ workflow:
 # When unversioned, the top visible changelog heading must match `unreleased_heading` exactly.
 
 project-governance:
-  project_name: Project Name
-  project_description: 'Describe the project this repository ships: what it does,
-    who it helps, and what problem it solves.'
-  copyright_notice: YEAR Legal Owner Name
-  stage: prototype
+  project_name: copernican
+  project_description: A Python toolkit for evaluating cosmological models against
+    SNe Ia, BAO, and CMB observations.
+  copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
+  stage: stable
   maintenance_stance: active
-  compatibility_policy: unspecified
-  versioning_mode: unversioned
+  compatibility_policy: forward-only
+  versioning_mode: versioned
   unversioned_label: Unversioned
   unreleased_heading: '## Unreleased'
   changelog_file: CHANGELOG.md
@@ -890,27 +890,6 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: linux-py312
-        marker: sys_platform == "linux" and python_version == "3.12"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: linux-py313
-        marker: sys_platform == "linux" and python_version == "3.13"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: linux-py314
-        marker: sys_platform == "linux" and python_version == "3.14"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: windows-py311
         marker: sys_platform == "win32" and python_version == "3.11"
         pip:
@@ -918,59 +897,15 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: windows-py312
-        marker: sys_platform == "win32" and python_version == "3.12"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: windows-py313
-        marker: sys_platform == "win32" and python_version == "3.13"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: windows-py314
-        marker: sys_platform == "win32" and python_version == "3.14"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: macos-py311
-        marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-          == "3.11"
+        marker: sys_platform == "darwin" and python_version == "3.11"
         pip:
           platform: macosx_13_0_x86_64
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: macos-py312
-        marker: sys_platform == "darwin" and python_version == "3.12"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: macos-py313
-        marker: sys_platform == "darwin" and python_version == "3.13"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: macos-py314
-        marker: sys_platform == "darwin" and python_version == "3.14"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: macos-py311-arm64
-        marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-          == "3.11"
+        marker: sys_platform == "darwin" and python_version == "3.11"
         pip:
           platform: macosx_13_0_arm64
           implementation: cp
@@ -978,10 +913,6 @@ autogen_metadata_overlays:
           abi: cp311
     - id: package_runtime
       lock_file: copernican_lib/runtime-requirements.lock
-      direct_dependency_files:
-      - pyproject.toml
-      dependency_files:
-      - pyproject.toml
       third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
       licenses_dir: copernican_lib/licenses
       report_heading: '## License Report'
@@ -990,7 +921,6 @@ autogen_metadata_overlays:
       audit_service: pypi
       required_paths:
       - pyproject.toml
-      - '{{ PROJECT_NAME_PATH }}'
       - copernican_lib
       hash_targets:
       - id: linux-py311
@@ -1000,27 +930,6 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: linux-py312
-        marker: sys_platform == "linux" and python_version == "3.12"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: linux-py313
-        marker: sys_platform == "linux" and python_version == "3.13"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: linux-py314
-        marker: sys_platform == "linux" and python_version == "3.14"
-        pip:
-          platform: manylinux2014_x86_64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: windows-py311
         marker: sys_platform == "win32" and python_version == "3.11"
         pip:
@@ -1028,59 +937,15 @@ autogen_metadata_overlays:
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: windows-py312
-        marker: sys_platform == "win32" and python_version == "3.12"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: windows-py313
-        marker: sys_platform == "win32" and python_version == "3.13"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: windows-py314
-        marker: sys_platform == "win32" and python_version == "3.14"
-        pip:
-          platform: win_amd64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: macos-py311
-        marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-          == "3.11"
+        marker: sys_platform == "darwin" and python_version == "3.11"
         pip:
           platform: macosx_13_0_x86_64
           implementation: cp
           python_version: '3.11'
           abi: cp311
-      - id: macos-py312
-        marker: sys_platform == "darwin" and python_version == "3.12"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.12'
-          abi: cp312
-      - id: macos-py313
-        marker: sys_platform == "darwin" and python_version == "3.13"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.13'
-          abi: cp313
-      - id: macos-py314
-        marker: sys_platform == "darwin" and python_version == "3.14"
-        pip:
-          platform: macosx_11_0_x86_64
-          implementation: cp
-          python_version: '3.14'
-          abi: cp314
       - id: macos-py311-arm64
-        marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-          == "3.11"
+        marker: sys_platform == "darwin" and python_version == "3.11"
         pip:
           platform: macosx_13_0_arm64
           implementation: cp

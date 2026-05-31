@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-30
+**Last Updated:** 2026-05-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -551,7 +551,7 @@ id: dependency-management
 severity: error
 auto_fix: 'true'
 enforcement: active
-enabled: 'false'
+enabled: 'true'
 custom: 'false'
 surfaces:
 - id: devcovenant_runtime
@@ -677,13 +677,6 @@ surfaces:
       implementation: cp
       python_version: '3.11'
       abi: cp311
-  - id: linux-py312
-    marker: sys_platform == "linux" and python_version == "3.12"
-    pip:
-      platform: manylinux2014_x86_64
-      implementation: cp
-      python_version: '3.12'
-      abi: cp312
   - id: windows-py311
     marker: sys_platform == "win32" and python_version == "3.11"
     pip:
@@ -691,19 +684,22 @@ surfaces:
       implementation: cp
       python_version: '3.11'
       abi: cp311
-  - id: windows-py312
-    marker: sys_platform == "win32" and python_version == "3.12"
+  - id: macos-py311
+    marker: sys_platform == "darwin" and python_version == "3.11"
     pip:
-      platform: win_amd64
+      platform: macosx_13_0_x86_64
       implementation: cp
-      python_version: '3.12'
-      abi: cp312
+      python_version: '3.11'
+      abi: cp311
+  - id: macos-py311-arm64
+    marker: sys_platform == "darwin" and python_version == "3.11"
+    pip:
+      platform: macosx_13_0_arm64
+      implementation: cp
+      python_version: '3.11'
+      abi: cp311
 - id: package_runtime
   lock_file: copernican_lib/runtime-requirements.lock
-  direct_dependency_files:
-  - pyproject.toml
-  dependency_files:
-  - pyproject.toml
   third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
   licenses_dir: copernican_lib/licenses
   report_heading: '## License Report'
@@ -712,7 +708,6 @@ surfaces:
   audit_service: pypi
   required_paths:
   - pyproject.toml
-  - '{{ PROJECT_NAME_PATH }}'
   - copernican_lib
   hash_targets:
   - id: linux-py311
@@ -722,13 +717,6 @@ surfaces:
       implementation: cp
       python_version: '3.11'
       abi: cp311
-  - id: linux-py312
-    marker: sys_platform == "linux" and python_version == "3.12"
-    pip:
-      platform: manylinux2014_x86_64
-      implementation: cp
-      python_version: '3.12'
-      abi: cp312
   - id: windows-py311
     marker: sys_platform == "win32" and python_version == "3.11"
     pip:
@@ -736,13 +724,20 @@ surfaces:
       implementation: cp
       python_version: '3.11'
       abi: cp311
-  - id: windows-py312
-    marker: sys_platform == "win32" and python_version == "3.12"
+  - id: macos-py311
+    marker: sys_platform == "darwin" and python_version == "3.11"
     pip:
-      platform: win_amd64
+      platform: macosx_13_0_x86_64
       implementation: cp
-      python_version: '3.12'
-      abi: cp312
+      python_version: '3.11'
+      abi: cp311
+  - id: macos-py311-arm64
+    marker: sys_platform == "darwin" and python_version == "3.11"
+    pip:
+      platform: macosx_13_0_arm64
+      implementation: cp
+      python_version: '3.11'
+      abi: cp311
 license_source_overrides:
 - id: click
   kind: archive_url
@@ -852,7 +847,7 @@ id: documentation-growth-tracking
 severity: warning
 auto_fix: 'false'
 enforcement: active
-enabled: 'false'
+enabled: 'true'
 custom: 'false'
 selector_roles:
 - user_facing
@@ -1646,7 +1641,7 @@ id: raw-string-escapes
 severity: warning
 auto_fix: 'false'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 include_suffixes:
 - .py
@@ -1985,7 +1980,7 @@ id: version-sync
 severity: error
 auto_fix: 'true'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 version_file: copernican_lib/VERSION
 target_roles:

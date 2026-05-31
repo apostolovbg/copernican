@@ -20,14 +20,10 @@ attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309
     # via -r pyproject.toml
 
-camb==1.6.5 \
-    --hash=sha256:3130246d5ed8eaf4bfa614e9870710837d070b48820bcd435cd563ddedba2a23 \
-    --hash=sha256:32851453fc0ff45d283bca6012d43ca38a0eee19faa90a4833d2d8202b4c265f \
-    --hash=sha256:402c14e76faf541a383bdc5a0fcc56e5d8fdf1636fc9a8fa082ab0fa8a0c4a05 \
-    --hash=sha256:64c92fd9d38a8ae7e40a3a28c61b4ac3cbc8df6ece10bc703348d50e6d013d64 \
-    --hash=sha256:b417bab6e014048e3df2db6a182af6383dad42e7b10b616db047fefd95d1c636 \
-    --hash=sha256:dc98ded515040ca2b26309ac2092c8fadddd024f2f38c99db30fc991e330bca0 \
-    --hash=sha256:e53b7a1b212a6f77ffe2d5e12e3f5fd19d0897152d92fce62ab1b9d65225135d
+camb==1.6.0 \
+    --hash=sha256:e2c2e2e44e19f33345a55789704eb419148208cbac7253808e9bac09768fd8ac \
+    --hash=sha256:3601adea550b2f627d67652b6b1125a5459bd9a62b5191cee901f2acfc8049ad \
+    --hash=sha256:e3d3ae89a29ebe379bd87a56e953d2feff7cbc0dce5e8eece813b287ee0c1924
     # via -r pyproject.toml
 
 contourpy==1.3.2 ; (sys_platform == "linux" and python_version == "3.11") or (sys_platform == "linux" and python_version == "3.12") \

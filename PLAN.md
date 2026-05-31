@@ -1,5 +1,4 @@
 # Development Plan
-
 **Doc ID:** PLAN
 **Doc Type:** plan
 **Project Version:** 12.0.26
@@ -11,10 +10,8 @@
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
-
 This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
-
 <!-- DEVCOV:END -->
 
 Use this plan to track the Copernican package-structure, runtime-entrypoint,

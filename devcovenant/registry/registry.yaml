@@ -1,9 +1,9 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 1fed48c9cfcecb3bea5214d8be0427222a548c5d4aec03295ca2daa6bfe3a45a
+  policy_registry_input_hash: 9b01b7d569aeb97229cc60cf63306ccc85b49f987ac666288f646799e2a55979
 project-governance:
-  project_name: Copernican Suite
+  project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
@@ -35,11 +35,15 @@ managed-docs:
   - devcovenant/builtin/profiles/github/assets
   - devcovenant/custom/profiles/github/assets
   - devcovenant/builtin/profiles/python/assets
+  - devcovenant/custom/profiles/python/assets
   enabled_docs:
   - AGENTS.md
   - README.md
   - CONTRIBUTING.md
+  - SPEC.md
+  - PLAN.md
   - CHANGELOG.md
+  - devcovenant/README.md
   descriptors:
     AGENTS.md:
       enabled: true
@@ -70,7 +74,7 @@ managed-docs:
       authoritative_source: false
       body_fingerprint: e0f5f782523be29c1e064199a7233fae418d01b09c004043ad4eae1096d77fbe
     PLAN.md:
-      enabled: false
+      enabled: true
       descriptor_path: devcovenant/builtin/profiles/global/assets/PLAN.yaml
       project_governance_headers: true
       import_seed: true
@@ -98,7 +102,7 @@ managed-docs:
       authoritative_source: true
       body_fingerprint: 37c033f31542f7ebbe488d2e4003f0239e55490c3552bf29d8505a030e1e4175
     SPEC.md:
-      enabled: false
+      enabled: true
       descriptor_path: devcovenant/builtin/profiles/global/assets/SPEC.yaml
       project_governance_headers: true
       import_seed: true
@@ -112,7 +116,7 @@ managed-docs:
       authoritative_source: true
       body_fingerprint: d054ddccca65842a971c930dcfe0e4f1e82df601e0dcac401e9f63403ce70791
     devcovenant/README.md:
-      enabled: false
+      enabled: true
       descriptor_path: devcovenant/builtin/profiles/global/assets/devcovenant/README.yaml
       project_governance_headers: false
       import_seed: false
@@ -2032,7 +2036,7 @@ policies:
     hash: f998d85eb088d86ef9a4737d4a3170d42a5646ad5ed82ce892ad57e91935d635
     script_path: builtin/changelog_coverage.py
   dependency-management:
-    enabled: false
+    enabled: true
     custom: false
     description: Dependency Management
     policy_text: |-
@@ -2077,7 +2081,7 @@ policies:
       severity: error
       auto_fix: 'true'
       enforcement: active
-      enabled: 'false'
+      enabled: 'true'
       custom: 'false'
       surfaces:
       - id: devcovenant_runtime
@@ -2203,13 +2207,6 @@ policies:
             implementation: cp
             python_version: '3.11'
             abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
         - id: windows-py311
           marker: sys_platform == "win32" and python_version == "3.11"
           pip:
@@ -2217,19 +2214,22 @@ policies:
             implementation: cp
             python_version: '3.11'
             abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
+        - id: macos-py311
+          marker: sys_platform == "darwin" and python_version == "3.11"
           pip:
-            platform: win_amd64
+            platform: macosx_13_0_x86_64
             implementation: cp
-            python_version: '3.12'
-            abi: cp312
+            python_version: '3.11'
+            abi: cp311
+        - id: macos-py311-arm64
+          marker: sys_platform == "darwin" and python_version == "3.11"
+          pip:
+            platform: macosx_13_0_arm64
+            implementation: cp
+            python_version: '3.11'
+            abi: cp311
       - id: package_runtime
         lock_file: copernican_lib/runtime-requirements.lock
-        direct_dependency_files:
-        - pyproject.toml
-        dependency_files:
-        - pyproject.toml
         third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
         licenses_dir: copernican_lib/licenses
         report_heading: '## License Report'
@@ -2238,7 +2238,6 @@ policies:
         audit_service: pypi
         required_paths:
         - pyproject.toml
-        - '{{ PROJECT_NAME_PATH }}'
         - copernican_lib
         hash_targets:
         - id: linux-py311
@@ -2248,13 +2247,6 @@ policies:
             implementation: cp
             python_version: '3.11'
             abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
         - id: windows-py311
           marker: sys_platform == "win32" and python_version == "3.11"
           pip:
@@ -2262,13 +2254,20 @@ policies:
             implementation: cp
             python_version: '3.11'
             abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
+        - id: macos-py311
+          marker: sys_platform == "darwin" and python_version == "3.11"
           pip:
-            platform: win_amd64
+            platform: macosx_13_0_x86_64
             implementation: cp
-            python_version: '3.12'
-            abi: cp312
+            python_version: '3.11'
+            abi: cp311
+        - id: macos-py311-arm64
+          marker: sys_platform == "darwin" and python_version == "3.11"
+          pip:
+            platform: macosx_13_0_arm64
+            implementation: cp
+            python_version: '3.11'
+            abi: cp311
       license_source_overrides:
       - id: click
         kind: archive_url
@@ -2460,27 +2459,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -2488,59 +2466,15 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_arm64
                   implementation: cp
@@ -2548,10 +2482,6 @@ policies:
                   abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
-              direct_dependency_files:
-              - pyproject.toml
-              dependency_files:
-              - pyproject.toml
               third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: copernican_lib/licenses
               report_heading: '## License Report'
@@ -2560,7 +2490,6 @@ policies:
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - '{{ PROJECT_NAME_PATH }}'
               - copernican_lib
               hash_targets:
               - id: linux-py311
@@ -2570,27 +2499,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -2598,59 +2506,15 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_arm64
                   implementation: cp
@@ -2785,27 +2649,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -2813,59 +2656,15 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_arm64
                   implementation: cp
@@ -2873,10 +2672,6 @@ policies:
                   abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
-              direct_dependency_files:
-              - pyproject.toml
-              dependency_files:
-              - pyproject.toml
               third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: copernican_lib/licenses
               report_heading: '## License Report'
@@ -2885,7 +2680,6 @@ policies:
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - '{{ PROJECT_NAME_PATH }}'
               - copernican_lib
               hash_targets:
               - id: linux-py311
@@ -2895,27 +2689,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -2923,59 +2696,15 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_x86_64
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
               - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
                   platform: macosx_13_0_arm64
                   implementation: cp
@@ -2984,520 +2713,6 @@ policies:
           behavior: append
           replaced_inherited_values:
           - ()
-        user_overrides:
-          values:
-          - |-
-            - id: devcovenant_runtime
-              lock_file: devcovenant/runtime-requirements.lock
-              direct_dependency_files: []
-              third_party_file: devcovenant/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: devcovenant/licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - devcovenant/runtime-requirements.lock
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-            - id: root_workspace
-              lock_file: requirements.lock
-              direct_dependency_files:
-              - requirements.in
-              - copernican_lib/runtime-requirements.lock
-              dependency_files:
-              - requirements.in
-              - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
-              third_party_file: licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - requirements.in
-              - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-            - id: package_runtime
-              lock_file: copernican_lib/runtime-requirements.lock
-              direct_dependency_files:
-              - pyproject.toml
-              dependency_files:
-              - pyproject.toml
-              third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: copernican_lib/licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - pyproject.toml
-              - '{{ PROJECT_NAME_PATH }}'
-              - copernican_lib
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-          behavior: replace
-          replaced_inherited_values:
-          - |-
-            - id: devcovenant_runtime
-              lock_file: devcovenant/runtime-requirements.lock
-              direct_dependency_files: []
-              third_party_file: devcovenant/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: devcovenant/licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - devcovenant/runtime-requirements.lock
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311
-                marker: sys_platform == "darwin" and python_version == "3.11"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-            - id: root_workspace
-              lock_file: requirements.lock
-              direct_dependency_files:
-              - requirements.in
-              - copernican_lib/runtime-requirements.lock
-              dependency_files:
-              - requirements.in
-              - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
-              third_party_file: licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - requirements.in
-              - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
-                pip:
-                  platform: macosx_13_0_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
-                pip:
-                  platform: macosx_13_0_arm64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-            - id: package_runtime
-              lock_file: copernican_lib/runtime-requirements.lock
-              direct_dependency_files:
-              - pyproject.toml
-              dependency_files:
-              - pyproject.toml
-              third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: copernican_lib/licenses
-              report_heading: '## License Report'
-              manage_licenses_readme: 'true'
-              generate_hashes: 'true'
-              audit_service: pypi
-              required_paths:
-              - pyproject.toml
-              - '{{ PROJECT_NAME_PATH }}'
-              - copernican_lib
-              hash_targets:
-              - id: linux-py311
-                marker: sys_platform == "linux" and python_version == "3.11"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: linux-py313
-                marker: sys_platform == "linux" and python_version == "3.13"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: linux-py314
-                marker: sys_platform == "linux" and python_version == "3.14"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: windows-py311
-                marker: sys_platform == "win32" and python_version == "3.11"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: windows-py313
-                marker: sys_platform == "win32" and python_version == "3.13"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: windows-py314
-                marker: sys_platform == "win32" and python_version == "3.14"
-                pip:
-                  platform: win_amd64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311
-                marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-                  == "3.11"
-                pip:
-                  platform: macosx_13_0_x86_64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
-              - id: macos-py312
-                marker: sys_platform == "darwin" and python_version == "3.12"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
-              - id: macos-py313
-                marker: sys_platform == "darwin" and python_version == "3.13"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.13'
-                  abi: cp313
-              - id: macos-py314
-                marker: sys_platform == "darwin" and python_version == "3.14"
-                pip:
-                  platform: macosx_11_0_x86_64
-                  implementation: cp
-                  python_version: '3.14'
-                  abi: cp314
-              - id: macos-py311-arm64
-                marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-                  == "3.11"
-                pip:
-                  platform: macosx_13_0_arm64
-                  implementation: cp
-                  python_version: '3.11'
-                  abi: cp311
         effective:
           values:
           - |-
@@ -3624,13 +2839,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -3638,19 +2846,22 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
+              - id: macos-py311
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
-                  platform: win_amd64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
+                  python_version: '3.11'
+                  abi: cp311
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and python_version == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
             - id: package_runtime
               lock_file: copernican_lib/runtime-requirements.lock
-              direct_dependency_files:
-              - pyproject.toml
-              dependency_files:
-              - pyproject.toml
               third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: copernican_lib/licenses
               report_heading: '## License Report'
@@ -3659,7 +2870,6 @@ policies:
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - '{{ PROJECT_NAME_PATH }}'
               - copernican_lib
               hash_targets:
               - id: linux-py311
@@ -3669,13 +2879,6 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: linux-py312
-                marker: sys_platform == "linux" and python_version == "3.12"
-                pip:
-                  platform: manylinux2014_x86_64
-                  implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
               - id: windows-py311
                 marker: sys_platform == "win32" and python_version == "3.11"
                 pip:
@@ -3683,13 +2886,20 @@ policies:
                   implementation: cp
                   python_version: '3.11'
                   abi: cp311
-              - id: windows-py312
-                marker: sys_platform == "win32" and python_version == "3.12"
+              - id: macos-py311
+                marker: sys_platform == "darwin" and python_version == "3.11"
                 pip:
-                  platform: win_amd64
+                  platform: macosx_13_0_x86_64
                   implementation: cp
-                  python_version: '3.12'
-                  abi: cp312
+                  python_version: '3.11'
+                  abi: cp311
+              - id: macos-py311-arm64
+                marker: sys_platform == "darwin" and python_version == "3.11"
+                pip:
+                  platform: macosx_13_0_arm64
+                  implementation: cp
+                  python_version: '3.11'
+                  abi: cp311
       license_source_overrides:
         descriptor:
           values:
@@ -3731,13 +2941,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'false'
+          - 'true'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'false'
+          - 'true'
       custom:
         runtime_defaults:
           values:
@@ -3760,524 +2970,7 @@ policies:
         effective:
           values:
           - '[]'
-    metadata_warnings:
-    - policy_id: dependency-management
-      key: surfaces
-      layer: user_overrides
-      inherited_values:
-      - |-
-        - id: devcovenant_runtime
-          lock_file: devcovenant/runtime-requirements.lock
-          direct_dependency_files: []
-          third_party_file: devcovenant/licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: devcovenant/licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - devcovenant/runtime-requirements.lock
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-        - id: root_workspace
-          lock_file: requirements.lock
-          direct_dependency_files:
-          - requirements.in
-          - copernican_lib/runtime-requirements.lock
-          dependency_files:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
-          third_party_file: licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-              == "3.11"
-            pip:
-              platform: macosx_13_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311-arm64
-            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-              == "3.11"
-            pip:
-              platform: macosx_13_0_arm64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-        - id: package_runtime
-          lock_file: copernican_lib/runtime-requirements.lock
-          direct_dependency_files:
-          - pyproject.toml
-          dependency_files:
-          - pyproject.toml
-          third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: copernican_lib/licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - pyproject.toml
-          - '{{ PROJECT_NAME_PATH }}'
-          - copernican_lib
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and platform_machine == "x86_64" and python_version
-              == "3.11"
-            pip:
-              platform: macosx_13_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311-arm64
-            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-              == "3.11"
-            pip:
-              platform: macosx_13_0_arm64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-      replacement_values:
-      - |-
-        - id: devcovenant_runtime
-          lock_file: devcovenant/runtime-requirements.lock
-          direct_dependency_files: []
-          third_party_file: devcovenant/licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: devcovenant/licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - devcovenant/runtime-requirements.lock
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-        - id: root_workspace
-          lock_file: requirements.lock
-          direct_dependency_files:
-          - requirements.in
-          - copernican_lib/runtime-requirements.lock
-          dependency_files:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
-          third_party_file: licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-        - id: package_runtime
-          lock_file: copernican_lib/runtime-requirements.lock
-          direct_dependency_files:
-          - pyproject.toml
-          dependency_files:
-          - pyproject.toml
-          third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: copernican_lib/licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: 'true'
-          generate_hashes: 'true'
-          audit_service: pypi
-          required_paths:
-          - pyproject.toml
-          - '{{ PROJECT_NAME_PATH }}'
-          - copernican_lib
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-      message: user_overrides replaces inherited metadata for `dependency-management.surfaces`;
-        use overlays if you intended additive behavior.
+    metadata_warnings: []
     runtime_actions:
     - id: refresh-all
       description: Refresh configured dependency lockfiles and compliance artifacts.
@@ -4299,9 +2992,9 @@ policies:
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
-      surfaces:
+      surfaces: &id012
       - id: devcovenant_runtime
         lock_file: devcovenant/runtime-requirements.lock
         direct_dependency_files: []
@@ -4425,13 +3118,6 @@ policies:
             implementation: cp
             python_version: 3.11
             abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: 3.12
-            abi: cp312
         - id: windows-py311
           marker: sys_platform == "win32" and python_version == "3.11"
           pip:
@@ -4439,19 +3125,22 @@ policies:
             implementation: cp
             python_version: 3.11
             abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
+        - id: macos-py311
+          marker: sys_platform == "darwin" and python_version == "3.11"
           pip:
-            platform: win_amd64
+            platform: macosx_13_0_x86_64
             implementation: cp
-            python_version: 3.12
-            abi: cp312
+            python_version: 3.11
+            abi: cp311
+        - id: macos-py311-arm64
+          marker: sys_platform == "darwin" and python_version == "3.11"
+          pip:
+            platform: macosx_13_0_arm64
+            implementation: cp
+            python_version: 3.11
+            abi: cp311
       - id: package_runtime
         lock_file: copernican_lib/runtime-requirements.lock
-        direct_dependency_files:
-        - pyproject.toml
-        dependency_files:
-        - pyproject.toml
         third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
         licenses_dir: copernican_lib/licenses
         report_heading: '## License Report'
@@ -4460,7 +3149,6 @@ policies:
         audit_service: pypi
         required_paths:
         - pyproject.toml
-        - '{{ PROJECT_NAME_PATH }}'
         - copernican_lib
         hash_targets:
         - id: linux-py311
@@ -4470,13 +3158,6 @@ policies:
             implementation: cp
             python_version: 3.11
             abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: 3.12
-            abi: cp312
         - id: windows-py311
           marker: sys_platform == "win32" and python_version == "3.11"
           pip:
@@ -4484,13 +3165,20 @@ policies:
             implementation: cp
             python_version: 3.11
             abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
+        - id: macos-py311
+          marker: sys_platform == "darwin" and python_version == "3.11"
           pip:
-            platform: win_amd64
+            platform: macosx_13_0_x86_64
             implementation: cp
-            python_version: 3.12
-            abi: cp312
+            python_version: 3.11
+            abi: cp311
+        - id: macos-py311-arm64
+          marker: sys_platform == "darwin" and python_version == "3.11"
+          pip:
+            platform: macosx_13_0_arm64
+            implementation: cp
+            python_version: 3.11
+            abi: cp311
       license_source_overrides: &id013
       - id: click
         kind: archive_url
@@ -4502,203 +3190,13 @@ policies:
       dependency_globs: []
       dependency_files: []
       dependency_dirs: []
-    runtime_config_overrides:
-      surfaces: &id012
-      - id: devcovenant_runtime
-        lock_file: devcovenant/runtime-requirements.lock
-        direct_dependency_files: []
-        third_party_file: devcovenant/licenses/THIRD_PARTY_LICENSES.md
-        licenses_dir: devcovenant/licenses
-        report_heading: '## License Report'
-        manage_licenses_readme: 'true'
-        generate_hashes: 'true'
-        audit_service: pypi
-        required_paths:
-        - devcovenant/runtime-requirements.lock
-        hash_targets:
-        - id: linux-py311
-          marker: sys_platform == "linux" and python_version == "3.11"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-        - id: linux-py313
-          marker: sys_platform == "linux" and python_version == "3.13"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.13'
-            abi: cp313
-        - id: linux-py314
-          marker: sys_platform == "linux" and python_version == "3.14"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.14'
-            abi: cp314
-        - id: windows-py311
-          marker: sys_platform == "win32" and python_version == "3.11"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-        - id: windows-py313
-          marker: sys_platform == "win32" and python_version == "3.13"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.13'
-            abi: cp313
-        - id: windows-py314
-          marker: sys_platform == "win32" and python_version == "3.14"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.14'
-            abi: cp314
-        - id: macos-py311
-          marker: sys_platform == "darwin" and python_version == "3.11"
-          pip:
-            platform: macosx_11_0_x86_64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: macos-py312
-          marker: sys_platform == "darwin" and python_version == "3.12"
-          pip:
-            platform: macosx_11_0_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-        - id: macos-py313
-          marker: sys_platform == "darwin" and python_version == "3.13"
-          pip:
-            platform: macosx_11_0_x86_64
-            implementation: cp
-            python_version: '3.13'
-            abi: cp313
-        - id: macos-py314
-          marker: sys_platform == "darwin" and python_version == "3.14"
-          pip:
-            platform: macosx_11_0_x86_64
-            implementation: cp
-            python_version: '3.14'
-            abi: cp314
-      - id: root_workspace
-        lock_file: requirements.lock
-        direct_dependency_files:
-        - requirements.in
-        - copernican_lib/runtime-requirements.lock
-        dependency_files:
-        - requirements.in
-        - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
-        third_party_file: licenses/THIRD_PARTY_LICENSES.md
-        licenses_dir: licenses
-        report_heading: '## License Report'
-        manage_licenses_readme: 'true'
-        generate_hashes: 'true'
-        audit_service: pypi
-        required_paths:
-        - requirements.in
-        - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
-        hash_targets:
-        - id: linux-py311
-          marker: sys_platform == "linux" and python_version == "3.11"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-        - id: windows-py311
-          marker: sys_platform == "win32" and python_version == "3.11"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-      - id: package_runtime
-        lock_file: copernican_lib/runtime-requirements.lock
-        direct_dependency_files:
-        - pyproject.toml
-        dependency_files:
-        - pyproject.toml
-        third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-        licenses_dir: copernican_lib/licenses
-        report_heading: '## License Report'
-        manage_licenses_readme: 'true'
-        generate_hashes: 'true'
-        audit_service: pypi
-        required_paths:
-        - pyproject.toml
-        - '{{ PROJECT_NAME_PATH }}'
-        - copernican_lib
-        hash_targets:
-        - id: linux-py311
-          marker: sys_platform == "linux" and python_version == "3.11"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: linux-py312
-          marker: sys_platform == "linux" and python_version == "3.12"
-          pip:
-            platform: manylinux2014_x86_64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
-        - id: windows-py311
-          marker: sys_platform == "win32" and python_version == "3.11"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.11'
-            abi: cp311
-        - id: windows-py312
-          marker: sys_platform == "win32" and python_version == "3.12"
-          pip:
-            platform: win_amd64
-            implementation: cp
-            python_version: '3.12'
-            abi: cp312
+    runtime_config_overrides: {}
     runtime_effective_options:
       id: dependency-management
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       surfaces: *id012
       license_source_overrides: *id013
@@ -4721,11 +3219,11 @@ policies:
     runtime_state:
       surfaces:
         root_workspace:
-          input_fingerprint: 9478fdac0627ad06a5c6a236d822dcca5709adef8ccea1c1a853af36071d336a
+          input_fingerprint: 0fcb731a7d81205295a480b60afceb3f52b16212e8a3eef06d3eee5c014781c2
           output_fingerprints:
-            lock_file: 8974e1e169412c890caab9cb3934ecdcfcd47d09af1fe8ccb55c979c8c53d810
-            third_party_file: 471fc6845d528ff6444be188ba9e931e4c2498e0ca76767b3b7b7db3e0254894
-            licenses_dir: 37b84360ad3f35b0f039dc5b4494770f3497f21a5a7e647d8ba61f42e5f05230
+            lock_file: 230ee38f3203421f96831e746a8cf6af0e3de7c8afda69960a15f75be8ca833e
+            third_party_file: e758b35f7da7a57bc75a7d6967a7a3c29502251f853a6d96db07c6f5462bb14d
+            licenses_dir: fbf6ef9d16d500aabb4967ccc7f2f089498849daaa47dba176d73bc5f01daf87
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -5123,7 +3621,7 @@ policies:
     hash: a9d49992c3e5fbdeea14a78aec2ef741d04e9ecee46a7bd9e4f7f2442fd65fa2
     script_path: builtin/docstring_and_comment_coverage.py
   documentation-growth-tracking:
-    enabled: false
+    enabled: true
     custom: false
     description: Documentation Growth Tracking
     policy_text: |-
@@ -5141,7 +3639,7 @@ policies:
       severity: warning
       auto_fix: 'false'
       enforcement: active
-      enabled: 'false'
+      enabled: 'true'
       custom: 'false'
       selector_roles:
       - user_facing
@@ -6167,13 +4665,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'false'
+          - 'true'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'false'
+          - 'true'
       custom:
         runtime_defaults:
           values:
@@ -6192,7 +4690,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       selector_roles: &id020
       - user_facing
@@ -6374,7 +4872,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: false
+      enabled: true
       custom: false
       selector_roles: *id020
       exclude_prefixes: *id021
@@ -10348,7 +8846,7 @@ policies:
     hash: 5104da9383a7702ce8cc10a0c81bf89e299c02b6f9da0f14244274ffa1a9a34d
     script_path: builtin/no_raw_errors.py
   raw-string-escapes:
-    enabled: true
+    enabled: false
     custom: false
     description: Raw String Escapes
     policy_text: |-
@@ -10360,7 +8858,7 @@ policies:
       severity: warning
       auto_fix: 'false'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       include_suffixes:
       - .py
@@ -10561,13 +9059,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -10668,7 +9166,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       include_suffixes: &id083
       - .py
@@ -10727,7 +9225,7 @@ policies:
       severity: warning
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       include_suffixes: *id083
       selector_roles: *id084
@@ -12641,7 +11139,7 @@ policies:
     hash: ae76928adcea8bf38adb4fe7e5ca4edf16a124c92f5a16b5b4d790a49851586f
     script_path: builtin/version_governance.py
   version-sync:
-    enabled: true
+    enabled: false
     custom: false
     description: Version Sync
     policy_text: |-
@@ -12668,7 +11166,7 @@ policies:
       severity: error
       auto_fix: 'true'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       version_file: copernican_lib/VERSION
       target_roles:
@@ -12971,13 +11469,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -13008,7 +11506,7 @@ policies:
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       version_file: copernican_lib/VERSION
       target_roles: &id110
@@ -13044,7 +11542,7 @@ policies:
       severity: error
       auto_fix: true
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       version_file: copernican_lib/VERSION
       target_roles: *id110
@@ -15831,209 +14329,6 @@ profiles:
         strategy: module_function
         entrypoint: python_translator.py:translate
     policy_overlays:
-      dependency-management:
-        surfaces:
-        - id: root_workspace
-          lock_file: requirements.lock
-          direct_dependency_files:
-          - requirements.in
-          dependency_files:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          third_party_file: licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: licenses
-          report_heading: '## License Report'
-          manage_licenses_readme: true
-          generate_hashes: true
-          audit_service: pypi
-          required_paths:
-          - requirements.in
-          - devcovenant/runtime-requirements.lock
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-        - id: package_runtime
-          lock_file: '{{ PROJECT_NAME_PATH }}/runtime-requirements.lock'
-          direct_dependency_files:
-          - pyproject.toml
-          dependency_files:
-          - pyproject.toml
-          third_party_file: '{{ PROJECT_NAME_PATH }}/licenses/THIRD_PARTY_LICENSES.md'
-          licenses_dir: '{{ PROJECT_NAME_PATH }}/licenses'
-          report_heading: '## License Report'
-          manage_licenses_readme: true
-          generate_hashes: true
-          audit_service: pypi
-          required_paths:
-          - pyproject.toml
-          - '{{ PROJECT_NAME_PATH }}'
-          hash_targets:
-          - id: linux-py311
-            marker: sys_platform == "linux" and python_version == "3.11"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: linux-py312
-            marker: sys_platform == "linux" and python_version == "3.12"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: linux-py313
-            marker: sys_platform == "linux" and python_version == "3.13"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: linux-py314
-            marker: sys_platform == "linux" and python_version == "3.14"
-            pip:
-              platform: manylinux2014_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: windows-py311
-            marker: sys_platform == "win32" and python_version == "3.11"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: windows-py312
-            marker: sys_platform == "win32" and python_version == "3.12"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: windows-py313
-            marker: sys_platform == "win32" and python_version == "3.13"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: windows-py314
-            marker: sys_platform == "win32" and python_version == "3.14"
-            pip:
-              platform: win_amd64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
-          - id: macos-py311
-            marker: sys_platform == "darwin" and python_version == "3.11"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.11'
-              abi: cp311
-          - id: macos-py312
-            marker: sys_platform == "darwin" and python_version == "3.12"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.12'
-              abi: cp312
-          - id: macos-py313
-            marker: sys_platform == "darwin" and python_version == "3.13"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.13'
-              abi: cp313
-          - id: macos-py314
-            marker: sys_platform == "darwin" and python_version == "3.14"
-            pip:
-              platform: macosx_11_0_x86_64
-              implementation: cp
-              python_version: '3.14'
-              abi: cp314
       documentation-growth-tracking:
         user_facing_suffixes:
         - .py
@@ -16101,13 +14396,13 @@ profiles:
     run_events:
     - id: python
       entrypoint: devcovenant.core.run_events:python_run_event_adapter_factory
-    source: builtin
-    path: devcovenant/builtin/profiles/python
+    source: custom
+    path: devcovenant/custom/profiles/python
     assets_available:
-    - devcovenant/builtin/profiles/python/assets/.python-version
-    - devcovenant/builtin/profiles/python/assets/bandit.yaml
-    - devcovenant/builtin/profiles/python/assets/pyproject.toml
-    - devcovenant/builtin/profiles/python/assets/requirements.in
+    - devcovenant/custom/profiles/python/assets/.python-version
+    - devcovenant/custom/profiles/python/assets/bandit.yaml
+    - devcovenant/custom/profiles/python/assets/pyproject.toml
+    - devcovenant/custom/profiles/python/assets/requirements.in
     active: true
   python_venv:
     version: 1
@@ -16671,6 +14966,10 @@ profiles:
           - copernican_lib/runtime-requirements.lock
           third_party_file: licenses/THIRD_PARTY_LICENSES.md
           licenses_dir: licenses
+          report_heading: '## License Report'
+          manage_licenses_readme: true
+          generate_hashes: true
+          audit_service: pypi
           required_paths:
           - requirements.in
           - devcovenant/runtime-requirements.lock
@@ -16691,16 +14990,14 @@ profiles:
               python_version: '3.11'
               abi: cp311
           - id: macos-py311
-            marker: sys_platform == "darwin" and platform_machine == "x86_64" and
-              python_version == "3.11"
+            marker: sys_platform == "darwin" and python_version == "3.11"
             pip:
               platform: macosx_13_0_x86_64
               implementation: cp
               python_version: '3.11'
               abi: cp311
           - id: macos-py311-arm64
-            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-              == "3.11"
+            marker: sys_platform == "darwin" and python_version == "3.11"
             pip:
               platform: macosx_13_0_arm64
               implementation: cp
@@ -16710,6 +15007,10 @@ profiles:
           lock_file: copernican_lib/runtime-requirements.lock
           third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
           licenses_dir: copernican_lib/licenses
+          report_heading: '## License Report'
+          manage_licenses_readme: true
+          generate_hashes: true
+          audit_service: pypi
           required_paths:
           - pyproject.toml
           - copernican_lib
@@ -16729,16 +15030,14 @@ profiles:
               python_version: '3.11'
               abi: cp311
           - id: macos-py311
-            marker: sys_platform == "darwin" and platform_machine == "x86_64" and
-              python_version == "3.11"
+            marker: sys_platform == "darwin" and python_version == "3.11"
             pip:
               platform: macosx_13_0_x86_64
               implementation: cp
               python_version: '3.11'
               abi: cp311
           - id: macos-py311-arm64
-            marker: sys_platform == "darwin" and platform_machine == "arm64" and python_version
-              == "3.11"
+            marker: sys_platform == "darwin" and python_version == "3.11"
             pip:
               platform: macosx_13_0_arm64
               implementation: cp
@@ -16980,7 +15279,10 @@ inventory:
     - AGENTS.md
     - README.md
     - CONTRIBUTING.md
+    - SPEC.md
+    - PLAN.md
     - CHANGELOG.md
+    - devcovenant/README.md
   custom:
     dirs:
     - devcovenant/custom
