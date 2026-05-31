@@ -947,6 +947,12 @@ doc_quality_files:
 - AGENTS.md
 - SPEC.md
 - PLAN.md
+- ./README.md
+- ./AGENTS.md
+- ./CONTRIBUTING.md
+- ./CHANGELOG.md
+- ./SPEC.md
+- ./PLAN.md
 required_headings:
 - Overview
 require_toc: 'false'
@@ -1004,6 +1010,7 @@ user_facing_exclude_globs:
 - devcovenant/logs/**
 - devcovenant/registry/runtime/**
 - models/**
+- data/**
 - tests/**
 - devcovenant/**
 - tests/devcovenant/**
@@ -1188,6 +1195,7 @@ exclude_globs:
 - validation/manifests/**
 - licenses/THIRD_PARTY_LICENSES.md
 - copernican_lib/licenses/*.txt
+- data/**
 - devcovenant/**
 include_prefixes: []
 include_globs:
@@ -1206,6 +1214,9 @@ force_include_globs:
 - tests/devcovenant/custom/**
 - tests/**/*.py
 - tests/**/*.md
+- data/**/cosmo_parser_*.py
+- data/**/metadata_*.yml
+- data/**/metadata_*.yaml
 selector_roles:
 - include
 - exclude
@@ -1353,7 +1364,6 @@ mirror_roots:
 - data/sne=>tests/data/sne
 mirror_test_name_templates:
 - python=>test_{stem}.py
-- python=>{stem}_test.py
 test_style_requirements:
 - python=>python_unittest
 include_globs:
@@ -1713,10 +1723,11 @@ enforcement: active
 enabled: 'true'
 custom: 'false'
 include_globs:
-- data/**
+- data/**/cosmo_parser_*.py
+- data/**/metadata_*.yml
+- data/**/metadata_*.yaml
 include_suffixes: []
-include_prefixes:
-- data
+include_prefixes: []
 exclude_suffixes: []
 exclude_prefixes: []
 exclude_globs:

@@ -968,6 +968,12 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
+    - ./README.md
+    - ./AGENTS.md
+    - ./CONTRIBUTING.md
+    - ./CHANGELOG.md
+    - ./SPEC.md
+    - ./PLAN.md
     exclude_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -977,6 +983,7 @@ autogen_metadata_overlays:
     - devcovenant/config.yaml
     user_facing_exclude_globs:
     - models/**
+    - data/**
     user_facing_exclude_prefixes:
     - tests
     - devcovenant
@@ -1048,6 +1055,7 @@ autogen_metadata_overlays:
     - validation/manifests/**
     - licenses/THIRD_PARTY_LICENSES.md
     - copernican_lib/licenses/*.txt
+    - data/**
     exclude_prefixes:
     - build
     - dist
@@ -1058,6 +1066,9 @@ autogen_metadata_overlays:
     - tests/devcovenant/custom/**
     - tests/**/*.py
     - tests/**/*.md
+    - data/**/cosmo_parser_*.py
+    - data/**/metadata_*.yml
+    - data/**/metadata_*.yaml
     include_globs:
     - '*.py'
     - '*.md'
@@ -1215,8 +1226,10 @@ autogen_metadata_overlays:
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yml
     - data/**/metadata_*.yaml
-    include_prefixes:
-    - data
+    include_globs:
+    - data/**/cosmo_parser_*.py
+    - data/**/metadata_*.yml
+    - data/**/metadata_*.yaml
   security-scanner:
     exclude_globs:
     - tests/**

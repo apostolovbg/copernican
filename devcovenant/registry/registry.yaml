@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 4c7dad0d249162ac9d3433ea32b31b8765d147400461e7eae07ee9d73b65c76d
+  policy_registry_input_hash: 734f644989dced80d351926e249cb384ea4d8d64d3626e4d97079b906d0c2b74
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3739,6 +3739,12 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
+      - ./README.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./CHANGELOG.md
+      - ./SPEC.md
+      - ./PLAN.md
       required_headings:
       - Overview
       require_toc: 'false'
@@ -3796,6 +3802,7 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - models/**
+      - data/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -4226,6 +4233,12 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ./README.md
+          - ./AGENTS.md
+          - ./CONTRIBUTING.md
+          - ./CHANGELOG.md
+          - ./SPEC.md
+          - ./PLAN.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4236,6 +4249,12 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ./README.md
+          - ./AGENTS.md
+          - ./CONTRIBUTING.md
+          - ./CHANGELOG.md
+          - ./SPEC.md
+          - ./PLAN.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4246,6 +4265,12 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ./README.md
+          - ./AGENTS.md
+          - ./CONTRIBUTING.md
+          - ./CHANGELOG.md
+          - ./SPEC.md
+          - ./PLAN.md
       required_headings:
         descriptor:
           values:
@@ -4449,12 +4474,14 @@ policies:
         profile_overlays:
           values:
           - models/**
+          - data/**
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - models/**
+          - data/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4489,6 +4516,7 @@ policies:
           - devcovenant/logs/**
           - devcovenant/registry/runtime/**
           - models/**
+          - data/**
           - tests/**
           - devcovenant/**
           - tests/devcovenant/**
@@ -4790,6 +4818,12 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
+      - ./README.md
+      - ./AGENTS.md
+      - ./CONTRIBUTING.md
+      - ./CHANGELOG.md
+      - ./SPEC.md
+      - ./PLAN.md
       required_headings: &id029
       - Overview
       require_toc: false
@@ -4847,6 +4881,7 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - models/**
+      - data/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -4899,6 +4934,12 @@ policies:
     - '*.json'
     - '*.yaml'
     - '*.yml'
+    - ./AGENTS.md
+    - ./CHANGELOG.md
+    - ./CONTRIBUTING.md
+    - ./PLAN.md
+    - ./README.md
+    - ./SPEC.md
     - .github/workflows/*.yaml
     - .github/workflows/*.yml
     - .hypothesis/**
@@ -4922,6 +4963,7 @@ policies:
     - SPEC.md
     - __pycache__/**
     - build/**
+    - data/**
     - devcovenant/**
     - devcovenant/config.yaml
     - devcovenant/logs/**
@@ -5521,6 +5563,7 @@ policies:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
+      - data/**
       - devcovenant/**
       include_prefixes: []
       include_globs:
@@ -5539,6 +5582,9 @@ policies:
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
       selector_roles:
       - include
       - exclude
@@ -5899,6 +5945,7 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
+          - data/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -5915,6 +5962,7 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
+          - data/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -5955,6 +6003,7 @@ policies:
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
+          - data/**
           - devcovenant/**
       include_prefixes:
         descriptor:
@@ -6035,6 +6084,9 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6044,6 +6096,9 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6053,6 +6108,9 @@ policies:
           - tests/devcovenant/custom/**
           - tests/**/*.py
           - tests/**/*.md
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
       selector_roles:
         descriptor:
           values:
@@ -6282,6 +6340,7 @@ policies:
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
+      - data/**
       - devcovenant/**
       include_prefixes: []
       include_globs: &id045
@@ -6300,6 +6359,9 @@ policies:
       - tests/devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
       selector_roles: &id047
       - include
       - exclude
@@ -6375,6 +6437,10 @@ policies:
     - __pycache__/**
     - build/**
     - copernican_lib/licenses/*.txt
+    - data/**
+    - data/**/cosmo_parser_*.py
+    - data/**/metadata_*.yaml
+    - data/**/metadata_*.yml
     - data:/**
     - devcovenant/**
     - devcovenant/custom/**
@@ -6823,7 +6889,6 @@ policies:
       - data/sne=>tests/data/sne
       mirror_test_name_templates:
       - python=>test_{stem}.py
-      - python=>{stem}_test.py
       test_style_requirements:
       - python=>python_unittest
       include_globs:
@@ -7074,21 +7139,18 @@ policies:
         profile_overlays:
           values:
           - python=>test_{stem}.py
-          - python=>{stem}_test.py
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - python=>test_{stem}.py
-          - python=>{stem}_test.py
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - python=>test_{stem}.py
-          - python=>{stem}_test.py
       test_style_requirements:
         descriptor:
           values:
@@ -7302,7 +7364,6 @@ policies:
       - data/sne=>tests/data/sne
       mirror_test_name_templates: &id060
       - python=>test_{stem}.py
-      - python=>{stem}_test.py
       test_style_requirements: &id061
       - python=>python_unittest
       include_globs: &id062
@@ -9250,10 +9311,11 @@ policies:
       enabled: 'true'
       custom: 'false'
       include_globs:
-      - data/**
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
       include_suffixes: []
-      include_prefixes:
-      - data
+      include_prefixes: []
       exclude_suffixes: []
       exclude_prefixes: []
       exclude_globs:
@@ -9325,15 +9387,27 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
-        derived_selectors:
+        profile_overlays:
           values:
-          - data/**
-          behavior: derive
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
+          behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
-          - data/**
+          - data/**/cosmo_parser_*.py
+          - data/**/metadata_*.yml
+          - data/**/metadata_*.yaml
       include_suffixes:
         descriptor:
           values:
@@ -9351,21 +9425,9 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
-        profile_overlays:
-          values:
-          - data
-          behavior: append
-          replaced_inherited_values:
-          - ()
-        autogen_overlays:
-          values:
-          - data
-          behavior: append
-          replaced_inherited_values:
-          - ()
         effective:
           values:
-          - data
+          - '[]'
       exclude_suffixes:
         descriptor:
           values:
@@ -9535,18 +9597,19 @@ policies:
       enabled: true
       custom: false
       include_globs: &id086
-      - data/**
+      - data/**/cosmo_parser_*.py
+      - data/**/metadata_*.yml
+      - data/**/metadata_*.yaml
       include_suffixes: []
-      include_prefixes: &id087
-      - data
+      include_prefixes: []
       exclude_suffixes: []
       exclude_prefixes: []
-      exclude_globs: &id088
+      exclude_globs: &id087
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
       force_include_globs: []
-      selector_roles: &id089
+      selector_roles: &id088
       - include
       - exclude
       - force_include
@@ -9565,11 +9628,9 @@ policies:
       enabled: true
       custom: false
       include_globs: *id086
-      include_prefixes: *id087
-      exclude_globs: *id088
-      selector_roles: *id089
+      exclude_globs: *id087
+      selector_roles: *id088
     assets:
-    - data/**
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yaml
     - data/**/metadata_*.yml
@@ -9963,23 +10024,23 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: &id090
+      exclude_globs: &id089
       - tests/**
       - '**/tests/**'
       - devcovenant/**
-      include_suffixes: &id091
+      include_suffixes: &id090
       - .py
       include_prefixes: []
-      include_globs: &id092
+      include_globs: &id091
       - '*.py'
       exclude_suffixes: []
-      exclude_prefixes: &id093
+      exclude_prefixes: &id092
       - devcovenant
-      force_include_globs: &id094
+      force_include_globs: &id093
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
       - tests/**/*.py
-      selector_roles: &id095
+      selector_roles: &id094
       - exclude
       - include
       - force_include
@@ -9989,7 +10050,7 @@ policies:
       include_dirs: []
       force_include_files: []
       force_include_dirs: []
-      scanners: &id096
+      scanners: &id095
       - id: bandit
         kind: bandit
         config_file: bandit.yaml
@@ -10003,13 +10064,13 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      exclude_globs: *id090
-      include_suffixes: *id091
-      include_globs: *id092
-      exclude_prefixes: *id093
-      force_include_globs: *id094
-      selector_roles: *id095
-      scanners: *id096
+      exclude_globs: *id089
+      include_suffixes: *id090
+      include_globs: *id091
+      exclude_prefixes: *id092
+      force_include_globs: *id093
+      selector_roles: *id094
+      scanners: *id095
     assets:
     - '**/tests/**'
     - bandit.yaml
@@ -10562,48 +10623,48 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: &id097
+      symbol_kinds: &id096
       - function
       - class
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: &id098
+      assertion_signal_patterns: &id097
       - '*=>\bassert\b'
       - python=>\bassert\b
       - python=>\bself\.assert[A-Za-z_]*\s*\(
-      tautology_patterns: &id099
+      tautology_patterns: &id098
       - '*=>^\s*assert\s*\(\s*true\s*\)\s*;?\s*$'
       - '*=>^\s*assert\s+true\s*;?\s*$'
       - rust=>^\s*assert!\s*\(\s*true\s*\)\s*;?\s*$
       - python=>^\s*assert\s+True\s*$
       - python=>^\s*self\.assertTrue\s*\(\s*True\s*\)\s*$
-      include_suffixes: &id100
+      include_suffixes: &id099
       - .py
       include_prefixes: []
-      exclude_prefixes: &id101
+      exclude_prefixes: &id100
       - build
       - dist
       - node_modules
       - tests
       - devcovenant
-      exclude_globs: &id102
+      exclude_globs: &id101
       - build/**
       - dist/**
       - node_modules/**
       - tests/**
       - devcovenant/**
-      watch_dirs: &id103
+      watch_dirs: &id102
       - tests
-      tests_watch_dirs: &id104
+      tests_watch_dirs: &id103
       - tests
-      include_globs: &id105
+      include_globs: &id104
       - '*.py'
       exclude_suffixes: []
-      force_include_globs: &id106
+      force_include_globs: &id105
       - devcovenant/custom/**/*.py
       watch_files: []
-      selector_roles: &id107
+      selector_roles: &id106
       - include
       - exclude
       - watch
@@ -10627,20 +10688,20 @@ policies:
       enabled: true
       custom: false
       enforce_symbol_fidelity: true
-      symbol_kinds: *id097
+      symbol_kinds: *id096
       symbol_name_min_length: 3
       symbol_assertion_window: 2
       fixture_marker_pattern: \bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)
-      assertion_signal_patterns: *id098
-      tautology_patterns: *id099
-      include_suffixes: *id100
-      exclude_prefixes: *id101
-      exclude_globs: *id102
-      watch_dirs: *id103
-      tests_watch_dirs: *id104
-      include_globs: *id105
-      force_include_globs: *id106
-      selector_roles: *id107
+      assertion_signal_patterns: *id097
+      tautology_patterns: *id098
+      include_suffixes: *id099
+      exclude_prefixes: *id100
+      exclude_globs: *id101
+      watch_dirs: *id102
+      tests_watch_dirs: *id103
+      include_globs: *id104
+      force_include_globs: *id105
+      selector_roles: *id106
     assets:
     - build/**
     - devcovenant/**
@@ -11092,7 +11153,7 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: &id108
+      ignored_prefixes: &id107
       - devcovenant
       - models
       semver_scope_tags_required: true
@@ -11103,7 +11164,7 @@ policies:
       custom_regex_pattern: []
       custom_adapter_path: []
       selector_roles: ignored
-      ignored_globs: &id109
+      ignored_globs: &id108
       - devcovenant/**
       - models/**
       ignored_files: []
@@ -11122,13 +11183,13 @@ policies:
       version_file: copernican_lib/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      ignored_prefixes: *id108
+      ignored_prefixes: *id107
       semver_scope_tags_required: true
       pep440_allow_prereleases: true
       pep440_allow_dev_releases: true
       pep440_allow_post_releases: true
       selector_roles: ignored
-      ignored_globs: *id109
+      ignored_globs: *id108
     assets:
     - CHANGELOG.md
     - copernican_lib/VERSION
@@ -11509,17 +11570,17 @@ policies:
       enabled: false
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: &id110
+      target_roles: &id109
       - docs
       - changelog
       - package_manifest
-      role_extractors: &id111
+      role_extractors: &id110
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      role_legality_schemes: &id112
+      role_legality_schemes: &id111
       - package_manifest=>pep440
-      target_role_files: &id113
+      target_role_files: &id112
       - docs=>README.md
       - docs=>AGENTS.md
       - docs=>CONTRIBUTING.md
@@ -11531,7 +11592,7 @@ policies:
       target_role_dirs: []
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: &id114
+      selector_roles: &id113
       - target
       target_globs: []
       target_files: []
@@ -11545,13 +11606,13 @@ policies:
       enabled: false
       custom: false
       version_file: copernican_lib/VERSION
-      target_roles: *id110
-      role_extractors: *id111
-      role_legality_schemes: *id112
-      target_role_files: *id113
+      target_roles: *id109
+      role_extractors: *id110
+      role_legality_schemes: *id111
+      target_role_files: *id112
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
-      selector_roles: *id114
+      selector_roles: *id113
     assets:
     - CHANGELOG.md
     - changelog=>CHANGELOG.md
@@ -11712,11 +11773,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id115
+      launcher_files: &id114
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id116
+      selector_roles: &id115
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -11728,8 +11789,8 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id115
-      selector_roles: *id116
+      launcher_files: *id114
+      selector_roles: *id115
     assets: []
     origin: custom
     script_exists: true
@@ -11881,11 +11942,11 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: &id117
+      launcher_files: &id116
       - start.bat
       - start.sh
       - start.command
-      selector_roles: &id118
+      selector_roles: &id117
       - launcher
       launcher_globs: []
       launcher_dirs: []
@@ -11897,8 +11958,8 @@ policies:
       enforcement: active
       enabled: true
       custom: true
-      launcher_files: *id117
-      selector_roles: *id118
+      launcher_files: *id116
+      selector_roles: *id117
     assets: []
     origin: custom
     script_exists: true
@@ -12304,7 +12365,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      sync_pairs: &id119
+      sync_pairs: &id118
       - README.md=>copernican/README.md
       - docs/api_overview.md=>copernican/docs/api_overview.md
       - docs/architecture.md=>copernican/docs/architecture.md
@@ -12324,7 +12385,7 @@ policies:
       - docs/packaging.md=>copernican/docs/packaging.md
       - docs/run_manifest.md=>copernican/docs/run_manifest.md
       - docs/security_changes.md=>copernican/docs/security_changes.md
-      omit_block_pairs: &id120
+      omit_block_pairs: &id119
       - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
       rewrite_repo_relative_links: true
     runtime_config_overrides: {}
@@ -12335,8 +12396,8 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      sync_pairs: *id119
-      omit_block_pairs: *id120
+      sync_pairs: *id118
+      omit_block_pairs: *id119
       rewrite_repo_relative_links: true
     assets:
     - README.md=>copernican/README.md
@@ -14362,7 +14423,6 @@ profiles:
         - tests
         mirror_test_name_templates:
         - python=>test_{stem}.py
-        - python=>{stem}_test.py
         test_style_requirements:
         - python=>python_unittest
       tests-coverage:
@@ -14942,11 +15002,21 @@ profiles:
       changelog_file: CHANGELOG.md
     policy_overlays:
       documentation-growth-tracking:
+        doc_quality_files:
+        - ./README.md
+        - ./AGENTS.md
+        - ./CONTRIBUTING.md
+        - ./CHANGELOG.md
+        - ./SPEC.md
+        - ./PLAN.md
         user_facing_exclude_globs:
         - models/**
+        - data/**
       read-only-directories:
-        include_prefixes:
-        - data
+        include_globs:
+        - data/**/cosmo_parser_*.py
+        - data/**/metadata_*.yml
+        - data/**/metadata_*.yaml
         exclude_globs:
         - data/**/cosmo_parser_*.py
         - data/**/metadata_*.yml
@@ -15079,10 +15149,14 @@ profiles:
         - validation/manifests/**
         - licenses/THIRD_PARTY_LICENSES.md
         - copernican_lib/licenses/*.txt
+        - data/**
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py
         - tests/**/*.md
+        - data/**/cosmo_parser_*.py
+        - data/**/metadata_*.yml
+        - data/**/metadata_*.yaml
         allow_long_url_lines: true
         url_prefixes:
         - https://
