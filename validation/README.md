@@ -21,10 +21,10 @@ deterministic, reproducible across environments and continues to provide the
 golden dataset used for validation and regression tracking.
 
 ## Running validation
-1. Activate the managed environment (`start.sh`, `start.command` or
-   `start.bat`) so the pinned Python 3.11 interpreter and dependencies are
+1. Activate the managed environment and run `python -m copernican` from the
+   project root so the pinned Python 3.11 interpreter and dependencies are
    available.
-2. Execute `python copernican.py --run-validation`. The command runs every
+2. Execute `python -m copernican --run-validation`. The command runs every
    manifest in `validation/manifests/`, writes its logs/plots into
    `validation/output/<manifest_stem>/validation_run_<timestamp>/`, and saves a
    textual summary of the pass/fail status plus the output directory to

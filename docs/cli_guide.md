@@ -1,4 +1,4 @@
-# Copernican Suite CLI Guide
+# Copernican CLI Guide
 The command-line interface (CLI) drives the same manifest-based workflow as the
 GUI. This guide explains how to launch the CLI, describes every interactive
 prompt, shows how to feed saved manifests into the executor, and lists the key
@@ -6,29 +6,31 @@ environment variables that change behaviour. Keep `docs/gui_guide.md` at hand
 when you want to mirror GUI behaviour or verify what the builder is doing on
 each step.
 
-## Launchers and Entry Points
-Always work from the managed `.venv` created by the launcher scripts:
+## Entry Points
+Always work from the managed `.venv` created for the package:
 
-- `./start.command` (macOS), `./start.sh` (Linux) or `start.bat` (Windows)
-- The launchers download the pinned Python 3.11, recreate `.venv` when needed,
-  and install dependencies from `requirements.lock`
+- `python -m copernican` (preferred)
+- `copernican` when the console script is on `PATH`
+
+The entrypoint reuses the pinned environment in `.venv` and installs
+dependencies from `requirements.lock`.
 
 After the environment check you can select:
 
-1. **Start Copernican Suite (GUI)** – Runs `python copernican.py --gui`
-2. **Start Copernican Suite (CLI)** – Runs the manifest-driven CLI workflow
+1. **Start Copernican (GUI)** – Runs `python -m copernican --gui`
+2. **Start Copernican (CLI)** – Runs the manifest-driven CLI workflow
 3. **Run the unit test suite** – Delegates to `python -m unittest discover`
 4. **Enable strict warning mode** – Sets `COPERNICAN_STRICT_WARNINGS=1` for the
    session so Python warnings raise errors
 5. **Environment and dependency management** – Rebuilds `.venv` and reports the
    detected interpreter
-6. **Install Copernican Suite** – Runs `pip install .` inside the managed
+6. **Install Copernican** – Runs `pip install .` inside the managed
    interpreter
 
-You can call `python copernican.py --cli` directly after activating `.venv` if
-you do not need the curated prompts. Additional switches include `--gui`,
-`--no-gui`, `--manifest <path>` to execute a saved manifest, and `--output-dir`
-to override where run directories are created.
+You can call `python -m copernican --cli` directly after activating `.venv`
+if you do not need the curated prompts. Additional switches include `--gui`,
+`--no-gui`, `--manifest <path>` to execute a saved manifest, and
+`--output-dir` to override where run directories are created.
 
 ## Interactive CLI Workflow
 The CLI mirrors the Run Builder pages:
@@ -117,7 +119,7 @@ Both the CLI and GUI rely on
 
 1. Save or copy the manifest (e.g., `output/copernican-run_20251203_154118/
    run_manifest_20251203_154118.yml`).
-2. Run `python copernican.py --manifest /path/to/manifest.yml`.
+2. Run `python -m copernican --manifest /path/to/manifest.yml`.
 3. (Optional) Set `--output-dir` to store outputs in a deterministic folder for
    CI environments.
 

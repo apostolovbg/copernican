@@ -20,9 +20,10 @@ class BAOCovarianceTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         base = Path(__file__).resolve().parents[3]
-        data_dir = base / "data" / "bao" / "bossdr12"
+        data_dir = base / "copernican" / "datasets" / "bao" / "bossdr12"
         spec = importlib.util.spec_from_file_location(
-            "cosmo_parser_bossdr12", data_dir / "cosmo_parser_bossdr12.py"
+            "copernican.datasets.bao.bossdr12.cosmo_parser_bossdr12",
+            data_dir / "cosmo_parser_bossdr12.py",
         )
         module = importlib.util.module_from_spec(spec)
         if spec.loader is None:

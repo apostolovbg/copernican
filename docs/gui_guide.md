@@ -1,5 +1,5 @@
-# Copernican Suite GUI Guide
-The Copernican Suite GUI wraps the manifest-driven workflow in a Tkinter
+# Copernican GUI Guide
+The Copernican GUI wraps the manifest-driven workflow in a Tkinter
 application so you can compose reproducible runs without touching the console.
 This guide walks through the navigation rail, the Run Builder wizard, the Run
 Monitor console and the inline help. Refer to `docs/cli_guide.md` if you prefer
@@ -21,7 +21,7 @@ plus buttons for every page:
   cached registries. Each page includes open-folder actions, metadata panes,
   parser revalidation controls and trust notes so you can inspect assets before
   entering the builder.
-- **Validation** – Executes `python copernican.py
+- **Validation** – Executes `python -m copernican
   --run-validation`, streams the CLI output into a Run Monitor–style log box,
   saves outputs under
   `validation/output/<manifest_stem>/validation_run_<timestamp>/` and writes
@@ -122,7 +122,7 @@ The Run Monitor page exposes:
   starts producing files
 
 All warnings and system messages also appear in the footer status bar, which
-shows the Copernican Suite version on the left and the Python/venv summary on
+shows the Copernican version on the left and the Python/venv summary on
 the right.
 
 ## Embedded Help

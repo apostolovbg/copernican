@@ -1,6 +1,6 @@
-# Copernican Suite Architecture
+# Copernican Architecture
 
-The Copernican Suite splits functionality across orchestration, data, model
+The Copernican splits functionality across orchestration, data, model
 adapters, engines, and presentation layers. This document captures how these
 layers work together, describes the manifest lifecycle, and highlights key
 guardrails such as policy enforcement and dataset validation.
@@ -9,7 +9,7 @@ guardrails such as policy enforcement and dataset validation.
 
 ### Orchestration Layer
 
-- `copernican.py` – entry point that handles argument parsing (`--gui`,
+- `python -m copernican` – entry point that handles argument parsing (`--gui`,
   `--cli`, `--manifest`, `--output-dir`), dependency scanning, logging
   (including `faulthandler` and SIG handlers), and then delegates to
   `copernican_lib.run_executor.execute_run_from_manifest`.
@@ -61,8 +61,8 @@ guardrails such as policy enforcement and dataset validation.
   `README.md` and the relevant `docs/` page, and every touched file must be
   mentioned in `CHANGELOG.md`.
 - GUI and CLI UIs – the GUI draws from `docs/gui_overview.md` and
-  `docs/launcher_gui.md`, while the CLI prints the same
-  `docs/orchestration_services.md` map via `copernican.py --gui`.
+  `docs/gui_guide.md`, while the CLI prints the same
+  `docs/orchestration_services.md` map via `python -m copernican --gui`.
 - `output/` – each run writes to `copernican-run_<UTC>` directories containing
   logs, plots, NetCDF chains, and `run_manifest_*` files for reproducibility.
 

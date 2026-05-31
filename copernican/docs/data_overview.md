@@ -91,7 +91,7 @@ utilities, `read_and_sample.py`, all inputs and the UNITY tarball), but the CLI
 and GUI only consume the compressed µ/cov matrix today. When the FITS file is
 updated rerunning the UNITY steps remains an option; the README inside the
 folder explains how to reproduce it. *License:* MIT via
-[`licenses/Union3-MIT.txt`](https://github.com/apostolovbg/copernican/blob/main/../licenses/Union3-MIT.txt); cite Rubin et al.
+[`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt); cite Rubin et al.
 (2025) when publishing.
 
 ## BAO Datasets

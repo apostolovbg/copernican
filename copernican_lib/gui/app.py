@@ -1,7 +1,7 @@
 """Tkinter-based GUI scaffold with headless fallbacks.
 
-The GUI keeps a persistent navigation rail and modular content panes so the
-Copernican Suite can expose future workflows without reworking the layout.
+The GUI keeps a persistent navigation rail and modular content panes so
+Copernican can expose future workflows without reworking the layout.
 Screen-reader friendly labels and keyboard shortcuts mirror each navigation
 item to keep the flow efficient even when the mouse is unavailable.  The
 implementation is intentionally light on dependencies so users can experiment
@@ -39,6 +39,7 @@ import yaml
 from matplotlib.figure import Figure
 
 import rng_minigames
+from copernican import version
 from copernican_lib import (
     analysis,
     console_output,
@@ -52,7 +53,6 @@ from copernican_lib import (
 from copernican_lib import settings as settings_mod
 from copernican_lib import utils
 from copernican_lib import validation as validation_utils
-from copernican_lib import version
 from copernican_lib.engine_capabilities import (
     EngineCapabilities,
     EngineSetting,
@@ -1012,7 +1012,7 @@ class CopernicanGUI:
             return
         try:
             self.root = tkinter_module.Tk()
-            self.root.title(f"Copernican Suite {self.gui_version}")
+            self.root.title(f"Copernican {self.gui_version}")
             screen_width = max(self.root.winfo_screenwidth(), 1)
             screen_height = max(self.root.winfo_screenheight(), 1)
             preferred_width, preferred_height = (
@@ -1262,7 +1262,7 @@ class CopernicanGUI:
                 "citation": meta.get("citation", ""),
                 "license": meta.get(
                     "license",
-                    "Copernican Suite default license; add model notes",
+                    "Copernican default license; add model notes",
                 ),
                 "version": meta.get("version", "unknown"),
                 "badges": badges,
@@ -1303,7 +1303,7 @@ class CopernicanGUI:
                 "path": str(path),
                 "stem": path.stem,
                 "citation": getattr(module, "__doc__", ""),
-                "license": "Copernican Suite default license; verify engines",
+                "license": "Copernican default license; verify engines",
                 "version": version,
                 "label": label,
                 "badges": ["SNE", "BAO", "CMB"],
@@ -2132,7 +2132,7 @@ class CopernicanGUI:
         """Return text describing the brand for the status strip."""
 
         return (
-            f"Copernican Suite {self.gui_version}  "
+            f"Copernican {self.gui_version}  "
             "\u00a9 Apostol Apostolov & Black Epsilon Ltd."
         )
 
@@ -6760,7 +6760,7 @@ class CopernicanGUI:
             return
         content = self._read_asset_text(str(about_path))
         self._show_metadata_dialog(
-            "About the Copernican Suite",
+            "About Copernican",
             content,
             str(about_path),
         )

@@ -96,12 +96,10 @@ def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
 
     logger = logging.getLogger()
-    # Avoid patching multiple times when modules reload during tests. The
-    # marker attribute keeps repeated calls idempotent while still allowing
-    # other libraries to introspect the wrapped functions.
-    if getattr(builtins.print, "__copernican_patched__", False):
-        return
-
+    # Patch each builtin independently so repeated setup calls can recover
+    # from partial test-time monkeypatching without double-wrapping.
+    print_is_patched = getattr(builtins.print, "__copernican_patched__", False)
+    input_is_patched = getattr(builtins.input, "__copernican_patched__", False)
     orig_print = builtins.print
     orig_input = builtins.input
 
@@ -151,10 +149,12 @@ def _patch_builtins(base_dir: str) -> None:
         _log_console_message(f"{prompt}{response}")
         return response
 
-    print_patch.__copernican_patched__ = True
-    input_patch.__copernican_patched__ = True
-    builtins.print = print_patch
-    builtins.input = input_patch
+    if not print_is_patched:
+        print_patch.__copernican_patched__ = True
+        builtins.print = print_patch
+    if not input_is_patched:
+        input_patch.__copernican_patched__ = True
+        builtins.input = input_patch
 
     class _StreamProxy:
         """Proxy that mirrors stream writes to the logger."""

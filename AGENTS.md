@@ -1005,6 +1005,7 @@ user_facing_exclude_globs:
 - devcovenant/registry/runtime/**
 - models/**
 - data/**
+- copernican/datasets/**
 - tests/**
 - devcovenant/**
 - tests/devcovenant/**
@@ -1190,6 +1191,7 @@ exclude_globs:
 - licenses/THIRD_PARTY_LICENSES.md
 - copernican_lib/licenses/*.txt
 - data/**
+- copernican/datasets/**
 - devcovenant/**
 include_prefixes: []
 include_globs:
@@ -1211,6 +1213,9 @@ force_include_globs:
 - data/**/cosmo_parser_*.py
 - data/**/metadata_*.yml
 - data/**/metadata_*.yaml
+- copernican/datasets/**/cosmo_parser_*.py
+- copernican/datasets/**/metadata_*.yml
+- copernican/datasets/**/metadata_*.yaml
 selector_roles:
 - include
 - exclude
@@ -1356,6 +1361,10 @@ mirror_roots:
 - data/cmb=>tests/data/cmb
 - data/gw=>tests/data/gw
 - data/sne=>tests/data/sne
+- copernican/datasets/bao=>tests/copernican/datasets/bao
+- copernican/datasets/cmb=>tests/copernican/datasets/cmb
+- copernican/datasets/gw=>tests/copernican/datasets/gw
+- copernican/datasets/sne=>tests/copernican/datasets/sne
 mirror_test_name_templates:
 - python=>test_{stem}.py
 test_style_requirements:
@@ -1610,11 +1619,9 @@ sync_pairs:
 - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
 - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
 - docs/design_overview.md=>copernican/docs/design_overview.md
-- docs/documentation_policy.md=>copernican/docs/documentation_policy.md
 - docs/gui_guide.md=>copernican/docs/gui_guide.md
 - docs/gui_overview.md=>copernican/docs/gui_overview.md
 - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-- docs/launcher_gui.md=>copernican/docs/launcher_gui.md
 - docs/minigames.md=>copernican/docs/minigames.md
 - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
 - docs/packaging.md=>copernican/docs/packaging.md
@@ -1622,7 +1629,7 @@ sync_pairs:
 - docs/security_changes.md=>copernican/docs/security_changes.md
 omit_block_pairs:
 - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
-rewrite_repo_relative_links: 'true'
+rewrite_repo_relative_links: 'false'
 ```
 
 Ensure package-facing documentation files stay synchronized with their
@@ -1714,19 +1721,24 @@ id: read-only-directories
 severity: error
 auto_fix: 'false'
 enforcement: active
-enabled: 'true'
+enabled: 'false'
 custom: 'false'
 include_globs:
 - data/**
+- copernican/datasets/**
 include_suffixes: []
 include_prefixes:
 - data
+- copernican/datasets
 exclude_suffixes: []
 exclude_prefixes: []
 exclude_globs:
 - data/**/cosmo_parser_*.py
 - data/**/metadata_*.yml
 - data/**/metadata_*.yaml
+- copernican/datasets/**/cosmo_parser_*.py
+- copernican/datasets/**/metadata_*.yml
+- copernican/datasets/**/metadata_*.yaml
 force_include_globs: []
 selector_roles:
 - include
@@ -1797,61 +1809,6 @@ separate workflow glue. Use only documented reviewed allow markers such
 as translator `security-scanner: allow` comments or backend-native
 suppressions like `# nosec` when a security review approves the
 exception.
-
-
----
-
-## Policy: Start Script Guardrails
-
-```policy-def
-id: start-script-guardrails
-severity: error
-auto_fix: 'false'
-enforcement: active
-enabled: 'true'
-custom: 'true'
-launcher_files:
-- start.bat
-- start.sh
-- start.command
-selector_roles:
-- launcher
-launcher_globs: []
-launcher_dirs: []
-```
-
-Keep the launcher scripts on the managed Python 3.11 bootstrap path and
-retain the explicit safety checks that prevent blank download URLs, stale
-virtual environments, and accidental system-Python leakage. The launchers
-also need to preserve the package-manager notice so privilege escalation
-remains explicit.
-
-
----
-
-## Policy: Start Script Parity
-
-```policy-def
-id: start-script-parity
-severity: error
-auto_fix: 'false'
-enforcement: active
-enabled: 'true'
-custom: 'true'
-launcher_files:
-- start.bat
-- start.sh
-- start.command
-selector_roles:
-- launcher
-launcher_globs: []
-launcher_dirs: []
-```
-
-Keep the Copernican launcher scripts in sync on their visible menu labels,
-prompts, and launcher flow. The Windows batch file, Unix shell script, and
-macOS command launcher should present the same user-facing contract so
-platform-specific entrypoints do not drift apart.
 
 
 ---
@@ -1943,7 +1900,7 @@ custom: 'false'
 scheme: semver
 enforce_bumping: 'true'
 canonical_versions_required: 'true'
-version_file: copernican_lib/VERSION
+version_file: copernican/VERSION
 changelog_file: CHANGELOG.md
 changelog_header_prefix: '## Version'
 ignored_prefixes:
@@ -1986,7 +1943,7 @@ auto_fix: 'true'
 enforcement: active
 enabled: 'false'
 custom: 'false'
-version_file: copernican_lib/VERSION
+version_file: copernican/VERSION
 target_roles:
 - docs
 - changelog

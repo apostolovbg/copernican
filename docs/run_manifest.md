@@ -24,16 +24,16 @@ continue adjusting the builder without affecting real runs. Save buttons stay
 disabled until seed, model, data and engine selections exist, and Start Run
 renames the temporary workspace to the timestamped `copernican-run_<ts>` folder
 and file before invoking the CLI worker so downstream tooling always sees the
-canonical manifest. CLI `copernican.py` invocations now pass the manifest
-directly to `copernican_lib.run_executor.execute_run_from_manifest` so the same
-manifest runner handles both interfaces, and `copernican.main_workflow` just
-relays the manifest to that helper.
+canonical manifest. CLI `python -m copernican` invocations now pass the
+manifest directly to `copernican_lib.run_executor.execute_run_from_manifest`
+so the same manifest runner handles both interfaces, and
+`copernican.main_workflow` just relays the manifest to that helper.
 
 Headless runs can pin the manifest location with the `--manifest` flag to
-`copernican.py` so CI pipelines always collect the same path even when output
-directories change.
+`python -m copernican` so CI pipelines always collect the same path even
+when output directories change.
 
-- Copernican Suite version under `copernican.version`.
+- Copernican version under `copernican.version`.
 - Selected model and engine names with their versions plus a `selection` block
   so GUI import/export can re-seed new runs without retyping choices.
 - Parameter priors and the random seed captured at start confirmation.

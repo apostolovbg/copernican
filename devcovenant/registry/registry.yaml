@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: ad6e5fee655b64ba9dcefef47f6fe7e2f4ccdc901d01fb515fad7bb1a0acfb8a
+  policy_registry_input_hash: b18a79ab61dc732eae0bf0772d40a380feeb4bcb2b29a71e9f227596c357df9b
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3797,6 +3797,7 @@ policies:
       - devcovenant/registry/runtime/**
       - models/**
       - data/**
+      - copernican/datasets/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -4465,6 +4466,7 @@ policies:
           values:
           - models/**
           - data/**
+          - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4472,6 +4474,7 @@ policies:
           values:
           - models/**
           - data/**
+          - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4507,6 +4510,7 @@ policies:
           - devcovenant/registry/runtime/**
           - models/**
           - data/**
+          - copernican/datasets/**
           - tests/**
           - devcovenant/**
           - tests/devcovenant/**
@@ -4883,6 +4887,7 @@ policies:
       - devcovenant/registry/runtime/**
       - models/**
       - data/**
+      - copernican/datasets/**
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
@@ -4969,6 +4974,7 @@ policies:
     - SPEC.md
     - __pycache__/**
     - build/**
+    - copernican/datasets/**
     - data/**
     - devcovenant/**
     - devcovenant/config.yaml
@@ -5570,6 +5576,7 @@ policies:
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
       - data/**
+      - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
       include_globs:
@@ -5591,6 +5598,9 @@ policies:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
       selector_roles:
       - include
       - exclude
@@ -5952,6 +5962,7 @@ policies:
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
           - data/**
+          - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -5969,6 +5980,7 @@ policies:
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
           - data/**
+          - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6010,6 +6022,7 @@ policies:
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican_lib/licenses/*.txt
           - data/**
+          - copernican/datasets/**
           - devcovenant/**
       include_prefixes:
         descriptor:
@@ -6093,6 +6106,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6105,6 +6121,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -6117,6 +6136,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
       selector_roles:
         descriptor:
           values:
@@ -6347,6 +6369,7 @@ policies:
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
       - data/**
+      - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
       include_globs: &id045
@@ -6368,6 +6391,9 @@ policies:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
       selector_roles: &id047
       - include
       - exclude
@@ -6442,6 +6468,10 @@ policies:
     - .yml
     - __pycache__/**
     - build/**
+    - copernican/datasets/**
+    - copernican/datasets/**/cosmo_parser_*.py
+    - copernican/datasets/**/metadata_*.yaml
+    - copernican/datasets/**/metadata_*.yml
     - copernican_lib/licenses/*.txt
     - data/**
     - data/**/cosmo_parser_*.py
@@ -6893,6 +6923,10 @@ policies:
       - data/cmb=>tests/data/cmb
       - data/gw=>tests/data/gw
       - data/sne=>tests/data/sne
+      - copernican/datasets/bao=>tests/copernican/datasets/bao
+      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+      - copernican/datasets/gw=>tests/copernican/datasets/gw
+      - copernican/datasets/sne=>tests/copernican/datasets/sne
       mirror_test_name_templates:
       - python=>test_{stem}.py
       test_style_requirements:
@@ -7115,6 +7149,10 @@ policies:
           - data/cmb=>tests/data/cmb
           - data/gw=>tests/data/gw
           - data/sne=>tests/data/sne
+          - copernican/datasets/bao=>tests/copernican/datasets/bao
+          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+          - copernican/datasets/gw=>tests/copernican/datasets/gw
+          - copernican/datasets/sne=>tests/copernican/datasets/sne
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7125,6 +7163,10 @@ policies:
           - data/cmb=>tests/data/cmb
           - data/gw=>tests/data/gw
           - data/sne=>tests/data/sne
+          - copernican/datasets/bao=>tests/copernican/datasets/bao
+          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+          - copernican/datasets/gw=>tests/copernican/datasets/gw
+          - copernican/datasets/sne=>tests/copernican/datasets/sne
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7135,6 +7177,10 @@ policies:
           - data/cmb=>tests/data/cmb
           - data/gw=>tests/data/gw
           - data/sne=>tests/data/sne
+          - copernican/datasets/bao=>tests/copernican/datasets/bao
+          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+          - copernican/datasets/gw=>tests/copernican/datasets/gw
+          - copernican/datasets/sne=>tests/copernican/datasets/sne
       mirror_test_name_templates:
         descriptor:
           values:
@@ -7368,6 +7414,10 @@ policies:
       - data/cmb=>tests/data/cmb
       - data/gw=>tests/data/gw
       - data/sne=>tests/data/sne
+      - copernican/datasets/bao=>tests/copernican/datasets/bao
+      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+      - copernican/datasets/gw=>tests/copernican/datasets/gw
+      - copernican/datasets/sne=>tests/copernican/datasets/sne
       mirror_test_name_templates: &id060
       - python=>test_{stem}.py
       test_style_requirements: &id061
@@ -7422,6 +7472,10 @@ policies:
       selector_roles: *id066
     assets:
     - build/**
+    - copernican/datasets/bao=>tests/copernican/datasets/bao
+    - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+    - copernican/datasets/gw=>tests/copernican/datasets/gw
+    - copernican/datasets/sne=>tests/copernican/datasets/sne
     - data/bao=>tests/data/bao
     - data/cmb=>tests/data/cmb
     - data/gw=>tests/data/gw
@@ -9303,7 +9357,7 @@ policies:
     hash: fb80691eec0a876b9b48f371936e92ed95511e88dee77870782d4babd6658418
     script_path: builtin/raw_string_escapes.py
   read-only-directories:
-    enabled: true
+    enabled: false
     custom: false
     description: Read Only Directories
     policy_text: |-
@@ -9314,19 +9368,24 @@ policies:
       severity: error
       auto_fix: 'false'
       enforcement: active
-      enabled: 'true'
+      enabled: 'false'
       custom: 'false'
       include_globs:
       - data/**
+      - copernican/datasets/**
       include_suffixes: []
       include_prefixes:
       - data
+      - copernican/datasets
       exclude_suffixes: []
       exclude_prefixes: []
       exclude_globs:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
       force_include_globs: []
       selector_roles:
       - include
@@ -9395,12 +9454,14 @@ policies:
         derived_selectors:
           values:
           - data/**
+          - copernican/datasets/**
           behavior: derive
           replaced_inherited_values:
           - ()
         effective:
           values:
           - data/**
+          - copernican/datasets/**
       include_suffixes:
         descriptor:
           values:
@@ -9421,18 +9482,21 @@ policies:
         profile_overlays:
           values:
           - data
+          - copernican/datasets
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - data
+          - copernican/datasets
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - data
+          - copernican/datasets
       exclude_suffixes:
         descriptor:
           values:
@@ -9465,6 +9529,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9473,6 +9540,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9481,6 +9551,9 @@ policies:
           - data/**/cosmo_parser_*.py
           - data/**/metadata_*.yml
           - data/**/metadata_*.yaml
+          - copernican/datasets/**/cosmo_parser_*.py
+          - copernican/datasets/**/metadata_*.yml
+          - copernican/datasets/**/metadata_*.yaml
       force_include_globs:
         descriptor:
           values:
@@ -9574,13 +9647,13 @@ policies:
           - ()
         policy_state:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         effective:
           values:
-          - 'true'
+          - 'false'
       custom:
         runtime_defaults:
           values:
@@ -9599,19 +9672,24 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       include_globs: &id086
       - data/**
+      - copernican/datasets/**
       include_suffixes: []
       include_prefixes: &id087
       - data
+      - copernican/datasets
       exclude_suffixes: []
       exclude_prefixes: []
       exclude_globs: &id088
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
       force_include_globs: []
       selector_roles: &id089
       - include
@@ -9629,13 +9707,18 @@ policies:
       severity: error
       auto_fix: false
       enforcement: active
-      enabled: true
+      enabled: false
       custom: false
       include_globs: *id086
       include_prefixes: *id087
       exclude_globs: *id088
       selector_roles: *id089
     assets:
+    - copernican/datasets
+    - copernican/datasets/**
+    - copernican/datasets/**/cosmo_parser_*.py
+    - copernican/datasets/**/metadata_*.yaml
+    - copernican/datasets/**/metadata_*.yml
     - data/**
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yaml
@@ -10743,7 +10826,7 @@ policies:
       scheme: semver
       enforce_bumping: 'true'
       canonical_versions_required: 'true'
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
       ignored_prefixes:
@@ -10880,17 +10963,17 @@ policies:
           - ()
         profile_overlays:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
           behavior: replace
         autogen_overlays:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
           behavior: replace
           replaced_inherited_values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
         effective:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
       changelog_file:
         descriptor:
           values: []
@@ -11156,7 +11239,7 @@ policies:
       scheme: semver
       enforce_bumping: true
       canonical_versions_required: true
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
       ignored_prefixes: &id108
@@ -11186,7 +11269,7 @@ policies:
       scheme: semver
       enforce_bumping: true
       canonical_versions_required: true
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       changelog_file: CHANGELOG.md
       changelog_header_prefix: '## Version'
       ignored_prefixes: *id108
@@ -11198,7 +11281,7 @@ policies:
       ignored_globs: *id109
     assets:
     - CHANGELOG.md
-    - copernican_lib/VERSION
+    - copernican/VERSION
     - devcovenant/**
     - models/**
     origin: builtin
@@ -11235,7 +11318,7 @@ policies:
       enforcement: active
       enabled: 'false'
       custom: 'false'
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       target_roles:
       - docs
       - changelog
@@ -11318,17 +11401,17 @@ policies:
           - ()
         profile_overlays:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
           behavior: replace
         autogen_overlays:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
           behavior: replace
           replaced_inherited_values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
         effective:
           values:
-          - copernican_lib/VERSION
+          - copernican/VERSION
       target_roles:
         descriptor:
           values:
@@ -11575,7 +11658,7 @@ policies:
       enforcement: active
       enabled: false
       custom: false
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       target_roles: &id110
       - docs
       - changelog
@@ -11611,7 +11694,7 @@ policies:
       enforcement: active
       enabled: false
       custom: false
-      version_file: copernican_lib/VERSION
+      version_file: copernican/VERSION
       target_roles: *id110
       role_extractors: *id111
       role_legality_schemes: *id112
@@ -11622,7 +11705,7 @@ policies:
     assets:
     - CHANGELOG.md
     - changelog=>CHANGELOG.md
-    - copernican_lib/VERSION
+    - copernican/VERSION
     - docs=>AGENTS.md
     - docs=>CONTRIBUTING.md
     - docs=>PLAN.md
@@ -11632,345 +11715,6 @@ policies:
     script_exists: true
     hash: 71c0dacd56a276ac347155fbfedd104d762795075a892725e0e2851f94b81748
     script_path: builtin/version_sync.py
-  start-script-guardrails:
-    enabled: true
-    custom: true
-    description: Start Script Guardrails
-    policy_text: |-
-      Keep the launcher scripts on the managed Python 3.11 bootstrap path and
-      retain the explicit safety checks that prevent blank download URLs, stale
-      virtual environments, and accidental system-Python leakage. The launchers
-      also need to preserve the package-manager notice so privilege escalation
-      remains explicit.
-    metadata:
-      id: start-script-guardrails
-      severity: error
-      auto_fix: 'false'
-      enforcement: active
-      enabled: 'true'
-      custom: 'true'
-      launcher_files:
-      - start.bat
-      - start.sh
-      - start.command
-      selector_roles:
-      - launcher
-      launcher_globs: []
-      launcher_dirs: []
-    metadata_resolution:
-      id:
-        descriptor:
-          values:
-          - start-script-guardrails
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        runtime_identity:
-          values:
-          - start-script-guardrails
-          behavior: replace
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - start-script-guardrails
-      severity:
-        descriptor:
-          values:
-          - error
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - error
-      auto_fix:
-        descriptor:
-          values:
-          - 'false'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - 'false'
-      enforcement:
-        descriptor:
-          values:
-          - active
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - active
-      enabled:
-        descriptor:
-          values:
-          - 'true'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        policy_state:
-          values:
-          - 'true'
-          behavior: replace
-          replaced_inherited_values:
-          - 'true'
-        effective:
-          values:
-          - 'true'
-      custom:
-        descriptor:
-          values:
-          - 'true'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        runtime_custom_source:
-          values:
-          - 'true'
-          behavior: replace
-          replaced_inherited_values:
-          - ()
-          note: Resolved from active custom policy script.
-        effective:
-          values:
-          - 'true'
-      launcher_files:
-        descriptor:
-          values:
-          - start.bat
-          - start.sh
-          - start.command
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - start.bat
-          - start.sh
-          - start.command
-      selector_roles:
-        derived_selectors:
-          values:
-          - launcher
-          behavior: derive
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - launcher
-      launcher_globs:
-        effective:
-          values:
-          - '[]'
-      launcher_dirs:
-        effective:
-          values:
-          - '[]'
-    metadata_warnings: []
-    runtime_actions: []
-    commands: []
-    runtime_metadata_options:
-      id: start-script-guardrails
-      severity: error
-      auto_fix: false
-      enforcement: active
-      enabled: true
-      custom: true
-      launcher_files: &id115
-      - start.bat
-      - start.sh
-      - start.command
-      selector_roles: &id116
-      - launcher
-      launcher_globs: []
-      launcher_dirs: []
-    runtime_config_overrides: {}
-    runtime_effective_options:
-      id: start-script-guardrails
-      severity: error
-      auto_fix: false
-      enforcement: active
-      enabled: true
-      custom: true
-      launcher_files: *id115
-      selector_roles: *id116
-    assets: []
-    origin: custom
-    script_exists: true
-    hash: 17ef4af089aa73da64265fe26c7a1d251f8bf299bf662b7c0c9385570d5bdf9b
-    script_path: custom/start_script_guardrails.py
-  start-script-parity:
-    enabled: true
-    custom: true
-    description: Start Script Parity
-    policy_text: |-
-      Keep the Copernican launcher scripts in sync on their visible menu labels,
-      prompts, and launcher flow. The Windows batch file, Unix shell script, and
-      macOS command launcher should present the same user-facing contract so
-      platform-specific entrypoints do not drift apart.
-    metadata:
-      id: start-script-parity
-      severity: error
-      auto_fix: 'false'
-      enforcement: active
-      enabled: 'true'
-      custom: 'true'
-      launcher_files:
-      - start.bat
-      - start.sh
-      - start.command
-      selector_roles:
-      - launcher
-      launcher_globs: []
-      launcher_dirs: []
-    metadata_resolution:
-      id:
-        descriptor:
-          values:
-          - start-script-parity
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        runtime_identity:
-          values:
-          - start-script-parity
-          behavior: replace
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - start-script-parity
-      severity:
-        descriptor:
-          values:
-          - error
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - error
-      auto_fix:
-        descriptor:
-          values:
-          - 'false'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - 'false'
-      enforcement:
-        descriptor:
-          values:
-          - active
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - active
-      enabled:
-        descriptor:
-          values:
-          - 'true'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        policy_state:
-          values:
-          - 'true'
-          behavior: replace
-          replaced_inherited_values:
-          - 'true'
-        effective:
-          values:
-          - 'true'
-      custom:
-        descriptor:
-          values:
-          - 'true'
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        runtime_custom_source:
-          values:
-          - 'true'
-          behavior: replace
-          replaced_inherited_values:
-          - ()
-          note: Resolved from active custom policy script.
-        effective:
-          values:
-          - 'true'
-      launcher_files:
-        descriptor:
-          values:
-          - start.bat
-          - start.sh
-          - start.command
-          behavior: base
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - start.bat
-          - start.sh
-          - start.command
-      selector_roles:
-        derived_selectors:
-          values:
-          - launcher
-          behavior: derive
-          replaced_inherited_values:
-          - ()
-        effective:
-          values:
-          - launcher
-      launcher_globs:
-        effective:
-          values:
-          - '[]'
-      launcher_dirs:
-        effective:
-          values:
-          - '[]'
-    metadata_warnings: []
-    runtime_actions: []
-    commands: []
-    runtime_metadata_options:
-      id: start-script-parity
-      severity: error
-      auto_fix: false
-      enforcement: active
-      enabled: true
-      custom: true
-      launcher_files: &id117
-      - start.bat
-      - start.sh
-      - start.command
-      selector_roles: &id118
-      - launcher
-      launcher_globs: []
-      launcher_dirs: []
-    runtime_config_overrides: {}
-    runtime_effective_options:
-      id: start-script-parity
-      severity: error
-      auto_fix: false
-      enforcement: active
-      enabled: true
-      custom: true
-      launcher_files: *id117
-      selector_roles: *id118
-    assets: []
-    origin: custom
-    script_exists: true
-    hash: 8d90247980aec23d3378cd3aea06555c2aed69f99f5859688d962898e02c61c4
-    script_path: custom/start_script_parity.py
   package-artifact-mirror:
     enabled: true
     custom: false
@@ -12155,11 +11899,9 @@ policies:
       - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
       - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
       - docs/design_overview.md=>copernican/docs/design_overview.md
-      - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
       - docs/gui_guide.md=>copernican/docs/gui_guide.md
       - docs/gui_overview.md=>copernican/docs/gui_overview.md
       - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-      - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
       - docs/minigames.md=>copernican/docs/minigames.md
       - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
       - docs/packaging.md=>copernican/docs/packaging.md
@@ -12167,7 +11909,7 @@ policies:
       - docs/security_changes.md=>copernican/docs/security_changes.md
       omit_block_pairs:
       - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
-      rewrite_repo_relative_links: 'true'
+      rewrite_repo_relative_links: 'false'
     metadata_resolution:
       id:
         descriptor:
@@ -12233,11 +11975,9 @@ policies:
           - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
           - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
           - docs/design_overview.md=>copernican/docs/design_overview.md
-          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
           - docs/gui_guide.md=>copernican/docs/gui_guide.md
           - docs/gui_overview.md=>copernican/docs/gui_overview.md
           - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
           - docs/minigames.md=>copernican/docs/minigames.md
           - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
           - docs/packaging.md=>copernican/docs/packaging.md
@@ -12257,11 +11997,9 @@ policies:
           - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
           - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
           - docs/design_overview.md=>copernican/docs/design_overview.md
-          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
           - docs/gui_guide.md=>copernican/docs/gui_guide.md
           - docs/gui_overview.md=>copernican/docs/gui_overview.md
           - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
           - docs/minigames.md=>copernican/docs/minigames.md
           - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
           - docs/packaging.md=>copernican/docs/packaging.md
@@ -12281,11 +12019,9 @@ policies:
           - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
           - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
           - docs/design_overview.md=>copernican/docs/design_overview.md
-          - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
           - docs/gui_guide.md=>copernican/docs/gui_guide.md
           - docs/gui_overview.md=>copernican/docs/gui_overview.md
           - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-          - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
           - docs/minigames.md=>copernican/docs/minigames.md
           - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
           - docs/packaging.md=>copernican/docs/packaging.md
@@ -12322,19 +12058,19 @@ policies:
           - ()
         profile_overlays:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
           - 'true'
         autogen_overlays:
           values:
-          - 'true'
+          - 'false'
           behavior: replace
           replaced_inherited_values:
-          - 'true'
+          - 'false'
         effective:
           values:
-          - 'true'
+          - 'false'
       enabled:
         runtime_defaults:
           values:
@@ -12371,7 +12107,7 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      sync_pairs: &id119
+      sync_pairs: &id115
       - README.md=>copernican/README.md
       - docs/api_overview.md=>copernican/docs/api_overview.md
       - docs/architecture.md=>copernican/docs/architecture.md
@@ -12381,19 +12117,17 @@ policies:
       - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
       - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
       - docs/design_overview.md=>copernican/docs/design_overview.md
-      - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
       - docs/gui_guide.md=>copernican/docs/gui_guide.md
       - docs/gui_overview.md=>copernican/docs/gui_overview.md
       - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-      - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
       - docs/minigames.md=>copernican/docs/minigames.md
       - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
       - docs/packaging.md=>copernican/docs/packaging.md
       - docs/run_manifest.md=>copernican/docs/run_manifest.md
       - docs/security_changes.md=>copernican/docs/security_changes.md
-      omit_block_pairs: &id120
+      omit_block_pairs: &id116
       - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
-      rewrite_repo_relative_links: true
+      rewrite_repo_relative_links: false
     runtime_config_overrides: {}
     runtime_effective_options:
       id: package-doc-sync
@@ -12402,9 +12136,9 @@ policies:
       enforcement: active
       enabled: true
       custom: false
-      sync_pairs: *id119
-      omit_block_pairs: *id120
-      rewrite_repo_relative_links: true
+      sync_pairs: *id115
+      omit_block_pairs: *id116
+      rewrite_repo_relative_links: false
     assets:
     - README.md=>copernican/README.md
     - docs/api_overview.md=>copernican/docs/api_overview.md
@@ -12415,11 +12149,9 @@ policies:
     - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
     - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
     - docs/design_overview.md=>copernican/docs/design_overview.md
-    - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
     - docs/gui_guide.md=>copernican/docs/gui_guide.md
     - docs/gui_overview.md=>copernican/docs/gui_overview.md
     - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-    - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
     - docs/minigames.md=>copernican/docs/minigames.md
     - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
     - docs/packaging.md=>copernican/docs/packaging.md
@@ -15011,13 +14743,18 @@ profiles:
         user_facing_exclude_globs:
         - models/**
         - data/**
+        - copernican/datasets/**
       read-only-directories:
         include_prefixes:
         - data
+        - copernican/datasets
         exclude_globs:
         - data/**/cosmo_parser_*.py
         - data/**/metadata_*.yml
         - data/**/metadata_*.yaml
+        - copernican/datasets/**/cosmo_parser_*.py
+        - copernican/datasets/**/metadata_*.yml
+        - copernican/datasets/**/metadata_*.yaml
       dependency-management:
         surfaces:
         - id: root_workspace
@@ -15110,7 +14847,7 @@ profiles:
               abi: cp311
       version-governance:
         scheme: semver
-        version_file: copernican_lib/VERSION
+        version_file: copernican/VERSION
         changelog_file: CHANGELOG.md
         changelog_header_prefix: '## Version'
         canonical_versions_required: true
@@ -15120,7 +14857,7 @@ profiles:
         - devcovenant
         - models
       version-sync:
-        version_file: copernican_lib/VERSION
+        version_file: copernican/VERSION
         changelog_file: CHANGELOG.md
         changelog_header_prefix: '## Version'
         target_roles:
@@ -15147,6 +14884,7 @@ profiles:
         - licenses/THIRD_PARTY_LICENSES.md
         - copernican_lib/licenses/*.txt
         - data/**
+        - copernican/datasets/**
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py
@@ -15154,6 +14892,9 @@ profiles:
         - data/**/cosmo_parser_*.py
         - data/**/metadata_*.yml
         - data/**/metadata_*.yaml
+        - copernican/datasets/**/cosmo_parser_*.py
+        - copernican/datasets/**/metadata_*.yml
+        - copernican/datasets/**/metadata_*.yaml
         allow_long_url_lines: true
         url_prefixes:
         - https://
@@ -15213,6 +14954,10 @@ profiles:
         - data/cmb=>tests/data/cmb
         - data/gw=>tests/data/gw
         - data/sne=>tests/data/sne
+        - copernican/datasets/bao=>tests/copernican/datasets/bao
+        - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+        - copernican/datasets/gw=>tests/copernican/datasets/gw
+        - copernican/datasets/sne=>tests/copernican/datasets/sne
         - devcovenant/custom=>tests/devcovenant/custom
       package-doc-sync:
         sync_pairs:
@@ -15225,11 +14970,9 @@ profiles:
         - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
         - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
         - docs/design_overview.md=>copernican/docs/design_overview.md
-        - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
         - docs/gui_guide.md=>copernican/docs/gui_guide.md
         - docs/gui_overview.md=>copernican/docs/gui_overview.md
         - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-        - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
         - docs/minigames.md=>copernican/docs/minigames.md
         - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
         - docs/packaging.md=>copernican/docs/packaging.md
@@ -15237,7 +14980,7 @@ profiles:
         - docs/security_changes.md=>copernican/docs/security_changes.md
         omit_block_pairs:
         - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
-        rewrite_repo_relative_links: true
+        rewrite_repo_relative_links: false
       last-updated:
         allowed_globs:
         - README.md

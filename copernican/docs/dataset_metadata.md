@@ -79,7 +79,7 @@ fields are preserved and can be used by new engines or analysis scripts.
   covariance block consumed by `cosmo_parser_union3.py`. If the dataset
   requires an additive SNe intercept treatment, say so explicitly so the
   likelihood can marginalize it before residual comparison.
-- Point readers to [`licenses/Union3-MIT.txt`](https://github.com/apostolovbg/copernican/blob/main/../licenses/Union3-MIT.txt)
+- Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt)
   whenever spelling out the dataset's usage terms in release notes or
   documentation.
 

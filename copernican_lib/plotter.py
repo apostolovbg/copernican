@@ -16,8 +16,9 @@ import matplotlib.pyplot as plt
 import numpy
 from matplotlib.colors import ListedColormap
 
+from copernican import version as version_module
+
 from . import latex_utils
-from . import version as version_module
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
@@ -276,10 +277,10 @@ def _copernican_version() -> str:
 
     The plotting layer executes in subprocesses launched by Matplotlib and by
     the optimisation engines.  Import errors bubbled up when
-    ``copernican_lib.version.get_version`` was absent even though the module
+    ``copernican.version.get_version`` was absent even though the module
     itself was present, preventing residual plots from rendering on macOS.
     Falling back to the "unknown" placeholder keeps Matplotlib usable while
-    matching the final stage of :func:`copernican_lib.version.get_version`.
+    matching the final stage of :func:`copernican.version.get_version`.
     """
 
     getter = getattr(version_module, "get_version", None)

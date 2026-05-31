@@ -1,6 +1,6 @@
 # GUI Overview
 
-The Copernican Suite GUI uses a lightweight Tkinter scaffold so it can run
+The Copernican GUI uses a lightweight Tkinter scaffold so it can run
 inside the managed virtual environment without extra framework dependencies.
 The navigation rail stays visible at all times and the Home screen shows recent
 runs, pinned configurations and explicit quick actions for launching the Run
@@ -128,7 +128,7 @@ compare any historical results without re-running the CLI workflow.
 
 ## Validation
 The navigation rail now includes a **Validation** button positioned between
-Engines and Settings. When you press it, the GUI launches `python copernican.py
+Engines and Settings. When you press it, the GUI launches `python -m copernican
 --run-validation`, streams the CLI stdout into the Run Monitor–style log box,
 writes the NEW_CONFIG, plots and logs into
 `validation/output/<manifest_stem>/validation_run_<timestamp>/`, and stores the
@@ -190,13 +190,11 @@ The Help panel now renders `README.md` inside a scrollable text widget,
 complete with the `docs/banner_github.png` image so documentation stays
 available even when operators prefer the GUI to the CLI.
 
-## Launching the GUI from the Start Scripts
+## Launching the GUI
 
-Selecting the GUI option from `start.sh`, `start.command` or `start.bat` still
-runs the shared `copernican.py --gui` entry point, but now each launcher prints
-a clear message before handing the window over to the detached process and
-waits for `copernican.py` to confirm the handoff. The new [Launchers and
-GUI](docs/launcher_gui.md) guide documents how the start scripts set
-`COPERNICAN_DETACH_GUI=1`, rely on `copernican.py` for concurrency and keep the
-terminal focused on the orchestration services log so operators quickly see
-whether the GUI actually started.
+Run the GUI from the managed `.venv` with `python -m copernican --gui` or the
+`copernican` console script. The package entrypoint now owns the launch flow,
+so there are no shell wrappers to keep in sync and no detached start scripts to
+maintain. The GUI still sets `COPERNICAN_DETACH_GUI=1` when it needs to hand
+off control to a background window, but the handoff happens through the
+package workflow instead of a separate launcher layer.

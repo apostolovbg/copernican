@@ -1,7 +1,7 @@
-"""Startup dependency helpers for the Copernican Suite CLI.
+"""Startup dependency helpers for the Copernican CLI.
 
 These routines isolate dependency discovery, caching and optional test
-execution so ``copernican.py`` can defer heavy imports until the runtime
+execution so the package entrypoint can defer heavy imports until the runtime
 configuration is known. Consolidating the logic here keeps the launcher thin
 and ensures the same caching rules apply across interactive and automated
 invocations.
@@ -175,11 +175,13 @@ def _gather_required_packages(
     ----------
     search_dirs
         Optional set of directories to scan. When omitted the helper walks the
-        installed Copernican library and bundled ``engines`` tree.
+        installed Copernican package, bundled datasets, and ``engines``
+        tree.
     """
 
     if search_dirs is None:
         search_dirs = [
+            str(Path(__file__).resolve().parents[2] / "copernican"),
             str(Path(__file__).resolve().parents[2] / "copernican_lib"),
             str(Path(__file__).resolve().parents[2] / "engines"),
         ]
@@ -250,7 +252,7 @@ def _gather_required_packages(
         pkg
         for pkg in pkg_names
         if pkg not in ignore
-        and not pkg.startswith(("copernican_lib", "engines"))
+        and not pkg.startswith(("copernican", "copernican_lib", "engines"))
     }
     _store_dependency_cache(snapshot, search_dirs, filtered)
     console.write(
@@ -264,11 +266,11 @@ def check_dependencies() -> None:
 
     The helper no longer attempts to install dependencies on the user's
     behalf. Failing fast when packages are missing keeps the CLI aligned with
-    the managed launcher scripts, which already provision the pinned
-    ``requirements.lock`` set before handing control to ``copernican.py``.
-    Operators encountering missing wheels must re-run the appropriate
-    ``start.*`` helper to rebuild the environment rather than invoking ``pip``
-    from inside the program.
+    the managed environment, which provisions the pinned ``requirements.lock``
+    set before handing control to ``python -m copernican``.
+    Operators encountering missing wheels must repair the local ``.venv`` and
+    relaunch the package entrypoint rather than invoking ``pip`` from inside
+    the program.
     """
 
     console.write("--- Running System Dependency Check ---")
@@ -276,8 +278,8 @@ def check_dependencies() -> None:
     if Path(sys.prefix).resolve().name != ".venv":
         console.write(
             (
-                "ERROR: The Copernican Suite must run inside the local "
-                "'.venv'. Launch the appropriate start script for your OS."
+                "ERROR: Copernican must run inside the local '.venv'. "
+                "Launch it with `python -m copernican`."
             ),
             error=True,
         )
@@ -299,8 +301,8 @@ def check_dependencies() -> None:
         console.write(
             (
                 "Missing packages detected: "
-                f"{', '.join(sorted(missing))}. Please rerun the "
-                "appropriate start script to rebuild the managed environment."
+                f"{', '.join(sorted(missing))}. Please repair the local "
+                "'.venv' and relaunch `python -m copernican`."
             ),
             error=True,
         )

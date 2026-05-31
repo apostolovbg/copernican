@@ -299,7 +299,7 @@ ci_and_test:
 
 pre_commit:
   overlays:
-    exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
+    exclude: (?x)^(?:data|copernican/datasets)/(?!.*(?:cosmo_parser_|metadata_)).*
   overrides: {}
 
 # -------------------------------------------------------------------
@@ -420,10 +420,8 @@ policy_state:
   package-artifact-mirror: true
   package-doc-sync: true
   raw-string-escapes: false
-  read-only-directories: true
+  read-only-directories: false
   security-scanner: true
-  start-script-guardrails: true
-  start-script-parity: true
   tests-coverage: true
   version-governance: false
   version-sync: false
@@ -440,6 +438,7 @@ ignore:
   patterns:
   - devcovenant/config.yaml
   - data/**/README.*
+  - copernican/datasets/**/README.*
   - .vscode/**
   - .idea/**
   - '*.egg-info/**'
@@ -979,6 +978,7 @@ autogen_metadata_overlays:
     user_facing_exclude_globs:
     - models/**
     - data/**
+    - copernican/datasets/**
     user_facing_exclude_prefixes:
     - tests
     - devcovenant
@@ -1051,6 +1051,7 @@ autogen_metadata_overlays:
     - licenses/THIRD_PARTY_LICENSES.md
     - copernican_lib/licenses/*.txt
     - data/**
+    - copernican/datasets/**
     exclude_prefixes:
     - build
     - dist
@@ -1064,6 +1065,9 @@ autogen_metadata_overlays:
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yml
     - data/**/metadata_*.yaml
+    - copernican/datasets/**/cosmo_parser_*.py
+    - copernican/datasets/**/metadata_*.yml
+    - copernican/datasets/**/metadata_*.yaml
     include_globs:
     - '*.py'
     - '*.md'
@@ -1138,6 +1142,10 @@ autogen_metadata_overlays:
     - data/cmb=>tests/data/cmb
     - data/gw=>tests/data/gw
     - data/sne=>tests/data/sne
+    - copernican/datasets/bao=>tests/copernican/datasets/bao
+    - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+    - copernican/datasets/gw=>tests/copernican/datasets/gw
+    - copernican/datasets/sne=>tests/copernican/datasets/sne
     mirror_test_name_templates:
     - python=>test_{stem}.py
     test_style_requirements:
@@ -1195,7 +1203,7 @@ autogen_metadata_overlays:
   package-doc-sync:
     omit_block_pairs:
     - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
-    rewrite_repo_relative_links: 'true'
+    rewrite_repo_relative_links: 'false'
     sync_pairs:
     - README.md=>copernican/README.md
     - docs/api_overview.md=>copernican/docs/api_overview.md
@@ -1206,11 +1214,9 @@ autogen_metadata_overlays:
     - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
     - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
     - docs/design_overview.md=>copernican/docs/design_overview.md
-    - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
     - docs/gui_guide.md=>copernican/docs/gui_guide.md
     - docs/gui_overview.md=>copernican/docs/gui_overview.md
     - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-    - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
     - docs/minigames.md=>copernican/docs/minigames.md
     - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
     - docs/packaging.md=>copernican/docs/packaging.md
@@ -1221,8 +1227,12 @@ autogen_metadata_overlays:
     - data/**/cosmo_parser_*.py
     - data/**/metadata_*.yml
     - data/**/metadata_*.yaml
+    - copernican/datasets/**/cosmo_parser_*.py
+    - copernican/datasets/**/metadata_*.yml
+    - copernican/datasets/**/metadata_*.yaml
     include_prefixes:
     - data
+    - copernican/datasets
   security-scanner:
     exclude_globs:
     - tests/**
@@ -1280,7 +1290,7 @@ autogen_metadata_overlays:
     pep440_allow_prereleases: 'true'
     scheme: semver
     semver_scope_tags_required: 'true'
-    version_file: copernican_lib/VERSION
+    version_file: copernican/VERSION
   version-sync:
     changelog_file: CHANGELOG.md
     changelog_header_prefix: '## Version'
@@ -1302,7 +1312,7 @@ autogen_metadata_overlays:
     - docs
     - changelog
     - package_manifest
-    version_file: copernican_lib/VERSION
+    version_file: copernican/VERSION
 
 # Human-owned subsection.
 

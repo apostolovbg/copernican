@@ -80,6 +80,251 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-05-31:
+  Change: Moved the runtime boundary into `copernican/`, synced the
+    mirrored docs, and removed the obsolete launcher surfaces.
+  Why: Removed the stale script-era entrypoints and policy pages so
+    Slice 2 can treat `python -m copernican` as the canonical launch
+    path and keep the bundled dataset tree as the live runtime home.
+  Impact: Aligned package metadata, docs, tests and DevCovenant config
+    around the `copernican` package while preserving the bundled
+    dataset layout and mirrored documentation tree.
+  Files:
+  .pre-commit-config.yaml
+  AGENTS.md
+  CHANGELOG.md
+  MANIFEST.in
+  README.md
+  copernican/README.md
+  copernican_lib/VERSION
+  copernican/VERSION
+  copernican/__init__.py
+  copernican/__main__.py
+  copernican/datasets/__init__.py
+  copernican/datasets/bao/bossdr12/BAO_consensus_covtot_dM_Hz.txt
+  copernican/datasets/bao/bossdr12/BAO_consensus_covtot_dV_FAP.txt
+  copernican/datasets/bao/bossdr12/BAO_consensus_results_dM_Hz.txt
+  copernican/datasets/bao/bossdr12/BAO_consensus_results_dV_FAP.txt
+  copernican/datasets/bao/bossdr12/cosmo_parser_bossdr12.py
+  copernican/datasets/bao/bossdr12/metadata_bossdr12.yml
+  copernican/datasets/bao/compound/compound.yml
+  copernican/datasets/bao/compound/cosmo_parser_compound.py
+  copernican/datasets/bao/compound/metadata_compound.yml
+  copernican/datasets/cmb/planck2018lite/c_matrix_plik_v22.dat
+  copernican/datasets/cmb/planck2018lite/cl_cmb_plik_v22.dat
+  copernican/datasets/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py
+  copernican/datasets/cmb/planck2018lite/metadata_planck2018lite.yml
+  copernican/datasets/cmb/planck2018lite/readme_baseline.md
+  copernican/datasets/gw/placeholder/cosmo_parser_gw_placeholder.py
+  copernican/datasets/gw/placeholder/metadata_gw_placeholder.yml
+  copernican/datasets/sne/jla2014/+footg5.gif
+  copernican/datasets/sne/jla2014/+footg8.gif
+  copernican/datasets/sne/jla2014/ReadMe.txt
+  copernican/datasets/sne/jla2014/cosmo_parser_jla2014.py
+  copernican/datasets/sne/jla2014/metadata_jla2014.yml
+  copernican/datasets/sne/jla2014/tablef1.dat
+  copernican/datasets/sne/jla2014/tablef2.fit
+  copernican/datasets/sne/jla2014/tablef3.dat
+  copernican/datasets/sne/jla2014/tablef4.fit
+  copernican/datasets/sne/pantheon/Pantheon+SH0ES.dat
+  copernican/datasets/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
+  copernican/datasets/sne/pantheon/cosmo_parser_pantheon.py
+  copernican/datasets/sne/pantheon/metadata_pantheon.yml
+  copernican/datasets/sne/union3/.gitignore
+  copernican/datasets/sne/union3/BAO_results.txt
+  copernican/datasets/sne/union3/LICENSE
+  copernican/datasets/sne/union3/all_samples_union3_cosmo=2.npz
+  copernican/datasets/sne/union3/cosmo_parser_union3.py
+  copernican/datasets/sne/union3/inputs_Amanullah10_CNIa02_CSP_CalanTololo_C\
+    fA1_CfA2_CfA3_CfA4_DES3_Deep_DES3_Shallow_ESSENCE_Foundation_LOSS_MCT_NB99\
+    _Pan-STARRS_Riess07_SDSS_SNLS_SuzukiRubin_Tonry03_LSQ+LCO_LSQ_knop03_Krisc\
+    iunas.pickle
+  copernican/datasets/sne/union3/lcfit_Union3.tar.gz
+  copernican/datasets/sne/union3/metadata_union3.yml
+  copernican/datasets/sne/union3/mu_mat_union3_cosmo=2_mu.fits
+  copernican/datasets/sne/union3/paramfile_Union3.txt
+  copernican/datasets/sne/union3/stan_code_fixed.txt
+  copernican/datasets/sne/union3/stan_code_simple.txt
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/cli_guide.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_licenses.md
+  copernican/docs/dataset_metadata.md
+  copernican/docs/design_overview.md
+  copernican/docs/documentation_policy.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/launcher_gui.md
+  copernican/docs/orchestration_services.md
+  copernican/docs/packaging.md
+  copernican/docs/run_manifest.md
+  copernican/docs/security_changes.md
+  copernican/version.py
+  copernican.py
+  copernican/workflow.py
+  copernican_lib/cli/dependencies.py
+  copernican_lib/dataset_registry.py
+  copernican_lib/gui/app.py
+  copernican_lib/logger.py
+  copernican_lib/plotter.py
+  copernican_lib/run_manifest.py
+  copernican_lib/version.py
+  devcovenant/config.yaml
+  devcovenant/custom/policies/start_script_guardrails/__init__.py
+  devcovenant/custom/policies/start_script_guardrails/start_script_guardrail\
+    s.py
+  devcovenant/custom/policies/start_script_guardrails/start_script_guardrail\
+    s.yaml
+  devcovenant/custom/policies/start_script_parity/__init__.py
+  devcovenant/custom/policies/start_script_parity/start_script_parity.py
+  devcovenant/custom/policies/start_script_parity/start_script_parity.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/bao_compound_dataset_format.md
+  docs/cli_guide.md
+  docs/dataset_licenses.md
+  docs/design_overview.md
+  docs/documentation_policy.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/launcher_gui.md
+  docs/orchestration_services.md
+  docs/packaging.md
+  docs/run_manifest.md
+  docs/security_changes.md
+  pyproject.toml
+  start.bat
+  start.command
+  start.sh
+  tests/copernican/__init__.py
+  tests/copernican/datasets/__init__.py
+  tests/copernican/datasets/bao/__init__.py
+  tests/copernican/datasets/bao/bossdr12/__init__.py
+  tests/copernican/datasets/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/copernican/datasets/bao/compound/__init__.py
+  tests/copernican/datasets/bao/compound/test_cosmo_parser_compound.py
+  tests/copernican/datasets/cmb/__init__.py
+  tests/copernican/datasets/cmb/planck2018lite/__init__.py
+  tests/copernican/datasets/cmb/planck2018lite/test_cosmo_parser_cmb_planck2\
+    018lite.py
+  tests/copernican/datasets/gw/__init__.py
+  tests/copernican/datasets/gw/placeholder/__init__.py
+  tests/copernican/datasets/gw/placeholder/test_cosmo_parser_gw_placeholder.\
+    py
+  tests/copernican/datasets/sne/__init__.py
+  tests/copernican/datasets/sne/jla2014/__init__.py
+  tests/copernican/datasets/sne/jla2014/test_cosmo_parser_jla2014.py
+  tests/copernican/datasets/sne/pantheon/__init__.py
+  tests/copernican/datasets/sne/pantheon/test_cosmo_parser_pantheon.py
+  tests/copernican/datasets/sne/union3/__init__.py
+  tests/copernican/datasets/sne/union3/test_cosmo_parser_union3.py
+  tests/copernican/datasets/synthetic/bao.csv
+  tests/copernican/datasets/synthetic/cmb.csv
+  tests/copernican/datasets/synthetic/cosmo_parser_synthetic.py
+  tests/copernican/datasets/synthetic/metadata_synthetic.yml
+  tests/copernican/datasets/synthetic/model.yml
+  tests/copernican/datasets/synthetic/model_plugin.py
+  tests/copernican/datasets/synthetic/sne.csv
+  tests/copernican/datasets/synthetic/test_synthetic_integration.py
+  tests/copernican/test_version.py
+  tests/test_copernican.py
+  tests/copernican/test_workflow.py
+  tests/copernican_lib/cli/test_dependencies.py
+  tests/copernican_lib/likelihoods/test_bao.py
+  tests/copernican_lib/test_data_hashes.py
+  tests/copernican_lib/test_packaging_configuration.py
+  tests/copernican_lib/test_run_manifest.py
+  tests/copernican_lib/test_version_env.py
+  tests/copernican_lib/test_version_fallback.py
+  tests/copernican_lib/test_version_file.py
+  tests/devcovenant/custom/policies/start_script_guardrails/__init__.py
+  tests/devcovenant/custom/policies/start_script_guardrails/test_start_scrip\
+    t_guardrails.py
+  tests/devcovenant/custom/policies/start_script_parity/__init__.py
+  tests/devcovenant/custom/policies/start_script_parity/test_start_script_pa\
+    rity.py
+  tests/test_start_scripts.py
+  validation/README.md
+
+- 2026-05-31:
+  Change: Removed the obsolete launcher and documentation-policy pages,
+    aligned the root and package READMEs with the package entrypoint,
+    and tightened the package metadata around `copernican/VERSION`
+    and license assets.
+  Why: Slice 2 now treats `python -m copernican` as the canonical
+    entrypoint, so the docs, package metadata and generated DevCovenant
+    outputs had to stop referring to deleted shell launchers and stale
+    policy pages.
+  Impact: The root and package docs now mirror each other, the package
+    metadata names the runtime version file and bundled datasets
+    semantically, and the refreshed DevCovenant config no longer carries
+    the removed launcher policy surfaces.
+  Files:
+  README.md
+  copernican/README.md
+  docs/
+  copernican/docs/
+  pyproject.toml
+  MANIFEST.in
+  AGENTS.md
+  .pre-commit-config.yaml
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  copernican/version.py
+  copernican/workflow.py
+  copernican_lib/cli/dependencies.py
+  copernican_lib/run_manifest.py
+
+- 2026-05-31:
+  Change: Created the `copernican` package shell, moved the version
+    helper into `copernican/version.py`, copied curated datasets into
+    `copernican/datasets/`, and aligned runtime imports with the new
+    package-owned paths.
+  Why: Began Slice 2 by moving the runtime boundary into the package
+    and dropping the old `copernican_lib.version` contract in favor of
+    the tracked `copernican/VERSION` file.
+  Impact: `copernican` now owns package version lookup, dataset
+    discovery, and entrypoint imports while the DevCovenant profile
+    follows the new package layout.
+  Files:
+  CHANGELOG.md
+  .pre-commit-config.yaml
+  AGENTS.md
+  MANIFEST.in
+  copernican/VERSION
+  copernican/__init__.py
+  copernican/__main__.py
+  copernican/datasets/
+  copernican/version.py
+  copernican.py
+  copernican/workflow.py
+  copernican_lib/cli/dependencies.py
+  copernican_lib/dataset_registry.py
+  copernican_lib/gui/app.py
+  copernican_lib/plotter.py
+  copernican_lib/run_manifest.py
+  copernican_lib/VERSION
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  docs/packaging.md
+  copernican/docs/packaging.md
+  pyproject.toml
+  start.command
+  start.sh
+  tests/copernican/
+  tests/copernican/datasets/
+  tests/copernican_lib/test_run_manifest.py
+  tests/copernican_lib/test_version_env.py
+  tests/copernican_lib/test_version_file.py
+  tests/copernican_lib/test_version_fallback.py
+  copernican_lib/version.py
+
+- 2026-05-31:
   Change: Recorded the Slice 1 baseline, updated parser digests, and
     removed the translator-test assert.
   Why: Documented the current slice state and aligned parser discovery

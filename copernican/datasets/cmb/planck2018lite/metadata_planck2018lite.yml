@@ -1,0 +1,71 @@
+dataset_name: Planck 2018 Lite TT/TE/EE
+dataset_id: planck_2018_lite
+version: "2018"
+description: >-
+  Temperature and polarization power spectra from the Planck 2018 lite
+  release with full covariance matrix
+citation: >-
+  Aghanim et al. - A&A 641 (2020) A1 - DOI:
+  https://doi.org/10.1051/0004-6361/201833880
+license: >-
+  Planck 2018 data released under the ESA Planck Legacy Archive terms; see
+  https://www.cosmos.esa.int/web/planck/pla
+author: >-
+  Aghanim N., Akrami Y., Arroja F., Ashdown M., Aumont J., Baccigalupi C.,
+  Ballardini M., Banday A.J., Barreiro R.B., Bartolo N., Basak S., Battye R.,
+  Benabed K., Bernard J., Bersanelli M., Bielewicz P., Bock J.J., Bond J.R.,
+  Borrill J., Bouchet F.R., Boulanger F., Bucher M., Burigana C., Butler R.C.,
+  Calabrese E., Cardoso J., Carron J., Casaponsa B., Challinor A., Chiang
+  H.C., Colombo L.P.L., Combet C., Contreras D., Crill B.P., Cuttaia F., de
+  Bernardis P., de Zotti G., Delabrouille J., Delouis J., Desert F., Di
+  Valentino E., Dickinson C., Diego J.M., Donzelli S., Dore O., Douspis M.,
+  Ducout A., Dupac X., Efstathiou G., Elsner F., Ensslin T.A., Eriksen H.K.,
+  Falgarone E., Fantaye Y., Fergusson J., Fernandez-Cobos R., Finelli F.,
+  Forastieri F., Frailis M., Franceschi E., Frolov A., Galeotta S., Galli S.,
+  Ganga K., Genova-Santos R.T., Gerbino M., Ghosh T., Gonzalez-Nuevo J.,
+  Gorski K.M., Gratton S., Gruppuso A., Gudmundsson J.E., Hamann J., Handley
+  W., Hansen F.K., Helou G., Herranz D., Hildebrandt S.R., Hivon E., Huang Z.,
+  Jaffe A.H., Jones W.C., Karakci A., Keihanen E., Keskitalo R., Kiiveri K.,
+  Kim J., Kisner T.S., Knox L., Krachmalnicoff N., Kunz M., Kurki-Suonio H.,
+  Lagache G., Lamarre J., Langer M., Lasenby A., Lattanzi M., Lawrence C.R.,
+  Le Jeune M., Leahy J.P., Lesgourgues J., Levrier F., Lewis A., Liguori M.,
+  Lilje P.B., Lilley M., Lindholm V., Lopez-Caniego M., Lubin P.M., Ma Y.,
+  Macias-Perez J.F., Maggio G., Maino D., Mandolesi N., Mangilli A.,
+  Marcos-Caballero A., Maris M., Martin P.G., Martinelli M.,
+  Martinez-Gonzalez E., Matarrese S., Mauri N., McEwen J.D., Meerburg P.D.,
+  Meinhold P.R., Melchiorri A., Mennella A., Migliaccio M., Millea M., Mitra
+  S., Miville-Deschenes M., Molinari D., Moneti A., Montier L., Morgante G.,
+  Moss A., Mottet S., Munchmeyer M., Natoli P., Norgaard-Nielsen H.U.,
+  Oxborrow C.A., Pagano L., Paoletti D., Partridge B., Patanchon G., Pearson
+  T.J., Peel M., Peiris H.V., Perrotta F., Pettorino V., Piacentini F.,
+  Polastri L., Polenta G., Puget J., Rachen J.P., Reinecke M., Remazeilles M.,
+  Renault C., Renzi A., Rocha G., Rosset C., Roudier G., Rubino-Martin J.A.,
+  Ruiz-Granados B., Salvati L., Sandri M., Savelainen M., Scott D., Shellard
+  E.P.S., Shiraishi M., Sirignano C., Sirri G., Spencer L.D., Sunyaev R.,
+  Suur-Uski A., Tauber J.A., Tavagnacco D., Tenti M., Terenzi L.,
+  Toffolatti L.,
+  Tomasi M., Trombetti T., Valiviita J., Van Tent B., Vibert L., Vielva P.,
+  Villa F., Vittorio N., Wandelt B.D., Wehus I.K., White M., White S.D.M.,
+  Zacchei A., Zonca A.
+title: >-
+  Planck2018 results: I. Overview and the cosmological legacy of Planck
+article: 2020
+volume: 641
+ISSN: 1432-0746
+arXiv: https://arxiv.org/abs/1807.06205v2
+url: http://dx.doi.org/10.1051/0004-6361/201833880
+DOI: 10.1051/0004-6361/201833880
+number:
+journal: Astronomy & Astrophysics
+publisher: EDP Sciences
+year: 2020
+month: sep
+pages: A1
+data_files:
+  - cl_cmb_plik_v22.dat
+  - c_matrix_plik_v22.dat
+notes: >-
+  TT, TE and EE angular power spectra are converted to D_l and aligned to
+  the TT multipole grid. The covariance matrix is read from the binary
+  release, transformed to D_l units and inverted when well conditioned.
+  Diagonal errors are stored for plotting and as a fallback.

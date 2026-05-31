@@ -1,7 +1,7 @@
-"""Run manifest generator for the Copernican Suite.
+"""Run manifest generator for Copernican.
 
 The manifest records critical information required to reproduce a run. It
-captures the Copernican Suite version, model and engine details, parameter
+captures the Copernican version, model and engine details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
 back unambiguously. CMB entries now include both the background adapter
@@ -17,20 +17,22 @@ from typing import Any, Dict, Iterable, Optional
 
 import yaml
 
+from copernican import version as version_module
+
 from . import utils
-from . import version as version_module
 from .likelihoods import cmb as cmb_module
 
 
 def _copernican_version() -> str:
-    """Return the suite version while tolerating missing helpers.
+    """Return the Copernican version while tolerating missing helpers.
 
     Some macOS installations reported ``ImportError`` when
-    ``copernican_lib.version.get_version`` was unavailable even though the
+    ``copernican.version.get_version`` was unavailable even though the
     module itself existed. Importing the attribute lazily keeps the
-    ``run_manifest`` module importable in that scenario so ``start.command``
-    can still launch and emit a manifest. Falling back to ``"0+unknown"``
-    mirrors the final stage inside :func:`copernican_lib.version.get_version`
+    ``run_manifest`` module importable in that scenario so
+    ``python -m copernican`` can still launch and emit a manifest.
+    Falling back to ``"0+unknown"``
+    mirrors the final stage inside :func:`copernican.version.get_version`
     and ensures the manifest always carries a deterministic placeholder.
     """
 

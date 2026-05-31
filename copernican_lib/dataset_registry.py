@@ -4,17 +4,17 @@
 """Dataset registry and loader helpers.
 
 The suite treats observational data as pluggable components. Parsers live
-alongside their raw tables under ``data/<type>/<source>/`` and register
-themselves through decorators provided here. At runtime ``copernican.py``
-imports these modules to populate interactive menus and returns uniformly
-formatted :class:`pandas.DataFrame` objects with metadata stored on
-``.attrs``. The registry terminology below now emphasises the dictionary nature
-of each lookup table so callers no longer confuse the registries with
-single-function entry points. Each observable category attaches a uniform set
-of attributes including reproducibility hashes, dataset versions and explicit
-statistical independence statements. The additional metadata is consumed by the
-run manifest builder and keeps the suite honest about likelihood assumptions.
-
+alongside their raw tables under ``copernican/datasets/<type>/<source>/``
+and register themselves through decorators provided here. At runtime
+``copernican.py`` imports these modules to populate interactive menus and
+returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
+stored on ``.attrs``. The registry terminology below now emphasises the
+dictionary nature of each lookup table so callers no longer confuse the
+registries with single-function entry points. Each observable category
+attaches a uniform set of attributes including reproducibility hashes,
+dataset versions and explicit statistical independence statements. The
+additional metadata is consumed by the run manifest builder and keeps the
+suite honest about likelihood assumptions.
 """
 
 import hashlib
@@ -255,7 +255,8 @@ def discover_trusted_parsers(
 ):
     """Import parser modules and populate registries with dataset metadata.
 
-    The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
+    The scan walks ``copernican/datasets/`` recursively, ignoring
+    ``placeholder`` folders so
     unfinished datasets stay hidden.  Candidate paths are resolved with
     ``os.path.realpath`` and rejected if they are symlinks or if the resolved
     location escapes ``base_dir``.  Each parser is then verified against
@@ -267,7 +268,9 @@ def discover_trusted_parsers(
     """
     if base_dir is None:
         base_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "data"
+            os.path.dirname(os.path.dirname(__file__)),
+            "copernican",
+            "datasets",
         )
     # Resolve the discovery root to an absolute path so subsequent checks can
     # verify that candidate entries never escape the repository via symlinks
@@ -276,7 +279,10 @@ def discover_trusted_parsers(
     global _DISCOVERY_PERFORMED, _DISCOVERY_ROOT
     if not force and _DISCOVERY_PERFORMED and _DISCOVERY_ROOT == base_dir:
         return
-    console.write("Dataset discovery: scanning data/ for trusted parsers...")
+    console.write(
+        "Dataset discovery: scanning copernican/datasets/ for trusted "
+        "parsers..."
+    )
     _DISCOVERY_PERFORMED = True
     _DISCOVERY_ROOT = base_dir
     for dtype in ("sne", "bao", "cmb", "gw"):
@@ -318,7 +324,9 @@ def discover_trusted_parsers(
             placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
-                    module_name = f"data.{dtype}.{source}.{fname[:-3]}"
+                    module_name = (
+                        f"copernican.datasets.{dtype}.{source}.{fname[:-3]}"
+                    )
                     file_path = os.path.join(src_dir, fname)
                     if os.path.islink(file_path):
                         continue

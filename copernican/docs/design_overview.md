@@ -1,9 +1,9 @@
 
 This document expands on the high-level summary in the README by tracing how
-the Copernican Suite organises its architecture. The command-line launcher
-(`copernican.py`) steers each run, the `copernican_lib/` package gathers shared
-infrastructure, and the `engines/`, `models/` and `data/` directories plug into
-that foundation to deliver repeatable analyses.
+the Copernican organises its architecture. The command-line launcher
+(`python -m copernican`) steers each run, the `copernican_lib/` package
+gathers shared infrastructure, and the `engines/`, `models/` and `data/`
+directories plug into that foundation to deliver repeatable analyses.
 
 The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
 renderers invoked by the launcher. Keeping those prompts in a dedicated package
@@ -13,13 +13,13 @@ described throughout this document.
 
 ## Architectural map
 
-* `copernican.py` assembles run manifests, dispatches dataset loaders and
-  prepares engine inputs so Stage 2 sampling always starts from a consistent
-  configuration. The launcher keeps Stage 1 focused on reproducibility by
-  leading with the seed dialog, surfaces every validation error encountered
-  during model parsing or engine import and leaves a deliberate spacer after
-  logging initialisation so the console flow stays tidy without redundant
-  banners.
+* `python -m copernican` assembles run manifests, dispatches dataset loaders
+  and prepares engine inputs so Stage 2 sampling always starts from a
+  consistent configuration. The launcher keeps Stage 1 focused on
+  reproducibility by leading with the seed dialog, surfaces every validation
+  error encountered during model parsing or engine import and leaves a
+  deliberate spacer after logging initialisation so the console flow stays
+  tidy without redundant banners.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
@@ -215,14 +215,12 @@ stay deterministic. The packaging guide in `docs/packaging.md` details how to
 build wheels and source distributions while keeping runtime metadata aligned
 with the tracked version file.
 
-## Launcher parity and CI
+## Package entrypoint and CI
 
-The cross-platform launchers (`start.sh`, `start.command`, `start.bat`) all set
-the managed virtual environment and pipe environment variables into
-`copernican.py`. Each launcher keeps multi-line PowerShell calls inside helper
-routines to avoid parser confusion on Windows. The CI suite mirrors these
-launchers by invoking the same dependency checks, sampler smoke tests and
-metadata validators across Linux, macOS and Windows runners.
+The package entrypoint keeps the managed virtual environment active and
+receives environment variables through `python -m copernican`. The CI suite
+mirrors that entrypoint by invoking the same dependency checks, sampler smoke
+tests and metadata validators across Linux, macOS and Windows runners.
 
 ## Future probes and extensibility
 

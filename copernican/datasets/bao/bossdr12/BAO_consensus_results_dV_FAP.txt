@@ -1,0 +1,7 @@
+# BAO-only consensus results, Alam et al. 2016
+0.38 dV/rs 9.98071
+0.38 F_AP  0.409682
+0.51 dV/rs 12.6687
+0.51 F_AP  0.598924
+0.61 dV/rs 14.4966
+0.61 F_AP  0.761459

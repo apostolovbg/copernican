@@ -49,10 +49,9 @@ Homepage = "https://github.com/apostolovbg/copernican"
 Repository = "https://github.com/apostolovbg/copernican"
 
 [project.scripts]
-copernican = "copernican:main_workflow"
+copernican = "copernican.workflow:main_workflow"
 
 [tool.setuptools]
-py-modules = ["copernican"]
 include-package-data = true
 # Explicitly scope package discovery so legacy setuptools builds that ship
 # with ensurepip never attempt to auto-discover every top-level directory.
@@ -63,6 +62,8 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = [
+    "copernican",
+    "copernican.*",
     "copernican_lib",
     "copernican_lib.*",
     "engines",
@@ -78,13 +79,10 @@ exclude = [
 ]
 
 [tool.setuptools.data-files]
+# License assets are installed alongside wheels so third-party notices ship
+# with source and binary distributions.
 "licenses" = ["licenses/*"]
 
 [tool.setuptools.package-data]
-"copernican_lib" = ["VERSION"]
-
-[tool.black]
-line-length = 79
-force-exclude = '''
-devcovenant/policy_scripts/(changelog_coverage|last_updated_placement)\.py
-'''
+# Package data keeps the runtime version file and bundled datasets together.
+"copernican" = ["VERSION", "datasets/**/*"]

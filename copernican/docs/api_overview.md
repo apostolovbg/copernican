@@ -1,6 +1,6 @@
-# Copernican Suite API Overview
+# Copernican API Overview
 
-The suite exposes a lightweight API intended for advanced scripting. Most
+Copernican exposes a lightweight API intended for advanced scripting. Most
 functionality lives in the ``copernican_lib`` package which can be imported
 directly without using the command-line interface.  The core modules are:
 

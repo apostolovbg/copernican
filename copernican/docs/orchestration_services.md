@@ -31,12 +31,13 @@ The Logging, Datasets, GUI and Tools tabs reuse the shared services listed
 above so deterministic launches keep the same retention levels, dataset hashes
 and GUI flags whether they start from the command line or the Tkinter shell.
 
-`copernican.py --gui` prints this service map without entering the interactive
-menus. GUI launchers should construct an `orchestration.InProcessRunController`
-with run, pause, resume and cancel hooks that call into the shared helpers
-above. The `RunRequest`, `RunHandle` and `RunStatus` dataclasses document the
-minimum payloads required to drive the existing pipeline while letting the GUI
-stream logs or status updates.
+`python -m copernican --gui` prints this service map without entering the
+interactive menus. GUI launchers should construct an
+`orchestration.InProcessRunController` with run, pause, resume and cancel
+hooks that call into the shared helpers above. The `RunRequest`,
+`RunHandle` and `RunStatus` dataclasses document the minimum payloads
+required to drive the existing pipeline while letting the GUI stream logs or
+status updates.
 
 The GUI worker (`copernican_lib/gui/run_worker.py`) simply loads the JSON
 configuration produced by the Run Builder, sets `COPERNICAN_ALLOW_DIRECT=1`,

@@ -87,7 +87,7 @@ class CheckDependenciesPromptTestCase(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 dependencies.check_dependencies()
             write.assert_called()
-            self.assertIn("start script", write.call_args[0][0])
+            self.assertIn("python -m copernican", write.call_args[0][0])
             run_mock.assert_not_called()
 
 

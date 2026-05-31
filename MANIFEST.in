@@ -1,2 +1,2 @@
 recursive-include licenses *
-include copernican_lib/VERSION
+include copernican/VERSION

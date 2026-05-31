@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import yaml
 
+from copernican.version import get_version
 from copernican_lib import run_manifest, utils
 from copernican_lib.perturbation_contract import PerturbationContractData
-from copernican_lib.version import get_version
 
 
 def _dummy_plugin():

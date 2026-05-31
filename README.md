@@ -11,14 +11,14 @@
 
 **Version:** 12.0.26
 
-![Copernican Suite banner](docs/banner_github.png)
+![Copernican banner](docs/banner_github.png)
 
-The Copernican Suite is a Python toolkit that helps researchers test
-cosmological models against SNe Ia, BAO and CMB observations with a single
-manifest-driven workflow. `copernican.py` orchestrates everything from model
-loading through sampler execution while the launcher scripts keep a managed
-Python 3.11 environment inside `.venv` so the tooling stays portable across
-macOS, Linux and Windows. Developers must consult [AGENTS.md](AGENTS.md) and
+Copernican is a Python toolkit that helps researchers test cosmological models
+against SNe Ia, BAO and CMB observations with a single manifest-driven
+workflow. `python -m copernican` orchestrates everything from model loading
+through sampler execution while the managed `.venv` keeps the pinned Python
+3.11 environment portable across macOS, Linux and Windows. Developers must
+consult [AGENTS.md](AGENTS.md) and
 the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
 
@@ -27,14 +27,14 @@ SNe likelihood, CSV export and plot residual paths so all residual views use
 the same convention.
 
 ## Highlights
-- **Manifest-driven orchestration:** `copernican.py` consumes model, data and
-  engine selections, writes every run into `output/copernican-run_*`, and re-
-  uses `copernican_lib/run_pipeline.py` helpers so CLI and GUI paths stay
-  consistent.
-- **Modular library layout:** `copernican_lib/` hosts shared helpers (plotting,
-  analysis, diagnostics, GUI scaffolding and dataset registries) while
-  `models/`, `engines/`, `data/` and `output/` remain the canonical asset
-  roots.
+- **Manifest-driven orchestration:** `python -m copernican` consumes model,
+  data and engine selections, writes every run into
+  `output/copernican-run_*`, and reuses `copernican_lib/run_pipeline.py`
+  helpers so CLI and GUI paths stay consistent.
+- **Modular library layout:** `copernican_lib/` hosts shared helpers
+  (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
+  while `models/`, `engines/`, `data/` and `output/` remain the canonical
+  asset roots.
 - **CMB capability checks:** `copernican_lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the generic declarative
@@ -42,7 +42,7 @@ the same convention.
   is missing.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
-  dialogs, builder panels, and the detached launcher preserve the historic
+  dialogs, builder panels, and the package entrypoint preserve the historic
   flow.
 - **Analysis workspace:** Run Summary, Posteriors, Diagnostics and Comparisons
   tabs rely on `copernican_lib.analysis`, `posterior_explorer`, and the shared
@@ -58,14 +58,14 @@ the same convention.
   and run `pre-commit run --all-files` before finishing work.
 
 ## Overview
- - `copernican.py` acts as a manifest-first orchestrator: it consumes a
+ - `python -m copernican` acts as a manifest-first orchestrator: it consumes a
    manifest describing the selected models, datasets, sampler settings and
    environment hints, reuses `copernican_lib/run_pipeline.py` helpers and
-   writes every run log inside `output/copernican-run_*` with a matching
-   `run_manifest_<timestamp>.yml` for reproducibility.  Command-line flags such
-   as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui` let CI and
-   operators pick the desired entry point while the launcher scripts guarantee
-   the managed interpreter and dependencies.
+  writes every run log inside `output/copernican-run_*` with a matching
+  `run_manifest_<timestamp>.yml` for reproducibility.  Command-line flags such
+  as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui` let CI and
+  operators pick the desired entry point while the managed interpreter and
+  dependencies come from `.venv`.
  - `copernican_lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.
@@ -86,11 +86,10 @@ the same convention.
    digests, register citations, and tag each manifest with the hashes used for
    the run; the directory remains read-only except when a human explicitly
    edits the datasets.
- - `copernican_lib/gui/` provides a Tkinter scaffold with the navigation rail,
-   Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
-   page that renders Markdown assets inline; the start scripts hand off the
-   detached GUI (using `pythonw` on macOS/Windows) after logging the
-   environment.
+- `copernican_lib/gui/` provides a Tkinter scaffold with the navigation rail,
+  Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
+  page that renders Markdown assets inline; the package entrypoint launches
+  the GUI inside the managed environment after logging the environment.
 
 ## Directory layout
  - `models/`: YAML definitions for every supported cosmological model.
@@ -104,7 +103,7 @@ the same convention.
  - `validation/`: Reference manifests, runner helpers and summaries used by the
    validation suite.
  - `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
-   structure, launchers, datasets and the documentation policy itself.
+   structure, datasets and the DevCovenant policies.
 - `AGENTS.md`, `CHANGELOG.md`, `licenses/THIRD_PARTY_LICENSES.md`,
   `CITATION.cff`:
   Governance, release history and citation/licensing metadata.
@@ -155,13 +154,13 @@ count deltas, and export or copy the structured comparison summary that the new
 
 Every run now also writes ArviZ-powered corner plots and parameter histograms
 into the `output/copernican-run_*` folders so the Analysis workspace can render
-them inside the PlotViewer without re-running the sampler.  Use `python
-copernican.py --analysis-posterior output/copernican-run_*` to rerun
+them inside the PlotViewer without re-running the sampler.  Use `python -m
+copernican --analysis-posterior output/copernican-run_*` to rerun
 `copernican_lib.analysis.plot_posterior`, producing the overview, corner and
 histogram assets from each `posterior-*.nc` snapshot on demand.
 
 ## Validation
-The Validation tab runs `python copernican.py --run-validation`, streams CLI
+The Validation tab runs `python -m copernican --run-validation`, streams CLI
 output into a log box, and stores the summaries inside
 `validation/output/<manifest_stem>/validation_run_<timestamp>/` plus the
 gitignored `VALIDATION.md`. The fixed Planck 2018 manifest evaluates a
@@ -177,36 +176,36 @@ Release notes live in `CHANGELOG.md`, licensing details appear in
 `licenses/THIRD_PARTY_LICENSES.md`, and the GUI Help panel renders
 `README.md` (banner included) plus the CLI/GUI guides from
 `docs/gui_guide.md` and
-`docs/cli_guide.md`. The brand-new Analysis workspace and launcher wiring are
-covered by `docs/gui_overview.md` and `docs/launcher_gui.md`, while dataset and
+`docs/cli_guide.md`. The Analysis workspace and package entrypoint wiring are
+covered by `docs/gui_overview.md` and `docs/gui_guide.md`, while dataset and
 manifest hygiene appear across `docs/data_overview.md`, `docs/run_manifest.md`
-and the documentation policy itself (`docs/documentation_policy.md`).
+and the DevCovenant policies.
 
 Law 11 of `AGENTS.md` codifies the documentation expansion commitment: every
-code change should grow the written record, and DevCovenant scripts
-automatically verify policy sync before accepting commits.
+code change should grow the written record, and DevCovenant tooling
+automatically verifies policy sync before accepting commits.
 
 ## Maintenance helpers
 Command-line operators who skip the GUI can still run maintenance helpers:
 
-- `python copernican.py --catalogue-summary` prints the dataset/model/engine
+- `python -m copernican --catalogue-summary` prints the dataset/model/engine
   inventory health summary.
-- `python copernican.py --revalidate-dataset <dataset_id>` reruns the parser
+- `python -m copernican --revalidate-dataset <dataset_id>` reruns the parser
   trust check for a specific dataset and reports the digest result.
-- `python copernican.py --list-manifests` lists every timestamped run folder
+- `python -m copernican --list-manifests` lists every timestamped run folder
   and `--show-manifest <path>` pretty-prints a saved manifest.
-- `python copernican.py --run-validation` executes the lightweight validation
+- `python -m copernican --run-validation` executes the lightweight validation
   suite, prints the reference summary, stores it in `VALIDATION.md`, and exits
   without opening the GUI.
-- `python copernican.py --analysis-summary <run_dir>` loads the manifest/log/
+- `python -m copernican --analysis-summary <run_dir>` loads the manifest/log/
   parameter summary from the specified run, prints the diagnostics table and
   (with `--analysis-summary-output <dir>`) writes structured `analysis-
   summary_<timestamp>.yml/.json` exports just like the GUI’s Run Summary tab.
-- `python copernican.py --analysis-compare <base_run> <alternative_run>` aligns
+- `python -m copernican --analysis-compare <base_run> <alternative_run>` aligns
   two run directories, prints the Δχ²/parameter summary and (with `--analysis-
   compare-output <dir>`) saves `analysis-comparison_<timestamp>` JSON/YAML
   files matching the Analysis Comparisons tab.
-- `python copernican.py --analysis-posterior <run_dir> --analysis-posterior-
+- `python -m copernican --analysis-posterior <run_dir> --analysis-posterior-
   output <file.png>` builds a trace/hist overview using
   `copernican_lib.posterior_explorer` and writes the figure to the requested
   path so you can reproduce the PlotViewer output without the GUI.

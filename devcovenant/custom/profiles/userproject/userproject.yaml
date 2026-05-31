@@ -29,13 +29,18 @@ policy_overlays:
     user_facing_exclude_globs:
       - models/**
       - data/**
+      - copernican/datasets/**
   read-only-directories:
     include_prefixes:
       - data
+      - copernican/datasets
     exclude_globs:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
   dependency-management:
     surfaces:
       - id: root_workspace
@@ -128,7 +133,7 @@ policy_overlays:
               abi: cp311
   version-governance:
     scheme: semver
-    version_file: copernican_lib/VERSION
+    version_file: copernican/VERSION
     changelog_file: CHANGELOG.md
     changelog_header_prefix: '## Version'
     canonical_versions_required: true
@@ -138,7 +143,7 @@ policy_overlays:
       - devcovenant
       - models
   version-sync:
-    version_file: copernican_lib/VERSION
+    version_file: copernican/VERSION
     changelog_file: CHANGELOG.md
     changelog_header_prefix: '## Version'
     target_roles:
@@ -165,6 +170,7 @@ policy_overlays:
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican_lib/licenses/*.txt
       - data/**
+      - copernican/datasets/**
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py
@@ -172,6 +178,9 @@ policy_overlays:
       - data/**/cosmo_parser_*.py
       - data/**/metadata_*.yml
       - data/**/metadata_*.yaml
+      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/metadata_*.yml
+      - copernican/datasets/**/metadata_*.yaml
     allow_long_url_lines: true
     url_prefixes:
       - 'https://'
@@ -231,6 +240,10 @@ policy_overlays:
       - data/cmb=>tests/data/cmb
       - data/gw=>tests/data/gw
       - data/sne=>tests/data/sne
+      - copernican/datasets/bao=>tests/copernican/datasets/bao
+      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
+      - copernican/datasets/gw=>tests/copernican/datasets/gw
+      - copernican/datasets/sne=>tests/copernican/datasets/sne
       - devcovenant/custom=>tests/devcovenant/custom
   # Root docs are the source; package docs are synced clones.
   package-doc-sync:
@@ -244,11 +257,9 @@ policy_overlays:
       - docs/dataset_licenses.md=>copernican/docs/dataset_licenses.md
       - docs/dataset_metadata.md=>copernican/docs/dataset_metadata.md
       - docs/design_overview.md=>copernican/docs/design_overview.md
-      - docs/documentation_policy.md=>copernican/docs/documentation_policy.md
       - docs/gui_guide.md=>copernican/docs/gui_guide.md
       - docs/gui_overview.md=>copernican/docs/gui_overview.md
       - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-      - docs/launcher_gui.md=>copernican/docs/launcher_gui.md
       - docs/minigames.md=>copernican/docs/minigames.md
       - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
       - docs/packaging.md=>copernican/docs/packaging.md
@@ -256,7 +267,7 @@ policy_overlays:
       - docs/security_changes.md=>copernican/docs/security_changes.md
     omit_block_pairs:
       - "<!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->"
-    rewrite_repo_relative_links: true
+    rewrite_repo_relative_links: false
   last-updated:
     allowed_globs:
       - README.md

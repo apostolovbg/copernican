@@ -1,0 +1,63 @@
+model_name: SyntheticFlat
+version: "0.1"
+description: >-
+  Lightweight analytic model for deterministic integration tests.
+abstract: >-
+  Provides closed-form distance measures to keep integration tests fast.
+parameters:
+  - name: Hubble constant
+    python_var: H0
+    latex_name: H_0
+    bounds: [60.0, 70.0]
+    prior:
+      type: uniform
+      lower: 60.0
+      upper: 70.0
+  - name: Matter density
+    python_var: Omega_m0
+    latex_name: \Omega_{m0}
+    bounds: [0.25, 0.35]
+    prior:
+      type: uniform
+      lower: 0.25
+      upper: 0.35
+valid_for_bao: true
+valid_for_cmb: true
+cmb:
+  backend: camb
+  param_map:
+    H0: H0
+    ombh2: 0.022
+    omch2: 0.12
+    Neff: 3.046
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+  grids: {}
+  values: {}
+  calls: []
+  perturbations:
+    contract_version: 1
+    standard: true
+    gauge: unspecified
+    variables: {}
+    derived: {}
+    equations: {}
+    closures: {}
+    sources: {}
+    validity:
+      regimes:
+        - standard_camb
+      notes: Uses the backend standard perturbation machinery.
+    backend_mapping:
+      camb:
+        uses_standard_perturbations: true
+    notes: >-
+      This model declares that its CMB perturbations are represented by the
+      selected backend's standard perturbation system.
+likelihood:
+  independent_sne_bao: true
+equations:
+  sne:
+    - "$d_L = (1+z) c/H_0 z$"
+  bao:
+    - "$D_V = (c z/H_0)^2 (1+z)^{1/3}$"

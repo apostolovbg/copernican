@@ -18,6 +18,8 @@ class TestPackagingConfiguration(unittest.TestCase):
         exclude = tuple(finder.get("exclude", ()))
 
         expected_include = (
+            "copernican",
+            "copernican.*",
             "copernican_lib",
             "copernican_lib.*",
             "engines",

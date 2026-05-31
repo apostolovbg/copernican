@@ -54,4 +54,4 @@ repos:
     - text
     pass_filenames: false
     always_run: true
-exclude: (?x)^data/(?!.*(?:cosmo_parser_|metadata_)).*
+exclude: (?x)^(?:data|copernican/datasets)/(?!.*(?:cosmo_parser_|metadata_)).*
