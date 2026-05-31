@@ -12,8 +12,8 @@ covariance is well behaved so that logic has been removed."""
 import logging
 import os
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 from astropy.io import fits
 
 from copernican_lib.dataset_registry import register_sne_parser
@@ -89,7 +89,7 @@ def parse_jla2014(
         "bias_str",
     ]
     try:
-        raw_table = pd.read_fwf(
+        raw_table = pandas.read_fwf(
             filepath,
             colspecs=col_specs,
             names=col_names,
@@ -100,7 +100,7 @@ def parse_jla2014(
         logger.error(f"Error reading JLA data file: {e}")
         return None
 
-    parsed = pd.DataFrame()
+    parsed = pandas.DataFrame()
     parsed["Name"] = raw_table["Name"].str.strip()
     for new_col, old in {
         "zcmb": "zcmb_str",
@@ -109,7 +109,7 @@ def parse_jla2014(
         "x1": "x1_str",
         "c": "c_str",
     }.items():
-        parsed[new_col] = pd.to_numeric(raw_table[old], errors="coerce")
+        parsed[new_col] = pandas.to_numeric(raw_table[old], errors="coerce")
 
     if parsed[["mb", "x1", "c"]].isnull().any().any():
         logger.error("JLA data missing mb, x1 or c values")
@@ -121,7 +121,10 @@ def parse_jla2014(
         + salt2_alpha_fixed * parsed["x1"]
         - salt2_beta_fixed * parsed["c"]
     )
-    parsed["e_mu_obs"] = pd.to_numeric(raw_table["e_mb_str"], errors="coerce")
+    parsed["e_mu_obs"] = pandas.to_numeric(
+        raw_table["e_mb_str"],
+        errors="coerce",
+    )
 
     essential_cols = ["Name", "zcmb", "mu_obs", "e_mu_obs"]
     parsed = parsed[essential_cols].dropna().copy()
@@ -138,26 +141,26 @@ def parse_jla2014(
 
     try:
         n_sne = len(parsed)
-        projection_matrix = np.zeros((n_sne, cov_params.shape[0]))
+        projection_matrix = numpy.zeros((n_sne, cov_params.shape[0]))
         for i in range(n_sne):
             idx = 3 * i
             projection_matrix[i, idx] = 1.0
             projection_matrix[i, idx + 1] = salt2_alpha_fixed
             projection_matrix[i, idx + 2] = -salt2_beta_fixed
         mu_cov_sys = projection_matrix @ cov_params @ projection_matrix.T
-        stat_cov = np.diag(parsed["e_mu_obs"].values ** 2)
+        stat_cov = numpy.diag(parsed["e_mu_obs"].values ** 2)
         mu_cov_total = mu_cov_sys + stat_cov
-        cond = np.linalg.cond(mu_cov_total)
-        if not np.isfinite(cond) or cond >= 1e8:
+        cond = numpy.linalg.cond(mu_cov_total)
+        if not numpy.isfinite(cond) or cond >= 1e8:
             logger.error("JLA total covariance matrix is ill-conditioned")
             return None
-        covariance_matrix_inv = np.linalg.inv(mu_cov_total)
-        diag_errors_for_plot = np.sqrt(np.diag(mu_cov_total))
-    except (np.linalg.LinAlgError, ValueError) as e:
+        covariance_matrix_inv = numpy.linalg.inv(mu_cov_total)
+        diag_errors_for_plot = numpy.sqrt(numpy.diag(mu_cov_total))
+    except (numpy.linalg.LinAlgError, ValueError) as e:
         logger.error(f"Could not process JLA covariance matrix: {e}")
         return None
 
-    sort_idx = np.argsort(parsed["zcmb"].values)
+    sort_idx = numpy.argsort(parsed["zcmb"].values)
     parsed = parsed.iloc[sort_idx].reset_index(drop=True)
     diag_errors_for_plot = diag_errors_for_plot[sort_idx]
     if covariance_matrix_inv is not None:

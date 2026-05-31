@@ -22,8 +22,8 @@ covariance is attached to the resulting :class:`pandas.DataFrame`.
 import logging
 import os
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from copernican_lib.dataset_registry import register_bao_parser
 
@@ -52,14 +52,14 @@ def parse_boss_dr12(data_dir, **kwargs):
     dm_results = os.path.join(data_dir, "BAO_consensus_results_dM_Hz.txt")
     dm_cov_path = os.path.join(data_dir, "BAO_consensus_covtot_dM_Hz.txt")
     try:
-        table_dm = pd.read_csv(
+        table_dm = pandas.read_csv(
             dm_results,
             comment="#",
             sep=r"\s+",
             header=None,
             names=["z", "label", "value"],
         )
-    except (OSError, ValueError, pd.errors.ParserError) as exc:
+    except (OSError, ValueError, pandas.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 dM/Hz results file: {exc}")
         return None
 
@@ -79,8 +79,8 @@ def parse_boss_dr12(data_dir, **kwargs):
         return None
 
     try:
-        cov_dm = np.loadtxt(dm_cov_path)
-    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        cov_dm = numpy.loadtxt(dm_cov_path)
+    except (OSError, ValueError, pandas.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 dM/Hz covariance: {exc}")
         return None
 
@@ -96,14 +96,14 @@ def parse_boss_dr12(data_dir, **kwargs):
     dv_results = os.path.join(data_dir, "BAO_consensus_results_dV_FAP.txt")
     dv_cov_path = os.path.join(data_dir, "BAO_consensus_covtot_dV_FAP.txt")
     try:
-        table_dv = pd.read_csv(
+        table_dv = pandas.read_csv(
             dv_results,
             comment="#",
             sep=r"\s+",
             header=None,
             names=["z", "label", "value"],
         )
-    except (OSError, ValueError, pd.errors.ParserError) as exc:
+    except (OSError, ValueError, pandas.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 D_V/F_AP results file: {exc}")
         return None
 
@@ -127,8 +127,8 @@ def parse_boss_dr12(data_dir, **kwargs):
         return None
 
     try:
-        cov_dv = np.loadtxt(dv_cov_path)
-    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        cov_dv = numpy.loadtxt(dv_cov_path)
+    except (OSError, ValueError, pandas.errors.ParserError) as exc:
         logger.error(f"Failed reading BOSS DR12 D_V/F_AP covariance: {exc}")
         return None
 
@@ -141,8 +141,8 @@ def parse_boss_dr12(data_dir, **kwargs):
     # this transformation propagates the published covariance matrix.
     # ------------------------------------------------------------------
     n_z = len(redshifts)
-    dm_dh_vec = np.empty(n_z * 2)
-    jac_dm = np.zeros((n_z * 2, n_z * 2))
+    dm_dh_vec = numpy.empty(n_z * 2)
+    jac_dm = numpy.zeros((n_z * 2, n_z * 2))
 
     for i in range(n_z):
         dm_val = dm_obs[i]
@@ -164,8 +164,8 @@ def parse_boss_dr12(data_dir, **kwargs):
     # explicitly. However the off-diagonal correlations between different
     # ``D_V/rs`` entries are preserved.
     # ------------------------------------------------------------------
-    dv_vec = np.array(dv_obs)
-    jac_dv = np.zeros((n_z, n_z * 2))
+    dv_vec = numpy.array(dv_obs)
+    jac_dv = numpy.zeros((n_z, n_z * 2))
     for i in range(n_z):
         jac_dv[i, 2 * i] = 1.0  # derivative of D_V/rs w.r.t. itself
     cov_dv_only = jac_dv @ cov_dv @ jac_dv.T
@@ -178,30 +178,30 @@ def parse_boss_dr12(data_dir, **kwargs):
     # public release. Treating them as uncorrelated is a common approximation
     # when combining these consensus results.
     # ------------------------------------------------------------------
-    y_vec = np.empty(n_z * 3)
+    y_vec = numpy.empty(n_z * 3)
     y_vec[0::3] = dm_dh_vec[0::2]
     y_vec[1::3] = dm_dh_vec[1::2]
     y_vec[2::3] = dv_vec
 
-    cov_y = np.zeros((n_z * 3, n_z * 3))
+    cov_y = numpy.zeros((n_z * 3, n_z * 3))
 
     idx_dm_dh = []
     for i in range(n_z):
         idx_dm_dh.extend([3 * i, 3 * i + 1])
-    cov_y[np.ix_(idx_dm_dh, idx_dm_dh)] = cov_dm_dh
+    cov_y[numpy.ix_(idx_dm_dh, idx_dm_dh)] = cov_dm_dh
 
     idx_dv = [3 * i + 2 for i in range(n_z)]
-    cov_y[np.ix_(idx_dv, idx_dv)] = cov_dv_only
+    cov_y[numpy.ix_(idx_dv, idx_dv)] = cov_dv_only
 
     # Attempt to invert the covariance for chi-squared calculations.
-    diag = np.sqrt(np.diag(cov_y))
+    diag = numpy.sqrt(numpy.diag(cov_y))
     try:
-        cond = np.linalg.cond(cov_y)
-        if np.isfinite(cond) and cond < 1e12:
-            cov_inv = np.linalg.inv(cov_y)
+        cond = numpy.linalg.cond(cov_y)
+        if numpy.isfinite(cond) and cond < 1e12:
+            cov_inv = numpy.linalg.inv(cov_y)
         else:
             cov_inv = None
-    except (np.linalg.LinAlgError, ValueError) as exc:
+    except (numpy.linalg.LinAlgError, ValueError) as exc:
         logger.warning(f"BOSS DR12 covariance inversion failed: {exc}")
         cov_inv = None
 
@@ -241,7 +241,7 @@ def parse_boss_dr12(data_dir, **kwargs):
             }
         )
 
-    bao_dataframe = pd.DataFrame.from_records(records)
+    bao_dataframe = pandas.DataFrame.from_records(records)
     bao_dataframe.sort_values("redshift", inplace=True, ignore_index=True)
     bao_dataframe.attrs["covariance_matrix_inv"] = cov_inv
     bao_dataframe.attrs["diag_errors_for_plot"] = diag

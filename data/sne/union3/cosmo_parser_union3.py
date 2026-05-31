@@ -8,8 +8,8 @@ from __future__ import annotations
 import logging
 import os
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 from astropy.io import fits
 
 from copernican_lib.dataset_registry import register_sne_parser
@@ -33,11 +33,11 @@ def _find_matching_fits(data_dir: str) -> list[str]:
     ]
 
 
-def _load_mu_matrix(path: str) -> np.ndarray:
+def _load_mu_matrix(path: str) -> numpy.ndarray:
     """Open the FITS file and validate that it carries the expected layout."""
 
     with fits.open(path, memmap=False) as hdul:
-        matrix = np.asarray(hdul[0].data, dtype=np.float64)
+        matrix = numpy.asarray(hdul[0].data, dtype=numpy.float64)
 
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("mu_mat FITS must be a square matrix.")
@@ -49,7 +49,7 @@ def _load_mu_matrix(path: str) -> np.ndarray:
 
 
 @register_sne_parser(data_dir=DATA_DIR)
-def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
+def parse_union3(data_dir: str, **kwargs) -> pandas.DataFrame | None:
     """Read the compressed Union3 distances and attach their covariance."""
 
     logger = logging.getLogger(__name__)
@@ -75,25 +75,28 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     mu_values = matrix[1:, 0]
     inv_covariance = matrix[1:, 1:]
 
-    if not (np.isfinite(redshift).all() and np.isfinite(mu_values).all()):
+    if not (
+        numpy.isfinite(redshift).all()
+        and numpy.isfinite(mu_values).all()
+    ):
         logger.warning(
             "Union3 mu_mat contains non-finite redshifts or mu values."
         )
 
     covariance = None
-    diag_errors: np.ndarray
+    diag_errors: numpy.ndarray
     try:
-        covariance = np.linalg.inv(inv_covariance)
-        diag_errors = np.sqrt(np.maximum(0.0, np.diag(covariance)))
-    except np.linalg.LinAlgError:
-        diag_errors = np.full(redshift.shape, np.nan)
+        covariance = numpy.linalg.inv(inv_covariance)
+        diag_errors = numpy.sqrt(numpy.maximum(0.0, numpy.diag(covariance)))
+    except numpy.linalg.LinAlgError:
+        diag_errors = numpy.full(redshift.shape, numpy.nan)
         logger.warning(
             "Union3 inverse covariance could not be inverted; "
             "diag errors set to NaN."
         )
 
     record_names = [f"Union3_bin_{idx + 1}" for idx in range(redshift.size)]
-    distance_df = pd.DataFrame(
+    distance_df = pandas.DataFrame(
         {
             "Name": record_names,
             "zcmb": redshift,

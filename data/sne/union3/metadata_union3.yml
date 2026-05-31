@@ -7,8 +7,8 @@ description: >-
   with UNITY 1.5, delivering the distance moduli vector and inverse covariance
   that the suite uses directly
 citation: >-
-  Rubin et al. (2025) – "Union Through UNITY: Cosmology with 2,000 SNe Using a
-  Unified Bayesian Framework" (arXiv:2311.12098).
+  Rubin et al. (2025) – "Union Through UNITY: Cosmology with 2,000 SNe
+  Using a Unified Bayesian Framework" (arXiv:2311.12098).
 license: >-
   MIT License (https://opensource.org/licenses/MIT); cite Rubin et al. (2025)
   when using the dataset.
@@ -30,9 +30,9 @@ notes: >-
   The parser now reads `mu_mat_union3_cosmo=2_mu.fits`, which contains the
   node redshifts in the first row, the compressed distance modulus column, and
   the inverse covariance in the remaining block. BAO distances used in the
-  UNITY fits are archived in `BAO_results.txt`, but the Copernican workflow only
-  requires the compressed distances and covariance. Copernican applies an
-  additive SNe intercept marginalization before comparing the compressed
-  distances to model distance moduli, while leaving the stored FITS values
-  untouched. Additional processing scripts and UNITY helpers live alongside
-  the dataset for transparency.
+  UNITY fits are archived in `BAO_results.txt`, but the Copernican
+  workflow only requires the compressed distances and covariance.
+  Copernican applies an additive SNe intercept marginalization before
+  comparing the compressed distances to model distance moduli, while
+  leaving the stored FITS values untouched. Additional processing scripts
+  and UNITY helpers live alongside the dataset for transparency.

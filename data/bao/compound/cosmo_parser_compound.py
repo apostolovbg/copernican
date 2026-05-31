@@ -19,7 +19,7 @@ that published values are used directly without risking double scaling.
 import logging
 import os
 
-import pandas as pd
+import pandas
 import yaml
 
 from copernican_lib.dataset_registry import register_bao_parser
@@ -47,7 +47,7 @@ def parse_bao(data_dir, **kwargs):
         with open(filepath, "r") as f:
             data_yaml = yaml.safe_load(f)
 
-        bao_dataframe = pd.DataFrame(data_yaml["data_points"])
+        bao_dataframe = pandas.DataFrame(data_yaml["data_points"])
         required_cols = ["redshift", "observable_type", "value", "error"]
         if not all(col in bao_dataframe.columns for col in required_cols):
             logger.error(
@@ -61,7 +61,7 @@ def parse_bao(data_dir, **kwargs):
         # be absent or contain ``null`` which converts to ``NaN``.
         for col in ["redshift", "value", "error", "rs_fiducial_Mpc"]:
             if col in bao_dataframe.columns:
-                bao_dataframe[col] = pd.to_numeric(
+                bao_dataframe[col] = pandas.to_numeric(
                     bao_dataframe[col], errors="coerce"
                 )
 

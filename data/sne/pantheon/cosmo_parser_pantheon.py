@@ -6,8 +6,8 @@
 import logging
 import os
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 
 from copernican_lib.dataset_registry import register_sne_parser
 
@@ -35,13 +35,13 @@ def parse_pantheon_plus(data_dir, **kwargs):
     cov_filepath = os.path.join(data_dir, sorted(cov_files)[0])
 
     try:
-        temp_df = pd.read_csv(
+        temp_df = pandas.read_csv(
             filepath,
             sep=r"\s+",
             engine="python",
             comment="#",
         )
-        data_df = pd.DataFrame()
+        data_df = pandas.DataFrame()
         col_map = {
             "Name": ["CID", "SNID", "ID", "NAME"],
             "zcmb": ["zCMB", "ZCMB", "zcmb"],
@@ -54,7 +54,11 @@ def parse_pantheon_plus(data_dir, **kwargs):
 
         for target_col, possible_names in col_map.items():
             found_col = next(
-                (p for p in possible_names if p in temp_df.columns),
+                (
+                    candidate_name
+                    for candidate_name in possible_names
+                    if candidate_name in temp_df.columns
+                ),
                 None,
             )
             if found_col:
@@ -69,7 +73,7 @@ def parse_pantheon_plus(data_dir, **kwargs):
         if "Name" not in data_df:
             data_df["Name"] = temp_df.get(
                 "CID",
-                pd.Series(
+                pandas.Series(
                     [f"SN_PPlus_mucov_{i}" for i in range(len(temp_df))]
                 ),
             )
@@ -78,7 +82,7 @@ def parse_pantheon_plus(data_dir, **kwargs):
         essential_cols = ["zcmb", "mu_obs"]
         for col in essential_cols + ["mu_sh0es_err_diag"]:
             if col in data_df:
-                data_df[col] = pd.to_numeric(data_df[col], errors="coerce")
+                data_df[col] = pandas.to_numeric(data_df[col], errors="coerce")
 
         if any(
             col not in data_df.columns or data_df[col].isnull().all()
@@ -102,7 +106,7 @@ def parse_pantheon_plus(data_dir, **kwargs):
             )
             return None
 
-        cov_matrix_flat = np.loadtxt(cov_filepath, skiprows=1)
+        cov_matrix_flat = numpy.loadtxt(cov_filepath, skiprows=1)
         if len(cov_matrix_flat) != N_cov * N_cov:
             logger.error(
                 "Cov matrix len (%d) != N*N (%d).",
@@ -118,21 +122,21 @@ def parse_pantheon_plus(data_dir, **kwargs):
         ):
             data_df["e_mu_obs"] = data_df["mu_sh0es_err_diag"]
         else:
-            data_df["e_mu_obs"] = np.sqrt(np.diag(cov_matrix_pantheon))
+            data_df["e_mu_obs"] = numpy.sqrt(numpy.diag(cov_matrix_pantheon))
 
-        sort_idx = np.argsort(data_df["zcmb"].values)
+        sort_idx = numpy.argsort(data_df["zcmb"].values)
         data_df = data_df.iloc[sort_idx].reset_index(drop=True)
         cov_matrix_pantheon = cov_matrix_pantheon[sort_idx][:, sort_idx]
 
         output_df = data_df[["Name", "zcmb", "mu_obs", "e_mu_obs"]].copy()
         try:
-            output_df.attrs["covariance_matrix_inv"] = np.linalg.inv(
+            output_df.attrs["covariance_matrix_inv"] = numpy.linalg.inv(
                 cov_matrix_pantheon
             )
-            output_df.attrs["diag_errors_for_plot"] = np.sqrt(
-                np.diag(cov_matrix_pantheon)
+            output_df.attrs["diag_errors_for_plot"] = numpy.sqrt(
+                numpy.diag(cov_matrix_pantheon)
             )
-        except np.linalg.LinAlgError:
+        except numpy.linalg.LinAlgError:
             logger.warning(
                 "Could not invert Pantheon+ covariance matrix. "
                 "Chi2 will fallback to diagonal errors."
@@ -148,8 +152,8 @@ def parse_pantheon_plus(data_dir, **kwargs):
     except (
         OSError,
         ValueError,
-        pd.errors.ParserError,
-        np.linalg.LinAlgError,
+        pandas.errors.ParserError,
+        numpy.linalg.LinAlgError,
     ) as e:
         logger.error(f"Error processing Pantheon+ data: {e}", exc_info=True)
         return None
