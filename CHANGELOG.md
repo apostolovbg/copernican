@@ -80,6 +80,44 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-01:
+  Change: Added longform TOCs and clearer section labels to the
+  architecture and dataset docs.
+  Why: Aligned the mirrored root and package documentation with the
+  sibling DevCovenant manual style and kept the copies identical.
+  Impact: Improved navigation depth and section clarity across the
+  mirrored docs while preserving the same content in both trees.
+  Files:
+  CHANGELOG.md
+  docs/architecture.md
+  docs/data_overview.md
+  docs/design_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/data_overview.md
+  copernican/docs/design_overview.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/cli_guide.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/latex_syntax.md
+  copernican/docs/minigames.md
+  copernican/docs/orchestration_services.md
+  copernican/docs/packaging.md
+  copernican/docs/security_changes.md
+  docs/api_overview.md
+  docs/bao_compound_dataset_format.md
+  docs/cli_guide.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/latex_syntax.md
+  docs/minigames.md
+  docs/orchestration_services.md
+  docs/packaging.md
+  docs/security_changes.md
+
+- 2026-06-01:
   Change: Added the Slice 3 documentation standard and mirrored-doc
   plan.
   Why: Aligned Copernican's doc structure with the sibling DevCovenant

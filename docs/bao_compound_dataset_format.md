@@ -57,6 +57,11 @@ notes: Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
   covariance matrix is available; uncertainties are treated as uncorrelated.
 ```
 
+## Table of Contents
+
+- [Usage](#usage)
+  - [Extending the Dataset](#extending-the-dataset)
+
 ## Usage
 
 The compound dataset is primarily intended for automated tests and examples. It

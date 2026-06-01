@@ -54,6 +54,20 @@ coordinates during burn-in are reseeded automatically so the stored chains
 never contain undefined numbers and archived logs stay free of the emcee
 warning observed in the latest LCDM self-test.
 
+## Table of Contents
+
+- [Supernovae Datasets](#supernovae-datasets)
+  - [JLA Betoule+2014](#jla-betoule2014)
+  - [Pantheon+ 2022 (Scolnic et al.)](#pantheon-2022-scolnic-et-al)
+  - [Union3](#union3-unity-compilation-rubin-et-al-2025)
+- [BAO Datasets](#bao-datasets)
+  - [BOSS DR12](#boss-dr12-bao-consensus-alam-et-al-2017)
+  - [Compound BAO Dataset](#compound-bao-dataset)
+- [CMB Datasets](#cmb-datasets)
+  - [Planck 2018 Lite TT/TE/EE](#planck-2018-lite-ttteee)
+- [Adding New Datasets](#adding-new-datasets)
+- [Parser Hash Verification](#parser-hash-verification)
+
 ## Supernovae Datasets
 
 ### JLA Betoule+2014

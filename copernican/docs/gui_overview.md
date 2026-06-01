@@ -12,6 +12,21 @@ the main pane divider without introducing extra controls. The icon sits in a 60
 px square so the visual balance is maintained even with the tighter top/left
 padding.
 
+## Table of Contents
+
+- [Run Builder](#run-builder)
+- [Data](#data)
+- [Run Settings](#run-settings)
+- [Run Execution](#run-execution)
+- [Analysis](#analysis)
+- [Validation](#validation)
+- [Metadata dialogs](#metadata-dialogs)
+- [Models](#models)
+- [Engines](#engines)
+- [Settings](#settings)
+- [Help](#help)
+- [Launching the GUI](#launching-the-gui)
+
 ## Run Builder
 
 The Run Builder now mirrors the CLI stages with dedicated panels for the seed,

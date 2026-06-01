@@ -5,6 +5,10 @@ The mini-game documentation now lives under
 into other repositories. Please consult that file for current gameplay
 descriptions, the launcher API and contribution guidelines.
 
+## Table of Contents
+
+- [Quick reference](#quick-reference)
+
 ## Quick reference
 
 - `copernican/rng_minigames/README.md` – architectural overview, embedding

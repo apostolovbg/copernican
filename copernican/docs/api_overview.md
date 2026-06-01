@@ -137,6 +137,15 @@ parameter guesses, the structured CAMB contract derived from the model YAML
 and the compiled perturbation IR while remaining fully picklable for
 multiprocessing workloads.
 
+## Table of Contents
+
+- [Standardised Dataset Format](#standardised-dataset-format)
+- [Extending the API](#extending-the-api)
+- [Parameter Summary Format](#parameter-summary-format)
+- [Run Analysis Helpers](#run-analysis-helpers)
+- [Posterior Explorer](#posterior-explorer)
+- [Run Comparison Helpers](#run-comparison-helpers)
+
 ## Standardised Dataset Format
 
 All data parsers return a ``pandas.DataFrame`` with common columns and metadata

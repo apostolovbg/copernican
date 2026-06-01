@@ -12,6 +12,23 @@ trims the startup import surface so users reach the Stage 1 seed dialog faster
 while retaining the existing logging, validation and manifest pipelines
 described throughout this document.
 
+## Table of Contents
+
+- [Architectural map](#architectural-map)
+- [Stage-by-stage flow](#stage-by-stage-flow)
+  - [Dependency priming and logging](#dependency-priming-and-logging)
+  - [Stage 1 orchestration](#stage-1-orchestration)
+  - [Stage 2 sampling and progress](#stage-2-sampling-and-progress)
+  - [Stage 3–4 post-processing](#stage-3–4-post-processing)
+  - [Stage 5 visualisation](#stage-5-visualisation)
+  - [Stage 6 outputs and manifests](#stage-6-outputs-and-manifests)
+- [Dataset integrity and parsers](#dataset-integrity-and-parsers)
+- [Plugins & Posterior](#plugin-interface-and-posterior-construction)
+- [Console and error handling](#console-and-error-handling)
+- [Deps & Packaging](#dependency-management-and-packaging)
+- [Package entrypoint and CI](#package-entrypoint-and-ci)
+- [Future probes and extensibility](#future-probes-and-extensibility)
+
 ## Architectural map
 
 * `python -m copernican` assembles run manifests, dispatches dataset loaders

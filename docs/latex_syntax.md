@@ -11,6 +11,17 @@ Extending the mapping tables therefore benefits both plotting and log output.
 The same helper converts ``χ²_Total`` when Stage 5 summaries print the SNe-only
 chi-squared totals, keeping the glyph consistent with the BAO and CMB entries.
 
+## Table of Contents
+
+- [YAML hygiene tips](#yaml-hygiene-tips)
+- [Exponentiation](#exponentiation)
+- [Functions and Symbols](#functions-and-symbols)
+- [Allowed Macros](#allowed-macros)
+- [Dictionary File](#dictionary-file)
+  - [Subscripts and Superscripts](#subscripts-and-superscripts)
+- [Tips for Writing Equations](#tips-for-writing-equations)
+- [Debugging Syntax Errors](#debugging-syntax-errors)
+
 ## YAML hygiene tips
 
 * Prefer block scalars (`|` or `>`) when writing long expressions. Quoted

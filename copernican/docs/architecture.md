@@ -5,6 +5,18 @@ adapters, engines, and presentation layers. This document captures how these
 layers work together, describes the manifest lifecycle, and highlights key
 guardrails such as policy enforcement and dataset validation.
 
+## Table of Contents
+
+- [Component Layers](#component-layers)
+  - [Orchestration Layer](#orchestration-layer)
+  - [Library Layer (`copernican.lib`)](#library-layer-copernicanlib)
+  - [Engines Layer](#engines-layer)
+  - [Presentation Layer](#presentation-layer)
+- [Run Manifest Lifecycle](#run-manifest-lifecycle)
+- [Data Provenance](#data-provenance)
+- [Logging, Diagnostics, and Signals](#logging-diagnostics-and-signals)
+- [Policies & Documentation](#policies-and-documentation-guardrails)
+
 ## Component Layers
 
 ### Orchestration Layer

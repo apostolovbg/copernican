@@ -5,6 +5,16 @@ CAMB only publishes wheels for Python 3.11 today, so Copernican intentionally
 sticks to that interpreter until upstream catches up. Blocking newer Python
 versions avoids forcing contributors to compile CAMB locally during bootstrap.
 
+## Table of Contents
+
+- [Install Python 3.11](#install-python-311)
+- [Bootstrap the virtual environment](#bootstrap-the-virtual-environment)
+- [Build optional distributions](#build-optional-distributions)
+  - [Keep the tracked version in sync](#keep-the-tracked-version-in-sync)
+  - [Regenerating dependency locks](#regenerating-dependency-locks)
+- [Verify the build](#verify-the-build)
+- [Troubleshooting](#troubleshooting)
+
 ## Install Python 3.11
 
 Run Copernican from the managed `.venv` with `python -m copernican` or the

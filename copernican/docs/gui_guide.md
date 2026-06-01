@@ -5,6 +5,14 @@ This guide walks through the navigation rail, the Run Builder wizard, the Run
 Monitor console and the inline help. Refer to `docs/cli_guide.md` if you prefer
 to stay in the CLI or want to correlate GUI actions with the manifest pipeline.
 
+## Table of Contents
+
+- [Navigation Rail](#navigation-rail)
+- [Run Builder Overview](#run-builder-overview)
+- [Saving and Exporting Manifests](#saving-and-exporting-manifests)
+- [Run Monitor and Diagnostics](#run-monitor-and-diagnostics)
+- [Embedded Help](#embedded-help)
+
 ## Navigation Rail
 The left rail is always visible and reserves space for a padded Copernican logo
 plus buttons for every page:

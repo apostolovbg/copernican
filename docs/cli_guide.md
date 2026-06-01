@@ -6,6 +6,16 @@ environment variables that change behaviour. Keep `docs/gui_guide.md` at hand
 when you want to mirror GUI behaviour or verify what the builder is doing on
 each step.
 
+## Table of Contents
+
+- [Entry Points](#entry-points)
+- [Interactive CLI Workflow](#interactive-cli-workflow)
+- [Utility Commands](#utility-commands)
+  - [Analysis helpers](#analysis-helpers)
+- [Executing Saved Manifests](#executing-saved-manifests)
+- [Environment Variables](#environment-variables)
+- [Troubleshooting and Logs](#troubleshooting-and-logs)
+
 ## Entry Points
 Always work from the managed `.venv` created for the package:
 

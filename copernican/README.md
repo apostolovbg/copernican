@@ -26,6 +26,18 @@ Union3 compressed SNe data require additive intercept marginalization in the
 SNe likelihood, CSV export and plot residual paths so all residual views use
 the same convention.
 
+## Table of Contents
+
+- [Highlights](#highlights)
+- [Overview](#overview)
+- [Directory layout](#directory-layout)
+- [Run Builder & GUI](#run-builder-gui)
+- [Analysis workspace](#analysis-workspace)
+- [Validation](#validation)
+- [Documentation & policy](#documentation-policy)
+- [Maintenance helpers](#maintenance-helpers)
+- [Law & policy compliance reminder](#law-policy-compliance-reminder)
+
 ## Highlights
 - **Manifest-driven orchestration:** `python -m copernican` consumes model,
   data and engine selections, writes every run into
