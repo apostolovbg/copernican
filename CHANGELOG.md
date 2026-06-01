@@ -80,6 +80,26 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-01:
+  Change: Redistributed the migration plan so engines, models, and
+    validation move into Slice 3 and Slice 2 is closed.
+  Why: Kept the remaining in-package asset work out of completed slices
+    and aligned the roadmap with the actual migration state.
+  Impact: Moved the outstanding engine, model, and validation work into
+    the next slice while preserving a closed record of Slice 2.
+  Files:
+  PLAN.md
+
+- 2026-06-01:
+  Change: Updated the migration plan to move bundled models and
+    validation helpers into the package slices.
+  Why: Aligned the roadmap with the current package-layout target so the
+    remaining work tracks in-package assets and validation surfaces.
+  Impact: Clarified Slice 2 and validation checks to cover packaged
+    models and packaged validation helpers.
+  Files:
+  PLAN.md
+
+- 2026-06-01:
   Change: Fixed the missing coverage hooks in the smoke tests, rewrote the
     RNG mini-game registry suite to use unittest assertions, and wrapped the
     third-party license inventory line.
