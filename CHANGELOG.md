@@ -80,6 +80,18 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-01:
+  Change: Added the Slice 3 documentation standard and mirrored-doc
+  plan.
+  Why: Aligned Copernican's doc structure with the sibling DevCovenant
+  manual style and kept the root and package copies identical for now.
+  Impact: Aligned the docs plan to require TOC-driven, longform docs
+  with practical rules, explicit navigation, and mirrored README/docs
+  content across root and `copernican/`.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-06-01:
   Change: Redistributed the migration plan so engines, models, and
     validation move into Slice 3 and Slice 2 is closed.
   Why: Kept the remaining in-package asset work out of completed slices

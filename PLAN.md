@@ -57,6 +57,11 @@ The current target state is simple:
   loading from the GUI code after the move;
 * bundled RNG mini-games should move into `copernican/rng_minigames/`
   and keep loading from the GUI after the move;
+* the root README, package README, root docs, and `copernican/docs/`
+  should all stay identical for now, but the content should grow into
+  the same longform DevCovenant-style documentation standard with
+  explicit navigation, meaningful section depth, practical rules,
+  cross-links, and non-laconic explanations;
 * output shape should stay stable while the output base directory gets
   cleaned up;
 * DevCovenant surfaces should be realigned after the package shape is
@@ -84,6 +89,11 @@ coherent slices rather than in many narrowly separated ones.
   helpers.
 * `img/logogui.png` should move to `copernican/docs/logo.png`, and the
   GUI code that renders it should keep working after the move.
+* The README/docs set should not stay overview-only; it should mirror the
+  sibling DevCovenant documentation standard with TOCs or equivalent
+  navigation maps, substantial sectioned explanations, practical rules,
+  and explicit cross-links, while keeping the root and package copies
+  identical for now.
 * Existing output shape should be preserved.
 * DevCovenant dependency and license surfaces should be aligned with the
   package layout once the package shape is stable.
@@ -201,6 +211,17 @@ coherent slices rather than in many narrowly separated ones.
    * Keep external dataset discovery unsupported.
    * Remove root-launcher dependence from the runtime path.
    * Keep package imports explicit and package-relative where appropriate.
+   * Rework the root README and mirrored package README into a full
+     DevCovenant-style front door with a docs map or table of contents,
+     substantial sectioned explanations, practical rules, and explicit
+     cross-links.
+   * Rework the root docs and `copernican/docs/` as identical mirrored
+     manuals for now, using the same documentation standard as
+     DevCovenant: TOCs or equivalent navigation maps, longform sections,
+     ownership maps, recovery notes, and practical rules instead of
+     overview-only summaries.
+   * Remove any stale documentation-policy page or other dead doc surface
+     that no longer serves the mirrored manual if it remains in the tree.
 
    Done when:
 
@@ -209,6 +230,9 @@ coherent slices rather than in many narrowly separated ones.
    * the GUI logo still loads from its new package path;
    * bundled RNG mini-games still load from their new package path;
    * mirrored RNG mini-game tests track the packaged asset layout;
+   * the README/docs set is mirrored and matches the DevCovenant-style
+     manual standard while remaining identical between root and package
+     copies;
    * package imports are clean;
    * basic import tests pass.
 
