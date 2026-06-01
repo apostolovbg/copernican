@@ -5,13 +5,13 @@
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine. It continues to focus on Supernova Ia posteriors while
-delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
+delegating shared χ² helpers to :mod:`copernican.lib.statistics` so the module
 acts as the canonical engine façade. Future backends can slot in beside it
 without changing the orchestration code. Verbose progress logging tracks both
 burn-in and production phases with percentage updates so long chains always
 report their status. Version 6.2.0 routes all likelihood evaluations through
-the :class:`copernican_lib.likelihoods.JointLike` aggregator and the new
-:func:`copernican_lib.engine_adapter.make_logposterior` helper so posterior
+the :class:`copernican.lib.likelihoods.JointLike` aggregator and the new
+:func:`copernican.lib.engine_adapter.make_logposterior` helper so posterior
 calculations automatically honour per-parameter priors, declared bounds and
 optional reparameterisation transforms while exposing diagnostic metadata
 alongside sampled chains.
@@ -25,7 +25,7 @@ keeping the GUI monitor and log in sync while the logger focuses on statistics.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
-:func:`copernican_lib.utils.get_random_seed` value.  The helper captures the
+:func:`copernican.lib.utils.get_random_seed` value.  The helper captures the
 seed supplied through the CLI prompt or ``COPERNICAN_SEED`` so subsequent
 engines observe the same pseudo-random stream without requiring callers to
 seed multiple subsystems manually.
@@ -59,14 +59,14 @@ import emcee
 import numpy
 import pandas
 
-from copernican_lib import engine_adapter as engine_plugin_validation
-from copernican_lib.engine_capabilities import (
+from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib.engine_capabilities import (
     EngineProgressChunk,
     EngineSetting,
 )
-from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
-from copernican_lib.progress import BatchProgressBar
-from copernican_lib.statistics import (
+from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican.lib.progress import BatchProgressBar
+from copernican.lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
     chi_squared_cmb,
@@ -74,7 +74,7 @@ from copernican_lib.statistics import (
     compute_cmb_spectrum,
     compute_cmb_spectrum_from_dict,
 )
-from copernican_lib.utils import get_random_seed
+from copernican.lib.utils import get_random_seed
 
 warnings.filterwarnings(
     "ignore",
@@ -377,7 +377,7 @@ def _build_joint_logposterior(
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
     once, attaches the plugin's bounds and optional transformations to the
     underlying log-likelihood callable and finally hands everything to
-    :func:`copernican_lib.engine_adapter.make_logposterior` so priors and
+    :func:`copernican.lib.engine_adapter.make_logposterior` so priors and
     Jacobian adjustments remain consistent across engines.
     """
 

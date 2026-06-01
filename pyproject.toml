@@ -20,6 +20,7 @@ dependencies = [
     "sympy==1.13.0",
     "jsonschema==4.21.1",
     "camb==1.6.0",
+    "contourpy==1.3.2",
     "PyYAML==6.0.3",
     "astropy==6.0.0",
     "psutil==5.9.8",
@@ -64,8 +65,8 @@ include-package-data = true
 include = [
     "copernican",
     "copernican.*",
-    "copernican_lib",
-    "copernican_lib.*",
+    "copernican.lib",
+    "copernican.lib.*",
     "engines",
     "engines.*",
     "models",
@@ -84,5 +85,19 @@ exclude = [
 "licenses" = ["licenses/*"]
 
 [tool.setuptools.package-data]
-# Package data keeps the runtime version file and bundled datasets together.
-"copernican" = ["VERSION", "datasets/**/*"]
+# Package data keeps the runtime version file, bundled datasets, docs, and
+# packaged mini-games together.
+"copernican" = [
+    "VERSION",
+    "datasets/**/*",
+    "docs/**/*",
+    "img/**/*",
+    "runtime-requirements.lock",
+    "rng_minigames/**/*",
+]
+"copernican.lib" = [
+    "latex_mappings.yml",
+    "config_schemas/**/*",
+    "licenses/**/*",
+    "vendor/**/*",
+]

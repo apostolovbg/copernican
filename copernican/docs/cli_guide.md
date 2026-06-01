@@ -101,11 +101,11 @@ flags execute their action and exit immediately:
   `analysis-summary_<timestamp>.yml/.json` files by also passing `--analysis-
   summary-output <dir>` and optional `--analysis-summary-formats yml,json`.
 - `--analysis-compare BASE_DIR ALT_DIR` runs the structured comparator
-  described in `copernican_lib.analysis`, prints the resulting JSON/YAML
+  described in `copernican.lib.analysis`, prints the resulting JSON/YAML
   fragment with duration, dataset count and parameter deltas, and writes the
   same filer when combined with `--analysis-compare-output <dir>`.
 - `--analysis-posterior RUN_DIR` reruns
-  `copernican_lib.analysis.plot_posterior`, producing the ArviZ-powered
+  `copernican.lib.analysis.plot_posterior`, producing the ArviZ-powered
   overview, corner and histogram figures from the latest `posterior-*.nc`
   snapshot.  `--analysis-posterior-output` accepts either a directory
   (defaulting to the run folder) or a `.png` path. When given a directory all
@@ -115,7 +115,7 @@ flags execute their action and exit immediately:
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on
-`copernican_lib.run_executor.execute_run_from_manifest`. To reuse a manifest:
+`copernican.lib.run_executor.execute_run_from_manifest`. To reuse a manifest:
 
 1. Save or copy the manifest (e.g., `output/copernican-run_20251203_154118/
    run_manifest_20251203_154118.yml`).
@@ -123,13 +123,13 @@ Both the CLI and GUI rely on
 3. (Optional) Set `--output-dir` to store outputs in a deterministic folder for
    CI environments.
 
-`copernican_lib.run_executor.execute_run_from_manifest` also saves a
+`copernican.lib.run_executor.execute_run_from_manifest` also saves a
 timestamped `run_manifest_<timestamp>.yml` inside the provided output directory
 before sampling begins, so CLI and validation runs archive the manifest even
 when they only receive a reference to an existing YAML file.
 
 The executor rebuilds the declared models via
-`copernican_lib.engine_adapter.build_plugin`, reloads datasets using the
+`copernican.lib.engine_adapter.build_plugin`, reloads datasets using the
 recorded hashes, and hands sampling to the selected engine. Progress updates
 and log output match the GUI’s Run Monitor display.
 

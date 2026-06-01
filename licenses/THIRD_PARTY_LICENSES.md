@@ -5,7 +5,7 @@ the tracked dependency manifests and the corresponding license
 texts stored under `licenses/`.
 
 ## License Report
-- `copernican_lib/runtime-requirements.lock`
+- `copernican/runtime-requirements.lock`
 - `devcovenant/runtime-requirements.lock`
 - `requirements.in`
 - `requirements.lock`
@@ -13,14 +13,14 @@ texts stored under `licenses/`.
 ## Dependency License Inventory
 - `arviz==0.16.1`: `licenses/arviz-0.16.1.txt`
 - `astropy==6.0.0`: `licenses/astropy-6.0.0.txt`
-- `astropy-iers-data==0.2026.5.18.1.11.28`: `licenses/astropy-iers-data-0.2026.5.18.1.11.28.txt`
+- `astropy-iers-data==0.2026.5.25.1.14.13`: `licenses/astropy-iers-data-0.2026.5.25.1.14.13.txt`
 - `attrs==26.1.0`: `licenses/attrs-26.1.0.txt`
 - `bandit==1.9.4`: `licenses/bandit-1.9.4.txt`
 - `build==1.5.0`: `licenses/build-1.5.0.txt`
 - `camb==1.6.0`: `licenses/camb-1.6.0.txt`
 - `cfgv==3.5.0`: `licenses/cfgv-3.5.0.txt`
 - `click==8.4.1`: `licenses/click-8.4.1.txt`
-- `contourpy==1.3.3`: `licenses/contourpy-1.3.3.txt`
+- `contourpy==1.3.2`: `licenses/contourpy-1.3.2.txt`
 - `cycler==0.12.1`: `licenses/cycler-0.12.1.txt`
 - `distlib==0.4.0`: `licenses/distlib-0.4.0.txt`
 - `emcee==3.1.4`: `licenses/emcee-3.1.4.txt`
@@ -59,7 +59,7 @@ texts stored under `licenses/`.
 - `PyYAML==6.0.3`: `licenses/PyYAML-6.0.3.txt`
 - `referencing==0.37.0`: `licenses/referencing-0.37.0.txt`
 - `rich==15.0.0`: `licenses/rich-15.0.0.txt`
-- `rpds-py==0.30.0`: `licenses/rpds-py-0.30.0.txt`
+- `rpds-py==2026.5.1`: `licenses/rpds-py-2026.5.1.txt`
 - `scipy==1.12.0`: `licenses/scipy-1.12.0.txt`
 - `semver==3.0.4`: `licenses/semver-3.0.4.txt`
 - `setuptools==82.0.1`: `licenses/setuptools-82.0.1.txt`

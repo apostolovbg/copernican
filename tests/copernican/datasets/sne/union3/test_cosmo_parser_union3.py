@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as numpy_module
 from astropy.io import fits
 
-from copernican_lib import dataset_registry
+from copernican.lib import dataset_registry
 
 
 class TestUnion3Parser(unittest.TestCase):
@@ -20,6 +20,7 @@ class TestUnion3Parser(unittest.TestCase):
         importlib.import_module(
             "copernican.datasets.sne.union3.cosmo_parser_union3"
         )
+        dataset_registry.discover_trusted_parsers(force=True)
         union3_dataframe = dataset_registry.load_sne_data("union3_2025")
         self.assertFalse(union3_dataframe.empty)
         self.assertEqual(union3_dataframe.shape[0], 22)

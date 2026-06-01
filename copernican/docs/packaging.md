@@ -18,7 +18,7 @@ recreate `.venv` and reinstall the locked requirements before continuing.
 Create or refresh `.venv` with `python -m venv .venv`, activate it, then run
 `python -m pip install -r requirements.lock` and `python -m pip install .`
 inside that environment. The package discovery list in `pyproject.toml`
-includes the runtime package `copernican`, the helper package `copernican_lib`,
+includes the runtime package `copernican`, the helper package `copernican.lib`,
 the engine package `engines`, and the model catalogue `models`, which keeps
 reinstalls aligned with the source tree while still packaging the nested
 modules. ArviZ now ships as the widely available `0.16.1` release alongside

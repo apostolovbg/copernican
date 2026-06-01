@@ -1,0 +1,182 @@
+2026-06-01 01:16:59,321 - INFO - Program diagnostics log initialised at /Users/apostolov/Documents/GitHub/copernican/copernican/logs/copernican_log_20260601_011659.txt (rollover 10.00 MB, backup count 3)
+2026-06-01 01:16:59,349 - INFO - Environment details:
+2026-06-01 01:16:59,349 - INFO -   Python: 3.11.14
+2026-06-01 01:16:59,349 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:16:59,349 - INFO -   CPU: i386
+2026-06-01 01:16:59,349 - INFO -   numpy 1.26.4
+2026-06-01 01:16:59,349 - INFO -   scipy 1.12.0
+2026-06-01 01:16:59,349 - INFO -   matplotlib 3.8.2
+2026-06-01 01:16:59,350 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:16:59,350 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:16:59,697 - INFO - App diagnostics ready
+2026-06-01 01:16:59,697 - ERROR - App failure
+2026-06-01 01:16:59,770 - INFO - Environment details:
+2026-06-01 01:16:59,770 - INFO -   Python: 3.11.14
+2026-06-01 01:16:59,770 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:16:59,770 - INFO -   CPU: i386
+2026-06-01 01:16:59,770 - INFO -   numpy 1.26.4
+2026-06-01 01:16:59,770 - INFO -   scipy 1.12.0
+2026-06-01 01:16:59,770 - INFO -   matplotlib 3.8.2
+2026-06-01 01:16:59,771 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:16:59,771 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:00,114 - INFO - Environment details:
+2026-06-01 01:17:00,114 - INFO -   Python: 3.11.14
+2026-06-01 01:17:00,114 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:00,115 - INFO -   CPU: i386
+2026-06-01 01:17:00,115 - INFO -   numpy 1.26.4
+2026-06-01 01:17:00,116 - INFO -   scipy 1.12.0
+2026-06-01 01:17:00,117 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:00,117 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:00,117 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:01,515 - WARNING - Are you sure you want to clear the configuration?
+2026-06-01 01:17:01,516 - INFO - Environment details:
+2026-06-01 01:17:01,516 - INFO -   Python: 3.11.14
+2026-06-01 01:17:01,516 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:01,516 - INFO -   CPU: i386
+2026-06-01 01:17:01,516 - INFO -   numpy 1.26.4
+2026-06-01 01:17:01,517 - INFO -   scipy 1.12.0
+2026-06-01 01:17:01,517 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:01,517 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:01,517 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:02,191 - INFO - Environment details:
+2026-06-01 01:17:02,191 - INFO -   Python: 3.11.14
+2026-06-01 01:17:02,191 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:02,191 - INFO -   CPU: i386
+2026-06-01 01:17:02,192 - INFO -   numpy 1.26.4
+2026-06-01 01:17:02,192 - INFO -   scipy 1.12.0
+2026-06-01 01:17:02,192 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:02,192 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:02,192 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:02,527 - WARNING - Set all required selections in Seed, Models, Data and Engine before saving the manifest.
+2026-06-01 01:17:02,528 - INFO - Environment details:
+2026-06-01 01:17:02,528 - INFO -   Python: 3.11.14
+2026-06-01 01:17:02,528 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:02,529 - INFO -   CPU: i386
+2026-06-01 01:17:02,529 - INFO -   numpy 1.26.4
+2026-06-01 01:17:02,529 - INFO -   scipy 1.12.0
+2026-06-01 01:17:02,529 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:02,529 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:02,529 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:02,876 - INFO - Environment details:
+2026-06-01 01:17:02,877 - INFO -   Python: 3.11.14
+2026-06-01 01:17:02,877 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:02,877 - INFO -   CPU: i386
+2026-06-01 01:17:02,877 - INFO -   numpy 1.26.4
+2026-06-01 01:17:02,877 - INFO -   scipy 1.12.0
+2026-06-01 01:17:02,877 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:02,877 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:02,878 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:03,992 - INFO - Environment details:
+2026-06-01 01:17:03,993 - INFO -   Python: 3.11.14
+2026-06-01 01:17:03,993 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:03,993 - INFO -   CPU: i386
+2026-06-01 01:17:03,993 - INFO -   numpy 1.26.4
+2026-06-01 01:17:03,993 - INFO -   scipy 1.12.0
+2026-06-01 01:17:03,993 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:03,993 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:03,993 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:04,396 - INFO - Environment details:
+2026-06-01 01:17:04,396 - INFO -   Python: 3.11.14
+2026-06-01 01:17:04,396 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:04,396 - INFO -   CPU: i386
+2026-06-01 01:17:04,396 - INFO -   numpy 1.26.4
+2026-06-01 01:17:04,397 - INFO -   scipy 1.12.0
+2026-06-01 01:17:04,397 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:04,397 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:04,397 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:04,809 - INFO - Environment details:
+2026-06-01 01:17:04,810 - INFO -   Python: 3.11.14
+2026-06-01 01:17:04,810 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:04,810 - INFO -   CPU: i386
+2026-06-01 01:17:04,810 - INFO -   numpy 1.26.4
+2026-06-01 01:17:04,810 - INFO -   scipy 1.12.0
+2026-06-01 01:17:04,810 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:04,810 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:04,810 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:05,160 - WARNING - Save the manifest before advancing to confirmation.
+2026-06-01 01:17:05,160 - INFO - Environment details:
+2026-06-01 01:17:05,161 - INFO -   Python: 3.11.14
+2026-06-01 01:17:05,161 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:05,161 - INFO -   CPU: i386
+2026-06-01 01:17:05,161 - INFO -   numpy 1.26.4
+2026-06-01 01:17:05,161 - INFO -   scipy 1.12.0
+2026-06-01 01:17:05,161 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:05,161 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:05,161 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:05,906 - INFO - Environment details:
+2026-06-01 01:17:05,906 - INFO -   Python: 3.11.14
+2026-06-01 01:17:05,907 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:05,907 - INFO -   CPU: i386
+2026-06-01 01:17:05,907 - INFO -   numpy 1.26.4
+2026-06-01 01:17:05,907 - INFO -   scipy 1.12.0
+2026-06-01 01:17:05,907 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:05,907 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:05,907 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:06,645 - INFO - Environment details:
+2026-06-01 01:17:06,645 - INFO -   Python: 3.11.14
+2026-06-01 01:17:06,645 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:06,646 - INFO -   CPU: i386
+2026-06-01 01:17:06,646 - INFO -   numpy 1.26.4
+2026-06-01 01:17:06,646 - INFO -   scipy 1.12.0
+2026-06-01 01:17:06,646 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:06,646 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:06,646 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:07,048 - INFO - Manifest inserted. Review metadata before starting the run.
+2026-06-01 01:17:07,049 - INFO - Environment details:
+2026-06-01 01:17:07,049 - INFO -   Python: 3.11.14
+2026-06-01 01:17:07,049 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:07,050 - INFO -   CPU: i386
+2026-06-01 01:17:07,050 - INFO -   numpy 1.26.4
+2026-06-01 01:17:07,050 - INFO -   scipy 1.12.0
+2026-06-01 01:17:07,050 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:07,050 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:07,050 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:07,793 - INFO - Environment details:
+2026-06-01 01:17:07,793 - INFO -   Python: 3.11.14
+2026-06-01 01:17:07,794 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:07,794 - INFO -   CPU: i386
+2026-06-01 01:17:07,794 - INFO -   numpy 1.26.4
+2026-06-01 01:17:07,794 - INFO -   scipy 1.12.0
+2026-06-01 01:17:07,794 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:07,794 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:07,794 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:08,500 - INFO - Environment details:
+2026-06-01 01:17:08,500 - INFO -   Python: 3.11.14
+2026-06-01 01:17:08,500 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:08,500 - INFO -   CPU: i386
+2026-06-01 01:17:08,501 - INFO -   numpy 1.26.4
+2026-06-01 01:17:08,501 - INFO -   scipy 1.12.0
+2026-06-01 01:17:08,501 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:08,501 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:08,501 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:08,914 - INFO - Environment details:
+2026-06-01 01:17:08,914 - INFO -   Python: 3.11.14
+2026-06-01 01:17:08,914 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:08,915 - INFO -   CPU: i386
+2026-06-01 01:17:08,915 - INFO -   numpy 1.26.4
+2026-06-01 01:17:08,915 - INFO -   scipy 1.12.0
+2026-06-01 01:17:08,915 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:08,915 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:08,915 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:09,327 - INFO - Environment details:
+2026-06-01 01:17:09,327 - INFO -   Python: 3.11.14
+2026-06-01 01:17:09,327 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:09,327 - INFO -   CPU: i386
+2026-06-01 01:17:09,327 - INFO -   numpy 1.26.4
+2026-06-01 01:17:09,327 - INFO -   scipy 1.12.0
+2026-06-01 01:17:09,327 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:09,327 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:09,327 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:09,732 - INFO - Environment details:
+2026-06-01 01:17:09,732 - INFO -   Python: 3.11.14
+2026-06-01 01:17:09,732 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-01 01:17:09,732 - INFO -   CPU: i386
+2026-06-01 01:17:09,732 - INFO -   numpy 1.26.4
+2026-06-01 01:17:09,732 - INFO -   scipy 1.12.0
+2026-06-01 01:17:09,732 - INFO -   matplotlib 3.8.2
+2026-06-01 01:17:09,732 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-01 01:17:09,732 - INFO - GUI launch completed; diagnostics stream active
+2026-06-01 01:17:10,176 - INFO - Manifest exported to /var/folders/_c/d3frhrnj3m3g6yy_836_d38m0000gn/T/tmpyb59ynf4/external_manifest.yml
+2026-06-01 01:18:04,730 - INFO - hello
+2026-06-01 01:18:04,732 - INFO - hello
+2026-06-01 01:18:04,732 - INFO - prompt: answer

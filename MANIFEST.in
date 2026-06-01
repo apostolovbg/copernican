@@ -1,2 +1,7 @@
 recursive-include licenses *
+recursive-include copernican/lib *
+recursive-include copernican/docs *
+recursive-include copernican/img *
+recursive-include copernican/rng_minigames *
+include copernican/runtime-requirements.lock
 include copernican/VERSION

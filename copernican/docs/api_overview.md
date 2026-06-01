@@ -1,7 +1,7 @@
 # Copernican API Overview
 
 Copernican exposes a lightweight API intended for advanced scripting. Most
-functionality lives in the ``copernican_lib`` package which can be imported
+functionality lives in the ``copernican.lib`` package which can be imported
 directly without using the command-line interface.  The core modules are:
 
 - `model_spec_validator.validate_and_cache_model(path, cache_dir)` – validate
@@ -9,22 +9,22 @@ directly without using the command-line interface.  The core modules are:
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
 - `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
-  :class:`copernican_lib.engine_adapter.EnginePlugin` instance with dataset
+  :class:`copernican.lib.engine_adapter.EnginePlugin` instance with dataset
   toggles, priors, bounds, distance functions and structured CAMB background
   and perturbation contracts ready for engine consumption.
-- `copernican_lib.engine_adapter` – home of the picklable adapter dataclass,
+- `copernican.lib.engine_adapter` – home of the picklable adapter dataclass,
   `EnginePlugin.CMB_CONTRACT`, `EnginePlugin.CMB_PERTURBATION_CONTRACT`,
   `EnginePlugin.CMB_PERTURBATION_STANDARD`, `EnginePlugin.CMB_PERTURBATION_IR`,
   `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`. Import it when building
   custom tooling that needs to confirm interface compliance.
-- `copernican_lib.progress` – shared progress reporting helpers. Engines import
+- `copernican.lib.progress` – shared progress reporting helpers. Engines import
   `BatchProgressBar` so CLI runs log simple counters such as “Burn-in stage
   batch 1: 3/200 steps completed (1%)” while still emitting the structured
   ``batch_start``, ``progress_update`` and ``batch_finish`` records that power
   the GUI progress monitors. The helper keeps stage metadata and the listener
   contract unchanged so every backend can report progress without depending on
   carriage-return renderers or spinner pumps.
-- `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir)` –
+- `copernican.lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir)` –
   render the Stage 2 posterior as an automatically thinned corner plot whose
   KDE/contour grid and marginals are now produced by ArviZ while the suite
   retains the responsive panel sizing, footers, and layout safeguards that keep
@@ -34,19 +34,19 @@ directly without using the command-line interface.  The core modules are:
   `_prepare_corner_inputs` validator still flattens samples, derives thinning
   statistics and feeds `build_footer_lines`, keeping the `legacy` shim in place
   for earlier automation.
-- `copernican_lib.plotter.plot_parameter_histograms(samples, plugin,
+- `copernican.lib.plotter.plot_parameter_histograms(samples, plugin,
   data_attrs, plot_dir)` – generate a grid of per-parameter histograms rendered
   by ArviZ, complete with neutral info boxes, dataset-aware footers and
   quantile annotations so the GUI viewer can reuse the same assets. The helper
   uses `_prepare_corner_inputs` to thin the samples, lists the effective
   parameter names, and records how many finite draws survived before drawing
   the histograms so the exported files remain audit-friendly.
-- `copernican_lib.posterior` – exposes
-  :func:`copernican_lib.posterior.make_logposterior`, which now returns a
+- `copernican.lib.posterior` – exposes
+  :func:`copernican.lib.posterior.make_logposterior`, which now returns a
   picklable :class:`PosteriorEvaluator` combining priors, transforms and
   likelihood callables. Engines should always route posterior evaluations
   through this helper to keep multiprocessing safe.
-- `copernican_lib.statistics` – shared chi-squared and BAO/CMB helper functions
+- `copernican.lib.statistics` – shared chi-squared and BAO/CMB helper functions
   used by every engine.  Importing from this module keeps the numerical
   implementations in a single place so engines remain thin orchestration
   layers. The helpers expose SNe chi-squared evaluations that always return
@@ -128,10 +128,10 @@ directly without using the command-line interface.  The core modules are:
 
 Engine adapters are validated through ``engine_adapter.validate_plugin``—a
 thin wrapper around
-:func:`copernican_lib.engine_adapter.validate_plugin`—before use. Chi-squared
+:func:`copernican.lib.engine_adapter.validate_plugin`—before use. Chi-squared
 helpers assume this step has already succeeded, so validation should occur
 once before any iterative evaluation begins. Engines expect the attributes
-listed in ``copernican_lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
+listed in ``copernican.lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
 :class:`EnginePlugin` exposes distance functions, CMB helpers, initial
 parameter guesses, the structured CAMB contract derived from the model YAML
 and the compiled perturbation IR while remaining fully picklable for
@@ -141,7 +141,7 @@ multiprocessing workloads.
 
 All data parsers return a ``pandas.DataFrame`` with common columns and metadata
 so that engines remain agnostic to the origin of the data.
-`copernican_lib/dataset_registry.py` reads ``metadata_*.yml`` files located
+`copernican/lib/dataset_registry.py` reads ``metadata_*.yml`` files located
 next to the dataset tables and attaches the fields via the ``DataFrame.attrs``
 dictionary after the parser returns. For supernovae datasets the table
 contains at minimum ``Name``, ``zcmb``, ``mu_obs`` and ``e_mu_obs``.
@@ -157,8 +157,8 @@ Third-party tools may import these modules directly. A typical scripting
 session looks like this:
 
 ```python
-from copernican_lib import dataset_registry, engine_adapter, model_coder
-from copernican_lib import model_spec_validator
+from copernican.lib import dataset_registry, engine_adapter, model_coder
+from copernican.lib import model_spec_validator
 import engines.cosmo_engine_mcmc as engine
 
 cache = model_spec_validator.validate_and_cache_model(
@@ -189,27 +189,27 @@ tools can parse it without importing NumPy or pandas.
 
 Example::
 
-    from copernican_lib import result_writer
+    from copernican.lib import result_writer
 
     summary = {"ReferenceModel": engine_results}
     result_writer.save_summary(summary, "output/run")
 
 ## Run Analysis Helpers
 
-The new :mod:`copernican_lib.analysis` module inspects an existing run
+The new :mod:`copernican.lib.analysis` module inspects an existing run
 directory, reads the latest manifest/parameter summary, scans the generated
 log, and assembles a structured
-:class:`copernican_lib.analysis.RunAnalysisResult`.  The summary includes run
+:class:`copernican.lib.analysis.RunAnalysisResult`.  The summary includes run
 timing, diagnostics such as R-hat and ESS, dataset counts, and per-model chi-
 squared plus BAO/CMB residual metadata so tools can report consistent tables or
 JSON blobs without re-parsing log files manually.
 
-Calling :func:`copernican_lib.analysis.analyze_run` on ``output/copernican-
+Calling :func:`copernican.lib.analysis.analyze_run` on ``output/copernican-
 run_...`` returns the dataclass, while :meth:`RunAnalysisResult.to_dict`
 produces a serialisable representation for downstream APIs:
 
 ```python
-from copernican_lib import analysis
+from copernican.lib import analysis
 
 result = analysis.analyze_run("output/copernican-run_20251207_200254")
 print(result.model_summaries["ReferenceModel"].chi2["chi2_total"])
@@ -221,7 +221,7 @@ For workflows that need files rather than dataclasses, use
 
 ```python
 from pathlib import Path
-from copernican_lib import analysis
+from copernican.lib import analysis
 
 summary_paths = analysis.save_run_summary(
     Path("output/copernican-run_20251207_200254"),
@@ -242,7 +242,7 @@ the GUI, and returns the written file paths so scripts can log or publish the
 assets without needing to replicate the GUI plumbing.
 
 ```python
-from copernican_lib import analysis
+from copernican.lib import analysis
 
 saved_paths = analysis.plot_posterior(
     Path("output/copernican-run_20251207_200254"),
@@ -254,20 +254,20 @@ print(saved_paths["corner"])
 
 ## Posterior Explorer
 
-Posterior summaries rely on :mod:`copernican_lib.posterior_explorer` to locate
+Posterior summaries rely on :mod:`copernican.lib.posterior_explorer` to locate
 the ``posterior-*.nc`` snapshots inside a run directory and build a compact
 trace/hist figure that reuses the shared analysis metadata. Use
 ``posterior_explorer.find_posterior_files(run_dir)`` to enumerate the NetCDF
 files and ``posterior_explorer.create_posterior_overview_figure(result,
 posterior_path)`` to draw the plot that appears inside the GUI’s Analysis
 workspace. The GUI also exposes the plot through
-:class:`copernican_lib.gui.plot_viewer.PlotViewer`, but you can use the same
+:class:`copernican.lib.gui.plot_viewer.PlotViewer`, but you can use the same
 helpers directly in scripts or notebooks:
 
 ```python
 from pathlib import Path
 
-from copernican_lib import analysis, posterior_explorer
+from copernican.lib import analysis, posterior_explorer
 
 run_dir = Path("output/copernican-run_20251207_200254")
 result = analysis.analyze_run(run_dir)

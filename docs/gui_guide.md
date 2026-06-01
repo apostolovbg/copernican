@@ -59,8 +59,8 @@ each page. The steps are:
    Emoji Meteors, Constellation and the environment override buttons are
    arranged in a single vertical stack so screen-readers and keyboard users can
    tab through them predictably. Mini-game documentation lives next to the
-   code: see [`rng_minigames/README.md`](../rng_minigames/README.md) for the
-   API and the per-game READMEs under `rng_minigames/<game>/` for rules,
+   code: see `copernican/rng_minigames/README.md` for the API and the
+   per-game READMEs under `copernican/rng_minigames/<game>/` for rules,
    accessibility notes and configuration settings. Alien Invasion exposes both
    a **Let AI take care** autopilot (which learns per workstation using cache
    files) and a Hall of Fame leaderboard so players can compare the fastest
@@ -106,7 +106,7 @@ can then:
 - Save and jump straight to Confirm without manually clicking `Next`
 
 The GUI and CLI now share
-`copernican_lib.run_executor.execute_run_from_manifest`, so every saved
+`copernican.lib.run_executor.execute_run_from_manifest`, so every saved
 manifest flows through the exact same orchestration code.
 
 ## Run Monitor and Diagnostics

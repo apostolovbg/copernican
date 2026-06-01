@@ -5,7 +5,7 @@ import os
 import numpy as numpy_module
 import pandas as pandas_module
 
-from copernican_lib.dataset_registry import (
+from copernican.lib.dataset_registry import (
     register_bao_parser,
     register_cmb_parser,
     register_sne_parser,

@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as numpy_module
 import yaml
 
-from copernican_lib.engine_adapter import build_engine_plugin
+from copernican.lib.engine_adapter import build_engine_plugin
 
 _DATA_DIR = Path(__file__).parent
 _MODEL_PATH = _DATA_DIR / "model.yml"

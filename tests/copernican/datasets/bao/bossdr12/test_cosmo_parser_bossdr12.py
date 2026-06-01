@@ -9,10 +9,10 @@ from pathlib import Path
 
 import numpy as numpy_module
 
-import copernican_lib.engine_adapter as engine_plugin_validation
-import copernican_lib.model_coder as model_coder
-import copernican_lib.model_spec_validator as model_spec_validator
-from copernican_lib.statistics import chi_squared_bao
+import copernican.lib.engine_adapter as engine_plugin_validation
+import copernican.lib.model_coder as model_coder
+import copernican.lib.model_spec_validator as model_spec_validator
+from copernican.lib.statistics import chi_squared_bao
 
 
 class BossDR12ParserTestCase(unittest.TestCase):

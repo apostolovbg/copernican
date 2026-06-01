@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -654,11 +654,11 @@ surfaces:
   lock_file: requirements.lock
   direct_dependency_files:
   - requirements.in
-  - copernican_lib/runtime-requirements.lock
+  - copernican/runtime-requirements.lock
   dependency_files:
   - requirements.in
   - devcovenant/runtime-requirements.lock
-  - copernican_lib/runtime-requirements.lock
+  - copernican/runtime-requirements.lock
   third_party_file: licenses/THIRD_PARTY_LICENSES.md
   licenses_dir: licenses
   report_heading: '## License Report'
@@ -668,7 +668,7 @@ surfaces:
   required_paths:
   - requirements.in
   - devcovenant/runtime-requirements.lock
-  - copernican_lib/runtime-requirements.lock
+  - copernican/runtime-requirements.lock
   hash_targets:
   - id: linux-py311
     marker: sys_platform == "linux" and python_version == "3.11"
@@ -699,16 +699,20 @@ surfaces:
       python_version: '3.11'
       abi: cp311
 - id: package_runtime
-  lock_file: copernican_lib/runtime-requirements.lock
-  third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-  licenses_dir: copernican_lib/licenses
+  lock_file: copernican/runtime-requirements.lock
+  direct_dependency_files:
+  - pyproject.toml
+  dependency_files:
+  - pyproject.toml
+  third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+  licenses_dir: copernican/lib/licenses
   report_heading: '## License Report'
   manage_licenses_readme: 'true'
   generate_hashes: 'true'
   audit_service: pypi
   required_paths:
   - pyproject.toml
-  - copernican_lib
+  - copernican
   hash_targets:
   - id: linux-py311
     marker: sys_platform == "linux" and python_version == "3.11"
@@ -1185,10 +1189,11 @@ exclude_globs:
 - node_modules/**
 - '**/*.egg-info/**'
 - .matplotlib-cache/**
-- rng_minigames/registry.json
+- copernican/rng_minigames/registry.json
 - validation/manifests/**
 - licenses/THIRD_PARTY_LICENSES.md
-- copernican_lib/licenses/*.txt
+- copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+- copernican/lib/licenses/*.txt
 - copernican/datasets/**
 - devcovenant/**
 include_prefixes: []

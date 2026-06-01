@@ -4,7 +4,7 @@ This document describes the supported LaTeX-like syntax for cosmological model
 YAML files. Expressions are parsed by `latex_utils.py` and converted to NumPy-
 ready code using mappings from `latex_mappings.yml`.
 
-`copernican_lib.statistics` now imports `latex_utils.latex_to_unicode` when it
+`copernican.lib.statistics` now imports `latex_utils.latex_to_unicode` when it
 logs acceptance fractions and fitted parameters so that diagnostics produced by
 the MCMC engine display the same typographic quality as optimiser summaries.
 Extending the mapping tables therefore benefits both plotting and log output.
@@ -73,7 +73,7 @@ without dedicated Unicode glyphs fall back to their original form.
 
 ## Debugging Syntax Errors
 
-If `copernican_lib.model_spec_validator` reports a parsing failure, inspect the
+If `copernican.lib.model_spec_validator` reports a parsing failure, inspect the
 generated `models/cache/` entry to see the sanitised LaTeX.  Running the
 expression through `latex_utils.latex_to_unicode` can also help spot stray
 characters that were not translated.  When in doubt, reduce the equation to a

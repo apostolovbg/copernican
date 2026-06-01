@@ -1,7 +1,0 @@
-{
-  "id": "constellation",
-  "name": "Constellation",
-  "module": "rng_minigames.constellation",
-  "callable": "launch_constellation",
-  "description": "Connect ten stars to record the path and generate a seed."
-}

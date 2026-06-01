@@ -5,7 +5,7 @@
 
 This module ties together model selection, dataset loading and result
 generation while delegating dependency checks and menu rendering to
-``copernican_lib.cli`` helpers. The package entrypoint now lives here so the
+``copernican.lib.cli`` helpers. The package entrypoint now lives here so the
 distribution can run through ``python -m copernican`` and the console script
 without a root-level wrapper file.
 """
@@ -33,13 +33,13 @@ from typing import Any, Callable, Iterable
 import yaml
 
 import copernican.version as version_module
-from copernican_lib import analysis as analysis
-from copernican_lib import console_output as console
-from copernican_lib import logger as log_mod
-from copernican_lib import orchestration, progress_state, run_manifest
-from copernican_lib import settings as settings_mod
-from copernican_lib import utils
-from copernican_lib.cli import dependencies as cli_dependencies
+from copernican.lib import analysis as analysis
+from copernican.lib import console_output as console
+from copernican.lib import logger as log_mod
+from copernican.lib import orchestration, progress_state, run_manifest
+from copernican.lib import settings as settings_mod
+from copernican.lib import utils
+from copernican.lib.cli import dependencies as cli_dependencies
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -88,7 +88,7 @@ if not allow_direct and (
 # Enable low-level stack tracing so crashes reveal their origin.
 faulthandler.enable()
 
-# Heavy imports are deferred to ``copernican_lib.cli.dependencies`` so startup
+# Heavy imports are deferred to ``copernican.lib.cli.dependencies`` so startup
 # stays quick and dependency checks run before NumPy or Matplotlib load.
 
 # Retrieve the runtime version from installed package metadata. When the
@@ -172,7 +172,7 @@ def _get_dataset_registry():
 
     global _dataset_registry
     if _dataset_registry is None:
-        from copernican_lib import dataset_registry as registry_module
+        from copernican.lib import dataset_registry as registry_module
 
         _dataset_registry = registry_module
     return _dataset_registry
@@ -680,7 +680,7 @@ def _print_manifest_file(path: Path) -> bool:
 def _run_validation_cli() -> bool:
     """Execute the lightweight validation suite and summarize results."""
 
-    from copernican_lib import validation as validation_utils
+    from copernican.lib import validation as validation_utils
     from validation.runner import run_validation_suite
 
     repo_root = REPO_ROOT
@@ -1294,7 +1294,7 @@ def launch_gui() -> None:
     """
 
     program_logger = _ensure_program_logging()
-    from copernican_lib.gui import CopernicanGUI
+    from copernican.lib.gui import CopernicanGUI
 
     program_logger.info(
         "GUI mode requested inline; detach flag=%s, Tcl=%s, Tk=%s",
@@ -1323,7 +1323,7 @@ def launch_gui() -> None:
         )
         console.write(f"  {descriptor.rationale}")
     console.write(
-        "Use copernican_lib.orchestration.RunController implementations to "
+        "Use copernican.lib.orchestration.RunController implementations to "
         "request runs, pause or resume sampling and stream status updates "
         "from the existing orchestration pipeline."
     )
@@ -1470,8 +1470,8 @@ def main_workflow(manifest_path: Path | None = None):
     numpy_module, plt, multiprocessing_module = (
         cli_dependencies.load_third_party_modules()
     )
-    import copernican_lib.engine_adapter as engine_plugin_validation
-    from copernican_lib import (
+    import copernican.lib.engine_adapter as engine_plugin_validation
+    from copernican.lib import (
         error_handler,
         model_coder,
         model_spec_validator,

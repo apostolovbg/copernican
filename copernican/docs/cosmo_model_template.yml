@@ -1,0 +1,248 @@
+model_name: TemplateModel
+version: "1.0"
+description: |
+  This template is the canonical source of truth for generative agents and
+  reviewers. It documents every field that a valid `cosmo_model_*.yml` may
+  contain. The `parameters` list combines real physics knobs with instructive
+  metadata so you can infer the required structure when composing a new model.
+  * Define each parameter with `name`, `python_var` if the default identifier
+    is too verbose, `latex_name`, `unit`, `definition` and a `prior`. The
+    `prior` block must always declare `type` (`gaussian`, `uniform`,
+    `loguniform` or `fixed`) along with the fields that type requires
+    (`mean`/`sigma`, `lower`/`upper`, `value`). Log-uniform priors
+    automatically add the `transform: log` metadata in the cached YAML.
+  * Every physics observable that can appear in `H(z)` or the sound-horizon
+    integrand must already be a declared parameter (or a fixed constant).
+  * Model YAMLs are declarative mathematical files, not Python modules.
+    Copernican validates the declared math and compiles it into executable
+    callables elsewhere in the codebase.
+  * Always pair the photon density `Omega_gamma` with a sampled `Neff`
+    parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
+    (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
+    `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
+    aligned with the CAMB background while letting relativistic species
+    float.
+  * The `cmb` block is a backend adapter contract, not a model class tag.
+    Use `backend: camb`, keep scalar CAMB inputs in `param_map`, declare any
+    generated numerical grids in `grids`, put evaluated expressions in
+    `values`, list backend calls in `calls`, and add a perturbation contract
+    under `cmb.perturbations`.
+  * `valid_for_cmb: true` requires a complete backend contract. A
+    scalar-only model uses `calls: []`; models with additional backend method
+    calls may declare them explicitly without changing the model's declared
+    mathematics.
+  * Every CMB-valid model also declares a perturbation contract under
+    `cmb.perturbations`. `standard: true` means the backend owns the full
+    perturbation machinery and the math sections stay empty. `standard: false`
+    requires a fully declared perturbation contract with typed derivative
+    equations and backend mapping.
+abstract: |
+  A concise abstract describing the model. Mention the key parameters, the
+  physical motivation and which datasets the model was designed to confront.
+parameters:
+  - name: Hubble constant
+    python_var: H0
+    bounds: [50.0, 80.0]
+    unit: km/s/Mpc
+    latex_name: H_0
+    definition: Present expansion rate.
+    prior:
+      type: gaussian
+      mean: 68.0
+      sigma: 3.0
+  - name: Matter density
+    python_var: Omega_m0
+    bounds: [0.05, 0.4]
+    unit: ""
+    latex_name: \Omega_{m0}
+    definition: Cold matter fraction today.
+    prior:
+      type: uniform
+      lower: 0.05
+      upper: 0.4
+  - name: Baryon density
+    python_var: Omega_b
+    bounds: [0.01, 0.07]
+    unit: ""
+    latex_name: \Omega_b
+    definition: Baryonic mass fraction today.
+    prior:
+      type: uniform
+      lower: 0.01
+      upper: 0.07
+  - name: Photon density
+    python_var: Omega_gamma
+    bounds: [1.0e-05, 1.0e-04]
+    unit: ""
+    latex_name: \Omega_{\gamma}
+    definition: Photon contribution used in the radiation term.
+    prior:
+      type: uniform
+      lower: 1.0e-05
+      upper: 1.0e-04
+  - name: Recombination redshift
+    python_var: z_rec
+    bounds: [1089.92, 1089.92]
+    unit: ""
+    latex_name: z_{\rm rec}
+    definition: Fixed photon-decoupling redshift used by the sound horizon.
+    prior:
+      type: fixed
+      value: 1089.92
+  - name: Effective number of relativistic neutrino species
+    python_var: Neff
+    bounds: [2.5, 3.5]
+    unit: ""
+    latex_name: N_{\rm eff}
+    definition: Sampled relativistic neutrino count aligned with CAMB.
+    prior:
+      type: uniform
+      lower: 2.5
+      upper: 3.5
+  - name: Log-scale amplitude
+    python_var: log_amp
+    bounds: [0.01, 10.0]
+    unit: ""
+    latex_name: \log A
+    definition: Example log-uniform scale parameter.
+    prior:
+      type: loguniform
+      lower: 0.01
+      upper: 10.0
+  - name: Speed of light
+    python_var: c_light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: c
+    definition: Fixed constant that appears inside distances and r_s.
+    prior:
+      type: fixed
+      value: 299792.458
+Hz_expression: >-
+  H(z) = H0 * sqrt(
+    Omega_m0 * (1 + z)**3
+    + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+    + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff)) *
+      (1 + z)**(3 + log_amp)
+  )
+equations:
+  sne:
+    - d_L(z) = (1 + z) \int_0^z \frac{c_light\,dz'}{H(z')}
+    - \mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25
+  bao:
+    - D_M(z) = \int_0^z \frac{c_light\,dz'}{H(z')}
+    - D_H(z) = \frac{c_light}{H(z)}
+    - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
+rs_expression: >-
+  r_s = Integral(
+    c_light / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    ) / (
+      H0 * sqrt(
+        Omega_m0 * (1 + z)**3
+        + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+        + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff))
+          * (1 + z)**(3 + log_amp)
+      )
+    ), (z, z_rec, oo)
+  )
+skip_bao: false
+valid_for_bao: true
+valid_for_distance_metrics: true
+valid_for_cmb: true
+cmb:
+  backend: camb
+  param_map:
+    H0: H0
+    ombh2: Omega_b * (H0/100)**2
+    omch2: (Omega_m0 - Omega_b) * (H0/100)**2
+    Neff: Neff
+    tau: 0.054
+    As: 2.1e-09
+    ns: 0.965
+  grids: {}
+  values: {}
+  calls: []
+  perturbations:
+    contract_version: 1
+    standard: false
+    gauge: conformal_newtonian
+    variables:
+      delta_x:
+        kind: density_contrast
+        description: Template density contrast for a custom sector.
+      theta_x:
+        kind: velocity_divergence
+        description: Template velocity divergence for a custom sector.
+      rho_x:
+        kind: background_density
+        description: Template density source for a custom sector.
+      sigma_x:
+        kind: anisotropic_stress
+        description: Template anisotropic-stress source for a custom sector.
+    derived:
+      Phi_tau:
+        kind: derivative_symbol
+        variable: Phi
+        wrt: tau
+        order: 1
+        description: First conformal-time derivative of Phi.
+      delta_rho_eff:
+        expression: rho_x * delta_x
+        description: Template effective density perturbation.
+    equations:
+      continuity_x:
+        lhs:
+          kind: derivative
+          variable: delta_x
+          wrt: tau
+          order: 1
+        rhs: -theta_x + 3 * Phi_tau
+      euler_x:
+        lhs:
+          kind: derivative
+          variable: theta_x
+          wrt: tau
+          order: 1
+        rhs: -Hconf * theta_x + k**2 * Psi
+    closures:
+      no_anisotropic_stress_x:
+        expression: sigma_x
+        equals: "0"
+    sources:
+      poisson_x:
+        expression: delta_rho_eff + delta_x + theta_x
+    validity:
+      regimes:
+        - linear
+        - scalar
+      notes: Template first-order scalar perturbation declaration.
+    backend_mapping:
+      camb:
+        native_solver_required: true
+        implemented: false
+    notes: >-
+      This template demonstrates the complete non-standard perturbation
+      contract. It is not executable until the backend mapping marks the
+      generic declarative implementation as available.
+notes: |
+  * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
+    need the relativistic energy density; doing so keeps BAO diagnostics, CSV
+    exports and CAMB inputs in sync.
+  * The template lists uniform, gaussian, loguniform and fixed priors so you
+    can see all supported options. Always repeat the definition, unit and
+    latex name to make the cached YAML readable.
+  * The `Hz_expression` and `rs_expression` examples show how to reference
+    every parameter you defined. If you need a new parameter, add it to the
+    `parameters` list first and give it the same metadata everywhere else.
+  * Mention which datasets the model targets, how the priors were chosen and
+    any reproducibility instructions inside `description`/`notes` so the file
+    remains the sole source of truth.
+  * When advertising BAO support the baryon density should hover near 0.04
+    (±0.01) so DM/rs predictions stay compatible with the BOSS DR12 comparisons
+    that powering the χ² residual regression. Adjust `Omega_b` intentionally
+    and rerun the BAO test whenever you take the value outside this window.
+  * Set `skip_bao: true` when you intentionally leave BAO disabled. Leaving the
+    key absent (or setting it to `false`) keeps the standard expectation that
+    `rs_expression` and CAMB-aligned BAO helpers remain active.
+date: '2025-12-06'

@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Iterable
 
-from copernican_lib import run_executor, run_manifest, utils
+from copernican.lib import run_executor, run_manifest, utils
 
 _LOGGER = logging.getLogger(__name__)
 _VALIDATION_DIR = Path(__file__).resolve().parent

@@ -8,7 +8,7 @@ cosmological model. It simply reads the YAML table located in ``data_dir`` and
 returns a :class:`pandas.DataFrame` with the expected columns. A matching
 ``metadata_*.yml`` file supplies the human readable dataset name and
 documentation strings which are attached by
-``copernican_lib.dataset_registry.load_bao_data``. The compound dataset does
+``copernican.lib.dataset_registry.load_bao_data``. The compound dataset does
 **not** ship with a covariance matrix; uncertainties are therefore treated as
 uncorrelated and the engine falls back to a diagonal covariance during the
 :math:`\chi^2` evaluation. A ``rs_fiducial_Mpc`` column may appear in some
@@ -22,7 +22,7 @@ import os
 import pandas
 import yaml
 
-from copernican_lib.dataset_registry import register_bao_parser
+from copernican.lib.dataset_registry import register_bao_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

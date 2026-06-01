@@ -6,7 +6,7 @@
 import logging
 import os
 
-from copernican_lib.dataset_registry import register_gw_parser
+from copernican.lib.dataset_registry import register_gw_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

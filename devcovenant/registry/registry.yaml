@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 7fc288ef3b7f3a61b7851002fca0d1290d0be79a294bb61b968736aa7aa59c9a
+  policy_registry_input_hash: c7ca04fe15b9fb1cf90fc34170b016905eefc1c71e458f6203770d91dc2c7170
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -2184,11 +2184,11 @@ policies:
         lock_file: requirements.lock
         direct_dependency_files:
         - requirements.in
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         dependency_files:
         - requirements.in
         - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         third_party_file: licenses/THIRD_PARTY_LICENSES.md
         licenses_dir: licenses
         report_heading: '## License Report'
@@ -2198,7 +2198,7 @@ policies:
         required_paths:
         - requirements.in
         - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         hash_targets:
         - id: linux-py311
           marker: sys_platform == "linux" and python_version == "3.11"
@@ -2229,16 +2229,20 @@ policies:
             python_version: '3.11'
             abi: cp311
       - id: package_runtime
-        lock_file: copernican_lib/runtime-requirements.lock
-        third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-        licenses_dir: copernican_lib/licenses
+        lock_file: copernican/runtime-requirements.lock
+        direct_dependency_files:
+        - pyproject.toml
+        dependency_files:
+        - pyproject.toml
+        third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: copernican/lib/licenses
         report_heading: '## License Report'
         manage_licenses_readme: 'true'
         generate_hashes: 'true'
         audit_service: pypi
         required_paths:
         - pyproject.toml
-        - copernican_lib
+        - copernican
         hash_targets:
         - id: linux-py311
           marker: sys_platform == "linux" and python_version == "3.11"
@@ -2436,11 +2440,11 @@ policies:
               lock_file: requirements.lock
               direct_dependency_files:
               - requirements.in
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               dependency_files:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               third_party_file: licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: licenses
               report_heading: '## License Report'
@@ -2450,7 +2454,7 @@ policies:
               required_paths:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -2481,16 +2485,20 @@ policies:
                   python_version: '3.11'
                   abi: cp311
             - id: package_runtime
-              lock_file: copernican_lib/runtime-requirements.lock
-              third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: copernican_lib/licenses
+              lock_file: copernican/runtime-requirements.lock
+              direct_dependency_files:
+              - pyproject.toml
+              dependency_files:
+              - pyproject.toml
+              third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+              licenses_dir: copernican/lib/licenses
               report_heading: '## License Report'
               manage_licenses_readme: 'true'
               generate_hashes: 'true'
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - copernican_lib
+              - copernican
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -2626,11 +2634,11 @@ policies:
               lock_file: requirements.lock
               direct_dependency_files:
               - requirements.in
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               dependency_files:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               third_party_file: licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: licenses
               report_heading: '## License Report'
@@ -2640,7 +2648,7 @@ policies:
               required_paths:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -2671,16 +2679,20 @@ policies:
                   python_version: '3.11'
                   abi: cp311
             - id: package_runtime
-              lock_file: copernican_lib/runtime-requirements.lock
-              third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: copernican_lib/licenses
+              lock_file: copernican/runtime-requirements.lock
+              direct_dependency_files:
+              - pyproject.toml
+              dependency_files:
+              - pyproject.toml
+              third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+              licenses_dir: copernican/lib/licenses
               report_heading: '## License Report'
               manage_licenses_readme: 'true'
               generate_hashes: 'true'
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - copernican_lib
+              - copernican
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -2816,11 +2828,11 @@ policies:
               lock_file: requirements.lock
               direct_dependency_files:
               - requirements.in
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               dependency_files:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               third_party_file: licenses/THIRD_PARTY_LICENSES.md
               licenses_dir: licenses
               report_heading: '## License Report'
@@ -2830,7 +2842,7 @@ policies:
               required_paths:
               - requirements.in
               - devcovenant/runtime-requirements.lock
-              - copernican_lib/runtime-requirements.lock
+              - copernican/runtime-requirements.lock
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -2861,16 +2873,20 @@ policies:
                   python_version: '3.11'
                   abi: cp311
             - id: package_runtime
-              lock_file: copernican_lib/runtime-requirements.lock
-              third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-              licenses_dir: copernican_lib/licenses
+              lock_file: copernican/runtime-requirements.lock
+              direct_dependency_files:
+              - pyproject.toml
+              dependency_files:
+              - pyproject.toml
+              third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+              licenses_dir: copernican/lib/licenses
               report_heading: '## License Report'
               manage_licenses_readme: 'true'
               generate_hashes: 'true'
               audit_service: pypi
               required_paths:
               - pyproject.toml
-              - copernican_lib
+              - copernican
               hash_targets:
               - id: linux-py311
                 marker: sys_platform == "linux" and python_version == "3.11"
@@ -3095,11 +3111,11 @@ policies:
         lock_file: requirements.lock
         direct_dependency_files:
         - requirements.in
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         dependency_files:
         - requirements.in
         - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         third_party_file: licenses/THIRD_PARTY_LICENSES.md
         licenses_dir: licenses
         report_heading: '## License Report'
@@ -3109,7 +3125,7 @@ policies:
         required_paths:
         - requirements.in
         - devcovenant/runtime-requirements.lock
-        - copernican_lib/runtime-requirements.lock
+        - copernican/runtime-requirements.lock
         hash_targets:
         - id: linux-py311
           marker: sys_platform == "linux" and python_version == "3.11"
@@ -3140,16 +3156,20 @@ policies:
             python_version: 3.11
             abi: cp311
       - id: package_runtime
-        lock_file: copernican_lib/runtime-requirements.lock
-        third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-        licenses_dir: copernican_lib/licenses
+        lock_file: copernican/runtime-requirements.lock
+        direct_dependency_files:
+        - pyproject.toml
+        dependency_files:
+        - pyproject.toml
+        third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: copernican/lib/licenses
         report_heading: '## License Report'
         manage_licenses_readme: true
         generate_hashes: true
         audit_service: pypi
         required_paths:
         - pyproject.toml
-        - copernican_lib
+        - copernican
         hash_targets:
         - id: linux-py311
           marker: sys_platform == "linux" and python_version == "3.11"
@@ -3204,9 +3224,9 @@ policies:
     assets:
     - click-{version}/LICENSE.txt
     - click-{version}/docs/license.md
-    - copernican_lib/licenses
-    - copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-    - copernican_lib/runtime-requirements.lock
+    - copernican/lib/licenses
+    - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+    - copernican/runtime-requirements.lock
     - devcovenant/licenses
     - devcovenant/licenses/THIRD_PARTY_LICENSES.md
     - devcovenant/runtime-requirements.lock
@@ -3218,12 +3238,18 @@ policies:
     script_path: builtin/dependency_management.py
     runtime_state:
       surfaces:
-        root_workspace:
-          input_fingerprint: 0fcb731a7d81205295a480b60afceb3f52b16212e8a3eef06d3eee5c014781c2
+        package_runtime:
+          input_fingerprint: 5d932f423af078080e4bbf25b97f20a78e69748c7ee784c1e565ea55a8cc808a
           output_fingerprints:
-            lock_file: 230ee38f3203421f96831e746a8cf6af0e3de7c8afda69960a15f75be8ca833e
-            third_party_file: e758b35f7da7a57bc75a7d6967a7a3c29502251f853a6d96db07c6f5462bb14d
-            licenses_dir: fbf6ef9d16d500aabb4967ccc7f2f089498849daaa47dba176d73bc5f01daf87
+            lock_file: 7ba28852682dccb4ee3c3ddc98f67fc7197f213498ff0c52bee494a1c60cd71b
+            third_party_file: eafc03be26e4021def6a77acb96dbb8025746c1f5730a826aee64b3967a8f7a0
+            licenses_dir: 997e0497ff8e7c99bae7f0f47e0dde98afff7e8562c7ba61290e60e684c50362
+        root_workspace:
+          input_fingerprint: 23e0279f68d16bf73e1113eeb3a03c7c0f94679de48f23d874c149d7717b4b40
+          output_fingerprints:
+            lock_file: 5b09fae15fc8df876c5b1353f8491a5c6117702615eb49c022555803f995609a
+            third_party_file: 357365444308927c08e59468d5abcb11acaf7a9dca0da6d809f111ea0f363009
+            licenses_dir: f443606c1313206e14b3c1aed0ea0d7b9903dfe6ff93931094a31203a44966ab
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -5565,10 +5591,11 @@ policies:
       - node_modules/**
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
-      - rng_minigames/registry.json
+      - copernican/rng_minigames/registry.json
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
-      - copernican_lib/licenses/*.txt
+      - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+      - copernican/lib/licenses/*.txt
       - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
@@ -5947,10 +5974,11 @@ policies:
           - '*.egg-info/**'
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
-          - rng_minigames/registry.json
+          - copernican/rng_minigames/registry.json
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
-          - copernican_lib/licenses/*.txt
+          - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+          - copernican/lib/licenses/*.txt
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -5964,10 +5992,11 @@ policies:
           - '*.egg-info/**'
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
-          - rng_minigames/registry.json
+          - copernican/rng_minigames/registry.json
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
-          - copernican_lib/licenses/*.txt
+          - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+          - copernican/lib/licenses/*.txt
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -6005,10 +6034,11 @@ policies:
           - node_modules/**
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
-          - rng_minigames/registry.json
+          - copernican/rng_minigames/registry.json
           - validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
-          - copernican_lib/licenses/*.txt
+          - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+          - copernican/lib/licenses/*.txt
           - copernican/datasets/**
           - devcovenant/**
       include_prefixes:
@@ -6342,10 +6372,11 @@ policies:
       - node_modules/**
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
-      - rng_minigames/registry.json
+      - copernican/rng_minigames/registry.json
       - validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
-      - copernican_lib/licenses/*.txt
+      - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+      - copernican/lib/licenses/*.txt
       - copernican/datasets/**
       - devcovenant/**
       include_prefixes: []
@@ -6446,7 +6477,9 @@ policies:
     - copernican/datasets/**/cosmo_parser_*.py
     - copernican/datasets/**/metadata_*.yaml
     - copernican/datasets/**/metadata_*.yml
-    - copernican_lib/licenses/*.txt
+    - copernican/lib/licenses/*.txt
+    - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+    - copernican/rng_minigames/registry.json
     - data:/**
     - devcovenant/**
     - devcovenant/custom/**
@@ -6473,7 +6506,6 @@ policies:
     - mailto:/**
     - node_modules/**
     - pip-wheel-metadata/**
-    - rng_minigames/registry.json
     - sftp:/**
     - sftp://
     - ssh:/**
@@ -14674,11 +14706,11 @@ profiles:
           lock_file: requirements.lock
           direct_dependency_files:
           - requirements.in
-          - copernican_lib/runtime-requirements.lock
+          - copernican/runtime-requirements.lock
           dependency_files:
           - requirements.in
           - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
+          - copernican/runtime-requirements.lock
           third_party_file: licenses/THIRD_PARTY_LICENSES.md
           licenses_dir: licenses
           report_heading: '## License Report'
@@ -14688,7 +14720,7 @@ profiles:
           required_paths:
           - requirements.in
           - devcovenant/runtime-requirements.lock
-          - copernican_lib/runtime-requirements.lock
+          - copernican/runtime-requirements.lock
           hash_targets:
           - id: linux-py311
             marker: sys_platform == "linux" and python_version == "3.11"
@@ -14719,16 +14751,20 @@ profiles:
               python_version: '3.11'
               abi: cp311
         - id: package_runtime
-          lock_file: copernican_lib/runtime-requirements.lock
-          third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
-          licenses_dir: copernican_lib/licenses
+          lock_file: copernican/runtime-requirements.lock
+          direct_dependency_files:
+          - pyproject.toml
+          dependency_files:
+          - pyproject.toml
+          third_party_file: copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+          licenses_dir: copernican/lib/licenses
           report_heading: '## License Report'
           manage_licenses_readme: true
           generate_hashes: true
           audit_service: pypi
           required_paths:
           - pyproject.toml
-          - copernican_lib
+          - copernican
           hash_targets:
           - id: linux-py311
             marker: sys_platform == "linux" and python_version == "3.11"
@@ -14792,10 +14828,11 @@ profiles:
       line-length-limit:
         exclude_globs:
         - .matplotlib-cache/**
-        - rng_minigames/registry.json
+        - copernican/rng_minigames/registry.json
         - validation/manifests/**
         - licenses/THIRD_PARTY_LICENSES.md
-        - copernican_lib/licenses/*.txt
+        - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+        - copernican/lib/licenses/*.txt
         - copernican/datasets/**
         force_include_globs:
         - devcovenant/custom/**

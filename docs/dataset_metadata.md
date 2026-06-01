@@ -46,7 +46,7 @@ license: Free to use with attribution
   footers.
 
 The metadata file is loaded automatically by the data loaders via
-`copernican_lib.utils.load_metadata_from_dir` after the parser returns and
+`copernican.lib.utils.load_metadata_from_dir` after the parser returns and
 attached to the parsed `DataFrame` through the ``.attrs`` dictionary. Loaders
 store both the human-readable `dataset_name` and the filename friendly
 `dataset_id`. Plot footers render the dataset name in bold, followed by `:
@@ -90,5 +90,5 @@ their `type` and relevant numeric fields: Gaussian priors require `mean` and
 `sigma`, uniform priors use `lower` and `upper`, and log-uniform priors demand
 strictly positive `lower`/`upper` pairs. Parsed models expose these details so
 engines can apply them during optimisation while
-`copernican_lib.priors.LogUniformPrior` injects the accompanying log-space
+`copernican.lib.priors.LogUniformPrior` injects the accompanying log-space
 transform automatically.

@@ -14,7 +14,7 @@ import os
 import numpy
 import pandas
 
-from copernican_lib.dataset_registry import register_cmb_parser
+from copernican.lib.dataset_registry import register_cmb_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

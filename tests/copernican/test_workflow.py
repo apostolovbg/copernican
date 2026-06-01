@@ -97,7 +97,7 @@ class TestCliUtilities(unittest.TestCase):
         self.assertEqual(caught.exception.code, 7)
         write.assert_called_once_with("")
 
-    @mock.patch("copernican_lib.gui.CopernicanGUI")
+    @mock.patch("copernican.lib.gui.CopernicanGUI")
     @mock.patch.object(
         copernican.orchestration, "describe_orchestration_services"
     )
@@ -145,8 +145,8 @@ class TestCliUtilities(unittest.TestCase):
     @mock.patch.object(copernican, "_ensure_program_logging")
     @mock.patch.object(copernican.cli_dependencies, "load_third_party_modules")
     @mock.patch.object(copernican.cli_dependencies, "get_runtime_options")
-    @mock.patch("copernican_lib.run_executor.execute_run_from_manifest")
-    @mock.patch("copernican_lib.run_manifest.load_manifest")
+    @mock.patch("copernican.lib.run_executor.execute_run_from_manifest")
+    @mock.patch("copernican.lib.run_manifest.load_manifest")
     def test_main_workflow_executes_manifest_pipeline(
         self,
         load_manifest,
@@ -290,7 +290,7 @@ class LaunchArgParsingTestCase(unittest.TestCase):
     """Ensure launcher arguments map cleanly onto orchestration modes."""
 
     def setUp(self) -> None:
-        self.venv_path = str(Path(__file__).resolve().parents[1] / ".venv")
+        self.venv_path = str(Path(__file__).resolve().parents[2] / ".venv")
         self.settings_path = (
             Path(tempfile.gettempdir())
             / f"copernican_settings_test_{uuid.uuid4().hex}.yml"

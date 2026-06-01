@@ -12,7 +12,7 @@ import numpy
 import pandas
 from astropy.io import fits
 
-from copernican_lib.dataset_registry import register_sne_parser
+from copernican.lib.dataset_registry import register_sne_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

@@ -25,7 +25,7 @@ import os
 import numpy
 import pandas
 
-from copernican_lib.dataset_registry import register_bao_parser
+from copernican.lib.dataset_registry import register_bao_parser
 
 # Speed of light in km/s used to convert ``H(z)`` into ``D_H``.
 C_LIGHT = 299792.458

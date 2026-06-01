@@ -12,7 +12,7 @@ estimates using a simple log-sum-exp accumulator. The goal is to provide a
 complementary alternative to the ensemble MCMC engine so operators can
 compare posterior summaries produced by markedly different inference
 strategies while sharing the same likelihood, prior and transform helpers
-supplied by ``copernican_lib.engine_adapter``.
+supplied by ``copernican.lib.engine_adapter``.
 
 The implementation intentionally mirrors the result dictionary produced by the
 MCMC backend so downstream tooling—Stage 3 diagnostics, NetCDF exporters and
@@ -32,14 +32,14 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 import numpy
 import pandas
 
-from copernican_lib import engine_adapter as engine_plugin_validation
-from copernican_lib.engine_capabilities import (
+from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib.engine_capabilities import (
     EngineProgressChunk,
     EngineSetting,
 )
-from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
-from copernican_lib.progress import BatchProgressBar
-from copernican_lib.statistics import (
+from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican.lib.progress import BatchProgressBar
+from copernican.lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
     chi_squared_cmb,
@@ -47,7 +47,7 @@ from copernican_lib.statistics import (
     compute_cmb_spectrum,
     compute_cmb_spectrum_from_dict,
 )
-from copernican_lib.utils import get_random_seed
+from copernican.lib.utils import get_random_seed
 
 ENGINE_KIND = "nested"
 ENGINE_LABEL = "Nested sampling engine"

@@ -15,7 +15,7 @@ Note: The `gw` parsers are stubs that log a message and return `None` while
 placeholder management consolidates upcoming gravitational-wave standard siren
 support. Each subdirectory contains one or more dataset sources. A Python file
 named `cosmo_parser_*.py` lives inside each source folder and registers a
-parser function via decorators from `copernican_lib.dataset_registry`. Folders
+parser function via decorators from `copernican.lib.dataset_registry`. Folders
 named `placeholder` are ignored during automatic discovery so work-in- progress
 datasets do not appear in interactive menus. When a dataset becomes usable
 simply rename the folder and supply a valid parser and metadata file.
@@ -24,7 +24,7 @@ Every dataset folder also provides a `metadata_*.yml` describing the source.
 Fields such as `dataset_name`, `dataset_id`, `description`, `citation`,
 `license`, the full `author` list and accompanying BibTeX information (for
 example `title`, `volume`, `journal` and `DOI`) are read by
-`copernican_lib/dataset_registry.py` after the parser returns so individual
+`copernican/lib/dataset_registry.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same information
 on their `.attrs` property, and `dataset_id` is used when constructing output
 filenames. Each metadata file also documents the exact data tables consumed by
@@ -33,7 +33,7 @@ dataset directory; keeping that list accurate lets the loader hash only the
 files that matter for reproducibility. The loaders now attach `dataset_version`
 and `data_path` so manifests retain the release tag and the exact source
 directory. They also populate `independence_assumptions` with the statements
-quoted in `copernican_lib/config_schemas/run_config.yml`. Finally, the loaders
+quoted in `copernican/lib/config_schemas/run_config.yml`. Finally, the loaders
 compute a SHA256 digest for the metadata files, the registered parser, and the
 dataset files listed in `data_files`. When a metadata file omits `data_files`,
 the loader falls back to hashing files with common data extensions (e.g.,
@@ -156,7 +156,7 @@ clashing with the shipped files.
 
 ## Parser Hash Verification
 Each parser module under `copernican/datasets/` is hashed and recorded in
-`copernican_lib/dataset_registry.py`'s `TRUSTED_PARSER_DIGESTS`
+`copernican/lib/dataset_registry.py`'s `TRUSTED_PARSER_DIGESTS`
 mapping. The launcher refuses to import a parser unless its SHA256
 digest matches the trusted value so removing metadata such as `Last
 Updated` markers requires updating the corresponding hash before users

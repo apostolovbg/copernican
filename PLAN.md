@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -32,7 +32,7 @@ Keep slices dependency-ordered, concrete, current, and runtime-focused.
 Copernican started as a single script and has now moved into a
 package-centered layout. The old root `data/` tree has been deleted;
 bundled datasets and parsers now live under `copernican/datasets/`;
-`copernican_lib/` is the legacy surface being retired; and
+`copernican/lib/` is the legacy surface being retired; and
 `copernican.py`, the old start scripts, and the script-era policy shims
 are migration residue. DevCovenant dependency and license surfaces must
 now follow the package model, not the old script model.
@@ -71,7 +71,7 @@ coherent slices rather than in many narrowly separated ones.
 * The repository is now mid-migration from a script-centered layout to a
   package-centered layout.
 * `copernican/` is the target import package.
-* `copernican_lib/` is legacy surface area that should be retired.
+* `copernican/lib/` is legacy surface area that should be retired.
 * `copernican/datasets/` is the canonical bundled dataset home.
 * `copernican/rng_minigames/` is the canonical packaged home for bundled
   RNG mini-games.
@@ -134,7 +134,7 @@ coherent slices rather than in many narrowly separated ones.
    Surfaces:
 
    * `copernican/`
-   * `copernican_lib/`
+   * `copernican/lib/`
    * `models/`
    * `output/`
    * root docs

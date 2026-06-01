@@ -9,7 +9,7 @@ import os
 import numpy
 import pandas
 
-from copernican_lib.dataset_registry import register_sne_parser
+from copernican.lib.dataset_registry import register_sne_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

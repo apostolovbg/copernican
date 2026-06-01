@@ -11,6 +11,10 @@ class TestImportModule(unittest.TestCase):
     def test_import_module(self) -> None:
         self.assertEqual(module.__name__, "validation.runner")
 
+    def test_public_symbols_are_exposed(self) -> None:
+        self.assertTrue(hasattr(module, "discover_manifests"))
+        self.assertTrue(hasattr(module, "run_validation_suite"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,18 +12,18 @@ guardrails such as policy enforcement and dataset validation.
 - `python -m copernican` – entry point that handles argument parsing (`--gui`,
   `--cli`, `--manifest`, `--output-dir`), dependency scanning, logging
   (including `faulthandler` and SIG handlers), and then delegates to
-  `copernican_lib.run_executor.execute_run_from_manifest`.
-- `copernican_lib/run_executor.py` – reads manifests, revalidates datasets and
-  model adapters, sets up logging via `copernican_lib.logger`, and invokes
-  `copernican_lib.run_pipeline`.
-- `copernican_lib/run_pipeline.py` – shared pipeline that drives Stage 1–5,
+  `copernican.lib.run_executor.execute_run_from_manifest`.
+- `copernican/lib/run_executor.py` – reads manifests, revalidates datasets and
+  model adapters, sets up logging via `copernican.lib.logger`, and invokes
+  `copernican.lib.run_pipeline`.
+- `copernican/lib/run_pipeline.py` – shared pipeline that drives Stage 1–5,
   updates manifest diagnostics, writes results, and orchestrates plotting plus
   NetCDF saving.
-- `copernican_lib/orchestration.py` – exposes `InProcessRunController`,
+- `copernican/lib/orchestration.py` – exposes `InProcessRunController`,
   `RunRequest`, `RunHandle`, and `RunStatus` so GUI clients can
   start/pause/cancel runs without copying CLI logic.
 
-### Library Layer (`copernican_lib`)
+### Library Layer (`copernican.lib`)
 
 - `dataset_registry` – loads SNe/BAO/CMB datasets, verifies parser digests, and
   attaches metadata to `DataFrame.attrs`.
@@ -46,12 +46,12 @@ guardrails such as policy enforcement and dataset validation.
 
 - `engines/cosmo_engine_mcmc.py` – ensemble MCMC sampler with `emcee`, walker
   reseeding for `nan` positions, `-np.inf` when proposals are invalid, and
-  counter-based progress updates emitted via `copernican_lib.progress`.
+  counter-based progress updates emitted via `copernican.lib.progress`.
 - `engines/cosmo_engine_nested.py` – nested sampling backend providing live
   point counts, enlargement factors, and log-evidence tracking while matching
   the MCMC result schema.
 - Future engines must keep shared dependencies pure compute-only and rely on
-  `copernican_lib.optim_utils` for shared helpers rather than importing CLI
+  `copernican.lib.optim_utils` for shared helpers rather than importing CLI
   helpers themselves.
 
 ### Presentation Layer
@@ -75,19 +75,19 @@ guardrails such as policy enforcement and dataset validation.
    in, production steps, walkers, and pool size with recommended defaults
    derived from the selected models. The GUI Run Settings panel mirrors the
    same questions.
-3. **Manifest composition** – `copernican_lib.run_manifest.build_manifest`
+3. **Manifest composition** – `copernican.lib.run_manifest.build_manifest`
    aggregates seed, model metadata, dataset digests, engine settings, run plan
    notes, Git hash, environment hints, and adapter metadata. The manifest is
-   saved in the temporary workspace until `copernican_lib.gui.run_worker` or
+   saved in the temporary workspace until `copernican.lib.gui.run_worker` or
    the CLI worker renames the folder to `copernican-run_<timestamp>`.
-4. **Execution** – `copernican_lib.run_executor.execute_run_from_manifest`
+4. **Execution** – `copernican.lib.run_executor.execute_run_from_manifest`
    rebuilds the dataset loaders, the adapter, and the run configuration,
    launches the selected engine, and streams diagnostics into the GUI Run
    Monitor or the console.
 5. **Results** – `result_writer.save_summary` outputs JSON/YAML summaries,
    `chain_io.save_posterior` writes NetCDF files with metadata embedded on both
    inference-data root and posterior groups, and `csv_writer` exports dataset-
-   specific tables. `copernican_lib.plotter` renders Stage 5 corner plots with
+   specific tables. `copernican.lib.plotter` renders Stage 5 corner plots with
    enforced footer guard bands, keeping metadata clear of the axes.
 
 ## Data Provenance
@@ -108,7 +108,7 @@ guardrails such as policy enforcement and dataset validation.
 ## Logging, Diagnostics, and Signals
 
 - Logging is initialised early, records Python/OS/package versions, and flushes
-  warnings through `copernican_lib.logger`. `console_output` ensures prints and
+  warnings through `copernican.lib.logger`. `console_output` ensures prints and
   inputs route through the logger.
 - `faulthandler` plus SIGILL/SIGSEGV/SIGFPE handlers capture stack traces on
   fatal signals and write them to both console and log paths before exiting so

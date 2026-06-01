@@ -38,7 +38,7 @@ Cancel and Clear actions purge that temporary folder so aborted builders
 never leave stray manifests, and the confirmation panel keeps its
 **Start run** button disabled until a manifest exists so the GUI always
 renames the workspace to `copernican-run_<timestamp>` before handing it
-to `copernican_lib.gui.run_worker`.
+to `copernican.lib.gui.run_worker`.
 
 ## Data
 
@@ -96,7 +96,7 @@ Validation. Pressing it opens a 4-tab workspace that mirrors the Settings
 screen’s tab bar. Each tab shows a contextual description, a row of three
 action buttons and a dedicated body frame—Diagnostics remains a placeholder
 while Run Summary, Posteriors and Comparisons now present concrete workflows
-powered by the shared `copernican_lib.analysis` helpers.
+powered by the shared `copernican.lib.analysis` helpers.
 
 Run Summary lets you browse to any ``output/copernican-run_*`` folder, load the
 manifest/log/parameter summary-derived diagnostics and render the results
@@ -109,8 +109,8 @@ components, BAO ``r_s`` values and the run’s timestamps without forcing you to
 re-run the CLI workflow.
 
 The Posteriors tab now hooks directly into ``posterior-*.nc`` outputs via
-``copernican_lib.posterior_explorer`` and renders their trace/hist overview
-inside the shared :class:`copernican_lib.gui.plot_viewer.PlotViewer`. The
+``copernican.lib.posterior_explorer`` and renders their trace/hist overview
+inside the shared :class:`copernican.lib.gui.plot_viewer.PlotViewer`. The
 action buttons above the tab refresh the file list, autoscale the plot and
 toggle drag-enabled zoom/pan while the control row lets you pick a snapshot and
 load it into the viewer. Fit-to-screen and “restore view” helpers keep the
@@ -123,8 +123,8 @@ without re-opening the sampler output.
 The Comparisons tab now lets you load two run directories, view Δχ²/parameter
 shifts and dataset-count deltas in a JSON panel, and export or copy the
 structured comparison summary that the new
-`copernican_lib.analysis.compare_runs` helper produces. Refreshing the diff re-
-analyses both folders via `copernican_lib.analysis.analyze_run` so you can
+`copernican.lib.analysis.compare_runs` helper produces. Refreshing the diff re-
+analyses both folders via `copernican.lib.analysis.analyze_run` so you can
 compare any historical results without re-running the CLI workflow.
 
 ## Validation
@@ -181,7 +181,7 @@ and the environment hints (`COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
 `COPERNICAN_DETACH_GUI`) shown on the status bar.  The Tools tab surfaces
 maintenance helpers such as rebuilding the sanitized `models/cache` files,
 revalidating the parser registry, and resetting the Run Builder workspace. All
-preferences persist through `copernican_lib/settings.py` into the shared
+preferences persist through `copernican/lib/settings.py` into the shared
 `copernican_settings.yml` file so GUI and CLI launches honour the same
 defaults.
 

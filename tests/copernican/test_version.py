@@ -7,9 +7,9 @@ import os
 from pathlib import Path
 from unittest import TestCase
 
+import copernican.lib.plotter as plotter
+import copernican.lib.run_manifest as run_manifest
 import copernican.version as version_module
-import copernican_lib.plotter as plotter
-import copernican_lib.run_manifest as run_manifest
 
 
 class VersionTests(TestCase):

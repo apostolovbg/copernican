@@ -1,0 +1,1271 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+"""Translate sanitized model YAML into executable NumPy-aware callables.
+
+Every cosmological model is stored as YAML. This module parses that file,
+converts equations to SymPy expressions and then compiles them into fast
+NumPy functions suitable for evaluation within the engines. Spawn-based
+multiprocessing pools depend on pickling to ship these helpers to worker
+processes, so the generated callables must rebuild themselves deterministically
+whenever they are unpickled.
+"""
+
+import ast
+import itertools
+import logging
+import math
+import re
+import sys
+import warnings
+from pathlib import Path
+from typing import Mapping
+
+import numpy
+import sympy
+import yaml
+from scipy.integrate import IntegrationWarning, cumulative_trapezoid
+from scipy.integrate import quad as _SCIPY_QUAD
+from sympy.parsing.sympy_parser import (
+    implicit_multiplication_application,
+    parse_expr,
+    standard_transformations,
+)
+from sympy.printing.numpy import NumPyPrinter
+
+from . import console_output as console
+from . import error_handler, latex_utils
+
+LOGGER = logging.getLogger(__name__)
+
+_DEFAULT_QUAD_LIMIT = 200
+_MAX_QUAD_LIMIT = 6400
+_MIN_SEGMENT_COUNT = 4
+_MAX_SEGMENT_COUNT = 32
+_LOGISTIC_SUPPORT_POINTS = (
+    0.5,
+    0.75,
+    0.875,
+    0.9375,
+    0.96875,
+)
+
+CMB_BACKEND_CAPABILITIES: dict[str, dict[str, bool]] = {
+    "camb": {
+        "scalar_param_map": True,
+        "grids_values_calls": True,
+        "standard_perturbations": True,
+        "native_nonstandard_perturbations": True,
+    }
+}
+
+
+def get_backend_capabilities(backend: str) -> Mapping[str, bool]:
+    """Return the declared capability mapping for ``backend``."""
+
+    return CMB_BACKEND_CAPABILITIES.get(backend, {})
+
+
+def backend_supports_standard_perturbations(backend: str) -> bool:
+    """Return ``True`` when ``backend`` supports standard perturbations."""
+
+    return bool(
+        get_backend_capabilities(backend).get("standard_perturbations")
+    )
+
+
+def backend_supports_native_nonstandard_perturbations(
+    backend: str,
+) -> bool:
+    """Return ``True`` when ``backend`` supports native non-standard modes."""
+
+    return bool(
+        get_backend_capabilities(backend).get(
+            "native_nonstandard_perturbations"
+        )
+    )
+
+
+def validate_native_perturbation_execution(
+    *,
+    model_name: str,
+    backend: str,
+    standard: bool,
+    implemented: bool | None,
+) -> None:
+    """Raise ``ValueError`` when non-standard execution is unsupported."""
+
+    if standard:
+        return
+
+    if not backend_supports_native_nonstandard_perturbations(backend):
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for "
+            f"backend '{backend}' (standard={standard}), but the backend "
+            "capability registry does not support native non-standard "
+            "perturbations. A generic declarative executor is required."
+        )
+
+    if implemented is not True:
+        raise ValueError(
+            "Model "
+            f"'{model_name}' declares non-standard perturbations for "
+            f"backend '{backend}' (standard={standard}), but the backend "
+            "mapping does not mark a generic declarative implementation "
+            "as available. A generic declarative executor is required."
+        )
+
+
+_GENERATED_NAME_COUNTER = itertools.count(1)
+_LAST_UPDATED_PATTERN = re.compile(
+    r"^#\s*Last Updated:\s*\d{4}-\d{2}-\d{2}\s*$", re.MULTILINE
+)
+
+
+class RobustQuadFailure(RuntimeError):
+    """Raised when :func:`robust_quad` cannot avoid Integration warnings.
+
+    The resilient quadrature wrapper escalates SciPy's ``quad`` ``limit``
+    parameter, subdivides the integration interval and, for infinite bounds,
+    remaps the problem onto a logistic domain.  Previously the helper returned
+    the last numerical estimate even when every strategy still triggered
+    ``IntegrationWarning``.  Downstream code interpreted the value as
+    trustworthy and plotted BAO ratios near zero despite the divergence.  The
+    new exception signals that all remediation steps failed so callers can halt
+    gracefully rather than charting misleading results.
+    """
+
+    def __init__(self, *, lower, upper, attempts, last_result):
+        """Record the interval, attempts, and final result for the failure."""
+        message = (
+            "robust_quad exhausted retries between "
+            f"{lower} and {upper} after {attempts} attempts"
+        )
+        super().__init__(message)
+        self.lower = lower
+        self.upper = upper
+        self.attempts = attempts
+        self.last_result = last_result
+
+
+class _GeneratedCallable:
+    """Wrap a SymPy expression inside a self-reconstructing callable.
+
+    The engines expect regular callables, yet plain functions generated by
+    :func:`sympy.lambdify` cannot be pickled safely because they are defined
+    dynamically inside helper modules that only exist in the parent process.
+    ``_GeneratedCallable`` captures the SymPy representation plus argument
+    metadata so ``__setstate__`` can rebuild the helper inside any worker that
+    receives it through ``multiprocessing``'s ``spawn`` mechanism.
+    """
+
+    __slots__ = ("_state", "_callable")
+
+    def __init__(
+        self, *, expr_repr, arg_names, has_integral, name_hint, sym_expr=None
+    ):
+        """Capture expression metadata and build the wrapped callable."""
+        self._state = {
+            "expr_repr": expr_repr,
+            "arg_names": tuple(arg_names),
+            "has_integral": bool(has_integral),
+            "name_hint": name_hint,
+        }
+        self._callable = self._build_callable(sym_expr=sym_expr)
+
+    @property
+    def python_function(self):
+        """Return the underlying Python function for diagnostics.
+
+        Engines should treat the wrapper as the canonical callable, yet tests
+        and debugging utilities occasionally need to inspect implementation
+        details such as the generated globals dictionary. Exposing the raw
+        function keeps those checks intact without bypassing the wrapper's
+        pickling guarantees.
+        """
+
+        return self._callable
+
+    def __call__(self, *args, **kwargs):
+        """Delegate evaluation to the regenerated callable."""
+
+        return self._callable(*args, **kwargs)
+
+    def __getstate__(self):
+        """Persist the SymPy payload so workers can rebuild the callable."""
+
+        return dict(self._state)
+
+    def __setstate__(self, state):
+        """Restore the callable by recompiling the stored SymPy expression."""
+
+        self._state = dict(state)
+        self._callable = self._build_callable()
+
+    def __getattr__(self, name):
+        """Expose selected function attributes for compatibility."""
+
+        if name in {"__name__", "__qualname__", "__module__"}:
+            return getattr(self._callable, name)
+        raise AttributeError(name)
+
+    def _build_callable(self, *, sym_expr=None):
+        """Construct and register the underlying Python callable."""
+
+        if sym_expr is None:
+            sym_expr = sympy.sympify(self._state["expr_repr"], evaluate=False)
+        args = tuple(sympy.symbols(name) for name in self._state["arg_names"])
+
+        if self._state["has_integral"]:
+            printer = QuadPrinter({"strict": False})
+            code = printer.doprint(sym_expr)
+            func_name = "_generated_func"
+            args_str = ", ".join(str(argument) for argument in args)
+            src = f"def {func_name}({args_str}):\n    return {code}"
+            module = ast.parse(src, mode="exec")
+            compiled = compile(module, filename="<model>", mode="exec")
+            env = {
+                "np": numpy,
+                "numpy": numpy,
+                # ``quad`` is mapped to the resilient helper so that
+                # generated callables automatically inherit the retry
+                # logic that guards against SciPy ``IntegrationWarning``
+                # emissions.
+                "quad": robust_quad,
+                "__builtins__": {},
+                "__name__": __name__,
+            }
+            # security-scanner: allow generated code execution
+            # after validation.
+            exec(compiled, env)  # nosec B102 - validated generated code.
+            generated = env[func_name]
+        else:
+            generated = sympy.lambdify(
+                args,
+                sym_expr,
+                [{"__builtins__": {}}, "numpy"],
+            )
+
+        return _register_generated_callable(
+            generated,
+            name_hint=self._state["name_hint"],
+        )
+
+
+def _register_generated_callable(func, *, name_hint: str | None = None):
+    """Register ``func`` on this module so it can be pickled safely.
+
+    ``sympy.lambdify`` synthesises functions inside ephemeral modules
+    whose names are meaningless once the generator finishes executing.
+    Multiprocessing pools that rely on the ``spawn`` start method must
+    import callables by module path, so we normalise the function name,
+    attach it to :mod:`copernican.lib.model_coder` and update the
+    metadata ``pickle`` expects. Using an explicit registration helper
+    keeps the workflow centralised and easy to audit when new symbolic
+    helpers are introduced.
+    """
+
+    module = sys.modules[__name__]
+    base_name = name_hint or getattr(func, "__name__", "generated_callable")
+    base_name = re.sub(r"[^0-9A-Za-z_]+", "_", base_name).strip("_")
+    if not base_name:
+        base_name = "generated_callable"
+    while True:
+        suffix = next(_GENERATED_NAME_COUNTER)
+        candidate = f"_{base_name}_{suffix}"
+        if not hasattr(module, candidate):
+            break
+    setattr(module, candidate, func)
+    func.__name__ = candidate
+    func.__qualname__ = candidate
+    func.__module__ = module.__name__
+    return func
+
+
+class _ComovingDistance:
+    """Picklable callable computing the comoving distance in Mpc."""
+
+    __slots__ = ("_hz_fn",)
+
+    def __init__(self, hz_fn):
+        """Store the Hubble function for later comoving distance calls."""
+        self._hz_fn = hz_fn
+
+    def __call__(self, redshift_input, *params):
+        """Integrate ``c/H(z)`` using the provided redshift input."""
+
+        def integrand(redshift_for_integrand):
+            """Return ``c/H(redshift_for_integrand)`` for the integrator."""
+            return 299792.458 / self._hz_fn(redshift_for_integrand, *params)
+
+        if numpy.isscalar(redshift_input):
+            # The adaptive quad helper raises the subdivision ceiling
+            # automatically so sharply varying integrands—common in the
+            # suite's experimental models—do not terminate with a SciPy
+            # ``IntegrationWarning``.
+            return robust_quad(
+                integrand,
+                0.0,
+                float(redshift_input),
+                limit=_DEFAULT_QUAD_LIMIT,
+            )[0]
+
+        redshift_array = numpy.asarray(redshift_input, dtype=float)
+        redshift_flat = numpy.ravel(redshift_array)
+        if redshift_flat.size == 0:
+            return numpy.asarray(redshift_array, dtype=float)
+        sorted_redshifts = numpy.sort(redshift_flat)
+        n_grid = max(2000, len(sorted_redshifts) * 4)
+        grid = numpy.linspace(0.0, sorted_redshifts[-1], n_grid)
+        integrand_vals = integrand(grid)
+        cumulative = cumulative_trapezoid(integrand_vals, grid, initial=0.0)
+        interp = numpy.interp(redshift_flat, grid, cumulative)
+        return numpy.reshape(interp, numpy.shape(redshift_input))
+
+
+class _LuminosityDistance:
+    """Return the luminosity distance from a comoving distance helper."""
+
+    __slots__ = ("_dm",)
+
+    def __init__(self, dm_fn):
+        """Capture the comoving distance helper for luminosity distances."""
+        self._dm = dm_fn
+
+    def __call__(self, redshift_value, *params):
+        """Return luminosity distance by scaling the comoving result."""
+        return (1.0 + redshift_value) * self._dm(redshift_value, *params)
+
+
+class _AngularDiameterDistance:
+    """Return the angular diameter distance from comoving distance."""
+
+    __slots__ = ("_dm",)
+
+    def __init__(self, dm_fn):
+        """Capture the comoving distance helper for angular-diameter calls."""
+        self._dm = dm_fn
+
+    def __call__(self, redshift_value, *params):
+        """Compute the angular diameter distance from the comoving value."""
+        return self._dm(redshift_value, *params) / (1.0 + redshift_value)
+
+
+class _VolumeAveragedDistance:
+    """Compute the BAO volume-averaged distance ``D_V`` in Mpc."""
+
+    __slots__ = ("_dm", "_hz_fn")
+
+    def __init__(self, dm_fn, hz_fn):
+        """Store the comoving and H(z) helpers for D_V computations."""
+        self._dm = dm_fn
+        self._hz_fn = hz_fn
+
+    def __call__(self, redshift_value, *params):
+        """Return the BAO volume-averaged distance (D_V) from helpers."""
+        comoving_distance = self._dm(redshift_value, *params)
+        hubble_value = self._hz_fn(redshift_value, *params)
+        dv_term = (
+            comoving_distance**2 * 299792.458 * redshift_value / hubble_value
+        )
+
+        if numpy.isscalar(redshift_value):
+            if redshift_value > 0 and hubble_value != 0:
+                return dv_term ** (1 / 3) if dv_term >= 0 else numpy.nan
+            return 0.0
+
+        result = numpy.zeros_like(redshift_value, dtype=float)
+        mask = (redshift_value > 0) & (hubble_value != 0)
+        term_arr = dv_term[mask]
+        result[mask] = numpy.where(
+            term_arr >= 0, numpy.power(term_arr, 1 / 3), numpy.nan
+        )
+        return result
+
+
+class SoundHorizonComputationError(RuntimeError):
+    """Signal that the symbolic sound-horizon integral remains ill-behaved.
+
+    Generated BAO helpers rely on :func:`robust_quad` so that SciPy's
+    ``IntegrationWarning`` episodes become hard failures rather than silent
+    precision losses.  When even the resilient retries cannot tame the
+    integral we raise ``SoundHorizonComputationError`` so likelihoods can stop
+    before publishing impossible BAO ratios.  The dedicated exception keeps the
+    intent obvious to plugin consumers who catch and log domain-specific
+    failures at higher levels.
+    """
+
+
+class _SoundHorizonFromExpression:
+    """Wrap a symbolic sound-horizon function in a picklable callable."""
+
+    __slots__ = ("_callable_fn",)
+
+    def __init__(self, callable_fn):
+        """Wrap the symbolic sound-horizon callable for later use."""
+        self._callable_fn = callable_fn
+
+    def __call__(self, *params):
+        """Evaluate the symbolic expression and guard divergent integrals."""
+
+        try:
+            return float(self._callable_fn(*params))
+        except RobustQuadFailure as exc:
+            LOGGER.error(
+                "Sound-horizon integral failed between %s and %s; "
+                "BAO ratios cannot be evaluated; the integral diverges.",
+                exc.lower,
+                exc.upper,
+            )
+            raise SoundHorizonComputationError(
+                "rs_expression diverged despite robust quadrature safeguards"
+            ) from exc
+
+
+class _DistanceModulusFromLuminosity:
+    """Convert luminosity distance results to distance modulus."""
+
+    __slots__ = ("_luminosity_fn",)
+
+    def __init__(self, luminosity_fn):
+        """Store the luminosity distance helper used for conversion."""
+        self._luminosity_fn = luminosity_fn
+
+    def __call__(self, redshift_value, *params):
+        """Translate luminosity distances to distance moduli."""
+        luminosity_distance = self._luminosity_fn(redshift_value, *params)
+        with numpy.errstate(divide="ignore", invalid="ignore"):
+            distance_modulus = 5.0 * numpy.log10(luminosity_distance) + 25.0
+        return numpy.where(
+            numpy.asarray(luminosity_distance) > 0, distance_modulus, numpy.nan
+        )
+
+
+class QuadPrinter(NumPyPrinter):
+    """NumPy printer that expands ``Integral`` nodes into ``scipy``
+    quad calls."""
+
+    def _print_Integral(self, expr):
+        """Translate SymPy ``Integral`` nodes into ``quad`` expressions."""
+        # Currently support single-variable integrals of the form
+        # (integration_var, lower_limit, upper_limit).
+        integration_var, lower_limit, upper_limit = expr.limits[0]
+        integrand = expr.function
+        integration_var_code = self._print(integration_var)
+        lower_limit_code = self._print(lower_limit)
+        upper_limit_code = self._print(upper_limit)
+        integrand_code = self._print(integrand)
+        return (
+            f"quad(lambda {integration_var_code}: {integrand_code}, "
+            f"{lower_limit_code}, {upper_limit_code})[0]"
+        )
+
+
+def _is_finite_bound(candidate) -> bool:
+    """Return ``True`` when ``candidate`` is a finite float."""
+
+    try:
+        return math.isfinite(float(candidate))
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_pos_inf(candidate) -> bool:
+    """Return ``True`` when ``candidate`` represents positive infinity."""
+
+    try:
+        return float(candidate) == math.inf
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_neg_inf(candidate) -> bool:
+    """Return ``True`` when ``candidate`` represents negative infinity."""
+
+    try:
+        return float(candidate) == -math.inf
+    except (TypeError, ValueError):
+        return False
+
+
+def _point_in_interval(point: float, lower, upper) -> bool:
+    """Return ``True`` when ``point`` falls strictly between the bounds."""
+
+    try:
+        point_val = float(point)
+    except (TypeError, ValueError):
+        return False
+
+    if _is_neg_inf(lower) and _is_pos_inf(upper):
+        return True
+    if _is_neg_inf(lower):
+        return point_val < float(upper)
+    if _is_pos_inf(upper):
+        return point_val > float(lower)
+    lower_val = float(lower)
+    upper_val = float(upper)
+    return min(lower_val, upper_val) < point_val < max(lower_val, upper_val)
+
+
+def _map_points_for_positive_infinity(
+    points: tuple[float, ...], lower: float
+) -> tuple[float, ...]:
+    """Project finite breakpoints to the logistic domain for ``b = +inf``."""
+
+    mapped: list[float] = []
+    for breakpoint_value in points:
+        try:
+            delta = float(breakpoint_value) - float(lower)
+        except (TypeError, ValueError):
+            continue
+        if delta <= 0.0:
+            continue
+        mapped_value = delta / (1.0 + delta)
+        if 0.0 < mapped_value < 1.0:
+            mapped.append(mapped_value)
+    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+    mapped = tuple(dict.fromkeys(sorted(mapped)))
+    return mapped
+
+
+def _map_points_for_negative_infinity(
+    points: tuple[float, ...], upper: float
+) -> tuple[float, ...]:
+    """Project finite breakpoints to the logistic domain for ``a = -inf``."""
+
+    mapped = []
+    for breakpoint_value in points:
+        try:
+            distance = float(upper) - float(breakpoint_value)
+        except (TypeError, ValueError):
+            continue
+        if distance <= 0.0:
+            continue
+        mapped_value = 1.0 / (distance + 1.0)
+        if 0.0 < mapped_value < 1.0:
+            mapped.append(mapped_value)
+    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+    mapped = tuple(dict.fromkeys(sorted(mapped)))
+    return mapped
+
+
+def robust_quad(
+    func,
+    lower_bound,
+    upper_bound,
+    *integrand_args,
+    limit: int = _DEFAULT_QUAD_LIMIT,
+    max_attempts: int = 5,
+    points: tuple[float, ...] | None = None,
+    **kwargs,
+):
+    """Evaluate ``func`` between ``a`` and ``b`` with resilience safeguards.
+
+    SciPy's :func:`scipy.integrate.quad` raises ``IntegrationWarning`` when
+    the integrator exhausts its internal subdivision limit. Wild cosmological
+    theories frequently push the sampler into such territory—oscillatory
+    terms, stiff transitions and narrow spikes all demand more work than the
+    default limit of fifty sub-intervals.  ``robust_quad`` retries the
+    integration with progressively larger limits, optionally splitting the
+    interval into smaller segments when simple retries still fail.  The helper
+    mirrors SciPy's return signature so existing call sites remain unchanged
+    while benefitting from the additional fault tolerance.
+
+    Parameters
+    ----------
+    func:
+        Callable of the integrand.  It must accept the integration variable as
+        the first argument, followed by ``*args`` supplied by the caller.
+    lower_bound, upper_bound:
+        Lower and upper integration bounds.  Infinite bounds are forwarded to
+        SciPy directly because the library already applies specialised
+        transformations for semi-infinite intervals.
+    *args:
+        Extra positional arguments forwarded to the integrand.
+    limit:
+        Starting subdivision limit used for the first attempt.  The helper
+        doubles this ceiling on every retry until ``_MAX_QUAD_LIMIT`` is
+        reached.
+    max_attempts:
+        Maximum number of retries before falling back to manual segmentation.
+    points:
+        Optional tuple of breakpoints propagated to SciPy's implementation so
+        known discontinuities are preserved across retries.
+    **kwargs:
+        Forwarded keyword arguments for :func:`scipy.integrate.quad`.
+    """
+
+    if points is None:
+        points = ()
+    else:
+        points = tuple(points)
+
+    extra_points = kwargs.pop("points", None)
+    if extra_points:
+        combined = list(points)
+        combined.extend(extra_points)
+        points = tuple(dict.fromkeys(combined))
+
+    base_kwargs = dict(kwargs)
+    start_limit = max(1, int(limit))
+
+    return _robust_quad(
+        func,
+        lower_bound,
+        upper_bound,
+        integrand_args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+        allow_infinite=True,
+    )
+
+
+def _robust_quad(
+    func,
+    lower_bound,
+    upper_bound,
+    integrand_args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+    *,
+    allow_infinite: bool,
+):
+    """Execute ``quad`` with retries, segmentation and infinity transforms."""
+
+    if allow_infinite and (
+        not _is_finite_bound(lower_bound) or not _is_finite_bound(upper_bound)
+    ):
+        return _handle_infinite_interval(
+            func,
+            lower_bound,
+            upper_bound,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            points,
+            base_kwargs,
+        )
+
+    return _robust_quad_core(
+        func,
+        lower_bound,
+        upper_bound,
+        integrand_args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+    )
+
+
+def _robust_quad_core(
+    func,
+    lower_bound,
+    upper_bound,
+    integrand_args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Core retry and segmentation loop for :func:`robust_quad`."""
+
+    def _call_quad(lower_segment, upper_segment, limit_value, dynamic_points):
+        """Execute SciPy quad with the supplied dynamic arguments."""
+        quad_kwargs = dict(base_kwargs)
+        if dynamic_points:
+            quad_kwargs["points"] = tuple(dynamic_points)
+        return _SCIPY_QUAD(
+            func,
+            lower_segment,
+            upper_segment,
+            *integrand_args,
+            limit=limit_value,
+            **quad_kwargs,
+        )
+
+    current_limit = start_limit
+    attempts = 0
+
+    while attempts < max_attempts and current_limit <= _MAX_QUAD_LIMIT:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", IntegrationWarning)
+                finite_points = (
+                    points
+                    if _is_finite_bound(lower_bound)
+                    and _is_finite_bound(upper_bound)
+                    else ()
+                )
+                return _call_quad(
+                    lower_bound,
+                    upper_bound,
+                    current_limit,
+                    finite_points,
+                )
+        except IntegrationWarning as exc:
+            attempts += 1
+            next_limit = min(current_limit * 2, _MAX_QUAD_LIMIT)
+            LOGGER.debug(
+                "IntegrationWarning during quad between %s and %s; "
+                "escalating limit to %s (attempt %s/%s): %s",
+                lower_bound,
+                upper_bound,
+                next_limit,
+                attempts,
+                max_attempts,
+                exc,
+            )
+            current_limit = next_limit
+
+    if _is_finite_bound(lower_bound) and _is_finite_bound(upper_bound):
+        start = float(lower_bound)
+        stop = float(upper_bound)
+        segment_count = _MIN_SEGMENT_COUNT
+        while segment_count <= _MAX_SEGMENT_COUNT:
+            edges = numpy.linspace(start, stop, segment_count + 1, dtype=float)
+            total = 0.0
+            total_err = 0.0
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", IntegrationWarning)
+                    for left, right in zip(edges[:-1], edges[1:]):
+                        sub_points = tuple(
+                            point
+                            for point in points
+                            if min(left, right) < point < max(left, right)
+                        )
+                        partial, err = _call_quad(
+                            left,
+                            right,
+                            current_limit,
+                            sub_points,
+                        )
+                        total += partial
+                        total_err += err
+            except IntegrationWarning as exc:
+                segment_count *= 2
+                LOGGER.debug(
+                    "IntegrationWarning persisted after splitting into %s "
+                    "segments between %s and %s: %s",
+                    segment_count,
+                    lower_bound,
+                    upper_bound,
+                    exc,
+                )
+                continue
+
+            LOGGER.info(
+                "Resolved challenging integral between %s and %s by splitting "
+                "into %s segments.",
+                lower_bound,
+                upper_bound,
+                segment_count,
+            )
+            return total, total_err
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", IntegrationWarning)
+        finite_points = (
+            points
+            if _is_finite_bound(lower_bound) and _is_finite_bound(upper_bound)
+            else ()
+        )
+        result = _call_quad(
+            lower_bound,
+            upper_bound,
+            current_limit,
+            finite_points,
+        )
+    LOGGER.error(
+        "robust_quad exhausted retries between %s and %s; suppressing the "
+        "IntegrationWarning would mask a divergent integral.",
+        lower_bound,
+        upper_bound,
+    )
+    raise RobustQuadFailure(
+        lower=lower_bound,
+        upper=upper_bound,
+        attempts=attempts,
+        last_result=result,
+    )
+
+
+def _handle_infinite_interval(
+    func,
+    lower_bound,
+    upper_bound,
+    integrand_args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Integrate intervals touching infinity using logistic transforms."""
+
+    relevant_points = tuple(
+        sorted(
+            point
+            for point in points
+            if _point_in_interval(point, lower_bound, upper_bound)
+        )
+    )
+
+    if (
+        _is_neg_inf(lower_bound)
+        and _is_pos_inf(upper_bound)
+        and not relevant_points
+    ):
+        relevant_points = (0.0,)
+
+    boundaries = [lower_bound, *relevant_points, upper_bound]
+
+    total = 0.0
+    total_err = 0.0
+    for left, right in zip(boundaries[:-1], boundaries[1:]):
+        segment_points = tuple(
+            point
+            for point in relevant_points
+            if _point_in_interval(point, left, right)
+        )
+        partial, err = _integrate_infinite_segment(
+            func,
+            left,
+            right,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            segment_points,
+            base_kwargs,
+        )
+        total += partial
+        total_err += err
+
+    return total, total_err
+
+
+def _integrate_infinite_segment(
+    func,
+    lower_bound,
+    upper_bound,
+    integrand_args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Evaluate a single segment that touches ``+/-inf`` bounds."""
+
+    if _is_neg_inf(lower_bound) and _is_pos_inf(upper_bound):
+        midpoint = points[0] if points else 0.0
+        left_result = _integrate_infinite_segment(
+            func,
+            lower_bound,
+            midpoint,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            (),
+            base_kwargs,
+        )
+        right_result = _integrate_infinite_segment(
+            func,
+            midpoint,
+            upper_bound,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            (),
+            base_kwargs,
+        )
+        return (
+            left_result[0] + right_result[0],
+            left_result[1] + right_result[1],
+        )
+
+    if _is_neg_inf(lower_bound):
+        finite_upper = float(upper_bound)
+        mapped_points = _map_points_for_negative_infinity(points, finite_upper)
+
+        def transformed(logistic_param, *forwarded_args):
+            """Map ``logistic_param`` back into the original a=-inf
+            interval."""
+            t_safe = float(logistic_param)
+            if t_safe <= 0.0:
+                t_safe = float(numpy.nextafter(0.0, 1.0))
+            if t_safe >= 1.0:
+                t_safe = float(numpy.nextafter(1.0, 0.0))
+            original_value = finite_upper - (1.0 - t_safe) / t_safe
+            return func(original_value, *forwarded_args) * (1.0 / (t_safe**2))
+
+        return _robust_quad(
+            transformed,
+            0.0,
+            1.0,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            mapped_points,
+            base_kwargs,
+            allow_infinite=False,
+        )
+
+    if _is_pos_inf(upper_bound):
+        finite_lower = float(lower_bound)
+        mapped_points = _map_points_for_positive_infinity(points, finite_lower)
+
+        def transformed(logistic_param, *forwarded_args):
+            """Map ``logistic_param`` back into the original b=+inf
+            interval."""
+            t_safe = float(logistic_param)
+            if t_safe <= 0.0:
+                t_safe = float(numpy.nextafter(0.0, 1.0))
+            if t_safe >= 1.0:
+                t_safe = float(numpy.nextafter(1.0, 0.0))
+            original_value = finite_lower + t_safe / (1.0 - t_safe)
+            return func(original_value, *forwarded_args) * (
+                1.0 / (1.0 - t_safe) ** 2
+            )
+
+        return _robust_quad(
+            transformed,
+            0.0,
+            1.0,
+            integrand_args,
+            start_limit,
+            max_attempts,
+            mapped_points,
+            base_kwargs,
+            allow_infinite=False,
+        )
+
+    return _robust_quad_core(
+        func,
+        lower_bound,
+        upper_bound,
+        integrand_args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+    )
+
+
+def _latex_to_sympy_str(expr: str) -> str:
+    """Convert a LaTeX-style expression to a SymPy-friendly string."""
+    return latex_utils.latex_to_sympy(expr)
+
+
+_SAFE_GLOBALS = {"__builtins__": {}}
+_SAFE_GLOBALS.update({name: getattr(sympy, name) for name in sympy.__all__})
+
+
+def _safe_parse_expr(expr_str: str, local_dict: dict) -> sympy.Expr:
+    """Safely parse ``expr_str`` into a SymPy expression.
+
+    The parser runs with an empty ``__builtins__`` dict so that tokens like
+    ``__import__`` cannot access Python's standard library. Expressions with
+    double underscores are rejected outright to avoid dunder exploits.
+    """
+
+    if "__" in expr_str:
+        raise ValueError(
+            "Double underscores are not permitted in expressions."
+        )
+
+    return parse_expr(
+        expr_str,
+        local_dict,
+        global_dict=_SAFE_GLOBALS,
+        transformations=standard_transformations
+        + (implicit_multiplication_application,),
+    )
+
+
+def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
+    """Return a picklable callable for ``sym_expr``.
+
+    SymPy expressions are converted to deterministic wrappers that preserve
+    the symbolic payload. When the wrapper is unpickled inside a spawned
+    worker it recompiles the helper and registers it on this module
+    automatically, keeping multiprocessing pools stable even when the original
+    function names were assigned dynamically.
+    """
+
+    has_integral = bool(sym_expr.atoms(sympy.Integral))
+    arg_names = tuple(str(argument) for argument in args)
+    expr_repr = sympy.srepr(sym_expr)
+    return _GeneratedCallable(
+        expr_repr=expr_repr,
+        arg_names=arg_names,
+        has_integral=has_integral,
+        name_hint=name_hint,
+        sym_expr=sym_expr,
+    )
+
+
+def _extract_last_updated_header(text: str) -> str:
+    """Return the ``Last Updated`` header for *text* or stamp a fresh one."""
+
+    for line in text.splitlines()[:3]:
+        if _LAST_UPDATED_PATTERN.match(line):
+            return line.strip()
+    return None
+
+
+def generate_callables(cache_path):
+    """Create callables from the cached model and update the cache file.
+
+    Parameters
+    ----------
+    cache_path : str or Path
+        Path to the sanitized model YAML produced by
+        :func:`validate_and_cache_model`.
+
+    Returns
+    -------
+    tuple(dict, dict)
+        Dictionary of callables and the loaded YAML data.
+    """
+    cache_path = Path(cache_path)
+    raw_text = cache_path.read_text(encoding="utf-8")
+    header_line = _extract_last_updated_header(raw_text)
+    model_data = yaml.safe_load(raw_text)
+
+    logger = logging.getLogger()
+
+    z = sympy.symbols("z")
+    param_syms = [
+        sympy.symbols(parameter["python_var"])
+        for parameter in model_data["parameters"]
+    ]
+    local_dict = {
+        parameter["python_var"]: sym
+        for parameter, sym in zip(model_data["parameters"], param_syms)
+    }
+    local_dict["z"] = z
+    # Allow YAML equations to reference the full 'sympy' prefix
+    # as well as shorthand
+    local_dict["sympy"] = sympy
+
+    funcs = {}
+    code_dict = {}
+
+    hz_expr_str = model_data.get("Hz_expression")
+    if hz_expr_str:
+        try:
+            parsed_hz = _latex_to_sympy_str(hz_expr_str)
+            hz_sym = _safe_parse_expr(parsed_hz, local_dict)
+            used_syms = {
+                str(symbol) for symbol in hz_sym.free_symbols if symbol != z
+            }
+            param_names = {
+                parameter["python_var"]
+                for parameter in model_data["parameters"]
+            }
+            missing = used_syms - param_names
+            if missing:
+                missing_str = "', '".join(missing)
+                raise ValueError(
+                    f"Parameter '{missing_str}' used in Hz_expression is "
+                    "not defined in model parameters."
+                )
+            # Convert SymPy expression to a NumPy callable.
+            # Any ``Integral`` terms are replaced with numerical
+            # quad evaluations.
+
+            hz_fn = _compile_sympy_expr(
+                hz_sym,
+                (z, *param_syms),
+                name_hint="get_Hz_per_Mpc",
+            )
+
+            funcs["get_Hz_per_Mpc"] = hz_fn
+            code_dict["get_Hz_per_Mpc"] = str(hz_sym)
+            model_data["valid_for_distance_metrics"] = True
+
+            dm_fn = funcs.get("get_comoving_distance_Mpc")
+            if dm_fn is None:
+                dm_fn = _ComovingDistance(hz_fn)
+                funcs["get_comoving_distance_Mpc"] = dm_fn
+                code_dict["get_comoving_distance_Mpc"] = "integral(c/H(z))"
+
+            if "get_luminosity_distance_Mpc" not in funcs:
+                funcs["get_luminosity_distance_Mpc"] = _LuminosityDistance(
+                    dm_fn
+                )
+                code_dict["get_luminosity_distance_Mpc"] = "(1+z)*DC"
+
+            if "get_angular_diameter_distance_Mpc" not in funcs:
+                funcs["get_angular_diameter_distance_Mpc"] = (
+                    _AngularDiameterDistance(dm_fn)
+                )
+                code_dict["get_angular_diameter_distance_Mpc"] = "DC/(1+z)"
+
+            if "get_DV_Mpc" not in funcs:
+                funcs["get_DV_Mpc"] = _VolumeAveragedDistance(dm_fn, hz_fn)
+                code_dict["get_DV_Mpc"] = "((DC^2 * c*z/H)^1/3)"
+            logger.info(
+                "Derived distance functions from symbolic "
+                "Hz_expression in model YAML."
+            )
+
+            # --- Derive sound horizon at recombination (r_s) ---
+            rs_expr_str = model_data.get("rs_expression")
+            param_names = {
+                parameter["python_var"]
+                for parameter in model_data["parameters"]
+            }
+
+            if rs_expr_str:
+                try:
+                    parsed_rs = _latex_to_sympy_str(rs_expr_str)
+                    rs_sym = _safe_parse_expr(parsed_rs, local_dict)
+                    used = {str(symbol) for symbol in rs_sym.free_symbols} - {
+                        "z"
+                    }
+                    missing_rs = used - param_names
+                    if missing_rs:
+                        missing_str = "', '".join(missing_rs)
+                        raise ValueError(
+                            f"Parameter '{missing_str}' used in rs_expression "
+                            "is not defined in model parameters."
+                        )
+                    # ``Integral`` terms here are also expanded to calls to
+                    # ``quad``.
+
+                    rs_fn_sym = _compile_sympy_expr(
+                        rs_sym,
+                        tuple(param_syms),
+                        name_hint="get_sound_horizon_rs_Mpc",
+                    )
+
+                    funcs["get_sound_horizon_rs_Mpc"] = (
+                        _SoundHorizonFromExpression(rs_fn_sym)
+                    )
+                    code_dict["get_sound_horizon_rs_Mpc"] = str(rs_sym)
+                    model_data["valid_for_bao"] = True
+                    logger.info(
+                        "Derived r_s from symbolic rs_expression in model "
+                        "YAML.",
+                    )
+                except (
+                    AttributeError,
+                    KeyError,
+                    NameError,
+                    SyntaxError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                ) as e:
+                    msg = f"Failed to parse rs_expression: {e}"
+                    error_handler.report_error(msg)
+                    raise ValueError(msg) from e
+            else:
+                skip_bao = bool(model_data.get("skip_bao", False))
+                advertises_bao = bool(model_data.get("valid_for_bao", True))
+                if not skip_bao and advertises_bao:
+                    msg = (
+                        "Model declares BAO support but omits an explicit "
+                        "rs_expression. Provide a sound-horizon formula to "
+                        "enable scientifically consistent BAO scaling."
+                    )
+                    error_handler.report_error(msg)
+                    raise ValueError(msg)
+                console.write(
+                    "\u26a0\ufe0f  Model does not supply r_s; BAO metrics "
+                    "are disabled."
+                )
+                model_data["valid_for_bao"] = False
+        except (
+            AttributeError,
+            KeyError,
+            NameError,
+            SyntaxError,
+            TypeError,
+            ValueError,
+            ZeroDivisionError,
+        ) as e:
+            msg = f"Failed to parse Hz_expression: {e}"
+            error_handler.report_error(msg)
+            raise ValueError(msg) from e
+    else:
+        console.write(
+            "\u26a0\ufe0f  Model does not define H(z). Distance-based "
+            "observables such as BAO, comoving distances, and luminosity "
+            "distances will be unavailable."
+        )
+        model_data["valid_for_distance_metrics"] = False
+        model_data["valid_for_bao"] = False
+    for name, expr in model_data.get("equations", {}).items():
+        if not isinstance(expr, str):
+            # Textual equations are preserved but not parsed into functions
+            continue
+        try:
+            sym_expr = _safe_parse_expr(expr, local_dict)
+            # Convert SymPy expression to a callable, numerically evaluating
+            # ``Integral`` constructs if present.
+
+            compiled_callable = _compile_sympy_expr(
+                sym_expr,
+                (z, *param_syms),
+                name_hint=name,
+            )
+
+            # Quick sanity evaluation using midpoints of parameter bounds
+            try:
+                mid_params = tuple(
+                    sum(parameter["bounds"]) / 2.0
+                    for parameter in model_data["parameters"]
+                )
+                test_args = (0.5,) + mid_params
+                compiled_callable(*test_args)
+            except (
+                ArithmeticError,
+                AttributeError,
+                KeyError,
+                NameError,
+                SyntaxError,
+                TypeError,
+                ValueError,
+                ZeroDivisionError,
+            ) as eval_e:
+                error_handler.report_error(
+                    f"Generated function '{name}' raised an error when "
+                    f"tested: {eval_e}"
+                )
+            funcs[name] = compiled_callable
+            code_dict[name] = str(sym_expr)
+        except (
+            AttributeError,
+            KeyError,
+            NameError,
+            SyntaxError,
+            TypeError,
+            ValueError,
+            ZeroDivisionError,
+        ) as e:
+            msg = f"Failed to parse equation '{name}': {e}"
+            error_handler.report_error(msg)
+            raise ValueError(msg) from e
+
+    if (
+        "distance_modulus_model" not in funcs
+        and "get_luminosity_distance_Mpc" in funcs
+    ):
+        funcs["distance_modulus_model"] = _DistanceModulusFromLuminosity(
+            funcs["get_luminosity_distance_Mpc"]
+        )
+        code_dict["distance_modulus_model"] = "5*log10(DL_Mpc)+25"
+        logger.info("Derived distance_modulus_model from luminosity distance.")
+
+    model_data["generated_code"] = code_dict
+    with cache_path.open("w", encoding="utf-8") as f:
+        f.write(f"{header_line}\n")
+        yaml.safe_dump(model_data, f, sort_keys=False, allow_unicode=True)
+
+    return funcs, model_data

@@ -20,7 +20,7 @@ def __getattr__(name: str):
     if name not in _WORKFLOW_EXPORTS:
         raise AttributeError(f"module 'copernican' has no attribute {name!r}")
     if name == "orchestration":
-        value = import_module("copernican_lib.orchestration")
+        value = import_module("copernican.lib.orchestration")
         globals()[name] = value
         return value
     workflow = import_module(".workflow", __name__)

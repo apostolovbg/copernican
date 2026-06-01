@@ -8,9 +8,9 @@ and records:
 This manifest is the starting point for every run. GUI Drafts remain pending
 until the operator confirms Start Run, at which point the manifest is finalised
 (timestamped to the run directory) and fed to
-`copernican_lib/run_executor.execute_run_from_manifest`. That helper rebuilds
-the datasets via `copernican_lib.run_config`, instantiates the chosen engine,
-and hands everything to `copernican_lib/run_pipeline.execute_run_pipeline` so
+`copernican/lib/run_executor.execute_run_from_manifest`. That helper rebuilds
+the datasets via `copernican.lib.run_config`, instantiates the chosen engine,
+and hands everything to `copernican/lib/run_pipeline.execute_run_pipeline` so
 the CLI and GUI share an identical sampling, diagnostics, plotting and export
 sequence. The executor reconstructs the selected model plugins directly from
 their YAML caches before sampling, ensuring every run reuses the exact
@@ -25,7 +25,7 @@ disabled until seed, model, data and engine selections exist, and Start Run
 renames the temporary workspace to the timestamped `copernican-run_<ts>` folder
 and file before invoking the CLI worker so downstream tooling always sees the
 canonical manifest. CLI `python -m copernican` invocations now pass the
-manifest directly to `copernican_lib.run_executor.execute_run_from_manifest`
+manifest directly to `copernican.lib.run_executor.execute_run_from_manifest`
 so the same manifest runner handles both interfaces, and
 `copernican.main_workflow` just relays the manifest to that helper.
 
@@ -82,15 +82,15 @@ embed a retention decision such as ``archived`` or ``deleted`` for downstream
 provenance checks. The Home quick actions now also offer **Import manifest...**
 so a manifest saved on one machine can be cloned, retimestamped for the current
 run directory and inserted directly into the builder.
-`copernican_lib.run_executor.execute_run_from_manifest` now ensures a
+`copernican.lib.run_executor.execute_run_from_manifest` now ensures a
 timestamped `run_manifest_<timestamp>.yml` file is saved beneath `output_dir`
 before sampling begins. That copy surfaces inside CLI, GUI, and validation runs
 so every run directory permanently archives the manifest that drove the
 execution regardless of where the source manifest file originated.
 
 The Stage 2 sampler now constructs its NumPy random number generator from the
-shared :func:`copernican_lib.utils.get_random_seed` value.  That helper is
-populated via :func:`copernican_lib.utils.set_random_seed`, which the CLI calls
+shared :func:`copernican.lib.utils.get_random_seed` value.  That helper is
+populated via :func:`copernican.lib.utils.set_random_seed`, which the CLI calls
 after reading ``COPERNICAN_SEED`` or the interactive prompt.  When no explicit
 seed is supplied the suite falls back to the deterministic default ``0`` so the
 manifest's ``seed`` field always reflects the exact value fed into the engine.

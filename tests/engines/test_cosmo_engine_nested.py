@@ -11,9 +11,9 @@ from unittest import mock
 import pandas
 import xarray as xarray_dataset
 
-from copernican_lib import chain_io
-from copernican_lib import engine_adapter as engine_plugin_validation
-from copernican_lib import model_coder, model_spec_validator, run_manifest
+from copernican.lib import chain_io
+from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_coder, model_spec_validator, run_manifest
 from engines import cosmo_engine_nested as module
 
 

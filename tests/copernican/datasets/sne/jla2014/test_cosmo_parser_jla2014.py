@@ -7,7 +7,7 @@ import unittest
 
 import numpy as numpy_module
 
-from copernican_lib import dataset_registry
+from copernican.lib import dataset_registry
 
 
 class TestJLA2014Parser(unittest.TestCase):
@@ -17,6 +17,7 @@ class TestJLA2014Parser(unittest.TestCase):
         parser_module = importlib.import_module(
             "copernican.datasets.sne.jla2014.cosmo_parser_jla2014"
         )
+        dataset_registry.discover_trusted_parsers(force=True)
         self.assertTrue(callable(parser_module.parse_jla2014))
         self.assertEqual(
             parser_module.parse_jla2014.__name__,

@@ -15,11 +15,11 @@ import numpy
 import pandas
 import xarray as xarray_dataset
 
-from copernican_lib import chain_io
-from copernican_lib import engine_adapter as engine_plugin_validation
-from copernican_lib import model_coder, model_spec_validator
-from copernican_lib.progress import BatchProgressBar
-from copernican_lib.utils import set_random_seed
+from copernican.lib import chain_io
+from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_coder, model_spec_validator
+from copernican.lib.progress import BatchProgressBar
+from copernican.lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc as module
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
@@ -783,7 +783,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             progress_listener=listener,
         )
         with mock.patch(
-            "copernican_lib.console_output.write",
+            "copernican.lib.console_output.write",
             side_effect=recorder,
         ):
             progress_bar.start_batch(1, 5)
@@ -806,7 +806,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             display=False,
             progress_listener=lambda record: events.append(record),
         )
-        with mock.patch("copernican_lib.console_output.write") as patched:
+        with mock.patch("copernican.lib.console_output.write") as patched:
             progress_bar.start_batch(1, 5)
             progress_bar.update(1, processed=0, total=5)
             progress_bar.update(1, processed=0, total=5)
@@ -837,7 +837,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             progress_listener=listener,
         )
         with mock.patch(
-            "copernican_lib.console_output.write",
+            "copernican.lib.console_output.write",
             side_effect=recorder,
         ):
             progress_bar.start_batch(1, 1)

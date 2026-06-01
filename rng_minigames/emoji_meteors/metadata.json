@@ -1,7 +1,0 @@
-{
-  "id": "emoji_meteors",
-  "name": "Emoji Meteors",
-  "module": "rng_minigames.emoji_meteors",
-  "callable": "launch_emoji_meteors",
-  "description": "Pet five emoji animals to forge a seed."
-}

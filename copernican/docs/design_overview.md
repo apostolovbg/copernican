@@ -1,12 +1,12 @@
 
 This document expands on the high-level summary in the README by tracing
 how the Copernican organises its architecture. The command-line launcher
-(`python -m copernican`) steers each run, the `copernican_lib/` package
+(`python -m copernican`) steers each run, the `copernican/lib/` package
 gathers shared infrastructure, and the `engines/`, `models/` and
 `copernican/datasets/` directories plug into that foundation to deliver
 repeatable analyses.
 
-The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
+The `copernican/lib/cli/` namespace now houses the dependency scanner and menu
 renderers invoked by the launcher. Keeping those prompts in a dedicated package
 trims the startup import surface so users reach the Stage 1 seed dialog faster
 while retaining the existing logging, validation and manifest pipelines
@@ -21,11 +21,11 @@ described throughout this document.
   error encountered during model parsing or engine import and leaves a
   deliberate spacer after logging initialisation so the console flow stays
   tidy without redundant banners.
-* `copernican_lib/` contributes the reusable building blocks—data ingestion,
+* `copernican/lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
   numerical plumbing. Shared progress helpers live in
-  `copernican_lib.progress`, which now exposes `BatchProgressBar`. The helper
+  `copernican.lib.progress`, which now exposes `BatchProgressBar`. The helper
   writes simple counter lines such as “Burn-in stage batch 1: 3/200 steps
   completed (1%)”, preserves the listener contract and exposes a no-op
   suspension context so diagnostics can print between updates without the old
@@ -41,7 +41,7 @@ described throughout this document.
   counter lines and listener events stay consistent regardless of backend.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms
   and dataset compatibility. Each file is compiled into a picklable
-  :class:`copernican_lib.engine_adapter.EnginePlugin` so multiprocessing pools
+  :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
   can reconstruct Stage 2 state deterministically. Adapter validation allows
   only vetted attributes and functions and preserves constants, transforms,
   priors and structured CAMB contracts exactly as written in the model file.
@@ -85,8 +85,8 @@ verifies that compiled binaries match the available CPU features before heavy
 work begins.
 
 Logging is initialised immediately after the cache check. Console messages and
-prompts flow through :mod:`copernican_lib.console_output` so patched `print`
-and `input` hooks in :mod:`copernican_lib.logger` can mirror them into the log
+prompts flow through :mod:`copernican.lib.console_output` so patched `print`
+and `input` hooks in :mod:`copernican.lib.logger` can mirror them into the log
 file without duplication. The logger strips repository paths from messages,
 records system details and timestamps in UTC and keeps a deliberate blank
 spacer after initialisation so Stage 1 banners align with prior releases while
@@ -100,9 +100,9 @@ Stage 1 focuses on reproducibility and validation:
   accept the default value, enter a custom integer or generate a random seed.
   The choice is logged and written to the manifest before any sampling.
 * Model parsing normalises YAML files via
-  :mod:`copernican_lib.model_spec_validator` and compiles the expressions into
-  NumPy-ready callables through :mod:`copernican_lib.model_coder`. Engine
-  adapters built with :func:`copernican_lib.engine_adapter.build_plugin`
+  :mod:`copernican.lib.model_spec_validator` and compiles the expressions into
+  NumPy-ready callables through :mod:`copernican.lib.model_coder`. Engine
+  adapters built with :func:`copernican.lib.engine_adapter.build_plugin`
   collect bounds, priors, transforms and optional structured CAMB contracts.
   Validation errors are aggregated and displayed as bullet points before the
   user is asked whether to restart Stage 1 or exit entirely.
@@ -116,14 +116,14 @@ Stage 1 focuses on reproducibility and validation:
 ### Stage 2 sampling and progress
 
 Once both models and datasets are prepared, Stage 2 draws from the joint
-posterior built by :func:`copernican_lib.posterior.make_logposterior`. The
+posterior built by :func:`copernican.lib.posterior.make_logposterior`. The
 helper injects Jacobian corrections for transformed parameters, applies bounds
 and assembles the combined SNe, BAO and CMB likelihoods via
-:class:`copernican_lib.likelihoods.JointLike`. Engines receive a picklable
-:class:`copernican_lib.posterior.PosteriorEvaluator` so multiprocessing pools
+:class:`copernican.lib.likelihoods.JointLike`. Engines receive a picklable
+:class:`copernican.lib.posterior.PosteriorEvaluator` so multiprocessing pools
 can reuse the same callable safely.
 
-The shared helper in :mod:`copernican_lib.progress` keeps interactive output
+The shared helper in :mod:`copernican.lib.progress` keeps interactive output
 stable across engines. It writes counter lines such as “Burn-in stage batch 1:
 3/200 steps completed (1%)”, emits the same ``batch_start``,
 ``progress_update`` and ``batch_finish`` events that feed the GUI progress
@@ -143,12 +143,12 @@ adapter-provided constants from `cmb.param_map` when present, validate the
 declared `cmb.perturbations` contract, compile the typed perturbation IR and
 stream TT/TE/EE residual statistics to the console. Both stages respect
 dataset independence statements stored in
-:mod:`copernican_lib.dataset_registry` so assumptions remain explicit in
+:mod:`copernican.lib.dataset_registry` so assumptions remain explicit in
 manifests and plots.
 
 ### Stage 5 visualisation
 
-Stage 5 produces publication-ready figures. `copernican_lib.plotter` responds
+Stage 5 produces publication-ready figures. `copernican.lib.plotter` responds
 to the number of parameters by adjusting canvas size, font scale and corner-
 plot grid dimensions. Footer guard bands keep three lines of metadata clear of
 the axes: the model comparison, dataset description and citation. Footer
@@ -162,7 +162,7 @@ without linter noise.
 ### Stage 6 outputs and manifests
 
 All artefacts land in a run-specific `output/copernican-run_YYYYMMDD_HHMMSS`
-directory. The manifest recorded by :mod:`copernican_lib.run_manifest` captures
+directory. The manifest recorded by :mod:`copernican.lib.run_manifest` captures
 the suite version, model filenames, engine choice, sampler settings, dataset
 hashes, CMB metadata, seed and Git state. CSV summaries, NetCDF chains and
 Matplotlib figures share the same naming scheme so downstream notebooks and
@@ -170,7 +170,7 @@ manuscripts can reference them consistently.
 
 ## Dataset integrity and parsers
 
-Dataset loaders live in :mod:`copernican_lib.dataset_registry` and expose
+Dataset loaders live in :mod:`copernican.lib.dataset_registry` and expose
 decorators that register parser functions for each `dataset_id`. Parser
 dictionaries now follow explicit ``*_PARSER_REGISTRY`` names and are collected
 via the ``get_parser_registries`` helper so discovery code cannot be confused
@@ -184,23 +184,23 @@ summaries always describe which probes are assumed uncorrelated.
 
 ## Plugin interface and posterior construction
 
-Adapters produced by :func:`copernican_lib.engine_adapter.build_plugin`
+Adapters produced by :func:`copernican.lib.engine_adapter.build_plugin`
 expose dataset compatibility flags (`valid_for_distance_metrics`,
 `valid_for_bao`, `valid_for_cmb`) and structured `cmb` background and
 perturbation contracts for engines that compute spectra. The interface
 includes required attributes and functions listed in
-:mod:`copernican_lib.engine_adapter`; validation errors identify missing hooks
+:mod:`copernican.lib.engine_adapter`; validation errors identify missing hooks
 and incompatible contracts, preventing engines from receiving incomplete
 models. The perturbation compiler produces a typed IR that records the
 declared derivative equations, derived symbols and backend mapping before any
 scientific execution begins. Posterior evaluation routes through
-:func:`copernican_lib.posterior.make_logposterior`, which merges priors,
+:func:`copernican.lib.posterior.make_logposterior`, which merges priors,
 transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.
 
 ## Console and error handling
 
-All console I/O flows through :mod:`copernican_lib.console_output` so the
+All console I/O flows through :mod:`copernican.lib.console_output` so the
 logger can mirror it faithfully. Unicode encoding errors are caught and
 replaced with ASCII fallbacks to keep runs alive on limited terminals. The
 launcher enables `faulthandler` and registers handlers for SIGILL, SIGSEGV and

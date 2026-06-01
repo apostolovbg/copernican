@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-06-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -29,13 +29,13 @@ the same convention.
 ## Highlights
 - **Manifest-driven orchestration:** `python -m copernican` consumes model,
   data and engine selections, writes every run into
-  `output/copernican-run_*`, and reuses `copernican_lib/run_pipeline.py`
+  `output/copernican-run_*`, and reuses `copernican/lib/run_pipeline.py`
   helpers so CLI and GUI paths stay consistent.
-- **Modular library layout:** `copernican_lib/` hosts shared helpers
+- **Modular library layout:** `copernican/lib/` hosts shared helpers
   (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
   while `models/`, `engines/`, `copernican/datasets/` and `output/`
   remain the canonical asset roots.
-- **CMB capability checks:** `copernican_lib/model_coder.py` keeps the CMB
+- **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the generic declarative
   Boltzmann-hierarchy solver or fail clearly when a required capability
@@ -45,7 +45,7 @@ the same convention.
   dialogs, builder panels, and the package entrypoint preserve the historic
   flow.
 - **Analysis workspace:** Run Summary, Posteriors, Diagnostics and Comparisons
-  tabs rely on `copernican_lib.analysis`, `posterior_explorer`, and the shared
+  tabs rely on `copernican.lib.analysis`, `posterior_explorer`, and the shared
   `PlotViewer` so summaries, comparisons and posterior plots stay in sync with
   CLI helpers.
 - **Validation & documentation:** Fixed Planck 2018 manifests drive the
@@ -60,13 +60,13 @@ the same convention.
 ## Overview
  - `python -m copernican` acts as a manifest-first orchestrator: it consumes a
    manifest describing the selected models, datasets, sampler settings and
-   environment hints, reuses `copernican_lib/run_pipeline.py` helpers and
+   environment hints, reuses `copernican/lib/run_pipeline.py` helpers and
   writes every run log inside `output/copernican-run_*` with a matching
   `run_manifest_<timestamp>.yml` for reproducibility.  Command-line flags such
   as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui` let CI and
   operators pick the desired entry point while the managed interpreter and
   dependencies come from `.venv`.
- - `copernican_lib/` contains shared utilities (analysis helpers, likelihoods,
+ - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.
  - `engines/` collects sampler back ends. The default `cosmo_engine_mcmc`
@@ -86,7 +86,7 @@ the same convention.
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except
   when a human explicitly edits the datasets.
-- `copernican_lib/gui/` provides a Tkinter scaffold with the navigation rail,
+- `copernican/lib/gui/` provides a Tkinter scaffold with the navigation rail,
   Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
   page that renders Markdown assets inline; the package entrypoint launches
   the GUI inside the managed environment after logging the environment.
@@ -140,23 +140,23 @@ folders and loads the manifest, parameter summary and log to render dataset
 counts, R-hat/ESS diagnostics, per-model χ² components, BAO `r_s` values and
 timestamps inside a scrollable panel. Its action buttons reload the summary,
 export structured `analysis-summary_<timestamp>.yml`/`.json` files via
-`copernican_lib.analysis.save_run_summary` and copy the JSON payload onto the
+`copernican.lib.analysis.save_run_summary` and copy the JSON payload onto the
 clipboard.
 
-Posteriors uses `copernican_lib.posterior_explorer` to list `posterior-*.nc`
+Posteriors uses `copernican.lib.posterior_explorer` to list `posterior-*.nc`
 snapshots and renders a trace/hist overview inside the shared
-`copernican_lib.gui.plot_viewer.PlotViewer`. The tab keeps controls for fitting
+`copernican.lib.gui.plot_viewer.PlotViewer`. The tab keeps controls for fitting
 to screen, restoring the original limits, and toggling the drag-enabled pan so
 you can inspect any region without re-creating the plot. The Comparisons tab
 lets you point at two run directories, refresh Δχ²/parameter shifts and dataset
 count deltas, and export or copy the structured comparison summary that the new
-`copernican_lib.analysis.compare_runs` helper produces.
+`copernican.lib.analysis.compare_runs` helper produces.
 
 Every run now also writes ArviZ-powered corner plots and parameter histograms
 into the `output/copernican-run_*` folders so the Analysis workspace can render
 them inside the PlotViewer without re-running the sampler.  Use `python -m
 copernican --analysis-posterior output/copernican-run_*` to rerun
-`copernican_lib.analysis.plot_posterior`, producing the overview, corner and
+`copernican.lib.analysis.plot_posterior`, producing the overview, corner and
 histogram assets from each `posterior-*.nc` snapshot on demand.
 
 ## Validation
@@ -207,7 +207,7 @@ Command-line operators who skip the GUI can still run maintenance helpers:
   files matching the Analysis Comparisons tab.
 - `python -m copernican --analysis-posterior <run_dir> --analysis-posterior-
   output <file.png>` builds a trace/hist overview using
-  `copernican_lib.posterior_explorer` and writes the figure to the requested
+  `copernican.lib.posterior_explorer` and writes the figure to the requested
   path so you can reproduce the PlotViewer output without the GUI.
 
 ## Law & policy compliance reminder

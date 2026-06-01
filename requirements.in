@@ -1,7 +1,9 @@
+-r copernican/runtime-requirements.lock
 -r devcovenant/runtime-requirements.lock
 
 # Add repository workspace dependencies below.
 # `dependency-management refresh-all` writes `requirements.lock` from this
 # file.
-# Keep the shipped DevCovenant runtime reference unless this repository owns
-# a different `root_workspace` contract through its active profile stack.
+# Keep the shipped Copernican runtime reference and the shipped
+# DevCovenant runtime reference unless this repository owns a different
+# `root_workspace` contract through its active profile stack.

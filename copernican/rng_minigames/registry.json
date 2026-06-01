@@ -1,0 +1,32 @@
+[
+  {
+    "id": "alien_invasion",
+    "game_id": "alien_invasion",
+    "name": "Alien Invasion",
+    "module": "copernican.rng_minigames.alien_invasion",
+    "callable": "launch_alien_invasion",
+    "description": "Defend Earth; kill order forges the seed.",
+    "metadata_hash": "72568a04d64633c70b27812eb6c04fd5582a9912d1e18cd3c952322741fb283a",
+    "module_hash": "812ed1e018f25698c276fc42297b751738ec82f138546a81a4e219483af25c2a"
+  },
+  {
+    "id": "constellation",
+    "game_id": "constellation",
+    "name": "Constellation",
+    "module": "copernican.rng_minigames.constellation",
+    "callable": "launch_constellation",
+    "description": "Connect ten stars to record the path and generate a seed.",
+    "metadata_hash": "33d4b2c1bedb170f044fb5b34b21f6a94099f4e9c6c8f4329dc5a12d672ae881",
+    "module_hash": "0d77b5832b14b640171a70d91dcf784462a327bd8b5f632df93ad646c7196f0d"
+  },
+  {
+    "id": "emoji_meteors",
+    "game_id": "emoji_meteors",
+    "name": "Emoji Meteors",
+    "module": "copernican.rng_minigames.emoji_meteors",
+    "callable": "launch_emoji_meteors",
+    "description": "Pet five emoji animals to forge a seed.",
+    "metadata_hash": "15c9e67a4bfa8b6719c98beb234b613ad50810a75cf927776b4626ea6d1bc5fa",
+    "module_hash": "5629d9e311635e8702cb0fe8c2e281425928b37256bb6bb7a01656eb0667021c"
+  }
+]

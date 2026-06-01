@@ -6,9 +6,9 @@
 
 ## Definitions
 
-- **Software** The Copernican Suite in its entirety: all source code, binaries,
-  scripts (e.g. `copernican.py`, `plotter.py`), documentation, examples, and
-  auxiliary files.
+- **Software** The Copernican Suite in its entirety: all source code,
+  binaries, package entrypoints (e.g. `copernican`, `plotter.py`),
+  documentation, examples, and auxiliary files.
 
 - **Engine** The core executable code and libraries (Python source, compiled
   modules, etc.) that perform model parsing, numeric computation, plotting, and
