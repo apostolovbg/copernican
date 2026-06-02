@@ -1,0 +1,14 @@
+2026-06-01 01:23:32,340 - INFO - Run confirmed with manifest: models=LambdaCDM; engine=engines.cosmo_engine_mcmc vgui; datasets=dataset; seed=0; plan=
+2026-06-01 01:23:32,340 - INFO - Run execution started; outputs prepared
+2026-06-01 01:23:32,340 - INFO - Run execution started; outputs prepared
+2026-06-01 01:23:32,340 - INFO - Run progress updated to 100%
+2026-06-01 01:23:32,341 - INFO - Run completed; artefacts ready for review
+2026-06-01 01:23:32,725 - INFO - Run confirmed with manifest: models=LambdaCDM; engine=engines.cosmo_engine_mcmc vgui; datasets=ds; seed=3; plan=
+2026-06-01 01:23:32,725 - INFO - Run execution started; outputs prepared
+2026-06-01 01:23:32,725 - INFO - Run progress updated to 50%
+2026-06-01 01:23:32,725 - WARNING - Pause/resume is not available for CLI runs; use Cancel or Hard Stop.
+2026-06-01 01:23:32,725 - WARNING - Run cancelled at user request
+2026-06-01 01:23:32,725 - WARNING - Cancellation requested; the worker will exit shortly.
+2026-06-01 01:23:32,726 - ERROR - Run hard stop requested; monitoring halted
+2026-06-01 01:23:32,726 - INFO - Run progress updated to 100%
+2026-06-01 01:23:32,726 - INFO - Run completed; artefacts ready for review

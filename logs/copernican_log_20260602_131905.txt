@@ -1,0 +1,2180 @@
+2026-06-02 13:19:05,033 - INFO - Program diagnostics log initialised at /Users/apostolov/Documents/GitHub/copernican/logs/copernican_log_20260602_131905.txt (rollover 10.00 MB, backup count 3)
+2026-06-02 13:19:05,033 - INFO - Diagnostics logging active at /Users/apostolov/Documents/GitHub/copernican/logs/copernican_log_20260602_131905.txt; outputs live under /Users/apostolov/Documents/GitHub/copernican/logs
+2026-06-02 13:19:05,034 - INFO - Copernican has initialised.
+2026-06-02 13:19:05,034 - INFO - Copernican has initialised.
+2026-06-02 13:19:05,034 - INFO - Copernican has initialised.
+2026-06-02 13:19:05,035 - INFO - Copernican has initialised.
+2026-06-02 13:19:05,036 - INFO - Copernican has initialised.
+2026-06-02 13:19:05,036 - INFO - Version: 12.0.26
+2026-06-02 13:19:05,036 - INFO - Version: 12.0.26
+2026-06-02 13:19:05,037 - INFO - Version: 12.0.26
+2026-06-02 13:19:05,037 - INFO - Version: 12.0.26
+2026-06-02 13:19:05,037 - INFO - Version: 12.0.26
+2026-06-02 13:19:05,038 - INFO - Launch mode: CLI
+2026-06-02 13:19:05,038 - INFO - Launch mode: CLI
+2026-06-02 13:19:05,038 - INFO - Launch mode: CLI
+2026-06-02 13:19:05,038 - INFO - Launch mode: CLI
+2026-06-02 13:19:05,039 - INFO - Launch mode: CLI
+2026-06-02 13:19:05,039 - INFO - Python interpreter: .venv/bin/python
+2026-06-02 13:19:05,039 - INFO - Python interpreter: .venv/bin/python
+2026-06-02 13:19:05,040 - INFO - Python interpreter: .venv/bin/python
+2026-06-02 13:19:05,040 - INFO - Python interpreter: .venv/bin/python
+2026-06-02 13:19:05,040 - INFO - Python interpreter: .venv/bin/python
+2026-06-02 13:19:05,041 - INFO - Working directory: .
+2026-06-02 13:19:05,041 - INFO - Working directory: .
+2026-06-02 13:19:05,041 - INFO - Working directory: .
+2026-06-02 13:19:05,042 - INFO - Working directory: .
+2026-06-02 13:19:05,042 - INFO - Working directory: .
+2026-06-02 13:19:05,097 - INFO - Hardware: i386 @ 3.50 GHz
+2026-06-02 13:19:05,098 - INFO - Hardware: i386 @ 3.50 GHz
+2026-06-02 13:19:05,098 - INFO - Hardware: i386 @ 3.50 GHz
+2026-06-02 13:19:05,099 - INFO - Hardware: i386 @ 3.50 GHz
+2026-06-02 13:19:05,099 - INFO - Hardware: i386 @ 3.50 GHz
+2026-06-02 13:19:05,100 - INFO - Environment details:
+2026-06-02 13:19:05,100 - INFO - Environment details:
+2026-06-02 13:19:05,101 - INFO -   Python: 3.11.14
+2026-06-02 13:19:05,101 - INFO -   Python: 3.11.14
+2026-06-02 13:19:05,101 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-02 13:19:05,102 - INFO -   OS: macOS-26.2-x86_64-i386-64bit
+2026-06-02 13:19:05,102 - INFO -   CPU: i386
+2026-06-02 13:19:05,102 - INFO -   CPU: i386
+2026-06-02 13:19:05,103 - INFO -   numpy 1.26.4
+2026-06-02 13:19:05,103 - INFO -   numpy 1.26.4
+2026-06-02 13:19:05,105 - INFO -   scipy 1.12.0
+2026-06-02 13:19:05,105 - INFO -   scipy 1.12.0
+2026-06-02 13:19:05,105 - INFO -   matplotlib 3.8.2
+2026-06-02 13:19:05,105 - INFO -   matplotlib 3.8.2
+2026-06-02 13:19:05,106 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-02 13:19:05,106 - INFO - Environment summary: Python 3.11.14; macOS-26.2-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2026-06-02 13:19:05,106 - INFO - Sanity check: dependency provisioning is handled by the managed environment. Rebuild `.venv` if packages go missing.
+2026-06-02 13:19:05,106 - INFO - Sanity check: dependency provisioning is handled by the managed environment. Rebuild `.venv` if packages go missing.
+2026-06-02 13:19:05,106 - INFO - Sanity check: dependency provisioning is handled by the managed environment. Rebuild `.venv` if packages go missing.
+2026-06-02 13:19:05,107 - INFO - Sanity check: dependency provisioning is handled by the managed environment. Rebuild `.venv` if packages go missing.
+2026-06-02 13:19:05,107 - INFO - Sanity check: dependency provisioning is handled by the managed environment. Rebuild `.venv` if packages go missing.
+2026-06-02 13:19:05,107 - INFO - Sanity check noted: the managed environment handles dependencies without an in-process check.
+2026-06-02 13:19:05,107 - INFO - Copernican CLI requires a manifest file. Use --manifest to point at a saved run configuration.
+2026-06-02 13:19:05,107 - INFO - Copernican CLI requires a manifest file. Use --manifest to point at a saved run configuration.
+2026-06-02 13:19:05,107 - INFO - Copernican CLI requires a manifest file. Use --manifest to point at a saved run configuration.
+2026-06-02 13:19:05,108 - INFO - Copernican CLI requires a manifest file. Use --manifest to point at a saved run configuration.
+2026-06-02 13:19:05,152 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,152 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,158 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,158 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,159 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,160 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,206 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,207 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,213 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,213 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,213 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,213 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,261 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,261 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:05,270 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,270 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:05,270 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,271 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:05,278 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:05,279 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:05,287 - INFO - Using requested multiprocessing pool with 2 worker(s).
+2026-06-02 13:19:05,287 - INFO - Using requested multiprocessing pool with 2 worker(s).
+2026-06-02 13:19:05,323 - INFO - Starting MCMC burn-in stage for 4 steps...
+2026-06-02 13:19:05,324 - INFO - Starting MCMC burn-in stage for 4 steps...
+2026-06-02 13:19:07,950 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:07,950 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:07,951 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:07,951 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:07,952 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:07,953 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:07,953 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:07,954 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:07,954 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:07,954 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:07,954 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:07,955 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:07,955 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:07,955 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:07,956 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:07,956 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:07,956 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:07,956 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:07,957 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:08,045 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:08,045 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:08,045 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:08,045 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:08,046 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:08,328 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:08,328 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:08,328 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:08,329 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:08,329 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:08,814 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:08,815 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:08,815 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:08,815 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:08,815 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:08,816 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:08,816 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:08,816 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:08,817 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:08,817 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:08,819 - INFO -     logP μ=-4.075e+03 σ= 3.801e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:08,819 - INFO -     logP μ=-4.075e+03 σ= 3.801e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:08,820 - INFO -     H_0: med= 63.38 (-8.1/+11)
+2026-06-02 13:19:08,820 - INFO -     H_0: med= 63.38 (-8.1/+11)
+2026-06-02 13:19:08,820 - INFO -     Omega_m0: med= 0.3062 (-0.14/+0.17)
+2026-06-02 13:19:08,821 - INFO -     Omega_m0: med= 0.3062 (-0.14/+0.17)
+2026-06-02 13:19:08,821 - INFO -     Omega_b: med= 0.068 (-0.0076/+0.011)
+2026-06-02 13:19:08,821 - INFO -     Omega_b: med= 0.068 (-0.0076/+0.011)
+2026-06-02 13:19:08,822 - INFO -     Omega_gamma: med= 5.566e-05 (-1.3e-05/+2.3e-05)
+2026-06-02 13:19:08,823 - INFO -     Omega_gamma: med= 5.566e-05 (-1.3e-05/+2.3e-05)
+2026-06-02 13:19:08,823 - INFO -     Neff: med= 2.994 (-0.24/+0.27)
+2026-06-02 13:19:08,823 - INFO -     Neff: med= 2.994 (-0.24/+0.27)
+2026-06-02 13:19:08,824 - INFO -     z_rec: med= 1142 (-50/+30)
+2026-06-02 13:19:08,824 - INFO -     z_rec: med= 1142 (-50/+30)
+2026-06-02 13:19:08,824 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:08,824 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:08,825 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:08,825 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:09,082 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:09,082 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:09,083 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:09,083 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:09,084 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:09,085 - INFO -     logP μ=-4.039e+03 σ= 3.653e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:09,085 - INFO -     logP μ=-4.039e+03 σ= 3.653e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:09,085 - INFO -     H_0: med= 61.84 (-6.5/+12)
+2026-06-02 13:19:09,086 - INFO -     H_0: med= 61.84 (-6.5/+12)
+2026-06-02 13:19:09,086 - INFO -     Omega_m0: med= 0.3171 (-0.12/+0.12)
+2026-06-02 13:19:09,087 - INFO -     Omega_m0: med= 0.3171 (-0.12/+0.12)
+2026-06-02 13:19:09,087 - INFO -     Omega_b: med= 0.06744 (-0.007/+0.011)
+2026-06-02 13:19:09,088 - INFO -     Omega_b: med= 0.06744 (-0.007/+0.011)
+2026-06-02 13:19:09,088 - INFO -     Omega_gamma: med= 5.404e-05 (-1.2e-05/+1.8e-05)
+2026-06-02 13:19:09,088 - INFO -     Omega_gamma: med= 5.404e-05 (-1.2e-05/+1.8e-05)
+2026-06-02 13:19:09,088 - INFO -     Neff: med= 2.986 (-0.23/+0.18)
+2026-06-02 13:19:09,089 - INFO -     Neff: med= 2.986 (-0.23/+0.18)
+2026-06-02 13:19:09,089 - INFO -     z_rec: med= 1141 (-36/+30)
+2026-06-02 13:19:09,089 - INFO -     z_rec: med= 1141 (-36/+30)
+2026-06-02 13:19:09,295 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:09,295 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:09,295 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:09,295 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:09,296 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:09,694 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:09,694 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:09,695 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:09,695 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:09,696 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:10,237 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:10,237 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:10,237 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:10,238 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:10,238 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:10,238 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:10,238 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:10,239 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:10,239 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:10,239 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:10,240 - INFO -     logP μ=-3.960e+03 σ= 3.265e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:10,241 - INFO -     logP μ=-3.960e+03 σ= 3.265e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:10,241 - INFO -     H_0: med= 61.84 (-7.3/+4.8)
+2026-06-02 13:19:10,241 - INFO -     H_0: med= 61.84 (-7.3/+4.8)
+2026-06-02 13:19:10,242 - INFO -     Omega_m0: med= 0.3352 (-0.12/+0.098)
+2026-06-02 13:19:10,242 - INFO -     Omega_m0: med= 0.3352 (-0.12/+0.098)
+2026-06-02 13:19:10,242 - INFO -     Omega_b: med= 0.06941 (-0.012/+0.009)
+2026-06-02 13:19:10,242 - INFO -     Omega_b: med= 0.06941 (-0.012/+0.009)
+2026-06-02 13:19:10,242 - INFO -     Omega_gamma: med= 5.372e-05 (-2.2e-05/+2e-05)
+2026-06-02 13:19:10,243 - INFO -     Omega_gamma: med= 5.372e-05 (-2.2e-05/+2e-05)
+2026-06-02 13:19:10,243 - INFO -     Neff: med= 2.955 (-0.19/+0.21)
+2026-06-02 13:19:10,243 - INFO -     Neff: med= 2.955 (-0.19/+0.21)
+2026-06-02 13:19:10,243 - INFO -     z_rec: med= 1136 (-28/+37)
+2026-06-02 13:19:10,243 - INFO -     z_rec: med= 1136 (-28/+37)
+2026-06-02 13:19:10,244 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:10,244 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:13,981 - INFO - Rank-normalised R-hat summary: min=4.217 median=4.645 max=9.204
+2026-06-02 13:19:13,983 - INFO - Rank-normalised R-hat summary: min=4.217 median=4.645 max=9.204
+2026-06-02 13:19:13,985 - INFO - Effective sample sizes: bulk median=80.7 tail median=64.3
+2026-06-02 13:19:13,985 - INFO - Effective sample sizes: bulk median=80.7 tail median=64.3
+2026-06-02 13:19:13,986 - INFO - MCMC acceptance for LambdaCDM: mean=0.312, min=0.000, max=1.000
+2026-06-02 13:19:13,986 - INFO - MCMC acceptance for LambdaCDM: mean=0.312, min=0.000, max=1.000
+2026-06-02 13:19:14,042 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:14,042 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:14,051 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:14,051 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:14,051 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:14,052 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:14,075 - INFO - Detected 1 invalid walkers after burn-in; reseeding them.
+2026-06-02 13:19:14,075 - INFO - Detected 1 invalid walkers after burn-in; reseeding them.
+2026-06-02 13:19:14,218 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:14,219 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:14,226 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:14,227 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:14,227 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:14,227 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:14,243 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:14,243 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:14,245 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,245 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,247 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,247 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,250 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,250 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,252 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,253 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,255 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,255 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,257 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,257 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,259 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,259 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,261 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,261 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,263 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,263 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,266 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,266 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,268 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,268 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,270 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,270 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,341 - INFO - Starting MCMC burn-in stage for 2 steps...
+2026-06-02 13:19:14,341 - INFO - Starting MCMC burn-in stage for 2 steps...
+2026-06-02 13:19:14,353 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,353 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,363 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,363 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,373 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,373 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,379 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,392 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,400 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,401 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,406 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,409 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,418 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,419 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,431 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,432 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,435 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,435 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,438 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,438 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,439 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,440 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,441 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,441 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,444 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,444 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,445 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,446 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,449 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,449 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,451 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,452 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,455 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,456 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,457 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,458 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,459 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,460 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,461 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,461 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,461 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,461 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,462 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,463 - INFO -     logP μ=-6.238e+03 σ= 7.438e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,464 - INFO -     logP μ=-6.238e+03 σ= 7.438e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,464 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:14,464 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:14,465 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:14,465 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:14,466 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:14,466 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:14,466 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:14,466 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:14,467 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:14,474 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:14,497 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:14,514 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:14,553 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,556 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,559 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,560 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,562 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,562 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,564 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,564 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,566 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,567 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,570 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,571 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,573 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,573 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,574 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,575 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,575 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,575 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,575 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,576 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:14,608 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:14,608 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:14,608 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:14,608 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:14,609 - INFO -     logP μ=-6.138e+03 σ= 7.268e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,609 - INFO -     logP μ=-6.138e+03 σ= 7.268e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,610 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:14,610 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:14,610 - INFO -     Omega_m0: med= 0.2996 (-0.18/+0.22)
+2026-06-02 13:19:14,610 - INFO -     Omega_m0: med= 0.2996 (-0.18/+0.22)
+2026-06-02 13:19:14,610 - INFO -     Omega_b: med= 0.06711 (-0.01/+0.012)
+2026-06-02 13:19:14,611 - INFO -     Omega_b: med= 0.06711 (-0.01/+0.012)
+2026-06-02 13:19:14,611 - INFO -     Omega_gamma: med= 4.574e-05 (-1.1e-05/+3.7e-05)
+2026-06-02 13:19:14,612 - INFO -     Omega_gamma: med= 4.574e-05 (-1.1e-05/+3.7e-05)
+2026-06-02 13:19:14,612 - INFO -     Neff: med= 2.989 (-0.33/+0.28)
+2026-06-02 13:19:14,612 - INFO -     Neff: med= 2.989 (-0.33/+0.28)
+2026-06-02 13:19:14,612 - INFO -     z_rec: med= 1150 (-54/+36)
+2026-06-02 13:19:14,612 - INFO -     z_rec: med= 1150 (-54/+36)
+2026-06-02 13:19:14,613 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:14,613 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:14,663 - INFO - Starting MCMC production stage for 2 steps...
+2026-06-02 13:19:14,663 - INFO - Starting MCMC production stage for 2 steps...
+2026-06-02 13:19:14,666 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,667 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,672 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,672 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,675 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,675 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,677 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,677 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,679 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,679 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,681 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,681 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,756 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,756 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,797 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,797 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,810 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,810 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,812 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,812 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,813 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,813 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,816 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,817 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,819 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,819 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,821 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,821 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,822 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,822 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,824 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,824 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,826 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,829 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,831 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,831 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,844 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,844 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,845 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,845 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,845 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,846 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,846 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:14,847 - INFO -     logP μ=-6.126e+03 σ= 7.049e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,848 - INFO -     logP μ=-6.126e+03 σ= 7.049e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,848 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:14,848 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:14,849 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:14,849 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:14,850 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:14,850 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:14,850 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:14,851 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:14,851 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:14,851 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:14,852 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:14,852 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:14,853 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,853 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,855 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,855 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,856 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,856 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,858 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,858 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,859 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,860 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,861 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,861 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,948 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,950 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,952 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,953 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,956 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,956 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,957 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,957 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,957 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:14,958 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:14,959 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:14,959 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:14,959 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:14,959 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:14,961 - INFO -     logP μ=-6.015e+03 σ= 5.648e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,962 - INFO -     logP μ=-6.015e+03 σ= 5.648e+02 max=-5.173e+03 Δχ²≈-0.000
+2026-06-02 13:19:14,962 - INFO -     H_0: med= 63.38 (-8.1/+11)
+2026-06-02 13:19:14,963 - INFO -     H_0: med= 63.38 (-8.1/+11)
+2026-06-02 13:19:14,964 - INFO -     Omega_m0: med= 0.3062 (-0.14/+0.17)
+2026-06-02 13:19:14,965 - INFO -     Omega_m0: med= 0.3062 (-0.14/+0.17)
+2026-06-02 13:19:14,966 - INFO -     Omega_b: med= 0.068 (-0.0076/+0.011)
+2026-06-02 13:19:14,971 - INFO -     Omega_b: med= 0.068 (-0.0076/+0.011)
+2026-06-02 13:19:14,972 - INFO -     Omega_gamma: med= 5.566e-05 (-1.3e-05/+2.3e-05)
+2026-06-02 13:19:14,972 - INFO -     Omega_gamma: med= 5.566e-05 (-1.3e-05/+2.3e-05)
+2026-06-02 13:19:14,972 - INFO -     Neff: med= 2.994 (-0.24/+0.27)
+2026-06-02 13:19:14,973 - INFO -     Neff: med= 2.994 (-0.24/+0.27)
+2026-06-02 13:19:14,973 - INFO -     z_rec: med= 1142 (-50/+30)
+2026-06-02 13:19:14,973 - INFO -     z_rec: med= 1142 (-50/+30)
+2026-06-02 13:19:14,974 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:14,974 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:14,976 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,976 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,978 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,978 - INFO - (compute_camb_background_observables): Using synthetic background observables in lieu of CAMB
+2026-06-02 13:19:14,987 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:14,987 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:14,988 - INFO - Effective sample sizes: bulk median=nan tail median=nan
+2026-06-02 13:19:14,988 - INFO - Effective sample sizes: bulk median=nan tail median=nan
+2026-06-02 13:19:14,988 - INFO - MCMC acceptance for LambdaCDM: mean=0.292, min=0.000, max=1.000
+2026-06-02 13:19:14,989 - INFO - MCMC acceptance for LambdaCDM: mean=0.292, min=0.000, max=1.000
+2026-06-02 13:19:14,992 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:14,992 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:14,992 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:14,993 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:15,120 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:15,121 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:15,142 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:15,142 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:15,146 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:15,146 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:15,173 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:15,175 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:15,239 - INFO - Starting MCMC burn-in stage for 2 steps...
+2026-06-02 13:19:15,241 - INFO - Starting MCMC burn-in stage for 2 steps...
+2026-06-02 13:19:15,252 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,252 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,252 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:15,253 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:15,253 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:15,254 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:15,254 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:15,255 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:15,256 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:15,256 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:15,257 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:15,257 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:15,258 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:15,258 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:15,263 - INFO -     logP μ=-4.158e+03 σ= 4.885e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,269 - INFO -     logP μ=-4.158e+03 σ= 4.885e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,271 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:15,272 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:15,273 - INFO -     Omega_m0: med= 0.2996 (-0.18/+0.22)
+2026-06-02 13:19:15,274 - INFO -     Omega_m0: med= 0.2996 (-0.18/+0.22)
+2026-06-02 13:19:15,275 - INFO -     Omega_b: med= 0.06711 (-0.01/+0.012)
+2026-06-02 13:19:15,276 - INFO -     Omega_b: med= 0.06711 (-0.01/+0.012)
+2026-06-02 13:19:15,276 - INFO -     Omega_gamma: med= 4.574e-05 (-1.1e-05/+3.7e-05)
+2026-06-02 13:19:15,276 - INFO -     Omega_gamma: med= 4.574e-05 (-1.1e-05/+3.7e-05)
+2026-06-02 13:19:15,277 - INFO -     Neff: med= 2.989 (-0.33/+0.28)
+2026-06-02 13:19:15,277 - INFO -     Neff: med= 2.989 (-0.33/+0.28)
+2026-06-02 13:19:15,278 - INFO -     z_rec: med= 1150 (-54/+36)
+2026-06-02 13:19:15,279 - INFO -     z_rec: med= 1150 (-54/+36)
+2026-06-02 13:19:15,280 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:15,280 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:15,280 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:15,281 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:15,310 - INFO -     logP μ=-4.150e+03 σ= 4.739e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,310 - INFO -     logP μ=-4.150e+03 σ= 4.739e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,312 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:15,312 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:15,312 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:15,313 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:15,313 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:15,314 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:15,314 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:15,314 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:15,315 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:15,316 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:15,316 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:15,316 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:15,328 - INFO -     logP μ=-4.025e+03 σ= 3.616e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,328 - INFO -     logP μ=-4.025e+03 σ= 3.616e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,329 - INFO -     H_0: med= 61.84 (-6.5/+10)
+2026-06-02 13:19:15,329 - INFO -     H_0: med= 61.84 (-6.5/+10)
+2026-06-02 13:19:15,329 - INFO -     Omega_m0: med= 0.3056 (-0.11/+0.13)
+2026-06-02 13:19:15,330 - INFO -     Omega_m0: med= 0.3056 (-0.11/+0.13)
+2026-06-02 13:19:15,331 - INFO -     Omega_b: med= 0.06732 (-0.012/+0.011)
+2026-06-02 13:19:15,332 - INFO -     Omega_b: med= 0.06732 (-0.012/+0.011)
+2026-06-02 13:19:15,332 - INFO -     Omega_gamma: med= 5.233e-05 (-9.9e-06/+1.9e-05)
+2026-06-02 13:19:15,333 - INFO -     Omega_gamma: med= 5.233e-05 (-9.9e-06/+1.9e-05)
+2026-06-02 13:19:15,334 - INFO -     Neff: med= 2.975 (-0.21/+0.28)
+2026-06-02 13:19:15,334 - INFO -     Neff: med= 2.975 (-0.21/+0.28)
+2026-06-02 13:19:15,335 - INFO -     z_rec: med= 1144 (-46/+28)
+2026-06-02 13:19:15,335 - INFO -     z_rec: med= 1144 (-46/+28)
+2026-06-02 13:19:15,338 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:15,338 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:15,421 - INFO - Rank-normalised R-hat summary: min=2.773 median=4.200 max=6.119
+2026-06-02 13:19:15,423 - INFO - Rank-normalised R-hat summary: min=2.773 median=4.200 max=6.119
+2026-06-02 13:19:15,429 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:15,429 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:15,430 - INFO - MCMC acceptance for LambdaCDM: mean=0.250, min=0.000, max=1.000
+2026-06-02 13:19:15,430 - INFO - MCMC acceptance for LambdaCDM: mean=0.250, min=0.000, max=1.000
+2026-06-02 13:19:15,574 - INFO - Posterior samples saved to /var/folders/_c/d3frhrnj3m3g6yy_836_d38m0000gn/T/tmp3s2sttt9/chain.nc
+2026-06-02 13:19:15,574 - INFO - Posterior samples saved to /var/folders/_c/d3frhrnj3m3g6yy_836_d38m0000gn/T/tmp3s2sttt9/chain.nc
+2026-06-02 13:19:15,717 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:15,717 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:15,741 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:15,741 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:15,742 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:15,742 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:15,755 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:15,756 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:15,792 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:15,793 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:15,808 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:15,809 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:15,809 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:15,810 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:15,810 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:15,811 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,812 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,812 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:15,812 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:15,812 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:15,813 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:15,813 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:15,813 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:15,813 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:15,813 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:15,814 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:15,814 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:15,814 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:15,814 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:15,818 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:15,818 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:15,819 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:15,819 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:15,820 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:15,824 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,824 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,824 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,824 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,825 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,828 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:15,828 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:15,828 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:15,829 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:15,829 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:15,833 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:15,833 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:15,833 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:15,833 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:15,834 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:15,838 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,838 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,839 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,839 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,839 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,842 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:15,843 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:15,843 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:15,843 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:15,844 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:15,847 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:15,847 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:15,848 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:15,848 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:15,848 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:15,854 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,854 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,855 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,855 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,855 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,858 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:15,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:15,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:15,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:15,860 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:15,864 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:15,865 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:15,865 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:15,865 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:15,865 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:15,869 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,870 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,870 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,870 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,871 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,871 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:15,872 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:15,873 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:15,873 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:15,873 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:15,875 - INFO -     logP μ=-3.822e+03 σ= 2.497e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,876 - INFO -     logP μ=-3.822e+03 σ= 2.497e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,876 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:15,876 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:15,877 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.11)
+2026-06-02 13:19:15,877 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.11)
+2026-06-02 13:19:15,878 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:15,878 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:15,878 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:15,879 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:15,879 - INFO -     Neff: med= 3.018 (-0.13/+0.28)
+2026-06-02 13:19:15,879 - INFO -     Neff: med= 3.018 (-0.13/+0.28)
+2026-06-02 13:19:15,880 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:15,880 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:15,881 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:15,881 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:15,883 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:15,883 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:15,893 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,894 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,894 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,894 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,895 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:15,897 - INFO -     logP μ=-3.810e+03 σ= 2.437e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,897 - INFO -     logP μ=-3.810e+03 σ= 2.437e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:15,898 - INFO -     H_0: med= 59.06 (-6.2/+4.9)
+2026-06-02 13:19:15,898 - INFO -     H_0: med= 59.06 (-6.2/+4.9)
+2026-06-02 13:19:15,899 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.074)
+2026-06-02 13:19:15,900 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.074)
+2026-06-02 13:19:15,901 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:15,901 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:15,903 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:15,904 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:15,904 - INFO -     Neff: med= 3.018 (-0.14/+0.28)
+2026-06-02 13:19:15,904 - INFO -     Neff: med= 3.018 (-0.14/+0.28)
+2026-06-02 13:19:15,905 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:15,905 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:15,912 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,912 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,912 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,912 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,913 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:15,919 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,919 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,919 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,920 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,920 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:15,925 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,925 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,925 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,925 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,926 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:15,926 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:15,926 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:15,927 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:15,927 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:15,927 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:15,929 - INFO -     logP μ=-3.754e+03 σ= 2.224e+02 max=-3.469e+03 Δχ²≈-79.163
+2026-06-02 13:19:15,929 - INFO -     logP μ=-3.754e+03 σ= 2.224e+02 max=-3.469e+03 Δχ²≈-79.163
+2026-06-02 13:19:15,929 - INFO -     H_0: med= 57.82 (-5.7/+5.2)
+2026-06-02 13:19:15,930 - INFO -     H_0: med= 57.82 (-5.7/+5.2)
+2026-06-02 13:19:15,930 - INFO -     Omega_m0: med= 0.3698 (-0.11/+0.068)
+2026-06-02 13:19:15,930 - INFO -     Omega_m0: med= 0.3698 (-0.11/+0.068)
+2026-06-02 13:19:15,931 - INFO -     Omega_b: med= 0.06038 (-0.0094/+0.0096)
+2026-06-02 13:19:15,931 - INFO -     Omega_b: med= 0.06038 (-0.0094/+0.0096)
+2026-06-02 13:19:15,932 - INFO -     Omega_gamma: med= 4.352e-05 (-9.4e-06/+2.1e-05)
+2026-06-02 13:19:15,932 - INFO -     Omega_gamma: med= 4.352e-05 (-9.4e-06/+2.1e-05)
+2026-06-02 13:19:15,932 - INFO -     Neff: med= 3.002 (-0.12/+0.36)
+2026-06-02 13:19:15,933 - INFO -     Neff: med= 3.002 (-0.12/+0.36)
+2026-06-02 13:19:15,933 - INFO -     z_rec: med= 1133 (-19/+39)
+2026-06-02 13:19:15,937 - INFO -     z_rec: med= 1133 (-19/+39)
+2026-06-02 13:19:15,941 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:16,006 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:16,023 - INFO - Rank-normalised R-hat summary: min=3.424 median=4.344 max=13.682
+2026-06-02 13:19:16,026 - INFO - Rank-normalised R-hat summary: min=3.424 median=4.344 max=13.682
+2026-06-02 13:19:16,027 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:16,028 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:16,028 - INFO - MCMC acceptance for LambdaCDM: mean=0.312, min=0.000, max=0.500
+2026-06-02 13:19:16,029 - INFO - MCMC acceptance for LambdaCDM: mean=0.312, min=0.000, max=0.500
+2026-06-02 13:19:16,090 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,091 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,099 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,099 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,100 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,100 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,170 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,171 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,185 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,185 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,186 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,186 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,194 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:16,195 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:16,200 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:16,200 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:16,211 - INFO -     logP μ=-6.235e+03 σ= 7.438e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,211 - INFO -     logP μ=-6.235e+03 σ= 7.438e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,212 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:16,212 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:16,213 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:16,213 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:16,213 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:16,214 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:16,214 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:16,216 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:16,217 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:16,217 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:16,218 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:16,218 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:16,230 - INFO -     logP μ=-6.123e+03 σ= 7.049e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,230 - INFO -     logP μ=-6.123e+03 σ= 7.049e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,230 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:16,230 - INFO -     H_0: med= 63.65 (-5.7/+13)
+2026-06-02 13:19:16,231 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:16,232 - INFO -     Omega_m0: med= 0.3062 (-0.19/+0.21)
+2026-06-02 13:19:16,232 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:16,233 - INFO -     Omega_b: med= 0.06744 (-0.011/+0.011)
+2026-06-02 13:19:16,233 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:16,235 - INFO -     Omega_gamma: med= 4.781e-05 (-1.3e-05/+3.5e-05)
+2026-06-02 13:19:16,235 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:16,236 - INFO -     Neff: med= 2.975 (-0.3/+0.29)
+2026-06-02 13:19:16,238 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:16,238 - INFO -     z_rec: med= 1148 (-52/+38)
+2026-06-02 13:19:16,250 - INFO -     logP μ=-5.937e+03 σ= 5.372e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,251 - INFO -     logP μ=-5.937e+03 σ= 5.372e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,252 - INFO -     H_0: med= 61.84 (-6.5/+10)
+2026-06-02 13:19:16,252 - INFO -     H_0: med= 61.84 (-6.5/+10)
+2026-06-02 13:19:16,253 - INFO -     Omega_m0: med= 0.3056 (-0.11/+0.13)
+2026-06-02 13:19:16,253 - INFO -     Omega_m0: med= 0.3056 (-0.11/+0.13)
+2026-06-02 13:19:16,254 - INFO -     Omega_b: med= 0.06732 (-0.012/+0.011)
+2026-06-02 13:19:16,254 - INFO -     Omega_b: med= 0.06732 (-0.012/+0.011)
+2026-06-02 13:19:16,255 - INFO -     Omega_gamma: med= 5.233e-05 (-9.9e-06/+1.9e-05)
+2026-06-02 13:19:16,255 - INFO -     Omega_gamma: med= 5.233e-05 (-9.9e-06/+1.9e-05)
+2026-06-02 13:19:16,256 - INFO -     Neff: med= 2.975 (-0.21/+0.28)
+2026-06-02 13:19:16,256 - INFO -     Neff: med= 2.975 (-0.21/+0.28)
+2026-06-02 13:19:16,257 - INFO -     z_rec: med= 1144 (-46/+28)
+2026-06-02 13:19:16,257 - INFO -     z_rec: med= 1144 (-46/+28)
+2026-06-02 13:19:16,291 - INFO -     logP μ=-5.788e+03 σ= 4.987e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,292 - INFO -     logP μ=-5.788e+03 σ= 4.987e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,292 - INFO -     H_0: med= 61.29 (-8/+5.4)
+2026-06-02 13:19:16,293 - INFO -     H_0: med= 61.29 (-8/+5.4)
+2026-06-02 13:19:16,294 - INFO -     Omega_m0: med= 0.337 (-0.092/+0.12)
+2026-06-02 13:19:16,295 - INFO -     Omega_m0: med= 0.337 (-0.092/+0.12)
+2026-06-02 13:19:16,297 - INFO -     Omega_b: med= 0.0681 (-0.017/+0.0058)
+2026-06-02 13:19:16,297 - INFO -     Omega_b: med= 0.0681 (-0.017/+0.0058)
+2026-06-02 13:19:16,297 - INFO -     Omega_gamma: med= 4.678e-05 (-2.3e-05/+1.8e-05)
+2026-06-02 13:19:16,298 - INFO -     Omega_gamma: med= 4.678e-05 (-2.3e-05/+1.8e-05)
+2026-06-02 13:19:16,299 - INFO -     Neff: med= 2.964 (-0.15/+0.29)
+2026-06-02 13:19:16,299 - INFO -     Neff: med= 2.964 (-0.15/+0.29)
+2026-06-02 13:19:16,302 - INFO -     z_rec: med= 1137 (-27/+46)
+2026-06-02 13:19:16,303 - INFO -     z_rec: med= 1137 (-27/+46)
+2026-06-02 13:19:16,320 - INFO -     logP μ=-5.635e+03 σ= 3.714e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,320 - INFO -     logP μ=-5.635e+03 σ= 3.714e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,321 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:16,321 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:16,321 - INFO -     Omega_m0: med= 0.3369 (-0.09/+0.11)
+2026-06-02 13:19:16,322 - INFO -     Omega_m0: med= 0.3369 (-0.09/+0.11)
+2026-06-02 13:19:16,323 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:16,323 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:16,324 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:16,324 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:16,325 - INFO -     Neff: med= 3.018 (-0.13/+0.27)
+2026-06-02 13:19:16,326 - INFO -     Neff: med= 3.018 (-0.13/+0.27)
+2026-06-02 13:19:16,326 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:16,327 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:16,327 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:16,328 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:16,329 - INFO - Starting MCMC production stage for 6 steps...
+2026-06-02 13:19:16,329 - INFO - Starting MCMC production stage for 6 steps...
+2026-06-02 13:19:16,347 - INFO -     logP μ=-5.618e+03 σ= 3.623e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,347 - INFO -     logP μ=-5.618e+03 σ= 3.623e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,350 - INFO -     H_0: med= 59.05 (-6.2/+4.9)
+2026-06-02 13:19:16,350 - INFO -     H_0: med= 59.05 (-6.2/+4.9)
+2026-06-02 13:19:16,352 - INFO -     Omega_m0: med= 0.3369 (-0.09/+0.076)
+2026-06-02 13:19:16,352 - INFO -     Omega_m0: med= 0.3369 (-0.09/+0.076)
+2026-06-02 13:19:16,352 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:16,352 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:16,353 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:16,354 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:16,356 - INFO -     Neff: med= 3.018 (-0.14/+0.27)
+2026-06-02 13:19:16,356 - INFO -     Neff: med= 3.018 (-0.14/+0.27)
+2026-06-02 13:19:16,356 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:16,357 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:16,362 - INFO -     logP μ=-5.591e+03 σ= 3.458e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,362 - INFO -     logP μ=-5.591e+03 σ= 3.458e+02 max=-5.170e+03 Δχ²≈-0.000
+2026-06-02 13:19:16,363 - INFO -     H_0: med= 58.61 (-5.7/+5.2)
+2026-06-02 13:19:16,363 - INFO -     H_0: med= 58.61 (-5.7/+5.2)
+2026-06-02 13:19:16,364 - INFO -     Omega_m0: med= 0.347 (-0.077/+0.068)
+2026-06-02 13:19:16,364 - INFO -     Omega_m0: med= 0.347 (-0.077/+0.068)
+2026-06-02 13:19:16,365 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.0098)
+2026-06-02 13:19:16,365 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.0098)
+2026-06-02 13:19:16,366 - INFO -     Omega_gamma: med= 4.238e-05 (-9.3e-06/+1.9e-05)
+2026-06-02 13:19:16,366 - INFO -     Omega_gamma: med= 4.238e-05 (-9.3e-06/+1.9e-05)
+2026-06-02 13:19:16,369 - INFO -     Neff: med= 2.997 (-0.11/+0.29)
+2026-06-02 13:19:16,370 - INFO -     Neff: med= 2.997 (-0.11/+0.29)
+2026-06-02 13:19:16,370 - INFO -     z_rec: med= 1141 (-21/+31)
+2026-06-02 13:19:16,370 - INFO -     z_rec: med= 1141 (-21/+31)
+2026-06-02 13:19:16,380 - INFO -     logP μ=-5.534e+03 σ= 3.306e+02 max=-5.111e+03 Δχ²≈-117.712
+2026-06-02 13:19:16,383 - INFO -     logP μ=-5.534e+03 σ= 3.306e+02 max=-5.111e+03 Δχ²≈-117.712
+2026-06-02 13:19:16,386 - INFO -     H_0: med= 57.82 (-5.6/+5.2)
+2026-06-02 13:19:16,387 - INFO -     H_0: med= 57.82 (-5.6/+5.2)
+2026-06-02 13:19:16,388 - INFO -     Omega_m0: med= 0.3709 (-0.11/+0.06)
+2026-06-02 13:19:16,389 - INFO -     Omega_m0: med= 0.3709 (-0.11/+0.06)
+2026-06-02 13:19:16,390 - INFO -     Omega_b: med= 0.06025 (-0.0097/+0.0094)
+2026-06-02 13:19:16,390 - INFO -     Omega_b: med= 0.06025 (-0.0097/+0.0094)
+2026-06-02 13:19:16,391 - INFO -     Omega_gamma: med= 4.377e-05 (-9.6e-06/+2.2e-05)
+2026-06-02 13:19:16,392 - INFO -     Omega_gamma: med= 4.377e-05 (-9.6e-06/+2.2e-05)
+2026-06-02 13:19:16,392 - INFO -     Neff: med= 3.004 (-0.13/+0.34)
+2026-06-02 13:19:16,393 - INFO -     Neff: med= 3.004 (-0.13/+0.34)
+2026-06-02 13:19:16,393 - INFO -     z_rec: med= 1133 (-19/+39)
+2026-06-02 13:19:16,393 - INFO -     z_rec: med= 1133 (-19/+39)
+2026-06-02 13:19:16,407 - INFO -     logP μ=-5.504e+03 σ= 3.166e+02 max=-5.111e+03 Δχ²≈-117.712
+2026-06-02 13:19:16,408 - INFO -     logP μ=-5.504e+03 σ= 3.166e+02 max=-5.111e+03 Δχ²≈-117.712
+2026-06-02 13:19:16,409 - INFO -     H_0: med= 56.35 (-4.2/+5.8)
+2026-06-02 13:19:16,409 - INFO -     H_0: med= 56.35 (-4.2/+5.8)
+2026-06-02 13:19:16,409 - INFO -     Omega_m0: med= 0.3738 (-0.075/+0.065)
+2026-06-02 13:19:16,410 - INFO -     Omega_m0: med= 0.3738 (-0.075/+0.065)
+2026-06-02 13:19:16,410 - INFO -     Omega_b: med= 0.05951 (-0.0089/+0.0091)
+2026-06-02 13:19:16,410 - INFO -     Omega_b: med= 0.05951 (-0.0089/+0.0091)
+2026-06-02 13:19:16,411 - INFO -     Omega_gamma: med= 4.39e-05 (-1.2e-05/+2.2e-05)
+2026-06-02 13:19:16,411 - INFO -     Omega_gamma: med= 4.39e-05 (-1.2e-05/+2.2e-05)
+2026-06-02 13:19:16,412 - INFO -     Neff: med= 3.019 (-0.14/+0.32)
+2026-06-02 13:19:16,412 - INFO -     Neff: med= 3.019 (-0.14/+0.32)
+2026-06-02 13:19:16,412 - INFO -     z_rec: med= 1129 (-19/+42)
+2026-06-02 13:19:16,413 - INFO -     z_rec: med= 1129 (-19/+42)
+2026-06-02 13:19:16,413 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:16,413 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:16,437 - INFO - Rank-normalised R-hat summary: min=3.918 median=5.799 max=7.431
+2026-06-02 13:19:16,437 - INFO - Rank-normalised R-hat summary: min=3.918 median=5.799 max=7.431
+2026-06-02 13:19:16,438 - INFO - Effective sample sizes: bulk median=133.7 tail median=133.7
+2026-06-02 13:19:16,438 - INFO - Effective sample sizes: bulk median=133.7 tail median=133.7
+2026-06-02 13:19:16,439 - INFO - MCMC acceptance for LambdaCDM: mean=0.278, min=0.000, max=0.500
+2026-06-02 13:19:16,439 - INFO - MCMC acceptance for LambdaCDM: mean=0.278, min=0.000, max=0.500
+2026-06-02 13:19:16,492 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,493 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,502 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,508 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,508 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,509 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,542 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:16,543 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:16,543 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:16,544 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:16,552 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:16,560 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,560 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,560 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,560 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,561 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,565 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:16,565 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:16,566 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:16,566 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:16,566 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:16,568 - INFO - LambdaCDM burn-in progress: 1/4 batches completed.
+2026-06-02 13:19:16,569 - INFO - LambdaCDM burn-in progress: 1/4 batches completed.
+2026-06-02 13:19:16,570 - INFO - LambdaCDM burn-in progress: 1/4 batches completed.
+2026-06-02 13:19:16,570 - INFO - LambdaCDM burn-in progress: 1/4 batches completed.
+2026-06-02 13:19:16,571 - INFO - LambdaCDM burn-in progress: 1/4 batches completed.
+2026-06-02 13:19:16,575 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (33%)
+2026-06-02 13:19:16,576 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (33%)
+2026-06-02 13:19:16,576 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (33%)
+2026-06-02 13:19:16,576 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (33%)
+2026-06-02 13:19:16,577 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (33%)
+2026-06-02 13:19:16,583 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (42%)
+2026-06-02 13:19:16,584 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (42%)
+2026-06-02 13:19:16,586 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (42%)
+2026-06-02 13:19:16,587 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (42%)
+2026-06-02 13:19:16,589 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (42%)
+2026-06-02 13:19:16,593 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,593 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,593 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,594 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,594 - INFO - LambdaCDM burn-in batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,596 - INFO - LambdaCDM burn-in progress: 2/4 batches completed.
+2026-06-02 13:19:16,596 - INFO - LambdaCDM burn-in progress: 2/4 batches completed.
+2026-06-02 13:19:16,596 - INFO - LambdaCDM burn-in progress: 2/4 batches completed.
+2026-06-02 13:19:16,596 - INFO - LambdaCDM burn-in progress: 2/4 batches completed.
+2026-06-02 13:19:16,597 - INFO - LambdaCDM burn-in progress: 2/4 batches completed.
+2026-06-02 13:19:16,605 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (58%)
+2026-06-02 13:19:16,606 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (58%)
+2026-06-02 13:19:16,606 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (58%)
+2026-06-02 13:19:16,606 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (58%)
+2026-06-02 13:19:16,607 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (58%)
+2026-06-02 13:19:16,614 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (67%)
+2026-06-02 13:19:16,618 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (67%)
+2026-06-02 13:19:16,618 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (67%)
+2026-06-02 13:19:16,618 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (67%)
+2026-06-02 13:19:16,620 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (67%)
+2026-06-02 13:19:16,637 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (75%)
+2026-06-02 13:19:16,638 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (75%)
+2026-06-02 13:19:16,638 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (75%)
+2026-06-02 13:19:16,638 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (75%)
+2026-06-02 13:19:16,639 - INFO - LambdaCDM burn-in batch 3: 12/12 steps completed (75%)
+2026-06-02 13:19:16,640 - INFO - LambdaCDM burn-in progress: 3/4 batches completed.
+2026-06-02 13:19:16,640 - INFO - LambdaCDM burn-in progress: 3/4 batches completed.
+2026-06-02 13:19:16,641 - INFO - LambdaCDM burn-in progress: 3/4 batches completed.
+2026-06-02 13:19:16,641 - INFO - LambdaCDM burn-in progress: 3/4 batches completed.
+2026-06-02 13:19:16,642 - INFO - LambdaCDM burn-in progress: 3/4 batches completed.
+2026-06-02 13:19:16,647 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (83%)
+2026-06-02 13:19:16,651 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (83%)
+2026-06-02 13:19:16,651 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (83%)
+2026-06-02 13:19:16,651 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (83%)
+2026-06-02 13:19:16,652 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (83%)
+2026-06-02 13:19:16,658 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (92%)
+2026-06-02 13:19:16,658 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (92%)
+2026-06-02 13:19:16,659 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (92%)
+2026-06-02 13:19:16,659 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (92%)
+2026-06-02 13:19:16,659 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (92%)
+2026-06-02 13:19:16,664 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (100%)
+2026-06-02 13:19:16,669 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (100%)
+2026-06-02 13:19:16,670 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (100%)
+2026-06-02 13:19:16,670 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (100%)
+2026-06-02 13:19:16,672 - INFO - LambdaCDM burn-in batch 4: 12/12 steps completed (100%)
+2026-06-02 13:19:16,673 - INFO - LambdaCDM burn-in progress: 4/4 batches completed.
+2026-06-02 13:19:16,674 - INFO - LambdaCDM burn-in progress: 4/4 batches completed.
+2026-06-02 13:19:16,674 - INFO - LambdaCDM burn-in progress: 4/4 batches completed.
+2026-06-02 13:19:16,674 - INFO - LambdaCDM burn-in progress: 4/4 batches completed.
+2026-06-02 13:19:16,675 - INFO - LambdaCDM burn-in progress: 4/4 batches completed.
+2026-06-02 13:19:16,693 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,694 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,694 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,694 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,695 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:16,709 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:16,710 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:16,710 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:16,711 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:16,711 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:16,712 - INFO - LambdaCDM production progress: 1/3 batches completed.
+2026-06-02 13:19:16,713 - INFO - LambdaCDM production progress: 1/3 batches completed.
+2026-06-02 13:19:16,713 - INFO - LambdaCDM production progress: 1/3 batches completed.
+2026-06-02 13:19:16,713 - INFO - LambdaCDM production progress: 1/3 batches completed.
+2026-06-02 13:19:16,715 - INFO - LambdaCDM production progress: 1/3 batches completed.
+2026-06-02 13:19:16,722 - INFO - LambdaCDM production batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,723 - INFO - LambdaCDM production batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,723 - INFO - LambdaCDM production batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,723 - INFO - LambdaCDM production batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,724 - INFO - LambdaCDM production batch 2: 12/12 steps completed (50%)
+2026-06-02 13:19:16,728 - INFO - LambdaCDM production batch 2: 12/12 steps completed (67%)
+2026-06-02 13:19:16,728 - INFO - LambdaCDM production batch 2: 12/12 steps completed (67%)
+2026-06-02 13:19:16,729 - INFO - LambdaCDM production batch 2: 12/12 steps completed (67%)
+2026-06-02 13:19:16,729 - INFO - LambdaCDM production batch 2: 12/12 steps completed (67%)
+2026-06-02 13:19:16,729 - INFO - LambdaCDM production batch 2: 12/12 steps completed (67%)
+2026-06-02 13:19:16,730 - INFO - LambdaCDM production progress: 2/3 batches completed.
+2026-06-02 13:19:16,731 - INFO - LambdaCDM production progress: 2/3 batches completed.
+2026-06-02 13:19:16,731 - INFO - LambdaCDM production progress: 2/3 batches completed.
+2026-06-02 13:19:16,731 - INFO - LambdaCDM production progress: 2/3 batches completed.
+2026-06-02 13:19:16,731 - INFO - LambdaCDM production progress: 2/3 batches completed.
+2026-06-02 13:19:16,740 - INFO - LambdaCDM production batch 3: 12/12 steps completed (83%)
+2026-06-02 13:19:16,741 - INFO - LambdaCDM production batch 3: 12/12 steps completed (83%)
+2026-06-02 13:19:16,741 - INFO - LambdaCDM production batch 3: 12/12 steps completed (83%)
+2026-06-02 13:19:16,741 - INFO - LambdaCDM production batch 3: 12/12 steps completed (83%)
+2026-06-02 13:19:16,742 - INFO - LambdaCDM production batch 3: 12/12 steps completed (83%)
+2026-06-02 13:19:16,753 - INFO - LambdaCDM production batch 3: 12/12 steps completed (100%)
+2026-06-02 13:19:16,754 - INFO - LambdaCDM production batch 3: 12/12 steps completed (100%)
+2026-06-02 13:19:16,754 - INFO - LambdaCDM production batch 3: 12/12 steps completed (100%)
+2026-06-02 13:19:16,755 - INFO - LambdaCDM production batch 3: 12/12 steps completed (100%)
+2026-06-02 13:19:16,755 - INFO - LambdaCDM production batch 3: 12/12 steps completed (100%)
+2026-06-02 13:19:16,756 - INFO - LambdaCDM production progress: 3/3 batches completed.
+2026-06-02 13:19:16,757 - INFO - LambdaCDM production progress: 3/3 batches completed.
+2026-06-02 13:19:16,757 - INFO - LambdaCDM production progress: 3/3 batches completed.
+2026-06-02 13:19:16,757 - INFO - LambdaCDM production progress: 3/3 batches completed.
+2026-06-02 13:19:16,813 - INFO - LambdaCDM production progress: 3/3 batches completed.
+2026-06-02 13:19:16,928 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,928 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:16,938 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,938 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:16,938 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,939 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:16,953 - INFO - Treating 1 parameter(s) as fixed or numerically locked: c_light
+2026-06-02 13:19:16,953 - INFO - Treating 1 parameter(s) as fixed or numerically locked: c_light
+2026-06-02 13:19:16,953 - INFO - Using 30 walkers for 8 active parameter(s).
+2026-06-02 13:19:16,954 - INFO - Using 30 walkers for 8 active parameter(s).
+2026-06-02 13:19:16,970 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:16,970 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:17,019 - INFO - wCDM burn-in batch 1: 30/30 steps completed (8%)
+2026-06-02 13:19:17,020 - INFO - wCDM burn-in batch 1: 30/30 steps completed (8%)
+2026-06-02 13:19:17,020 - INFO - wCDM burn-in batch 1: 30/30 steps completed (8%)
+2026-06-02 13:19:17,021 - INFO - wCDM burn-in batch 1: 30/30 steps completed (8%)
+2026-06-02 13:19:17,021 - INFO - wCDM burn-in batch 1: 30/30 steps completed (8%)
+2026-06-02 13:19:17,023 - INFO -     logP μ=-4.341e+03 σ= 5.551e+02 max=-3.444e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,027 - INFO -     logP μ=-4.341e+03 σ= 5.551e+02 max=-3.444e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,028 - INFO -     H0: med= 70.75 (-15/+17)
+2026-06-02 13:19:17,029 - INFO -     H0: med= 70.75 (-15/+17)
+2026-06-02 13:19:17,030 - INFO -     Omega_m0: med= 0.4889 (-0.25/+0.12)
+2026-06-02 13:19:17,031 - INFO -     Omega_m0: med= 0.4889 (-0.25/+0.12)
+2026-06-02 13:19:17,033 - INFO -     Omega_b: med= 0.06568 (-0.033/+0.014)
+2026-06-02 13:19:17,034 - INFO -     Omega_b: med= 0.06568 (-0.033/+0.014)
+2026-06-02 13:19:17,037 - INFO -     Omega_gamma: med= 5.134e-05 (-1.9e-05/+2.5e-05)
+2026-06-02 13:19:17,037 - INFO -     Omega_gamma: med= 5.134e-05 (-1.9e-05/+2.5e-05)
+2026-06-02 13:19:17,039 - INFO -     Neff: med= 3.013 (-0.33/+0.3)
+2026-06-02 13:19:17,039 - INFO -     Neff: med= 3.013 (-0.33/+0.3)
+2026-06-02 13:19:17,040 - INFO -     Omega_k: med=-0.001155 (-0.055/+0.063)
+2026-06-02 13:19:17,040 - INFO -     Omega_k: med=-0.001155 (-0.055/+0.063)
+2026-06-02 13:19:17,042 - INFO -     w_de: med=-1.033 (-0.27/+0.35)
+2026-06-02 13:19:17,042 - INFO -     w_de: med=-1.033 (-0.27/+0.35)
+2026-06-02 13:19:17,043 - INFO -     z_rec: med= 1098 (-69/+57)
+2026-06-02 13:19:17,043 - INFO -     z_rec: med= 1098 (-69/+57)
+2026-06-02 13:19:17,044 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,045 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,058 - INFO - wCDM burn-in batch 1: 30/30 steps completed (17%)
+2026-06-02 13:19:17,059 - INFO - wCDM burn-in batch 1: 30/30 steps completed (17%)
+2026-06-02 13:19:17,059 - INFO - wCDM burn-in batch 1: 30/30 steps completed (17%)
+2026-06-02 13:19:17,059 - INFO - wCDM burn-in batch 1: 30/30 steps completed (17%)
+2026-06-02 13:19:17,060 - INFO - wCDM burn-in batch 1: 30/30 steps completed (17%)
+2026-06-02 13:19:17,069 - INFO - wCDM burn-in batch 1: 30/30 steps completed (25%)
+2026-06-02 13:19:17,070 - INFO - wCDM burn-in batch 1: 30/30 steps completed (25%)
+2026-06-02 13:19:17,070 - INFO - wCDM burn-in batch 1: 30/30 steps completed (25%)
+2026-06-02 13:19:17,070 - INFO - wCDM burn-in batch 1: 30/30 steps completed (25%)
+2026-06-02 13:19:17,071 - INFO - wCDM burn-in batch 1: 30/30 steps completed (25%)
+2026-06-02 13:19:17,078 - INFO - wCDM burn-in batch 1: 30/30 steps completed (33%)
+2026-06-02 13:19:17,078 - INFO - wCDM burn-in batch 1: 30/30 steps completed (33%)
+2026-06-02 13:19:17,079 - INFO - wCDM burn-in batch 1: 30/30 steps completed (33%)
+2026-06-02 13:19:17,079 - INFO - wCDM burn-in batch 1: 30/30 steps completed (33%)
+2026-06-02 13:19:17,080 - INFO - wCDM burn-in batch 1: 30/30 steps completed (33%)
+2026-06-02 13:19:17,090 - INFO - wCDM burn-in batch 1: 30/30 steps completed (42%)
+2026-06-02 13:19:17,090 - INFO - wCDM burn-in batch 1: 30/30 steps completed (42%)
+2026-06-02 13:19:17,090 - INFO - wCDM burn-in batch 1: 30/30 steps completed (42%)
+2026-06-02 13:19:17,090 - INFO - wCDM burn-in batch 1: 30/30 steps completed (42%)
+2026-06-02 13:19:17,091 - INFO - wCDM burn-in batch 1: 30/30 steps completed (42%)
+2026-06-02 13:19:17,106 - INFO - wCDM burn-in batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,106 - INFO - wCDM burn-in batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,107 - INFO - wCDM burn-in batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,107 - INFO - wCDM burn-in batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,107 - INFO - wCDM burn-in batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,121 - INFO - wCDM burn-in batch 1: 30/30 steps completed (58%)
+2026-06-02 13:19:17,121 - INFO - wCDM burn-in batch 1: 30/30 steps completed (58%)
+2026-06-02 13:19:17,122 - INFO - wCDM burn-in batch 1: 30/30 steps completed (58%)
+2026-06-02 13:19:17,122 - INFO - wCDM burn-in batch 1: 30/30 steps completed (58%)
+2026-06-02 13:19:17,123 - INFO - wCDM burn-in batch 1: 30/30 steps completed (58%)
+2026-06-02 13:19:17,134 - INFO - wCDM burn-in batch 1: 30/30 steps completed (67%)
+2026-06-02 13:19:17,134 - INFO - wCDM burn-in batch 1: 30/30 steps completed (67%)
+2026-06-02 13:19:17,135 - INFO - wCDM burn-in batch 1: 30/30 steps completed (67%)
+2026-06-02 13:19:17,135 - INFO - wCDM burn-in batch 1: 30/30 steps completed (67%)
+2026-06-02 13:19:17,140 - INFO - wCDM burn-in batch 1: 30/30 steps completed (67%)
+2026-06-02 13:19:17,155 - INFO - wCDM burn-in batch 1: 30/30 steps completed (75%)
+2026-06-02 13:19:17,156 - INFO - wCDM burn-in batch 1: 30/30 steps completed (75%)
+2026-06-02 13:19:17,156 - INFO - wCDM burn-in batch 1: 30/30 steps completed (75%)
+2026-06-02 13:19:17,156 - INFO - wCDM burn-in batch 1: 30/30 steps completed (75%)
+2026-06-02 13:19:17,157 - INFO - wCDM burn-in batch 1: 30/30 steps completed (75%)
+2026-06-02 13:19:17,168 - INFO - wCDM burn-in batch 1: 30/30 steps completed (83%)
+2026-06-02 13:19:17,170 - INFO - wCDM burn-in batch 1: 30/30 steps completed (83%)
+2026-06-02 13:19:17,170 - INFO - wCDM burn-in batch 1: 30/30 steps completed (83%)
+2026-06-02 13:19:17,171 - INFO - wCDM burn-in batch 1: 30/30 steps completed (83%)
+2026-06-02 13:19:17,171 - INFO - wCDM burn-in batch 1: 30/30 steps completed (83%)
+2026-06-02 13:19:17,180 - INFO - wCDM burn-in batch 1: 30/30 steps completed (92%)
+2026-06-02 13:19:17,181 - INFO - wCDM burn-in batch 1: 30/30 steps completed (92%)
+2026-06-02 13:19:17,181 - INFO - wCDM burn-in batch 1: 30/30 steps completed (92%)
+2026-06-02 13:19:17,183 - INFO - wCDM burn-in batch 1: 30/30 steps completed (92%)
+2026-06-02 13:19:17,192 - INFO - wCDM burn-in batch 1: 30/30 steps completed (92%)
+2026-06-02 13:19:17,208 - INFO - wCDM burn-in batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,208 - INFO - wCDM burn-in batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,208 - INFO - wCDM burn-in batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,209 - INFO - wCDM burn-in batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,212 - INFO - wCDM burn-in batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,213 - INFO - wCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,213 - INFO - wCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,214 - INFO - wCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,214 - INFO - wCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,217 - INFO - wCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,220 - INFO -     logP μ=-3.968e+03 σ= 3.899e+02 max=-3.408e+03 Δχ²≈-71.301
+2026-06-02 13:19:17,221 - INFO -     logP μ=-3.968e+03 σ= 3.899e+02 max=-3.408e+03 Δχ²≈-71.301
+2026-06-02 13:19:17,221 - INFO -     H0: med= 60.41 (-7.5/+12)
+2026-06-02 13:19:17,222 - INFO -     H0: med= 60.41 (-7.5/+12)
+2026-06-02 13:19:17,223 - INFO -     Omega_m0: med= 0.4674 (-0.21/+0.11)
+2026-06-02 13:19:17,226 - INFO -     Omega_m0: med= 0.4674 (-0.21/+0.11)
+2026-06-02 13:19:17,228 - INFO -     Omega_b: med= 0.06299 (-0.014/+0.024)
+2026-06-02 13:19:17,228 - INFO -     Omega_b: med= 0.06299 (-0.014/+0.024)
+2026-06-02 13:19:17,228 - INFO -     Omega_gamma: med= 5.117e-05 (-1.8e-05/+1.6e-05)
+2026-06-02 13:19:17,229 - INFO -     Omega_gamma: med= 5.117e-05 (-1.8e-05/+1.6e-05)
+2026-06-02 13:19:17,231 - INFO -     Neff: med= 2.994 (-0.17/+0.26)
+2026-06-02 13:19:17,232 - INFO -     Neff: med= 2.994 (-0.17/+0.26)
+2026-06-02 13:19:17,234 - INFO -     Omega_k: med= 0.001583 (-0.044/+0.041)
+2026-06-02 13:19:17,234 - INFO -     Omega_k: med= 0.001583 (-0.044/+0.041)
+2026-06-02 13:19:17,236 - INFO -     w_de: med=-1.14 (-0.16/+0.42)
+2026-06-02 13:19:17,237 - INFO -     w_de: med=-1.14 (-0.16/+0.42)
+2026-06-02 13:19:17,238 - INFO -     z_rec: med= 1114 (-37/+34)
+2026-06-02 13:19:17,239 - INFO -     z_rec: med= 1114 (-37/+34)
+2026-06-02 13:19:17,241 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,242 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,242 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:17,243 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:17,244 - INFO - Starting MCMC production stage for 10 steps...
+2026-06-02 13:19:17,245 - INFO - Starting MCMC production stage for 10 steps...
+2026-06-02 13:19:17,280 - INFO - wCDM production batch 1: 30/30 steps completed (10%)
+2026-06-02 13:19:17,282 - INFO - wCDM production batch 1: 30/30 steps completed (10%)
+2026-06-02 13:19:17,285 - INFO - wCDM production batch 1: 30/30 steps completed (10%)
+2026-06-02 13:19:17,286 - INFO - wCDM production batch 1: 30/30 steps completed (10%)
+2026-06-02 13:19:17,288 - INFO - wCDM production batch 1: 30/30 steps completed (10%)
+2026-06-02 13:19:17,297 - INFO -     logP μ=-3.932e+03 σ= 3.555e+02 max=-3.408e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,299 - INFO -     logP μ=-3.932e+03 σ= 3.555e+02 max=-3.408e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,302 - INFO -     H0: med= 59.48 (-6.5/+11)
+2026-06-02 13:19:17,311 - INFO -     H0: med= 59.48 (-6.5/+11)
+2026-06-02 13:19:17,312 - INFO -     Omega_m0: med= 0.4664 (-0.21/+0.11)
+2026-06-02 13:19:17,313 - INFO -     Omega_m0: med= 0.4664 (-0.21/+0.11)
+2026-06-02 13:19:17,317 - INFO -     Omega_b: med= 0.06298 (-0.014/+0.024)
+2026-06-02 13:19:17,318 - INFO -     Omega_b: med= 0.06298 (-0.014/+0.024)
+2026-06-02 13:19:17,318 - INFO -     Omega_gamma: med= 5.154e-05 (-1.8e-05/+1.6e-05)
+2026-06-02 13:19:17,322 - INFO -     Omega_gamma: med= 5.154e-05 (-1.8e-05/+1.6e-05)
+2026-06-02 13:19:17,323 - INFO -     Neff: med= 2.994 (-0.19/+0.26)
+2026-06-02 13:19:17,324 - INFO -     Neff: med= 2.994 (-0.19/+0.26)
+2026-06-02 13:19:17,324 - INFO -     Omega_k: med= 0.003726 (-0.04/+0.038)
+2026-06-02 13:19:17,325 - INFO -     Omega_k: med= 0.003726 (-0.04/+0.038)
+2026-06-02 13:19:17,326 - INFO -     w_de: med=-1.172 (-0.13/+0.34)
+2026-06-02 13:19:17,327 - INFO -     w_de: med=-1.172 (-0.13/+0.34)
+2026-06-02 13:19:17,327 - INFO -     z_rec: med= 1121 (-46/+27)
+2026-06-02 13:19:17,328 - INFO -     z_rec: med= 1121 (-46/+27)
+2026-06-02 13:19:17,329 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,329 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,346 - INFO - wCDM production batch 1: 30/30 steps completed (20%)
+2026-06-02 13:19:17,347 - INFO - wCDM production batch 1: 30/30 steps completed (20%)
+2026-06-02 13:19:17,347 - INFO - wCDM production batch 1: 30/30 steps completed (20%)
+2026-06-02 13:19:17,347 - INFO - wCDM production batch 1: 30/30 steps completed (20%)
+2026-06-02 13:19:17,348 - INFO - wCDM production batch 1: 30/30 steps completed (20%)
+2026-06-02 13:19:17,360 - INFO - wCDM production batch 1: 30/30 steps completed (30%)
+2026-06-02 13:19:17,360 - INFO - wCDM production batch 1: 30/30 steps completed (30%)
+2026-06-02 13:19:17,360 - INFO - wCDM production batch 1: 30/30 steps completed (30%)
+2026-06-02 13:19:17,360 - INFO - wCDM production batch 1: 30/30 steps completed (30%)
+2026-06-02 13:19:17,361 - INFO - wCDM production batch 1: 30/30 steps completed (30%)
+2026-06-02 13:19:17,389 - INFO - wCDM production batch 1: 30/30 steps completed (40%)
+2026-06-02 13:19:17,390 - INFO - wCDM production batch 1: 30/30 steps completed (40%)
+2026-06-02 13:19:17,390 - INFO - wCDM production batch 1: 30/30 steps completed (40%)
+2026-06-02 13:19:17,390 - INFO - wCDM production batch 1: 30/30 steps completed (40%)
+2026-06-02 13:19:17,392 - INFO - wCDM production batch 1: 30/30 steps completed (40%)
+2026-06-02 13:19:17,407 - INFO - wCDM production batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,407 - INFO - wCDM production batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,408 - INFO - wCDM production batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,408 - INFO - wCDM production batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,409 - INFO - wCDM production batch 1: 30/30 steps completed (50%)
+2026-06-02 13:19:17,423 - INFO - wCDM production batch 1: 30/30 steps completed (60%)
+2026-06-02 13:19:17,423 - INFO - wCDM production batch 1: 30/30 steps completed (60%)
+2026-06-02 13:19:17,426 - INFO - wCDM production batch 1: 30/30 steps completed (60%)
+2026-06-02 13:19:17,426 - INFO - wCDM production batch 1: 30/30 steps completed (60%)
+2026-06-02 13:19:17,427 - INFO - wCDM production batch 1: 30/30 steps completed (60%)
+2026-06-02 13:19:17,440 - INFO - wCDM production batch 1: 30/30 steps completed (70%)
+2026-06-02 13:19:17,441 - INFO - wCDM production batch 1: 30/30 steps completed (70%)
+2026-06-02 13:19:17,441 - INFO - wCDM production batch 1: 30/30 steps completed (70%)
+2026-06-02 13:19:17,441 - INFO - wCDM production batch 1: 30/30 steps completed (70%)
+2026-06-02 13:19:17,441 - INFO - wCDM production batch 1: 30/30 steps completed (70%)
+2026-06-02 13:19:17,455 - INFO - wCDM production batch 1: 30/30 steps completed (80%)
+2026-06-02 13:19:17,455 - INFO - wCDM production batch 1: 30/30 steps completed (80%)
+2026-06-02 13:19:17,456 - INFO - wCDM production batch 1: 30/30 steps completed (80%)
+2026-06-02 13:19:17,456 - INFO - wCDM production batch 1: 30/30 steps completed (80%)
+2026-06-02 13:19:17,457 - INFO - wCDM production batch 1: 30/30 steps completed (80%)
+2026-06-02 13:19:17,473 - INFO - wCDM production batch 1: 30/30 steps completed (90%)
+2026-06-02 13:19:17,473 - INFO - wCDM production batch 1: 30/30 steps completed (90%)
+2026-06-02 13:19:17,475 - INFO - wCDM production batch 1: 30/30 steps completed (90%)
+2026-06-02 13:19:17,475 - INFO - wCDM production batch 1: 30/30 steps completed (90%)
+2026-06-02 13:19:17,475 - INFO - wCDM production batch 1: 30/30 steps completed (90%)
+2026-06-02 13:19:17,490 - INFO - wCDM production batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,491 - INFO - wCDM production batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,492 - INFO - wCDM production batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,492 - INFO - wCDM production batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,493 - INFO - wCDM production batch 1: 30/30 steps completed (100%)
+2026-06-02 13:19:17,495 - INFO - wCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,495 - INFO - wCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,495 - INFO - wCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,495 - INFO - wCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,496 - INFO - wCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,500 - INFO -     logP μ=-3.690e+03 σ= 2.422e+02 max=-3.396e+03 Δχ²≈-23.903
+2026-06-02 13:19:17,500 - INFO -     logP μ=-3.690e+03 σ= 2.422e+02 max=-3.396e+03 Δχ²≈-23.903
+2026-06-02 13:19:17,500 - INFO -     H0: med= 55.01 (-4.2/+7)
+2026-06-02 13:19:17,501 - INFO -     H0: med= 55.01 (-4.2/+7)
+2026-06-02 13:19:17,502 - INFO -     Omega_m0: med= 0.4082 (-0.18/+0.14)
+2026-06-02 13:19:17,503 - INFO -     Omega_m0: med= 0.4082 (-0.18/+0.14)
+2026-06-02 13:19:17,504 - INFO -     Omega_b: med= 0.06656 (-0.016/+0.017)
+2026-06-02 13:19:17,506 - INFO -     Omega_b: med= 0.06656 (-0.016/+0.017)
+2026-06-02 13:19:17,508 - INFO -     Omega_gamma: med= 4.987e-05 (-1.3e-05/+1.5e-05)
+2026-06-02 13:19:17,508 - INFO -     Omega_gamma: med= 4.987e-05 (-1.3e-05/+1.5e-05)
+2026-06-02 13:19:17,509 - INFO -     Neff: med= 3.003 (-0.16/+0.25)
+2026-06-02 13:19:17,509 - INFO -     Neff: med= 3.003 (-0.16/+0.25)
+2026-06-02 13:19:17,509 - INFO -     Omega_k: med= 0.01987 (-0.034/+0.026)
+2026-06-02 13:19:17,509 - INFO -     Omega_k: med= 0.01987 (-0.034/+0.026)
+2026-06-02 13:19:17,510 - INFO -     w_de: med=-1.149 (-0.15/+0.23)
+2026-06-02 13:19:17,511 - INFO -     w_de: med=-1.149 (-0.15/+0.23)
+2026-06-02 13:19:17,511 - INFO -     z_rec: med= 1118 (-15/+37)
+2026-06-02 13:19:17,512 - INFO -     z_rec: med= 1118 (-15/+37)
+2026-06-02 13:19:17,512 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,512 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2026-06-02 13:19:17,513 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:17,514 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:17,541 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:17,542 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:17,543 - INFO - Effective sample sizes: bulk median=78.7 tail median=84.2
+2026-06-02 13:19:17,543 - INFO - Effective sample sizes: bulk median=78.7 tail median=84.2
+2026-06-02 13:19:17,543 - INFO - MCMC acceptance for wCDM: mean=0.333, min=0.000, max=0.700
+2026-06-02 13:19:17,544 - INFO - MCMC acceptance for wCDM: mean=0.333, min=0.000, max=0.700
+2026-06-02 13:19:17,691 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:17,692 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:17,698 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:17,699 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:17,699 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:17,699 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:17,709 - INFO - Treating 1 parameter(s) as fixed or numerically locked: H_0
+2026-06-02 13:19:17,710 - INFO - Treating 1 parameter(s) as fixed or numerically locked: H_0
+2026-06-02 13:19:17,710 - INFO - Using 10 walkers for 5 active parameter(s).
+2026-06-02 13:19:17,711 - INFO - Using 10 walkers for 5 active parameter(s).
+2026-06-02 13:19:17,715 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:17,716 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:17,722 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (8%)
+2026-06-02 13:19:17,722 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (8%)
+2026-06-02 13:19:17,723 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (8%)
+2026-06-02 13:19:17,723 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (8%)
+2026-06-02 13:19:17,724 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (8%)
+2026-06-02 13:19:17,725 - INFO -     logP μ=-4.516e+03 σ= 3.363e+00 max=-4.512e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,725 - INFO -     logP μ=-4.516e+03 σ= 3.363e+00 max=-4.512e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,725 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,726 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,726 - INFO -     Omega_m0: med= 0.4262 (-0.077/+0.12)
+2026-06-02 13:19:17,727 - INFO -     Omega_m0: med= 0.4262 (-0.077/+0.12)
+2026-06-02 13:19:17,727 - INFO -     Omega_b: med= 0.05387 (-0.036/+0.019)
+2026-06-02 13:19:17,728 - INFO -     Omega_b: med= 0.05387 (-0.036/+0.019)
+2026-06-02 13:19:17,728 - INFO -     Omega_gamma: med= 5.432e-05 (-1.4e-05/+1.1e-05)
+2026-06-02 13:19:17,728 - INFO -     Omega_gamma: med= 5.432e-05 (-1.4e-05/+1.1e-05)
+2026-06-02 13:19:17,728 - INFO -     Neff: med= 2.986 (-0.31/+0.35)
+2026-06-02 13:19:17,729 - INFO -     Neff: med= 2.986 (-0.31/+0.35)
+2026-06-02 13:19:17,729 - INFO -     z_rec: med= 1112 (-92/+69)
+2026-06-02 13:19:17,729 - INFO -     z_rec: med= 1112 (-92/+69)
+2026-06-02 13:19:17,732 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (17%)
+2026-06-02 13:19:17,732 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (17%)
+2026-06-02 13:19:17,733 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (17%)
+2026-06-02 13:19:17,733 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (17%)
+2026-06-02 13:19:17,733 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (17%)
+2026-06-02 13:19:17,737 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (25%)
+2026-06-02 13:19:17,737 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (25%)
+2026-06-02 13:19:17,737 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (25%)
+2026-06-02 13:19:17,737 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (25%)
+2026-06-02 13:19:17,738 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (25%)
+2026-06-02 13:19:17,747 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (33%)
+2026-06-02 13:19:17,747 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (33%)
+2026-06-02 13:19:17,751 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (33%)
+2026-06-02 13:19:17,751 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (33%)
+2026-06-02 13:19:17,752 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (33%)
+2026-06-02 13:19:17,756 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (42%)
+2026-06-02 13:19:17,756 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (42%)
+2026-06-02 13:19:17,756 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (42%)
+2026-06-02 13:19:17,756 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (42%)
+2026-06-02 13:19:17,757 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (42%)
+2026-06-02 13:19:17,760 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,761 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,761 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,761 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,763 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,778 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (58%)
+2026-06-02 13:19:17,779 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (58%)
+2026-06-02 13:19:17,779 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (58%)
+2026-06-02 13:19:17,779 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (58%)
+2026-06-02 13:19:17,780 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (58%)
+2026-06-02 13:19:17,791 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (67%)
+2026-06-02 13:19:17,792 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (67%)
+2026-06-02 13:19:17,792 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (67%)
+2026-06-02 13:19:17,792 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (67%)
+2026-06-02 13:19:17,793 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (67%)
+2026-06-02 13:19:17,800 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (75%)
+2026-06-02 13:19:17,801 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (75%)
+2026-06-02 13:19:17,801 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (75%)
+2026-06-02 13:19:17,801 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (75%)
+2026-06-02 13:19:17,802 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (75%)
+2026-06-02 13:19:17,808 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (83%)
+2026-06-02 13:19:17,817 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (83%)
+2026-06-02 13:19:17,818 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (83%)
+2026-06-02 13:19:17,818 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (83%)
+2026-06-02 13:19:17,820 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (83%)
+2026-06-02 13:19:17,824 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (92%)
+2026-06-02 13:19:17,826 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (92%)
+2026-06-02 13:19:17,826 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (92%)
+2026-06-02 13:19:17,827 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (92%)
+2026-06-02 13:19:17,828 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (92%)
+2026-06-02 13:19:17,834 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,835 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,840 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,840 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,842 - INFO - LambdaCDM burn-in batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,842 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,843 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,844 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,844 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,845 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:17,847 - INFO -     logP μ=-4.515e+03 σ= 2.443e+00 max=-4.512e+03 Δχ²≈+0.469
+2026-06-02 13:19:17,847 - INFO -     logP μ=-4.515e+03 σ= 2.443e+00 max=-4.512e+03 Δχ²≈+0.469
+2026-06-02 13:19:17,849 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,850 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,851 - INFO -     Omega_m0: med= 0.4035 (-0.067/+0.091)
+2026-06-02 13:19:17,851 - INFO -     Omega_m0: med= 0.4035 (-0.067/+0.091)
+2026-06-02 13:19:17,852 - INFO -     Omega_b: med= 0.04504 (-0.024/+0.042)
+2026-06-02 13:19:17,853 - INFO -     Omega_b: med= 0.04504 (-0.024/+0.042)
+2026-06-02 13:19:17,853 - INFO -     Omega_gamma: med= 5.635e-05 (-1.8e-05/+8.7e-06)
+2026-06-02 13:19:17,853 - INFO -     Omega_gamma: med= 5.635e-05 (-1.8e-05/+8.7e-06)
+2026-06-02 13:19:17,854 - INFO -     Neff: med= 3.028 (-0.32/+0.32)
+2026-06-02 13:19:17,854 - INFO -     Neff: med= 3.028 (-0.32/+0.32)
+2026-06-02 13:19:17,854 - INFO -     z_rec: med= 1115 (-55/+36)
+2026-06-02 13:19:17,855 - INFO -     z_rec: med= 1115 (-55/+36)
+2026-06-02 13:19:17,855 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:17,856 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:17,856 - INFO - Starting MCMC production stage for 10 steps...
+2026-06-02 13:19:17,857 - INFO - Starting MCMC production stage for 10 steps...
+2026-06-02 13:19:17,863 - INFO - LambdaCDM production batch 1: 10/10 steps completed (10%)
+2026-06-02 13:19:17,864 - INFO - LambdaCDM production batch 1: 10/10 steps completed (10%)
+2026-06-02 13:19:17,864 - INFO - LambdaCDM production batch 1: 10/10 steps completed (10%)
+2026-06-02 13:19:17,872 - INFO - LambdaCDM production batch 1: 10/10 steps completed (10%)
+2026-06-02 13:19:17,872 - INFO - LambdaCDM production batch 1: 10/10 steps completed (10%)
+2026-06-02 13:19:17,875 - INFO -     logP μ=-4.515e+03 σ= 2.422e+00 max=-4.511e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,875 - INFO -     logP μ=-4.515e+03 σ= 2.422e+00 max=-4.511e+03 Δχ²≈-0.000
+2026-06-02 13:19:17,876 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,876 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,877 - INFO -     Omega_m0: med= 0.4035 (-0.072/+0.067)
+2026-06-02 13:19:17,878 - INFO -     Omega_m0: med= 0.4035 (-0.072/+0.067)
+2026-06-02 13:19:17,878 - INFO -     Omega_b: med= 0.03622 (-0.016/+0.05)
+2026-06-02 13:19:17,878 - INFO -     Omega_b: med= 0.03622 (-0.016/+0.05)
+2026-06-02 13:19:17,879 - INFO -     Omega_gamma: med= 5.635e-05 (-1.3e-05/+9.3e-06)
+2026-06-02 13:19:17,880 - INFO -     Omega_gamma: med= 5.635e-05 (-1.3e-05/+9.3e-06)
+2026-06-02 13:19:17,880 - INFO -     Neff: med= 3.064 (-0.35/+0.3)
+2026-06-02 13:19:17,880 - INFO -     Neff: med= 3.064 (-0.35/+0.3)
+2026-06-02 13:19:17,883 - INFO -     z_rec: med= 1115 (-55/+34)
+2026-06-02 13:19:17,884 - INFO -     z_rec: med= 1115 (-55/+34)
+2026-06-02 13:19:17,889 - INFO - LambdaCDM production batch 1: 10/10 steps completed (20%)
+2026-06-02 13:19:17,890 - INFO - LambdaCDM production batch 1: 10/10 steps completed (20%)
+2026-06-02 13:19:17,890 - INFO - LambdaCDM production batch 1: 10/10 steps completed (20%)
+2026-06-02 13:19:17,891 - INFO - LambdaCDM production batch 1: 10/10 steps completed (20%)
+2026-06-02 13:19:17,894 - INFO - LambdaCDM production batch 1: 10/10 steps completed (20%)
+2026-06-02 13:19:17,906 - INFO - LambdaCDM production batch 1: 10/10 steps completed (30%)
+2026-06-02 13:19:17,909 - INFO - LambdaCDM production batch 1: 10/10 steps completed (30%)
+2026-06-02 13:19:17,909 - INFO - LambdaCDM production batch 1: 10/10 steps completed (30%)
+2026-06-02 13:19:17,909 - INFO - LambdaCDM production batch 1: 10/10 steps completed (30%)
+2026-06-02 13:19:17,910 - INFO - LambdaCDM production batch 1: 10/10 steps completed (30%)
+2026-06-02 13:19:17,917 - INFO - LambdaCDM production batch 1: 10/10 steps completed (40%)
+2026-06-02 13:19:17,917 - INFO - LambdaCDM production batch 1: 10/10 steps completed (40%)
+2026-06-02 13:19:17,917 - INFO - LambdaCDM production batch 1: 10/10 steps completed (40%)
+2026-06-02 13:19:17,917 - INFO - LambdaCDM production batch 1: 10/10 steps completed (40%)
+2026-06-02 13:19:17,918 - INFO - LambdaCDM production batch 1: 10/10 steps completed (40%)
+2026-06-02 13:19:17,921 - INFO - LambdaCDM production batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,921 - INFO - LambdaCDM production batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,921 - INFO - LambdaCDM production batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,922 - INFO - LambdaCDM production batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,923 - INFO - LambdaCDM production batch 1: 10/10 steps completed (50%)
+2026-06-02 13:19:17,927 - INFO - LambdaCDM production batch 1: 10/10 steps completed (60%)
+2026-06-02 13:19:17,927 - INFO - LambdaCDM production batch 1: 10/10 steps completed (60%)
+2026-06-02 13:19:17,928 - INFO - LambdaCDM production batch 1: 10/10 steps completed (60%)
+2026-06-02 13:19:17,928 - INFO - LambdaCDM production batch 1: 10/10 steps completed (60%)
+2026-06-02 13:19:17,928 - INFO - LambdaCDM production batch 1: 10/10 steps completed (60%)
+2026-06-02 13:19:17,932 - INFO - LambdaCDM production batch 1: 10/10 steps completed (70%)
+2026-06-02 13:19:17,933 - INFO - LambdaCDM production batch 1: 10/10 steps completed (70%)
+2026-06-02 13:19:17,933 - INFO - LambdaCDM production batch 1: 10/10 steps completed (70%)
+2026-06-02 13:19:17,933 - INFO - LambdaCDM production batch 1: 10/10 steps completed (70%)
+2026-06-02 13:19:17,934 - INFO - LambdaCDM production batch 1: 10/10 steps completed (70%)
+2026-06-02 13:19:17,938 - INFO - LambdaCDM production batch 1: 10/10 steps completed (80%)
+2026-06-02 13:19:17,938 - INFO - LambdaCDM production batch 1: 10/10 steps completed (80%)
+2026-06-02 13:19:17,938 - INFO - LambdaCDM production batch 1: 10/10 steps completed (80%)
+2026-06-02 13:19:17,939 - INFO - LambdaCDM production batch 1: 10/10 steps completed (80%)
+2026-06-02 13:19:17,939 - INFO - LambdaCDM production batch 1: 10/10 steps completed (80%)
+2026-06-02 13:19:17,942 - INFO - LambdaCDM production batch 1: 10/10 steps completed (90%)
+2026-06-02 13:19:17,942 - INFO - LambdaCDM production batch 1: 10/10 steps completed (90%)
+2026-06-02 13:19:17,943 - INFO - LambdaCDM production batch 1: 10/10 steps completed (90%)
+2026-06-02 13:19:17,943 - INFO - LambdaCDM production batch 1: 10/10 steps completed (90%)
+2026-06-02 13:19:17,944 - INFO - LambdaCDM production batch 1: 10/10 steps completed (90%)
+2026-06-02 13:19:17,948 - INFO - LambdaCDM production batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,952 - INFO - LambdaCDM production batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,952 - INFO - LambdaCDM production batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,952 - INFO - LambdaCDM production batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,952 - INFO - LambdaCDM production batch 1: 10/10 steps completed (100%)
+2026-06-02 13:19:17,952 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,953 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,953 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,953 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,953 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:17,955 - INFO -     logP μ=-4.513e+03 σ= 1.826e+00 max=-4.510e+03 Δχ²≈-0.765
+2026-06-02 13:19:17,955 - INFO -     logP μ=-4.513e+03 σ= 1.826e+00 max=-4.510e+03 Δχ²≈-0.765
+2026-06-02 13:19:17,955 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,955 - INFO -     H_0: med= 75 (-0/+0)
+2026-06-02 13:19:17,956 - INFO -     Omega_m0: med= 0.3783 (-0.07/+0.046)
+2026-06-02 13:19:17,956 - INFO -     Omega_m0: med= 0.3783 (-0.07/+0.046)
+2026-06-02 13:19:17,956 - INFO -     Omega_b: med= 0.03849 (-0.02/+0.036)
+2026-06-02 13:19:17,956 - INFO -     Omega_b: med= 0.03849 (-0.02/+0.036)
+2026-06-02 13:19:17,956 - INFO -     Omega_gamma: med= 5.594e-05 (-1.2e-05/+1.1e-05)
+2026-06-02 13:19:17,957 - INFO -     Omega_gamma: med= 5.594e-05 (-1.2e-05/+1.1e-05)
+2026-06-02 13:19:17,957 - INFO -     Neff: med= 3.145 (-0.43/+0.23)
+2026-06-02 13:19:17,957 - INFO -     Neff: med= 3.145 (-0.43/+0.23)
+2026-06-02 13:19:17,957 - INFO -     z_rec: med= 1100 (-56/+30)
+2026-06-02 13:19:17,957 - INFO -     z_rec: med= 1100 (-56/+30)
+2026-06-02 13:19:17,958 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:17,958 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:18,010 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:18,011 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:18,015 - INFO - Effective sample sizes: bulk median=27.0 tail median=33.5
+2026-06-02 13:19:18,030 - INFO - Effective sample sizes: bulk median=27.0 tail median=33.5
+2026-06-02 13:19:18,034 - INFO - MCMC acceptance for LambdaCDM: mean=0.370, min=0.200, max=0.500
+2026-06-02 13:19:18,035 - INFO - MCMC acceptance for LambdaCDM: mean=0.370, min=0.200, max=0.500
+2026-06-02 13:19:18,107 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:18,108 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:18,120 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:18,120 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:18,121 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:18,121 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:18,130 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,131 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,138 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:18,138 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:18,153 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:18,153 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:18,153 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:18,154 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:18,154 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:18,156 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,156 - INFO -     logP μ=-4.225e+03 σ= 4.997e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,157 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:18,158 - INFO -     H_0: med= 65.09 (-6.1/+13)
+2026-06-02 13:19:18,158 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:18,158 - INFO -     Omega_m0: med= 0.3296 (-0.21/+0.2)
+2026-06-02 13:19:18,159 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:18,159 - INFO -     Omega_b: med= 0.06627 (-0.0093/+0.012)
+2026-06-02 13:19:18,159 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:18,160 - INFO -     Omega_gamma: med= 5.233e-05 (-1.8e-05/+3e-05)
+2026-06-02 13:19:18,160 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:18,161 - INFO -     Neff: med= 2.989 (-0.33/+0.25)
+2026-06-02 13:19:18,161 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:18,161 - INFO -     z_rec: med= 1138 (-48/+48)
+2026-06-02 13:19:18,165 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:18,166 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:18,166 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:18,166 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:18,166 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:18,174 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,176 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,176 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,176 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,177 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,196 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:18,196 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:18,196 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:18,196 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:18,198 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:18,221 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:18,223 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:18,223 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:18,223 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:18,228 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:18,242 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,245 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,246 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,246 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,250 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,255 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:18,256 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:18,256 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:18,256 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:18,257 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:18,262 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:18,263 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:18,264 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:18,264 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:18,276 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:18,290 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,291 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,291 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,291 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,293 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,297 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:18,297 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:18,298 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:18,298 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:18,301 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:18,314 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:18,315 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:18,315 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:18,315 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:18,317 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:18,321 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,321 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,322 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,322 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,322 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,323 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,323 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,324 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,324 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,324 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,326 - INFO -     logP μ=-3.822e+03 σ= 2.497e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,327 - INFO -     logP μ=-3.822e+03 σ= 2.497e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,328 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:18,328 - INFO -     H_0: med= 59.33 (-6.4/+4.8)
+2026-06-02 13:19:18,329 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.11)
+2026-06-02 13:19:18,329 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.11)
+2026-06-02 13:19:18,329 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:18,329 - INFO -     Omega_b: med= 0.06165 (-0.01/+0.012)
+2026-06-02 13:19:18,330 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:18,330 - INFO -     Omega_gamma: med= 4.387e-05 (-1.1e-05/+2e-05)
+2026-06-02 13:19:18,331 - INFO -     Neff: med= 3.018 (-0.13/+0.28)
+2026-06-02 13:19:18,331 - INFO -     Neff: med= 3.018 (-0.13/+0.28)
+2026-06-02 13:19:18,333 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:18,333 - INFO -     z_rec: med= 1138 (-24/+36)
+2026-06-02 13:19:18,334 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,335 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,336 - INFO - Starting MCMC production stage for 5 steps...
+2026-06-02 13:19:18,338 - INFO - Starting MCMC production stage for 5 steps...
+2026-06-02 13:19:18,351 - INFO - LambdaCDM production batch 1: 12/12 steps completed (20%)
+2026-06-02 13:19:18,351 - INFO - LambdaCDM production batch 1: 12/12 steps completed (20%)
+2026-06-02 13:19:18,352 - INFO - LambdaCDM production batch 1: 12/12 steps completed (20%)
+2026-06-02 13:19:18,352 - INFO - LambdaCDM production batch 1: 12/12 steps completed (20%)
+2026-06-02 13:19:18,352 - INFO - LambdaCDM production batch 1: 12/12 steps completed (20%)
+2026-06-02 13:19:18,354 - INFO -     logP μ=-3.810e+03 σ= 2.437e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,354 - INFO -     logP μ=-3.810e+03 σ= 2.437e+02 max=-3.508e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,355 - INFO -     H_0: med= 59.06 (-6.2/+4.9)
+2026-06-02 13:19:18,355 - INFO -     H_0: med= 59.06 (-6.2/+4.9)
+2026-06-02 13:19:18,356 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.074)
+2026-06-02 13:19:18,356 - INFO -     Omega_m0: med= 0.3369 (-0.093/+0.074)
+2026-06-02 13:19:18,356 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:18,357 - INFO -     Omega_b: med= 0.06277 (-0.01/+0.011)
+2026-06-02 13:19:18,357 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:18,357 - INFO -     Omega_gamma: med= 4.387e-05 (-1.2e-05/+1.7e-05)
+2026-06-02 13:19:18,358 - INFO -     Neff: med= 3.018 (-0.14/+0.28)
+2026-06-02 13:19:18,358 - INFO -     Neff: med= 3.018 (-0.14/+0.28)
+2026-06-02 13:19:18,358 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:18,359 - INFO -     z_rec: med= 1142 (-22/+32)
+2026-06-02 13:19:18,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (40%)
+2026-06-02 13:19:18,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (40%)
+2026-06-02 13:19:18,364 - INFO - LambdaCDM production batch 1: 12/12 steps completed (40%)
+2026-06-02 13:19:18,364 - INFO - LambdaCDM production batch 1: 12/12 steps completed (40%)
+2026-06-02 13:19:18,364 - INFO - LambdaCDM production batch 1: 12/12 steps completed (40%)
+2026-06-02 13:19:18,371 - INFO - LambdaCDM production batch 1: 12/12 steps completed (60%)
+2026-06-02 13:19:18,372 - INFO - LambdaCDM production batch 1: 12/12 steps completed (60%)
+2026-06-02 13:19:18,372 - INFO - LambdaCDM production batch 1: 12/12 steps completed (60%)
+2026-06-02 13:19:18,372 - INFO - LambdaCDM production batch 1: 12/12 steps completed (60%)
+2026-06-02 13:19:18,372 - INFO - LambdaCDM production batch 1: 12/12 steps completed (60%)
+2026-06-02 13:19:18,377 - INFO - LambdaCDM production batch 1: 12/12 steps completed (80%)
+2026-06-02 13:19:18,377 - INFO - LambdaCDM production batch 1: 12/12 steps completed (80%)
+2026-06-02 13:19:18,378 - INFO - LambdaCDM production batch 1: 12/12 steps completed (80%)
+2026-06-02 13:19:18,378 - INFO - LambdaCDM production batch 1: 12/12 steps completed (80%)
+2026-06-02 13:19:18,378 - INFO - LambdaCDM production batch 1: 12/12 steps completed (80%)
+2026-06-02 13:19:18,388 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,388 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,388 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,389 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,390 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,390 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,391 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,392 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,392 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,392 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,394 - INFO -     logP μ=-3.750e+03 σ= 2.187e+02 max=-3.469e+03 Δχ²≈-79.163
+2026-06-02 13:19:18,394 - INFO -     logP μ=-3.750e+03 σ= 2.187e+02 max=-3.469e+03 Δχ²≈-79.163
+2026-06-02 13:19:18,395 - INFO -     H_0: med= 57.82 (-5.7/+4.4)
+2026-06-02 13:19:18,396 - INFO -     H_0: med= 57.82 (-5.7/+4.4)
+2026-06-02 13:19:18,496 - INFO -     Omega_m0: med= 0.3725 (-0.11/+0.065)
+2026-06-02 13:19:18,507 - INFO -     Omega_m0: med= 0.3725 (-0.11/+0.065)
+2026-06-02 13:19:18,508 - INFO -     Omega_b: med= 0.0597 (-0.0088/+0.01)
+2026-06-02 13:19:18,510 - INFO -     Omega_b: med= 0.0597 (-0.0088/+0.01)
+2026-06-02 13:19:18,511 - INFO -     Omega_gamma: med= 4.352e-05 (-5.1e-06/+2.1e-05)
+2026-06-02 13:19:18,512 - INFO -     Omega_gamma: med= 4.352e-05 (-5.1e-06/+2.1e-05)
+2026-06-02 13:19:18,512 - INFO -     Neff: med= 3.002 (-0.12/+0.36)
+2026-06-02 13:19:18,518 - INFO -     Neff: med= 3.002 (-0.12/+0.36)
+2026-06-02 13:19:18,520 - INFO -     z_rec: med= 1130 (-17/+41)
+2026-06-02 13:19:18,521 - INFO -     z_rec: med= 1130 (-17/+41)
+2026-06-02 13:19:18,521 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:18,522 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:18,565 - INFO - Rank-normalised R-hat summary: min=5.042 median=8.255 max=11.937
+2026-06-02 13:19:18,565 - INFO - Rank-normalised R-hat summary: min=5.042 median=8.255 max=11.937
+2026-06-02 13:19:18,566 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:18,566 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:18,566 - INFO - MCMC acceptance for LambdaCDM: mean=0.283, min=0.000, max=0.600
+2026-06-02 13:19:18,567 - INFO - MCMC acceptance for LambdaCDM: mean=0.283, min=0.000, max=0.600
+2026-06-02 13:19:18,605 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:18,605 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:18,612 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:18,612 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:18,612 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:18,612 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:18,621 - INFO - Global RNG seed set to 31415
+2026-06-02 13:19:18,621 - INFO - Global RNG seed set to 31415
+2026-06-02 13:19:18,623 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,623 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,629 - INFO - Starting MCMC burn-in stage for 8 steps...
+2026-06-02 13:19:18,629 - INFO - Starting MCMC burn-in stage for 8 steps...
+2026-06-02 13:19:18,639 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,640 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,641 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,641 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,641 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,642 - INFO -     logP μ=-4.149e+03 σ= 5.106e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,642 - INFO -     logP μ=-4.149e+03 σ= 5.106e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,643 - INFO -     H_0: med= 64.71 (-9.2/+11)
+2026-06-02 13:19:18,643 - INFO -     H_0: med= 64.71 (-9.2/+11)
+2026-06-02 13:19:18,643 - INFO -     Omega_m0: med= 0.2741 (-0.14/+0.16)
+2026-06-02 13:19:18,644 - INFO -     Omega_m0: med= 0.2741 (-0.14/+0.16)
+2026-06-02 13:19:18,644 - INFO -     Omega_b: med= 0.05632 (-0.038/+0.032)
+2026-06-02 13:19:18,644 - INFO -     Omega_b: med= 0.05632 (-0.038/+0.032)
+2026-06-02 13:19:18,645 - INFO -     Omega_gamma: med= 3.511e-05 (-1.6e-05/+3.4e-05)
+2026-06-02 13:19:18,645 - INFO -     Omega_gamma: med= 3.511e-05 (-1.6e-05/+3.4e-05)
+2026-06-02 13:19:18,646 - INFO -     Neff: med= 3.106 (-0.19/+0.3)
+2026-06-02 13:19:18,646 - INFO -     Neff: med= 3.106 (-0.19/+0.3)
+2026-06-02 13:19:18,646 - INFO -     z_rec: med= 1123 (-58/+47)
+2026-06-02 13:19:18,648 - INFO -     z_rec: med= 1123 (-58/+47)
+2026-06-02 13:19:18,652 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,652 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,653 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,653 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,654 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,658 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,658 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,658 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,658 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,659 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,663 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,670 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,672 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,672 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,674 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,678 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,679 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,679 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,680 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,681 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,690 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,690 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,691 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,691 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,691 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,698 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,701 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,703 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,708 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,713 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,725 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,726 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,727 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,727 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,728 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,729 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,730 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,730 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,730 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,731 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,733 - INFO -     logP μ=-3.928e+03 σ= 3.150e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,734 - INFO -     logP μ=-3.928e+03 σ= 3.150e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,735 - INFO -     H_0: med= 60.32 (-5.9/+9.9)
+2026-06-02 13:19:18,735 - INFO -     H_0: med= 60.32 (-5.9/+9.9)
+2026-06-02 13:19:18,737 - INFO -     Omega_m0: med= 0.2571 (-0.083/+0.17)
+2026-06-02 13:19:18,738 - INFO -     Omega_m0: med= 0.2571 (-0.083/+0.17)
+2026-06-02 13:19:18,738 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.033)
+2026-06-02 13:19:18,739 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.033)
+2026-06-02 13:19:18,740 - INFO -     Omega_gamma: med= 3.649e-05 (-6.6e-06/+2.4e-05)
+2026-06-02 13:19:18,740 - INFO -     Omega_gamma: med= 3.649e-05 (-6.6e-06/+2.4e-05)
+2026-06-02 13:19:18,751 - INFO -     Neff: med= 3.203 (-0.19/+0.21)
+2026-06-02 13:19:18,751 - INFO -     Neff: med= 3.203 (-0.19/+0.21)
+2026-06-02 13:19:18,752 - INFO -     z_rec: med= 1116 (-49/+47)
+2026-06-02 13:19:18,753 - INFO -     z_rec: med= 1116 (-49/+47)
+2026-06-02 13:19:18,753 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,753 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,754 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:18,755 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:18,768 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,769 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,769 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,770 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,772 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,776 - INFO -     logP μ=-3.915e+03 σ= 3.096e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,776 - INFO -     logP μ=-3.915e+03 σ= 3.096e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,776 - INFO -     H_0: med= 60.32 (-6.5/+8.2)
+2026-06-02 13:19:18,778 - INFO -     H_0: med= 60.32 (-6.5/+8.2)
+2026-06-02 13:19:18,779 - INFO -     Omega_m0: med= 0.2623 (-0.11/+0.17)
+2026-06-02 13:19:18,780 - INFO -     Omega_m0: med= 0.2623 (-0.11/+0.17)
+2026-06-02 13:19:18,780 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.027)
+2026-06-02 13:19:18,781 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.027)
+2026-06-02 13:19:18,783 - INFO -     Omega_gamma: med= 3.649e-05 (-5.6e-06/+2.4e-05)
+2026-06-02 13:19:18,783 - INFO -     Omega_gamma: med= 3.649e-05 (-5.6e-06/+2.4e-05)
+2026-06-02 13:19:18,783 - INFO -     Neff: med= 3.203 (-0.2/+0.21)
+2026-06-02 13:19:18,784 - INFO -     Neff: med= 3.203 (-0.2/+0.21)
+2026-06-02 13:19:18,786 - INFO -     z_rec: med= 1109 (-37/+54)
+2026-06-02 13:19:18,787 - INFO -     z_rec: med= 1109 (-37/+54)
+2026-06-02 13:19:18,791 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,792 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,792 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,793 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,793 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,799 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,799 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,799 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,807 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,809 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,813 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,814 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,814 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,814 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,815 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,815 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,815 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,816 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,816 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,817 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:18,818 - INFO -     logP μ=-3.858e+03 σ= 2.669e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,819 - INFO -     logP μ=-3.858e+03 σ= 2.669e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,819 - INFO -     H_0: med= 59.16 (-5.5/+5.6)
+2026-06-02 13:19:18,819 - INFO -     H_0: med= 59.16 (-5.5/+5.6)
+2026-06-02 13:19:18,820 - INFO -     Omega_m0: med= 0.2425 (-0.09/+0.17)
+2026-06-02 13:19:18,820 - INFO -     Omega_m0: med= 0.2425 (-0.09/+0.17)
+2026-06-02 13:19:18,820 - INFO -     Omega_b: med= 0.06049 (-0.024/+0.02)
+2026-06-02 13:19:18,820 - INFO -     Omega_b: med= 0.06049 (-0.024/+0.02)
+2026-06-02 13:19:18,821 - INFO -     Omega_gamma: med= 4.209e-05 (-1.1e-05/+1.9e-05)
+2026-06-02 13:19:18,821 - INFO -     Omega_gamma: med= 4.209e-05 (-1.1e-05/+1.9e-05)
+2026-06-02 13:19:18,821 - INFO -     Neff: med= 3.234 (-0.24/+0.12)
+2026-06-02 13:19:18,821 - INFO -     Neff: med= 3.234 (-0.24/+0.12)
+2026-06-02 13:19:18,822 - INFO -     z_rec: med= 1120 (-48/+44)
+2026-06-02 13:19:18,822 - INFO -     z_rec: med= 1120 (-48/+44)
+2026-06-02 13:19:18,822 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:18,823 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:18,839 - INFO - Rank-normalised R-hat summary: min=4.235 median=8.573 max=11.971
+2026-06-02 13:19:18,839 - INFO - Rank-normalised R-hat summary: min=4.235 median=8.573 max=11.971
+2026-06-02 13:19:18,839 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:18,840 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:18,840 - INFO - MCMC acceptance for LambdaCDM: mean=0.333, min=0.000, max=0.750
+2026-06-02 13:19:18,840 - INFO - MCMC acceptance for LambdaCDM: mean=0.333, min=0.000, max=0.750
+2026-06-02 13:19:18,841 - INFO - Global RNG seed set to 31415
+2026-06-02 13:19:18,841 - INFO - Global RNG seed set to 31415
+2026-06-02 13:19:18,843 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,843 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:18,848 - INFO - Starting MCMC burn-in stage for 8 steps...
+2026-06-02 13:19:18,849 - INFO - Starting MCMC burn-in stage for 8 steps...
+2026-06-02 13:19:18,877 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,878 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,879 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,879 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,880 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (12%)
+2026-06-02 13:19:18,885 - INFO -     logP μ=-4.149e+03 σ= 5.106e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,885 - INFO -     logP μ=-4.149e+03 σ= 5.106e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,886 - INFO -     H_0: med= 64.71 (-9.2/+11)
+2026-06-02 13:19:18,888 - INFO -     H_0: med= 64.71 (-9.2/+11)
+2026-06-02 13:19:18,888 - INFO -     Omega_m0: med= 0.2741 (-0.14/+0.16)
+2026-06-02 13:19:18,888 - INFO -     Omega_m0: med= 0.2741 (-0.14/+0.16)
+2026-06-02 13:19:18,889 - INFO -     Omega_b: med= 0.05632 (-0.038/+0.032)
+2026-06-02 13:19:18,890 - INFO -     Omega_b: med= 0.05632 (-0.038/+0.032)
+2026-06-02 13:19:18,890 - INFO -     Omega_gamma: med= 3.511e-05 (-1.6e-05/+3.4e-05)
+2026-06-02 13:19:18,891 - INFO -     Omega_gamma: med= 3.511e-05 (-1.6e-05/+3.4e-05)
+2026-06-02 13:19:18,892 - INFO -     Neff: med= 3.106 (-0.19/+0.3)
+2026-06-02 13:19:18,892 - INFO -     Neff: med= 3.106 (-0.19/+0.3)
+2026-06-02 13:19:18,893 - INFO -     z_rec: med= 1123 (-58/+47)
+2026-06-02 13:19:18,893 - INFO -     z_rec: med= 1123 (-58/+47)
+2026-06-02 13:19:18,896 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,897 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,897 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,897 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,898 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,902 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,910 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,911 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,911 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,913 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (38%)
+2026-06-02 13:19:18,918 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,918 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,919 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,919 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,921 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,927 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,927 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,928 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,928 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,929 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (62%)
+2026-06-02 13:19:18,937 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,937 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,937 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,937 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,938 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,941 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,941 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,941 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,942 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,942 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (88%)
+2026-06-02 13:19:18,946 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,946 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,947 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,947 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,947 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:18,947 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,948 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,948 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,948 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,948 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:18,951 - INFO -     logP μ=-3.928e+03 σ= 3.150e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,951 - INFO -     logP μ=-3.928e+03 σ= 3.150e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,952 - INFO -     H_0: med= 60.32 (-5.9/+9.9)
+2026-06-02 13:19:18,952 - INFO -     H_0: med= 60.32 (-5.9/+9.9)
+2026-06-02 13:19:18,952 - INFO -     Omega_m0: med= 0.2571 (-0.083/+0.17)
+2026-06-02 13:19:18,952 - INFO -     Omega_m0: med= 0.2571 (-0.083/+0.17)
+2026-06-02 13:19:18,953 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.033)
+2026-06-02 13:19:18,953 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.033)
+2026-06-02 13:19:18,953 - INFO -     Omega_gamma: med= 3.649e-05 (-6.6e-06/+2.4e-05)
+2026-06-02 13:19:18,954 - INFO -     Omega_gamma: med= 3.649e-05 (-6.6e-06/+2.4e-05)
+2026-06-02 13:19:18,954 - INFO -     Neff: med= 3.203 (-0.19/+0.21)
+2026-06-02 13:19:18,954 - INFO -     Neff: med= 3.203 (-0.19/+0.21)
+2026-06-02 13:19:18,954 - INFO -     z_rec: med= 1116 (-49/+47)
+2026-06-02 13:19:18,954 - INFO -     z_rec: med= 1116 (-49/+47)
+2026-06-02 13:19:18,955 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,955 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:18,955 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:18,956 - INFO - Starting MCMC production stage for 4 steps...
+2026-06-02 13:19:18,963 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,964 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,964 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,965 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,965 - INFO - LambdaCDM production batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:18,967 - INFO -     logP μ=-3.915e+03 σ= 3.096e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,968 - INFO -     logP μ=-3.915e+03 σ= 3.096e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:18,968 - INFO -     H_0: med= 60.32 (-6.5/+8.2)
+2026-06-02 13:19:18,968 - INFO -     H_0: med= 60.32 (-6.5/+8.2)
+2026-06-02 13:19:18,969 - INFO -     Omega_m0: med= 0.2623 (-0.11/+0.17)
+2026-06-02 13:19:18,969 - INFO -     Omega_m0: med= 0.2623 (-0.11/+0.17)
+2026-06-02 13:19:18,970 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.027)
+2026-06-02 13:19:18,970 - INFO -     Omega_b: med= 0.05864 (-0.023/+0.027)
+2026-06-02 13:19:18,971 - INFO -     Omega_gamma: med= 3.649e-05 (-5.6e-06/+2.4e-05)
+2026-06-02 13:19:18,971 - INFO -     Omega_gamma: med= 3.649e-05 (-5.6e-06/+2.4e-05)
+2026-06-02 13:19:18,971 - INFO -     Neff: med= 3.203 (-0.2/+0.21)
+2026-06-02 13:19:18,972 - INFO -     Neff: med= 3.203 (-0.2/+0.21)
+2026-06-02 13:19:18,972 - INFO -     z_rec: med= 1109 (-37/+54)
+2026-06-02 13:19:18,972 - INFO -     z_rec: med= 1109 (-37/+54)
+2026-06-02 13:19:18,979 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,979 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,980 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,980 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,980 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:18,992 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,992 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,992 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,992 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:18,993 - INFO - LambdaCDM production batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:19,003 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:19,003 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:19,004 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:19,004 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:19,005 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:19,006 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:19,007 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:19,007 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:19,008 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:19,008 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:19,010 - INFO -     logP μ=-3.858e+03 σ= 2.669e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:19,011 - INFO -     logP μ=-3.858e+03 σ= 2.669e+02 max=-3.499e+03 Δχ²≈-0.000
+2026-06-02 13:19:19,011 - INFO -     H_0: med= 59.16 (-5.5/+5.6)
+2026-06-02 13:19:19,012 - INFO -     H_0: med= 59.16 (-5.5/+5.6)
+2026-06-02 13:19:19,013 - INFO -     Omega_m0: med= 0.2425 (-0.09/+0.17)
+2026-06-02 13:19:19,013 - INFO -     Omega_m0: med= 0.2425 (-0.09/+0.17)
+2026-06-02 13:19:19,013 - INFO -     Omega_b: med= 0.06049 (-0.024/+0.02)
+2026-06-02 13:19:19,014 - INFO -     Omega_b: med= 0.06049 (-0.024/+0.02)
+2026-06-02 13:19:19,017 - INFO -     Omega_gamma: med= 4.209e-05 (-1.1e-05/+1.9e-05)
+2026-06-02 13:19:19,020 - INFO -     Omega_gamma: med= 4.209e-05 (-1.1e-05/+1.9e-05)
+2026-06-02 13:19:19,021 - INFO -     Neff: med= 3.234 (-0.24/+0.12)
+2026-06-02 13:19:19,022 - INFO -     Neff: med= 3.234 (-0.24/+0.12)
+2026-06-02 13:19:19,022 - INFO -     z_rec: med= 1120 (-48/+44)
+2026-06-02 13:19:19,023 - INFO -     z_rec: med= 1120 (-48/+44)
+2026-06-02 13:19:19,024 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:19,027 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:19,054 - INFO - Rank-normalised R-hat summary: min=4.235 median=8.573 max=11.971
+2026-06-02 13:19:19,054 - INFO - Rank-normalised R-hat summary: min=4.235 median=8.573 max=11.971
+2026-06-02 13:19:19,056 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:19,056 - INFO - Effective sample sizes: bulk median=80.7 tail median=80.7
+2026-06-02 13:19:19,057 - INFO - MCMC acceptance for LambdaCDM: mean=0.333, min=0.000, max=0.750
+2026-06-02 13:19:19,058 - INFO - MCMC acceptance for LambdaCDM: mean=0.333, min=0.000, max=0.750
+2026-06-02 13:19:19,059 - INFO - Global RNG seed set to 0
+2026-06-02 13:19:19,060 - INFO - Global RNG seed set to 0
+2026-06-02 13:19:19,139 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:19,139 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:19,153 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:19,153 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:19,155 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:19,155 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:19,166 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:19,167 - INFO - Using 12 walkers for 6 active parameter(s).
+2026-06-02 13:19:19,174 - INFO - Using requested multiprocessing pool with 2 worker(s).
+2026-06-02 13:19:19,174 - INFO - Using requested multiprocessing pool with 2 worker(s).
+2026-06-02 13:19:19,197 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:19,197 - INFO - Starting MCMC burn-in stage for 12 steps...
+2026-06-02 13:19:21,939 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:21,940 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:21,940 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:21,940 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:21,940 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (8%)
+2026-06-02 13:19:21,942 - INFO -     logP μ=-4.437e+03 σ= 4.131e+02 max=-3.622e+03 Δχ²≈-0.000
+2026-06-02 13:19:21,942 - INFO -     logP μ=-4.437e+03 σ= 4.131e+02 max=-3.622e+03 Δχ²≈-0.000
+2026-06-02 13:19:21,942 - INFO -     H_0: med= 74.65 (-11/+7)
+2026-06-02 13:19:21,943 - INFO -     H_0: med= 74.65 (-11/+7)
+2026-06-02 13:19:21,943 - INFO -     Omega_m0: med= 0.3138 (-0.14/+0.29)
+2026-06-02 13:19:21,943 - INFO -     Omega_m0: med= 0.3138 (-0.14/+0.29)
+2026-06-02 13:19:21,943 - INFO -     Omega_b: med= 0.05277 (-0.032/+0.031)
+2026-06-02 13:19:21,944 - INFO -     Omega_b: med= 0.05277 (-0.032/+0.031)
+2026-06-02 13:19:21,944 - INFO -     Omega_gamma: med= 5.861e-05 (-3.2e-05/+3e-05)
+2026-06-02 13:19:21,945 - INFO -     Omega_gamma: med= 5.861e-05 (-3.2e-05/+3e-05)
+2026-06-02 13:19:21,945 - INFO -     Neff: med= 3.1 (-0.32/+0.23)
+2026-06-02 13:19:21,945 - INFO -     Neff: med= 3.1 (-0.32/+0.23)
+2026-06-02 13:19:21,945 - INFO -     z_rec: med= 1102 (-90/+29)
+2026-06-02 13:19:21,945 - INFO -     z_rec: med= 1102 (-90/+29)
+2026-06-02 13:19:22,037 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:22,037 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:22,038 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:22,038 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:22,038 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:22,110 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:22,111 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:22,111 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:22,111 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:22,111 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (25%)
+2026-06-02 13:19:22,187 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:22,187 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:22,188 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:22,188 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:22,188 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:22,259 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:22,260 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:22,260 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:22,260 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:22,260 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (42%)
+2026-06-02 13:19:22,331 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:22,332 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:22,332 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:22,332 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:22,332 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:22,413 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:22,414 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:22,414 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:22,414 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:22,414 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (58%)
+2026-06-02 13:19:22,599 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:22,599 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:22,599 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:22,600 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:22,600 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:22,696 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:22,696 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:22,696 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:22,696 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:22,697 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (75%)
+2026-06-02 13:19:22,778 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:22,778 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:22,778 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:22,779 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:22,779 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:22,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:22,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:22,859 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:22,860 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:22,860 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (92%)
+2026-06-02 13:19:22,934 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:22,935 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:22,935 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:22,935 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:22,936 - INFO - LambdaCDM burn-in batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:22,936 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:22,936 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:22,937 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:22,937 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:22,937 - INFO - LambdaCDM burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:22,939 - INFO -     logP μ=-4.070e+03 σ= 2.847e+02 max=-3.621e+03 Δχ²≈-2.944
+2026-06-02 13:19:22,939 - INFO -     logP μ=-4.070e+03 σ= 2.847e+02 max=-3.621e+03 Δχ²≈-2.944
+2026-06-02 13:19:22,939 - INFO -     H_0: med= 64.09 (-7.1/+6.9)
+2026-06-02 13:19:22,940 - INFO -     H_0: med= 64.09 (-7.1/+6.9)
+2026-06-02 13:19:22,940 - INFO -     Omega_m0: med= 0.4428 (-0.15/+0.15)
+2026-06-02 13:19:22,940 - INFO -     Omega_m0: med= 0.4428 (-0.15/+0.15)
+2026-06-02 13:19:22,940 - INFO -     Omega_b: med= 0.05013 (-0.011/+0.018)
+2026-06-02 13:19:22,941 - INFO -     Omega_b: med= 0.05013 (-0.011/+0.018)
+2026-06-02 13:19:22,941 - INFO -     Omega_gamma: med= 3.25e-05 (-6.5e-06/+3.3e-05)
+2026-06-02 13:19:22,941 - INFO -     Omega_gamma: med= 3.25e-05 (-6.5e-06/+3.3e-05)
+2026-06-02 13:19:22,942 - INFO -     Neff: med= 3.075 (-0.13/+0.3)
+2026-06-02 13:19:22,942 - INFO -     Neff: med= 3.075 (-0.13/+0.3)
+2026-06-02 13:19:22,942 - INFO -     z_rec: med= 1083 (-58/+52)
+2026-06-02 13:19:22,943 - INFO -     z_rec: med= 1083 (-58/+52)
+2026-06-02 13:19:22,943 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:22,943 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:22,944 - INFO - Starting MCMC production stage for 6 steps...
+2026-06-02 13:19:22,944 - INFO - Starting MCMC production stage for 6 steps...
+2026-06-02 13:19:23,063 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:23,063 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:23,064 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:23,064 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:23,064 - INFO - LambdaCDM production batch 1: 12/12 steps completed (17%)
+2026-06-02 13:19:23,065 - INFO -     logP μ=-4.043e+03 σ= 2.603e+02 max=-3.621e+03 Δχ²≈-0.000
+2026-06-02 13:19:23,066 - INFO -     logP μ=-4.043e+03 σ= 2.603e+02 max=-3.621e+03 Δχ²≈-0.000
+2026-06-02 13:19:23,066 - INFO -     H_0: med= 63.9 (-6.9/+4.8)
+2026-06-02 13:19:23,066 - INFO -     H_0: med= 63.9 (-6.9/+4.8)
+2026-06-02 13:19:23,066 - INFO -     Omega_m0: med= 0.4428 (-0.18/+0.12)
+2026-06-02 13:19:23,066 - INFO -     Omega_m0: med= 0.4428 (-0.18/+0.12)
+2026-06-02 13:19:23,067 - INFO -     Omega_b: med= 0.04976 (-0.011/+0.014)
+2026-06-02 13:19:23,067 - INFO -     Omega_b: med= 0.04976 (-0.011/+0.014)
+2026-06-02 13:19:23,067 - INFO -     Omega_gamma: med= 3.259e-05 (-6.6e-06/+3.2e-05)
+2026-06-02 13:19:23,068 - INFO -     Omega_gamma: med= 3.259e-05 (-6.6e-06/+3.2e-05)
+2026-06-02 13:19:23,068 - INFO -     Neff: med= 3.051 (-0.1/+0.33)
+2026-06-02 13:19:23,068 - INFO -     Neff: med= 3.051 (-0.1/+0.33)
+2026-06-02 13:19:23,068 - INFO -     z_rec: med= 1069 (-44/+58)
+2026-06-02 13:19:23,069 - INFO -     z_rec: med= 1069 (-44/+58)
+2026-06-02 13:19:23,141 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:23,142 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:23,142 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:23,142 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:23,142 - INFO - LambdaCDM production batch 1: 12/12 steps completed (33%)
+2026-06-02 13:19:23,216 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:23,217 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:23,217 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:23,217 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:23,217 - INFO - LambdaCDM production batch 1: 12/12 steps completed (50%)
+2026-06-02 13:19:23,291 - INFO - LambdaCDM production batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:23,291 - INFO - LambdaCDM production batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:23,291 - INFO - LambdaCDM production batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:23,291 - INFO - LambdaCDM production batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:23,292 - INFO - LambdaCDM production batch 1: 12/12 steps completed (67%)
+2026-06-02 13:19:23,362 - INFO - LambdaCDM production batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:23,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:23,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:23,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:23,363 - INFO - LambdaCDM production batch 1: 12/12 steps completed (83%)
+2026-06-02 13:19:23,439 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:23,440 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:23,440 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:23,440 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:23,441 - INFO - LambdaCDM production batch 1: 12/12 steps completed (100%)
+2026-06-02 13:19:23,441 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:23,441 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:23,441 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:23,442 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:23,442 - INFO - LambdaCDM production progress: 1/1 batches completed.
+2026-06-02 13:19:23,443 - INFO -     logP μ=-3.978e+03 σ= 2.513e+02 max=-3.607e+03 Δχ²≈-26.771
+2026-06-02 13:19:23,444 - INFO -     logP μ=-3.978e+03 σ= 2.513e+02 max=-3.607e+03 Δχ²≈-26.771
+2026-06-02 13:19:23,444 - INFO -     H_0: med= 63.9 (-9.8/+2.3)
+2026-06-02 13:19:23,444 - INFO -     H_0: med= 63.9 (-9.8/+2.3)
+2026-06-02 13:19:23,445 - INFO -     Omega_m0: med= 0.4172 (-0.071/+0.15)
+2026-06-02 13:19:23,445 - INFO -     Omega_m0: med= 0.4172 (-0.071/+0.15)
+2026-06-02 13:19:23,445 - INFO -     Omega_b: med= 0.05677 (-0.011/+0.01)
+2026-06-02 13:19:23,445 - INFO -     Omega_b: med= 0.05677 (-0.011/+0.01)
+2026-06-02 13:19:23,446 - INFO -     Omega_gamma: med= 4.126e-05 (-1.4e-05/+1.3e-05)
+2026-06-02 13:19:23,446 - INFO -     Omega_gamma: med= 4.126e-05 (-1.4e-05/+1.3e-05)
+2026-06-02 13:19:23,446 - INFO -     Neff: med= 3.078 (-0.13/+0.29)
+2026-06-02 13:19:23,446 - INFO -     Neff: med= 3.078 (-0.13/+0.29)
+2026-06-02 13:19:23,447 - INFO -     z_rec: med= 1065 (-48/+31)
+2026-06-02 13:19:23,447 - INFO -     z_rec: med= 1065 (-48/+31)
+2026-06-02 13:19:23,447 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:23,447 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:23,821 - INFO - Rank-normalised R-hat summary: min=2.673 median=4.195 max=5.124
+2026-06-02 13:19:23,821 - INFO - Rank-normalised R-hat summary: min=2.673 median=4.195 max=5.124
+2026-06-02 13:19:23,822 - INFO - Effective sample sizes: bulk median=133.7 tail median=133.7
+2026-06-02 13:19:23,822 - INFO - Effective sample sizes: bulk median=133.7 tail median=133.7
+2026-06-02 13:19:23,823 - INFO - MCMC acceptance for LambdaCDM: mean=0.306, min=0.000, max=0.500
+2026-06-02 13:19:23,823 - INFO - MCMC acceptance for LambdaCDM: mean=0.306, min=0.000, max=0.500
+2026-06-02 13:19:23,825 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:23,826 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:23,826 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:23,826 - INFO - (make_logposterior): unsupported prior entry None skipped
+2026-06-02 13:19:23,826 - INFO - Using 4 walkers for 2 active parameter(s).
+2026-06-02 13:19:23,827 - INFO - Using 4 walkers for 2 active parameter(s).
+2026-06-02 13:19:23,828 - INFO - Starting MCMC burn-in stage for 1 steps...
+2026-06-02 13:19:23,828 - INFO - Starting MCMC burn-in stage for 1 steps...
+2026-06-02 13:19:23,830 - INFO - ShortChainModel burn-in batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,830 - INFO - ShortChainModel burn-in batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,830 - INFO - ShortChainModel burn-in batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,830 - INFO - ShortChainModel burn-in batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,831 - INFO - ShortChainModel burn-in batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,831 - INFO - ShortChainModel burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:23,831 - INFO - ShortChainModel burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:23,832 - INFO - ShortChainModel burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:23,832 - INFO - ShortChainModel burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:23,832 - INFO - ShortChainModel burn-in progress: 1/1 batches completed.
+2026-06-02 13:19:23,833 - INFO -     logP μ=-3.326e+01 σ= 4.423e+01 max= 0.000e+00 Δχ²≈-0.000
+2026-06-02 13:19:23,834 - INFO -     logP μ=-3.326e+01 σ= 4.423e+01 max= 0.000e+00 Δχ²≈-0.000
+2026-06-02 13:19:23,834 - INFO -     omega_m: med= 0.4652 (-0.13/+0.22)
+2026-06-02 13:19:23,834 - INFO -     omega_m: med= 0.4652 (-0.13/+0.22)
+2026-06-02 13:19:23,835 - INFO -     omega_lambda: med= 0.8596 (-0.2/+0.34)
+2026-06-02 13:19:23,835 - INFO -     omega_lambda: med= 0.8596 (-0.2/+0.34)
+2026-06-02 13:19:23,835 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:23,836 - INFO - Completed MCMC burn-in stage.
+2026-06-02 13:19:23,836 - INFO - Starting MCMC production stage for 3 steps...
+2026-06-02 13:19:23,836 - INFO - Starting MCMC production stage for 3 steps...
+2026-06-02 13:19:23,838 - INFO - ShortChainModel production batch 1: 4/4 steps completed (33%)
+2026-06-02 13:19:23,838 - INFO - ShortChainModel production batch 1: 4/4 steps completed (33%)
+2026-06-02 13:19:23,838 - INFO - ShortChainModel production batch 1: 4/4 steps completed (33%)
+2026-06-02 13:19:23,839 - INFO - ShortChainModel production batch 1: 4/4 steps completed (33%)
+2026-06-02 13:19:23,839 - INFO - ShortChainModel production batch 1: 4/4 steps completed (33%)
+2026-06-02 13:19:23,840 - INFO -     logP μ=-3.326e+01 σ= 4.423e+01 max= 0.000e+00 Δχ²≈-0.000
+2026-06-02 13:19:23,840 - INFO -     logP μ=-3.326e+01 σ= 4.423e+01 max= 0.000e+00 Δχ²≈-0.000
+2026-06-02 13:19:23,840 - INFO -     omega_m: med= 0.4652 (-0.13/+0.22)
+2026-06-02 13:19:23,841 - INFO -     omega_m: med= 0.4652 (-0.13/+0.22)
+2026-06-02 13:19:23,841 - INFO -     omega_lambda: med= 0.8596 (-0.2/+0.34)
+2026-06-02 13:19:23,841 - INFO -     omega_lambda: med= 0.8596 (-0.2/+0.34)
+2026-06-02 13:19:23,842 - INFO - ShortChainModel production batch 1: 4/4 steps completed (67%)
+2026-06-02 13:19:23,842 - INFO - ShortChainModel production batch 1: 4/4 steps completed (67%)
+2026-06-02 13:19:23,842 - INFO - ShortChainModel production batch 1: 4/4 steps completed (67%)
+2026-06-02 13:19:23,843 - INFO - ShortChainModel production batch 1: 4/4 steps completed (67%)
+2026-06-02 13:19:23,843 - INFO - ShortChainModel production batch 1: 4/4 steps completed (67%)
+2026-06-02 13:19:23,844 - INFO - ShortChainModel production batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,844 - INFO - ShortChainModel production batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,844 - INFO - ShortChainModel production batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,844 - INFO - ShortChainModel production batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,845 - INFO - ShortChainModel production batch 1: 4/4 steps completed (100%)
+2026-06-02 13:19:23,845 - INFO - ShortChainModel production progress: 1/1 batches completed.
+2026-06-02 13:19:23,845 - INFO - ShortChainModel production progress: 1/1 batches completed.
+2026-06-02 13:19:23,845 - INFO - ShortChainModel production progress: 1/1 batches completed.
+2026-06-02 13:19:23,845 - INFO - ShortChainModel production progress: 1/1 batches completed.
+2026-06-02 13:19:23,846 - INFO - ShortChainModel production progress: 1/1 batches completed.
+2026-06-02 13:19:23,847 - INFO -     logP μ=-1.119e+01 σ= 1.353e+01 max=-3.394e-01 Δχ²≈+0.679
+2026-06-02 13:19:23,847 - INFO -     logP μ=-1.119e+01 σ= 1.353e+01 max=-3.394e-01 Δχ²≈+0.679
+2026-06-02 13:19:23,847 - INFO -     omega_m: med= 0.4126 (-0.077/+0.12)
+2026-06-02 13:19:23,847 - INFO -     omega_m: med= 0.4126 (-0.077/+0.12)
+2026-06-02 13:19:23,848 - INFO -     omega_lambda: med= 0.802 (-0.18/+0.17)
+2026-06-02 13:19:23,848 - INFO -     omega_lambda: med= 0.802 (-0.18/+0.17)
+2026-06-02 13:19:23,849 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:23,850 - INFO - Completed MCMC production stage.
+2026-06-02 13:19:23,853 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:23,853 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2026-06-02 13:19:23,854 - INFO - Effective sample sizes: bulk median=nan tail median=nan
+2026-06-02 13:19:23,854 - INFO - Effective sample sizes: bulk median=nan tail median=nan
+2026-06-02 13:19:23,854 - INFO - MCMC acceptance for ShortChainModel: mean=0.500, min=0.333, max=0.667
+2026-06-02 13:19:23,854 - INFO - MCMC acceptance for ShortChainModel: mean=0.500, min=0.333, max=0.667
+2026-06-02 13:19:23,892 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:23,892 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:23,899 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:23,899 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:23,899 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:23,899 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:23,933 - INFO - LambdaCDM nested sampling batch 1: 33/80 steps completed (1%)
+2026-06-02 13:19:23,933 - INFO - LambdaCDM nested sampling batch 1: 33/80 steps completed (1%)
+2026-06-02 13:19:23,934 - INFO - LambdaCDM nested sampling batch 1: 33/80 steps completed (1%)
+2026-06-02 13:19:23,934 - INFO - LambdaCDM nested sampling batch 1: 33/80 steps completed (1%)
+2026-06-02 13:19:23,934 - INFO - LambdaCDM nested sampling batch 1: 33/80 steps completed (1%)
+2026-06-02 13:19:23,960 - INFO - LambdaCDM nested sampling progress: 1/80 batches completed.
+2026-06-02 13:19:23,960 - INFO - LambdaCDM nested sampling progress: 1/80 batches completed.
+2026-06-02 13:19:23,960 - INFO - LambdaCDM nested sampling progress: 1/80 batches completed.
+2026-06-02 13:19:23,960 - INFO - LambdaCDM nested sampling progress: 1/80 batches completed.
+2026-06-02 13:19:23,961 - INFO - LambdaCDM nested sampling progress: 1/80 batches completed.
+2026-06-02 13:19:24,010 - INFO - Posterior samples saved to /var/folders/_c/d3frhrnj3m3g6yy_836_d38m0000gn/T/tmppzgqk0ci/nested.nc
+2026-06-02 13:19:24,010 - INFO - Posterior samples saved to /var/folders/_c/d3frhrnj3m3g6yy_836_d38m0000gn/T/tmppzgqk0ci/nested.nc
+2026-06-02 13:19:24,078 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,078 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,085 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,086 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,086 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,086 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,139 - INFO - LambdaCDM nested sampling batch 1: 73/120 steps completed (1%)
+2026-06-02 13:19:24,139 - INFO - LambdaCDM nested sampling batch 1: 73/120 steps completed (1%)
+2026-06-02 13:19:24,140 - INFO - LambdaCDM nested sampling batch 1: 73/120 steps completed (1%)
+2026-06-02 13:19:24,140 - INFO - LambdaCDM nested sampling batch 1: 73/120 steps completed (1%)
+2026-06-02 13:19:24,140 - INFO - LambdaCDM nested sampling batch 1: 73/120 steps completed (1%)
+2026-06-02 13:19:24,163 - INFO - LambdaCDM nested sampling progress: 1/120 batches completed.
+2026-06-02 13:19:24,163 - INFO - LambdaCDM nested sampling progress: 1/120 batches completed.
+2026-06-02 13:19:24,164 - INFO - LambdaCDM nested sampling progress: 1/120 batches completed.
+2026-06-02 13:19:24,164 - INFO - LambdaCDM nested sampling progress: 1/120 batches completed.
+2026-06-02 13:19:24,164 - INFO - LambdaCDM nested sampling progress: 1/120 batches completed.
+2026-06-02 13:19:24,202 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,202 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,209 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,209 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,210 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,210 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,372 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,373 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,379 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,379 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,380 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,380 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,435 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,436 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2026-06-02 13:19:24,442 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,442 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2026-06-02 13:19:24,443 - INFO - Derived distance_modulus_model from luminosity distance.
+2026-06-02 13:19:24,444 - INFO - Derived distance_modulus_model from luminosity distance.

@@ -1,0 +1,5 @@
+2026-06-01 01:40:58,743 - INFO - Run confirmed with manifest: models=LambdaCDM; engine=engines.cosmo_engine_mcmc vgui; datasets=dataset; seed=0; plan=
+2026-06-01 01:40:58,743 - INFO - Run execution started; outputs prepared
+2026-06-01 01:40:58,744 - INFO - Run execution started; outputs prepared
+2026-06-01 01:40:58,744 - INFO - Run progress updated to 100%
+2026-06-01 01:40:58,744 - INFO - Run completed; artefacts ready for review
