@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -52,9 +52,12 @@ The current target state is simple:
 * engine code should move inside `copernican/`;
 * curated datasets and parsers should ship inside the package;
 * bundled model assets should move into `copernican/models/`;
+* root `models/` should stop being treated as a live model home once the
+  package move is complete;
 * validation helpers should move into `copernican/validation/`;
-* the GUI logo asset should move to `copernican/docs/logo.png` and keep
-  loading from the GUI code after the move;
+* the high-resolution docs logo should live in `docs/logo.png` and
+  `copernican/docs/logo.png`, while the GUI-only small logo should live
+  in `copernican/img/logo_small.png`;
 * bundled RNG mini-games should move into `copernican/rng_minigames/`
   and keep loading from the GUI after the move;
 * the root README, package README, root docs, and `copernican/docs/`
@@ -62,8 +65,9 @@ The current target state is simple:
   the same longform DevCovenant-style documentation standard with
   explicit navigation, meaningful section depth, practical rules,
   cross-links, and non-laconic explanations;
-* output shape should stay stable while the output base directory gets
-  cleaned up;
+* output shape should stay stable while the root `output/` tree is
+  removed and the default writable output home moves to
+  `~/copernican_output`;
 * DevCovenant surfaces should be realigned after the package shape is
   stable.
 
@@ -83,18 +87,20 @@ coherent slices rather than in many narrowly separated ones.
   engines.
 * `copernican/datasets/` is the canonical bundled dataset home.
 * `copernican/models/` is the canonical bundled model home.
+* root `models/` is migration residue, not a live long-term home.
 * `copernican/rng_minigames/` is the canonical packaged home for bundled
   RNG mini-games.
 * `copernican/validation/` is the canonical packaged home for validation
   helpers.
-* `img/logogui.png` should move to `copernican/docs/logo.png`, and the
-  GUI code that renders it should keep working after the move.
+* `docs/logo.png` and `copernican/docs/logo.png` should stay identical,
+  and the GUI should load the small logo from `copernican/img/logo_small.png`.
 * The README/docs set should not stay overview-only; it should mirror the
   sibling DevCovenant documentation standard with TOCs or equivalent
   navigation maps, substantial sectioned explanations, practical rules,
   and explicit cross-links, while keeping the root and package copies
   identical for now.
 * Existing output shape should be preserved.
+* the default writable output home should be `~/copernican_output`.
 * DevCovenant dependency and license surfaces should be aligned with the
   package layout once the package shape is stable.
 * The remaining work should be grouped into a small number of large,
@@ -110,8 +116,11 @@ coherent slices rather than in many narrowly separated ones.
 * Do not redesign scientific output content.
 * Do not redesign result file shape.
 * Move `engines/`, `models/`, and `validation/` into the package.
+* Keep model loading accepting both `.yml` and `.yaml`, and keep CLI and
+  GUI on the same loading rules for external model paths.
 * Do not make model loading depend on repository-relative paths.
 * Do not make output depend on a desktop path.
+* Keep output selection optional and default to `~/copernican_output`.
 * Do not write runtime output into the installed package directory.
 * Do not manually patch generated lock hashes as the durable fix.
 * Do not create a copied custom `python` profile to compensate for package
@@ -186,8 +195,10 @@ coherent slices rather than in many narrowly separated ones.
    * `copernican/lib/`
    * `copernican/datasets/`
    * `copernican/rng_minigames/`
-   * `copernican.py`
-   * `img/logogui.png`
+   * `copernican/__main__.py`
+   * `copernican/img/logo_small.png`
+   * `docs/logo.png`
+   * `copernican/docs/logo.png`
    * imports
    * tests
 
@@ -199,8 +210,8 @@ coherent slices rather than in many narrowly separated ones.
      `copernican/`.
    * Move curated datasets and parser modules into `copernican/datasets/`.
    * Keep bundled datasets and parsers loadable as package resources.
-   * Move `img/logogui.png` to `copernican/docs/logo.png` and update the
-     GUI code that loads it so the logo still renders after the refactor.
+   * Keep the docs logo in `docs/logo.png` and `copernican/docs/logo.png`
+     while the GUI loads its small asset from `copernican/img/logo_small.png`.
    * Move bundled RNG mini-games into `copernican/rng_minigames/` and
      update the GUI code that loads them so they still render after the
      refactor.
@@ -273,8 +284,13 @@ coherent slices rather than in many narrowly separated ones.
    Scope:
 
    * Rewrite package metadata for the standard package shape.
+   * Remove top-level `py-modules = ["copernican"]`.
+   * Use package discovery for `copernican` and `copernican.*`.
+   * Keep `VERSION` as package data.
+   * Keep editable installs aligned with normal builds.
    * Move bundled engines into `copernican/`.
-   * Move bundled models into `copernican/models/`.
+   * Move bundled models into `copernican/models/` and retire the root
+     `models/` surface.
    * Move validation helpers into `copernican/validation/`.
    * Realign the dependency and license surfaces with the package layout.
    * Remove legacy start scripts and parity-policy remnants.
@@ -309,6 +325,86 @@ coherent slices rather than in many narrowly separated ones.
    * changelog records the completed migration;
    * final verification and runtime checks pass.
 
+4. [open] Slice 4 - Finish runtime behavior, model/output policy, and
+   legacy cleanup.
+
+   Depends on:
+
+   * Slice 3
+
+   Surfaces:
+
+   * `models/`
+   * `output/`
+   * CLI
+   * GUI
+   * imports
+   * tests
+   * docs
+   * `devcovenant/custom/profiles/userproject/userproject.yaml`
+
+   Scope:
+
+   * Accept bundled models from the package tree and arbitrary external
+     filesystem paths.
+   * Accept both `.yml` and `.yaml` model files through the same CLI and
+     GUI loading rules.
+   * Make explicit output selection optional and default to the per-user
+     `~/copernican_output` home on every supported OS.
+   * Remove the root `output/` tree as a live target.
+   * Preserve the existing run-output shape and named artifacts.
+   * Move bundled models fully in-package and retire remaining root-model
+     assumptions.
+   * Clean up the legacy `cosmo_` naming in model and parser code and in
+     the matching DevCovenant profile references.
+   * Remove stale legacy tests that still reflect the old shape, including
+     `test_version_*.py`, start-script parity residue, and similar old
+     coverage if it remains.
+   * Finish any remaining runtime docs for model loading, output policy,
+     CLI, and GUI behavior.
+
+   Done when:
+
+   * external model paths work;
+   * `.yml` and `.yaml` model paths work through CLI and GUI;
+   * output lands in `~/copernican_output` by default;
+   * root `output/` is no longer a live target;
+   * bundled models are in-package;
+   * `cosmo_` runtime naming residue is gone where required;
+   * stale legacy tests are removed or updated;
+   * runtime docs match the runtime behavior.
+
+5. [open] Slice 5 - Final validation and regression confirmation.
+
+   Depends on:
+
+   * Slice 4
+
+   Surfaces:
+
+   * validation
+   * tests
+   * CLI
+   * GUI
+   * docs
+
+   Scope:
+
+   * Validate local checkout execution.
+   * Validate installed-package execution.
+   * Validate `python -m copernican`.
+   * Validate console-script execution.
+   * Validate GUI startup and import-path behavior.
+   * Validate the final model-loading and output-policy behavior.
+   * Validate the final docs, changelog, and governance state.
+
+   Done when:
+
+   * the full runtime matrix passes;
+   * the model and output behavior is confirmed on the final package
+     shape;
+   * docs and changelog are consistent with the completed migration.
+
 ## Validation Routine
 
 Run the validation routine after each completed slice when relevant.
@@ -325,8 +421,11 @@ Minimum validation:
 * check that root `models/` and `validation/` are no longer live code/data
   roots;
 * check that `.yml` and `.yaml` model paths are accepted;
+* check that external model paths are accepted;
 * check that existing output shape is preserved;
 * check that generated output goes to a real writable path;
+* check that generated output defaults to the per-user
+  `~/copernican_output` location;
 * check that no dependency artifact was accidentally collapsed;
 * check that no license artifact was accidentally collapsed;
 * update `CHANGELOG.md` when behavior, structure, docs, or governance changes.
@@ -363,8 +462,10 @@ Completion validation:
 * packaged datasets, models, and validation helpers resolve from package
   resources;
 * model loading is package-based, filesystem-based, and extension-correct;
+* model loading accepts external paths and both model file extensions;
 * output shape is unchanged;
-* output base-directory behavior is safe for local and headless use;
+* output base-directory behavior is safe for local and headless use and
+  defaults to `~/copernican_output`;
 * legacy start scripts and their parity policy are gone;
 * DevCovenant dependency and license surfaces are aligned with the package;
 * docs and changelog match the migrated repository structure.

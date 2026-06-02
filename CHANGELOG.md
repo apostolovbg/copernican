@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-02:
+  Change: Updated PLAN.md to redistribute the remaining plan work into
+  Slice 4 and Slice 5 and to correct the stale model, output, and logo
+  wording.
+  Why: Reintroduced the runtime, validation, and policy tasks that the
+  collapsed plan had left implicit.
+  Impact: Updated `PLAN.md` so it spells out the remaining
+  external-model, output-home, legacy-test, and final-validation work
+  without duplicating the slices that are already complete.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-06-02:
+  Change: Moved the user gitignore fragments into
+  `devcovenant/custom/profiles/userproject/userproject.yaml`.
+  Why: Centralized the repo-specific ignore rules in the profile so
+  refresh can own the generated `.gitignore` output.
+  Impact: Regenerated `.gitignore` with `copernican/logs/**` and
+  removed the stale root `logs/` and `VALIDATION.md` entries from the
+  tracked ignore file.
+  Files:
+  CHANGELOG.md
+  .gitignore
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+
+- 2026-06-02:
   Change: Archived the 9-slice roadmap as PLAN_old.md.
   Why: Preserved the earlier planning baseline without altering the
   current PLAN.md.
