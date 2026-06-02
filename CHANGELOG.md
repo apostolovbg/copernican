@@ -80,6 +80,64 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-02:
+  Change: Removed the package-local `copernican/logs` diagnostics tree
+  and deleted the supporting program-logging machinery.
+  Why: Preserve run logs as the only persisted log tree and route CLI
+  and GUI sessions through the shared application logger.
+  Impact: Preserve run-folder logs, keep CLI and GUI on shared
+  application logging, and refresh the docs and profile routing for the
+  cleanup.
+  Files:
+  CHANGELOG.md
+  ABOUT.md
+  README.md
+  SUPPORT.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/lib/analysis.py
+  copernican/lib/console_output.py
+  copernican/lib/gui/app.py
+  copernican/lib/logger.py
+  copernican/lib/run_lifecycle.py
+  copernican/lib/settings.py
+  copernican/workflow.py
+  copernican_settings.yml
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  tests/copernican/lib/test_logger.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/test_run_lifecycle.py
+  tests/copernican/test_workflow.py
+
+- 2026-06-02:
+  Change: Archived the `copernican/logs` diagnostics artifacts in a
+  separate cleanup entry.
+  Why: Preserve the run-folder logging model and keep the removed
+  diagnostics files grouped together.
+  Impact: Isolate the obsolete diagnostics tree from the main log
+  cleanup entry while leaving run logs intact.
+  Files:
+  copernican/logs/copernican_log_20260601_005142.txt
+  copernican/logs/copernican_log_20260601_010253.txt
+  copernican/logs/copernican_log_20260601_011012.txt
+  copernican/logs/copernican_log_20260601_011243.txt
+  copernican/logs/copernican_log_20260601_011659.txt
+  copernican/logs/copernican_log_20260601_012323.txt
+  copernican/logs/copernican_log_20260601_012613.txt
+  copernican/logs/copernican_log_20260601_012844.txt
+  copernican/logs/copernican_log_20260601_013153.txt
+  copernican/logs/copernican_log_20260601_013443.txt
+  copernican/logs/copernican_log_20260601_013712.txt
+  copernican/logs/copernican_log_20260601_014045.txt
+  copernican/logs/copernican_log_20260601_133343.txt
+  copernican/logs/copernican_log_20260601_141000.txt
+  copernican/logs/copernican_log_20260601_172840.txt
+  copernican/logs/copernican_log_20260602_032828.txt
+  copernican/logs/copernican_log_20260602_034333.txt
+
+- 2026-06-02:
   Change: Updated PLAN.md to redistribute the remaining plan work into
   Slice 4 and Slice 5 and to correct the stale model, output, and logo
   wording.

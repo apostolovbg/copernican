@@ -23,6 +23,13 @@ script entry points. The `copernican` package owns the runtime entry points,
 the bundled assets, and the mirrored package-root documentation that users
 see first when they open the repository or launch the GUI.
 
+The CLI and GUI share one application logger, and each run keeps its own
+run logs inside the generated `output/copernican-run_*` folder.
+
+`copernican/workflow.py` owns the launch flow for the package entry points,
+and `copernican_settings.yml` carries the GUI-facing defaults that shape that
+flow.
+
 ## Package Surface
 The package root is part of the public contract. It includes the README,
 policy-facing metadata, and the mirrored support documents that describe how
@@ -33,6 +40,10 @@ the project behaves in practice.
 - `copernican/SECURITY.md` describes how to report security issues.
 - `copernican/SUPPORT.md` explains where to get help and what to include.
 - `copernican/CITATION.cff` carries the citation metadata for the package.
+
+`copernican/workflow.py` and `copernican_settings.yml` sit behind those
+front-door docs, so changes in the launch path or GUI defaults should be
+reflected there first.
 
 Those files are mirrored from the root copies so the package can ship the same
 documentation surface without inventing a second narrative.

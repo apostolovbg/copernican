@@ -171,7 +171,7 @@ def _parse_timestamp(timestamp: str) -> Optional[datetime.datetime]:
 
 
 def _find_log_file(run_dir: Path) -> Optional[Path]:
-    """Locate the most recent diagnostics log inside `run_dir`."""
+    """Locate the most recent run log inside `run_dir`."""
     run_dir = Path(run_dir)
     for pattern in _LOG_PATTERNS:
         candidate = _find_latest_file(run_dir, pattern)

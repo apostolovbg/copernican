@@ -451,7 +451,6 @@ class CopernicanGUI:
         self.last_filter_types: list[str] = []
         self.output_directory_prepared = False
         self.output_retention_decision: str | None = None
-        self.application_log_path = ""
         self.application_log_handler: _MemoryLogHandler | None = None
         self.run_log_path: str | None = None
         self.run_log_handler: _MemoryLogHandler | None = None
@@ -514,16 +513,6 @@ class CopernicanGUI:
         self._brand_status_label: ttk_module.Label | None = None
         self._environment_status_label: ttk_module.Label | None = None
         self._settings_sections = [
-            {
-                "id": "logs",
-                "label": "Logging",
-                "description": (
-                    "Control the diagnostics archive retention count and "
-                    "severity threshold while mirroring console output into "
-                    "the log before pruning old files."
-                ),
-                "builder": self._build_settings_logs_page,
-            },
             {
                 "id": "datasets",
                 "label": "Datasets",
@@ -708,22 +697,16 @@ class CopernicanGUI:
         self._builder_step_buttons: list[ttk_module.Button] = []
 
     def _bootstrap_logging(self) -> None:
-        """Start the diagnostics log and capture environment details."""
+        """Start the application log and capture environment details."""
 
-        program_logger = logger.get_program_logger()
-        if not log_mod.get_program_log_path():
-            log_mod.setup_program_logging(
-                log_dir=str(self._repo_root() / "logs"),
-                base_dir=str(self._repo_root()),
-            )
-        self.application_log_path = log_mod.get_program_log_path() or ""
+        app_logger = logger.get_logger()
         self.application_log_handler = _MemoryLogHandler(prefix="app")
-        self._attach_handler(program_logger, self.application_log_handler)
+        self._attach_handler(app_logger, self.application_log_handler)
         logger.log_environment_info(
-            target_logger=program_logger,
+            target_logger=app_logger,
             console=False,
         )
-        self._log_program_event(
+        self._log_application_event(
             "GUI launch completed; diagnostics stream active",
             logging.INFO,
         )
@@ -794,12 +777,14 @@ class CopernicanGUI:
             if self.severity_order.get(entry.severity, 0) >= target
         ]
 
-    def _log_program_event(self, message: str, level: int) -> Optional[str]:
+    def _log_application_event(
+        self, message: str, level: int
+    ) -> Optional[str]:
         """Record an application-level message and return its anchor."""
 
-        program_logger = logger.get_program_logger()
+        app_logger = logger.get_logger()
         handler = self.application_log_handler
-        program_logger.log(level, message)
+        app_logger.log(level, message)
         if handler is None:
             return None
         return handler.last_anchor()
@@ -874,7 +859,7 @@ class CopernicanGUI:
         """Record a run-level event and return the anchor."""
 
         if self.run_logger is None:
-            return self._log_program_event(message, level)
+            return self._log_application_event(message, level)
         return self._dispatch_and_anchor(
             self.run_logger, self.run_log_handler, message, level
         )
@@ -923,7 +908,7 @@ class CopernicanGUI:
         self._refresh_run_log_widget()
 
     def copy_application_logs(self) -> str:
-        """Copy filtered diagnostics logs into a clipboard buffer."""
+        """Copy filtered application logs into a clipboard buffer."""
 
         entries = self.get_application_log_entries()
         self.diagnostics_clipboard = "\n".join(
@@ -939,10 +924,10 @@ class CopernicanGUI:
         return self.run_clipboard
 
     def export_application_logs(self, output_dir: str) -> str:
-        """Write filtered diagnostics logs to the requested directory."""
+        """Write filtered application logs to the requested directory."""
 
         os.makedirs(output_dir, exist_ok=True)
-        export_path = os.path.join(output_dir, "diagnostics_log.txt")
+        export_path = os.path.join(output_dir, "application_log.txt")
         with open(export_path, "w", encoding="utf-8") as handle:
             handle.write(self.copy_application_logs())
         return export_path
@@ -968,7 +953,7 @@ class CopernicanGUI:
 
         resolved_anchor = anchor
         if resolved_anchor is None:
-            logger_obj = self.run_logger or logger.get_program_logger()
+            logger_obj = self.run_logger or logger.get_logger()
             handler = (
                 self.run_log_handler
                 if self.run_logger
@@ -1232,7 +1217,7 @@ class CopernicanGUI:
             with path.open("r", encoding="utf-8") as handle:
                 return yaml.safe_load(handle) or {}
         except yaml.YAMLError:
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Model metadata in %s is malformed; continuing with blanks",
                 path,
             )
@@ -1293,7 +1278,7 @@ class CopernicanGUI:
                 module = None
                 label = path.stem
                 version = "unavailable"
-                logger.get_program_logger().warning(
+                logger.get_logger().warning(
                     "Engine metadata import failed for %s; using fallbacks",
                     module_name,
                 )
@@ -1708,7 +1693,7 @@ class CopernicanGUI:
                 file=str(banner_path)
             )
         except (OSError, RuntimeError, ValueError, tk_tcl_error) as exc:
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Failed to load help banner image: %s", exc
             )
             self.help_banner_image = None
@@ -1729,7 +1714,7 @@ class CopernicanGUI:
         try:
             self.logo_image = tkinter_module.PhotoImage(file=str(logo_path))
         except (OSError, RuntimeError, ValueError, tk_tcl_error) as exc:
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Failed to load navigation logo: %s", exc
             )
 
@@ -1788,7 +1773,7 @@ class CopernicanGUI:
             return doc_path.read_text(encoding="utf-8")
         except (OSError, UnicodeError, RuntimeError, ValueError) as exc:
             message = f"Unable to read {relative_path} for Help panel: {exc}"
-            logger.get_program_logger().warning(message)
+            logger.get_logger().warning(message)
             return message
 
     def _render_markdown_in_text_widget(
@@ -2970,9 +2955,7 @@ class CopernicanGUI:
         if self._analysis_comparison_status_label is not None:
             self._analysis_comparison_status_label.configure(text=message)
         if severity.upper() == "ERROR":
-            logger.get_program_logger().warning(
-                "Analysis comparison: %s", message
-            )
+            logger.get_logger().warning("Analysis comparison: %s", message)
 
     def _analysis_compare_runs(self) -> None:
         """Analyse the two selected runs and populate the comparison pane."""
@@ -3128,9 +3111,7 @@ class CopernicanGUI:
         if self._analysis_posterior_status_label is not None:
             self._analysis_posterior_status_label.configure(text=message)
         if severity.upper() == "ERROR":
-            logger.get_program_logger().warning(
-                "Analysis posteriors: %s", message
-            )
+            logger.get_logger().warning("Analysis posteriors: %s", message)
 
     def _analysis_refresh_plot_assets(self) -> None:
         """Refresh references to saved corner/histogram PNGs for the run."""
@@ -3510,7 +3491,7 @@ class CopernicanGUI:
         if self._analysis_summary_status_label is not None:
             self._analysis_summary_status_label.configure(text=message)
         if severity.upper() == "ERROR":
-            logger.get_program_logger().warning("Analysis tab: %s", message)
+            logger.get_logger().warning("Analysis tab: %s", message)
 
     def _start_validation_run(self) -> None:
         """Kick off the validation suite inside a background thread."""
@@ -5313,7 +5294,7 @@ class CopernicanGUI:
             ModuleNotFoundError,
             RuntimeError,
         ) as exc:
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Failed to import engine %s: %s", module_name, exc
             )
             return None, engine_kind
@@ -5328,7 +5309,7 @@ class CopernicanGUI:
             TypeError,
             ValueError,
         ) as exc:
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Failed to load engine capabilities for %s: %s",
                 module_name,
                 exc,
@@ -6315,77 +6296,6 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
-    def _build_settings_logs_page(
-        self,
-        container: tkinter_module.Frame,
-    ) -> None:
-        """Render the controls used to shape the diagnostics log."""
-
-        row = ttk_module.Frame(container)
-        row.pack(fill="x", pady=(0, 6))
-        retention_label = ttk_module.Label(
-            row,
-            text="Log retention (files):",
-        )
-        retention_label.pack(side="left")
-        retention_var = self._ensure_setting_var("logs", "log_retention_count")
-        if retention_var is not None:
-            tkinter_module.Spinbox(
-                row,
-                from_=1,
-                to=99,
-                width=4,
-                textvariable=retention_var,
-            ).pack(side="left", padx=6)
-        ttk_module.Label(
-            row,
-            text="Keep the most recent diagnostics log files before pruning.",
-            wraplength=420,
-            justify="left",
-        ).pack(anchor="w", pady=(4, 0))
-
-        level_row = ttk_module.Frame(container)
-        level_row.pack(fill="x", pady=(0, 6))
-        ttk_module.Label(
-            level_row,
-            text="Log level:",
-        ).pack(side="left")
-        level_var = self._ensure_setting_var("logs", "log_level")
-        if level_var is not None:
-            ttk_module.Combobox(
-                level_row,
-                values=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
-                state="readonly",
-                width=12,
-                textvariable=level_var,
-            ).pack(side="left", padx=6)
-        ttk_module.Label(
-            container,
-            text="Higher severity thresholds keep the file lean while still "
-            "capturing key events.",
-            wraplength=720,
-            justify="left",
-        ).pack(anchor="w", pady=(0, 8))
-
-        capture_var = self._ensure_setting_var("logs", "capture_console")
-        if capture_var is not None:
-            ttk_module.Checkbutton(
-                container,
-                text="Mirror stdout/stderr into the diagnostics log",
-                variable=capture_var,
-                takefocus=True,
-            ).pack(anchor="w", pady=(0, 6))
-
-        button_frame = ttk_module.Frame(container)
-        button_frame.pack(fill="x", pady=(10, 0))
-        ttk_module.Button(
-            button_frame,
-            text="Purge program logs",
-            command=self._purge_program_logs,
-            takefocus=True,
-            **self._monitor_button_kwargs(),
-        ).pack(side="left")
-
     def _build_settings_datasets_page(
         self,
         container: tkinter_module.Frame,
@@ -6546,30 +6456,6 @@ class CopernicanGUI:
             "Clear the Run Builder selections and draft manifest.",
         )
 
-    def _purge_program_logs(self) -> None:
-        """Delete archived diagnostics logs except the active one."""
-
-        logs_dir = Path(__file__).resolve().parents[2] / "logs"
-        current_path = log_mod.get_program_log_path()
-        skip_path = Path(current_path) if current_path else None
-        removed = 0
-        for candidate in sorted(logs_dir.glob("copernican_log_*.txt")):
-            if skip_path and candidate.samefile(skip_path):
-                continue
-            try:
-                candidate.unlink()
-            except OSError as exc:
-                logger.get_program_logger().warning(
-                    "Failed to remove program log %s: %s", candidate, exc
-                )
-                continue
-            removed += 1
-        if removed:
-            message = f"Purged {removed} archived log file(s)."
-        else:
-            message = "No archived program logs were removed."
-        self.create_toast(message, severity="INFO", context="settings")
-
     def _rebuild_dataset_hashes_action(self) -> None:
         """Force the catalogue to recompute every dataset digest."""
 
@@ -6581,7 +6467,7 @@ class CopernicanGUI:
                 severity="ERROR",
                 context="settings",
             )
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Failed to refresh dataset hashes", exc_info=exc
             )
             return
@@ -6614,7 +6500,7 @@ class CopernicanGUI:
                 severity="ERROR",
                 context="settings",
             )
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Parser revalidation failed", exc_info=exc
             )
             return
@@ -6644,7 +6530,7 @@ class CopernicanGUI:
                 severity="ERROR",
                 context="settings",
             )
-            logger.get_program_logger().warning(
+            logger.get_logger().warning(
                 "Model cache rebuild failed", exc_info=exc
             )
             return
@@ -6773,7 +6659,7 @@ class CopernicanGUI:
         if self._progress_state_path:
             progress_state.clear_progress(self._progress_state_path)
             self._progress_state_path = None
-        self._log_program_event("GUI exit requested", logging.INFO)
+        self._log_application_event("GUI exit requested", logging.INFO)
         try:
             import copernican
 
@@ -7656,66 +7542,6 @@ class CopernicanGUI:
                 )
             except (RuntimeError, ValueError, tk_tcl_error):
                 pass
-
-    def _view_diagnostics_log(self) -> None:
-        """Present the diagnostics log in a dedicated viewer."""
-
-        if not self.application_log_path:
-            self.create_toast(
-                "Diagnostics log is not yet available.",
-                severity="WARNING",
-                context="settings",
-            )
-            return
-        entries = self.get_application_log_entries()
-        content = (
-            "\n".join(
-                f"[{entry.anchor}] {entry.formatted}" for entry in entries
-            )
-            or "Diagnostics log is empty."
-        )
-        self._show_metadata_dialog(
-            "Diagnostics log",
-            content,
-            self.application_log_path,
-        )
-
-    def _open_diagnostics_log(self) -> None:
-        """Open the diagnostics log file with the system default editor."""
-
-        if not self.application_log_path:
-            self.create_toast(
-                "Diagnostics log is not yet available.",
-                severity="WARNING",
-                context="settings",
-            )
-            return
-        try:
-            self._open_path_with_system(self.application_log_path)
-        except (OSError, RuntimeError, ValueError) as exc:
-            self.create_toast(
-                f"Unable to open diagnostics log: {exc}",
-                severity="ERROR",
-                context="settings",
-            )
-
-    def _flush_application_log(self) -> None:
-        """Flush the diagnostics log buffer and clear the in-memory entries."""
-
-        program_logger = logger.get_program_logger()
-        for handler in list(program_logger.handlers):
-            try:
-                handler.flush()
-            except (OSError, RuntimeError, ValueError):
-                pass
-        if self.application_log_handler:
-            self.application_log_handler.entries.clear()
-        self._refresh_diagnostics_widget()
-        self.create_toast(
-            "Diagnostics log flushed to disk.",
-            severity="INFO",
-            context="settings",
-        )
 
     def _terminate_run_process(self, *, force: bool) -> None:
         """Terminate the active worker process if it exists."""

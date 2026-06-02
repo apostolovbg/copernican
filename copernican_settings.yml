@@ -1,7 +1,3 @@
-logs:
-  log_retention_count: 10
-  capture_console: true
-  log_level: DEBUG
 datasets:
   auto_dataset_discovery: true
   dataset_hash_auto_rebuild: false

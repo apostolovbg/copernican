@@ -22,6 +22,13 @@ consult [AGENTS.md](AGENTS.md) and
 the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
 
+The CLI and GUI share one application logger, while each run keeps its own
+run logs inside the generated `output/copernican-run_*` folder.
+
+`copernican/workflow.py` owns the launch flow for both CLI and GUI, and
+`copernican_settings.yml` supplies the GUI-facing defaults that shape that
+flow.
+
 Union3 compressed SNe data require additive intercept marginalization in the
 SNe likelihood, CSV export and plot residual paths so all residual views use
 the same convention.
@@ -54,8 +61,8 @@ the same convention.
   is missing.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
-  dialogs, builder panels, and the package entrypoint preserve the historic
-  flow.
+  dialogs, builder panels, and the package entrypoint preserve the same
+  launch flow.
 - **Analysis workspace:** Run Summary, Posteriors, Diagnostics and Comparisons
   tabs rely on `copernican.lib.analysis`, `posterior_explorer`, and the shared
   `PlotViewer` so summaries, comparisons and posterior plots stay in sync with
@@ -77,7 +84,9 @@ the same convention.
   `run_manifest_<timestamp>.yml` for reproducibility.  Command-line flags such
   as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui` let CI and
   operators pick the desired entry point while the managed interpreter and
-  dependencies come from `.venv`.
+  dependencies come from `.venv`. The launch flow itself lives in
+  `copernican/workflow.py`, and `copernican_settings.yml` carries the GUI-side
+  defaults that shape the same workflow.
  - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.

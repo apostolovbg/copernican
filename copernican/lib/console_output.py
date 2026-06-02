@@ -7,7 +7,7 @@ All user facing text is funneled through this module so that the patched
 ``print``/``input`` hooks in :mod:`copernican.lib.logger` can capture every
 message exactly once while the helpers centralize which outputs should be
 persisted.  Wrapping the calls keeps the terminal display consistent and
-ensures console text is mirrored to the diagnostics log.
+ensures console text is mirrored to the shared application logger.
 """
 
 from __future__ import annotations

@@ -969,6 +969,8 @@ doc_routes:
 - copernican/rng_minigames/** => README.md, ABOUT.md
 - engines/** => README.md, ABOUT.md
 - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+- copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+- copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
 require_mentions: 'true'
 mention_min_length: '3'
 mention_stopwords:

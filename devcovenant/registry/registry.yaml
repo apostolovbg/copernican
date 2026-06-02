@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: a696a1434c35fccc21d19d9b0bab8e212c7f639e05e1f5d77cec06c577bc2c68
+  policy_registry_input_hash: 4c2ebaba8a70f18ffb169d6714147c1711d55fafaa47309f9ec3e473bfeddbb0
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3783,6 +3783,8 @@ policies:
       - copernican/rng_minigames/** => README.md, ABOUT.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       require_mentions: 'true'
       mention_min_length: '3'
       mention_stopwords:
@@ -4231,6 +4233,10 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
+          - CITATION.cff
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4241,6 +4247,10 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
+          - CITATION.cff
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4262,6 +4272,10 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
+          - CITATION.cff
         effective:
           values:
           - ./README.md
@@ -4287,6 +4301,9 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4297,6 +4314,9 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4317,6 +4337,9 @@ policies:
           - AGENTS.md
           - SPEC.md
           - PLAN.md
+          - ABOUT.md
+          - SECURITY.md
+          - SUPPORT.md
         effective:
           values:
           - ./README.md
@@ -4374,6 +4397,24 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          behavior: append
+          replaced_inherited_values:
+          - ()
         user_overrides:
           values:
           - copernican/lib/** => README.md, ABOUT.md
@@ -4381,9 +4422,13 @@ policies:
           - copernican/rng_minigames/** => README.md, ABOUT.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+          - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           behavior: replace
           replaced_inherited_values:
-          - '[]'
+          - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
         effective:
           values:
           - copernican/lib/** => README.md, ABOUT.md
@@ -4391,6 +4436,8 @@ policies:
           - copernican/rng_minigames/** => README.md, ABOUT.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+          - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       require_mentions:
         descriptor:
           values:
@@ -4790,6 +4837,9 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
+      - ABOUT.md
+      - SECURITY.md
+      - SUPPORT.md
       replacement_values:
       - ./README.md
       - ./ABOUT.md
@@ -4810,6 +4860,10 @@ policies:
       - AGENTS.md
       - SPEC.md
       - PLAN.md
+      - ABOUT.md
+      - SECURITY.md
+      - SUPPORT.md
+      - CITATION.cff
       replacement_values:
       - ./README.md
       - ./ABOUT.md
@@ -4821,6 +4875,23 @@ policies:
       - ./SPEC.md
       - ./PLAN.md
       message: user_overrides replaces inherited metadata for `documentation-growth-tracking.user_visible_files`;
+        use overlays if you intended additive behavior.
+    - policy_id: documentation-growth-tracking
+      key: doc_routes
+      layer: user_overrides
+      inherited_values:
+      - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      replacement_values:
+      - copernican/lib/** => README.md, ABOUT.md
+      - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
+      - copernican/rng_minigames/** => README.md, ABOUT.md
+      - engines/** => README.md, ABOUT.md
+      - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      message: user_overrides replaces inherited metadata for `documentation-growth-tracking.doc_routes`;
         use overlays if you intended additive behavior.
     runtime_actions: []
     commands: []
@@ -4954,6 +5025,12 @@ policies:
       - pyproject.toml => ABOUT.md
       - SECURITY.md
       - CITATION.cff
+      - copernican_settings.yml => README.md
+      - ABOUT.md
+      - SUPPORT.md
+      - copernican/workflow.py => README.md
+      - ABOUT.md
+      - SUPPORT.md
       require_mentions: true
       mention_min_length: 3
       mention_stopwords: &id031
@@ -5051,6 +5128,8 @@ policies:
       - copernican/rng_minigames/** => README.md, ABOUT.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     runtime_effective_options:
       id: documentation-growth-tracking
       severity: warning
@@ -5118,6 +5197,8 @@ policies:
     - copernican/lib/** => README.md
     - copernican/lib/gui/** => README.md
     - copernican/rng_minigames/** => README.md
+    - copernican/workflow.py => README.md
+    - copernican_settings.yml => README.md
     - devcovenant/**
     - devcovenant/config.yaml
     - devcovenant/logs/**
@@ -14892,9 +14973,33 @@ profiles:
       changelog_file: CHANGELOG.md
     policy_overlays:
       documentation-growth-tracking:
+        doc_quality_files:
+        - README.md
+        - ABOUT.md
+        - SECURITY.md
+        - SUPPORT.md
+        - AGENTS.md
+        - CONTRIBUTING.md
+        - SPEC.md
+        - PLAN.md
+        user_visible_files:
+        - README.md
+        - ABOUT.md
+        - SECURITY.md
+        - SUPPORT.md
+        - CITATION.cff
+        - AGENTS.md
+        - CONTRIBUTING.md
+        - SPEC.md
+        - PLAN.md
         user_facing_exclude_globs:
         - models/**
         - copernican/datasets/**
+        doc_routes:
+        - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+        - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+        - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+        - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       read-only-directories:
         include_prefixes:
         - copernican/datasets

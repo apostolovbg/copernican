@@ -123,48 +123,8 @@ os.environ.setdefault("MPLCONFIGDIR", str(MPL_CONFIG_DIR))
 MPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 CURRENT_LOG_FILE = None
-PROGRAM_LOG_FILE: str | None = None
-PROGRAM_LOGGER: logging.Logger | None = None
 _dataset_registry: Any | None = None
 _launch_args: LaunchRequest | None = None
-
-
-def _ensure_program_logging() -> logging.Logger:
-    """
-    Lazily configure program-level logging so both CLI and GUI paths write to
-    ``logs/copernican-program_*.txt``.
-    """
-
-    global PROGRAM_LOGGER, PROGRAM_LOG_FILE
-    if PROGRAM_LOGGER is not None:
-        return PROGRAM_LOGGER
-
-    logs_dir = os.path.join(SCRIPT_DIR, "logs")
-    os.makedirs(logs_dir, exist_ok=True)
-
-    settings_data = settings_mod.get_settings()
-    logs_settings = settings_data.get("logs", {})
-    retention = int(logs_settings.get("log_retention_count", 10))
-    retention = max(retention, 1)
-    log_level = str(logs_settings.get("log_level", "INFO")).upper()
-    capture_console = bool(logs_settings.get("capture_console", True))
-
-    PROGRAM_LOG_FILE = log_mod.setup_program_logging(
-        log_dir=logs_dir,
-        base_dir=SCRIPT_DIR,
-        rollover_mb=10.0,
-        log_level=log_level,
-        max_logs=retention,
-    )
-    PROGRAM_LOGGER = log_mod.get_program_logger()
-    PROGRAM_LOGGER.info(
-        "Diagnostics logging active at %s; outputs live under %s",
-        PROGRAM_LOG_FILE,
-        logs_dir,
-    )
-    if capture_console:
-        log_mod.ensure_console_capture(SCRIPT_DIR)
-    return PROGRAM_LOGGER
 
 
 def _get_dataset_registry():
@@ -200,7 +160,7 @@ def _build_gui_progress_callback() -> (
             TypeError,
             ValueError,
         ) as exc:  # pragma: no cover - defensive logging
-            logger = log_mod.get_program_logger()
+            logger = log_mod.get_logger()
             logger.debug("Failed to update GUI progress state: %s", exc)
 
     return _callback
@@ -363,7 +323,7 @@ def _read_model_file(path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
             return yaml.safe_load(handle) or {}
     except yaml.YAMLError:
-        logger = log_mod.get_program_logger()
+        logger = log_mod.get_logger()
         logger.warning("Model metadata in %s is malformed", path)
         return {}
 
@@ -429,7 +389,7 @@ def _collect_engine_index(
             module = None
             label = path.stem
             version_label = "unavailable"
-            log_mod.get_program_logger().warning(
+            log_mod.get_logger().warning(
                 "Engine metadata import failed for %s", module_name
             )
         engines[module_name] = {
@@ -1236,8 +1196,8 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
     if not launch.detach_gui:
         return False
 
-    program_logger = _ensure_program_logging()
-    program_logger.info(
+    app_logger = log_mod.get_logger()
+    app_logger.info(
         "Attempting to detach GUI: detach flag=%s, argv=%s",
         launch.detach_gui,
         argv,
@@ -1248,12 +1208,11 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
     command_tail = list(argv)
     failures: list[str] = []
     for candidate in _gui_executable_candidates():
-        program_logger.debug("Trying GUI detachment candidate: %s", candidate)
+        app_logger.debug("Trying GUI detachment candidate: %s", candidate)
         cmd = [str(candidate), str(Path(__file__).resolve()), *command_tail]
         try:
             _launch_detached_process(cmd, env)
-            program_logger.info("Detached GUI launched with %s", candidate)
-            _cleanup_program_logger(remove_log=True)
+            app_logger.info("Detached GUI launched with %s", candidate)
             console.write(
                 "Handed GUI startup to a detached Copernican process; "
                 "closing the launcher terminal."
@@ -1267,7 +1226,7 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
             subprocess.SubprocessError,
         ) as exc:  # pragma: no cover - defensive guard
             failures.append(f"{candidate}: {exc}")
-            program_logger.warning(
+            app_logger.warning(
                 "Failed to detach GUI with %s: %s", candidate, exc
             )
     if failures:
@@ -1276,7 +1235,7 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
             + "; ".join(failures),
             error=True,
         )
-        program_logger.warning(
+        app_logger.warning(
             "All GUI detachment attempts failed: %s", "; ".join(failures)
         )
     return False
@@ -1293,10 +1252,10 @@ def launch_gui() -> None:
     display server.
     """
 
-    program_logger = _ensure_program_logging()
+    app_logger = log_mod.get_logger()
     from copernican.lib.gui import CopernicanGUI
 
-    program_logger.info(
+    app_logger.info(
         "GUI mode requested inline; detach flag=%s, Tcl=%s, Tk=%s",
         _launch_args.detach_gui if _launch_args else None,
         os.getenv("TCL_LIBRARY"),
@@ -1305,7 +1264,7 @@ def launch_gui() -> None:
 
     service_map = orchestration.describe_orchestration_services()
     console.write("GUI mode requested. Shared services available:")
-    program_logger.info("Describing orchestration services for GUI mode.")
+    app_logger.info("Describing orchestration services for GUI mode.")
     for descriptor in (
         service_map.config_validation,
         service_map.manifest_generation,
@@ -1315,7 +1274,7 @@ def launch_gui() -> None:
         console.write(
             f"- {descriptor.name}: {descriptor.module} ({entrypoints})"
         )
-        program_logger.info(
+        app_logger.info(
             "Service available: %s (%s) entries %s",
             descriptor.name,
             descriptor.module,
@@ -1330,50 +1289,7 @@ def launch_gui() -> None:
     gui = CopernicanGUI(render=True)
     gui.show_home()
     gui.run()
-    program_logger.info("GUI run loop completed; exiting inline GUI mode.")
-
-
-def _delete_log_file(path: str) -> None:
-    """Remove the given log file if it exists."""
-    if path and os.path.isfile(path):
-        try:
-            os.remove(path)
-            console.write(f"Removed log file {path}")
-        except OSError as exc:
-            if logger:
-                # Deletion failures are non-critical but worth recording.
-                logger.warning(
-                    "copernican: could not remove log file %s: %s",
-                    path,
-                    exc,
-                )
-            else:
-                # Ensure the user sees the failure even without the logger.
-                console.write(
-                    f"copernican: unable to remove log file {path}:" f" {exc}",
-                    error=True,
-                )
-
-
-def _cleanup_program_logger(remove_log: bool = False) -> None:
-    """Release the diagnostics logger and optionally delete its file."""
-
-    global PROGRAM_LOGGER, PROGRAM_LOG_FILE
-    program_logger = PROGRAM_LOGGER or log_mod.get_program_logger()
-    for handler in list(program_logger.handlers):
-        try:
-            handler.close()
-        except (OSError, RuntimeError, ValueError):
-            pass
-        program_logger.removeHandler(handler)
-    PROGRAM_LOGGER = None
-    PROGRAM_LOG_FILE = None
-    setattr(log_mod, "_PROGRAM_LOGGER", None)
-    if remove_log:
-        log_path = log_mod.get_program_log_path()
-        if log_path:
-            _delete_log_file(log_path)
-        setattr(log_mod, "_PROGRAM_LOG_PATH", None)
+    app_logger.info("GUI run loop completed; exiting inline GUI mode.")
 
 
 def _remove_run_dir(path: str) -> None:
@@ -1495,8 +1411,8 @@ def main_workflow(manifest_path: Path | None = None):
     )
     OUTPUT_BASE_DIR = str(Path(output_root))
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
-    program_logger = _ensure_program_logging()
-    program_logger.info(
+    app_logger = log_mod.get_logger()
+    app_logger.info(
         "CLI output base directory initialised at %s", OUTPUT_BASE_DIR
     )
     progress_callback = _build_gui_progress_callback()
@@ -1630,11 +1546,11 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
     global _launch_args
     _launch_args = launch_request
-    program_logger = _ensure_program_logging()
+    app_logger = log_mod.get_logger()
     aux_handled, aux_exit = _handle_auxiliary_requests(launch_request)
     if aux_handled:
         return aux_exit
-    _announce_program_start(launch_request, program_logger)
+    _announce_program_start(launch_request, app_logger)
     if launch_request.mode is orchestration.LaunchMode.GUI:
         if _spawn_detached_gui(
             list(argv) if argv is not None else [], launch_request

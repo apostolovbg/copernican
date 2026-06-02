@@ -20,35 +20,6 @@ class TestImportModule(unittest.TestCase):
         self.assertEqual(module.__name__, "copernican.lib.logger")
 
 
-class TestProgramLogging(unittest.TestCase):
-    """Exercise log rotation behavior."""
-
-    def test_program_log_rotation(self) -> None:
-        original_program_logger = log_mod._PROGRAM_LOGGER
-        original_program_log_path = log_mod._PROGRAM_LOG_PATH
-        with tempfile.TemporaryDirectory() as tmpdir:
-            try:
-                log_path = log_mod.setup_program_logging(
-                    log_dir=tmpdir,
-                    base_dir=str(tmpdir),
-                    rollover_mb=0.0001,
-                    backup_count=1,
-                )
-                prog_logger = log_mod.get_program_logger()
-                message = "x" * 200
-                for _ in range(200):
-                    prog_logger.info(message)
-                primary = Path(log_path)
-                rotated = primary.with_name(primary.name + ".1")
-                self.assertTrue(primary.exists())
-                self.assertTrue(rotated.exists())
-                self.assertTrue(primary.read_text(encoding="utf-8"))
-            finally:
-                log_mod._close_handlers(log_mod.get_program_logger())
-                log_mod._PROGRAM_LOGGER = original_program_logger
-                log_mod._PROGRAM_LOG_PATH = original_program_log_path
-
-
 class TestLoggerSurface(unittest.TestCase):
     """Exercise the logger helper surface directly."""
 
@@ -59,22 +30,16 @@ class TestLoggerSurface(unittest.TestCase):
         original_input = builtins.input
         original_stdout = sys.stdout
         original_stderr = sys.stderr
-        original_program_logger = log_mod._PROGRAM_LOGGER
-        original_program_log_path = log_mod._PROGRAM_LOG_PATH
         with tempfile.TemporaryDirectory() as tmpdir:
             try:
                 self.assertTrue(callable(log_mod.ensure_console_capture))
                 self.assertIs(log_mod.get_logger(), root_logger)
-                self.assertTrue(callable(log_mod.get_program_logger))
-                self.assertTrue(callable(log_mod.get_program_log_path))
-                self.assertEqual(
-                    log_mod.get_program_logger().name,
-                    "copernican.program",
-                )
                 self.assertTrue(callable(log_mod.log_environment_info))
                 self.assertTrue(callable(log_mod.setup_logging))
                 self.assertTrue(callable(log_mod.setup_monitor_logging))
-                self.assertTrue(callable(log_mod.setup_program_logging))
+                self.assertFalse(hasattr(log_mod, "setup_program_logging"))
+                self.assertFalse(hasattr(log_mod, "get_program_logger"))
+                self.assertFalse(hasattr(log_mod, "get_program_log_path"))
 
                 console_filter = log_mod._ConsoleFilter()
                 record = logging.LogRecord(
@@ -116,15 +81,6 @@ class TestLoggerSurface(unittest.TestCase):
                     getattr(builtins.input, "__copernican_patched__", False)
                 )
 
-                program_path = log_mod.setup_program_logging(
-                    log_dir=tmpdir,
-                    base_dir=tmpdir,
-                    rollover_mb=0.0001,
-                    backup_count=1,
-                )
-                self.assertTrue(Path(program_path).exists())
-                self.assertEqual(log_mod.get_program_log_path(), program_path)
-
                 monitor_logger, monitor_path = log_mod.setup_monitor_logging(
                     log_dir=tmpdir,
                     log_tag="monitor-test",
@@ -133,7 +89,7 @@ class TestLoggerSurface(unittest.TestCase):
                 self.assertTrue(Path(monitor_path).exists())
 
                 log_mod.log_environment_info(
-                    target_logger=log_mod.get_program_logger(),
+                    target_logger=log_mod.get_logger(),
                     console=False,
                 )
                 self.assertIn(
@@ -145,7 +101,6 @@ class TestLoggerSurface(unittest.TestCase):
                 )
             finally:
                 log_mod._close_handlers(root_logger)
-                log_mod._close_handlers(log_mod.get_program_logger())
                 log_mod._close_handlers(
                     logging.getLogger("copernican.gui.run")
                 )
@@ -154,8 +109,6 @@ class TestLoggerSurface(unittest.TestCase):
                 builtins.input = original_input
                 sys.stdout = original_stdout
                 sys.stderr = original_stderr
-                log_mod._PROGRAM_LOGGER = original_program_logger
-                log_mod._PROGRAM_LOG_PATH = original_program_log_path
 
 
 if __name__ == "__main__":

@@ -26,9 +26,33 @@ project-governance:
   changelog_file: CHANGELOG.md
 policy_overlays:
   documentation-growth-tracking:
+    doc_quality_files:
+      - README.md
+      - ABOUT.md
+      - SECURITY.md
+      - SUPPORT.md
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - SPEC.md
+      - PLAN.md
+    user_visible_files:
+      - README.md
+      - ABOUT.md
+      - SECURITY.md
+      - SUPPORT.md
+      - CITATION.cff
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - SPEC.md
+      - PLAN.md
     user_facing_exclude_globs:
       - models/**
       - copernican/datasets/**
+    doc_routes:
+      - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
   read-only-directories:
     include_prefixes:
       - copernican/datasets

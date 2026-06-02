@@ -4,13 +4,13 @@
 """Logging utilities for the Copernican Suite.
 
 This module wraps :mod:`logging` configuration so that every run produces a
-fully self-contained log file.  Console messages and user prompts are
-mirrored verbatim by patching ``print`` and ``input``; path information is
-sanitised so absolute directories outside the repository are not leaked.
-Consumers can therefore rely on the log for complete provenance of a
-session without clutter or duplicated lines.  Log timestamps are emitted in
-Coordinated Universal Time (UTC) so diagnostics remain comparable across
-machines in different time zones.
+fully self-contained run log. Console messages and user prompts are mirrored
+verbatim by patching ``print`` and ``input``; path information is sanitised
+so absolute directories outside the repository are not leaked. Consumers can
+therefore rely on the run log for complete provenance of a session without
+clutter or duplicated lines. Log timestamps are emitted in Coordinated
+Universal Time (UTC) so diagnostics remain comparable across machines in
+different time zones.
 """
 
 import builtins
@@ -21,16 +21,11 @@ import platform
 import sys
 import threading
 import time
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, TextIO
 
-from .run_lifecycle import MAX_PROGRAM_LOGS, prepare_program_log_path
 from .utils import ensure_dir_exists, get_timestamp
 
-_PROGRAM_LOGGER_NAME = "copernican.program"
-_PROGRAM_LOGGER: logging.Logger | None = None
-_PROGRAM_LOG_PATH: str | None = None
 _CONSOLE_CAPTURE_STATE = threading.local()
 
 
@@ -83,15 +78,6 @@ def _set_console_capture_active(active: bool) -> None:
     _CONSOLE_CAPTURE_STATE.active = active
 
 
-def _ensure_program_log_dir() -> None:
-    """Recreate the active program log directory when it was removed."""
-
-    if _PROGRAM_LOG_PATH is None:
-        return
-    log_dir = Path(_PROGRAM_LOG_PATH).expanduser().parent
-    ensure_dir_exists(str(log_dir))
-
-
 def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
 
@@ -122,13 +108,6 @@ def _patch_builtins(base_dir: str) -> None:
                 cleaned,
                 extra={"console_capture": True},
             )
-            program_logger = _PROGRAM_LOGGER
-            if program_logger is not None:
-                _ensure_program_log_dir()
-                program_logger.info(
-                    cleaned,
-                    extra={"console_capture": True},
-                )
         finally:
             _set_console_capture_active(False)
 
@@ -187,75 +166,6 @@ def ensure_console_capture(base_dir: str) -> None:
     """Install the patched ``print``/``input`` functions if needed."""
 
     _patch_builtins(base_dir)
-
-
-def setup_program_logging(
-    log_dir: str = "logs",
-    *,
-    base_dir: str | None = None,
-    rollover_mb: float = 10.0,
-    backup_count: int = 3,
-    log_level: str = "INFO",
-    max_logs: int | None = None,
-) -> str:
-    """Initialise the rotating diagnostics log for the suite shell.
-
-    Program-level events such as menu navigation, queue operations and
-    configuration loading are captured separately from per-run logs so
-    developers can inspect launcher issues without combing through
-    scientific results.  The handler rotates automatically when
-    ``rollover_mb`` is exceeded to prevent unbounded growth during long
-    sessions.  Logs live outside the run directories to keep Git history
-    clean and to avoid bundling diagnostics with reproducibility
-    artifacts.  ``log_level`` controls the logged severity threshold while
-    ``max_logs`` dictates how many archived files are retained.
-    """
-
-    ensure_dir_exists(log_dir)
-    max_logs = max_logs if max_logs is not None else MAX_PROGRAM_LOGS
-    max_logs = max(int(max_logs), 1)
-
-    log_path = str(
-        prepare_program_log_path(
-            Path(log_dir),
-            max_logs=max_logs,
-        )
-    )
-
-    logger_obj = logging.getLogger(_PROGRAM_LOGGER_NAME)
-    level_name = str(log_level).upper()
-    level = getattr(logging, level_name, logging.INFO)
-    logger_obj.setLevel(level)
-    logger_obj.propagate = False
-    _close_handlers(logger_obj)
-
-    max_bytes = max(1, int(rollover_mb * 1024 * 1024))
-    rotating_handler = RotatingFileHandler(
-        log_path,
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-    )
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    formatter.converter = time.gmtime
-    rotating_handler.setFormatter(formatter)
-    if base_dir:
-        rotating_handler.addFilter(_PathFilter(base_dir))
-    logger_obj.addHandler(rotating_handler)
-
-    logger_obj.info(
-        (
-            "Program diagnostics log initialised at %s (rollover %.2f MB, "
-            "backup count %d)"
-        ),
-        log_path,
-        max_bytes / (1024 * 1024),
-        backup_count,
-    )
-
-    global _PROGRAM_LOGGER, _PROGRAM_LOG_PATH
-    _PROGRAM_LOGGER = logger_obj
-    _PROGRAM_LOG_PATH = log_path
-    return log_path
 
 
 def setup_logging(
@@ -356,7 +266,7 @@ def log_environment_info(
 
     When ``console`` is ``True`` the stream handler prints each line so the
     caller sees the environment details immediately; otherwise the records stay
-    in the program log only.
+    on the active logger only.
     """
 
     logger = target_logger or logging.getLogger()
@@ -384,21 +294,6 @@ def log_environment_info(
     logger.info(f"Environment summary: {summary}", **log_kwargs)
 
 
-def get_program_logger() -> logging.Logger:
-    """Return the suite-level diagnostics logger."""
-
-    global _PROGRAM_LOGGER
-    if _PROGRAM_LOGGER is None:
-        _PROGRAM_LOGGER = logging.getLogger(_PROGRAM_LOGGER_NAME)
-    return _PROGRAM_LOGGER
-
-
 def get_logger():
     """Returns the active logger instance."""
     return logging.getLogger()
-
-
-def get_program_log_path() -> str | None:
-    """Return the active program log path, if available."""
-
-    return _PROGRAM_LOG_PATH

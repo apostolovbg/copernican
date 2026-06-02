@@ -12,11 +12,6 @@ SETTINGS_ENV_VAR = "COPERNICAN_SETTINGS_PATH"
 DEFAULT_SETTINGS_FILE = "copernican_settings.yml"
 
 DEFAULT_SETTINGS: dict[str, dict[str, object]] = {
-    "logs": {
-        "log_retention_count": 10,
-        "capture_console": True,
-        "log_level": "INFO",
-    },
     "datasets": {
         "auto_dataset_discovery": True,
         "dataset_hash_auto_rebuild": False,

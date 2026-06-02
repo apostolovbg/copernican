@@ -17,8 +17,6 @@ class TestImportModule(unittest.TestCase):
         self.assertTrue(hasattr(module, "delete_manifest_workspace"))
         self.assertTrue(hasattr(module, "import_manifest_to_workspace"))
         self.assertTrue(hasattr(module, "finalize_run_workspace"))
-        self.assertTrue(hasattr(module, "prune_program_logs"))
-        self.assertTrue(hasattr(module, "prepare_program_log_path"))
 
 
 if __name__ == "__main__":

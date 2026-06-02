@@ -971,6 +971,14 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
+    - ABOUT.md
+    - SECURITY.md
+    - SUPPORT.md
+    doc_routes:
+    - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     exclude_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -1015,6 +1023,10 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
+    - ABOUT.md
+    - SECURITY.md
+    - SUPPORT.md
+    - CITATION.cff
   last-updated:
     allowed_globs:
     - README.md
@@ -1373,3 +1385,5 @@ user_metadata_overrides:
     - copernican/rng_minigames/** => README.md, ABOUT.md
     - engines/** => README.md, ABOUT.md
     - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+    - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md

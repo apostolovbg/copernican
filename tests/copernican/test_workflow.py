@@ -101,17 +101,13 @@ class TestCliUtilities(unittest.TestCase):
     @mock.patch.object(
         copernican.orchestration, "describe_orchestration_services"
     )
-    @mock.patch.object(copernican, "_ensure_program_logging")
     @mock.patch.object(copernican.console, "write")
     def test_launch_gui_runs_gui_shell(
         self,
         write,
-        ensure_program_logging,
         describe_orchestration_services,
         gui_class,
     ):
-        logger = mock.Mock()
-        ensure_program_logging.return_value = logger
         describe_orchestration_services.return_value = SimpleNamespace(
             config_validation=SimpleNamespace(
                 name="Validation",
@@ -142,7 +138,6 @@ class TestCliUtilities(unittest.TestCase):
         self.assertGreaterEqual(write.call_count, 1)
 
     @mock.patch.object(copernican, "_build_gui_progress_callback")
-    @mock.patch.object(copernican, "_ensure_program_logging")
     @mock.patch.object(copernican.cli_dependencies, "load_third_party_modules")
     @mock.patch.object(copernican.cli_dependencies, "get_runtime_options")
     @mock.patch("copernican.lib.run_executor.execute_run_from_manifest")
@@ -153,7 +148,6 @@ class TestCliUtilities(unittest.TestCase):
         execute_run_from_manifest,
         get_runtime_options,
         load_third_party_modules,
-        ensure_program_logging,
         build_gui_progress_callback,
     ):
         load_manifest.return_value = {"name": "example"}
@@ -162,7 +156,6 @@ class TestCliUtilities(unittest.TestCase):
             strict_warnings=False,
         )
         load_third_party_modules.return_value = (None, None, None)
-        ensure_program_logging.return_value = mock.Mock()
         build_gui_progress_callback.return_value = None
         launch_dir = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: launch_dir.exists() and launch_dir.rmdir())
@@ -177,14 +170,12 @@ class TestCliUtilities(unittest.TestCase):
 
     @mock.patch.object(copernican, "_announce_program_start")
     @mock.patch.object(copernican, "_handle_auxiliary_requests")
-    @mock.patch.object(copernican, "_ensure_program_logging")
     @mock.patch.object(copernican, "_parse_launch_args")
     @mock.patch.object(copernican, "_run_cli_launch", return_value=0)
     def test_main_routes_to_cli_workflow(
         self,
         run_cli_launch,
         parse_launch_args,
-        ensure_program_logging,
         handle_auxiliary_requests,
         announce_program_start,
     ):
@@ -193,7 +184,6 @@ class TestCliUtilities(unittest.TestCase):
             manifest_path=Path("manifest.yml"),
             detach_gui=False,
         )
-        ensure_program_logging.return_value = mock.Mock()
         handle_auxiliary_requests.return_value = (False, 0)
         result = copernican.main([])
         self.assertEqual(result, 0)
