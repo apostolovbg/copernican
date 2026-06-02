@@ -80,6 +80,16 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-02:
+  Change: Archived the 9-slice roadmap as PLAN_old.md.
+  Why: Preserved the earlier planning baseline without altering the
+  current PLAN.md.
+  Impact: Added a reference snapshot for the older slice layout so the
+  active plan can stay untouched.
+  Files:
+  CHANGELOG.md
+  PLAN_old.md
+
+- 2026-06-02:
   Change: Expanded the package-root doc mirror surface for ABOUT,
   SECURITY, SUPPORT, and CITATION.
   Why: Aligned the package-facing docs, version-sync, and doc routes
