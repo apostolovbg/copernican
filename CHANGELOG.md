@@ -80,20 +80,6 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-02:
-  Change: Moved the user gitignore fragments into
-  `devcovenant/custom/profiles/userproject/userproject.yaml`.
-  Why: Centralized the repo-specific ignore rules in the profile so
-  refresh can own the generated `.gitignore` output.
-  Impact: Regenerated `.gitignore` with `copernican/logs/**` and
-  removed the stale root `logs/` and `VALIDATION.md` entries from the
-  tracked ignore file.
-  Files:
-  CHANGELOG.md
-  .gitignore
-  devcovenant/custom/profiles/userproject/userproject.yaml
-  devcovenant/registry/registry.yaml
-
-- 2026-06-02:
   Change: Archived the 9-slice roadmap as PLAN_old.md.
   Why: Preserved the earlier planning baseline without altering the
   current PLAN.md.

@@ -14876,20 +14876,6 @@ profiles:
     - third_party
     - node_modules
     assets: []
-    gitignore_fragments:
-    - '*.pyc'
-    - /__pycache__
-    - /__pycache__/
-    - /output
-    - /output/
-    - __pycache__/
-    - output/
-    - validation/output/
-    - /copernican_settings.yml
-    - /.cache
-    - /.cache/
-    - /.logs/
-    - copernican/logs/**
     doc_assets:
       user:
       - devcovenant/README.md
