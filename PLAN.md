@@ -258,6 +258,14 @@ coherent slices rather than in many narrowly separated ones.
    * `licenses/`
    * `copernican/licenses/`
    * docs
+   * `ABOUT.md`
+   * `SECURITY.md`
+   * `SUPPORT.md`
+   * `CITATION.cff`
+   * `copernican/ABOUT.md`
+   * `copernican/SECURITY.md`
+   * `copernican/SUPPORT.md`
+   * `copernican/CITATION.cff`
    * tests
    * `CHANGELOG.md`
    * final validation
@@ -272,6 +280,13 @@ coherent slices rather than in many narrowly separated ones.
    * Remove legacy start scripts and parity-policy remnants.
    * Rebuild the tests around the migrated package surface.
    * Update the docs and mirrored docs to match the package layout.
+   * Extend the package-doc-sync mirror surface to keep
+     `ABOUT.md`, `SECURITY.md`, `SUPPORT.md`, and `CITATION.cff`
+     identical between the root and `copernican/`.
+   * Broaden the user-visible and doc-quality surfaces so the new package
+     root docs are version-synced and checked.
+   * Route runtime, security, support, and citation changes to the
+     appropriate top-level doc targets through doc routes.
    * Record the completed migration in `CHANGELOG.md`.
    * Run the final verification and runtime checks.
    * Do not split docs, tests, changelog, and final validation into separate
@@ -282,6 +297,12 @@ coherent slices rather than in many narrowly separated ones.
    * package metadata identifies the distribution as `copernican`;
    * DevCovenant surfaces mirror the package layout;
    * docs and mirrored docs match the migrated structure;
+   * the root package-doc mirror includes `ABOUT.md`, `SECURITY.md`,
+     `SUPPORT.md`, and `CITATION.cff` under `copernican/`;
+   * doc-quality, user-visible, and last-updated coverage includes the
+     added package-root docs;
+   * doc routes keep the README, ABOUT, SECURITY, SUPPORT, and citation
+     surfaces tied to the correct code changes;
    * tests cover the migrated package surface;
    * bundled engines, models, and validation helpers ship from the
      package tree;

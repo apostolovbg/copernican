@@ -80,6 +80,17 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-01:
+  Change: Added the Slice 3 package-doc mirror model to the plan.
+  Why: Aligned the roadmap with the intended root and package-root
+  documentation surface for README, ABOUT, SECURITY, SUPPORT, and
+  CITATION.
+  Impact: Extended Slice 3 to cover doc routes, user-visible coverage,
+  and mirrored package-root docs alongside the existing manual docs.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-06-01:
   Change: Added longform TOCs and clearer section labels to the
   architecture and dataset docs.
   Why: Aligned the mirrored root and package documentation with the
