@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,31 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-02:
+  Change: Expanded the package-root doc mirror surface for ABOUT,
+  SECURITY, SUPPORT, and CITATION.
+  Why: Aligned the package-facing docs, version-sync, and doc routes
+  with the new mirrored support surface.
+  Impact: Synchronized the root and package doc set so the new
+  documentation model stays aligned with the existing README and
+  manual docs.
+  Files:
+  CHANGELOG.md
+  ABOUT.md
+  SECURITY.md
+  SUPPORT.md
+  CITATION.cff
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/SECURITY.md
+  copernican/SUPPORT.md
+  copernican/CITATION.cff
+  README.md
+  AGENTS.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
 
 - 2026-06-01:
   Change: Added the Slice 3 package-doc mirror model to the plan.

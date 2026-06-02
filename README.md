@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -116,9 +116,9 @@ the same convention.
    validation suite.
  - `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
    structure, datasets and the DevCovenant policies.
-- `AGENTS.md`, `CHANGELOG.md`, `licenses/THIRD_PARTY_LICENSES.md`,
-  `CITATION.cff`:
-  Governance, release history and citation/licensing metadata.
+- `ABOUT.md`, `AGENTS.md`, `CHANGELOG.md`, `CITATION.cff`,
+  `SECURITY.md`, `SUPPORT.md`, `licenses/THIRD_PARTY_LICENSES.md`:
+  Governance, release history, citation, support and security metadata.
 
 ## Run Builder & GUI
 The navigation rail keeps quick actions and an always-visible logo square, so
@@ -185,13 +185,17 @@ overlapping validation jobs cannot start.
 
 ## Documentation & policy
 Release notes live in `CHANGELOG.md`, licensing details appear in
-`licenses/THIRD_PARTY_LICENSES.md`, and the GUI Help panel renders
-`README.md` (banner included) plus the CLI/GUI guides from
-`docs/gui_guide.md` and
-`docs/cli_guide.md`. The Analysis workspace and package entrypoint wiring are
-covered by `docs/gui_overview.md` and `docs/gui_guide.md`, while dataset and
-manifest hygiene appear across `docs/data_overview.md`, `docs/run_manifest.md`
-and the DevCovenant policies.
+`licenses/THIRD_PARTY_LICENSES.md`, and the package-root doc set now also
+includes `ABOUT.md`, `SECURITY.md`, `SUPPORT.md` and `CITATION.cff`. The GUI
+Help panel renders `README.md` (banner included) plus the CLI/GUI guides from
+`docs/gui_guide.md` and `docs/cli_guide.md`. The Analysis workspace and
+package entrypoint wiring are covered by `docs/gui_overview.md` and
+`docs/gui_guide.md`, while dataset and manifest hygiene appear across
+`docs/data_overview.md`, `docs/run_manifest.md` and the DevCovenant policies.
+
+The root package docs are the authored copies. `package-doc-sync` mirrors
+them into `copernican/` so the GUI, package metadata and support surfaces can
+open the package-root files directly without duplicating the content model.
 
 Law 11 of `AGENTS.md` codifies the documentation expansion commitment: every
 code change should grow the written record, and DevCovenant tooling

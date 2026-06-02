@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-01
+**Last Updated:** 2026-06-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -940,13 +940,20 @@ user_facing_keywords:
 - workflow
 - workflows
 user_visible_files:
-- README.md
-- CONTRIBUTING.md
-- AGENTS.md
-- SPEC.md
-- PLAN.md
+- ./README.md
+- ./ABOUT.md
+- ./SECURITY.md
+- ./SUPPORT.md
+- ./CITATION.cff
+- ./AGENTS.md
+- ./CONTRIBUTING.md
+- ./SPEC.md
+- ./PLAN.md
 doc_quality_files:
 - ./README.md
+- ./ABOUT.md
+- ./SECURITY.md
+- ./SUPPORT.md
 - ./AGENTS.md
 - ./CONTRIBUTING.md
 - ./SPEC.md
@@ -956,7 +963,12 @@ required_headings:
 require_toc: 'false'
 min_section_count: '3'
 min_word_count: '120'
-doc_routes: []
+doc_routes:
+- copernican/lib/** => README.md, ABOUT.md
+- copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
+- copernican/rng_minigames/** => README.md, ABOUT.md
+- engines/** => README.md, ABOUT.md
+- pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
 require_mentions: 'true'
 mention_min_length: '3'
 mention_stopwords:
@@ -1072,7 +1084,13 @@ allowed_globs:
 - CHANGELOG.md
 - SPEC.md
 - PLAN.md
+- ABOUT.md
+- SECURITY.md
+- SUPPORT.md
 - copernican/README.md
+- copernican/ABOUT.md
+- copernican/SECURITY.md
+- copernican/SUPPORT.md
 - copernican/docs/*.md
 - copernican/docs/**/*.md
 allowed_files: []
@@ -1607,6 +1625,10 @@ enabled: 'true'
 custom: 'false'
 sync_pairs:
 - README.md=>copernican/README.md
+- ABOUT.md=>copernican/ABOUT.md
+- SECURITY.md=>copernican/SECURITY.md
+- SUPPORT.md=>copernican/SUPPORT.md
+- CITATION.cff=>copernican/CITATION.cff
 - docs/api_overview.md=>copernican/docs/api_overview.md
 - docs/architecture.md=>copernican/docs/architecture.md
 - docs/bao_compound_dataset_format.md=>copernican/docs/bao_compound_dataset_format.md
@@ -1953,6 +1975,9 @@ target_role_files:
 - docs=>PLAN.md
 - changelog=>CHANGELOG.md
 - package_manifest=>pyproject.toml
+- docs=>ABOUT.md
+- docs=>SECURITY.md
+- docs=>SUPPORT.md
 target_role_globs: []
 target_role_dirs: []
 changelog_file: CHANGELOG.md
