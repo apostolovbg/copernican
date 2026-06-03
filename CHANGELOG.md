@@ -80,6 +80,17 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-03:
+  Change: Expanded Slice 4 to carry the remaining entrypoint, model-load,
+  output, settings, and validation tasks.
+  Why: Keep the collapsed plan aligned with the still-open migration
+  work and the package-shape follow-up.
+  Impact: Slice 4 now covers the missing runtime tasks, and Slice 5
+  carries the matching validation checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-06-03:
   Change: Migrated the bundled engines, models, validation helpers,
   docs, tests, and package metadata into the `copernican/` layout.
   Why: Align the installed package surface, validation summary path,

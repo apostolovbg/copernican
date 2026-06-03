@@ -325,8 +325,8 @@ coherent slices rather than in many narrowly separated ones.
    * changelog records the completed migration;
    * final verification and runtime checks pass.
 
-4. [open] Slice 4 - Finish runtime behavior, model/output policy, and
-   legacy cleanup.
+4. [open] Slice 4 - Finish runtime behavior, entrypoints, model/output
+   policy, settings, and legacy cleanup.
 
    Depends on:
 
@@ -334,6 +334,10 @@ coherent slices rather than in many narrowly separated ones.
 
    Surfaces:
 
+   * `pyproject.toml`
+   * `copernican/cli.py`
+   * `copernican/__main__.py`
+   * `copernican/lib/global_settings/`
    * `models/`
    * `output/`
    * CLI
@@ -345,8 +349,13 @@ coherent slices rather than in many narrowly separated ones.
 
    Scope:
 
+   * Finalize `copernican.cli:main` and keep `python -m copernican`
+     and the console script on the package entrypoint.
+   * Remove any now-unneeded repo-root `__main__.py` or `__init__.py`
+     shim files after the package entrypoint is stable.
    * Accept bundled models from the package tree and arbitrary external
      filesystem paths.
+   * Add a GUI "Load external model..." action that opens a file picker.
    * Accept both `.yml` and `.yaml` model files through the same CLI and
      GUI loading rules.
    * Make explicit output selection optional and default to the per-user
@@ -355,6 +364,9 @@ coherent slices rather than in many narrowly separated ones.
    * Preserve the existing run-output shape and named artifacts.
    * Move bundled models fully in-package and retire remaining root-model
      assumptions.
+   * Move `copernican_settings.yml` into
+     `copernican/lib/global_settings/` and stop using a repo-root writable
+     settings file.
    * Clean up the legacy `cosmo_` naming in model and parser code and in
      the matching DevCovenant profile references.
    * Remove stale legacy tests that still reflect the old shape, including
@@ -365,14 +377,19 @@ coherent slices rather than in many narrowly separated ones.
 
    Done when:
 
-   * external model paths work;
-   * `.yml` and `.yaml` model paths work through CLI and GUI;
+   * `copernican.cli:main` is the published CLI entrypoint;
+   * `python -m copernican` works;
+   * the console script uses the package entrypoint;
+   * the GUI can load an external model via file browse;
+   * `.yml` and `.yaml` external paths load;
    * output lands in `~/copernican_output` by default;
    * root `output/` is no longer a live target;
-   * bundled models are in-package;
-   * `cosmo_` runtime naming residue is gone where required;
+   * `copernican_settings.yml` lives under
+     `copernican/lib/global_settings/`;
    * stale legacy tests are removed or updated;
-   * runtime docs match the runtime behavior.
+   * runtime docs match the runtime behavior;
+   * bundled models are in-package;
+   * `cosmo_` runtime naming residue is gone where required.
 
 5. [open] Slice 5 - Final validation and regression confirmation.
 
@@ -394,15 +411,20 @@ coherent slices rather than in many narrowly separated ones.
    * Validate installed-package execution.
    * Validate `python -m copernican`.
    * Validate console-script execution.
+   * Validate package build and entrypoint wiring.
    * Validate GUI startup and import-path behavior.
+   * Validate the external-model browse flow and both model extensions.
    * Validate the final model-loading and output-policy behavior.
+   * Validate the moved settings path under
+     `copernican/lib/global_settings/`.
    * Validate the final docs, changelog, and governance state.
 
    Done when:
 
    * the full runtime matrix passes;
-   * the model and output behavior is confirmed on the final package
-     shape;
+   * the package build and entrypoint wiring are confirmed;
+   * the external-model and output behavior is confirmed on the final
+     package shape;
    * docs and changelog are consistent with the completed migration.
 
 ## Validation Routine
