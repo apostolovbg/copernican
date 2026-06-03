@@ -10,6 +10,7 @@ ignore_dirs:
   - third_party
   - node_modules
 gitignore_fragments:
+  - '*.pyc'
   - validation/output/
   - VALIDATION.md
 assets: []

@@ -28,6 +28,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MODELS_DIR = _REPO_ROOT / "copernican" / "models"
 _MODEL_CACHE_DIR = _MODELS_DIR / "cache"
 _LCDM_MODEL_PATH = _MODELS_DIR / "cosmo_model_lcdm.yml"
+_MODEL_SUFFIXES = (".yml", ".yaml")
 
 _PLUGIN_CACHE: dict[str, Any] = {}
 
@@ -39,22 +40,25 @@ def _model_name_index() -> dict[str, Path]:
     index: dict[str, Path] = {}
     if not _MODELS_DIR.is_dir():
         return index
-    for path in sorted(_MODELS_DIR.glob("*.yml")):
-        if path.name.startswith("__"):
-            continue
-        try:
-            raw = path.read_text(encoding="utf-8")
-            model_metadata = yaml.safe_load(raw) or {}
-        except (OSError, UnicodeError, ValueError, yaml.YAMLError):
-            model_metadata = {}
-        model_name = str(model_metadata.get("model_name") or path.stem).strip()
-        stems = {path.stem, model_name}
-        if path.stem.startswith("cosmo_model_"):
-            stems.add(path.stem.split("cosmo_model_", 1)[-1])
-        for stem in stems:
-            if not stem:
+    for pattern in ("*.yml", "*.yaml"):
+        for path in sorted(_MODELS_DIR.glob(pattern)):
+            if path.name.startswith("__"):
                 continue
-            index[stem.casefold()] = path
+            try:
+                raw = path.read_text(encoding="utf-8")
+                model_metadata = yaml.safe_load(raw) or {}
+            except (OSError, UnicodeError, ValueError, yaml.YAMLError):
+                model_metadata = {}
+            model_name = str(
+                model_metadata.get("model_name") or path.stem
+            ).strip()
+            stems = {path.stem, model_name}
+            if path.stem.startswith("cosmo_model_"):
+                stems.add(path.stem.split("cosmo_model_", 1)[-1])
+            for stem in stems:
+                if not stem:
+                    continue
+                index[stem.casefold()] = path
     return index
 
 
@@ -63,11 +67,27 @@ def _resolve_model_path(model_name: str | None) -> Path | None:
 
     if not model_name:
         return None
+    candidate_path = Path(model_name).expanduser()
+    if candidate_path.is_file():
+        return candidate_path.resolve()
+    if not candidate_path.suffix:
+        for suffix in _MODEL_SUFFIXES:
+            candidate = candidate_path.with_suffix(suffix)
+            if candidate.is_file():
+                return candidate.resolve()
     candidate = _model_name_index().get(model_name.casefold())
     if candidate:
         return candidate
-    fallback = (_MODELS_DIR / model_name).with_suffix(".yml")
-    return fallback if fallback.is_file() else None
+    fallback = _MODELS_DIR / model_name
+    if fallback.is_file():
+        return fallback.resolve()
+    if fallback.suffix.lower() in _MODEL_SUFFIXES:
+        return fallback.resolve() if fallback.is_file() else None
+    for suffix in _MODEL_SUFFIXES:
+        fallback_candidate = fallback.with_suffix(suffix)
+        if fallback_candidate.is_file():
+            return fallback_candidate.resolve()
+    return None
 
 
 def _build_plugin_from_path(model_path: Path) -> Any:

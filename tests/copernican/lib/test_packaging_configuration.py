@@ -26,6 +26,15 @@ class TestPackagingConfiguration(unittest.TestCase):
         self.assertEqual(include, expected_include)
         self.assertEqual(exclude, expected_exclude)
 
+    def test_console_script_targets_cli_main(self) -> None:
+        config_path = Path("pyproject.toml")
+        config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        scripts = config["project"]["scripts"]
+        package_data = config["tool"]["setuptools"]["package-data"]
+
+        self.assertEqual(scripts["copernican"], "copernican.cli:main")
+        self.assertIn("global_settings/**/*", package_data["copernican.lib"])
+
 
 if __name__ == "__main__":
     unittest.main()

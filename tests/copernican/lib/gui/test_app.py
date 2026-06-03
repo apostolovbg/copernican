@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from types import MethodType, SimpleNamespace
 
+import yaml
+
 from copernican.lib import run_manifest
 from copernican.lib.gui import CopernicanGUI, RunStatus
 from copernican.lib.gui import app as gui_app
@@ -51,6 +53,9 @@ class TestCopernicanGUI(unittest.TestCase):
 
     def test_model_and_engine_metadata_actions(self) -> None:
         _case_model_and_engine_metadata_actions(self)
+
+    def test_external_model_loading_and_output_root(self) -> None:
+        _case_external_model_loading_and_output_root(self)
 
     def test_builder_navigation_and_draft(self) -> None:
         _case_builder_navigation_and_draft(self)
@@ -166,6 +171,33 @@ def _case_model_and_engine_metadata_actions(self) -> None:
     self.assertTrue(
         gui.open_folder(Path(model_entry["path"]).parent.as_posix())
     )
+
+
+def _case_external_model_loading_and_output_root(self) -> None:
+    gui = CopernicanGUI(render=False)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = Path(tmpdir) / "external_model.yaml"
+        model_path.write_text(
+            yaml.safe_dump(
+                {
+                    "model_name": "ExternalModel",
+                    "parameters": [],
+                    "valid_for_bao": False,
+                    "valid_for_cmb": False,
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
+        entry = gui._load_external_model_from_path(str(model_path))
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["filename"], "external_model.yaml")
+        self.assertEqual(gui.selected_models[0], str(model_path.resolve()))
+        self.assertEqual(gui.draft.model, str(model_path.resolve()))
+        self.assertEqual(
+            Path(gui._output_root()),
+            Path.home() / "copernican_output",
+        )
 
 
 def _case_builder_navigation_and_draft(self) -> None:
@@ -284,7 +316,8 @@ def _case_auto_loads_saved_temp_manifest(
 ) -> None:
     old_cwd = os.getcwd()
     tmp_path = _tmp_path_or_default(tmp_path)
-    output_dir = tmp_path / "output"
+    home_dir = tmp_path / "home"
+    output_dir = home_dir / "copernican_output"
     workspace = output_dir / "copernican_run_NEW_CONFIG"
     workspace.mkdir(parents=True)
     engine_module = SimpleNamespace(
@@ -331,18 +364,23 @@ def _case_auto_loads_saved_temp_manifest(
     )
     try:
         os.chdir(tmp_path)
-        gui = CopernicanGUI(render=False)
-        self.assertIsNotNone(gui.manifest_workspace)
-        self.assertIsNotNone(gui.pending_manifest)
-        self.assertEqual(
-            gui.manifest_workspace.manifest_path.resolve(),
-            manifest_path.resolve(),
-        )
-        self.assertTrue(
-            gui.summary.manifest_actions[-1].startswith(
-                "Loaded saved manifest"
+        with unittest.mock.patch.object(
+            Path,
+            "home",
+            return_value=home_dir,
+        ):
+            gui = CopernicanGUI(render=False)
+            self.assertIsNotNone(gui.manifest_workspace)
+            self.assertIsNotNone(gui.pending_manifest)
+            self.assertEqual(
+                gui.manifest_workspace.manifest_path.resolve(),
+                manifest_path.resolve(),
             )
-        )
+            self.assertTrue(
+                gui.summary.manifest_actions[-1].startswith(
+                    "Loaded saved manifest"
+                )
+            )
     finally:
         os.chdir(old_cwd)
 

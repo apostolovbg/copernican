@@ -10,6 +10,7 @@ import yaml
 
 SETTINGS_ENV_VAR = "COPERNICAN_SETTINGS_PATH"
 DEFAULT_SETTINGS_FILE = "copernican_settings.yml"
+DEFAULT_SETTINGS_DIR = Path(__file__).resolve().parent / "global_settings"
 
 DEFAULT_SETTINGS: dict[str, dict[str, object]] = {
     "datasets": {
@@ -38,8 +39,7 @@ def get_settings_path() -> Path:
     env_path = os.environ.get(SETTINGS_ENV_VAR)
     if env_path:
         return Path(env_path)
-    repo_root = Path(__file__).resolve().parent.parent
-    return repo_root / DEFAULT_SETTINGS_FILE
+    return DEFAULT_SETTINGS_DIR / DEFAULT_SETTINGS_FILE
 
 
 def _merge_settings(
@@ -61,18 +61,10 @@ def _merge_settings(
 
 
 def load_settings() -> dict[str, dict[str, object]]:
-    """Load settings from disk, creating defaults if missing."""
+    """Load settings from disk and fall back to defaults if missing."""
 
     path = get_settings_path()
     if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as file_handle:
-            yaml.safe_dump(
-                DEFAULT_SETTINGS,
-                file_handle,
-                sort_keys=False,
-                default_flow_style=False,
-            )
         return copy.deepcopy(DEFAULT_SETTINGS)
     raw = yaml.safe_load(path.read_text(encoding="utf-8") or "{}") or {}
     settings: dict[str, dict[str, object]] = {}

@@ -25,7 +25,8 @@ Troubleshooting should start with the run folder logs and the shared
 application log shown in the GUI.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
-`copernican/workflow.py` and `copernican_settings.yml` first.
+`copernican/workflow.py` and
+`copernican/lib/global_settings/copernican_settings.yml` first.
 
 If the docs do not answer your question, the next best step is to file an
 issue with enough context to let the maintainers reproduce the problem. Clear
@@ -42,8 +43,9 @@ Start with the front-door documentation:
 - `docs/run_manifest.md` for manifest and run-record details
 - `copernican/validation/README.md` for the manifest runner and summary path
 
-`copernican_settings.yml` is the place to check when the GUI defaults do not
-match the behavior you expected from the front-door docs.
+`copernican/lib/global_settings/copernican_settings.yml` is the place to
+check when the GUI defaults do not match the behavior you expected from the
+front-door docs.
 
 The GUI also exposes its own help page so users can review the same guidance
 inside the application. When you are troubleshooting a run, the logs and the

@@ -125,6 +125,7 @@ MPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CURRENT_LOG_FILE = None
 _dataset_registry: Any | None = None
 _launch_args: LaunchRequest | None = None
+_MODEL_SUFFIXES = (".yml", ".yaml")
 
 
 def _get_dataset_registry():
@@ -219,7 +220,7 @@ def _output_root(override: Path | None = None) -> Path:
 
     if override is not None:
         return override
-    return Path(SCRIPT_DIR) / "output"
+    return Path.home() / "copernican_output"
 
 
 def _parser_path_for_dir(data_dir: Path) -> Path | None:
@@ -335,33 +336,34 @@ def _collect_model_index(
 
     root = models_root or _models_root()
     models: dict[str, dict[str, Any]] = {}
-    for path in sorted(Path(root).glob("*.yml")):
-        if path.name.startswith("__"):
-            continue
-        meta = _read_model_file(path)
-        parameters = meta.get("parameters") or []
-        compatibility = {
-            "sne": True,
-            "bao": meta.get("valid_for_bao", True),
-            "cmb": meta.get("valid_for_cmb", True),
-        }
-        badges = [
-            name.upper() for name, valid in compatibility.items() if valid
-        ]
-        models[path.stem] = {
-            "id": meta.get("model_name", path.stem),
-            "filename": path.name,
-            "path": str(path),
-            "citation": meta.get("citation", ""),
-            "license": meta.get(
-                "license",
-                "Copernican default license; add model notes",
-            ),
-            "version": meta.get("version", "unknown"),
-            "badges": badges,
-            "hash": utils.compute_sha256(str(path)),
-            "parameter_count": len(parameters),
-        }
+    for pattern in ("*.yml", "*.yaml"):
+        for path in sorted(Path(root).glob(pattern)):
+            if path.name.startswith("__"):
+                continue
+            meta = _read_model_file(path)
+            parameters = meta.get("parameters") or []
+            compatibility = {
+                "sne": True,
+                "bao": meta.get("valid_for_bao", True),
+                "cmb": meta.get("valid_for_cmb", True),
+            }
+            badges = [
+                name.upper() for name, valid in compatibility.items() if valid
+            ]
+            models[path.stem] = {
+                "id": meta.get("model_name", path.stem),
+                "filename": path.name,
+                "path": str(path),
+                "citation": meta.get("citation", ""),
+                "license": meta.get(
+                    "license",
+                    "Copernican default license; add model notes",
+                ),
+                "version": meta.get("version", "unknown"),
+                "badges": badges,
+                "hash": utils.compute_sha256(str(path)),
+                "parameter_count": len(parameters),
+            }
     return models
 
 
@@ -958,7 +960,7 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         "--output-dir",
         help=(
             "Store run outputs beneath this directory instead of the "
-            "repository's output folder."
+            "per-user ~/copernican_output folder."
         ),
     )
     parser.add_argument(
@@ -981,8 +983,8 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         "--list-manifests",
         action="store_true",
         help=(
-            "List run directories under the output folder along with their "
-            "most recent manifest files."
+            "List run directories under ~/copernican_output along with "
+            "their most recent manifest files."
         ),
     )
     parser.add_argument(
@@ -1405,11 +1407,7 @@ def main_workflow(manifest_path: Path | None = None):
     launch_output_dir = (
         getattr(_launch_args, "output_dir", None) if _launch_args else None
     )
-    output_root = (
-        launch_output_dir
-        if launch_output_dir is not None
-        else Path(SCRIPT_DIR) / "output"
-    )
+    output_root = _output_root(launch_output_dir)
     OUTPUT_BASE_DIR = str(Path(output_root))
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
     app_logger = log_mod.get_logger()

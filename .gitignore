@@ -59,6 +59,7 @@ site
 build
 
 # Profile: userproject
+*.pyc
 validation/output/
 VALIDATION.md
 
@@ -88,21 +89,5 @@ $RECYCLE.BIN/
 
 # --- User entries (preserved) ---
 
-*.pyc
-/__pycache__
-/__pycache__/
-/output
-/output/
-__pycache__/
-output/
-validation/output/
-/copernican_settings.yml
-# Local dependency cache generated at runtime; keep it untracked so every
-# contributor works with a private scan snapshot.
-/.cache
-/.cache/
-/.logs/
-/logs/
-VALIDATION.md
 
 # --- End user entries ---

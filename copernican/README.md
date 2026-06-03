@@ -23,11 +23,11 @@ the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
 
 The CLI and GUI share one application logger, while each run keeps its own
-run logs inside the generated `output/copernican-run_*` folder.
+run logs inside the generated `~/copernican_output/copernican-run_*` folder.
 
 `copernican/workflow.py` owns the launch flow for both CLI and GUI, and
-`copernican_settings.yml` supplies the GUI-facing defaults that shape that
-flow.
+`copernican/lib/global_settings/copernican_settings.yml` supplies the
+GUI-facing defaults that shape that flow.
 
 Union3 compressed SNe data require additive intercept marginalization in the
 SNe likelihood, CSV export and plot residual paths so all residual views use
@@ -48,12 +48,13 @@ the same convention.
 ## Highlights
 - **Manifest-driven orchestration:** `python -m copernican` consumes model,
   data and engine selections, writes every run into
-  `output/copernican-run_*`, and reuses `copernican/lib/run_pipeline.py`
-  helpers so CLI and GUI paths stay consistent.
+  `~/copernican_output/copernican-run_*`, and reuses
+  `copernican/lib/run_pipeline.py` helpers so CLI and GUI paths stay
+  consistent.
 - **Modular library layout:** `copernican/lib/` hosts shared helpers
   (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
   while `copernican/models/`, `copernican/engines/`,
-  `copernican/validation/`, `copernican/datasets/` and `output/`
+  `copernican/validation/`, `copernican/datasets/` and `~/copernican_output/`
   remain the canonical asset roots.
 - **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
@@ -81,13 +82,15 @@ the same convention.
  - `python -m copernican` acts as a manifest-first orchestrator: it consumes a
    manifest describing the selected models, datasets, sampler settings and
    environment hints, reuses `copernican/lib/run_pipeline.py` helpers and
-  writes every run log inside `output/copernican-run_*` with a matching
-  `run_manifest_<timestamp>.yml` for reproducibility.  Command-line flags such
-  as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui` let CI and
-  operators pick the desired entry point while the managed interpreter and
-  dependencies come from `.venv`. The launch flow itself lives in
-  `copernican/workflow.py`, and `copernican_settings.yml` carries the GUI-side
-  defaults that shape the same workflow.
+   writes every run log inside
+   `~/copernican_output/copernican-run_*` with a matching
+   `run_manifest_<timestamp>.yml` for reproducibility. Command-line flags
+   such as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui`
+   let CI and operators pick the desired entry point while the managed
+   interpreter and dependencies come from `.venv`. The launch flow itself
+   lives in `copernican/workflow.py`, and
+   `copernican/lib/global_settings/copernican_settings.yml` carries the
+   GUI-side defaults that shape the same workflow.
  - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.
@@ -125,8 +128,9 @@ the same convention.
 - `copernican/datasets/`: Trusted datasets grouped by type (`sne`, `bao`,
   `cmb`) with parser metadata. Parsers compute SHA256 values and register
   their digests via `dataset_registry`.
-- `output/`: Per-run folders such as `copernican-run_<timestamp>/` that store
-  manifests, parameter summaries, logs and NetCDF chains.
+- `~/copernican_output/`: Per-run folders such as
+  `copernican-run_<timestamp>/` that store manifests, parameter summaries,
+  logs and NetCDF chains.
 - `copernican/validation/`: Reference manifests, runner helpers and summaries
   used by the validation suite.
 - `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
@@ -140,33 +144,35 @@ The navigation rail keeps quick actions and an always-visible logo square, so
 launching the Run Builder or monitor never steals focus. Run Builder mirrors
 the CLI stages: seed, model, data, engine and plan panels require one selection
 per panel, the Save Manifest page remains locked until every stage reports a
-selection, and saved manifests live under `output/copernican_run_NEW_CONFIG/`
-so Confirm only becomes available when a manifest exists. Start Run renames
-that workspace to `copernican-run_<timestamp>` before spawning the CLI worker,
-while cancel and clear remove temporary folders. The Run Settings panel mirrors
-the CLI prompts (walkers, burn-in, production, pool size) so GUI runs and CLI
-runs share the same configuration metadata. Quick actions keep the dataset
-catalog health overview, import manifest flow and output directory helpers
-within reach.
+selection, and saved manifests live under
+`~/copernican_output/copernican_run_NEW_CONFIG/` so Confirm only becomes
+available when a manifest exists. Start Run renames that workspace to
+`copernican-run_<timestamp>` before spawning the CLI worker, while cancel and
+clear remove temporary folders. The Run Settings panel mirrors the CLI
+prompts (walkers, burn-in, production, pool size) so GUI runs and CLI runs
+share the same configuration metadata. Quick actions keep the dataset catalog
+health overview, import manifest flow and output directory helpers within
+reach.
 Folder-open actions use the operating system's native handlers so the GUI can
 open output locations without changing the launch behavior that operators
 already expect.
 
 The Run Monitor threads CLI stdout/stderr into a log box that tails
 `logs/runs/*.txt`, mirrors the counter-based progress updates from the sampler
-and keeps the Cancel/Hard Stop buttons disabled until a run starts. A “Lock log
-to latest entry” checkbox pins the view so operators can watch batches finish
-without scrolling. Metadata dialogs size themselves to the longest line, add an
-“Open file…” action that launches the OS editor and keep horizontal resizing
-locked while allowing unlimited vertical growth.
+and keeps the Cancel/Hard Stop buttons disabled until a run starts. A “Lock
+log to latest entry” checkbox pins the view so operators can watch batches
+finish without scrolling. Metadata dialogs size themselves to the longest
+line, add an “Open file…” action that launches the OS editor and keep
+horizontal resizing locked while allowing unlimited vertical growth.
 
 ## Analysis workspace
 The Analysis tab now hosts Run Summary, Posteriors and Comparisons alongside a
-placeholder Diagnostics panel. Run Summary ingests `output/copernican-run_*`
-folders and loads the manifest, parameter summary and log to render dataset
-counts, R-hat/ESS diagnostics, per-model χ² components, BAO `r_s` values and
-timestamps inside a scrollable panel. Its action buttons reload the summary,
-export structured `analysis-summary_<timestamp>.yml`/`.json` files via
+placeholder Diagnostics panel. Run Summary ingests
+`~/copernican_output/copernican-run_*` folders and loads the manifest,
+parameter summary and log to render dataset counts, R-hat/ESS diagnostics,
+per-model χ² components, BAO `r_s` values and timestamps inside a scrollable
+panel. Its action buttons reload the summary, export structured
+`analysis-summary_<timestamp>.yml`/`.json` files via
 `copernican.lib.analysis.save_run_summary` and copy the JSON payload onto the
 clipboard.
 
@@ -175,14 +181,15 @@ snapshots and renders a trace/hist overview inside the shared
 `copernican.lib.gui.plot_viewer.PlotViewer`. The tab keeps controls for fitting
 to screen, restoring the original limits, and toggling the drag-enabled pan so
 you can inspect any region without re-creating the plot. The Comparisons tab
-lets you point at two run directories, refresh Δχ²/parameter shifts and dataset
-count deltas, and export or copy the structured comparison summary that the new
-`copernican.lib.analysis.compare_runs` helper produces.
+lets you point at two run directories, refresh Δχ²/parameter shifts and
+dataset count deltas, and export or copy the structured comparison summary
+that the new `copernican.lib.analysis.compare_runs` helper produces.
 
-Every run now also writes ArviZ-powered corner plots and parameter histograms
-into the `output/copernican-run_*` folders so the Analysis workspace can render
-them inside the PlotViewer without re-running the sampler.  Use `python -m
-copernican --analysis-posterior output/copernican-run_*` to rerun
+Every run now also writes ArviZ-powered corner plots and parameter
+histograms into the `~/copernican_output/copernican-run_*` folders so the
+Analysis workspace can render them inside the PlotViewer without re-running
+the sampler. Use `python -m copernican --analysis-posterior \
+~/copernican_output/copernican-run_*` to rerun
 `copernican.lib.analysis.plot_posterior`, producing the overview, corner and
 histogram assets from each `posterior-*.nc` snapshot on demand.
 
@@ -190,13 +197,12 @@ histogram assets from each `posterior-*.nc` snapshot on demand.
 The Validation tab runs `python -m copernican --run-validation`, streams CLI
 output into a log box, and stores the summaries inside
 `copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`
-plus `~/VALIDATION.md`. The fixed Planck 2018 manifest
-evaluates a reference model against Union3 UNITY SNe, BOSS DR12 BAO and
-Planck 2018 Lite CMB data with constant priors, so regression checks stay
-deterministic.
-“Cancel validation” terminates the worker, “Clear validation” removes the
-outputs and summary, and GUI progress bars mirror the counter-based batches
-the sampler emits. The Validation button stays disabled while a worker runs so
+plus `~/VALIDATION.md`. The fixed Planck 2018 manifest evaluates a reference
+model against Union3 UNITY SNe, BOSS DR12 BAO and Planck 2018 Lite CMB data
+with constant priors, so regression checks stay deterministic. “Cancel
+validation” terminates the worker, “Clear validation” removes the outputs
+and summary, and GUI progress bars mirror the counter-based batches the
+sampler emits. The Validation button stays disabled while a worker runs so
 overlapping validation jobs cannot start.
 
 ## Documentation & policy
@@ -229,16 +235,17 @@ Command-line operators who skip the GUI can still run maintenance helpers:
 - `python -m copernican --run-validation` executes the lightweight validation
   suite, prints the reference summary, stores it in `~/VALIDATION.md`, and
   exits without opening the GUI.
-- `python -m copernican --analysis-summary <run_dir>` loads the manifest/log/
-  parameter summary from the specified run, prints the diagnostics table and
-  (with `--analysis-summary-output <dir>`) writes structured `analysis-
-  summary_<timestamp>.yml/.json` exports just like the GUI’s Run Summary tab.
-- `python -m copernican --analysis-compare <base_run> <alternative_run>` aligns
-  two run directories, prints the Δχ²/parameter summary and (with `--analysis-
-  compare-output <dir>`) saves `analysis-comparison_<timestamp>` JSON/YAML
-  files matching the Analysis Comparisons tab.
-- `python -m copernican --analysis-posterior <run_dir> --analysis-posterior-
-  output <file.png>` builds a trace/hist overview using
+- `python -m copernican --analysis-summary <run_dir>` loads the
+  manifest/log/parameter summary from the specified run, prints the
+  diagnostics table and (with `--analysis-summary-output <dir>`) writes
+  structured `analysis-summary_<timestamp>.yml/.json` exports just like the
+  GUI’s Run Summary tab.
+- `python -m copernican --analysis-compare <base_run> <alternative_run>`
+  aligns two run directories, prints the Δχ²/parameter summary and (with
+  `--analysis-compare-output <dir>`) saves `analysis-comparison_<timestamp>`
+  JSON/YAML files matching the Analysis Comparisons tab.
+- `python -m copernican --analysis-posterior <run_dir> \
+  --analysis-posterior-output <file.png>` builds a trace/hist overview using
   `copernican.lib.posterior_explorer` and writes the figure to the requested
   path so you can reproduce the PlotViewer output without the GUI.
 

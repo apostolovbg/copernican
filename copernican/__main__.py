@@ -1,14 +1,12 @@
 """Module entrypoint for `python -m copernican`."""
 
-import sys
-
-from . import main as package_main
+from .cli import main as package_main
 
 
 def main() -> int:
     """Run the package workflow entrypoint."""
 
-    return package_main(sys.argv[1:])
+    return package_main()
 
 
 if __name__ == "__main__":

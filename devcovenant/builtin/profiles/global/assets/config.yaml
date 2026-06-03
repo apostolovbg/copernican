@@ -243,7 +243,7 @@ engine:
   # - N: keep the latest N run folders
   # Logging is always enabled; this controls retention only.
   # Operators should inspect `summary.txt` first for failures.
-  logs_keep_last: 0
+  logs_keep_last: 30
 
   # Human-owned key.
   # Routes DevCovenant-managed Python cache files away from the repo
@@ -286,8 +286,6 @@ engine:
     - .git
     - .venv
     - .python
-    - output
-    - logs
     - build
     - dist
     - node_modules

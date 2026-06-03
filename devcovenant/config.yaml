@@ -202,7 +202,7 @@ engine:
   fail_threshold: warning
   output_mode: verbose
   tests_output_mode: verbose
-  logs_keep_last: 0
+  logs_keep_last: 30
   pycache_prefix_enabled: false
   pycache_prefix: ''
   auto_fix_enabled: false
@@ -218,8 +218,6 @@ engine:
   - .git
   - .venv
   - .python
-  - output
-  - logs
   - build
   - dist
   - node_modules

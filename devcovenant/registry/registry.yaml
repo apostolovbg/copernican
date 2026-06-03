@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 925e035e11153d88daf5c617e91a70032cd6e85f300ad4839aa8a251d5a8d9d4
+  policy_registry_input_hash: 56848cf61efb382bba0cec629a71f50fba064dcf9bc1a8726f92a06c723dbade
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3239,7 +3239,7 @@ policies:
     runtime_state:
       surfaces:
         package_runtime:
-          input_fingerprint: cfa66501dab52da98829fd60853db243f12844e3630bd423033339234b15fa09
+          input_fingerprint: b8c9a4f46639ea46d75bc088ea68202d5df07e033c02965e4fca3a714e404a1f
           output_fingerprints:
             lock_file: 15d7d2ec26f7a06057d7f13c7057ca3f688e9be5c6a805413e39b0883ee4a190
             third_party_file: eafc03be26e4021def6a77acb96dbb8025746c1f5730a826aee64b3967a8f7a0
@@ -14997,6 +14997,7 @@ profiles:
     - third_party
     - node_modules
     gitignore_fragments:
+    - '*.pyc'
     - validation/output/
     - VALIDATION.md
     assets: []

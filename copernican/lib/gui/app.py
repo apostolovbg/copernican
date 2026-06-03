@@ -1223,39 +1223,106 @@ class CopernicanGUI:
             )
             return {}
 
+    def _build_model_entry(self, path: Path) -> dict:
+        """Return a model catalogue record for ``path``."""
+
+        meta = self._read_model_file(path)
+        parameters = meta.get("parameters") or []
+        compatibility = {
+            "sne": True,
+            "bao": meta.get("valid_for_bao", True),
+            "cmb": meta.get("valid_for_cmb", True),
+        }
+        badges = [
+            name.upper() for name, valid in compatibility.items() if valid
+        ]
+        return {
+            "id": meta.get("model_name", path.stem),
+            "filename": path.name,
+            "path": str(path),
+            "citation": meta.get("citation", ""),
+            "license": meta.get(
+                "license",
+                "Copernican default license; add model notes",
+            ),
+            "version": meta.get("version", "unknown"),
+            "badges": badges,
+            "hash": utils.compute_sha256(str(path)),
+            "parameter_count": len(parameters),
+            "metadata": meta,
+            "is_external": False,
+        }
+
     def _discover_model_library(self) -> dict[str, dict]:
         """Return model metadata keyed by filename stem."""
 
         models: dict[str, dict] = {}
-        for path in sorted(Path(self._models_root()).glob("*.yml")):
-            if path.name.startswith("__"):
-                continue
-            meta = self._read_model_file(path)
-            parameters = meta.get("parameters") or []
-            compatibility = {
-                "sne": True,
-                "bao": meta.get("valid_for_bao", True),
-                "cmb": meta.get("valid_for_cmb", True),
-            }
-            badges = [
-                name.upper() for name, valid in compatibility.items() if valid
-            ]
-            models[path.stem] = {
-                "id": meta.get("model_name", path.stem),
-                "filename": path.name,
-                "path": str(path),
-                "citation": meta.get("citation", ""),
-                "license": meta.get(
-                    "license",
-                    "Copernican default license; add model notes",
-                ),
-                "version": meta.get("version", "unknown"),
-                "badges": badges,
-                "hash": utils.compute_sha256(str(path)),
-                "parameter_count": len(parameters),
-                "metadata": meta,
-            }
+        for pattern in ("*.yml", "*.yaml"):
+            for path in sorted(Path(self._models_root()).glob(pattern)):
+                if path.name.startswith("__"):
+                    continue
+                models[path.stem] = self._build_model_entry(path)
         return models
+
+    def _model_entry_for_value(self, model_id: str | None) -> dict | None:
+        """Return the model record matching ``model_id`` if possible."""
+
+        if not model_id:
+            return None
+        if self._selected_model_entry and (
+            model_id == self._selected_model_entry.get("path")
+            or model_id == self._selected_model_entry.get("id")
+            or model_id == self._selected_model_entry.get("filename")
+        ):
+            return self._selected_model_entry
+        entry = self.model_index.get(model_id)
+        if entry:
+            return entry
+        for record in self.model_index.values():
+            if (
+                record.get("id") == model_id
+                or record.get("filename") == model_id
+                or record.get("path") == model_id
+            ):
+                return record
+        return None
+
+    def _load_external_model_from_path(self, path: str) -> dict | None:
+        """Load an external model YAML file into the current selection."""
+
+        candidate = Path(path).expanduser()
+        if candidate.suffix.lower() not in {".yml", ".yaml"}:
+            self.create_toast(
+                "External models must use a .yml or .yaml file.",
+                severity="ERROR",
+                context="models",
+            )
+            return None
+        if not candidate.is_file():
+            self.create_toast(
+                f"External model not found: {candidate}",
+                severity="ERROR",
+                context="models",
+            )
+            return None
+        try:
+            entry = self._build_model_entry(candidate.resolve())
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            self.create_toast(
+                f"Failed to load external model: {exc}",
+                severity="ERROR",
+                context="models",
+            )
+            return None
+        entry["is_external"] = True
+        entry["path"] = str(candidate.resolve())
+        self._selected_model_entry = entry
+        self.selected_models = [entry["path"]]
+        self.draft.model = entry["path"]
+        self.summary.manifest_actions.append(
+            f"Loaded external model from {entry['path']}"
+        )
+        return entry
 
     def _discover_engine_library(self) -> dict[str, dict]:
         """Return engine metadata keyed by module stem."""
@@ -1429,7 +1496,7 @@ class CopernicanGUI:
     def _output_root(self) -> str:
         """Return the canonical output directory for GUI quick actions."""
 
-        return os.path.abspath(os.path.join(os.getcwd(), "output"))
+        return str(Path.home() / "copernican_output")
 
     def _launch_folder(self, path: str) -> None:
         """Open ``path`` in the native file manager when rendering."""
@@ -4045,7 +4112,7 @@ class CopernicanGUI:
                 context="home",
             )
             return
-        initial_dir = str(self._repo_root() / "output")
+        initial_dir = self._output_root()
         path = filedialog.askopenfilename(
             title="Import manifest",
             initialdir=initial_dir,
@@ -4217,14 +4284,10 @@ class CopernicanGUI:
                 self.selected_models = [candidate]
         counts = []
         for model_id in self.selected_models:
-            entry = self.model_index.get(model_id)
+            entry = self._model_entry_for_value(model_id)
             if entry:
                 counts.append(entry.get("parameter_count", 0))
                 continue
-            for record in self.model_index.values():
-                if record.get("id") == model_id:
-                    counts.append(record.get("parameter_count", 0))
-                    break
         return max(sum(counts), 0)
 
     def _engine_default_settings(self) -> tuple[int, int, int]:
@@ -4468,6 +4531,23 @@ class CopernicanGUI:
         button_frame = ttk_module.Frame(list_container)
         button_frame.pack(side="left", fill="y", padx=(8, 0), anchor="n")
 
+        def _apply_model_entry(entry: dict) -> None:
+            """Persist the selected model entry into the builder draft."""
+
+            self._selected_model_entry = entry
+            model_value = (
+                entry["path"] if entry.get("is_external") else entry["id"]
+            )
+            self.selected_models = [model_value]
+            self.draft.model = model_value
+            if entry.get("is_external"):
+                summary_text = f"Loaded external model: {entry['filename']}"
+            else:
+                summary_text = f"Selected model: {entry['id']}"
+            summary.config(text=summary_text)
+            _refresh_model_preview(entry)
+            self._refresh_builder_step_indicators()
+
         def _view_selected_model() -> None:
             """Preview the currently selected model metadata."""
             entry = self._selected_model_entry
@@ -4494,6 +4574,36 @@ class CopernicanGUI:
                 return
             self._open_path_with_system(entry["path"])
 
+        def _load_external_model() -> None:
+            """Open a picker and load an external model YAML file."""
+
+            if filedialog is None:
+                self.create_toast(
+                    "File dialogs are unavailable in this environment.",
+                    severity="ERROR",
+                    context="models",
+                )
+                return
+            path = filedialog.askopenfilename(
+                title="Load external model",
+                initialdir=str(Path.home()),
+                filetypes=[
+                    ("YAML files", "*.yml *.yaml"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if not path:
+                return
+            entry = self._load_external_model_from_path(path)
+            if entry is None:
+                return
+            self.create_toast(
+                f"Loaded external model {entry['filename']}.",
+                severity="INFO",
+                context="models",
+            )
+            self.show_run_builder()
+
         ttk_module.Button(
             button_frame,
             text="View model",
@@ -4501,7 +4611,12 @@ class CopernicanGUI:
         ).pack(fill="x", pady=(0, 4))
         ttk_module.Button(
             button_frame,
-            text="Open model YML...",
+            text="Load external model...",
+            command=_load_external_model,
+        ).pack(fill="x", pady=(0, 4))
+        ttk_module.Button(
+            button_frame,
+            text="Open model file...",
             command=_open_selected_model_file,
         ).pack(fill="x")
         summary = ttk_module.Label(
@@ -4514,9 +4629,11 @@ class CopernicanGUI:
 
         for index, model in enumerate(available):
             listbox.insert("end", f"{model['id']} ({model['filename']})")
-            if model["id"] == (
+            selected_model = (
                 self.selected_models[0] if self.selected_models else None
-            ):
+            )
+            selected_entry = self._model_entry_for_value(selected_model)
+            if selected_entry and model["path"] == selected_entry.get("path"):
                 listbox.select_set(index)
 
         preview_frame = ttk_module.LabelFrame(
@@ -4593,18 +4710,22 @@ class CopernicanGUI:
             indices = listbox.curselection()
             if indices:
                 entry = available[indices[0]]
-                selected_model = entry["id"]
-                self.selected_models = [selected_model]
-                self.draft.model = selected_model
-                self._selected_model_entry = entry
-                summary.config(text=f"Selected model: {selected_model}")
-                _refresh_model_preview(entry)
+                _apply_model_entry(entry)
             else:
-                self.selected_models = []
-                self.draft.model = ""
-                self._selected_model_entry = None
-                summary.config(text="No model selected yet.")
-                _refresh_model_preview(None)
+                current = self._selected_model_entry
+                if current and current.get("is_external"):
+                    summary.config(
+                        text=(
+                            "Loaded external model: " f"{current['filename']}"
+                        )
+                    )
+                    _refresh_model_preview(current)
+                else:
+                    self.selected_models = []
+                    self.draft.model = ""
+                    self._selected_model_entry = None
+                    summary.config(text="No model selected yet.")
+                    _refresh_model_preview(None)
             self._refresh_builder_step_indicators()
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
@@ -7058,14 +7179,10 @@ class CopernicanGUI:
             candidate = self.selected_models[0]
         elif self.draft.model:
             candidate = self.draft.model.split(",")[0].strip()
-        if candidate:
-            for entry in self.model_index.values():
-                if (
-                    entry.get("id") == candidate
-                    or entry["filename"] == candidate
-                ):
-                    self._selected_model_entry = entry
-                    return entry
+        entry = self._model_entry_for_value(candidate)
+        if entry:
+            self._selected_model_entry = entry
+            return entry
         raise RuntimeError("Select a model before starting the run.")
 
     def _resolve_engine_entry(self) -> dict:
@@ -8146,19 +8263,32 @@ class CopernicanGUI:
         engine_name = self.draft.engine or self.selected_engine or "engine"
         engine = SimpleNamespace(__name__=engine_name, ENGINE_VERSION="gui")
         models = self.selected_models or [self.draft.model or "model"]
-        model_pairs = [
-            (
-                SimpleNamespace(
-                    MODEL_NAME=model,
-                    MODEL_FILENAME=f"{model}.yml",
-                    PARAMETER_NAMES=[],
-                    PARAMETER_PRIORS=[],
-                    valid_for_cmb=False,
-                ),
-                "gui",
+        model_pairs = []
+        for model in models:
+            entry = self._model_entry_for_value(model)
+            if entry:
+                model_name = entry.get("id")
+                model_filename = entry.get("filename")
+            else:
+                model_path = Path(model)
+                model_name = model
+                model_filename = (
+                    model_path.name
+                    if model_path.suffix.lower() in {".yml", ".yaml"}
+                    else f"{model}.yml"
+                )
+            model_pairs.append(
+                (
+                    SimpleNamespace(
+                        MODEL_NAME=model_name,
+                        MODEL_FILENAME=model_filename,
+                        PARAMETER_NAMES=[],
+                        PARAMETER_PRIORS=[],
+                        valid_for_cmb=False,
+                    ),
+                    "gui",
+                )
             )
-            for model in models
-        ]
         datasets: list[dict[str, object]] = []
         source_datasets = self.selected_datasets or [
             {

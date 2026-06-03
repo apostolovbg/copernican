@@ -17,6 +17,7 @@ import yaml
 
 os.environ.setdefault("COPERNICAN_ALLOW_DIRECT", "1")
 
+import copernican.cli as copernican_cli  # noqa: E402
 import copernican.workflow as copernican  # noqa: E402
 
 
@@ -89,6 +90,13 @@ class TestCliUtilities(unittest.TestCase):
         self.assertTrue(hasattr(copernican, "LaunchRequest"))
         self.assertTrue(callable(copernican.main_workflow))
         self.assertTrue(callable(copernican.main))
+        self.assertTrue(callable(copernican_cli.main))
+
+    @mock.patch.object(copernican_cli, "workflow_main")
+    def test_cli_module_delegates_to_workflow_main(self, workflow_main):
+        workflow_main.return_value = 0
+        self.assertEqual(copernican_cli.main([]), 0)
+        workflow_main.assert_called_once_with([])
 
     @mock.patch.object(copernican.console, "write")
     def test_exit_clean_raises_requested_system_exit(self, write):

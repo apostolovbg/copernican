@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-03:
+  Change: Patched the saved-manifest GUI test to isolate `Path.home()`
+  under a temp home directory.
+  Why: Keep the auto-load assertion aligned with the home-based output
+  root.
+  Impact: The temp saved-manifest test now loads the manifest from the
+  patched home output path.
+  Files:
+  CHANGELOG.md
+  tests/copernican/lib/gui/test_app.py
+
+- 2026-06-03:
+  Change: Removed root `logs/` and `output/` ignore rules, lowered
+  `logs_keep_last` to `30`, and cleared current runtime log contents.
+  Why: Prevent root runtime folders from resurfacing and preserve a
+  finite DevCovenant log window.
+  Impact: Preserve the absence of root `logs/` and `output/`, and
+  retain the latest 30 `devcovenant/logs` runs.
+  Files:
+  .gitignore
+  CHANGELOG.md
+  devcovenant/builtin/profiles/global/assets/config.yaml
+  devcovenant/config.yaml
+  devcovenant/logs/
+  logs/
+  output/
+
+- 2026-06-03:
   Change: Expanded Slice 4 to carry the remaining entrypoint, model-load,
   output, settings, and validation tasks.
   Why: Keep the collapsed plan aligned with the still-open migration

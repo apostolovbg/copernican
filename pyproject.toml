@@ -50,7 +50,7 @@ Homepage = "https://github.com/apostolovbg/copernican"
 Repository = "https://github.com/apostolovbg/copernican"
 
 [project.scripts]
-copernican = "copernican.workflow:main_workflow"
+copernican = "copernican.cli:main"
 
 [tool.setuptools]
 include-package-data = true
@@ -94,6 +94,7 @@ exclude = [
 "copernican.lib" = [
     "latex_mappings.yml",
     "config_schemas/**/*",
+    "global_settings/**/*",
     "licenses/**/*",
     "vendor/**/*",
 ]

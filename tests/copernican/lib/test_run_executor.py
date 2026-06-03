@@ -143,6 +143,38 @@ class TestRunExecutor(unittest.TestCase):
         self.assertEqual(sampling_plan["engine_kind"], "mcmc")
         self.assertTrue(pipeline_calls[0]["display_progress"])
 
+    def test_execute_run_from_manifest_accepts_external_yaml_model(
+        self,
+    ) -> None:
+        manifest = self._base_manifest()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            model_path = Path(tmpdir) / "external_model.yaml"
+            model_path.write_text(
+                "model_name: ExternalModel\nparameters: []\n",
+                encoding="utf-8",
+            )
+            manifest["selection"]["models"] = [str(model_path)]
+            pipeline_calls = []
+            with contextlib.ExitStack() as stack:
+                self._enter_common_patches(stack)
+                stack.enter_context(
+                    mock.patch.object(
+                        run_executor.run_pipeline,
+                        "execute_run_pipeline",
+                        lambda **kwargs: pipeline_calls.append(kwargs),
+                    )
+                )
+                run_executor._PLUGIN_CACHE.clear()
+                run_executor.execute_run_from_manifest(
+                    manifest,
+                    script_dir=Path("."),
+                    output_root=Path(tmpdir),
+                )
+
+        self.assertTrue(pipeline_calls)
+        alt_model = pipeline_calls[0]["alt_model_plugin"]
+        self.assertEqual(alt_model.MODEL_FILENAME, "external_model.yaml")
+
     def test_execute_run_from_manifest_persists_manifest(self) -> None:
         manifest = self._base_manifest(seed=999)
         with tempfile.TemporaryDirectory() as tmpdir:

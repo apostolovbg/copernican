@@ -29,11 +29,12 @@ The bundled engines, models, and validation helpers now live under
 path layout.
 
 The CLI and GUI share one application logger, and each run keeps its own
-run logs inside the generated `output/copernican-run_*` folder.
+run logs inside the generated `~/copernican_output/copernican-run_*`
+folder.
 
 `copernican/workflow.py` owns the launch flow for the package entry points,
-and `copernican_settings.yml` carries the GUI-facing defaults that shape that
-flow.
+and `copernican/lib/global_settings/copernican_settings.yml` carries the
+GUI-facing defaults that shape that flow.
 
 ## Package Surface
 The package root is part of the public contract. It includes the README,
@@ -49,7 +50,8 @@ the project behaves in practice.
 - `copernican/models/` contains the bundled model definitions.
 - `copernican/validation/` contains the manifest runner and validation docs.
 
-`copernican/workflow.py` and `copernican_settings.yml` sit behind those
+`copernican/workflow.py` and
+`copernican/lib/global_settings/copernican_settings.yml` sit behind those
 front-door docs, so changes in the launch path or GUI defaults should be
 reflected there first.
 
