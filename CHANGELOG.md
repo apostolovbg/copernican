@@ -80,6 +80,16 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-03:
+  Change: Closed Slice 4 and Slice 5 in the plan after validation
+  passed.
+  Why: Keep the collapsed plan aligned with the completed refactor
+  baseline.
+  Impact: PLAN.md now marks both slices closed.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-06-03:
   Change: Patched the saved-manifest GUI test to isolate `Path.home()`
   under a temp home directory.
   Why: Keep the auto-load assertion aligned with the home-based output

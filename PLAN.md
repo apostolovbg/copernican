@@ -325,7 +325,7 @@ coherent slices rather than in many narrowly separated ones.
    * changelog records the completed migration;
    * final verification and runtime checks pass.
 
-4. [open] Slice 4 - Finish runtime behavior, entrypoints, model/output
+4. [closed] Slice 4 - Finish runtime behavior, entrypoints, model/output
    policy, settings, and legacy cleanup.
 
    Depends on:
@@ -391,7 +391,7 @@ coherent slices rather than in many narrowly separated ones.
    * bundled models are in-package;
    * `cosmo_` runtime naming residue is gone where required.
 
-5. [open] Slice 5 - Final validation and regression confirmation.
+5. [closed] Slice 5 - Final validation and regression confirmation.
 
    Depends on:
 
