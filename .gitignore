@@ -59,12 +59,8 @@ site
 build
 
 # Profile: userproject
-models/cache
-cache
-.matplotlib-cache
-vendor
-third_party
-node_modules
+validation/output/
+VALIDATION.md
 
 # OS-specific ignores (DevCovenant)
 .DS_Store

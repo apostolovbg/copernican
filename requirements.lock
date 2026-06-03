@@ -11,8 +11,8 @@ astropy==6.0.0 \
     --hash=sha256:af67850f0476e04e78a1e5d96b767cd7f484c15fa9e684fed7f7c1277883bfbe
     # via -r configured dependency inputs
 
-astropy-iers-data==0.2026.5.25.1.14.13 \
-    --hash=sha256:6cf42bbe05299378d6b109493de136e0bb07f4b39d7051f8d34f84e5f996c9e0
+astropy-iers-data==0.2026.6.1.17.39.59 \
+    --hash=sha256:14670333b6999594890688e98d623182157428326fbe4c9de24a872dae76002b
     # via -r configured dependency inputs
 
 attrs==26.1.0 \

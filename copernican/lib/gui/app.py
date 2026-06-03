@@ -39,6 +39,7 @@ import yaml
 from matplotlib.figure import Figure
 
 import copernican.rng_minigames as rng_minigames
+from copernican import validation as validation_utils
 from copernican import version
 from copernican.lib import (
     analysis,
@@ -52,7 +53,6 @@ from copernican.lib import (
 )
 from copernican.lib import settings as settings_mod
 from copernican.lib import utils
-from copernican.lib import validation as validation_utils
 from copernican.lib.engine_capabilities import (
     EngineCapabilities,
     EngineSetting,
@@ -226,13 +226,13 @@ _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
 _ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
-    "engines.cosmo_engine_mcmc": {
+    "copernican.engines.cosmo_engine_mcmc": {
         "n_steps": {"min": 1, "max": 500_000},
         "burn_in_steps": {"min": 0, "max": 100_000},
         "n_walkers": {"min": 1, "max": 10_000},
         "pool_size": {"min": 1, "max": "cpu"},
     },
-    "engines.cosmo_engine_nested": {
+    "copernican.engines.cosmo_engine_nested": {
         "n_live_points": {"min": 1, "max": 20_000},
         "max_iterations": {"min": 1, "max": 1_000_000},
         "evidence_tolerance": {"min": 1e-6, "max": 1.0},
@@ -1074,12 +1074,12 @@ class CopernicanGUI:
     def _models_root(self) -> str:
         """Return the absolute path to the packaged model definitions."""
 
-        return str(Path(__file__).resolve().parents[3] / "models")
+        return str(Path(__file__).resolve().parents[2] / "models")
 
     def _engines_root(self) -> str:
         """Return the absolute path to the available engine modules."""
 
-        return str(Path(__file__).resolve().parents[3] / "engines")
+        return str(Path(__file__).resolve().parents[2] / "engines")
 
     def _metadata_path_for_dir(self, data_dir: str) -> str | None:
         """Return the first metadata YAML file beneath ``data_dir``.
@@ -1264,7 +1264,7 @@ class CopernicanGUI:
         for path in sorted(Path(self._engines_root()).glob("*.py")):
             if path.name.startswith("__"):
                 continue
-            module_name = f"engines.{path.stem}"
+            module_name = f"copernican.engines.{path.stem}"
             try:
                 module = importlib.import_module(module_name)
                 label = getattr(module, "ENGINE_LABEL", path.stem)

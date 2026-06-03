@@ -48,19 +48,20 @@ The CLI mirrors the Run Builder pages:
 1. **Seed selection** – Accept the default seed (`0`), supply your own value or
    request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
 2. **Model selection** – Choose any `cosmo_model_*.yml` discovered under
-   `models/`. The CLI validates YAML using the cached schema before generating
-   engine adapters.
+   `copernican/models/`. The CLI validates YAML using the cached schema
+   before generating engine adapters.
 3. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
    Parsers are verified by SHA256 digest before their modules are imported.
-4. **Engine selection** – Choose a sampler backend from `engines/`. The default
-   is `engines/cosmo_engine_mcmc.py` unless you override it. Engine metadata
-   (walkers, burn-in, production steps, pool size) is gathered immediately
-   after the engine choice. When a selected engine detects that every parameter
-   is fixed (for example, when the validation manifest runs `Planck 2018
-   Reference LambdaCDM`), the sampler now mirrors the reference values,
-   fabricates identical chains, and still reports the configured worker pool
-   count. This keeps diagnostics, plots and manifest metadata consistent even
-   though no sampling steps are actually executed.
+4. **Engine selection** – Choose a sampler backend from `copernican/engines/`.
+   The default is `copernican/engines/cosmo_engine_mcmc.py` unless you
+   override it. Engine metadata (walkers, burn-in, production steps, pool
+   size) is gathered immediately after the engine choice. When a selected
+   engine detects that every parameter is fixed (for example, when the
+   validation manifest runs `Planck 2018 Reference LambdaCDM`), the sampler
+   now mirrors the reference values, fabricates identical chains, and still
+   reports the configured worker pool count. This keeps diagnostics, plots
+   and manifest metadata consistent even though no sampling steps are
+   actually executed.
 5. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
    writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
    naming convention as the GUI. The manifest records dataset hashes, model
@@ -82,7 +83,8 @@ Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:
 
 - `--catalogue-summary` – Prints dataset counts by type, highlights untrusted
-  parsers and reports how many models/engines were discovered.
+  parsers and reports how many model files and engine modules were
+  discovered under `copernican/models/` and `copernican/engines/`.
 - `--revalidate-dataset DATASET_ID` – Re-runs the parser hash check for a
   specific dataset id and warns when the digest diverges from the trusted
   value.
@@ -91,17 +93,18 @@ flags execute their action and exit immediately:
 - `--show-manifest PATH` – Pretty-prints a saved manifest file so you can
   inspect it without opening a GUI metadata viewer.
 - `--run-validation` – Executes the golden manifests under
-  `validation/manifests/` (currently `reference_planck2018.yml`), runs the
-  fixed `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results
-  into `validation/output/<manifest_stem>/validation_run_<timestamp>/` and
-  saves the textual summary to `VALIDATION.md` before exiting. The manifest
-  evaluates this fixed reference model against Union Through UNITY 2000 SNe,
-  BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a `fixed` prior
-  so the sampler still emits its reference trace and the plots keep drawing the
-  comparison lines even though the values never wander from the Planck 2018
-  anchor. The executor now persists a `run_manifest_<timestamp>.yml` copy
-  inside each validation run directory so the manifest that drove the analysis
-  stays alongside the outputs.
+  `copernican/validation/manifests/` (currently `reference_planck2018.yml`),
+  runs the fixed `copernican/models/cosmo_model_ref_planck2018.yml`, writes
+  the NEW_CONFIG/results into
+  `copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`,
+  and saves the textual summary to `~/VALIDATION.md` before exiting. The
+  manifest evaluates this fixed reference model against Union Through UNITY
+  2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a
+  `fixed` prior so the sampler still emits its reference trace and the plots
+  keep drawing the comparison lines even though the values never wander from
+  the Planck 2018 anchor. The executor now persists a
+  `run_manifest_<timestamp>.yml` copy inside each validation run directory so
+  the manifest that drove the analysis stays alongside the outputs.
 
 ### Analysis helpers
 

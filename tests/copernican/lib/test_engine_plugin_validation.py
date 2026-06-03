@@ -12,9 +12,9 @@ from types import SimpleNamespace
 
 import numpy
 
+from copernican import validation as validation_module
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator
-from copernican.lib import validation as validation_module
 from copernican.lib.engine_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
@@ -610,7 +610,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """All migrated CMB models should build and validate cleanly."""
 
         repo_root = Path(__file__).resolve().parents[3]
-        models_dir = repo_root / "models"
+        models_dir = repo_root / "copernican" / "models"
         cache_dir = models_dir / "cache"
         model_names = [
             "cosmo_model_lcdm.yml",

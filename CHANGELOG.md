@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,114 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-03:
+  Change: Migrated the bundled engines, models, validation helpers,
+  docs, tests, and package metadata into the `copernican/` layout.
+  Why: Align the installed package surface, validation summary path,
+  and DevCovenant policy metadata with the forward-only package
+  migration.
+  Impact: Remove the legacy root launcher and root
+  `engines/`/`models/`/`validation/` trees, route validation to
+  `~/VALIDATION.md`, and close Slice 3 against the package-shaped
+  repository.
+  Files:
+  .gitignore
+  AGENTS.md
+  CHANGELOG.md
+  ABOUT.md
+  CITATION.cff
+  PLAN.md
+  README.md
+  SECURITY.md
+  SUPPORT.md
+  __main__.py
+  copernican/ABOUT.md
+  copernican/CITATION.cff
+  copernican/README.md
+  copernican/SECURITY.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cli_guide.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/latex_syntax.md
+  copernican/engines/__init__.py
+  copernican/engines/cosmo_engine_mcmc.py
+  copernican/engines/cosmo_engine_nested.py
+  copernican/lib/gui/app.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/validation.py
+  copernican/runtime-requirements.lock
+  copernican/models/__init__.py
+  copernican/models/cosmo_model_lcdm.yml
+  copernican/models/cosmo_model_lcdm_mnu.yml
+  copernican/models/cosmo_model_qauc.yml
+  copernican/models/cosmo_model_qrsf.yml
+  copernican/models/cosmo_model_ref_planck2018.yml
+  copernican/models/cosmo_model_tog.yml
+  copernican/models/cosmo_model_torg.yml
+  copernican/models/cosmo_model_usmf2.yml
+  copernican/models/cosmo_model_w0wa.yml
+  copernican/models/cosmo_model_wcdm.yml
+  copernican/validation/README.md
+  copernican/validation/ABOUT.md
+  copernican/validation/__init__.py
+  copernican/validation/manifests/reference_planck2018.yml
+  copernican/validation/runner.py
+  copernican/validation/SUPPORT.md
+  copernican/workflow.py
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/latex_syntax.md
+  engines/__init__.py
+  engines/cosmo_engine_mcmc.py
+  engines/cosmo_engine_nested.py
+  licenses/THIRD_PARTY_LICENSES.md
+  licenses/astropy-iers-data-0.2026.5.25.1.14.13.txt
+  licenses/astropy-iers-data-0.2026.6.1.17.39.59.txt
+  models/__init__.py
+  models/cosmo_model_lcdm.yml
+  models/cosmo_model_lcdm_mnu.yml
+  models/cosmo_model_qauc.yml
+  models/cosmo_model_qrsf.yml
+  models/cosmo_model_ref_planck2018.yml
+  models/cosmo_model_tog.yml
+  models/cosmo_model_torg.yml
+  models/cosmo_model_usmf2.yml
+  models/cosmo_model_w0wa.yml
+  models/cosmo_model_wcdm.yml
+  pyproject.toml
+  requirements.lock
+  tests/copernican/datasets/synthetic/test_synthetic_integration.py
+  tests/copernican/datasets/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/copernican/lib/test_core.py
+  tests/copernican/lib/test_engine_plugin_validation.py
+  tests/copernican/lib/likelihoods/test_cmb.py
+  tests/copernican/lib/test_likelihoods.py
+  tests/copernican/lib/test_model_priors.py
+  tests/copernican/lib/test_packaging_configuration.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/engines/test_cosmo_engine_mcmc.py
+  tests/engines/test_cosmo_engine_nested.py
+  tests/validation/test_runner.py
+  validation/README.md
+  validation/__init__.py
+  validation/manifests/reference_planck2018.yml
+  validation/runner.py
 
 - 2026-06-02:
   Change: Removed the package-local `copernican/logs` diagnostics tree

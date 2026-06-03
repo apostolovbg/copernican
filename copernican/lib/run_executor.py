@@ -25,7 +25,7 @@ from copernican.lib.run_config import (
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_MODELS_DIR = _REPO_ROOT / "models"
+_MODELS_DIR = _REPO_ROOT / "copernican" / "models"
 _MODEL_CACHE_DIR = _MODELS_DIR / "cache"
 _LCDM_MODEL_PATH = _MODELS_DIR / "cosmo_model_lcdm.yml"
 

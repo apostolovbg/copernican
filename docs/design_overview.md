@@ -2,9 +2,9 @@
 This document expands on the high-level summary in the README by tracing
 how the Copernican organises its architecture. The command-line launcher
 (`python -m copernican`) steers each run, the `copernican/lib/` package
-gathers shared infrastructure, and the `engines/`, `models/` and
-`copernican/datasets/` directories plug into that foundation to deliver
-repeatable analyses.
+gathers shared infrastructure, and the `copernican/engines/`,
+`copernican/models/` and `copernican/datasets/` directories plug into that
+foundation to deliver repeatable analyses.
 
 The `copernican/lib/cli/` namespace now houses the dependency scanner and menu
 renderers invoked by the launcher. Keeping those prompts in a dedicated package
@@ -47,17 +47,18 @@ described throughout this document.
   completed (1%)”, preserves the listener contract and exposes a no-op
   suspension context so diagnostics can print between updates without the old
   carriage-return renderer.
-* `engines/` contains back ends such as the default ``cosmo_engine_mcmc.py``.
-  Engines consume `EnginePlugin` definitions, evaluate joint likelihoods
-  spanning SNe Ia, BAO and CMB data and surface ArviZ-powered convergence
-  diagnostics for downstream tooling. When ArviZ is unavailable the code falls
-  back to a conservative Gelman–Rubin summary while logging the downgrade. CI
-  runners that cannot call CAMB can opt into the ``COPERNICAN_FAKE_CMB``
-  shortcut while production evaluations still query the physics engine. Nested
-  sampling and ensemble MCMC both rely on the shared Stage 2 helper so the
-  counter lines and listener events stay consistent regardless of backend.
-* `models/` holds YAML descriptions that declare bounds, priors, transforms
-  and dataset compatibility. Each file is compiled into a picklable
+* `copernican/engines/` contains back ends such as the default
+  ``cosmo_engine_mcmc.py``. Engines consume `EnginePlugin` definitions,
+  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
+  ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
+  unavailable the code falls back to a conservative Gelman–Rubin summary while
+  logging the downgrade. CI runners that cannot call CAMB can opt into the
+  ``COPERNICAN_FAKE_CMB`` shortcut while production evaluations still query the
+  physics engine. Nested sampling and ensemble MCMC both rely on the shared
+  Stage 2 helper so the counter lines and listener events stay consistent
+  regardless of backend.
+* `copernican/models/` holds YAML descriptions that declare bounds, priors,
+  transforms and dataset compatibility. Each file is compiled into a picklable
   :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
   can reconstruct Stage 2 state deterministically. Adapter validation allows
   only vetted attributes and functions and preserves constants, transforms,
@@ -123,12 +124,12 @@ Stage 1 focuses on reproducibility and validation:
   collect bounds, priors, transforms and optional structured CAMB contracts.
   Validation errors are aggregated and displayed as bullet points before the
   user is asked whether to restart Stage 1 or exit entirely.
-* Engine selection is dynamic: any file matching `engines/cosmo_engine_*.py`
-  appears in the menu. Prompts reflect the selected backend so ensemble MCMC
-  users configure burn-in, walkers and worker pools while nested sampling users
-  pick live-point budgets and evidence tolerances. A confirmation summary makes
-  the intended plan explicit and provides options to restart the questionnaire
-  or cancel the run cleanly.
+* Engine selection is dynamic: any file matching
+  `copernican/engines/cosmo_engine_*.py` appears in the menu. Prompts reflect
+  the selected backend so ensemble MCMC users configure burn-in, walkers and
+  worker pools while nested sampling users pick live-point budgets and
+  evidence tolerances. A confirmation summary makes the intended plan explicit
+  and provides options to restart the questionnaire or cancel the run cleanly.
 
 ### Stage 2 sampling and progress
 

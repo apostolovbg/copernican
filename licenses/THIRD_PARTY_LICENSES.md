@@ -13,7 +13,7 @@ texts stored under `licenses/`.
 ## Dependency License Inventory
 - `arviz==0.16.1`: `licenses/arviz-0.16.1.txt`
 - `astropy==6.0.0`: `licenses/astropy-6.0.0.txt`
-- `astropy-iers-data==0.2026.5.25.1.14.13`: `licenses/astropy-iers-data-0.2026.5.25.1.14.13.txt`
+- `astropy-iers-data==0.2026.6.1.17.39.59`: `licenses/astropy-iers-data-0.2026.6.1.17.39.59.txt`
 - `attrs==26.1.0`: `licenses/attrs-26.1.0.txt`
 - `bandit==1.9.4`: `licenses/bandit-1.9.4.txt`
 - `build==1.5.0`: `licenses/build-1.5.0.txt`

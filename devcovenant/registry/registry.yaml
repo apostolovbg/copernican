@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 4c2ebaba8a70f18ffb169d6714147c1711d55fafaa47309f9ec3e473bfeddbb0
+  policy_registry_input_hash: 925e035e11153d88daf5c617e91a70032cd6e85f300ad4839aa8a251d5a8d9d4
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3239,17 +3239,17 @@ policies:
     runtime_state:
       surfaces:
         package_runtime:
-          input_fingerprint: 5d932f423af078080e4bbf25b97f20a78e69748c7ee784c1e565ea55a8cc808a
+          input_fingerprint: cfa66501dab52da98829fd60853db243f12844e3630bd423033339234b15fa09
           output_fingerprints:
-            lock_file: 7ba28852682dccb4ee3c3ddc98f67fc7197f213498ff0c52bee494a1c60cd71b
+            lock_file: 15d7d2ec26f7a06057d7f13c7057ca3f688e9be5c6a805413e39b0883ee4a190
             third_party_file: eafc03be26e4021def6a77acb96dbb8025746c1f5730a826aee64b3967a8f7a0
             licenses_dir: 997e0497ff8e7c99bae7f0f47e0dde98afff7e8562c7ba61290e60e684c50362
         root_workspace:
-          input_fingerprint: 23e0279f68d16bf73e1113eeb3a03c7c0f94679de48f23d874c149d7717b4b40
+          input_fingerprint: 48d12d1d7dcf5866e68c12065e028ba4127bfc386c0003f01082ca2b5cb1ba70
           output_fingerprints:
-            lock_file: 5b09fae15fc8df876c5b1353f8491a5c6117702615eb49c022555803f995609a
-            third_party_file: 357365444308927c08e59468d5abcb11acaf7a9dca0da6d809f111ea0f363009
-            licenses_dir: f443606c1313206e14b3c1aed0ea0d7b9903dfe6ff93931094a31203a44966ab
+            lock_file: 5580a95855ac0d4350ce2852b94ff752640b8661b057cdb1d5f5445de67e2716
+            third_party_file: e38026ade395b8497274138831eb860f498165f17b06f203eaaaf245582c9346
+            licenses_dir: ad8a4b4b35dda5b7002bffc3b6062c78e66d5461386dba23b86f4d90c7ad098f
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -3835,7 +3835,9 @@ policies:
       - htmlcov/**
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
-      - models/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
       - copernican/datasets/**
       - tests/**
       - devcovenant/**
@@ -4402,7 +4404,12 @@ policies:
           - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
-          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+          - copernican/engines/** => README.md, ABOUT.md
+          - copernican/models/** => README.md, ABOUT.md
+          - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4411,7 +4418,12 @@ policies:
           - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
-          - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+          - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+          - copernican/engines/** => README.md, ABOUT.md
+          - copernican/models/** => README.md, ABOUT.md
+          - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4429,6 +4441,12 @@ policies:
           - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+          - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+          - copernican/engines/** => README.md, ABOUT.md
+          - copernican/models/** => README.md, ABOUT.md
+          - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+          - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
         effective:
           values:
           - copernican/lib/** => README.md, ABOUT.md
@@ -4590,14 +4608,18 @@ policies:
           - ()
         profile_overlays:
           values:
-          - models/**
+          - copernican/models/**
+          - copernican/validation/**
+          - copernican/validation/manifests/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
-          - models/**
+          - copernican/models/**
+          - copernican/validation/**
+          - copernican/validation/manifests/**
           - copernican/datasets/**
           behavior: append
           replaced_inherited_values:
@@ -4632,7 +4654,9 @@ policies:
           - htmlcov/**
           - devcovenant/logs/**
           - devcovenant/registry/runtime/**
-          - models/**
+          - copernican/models/**
+          - copernican/validation/**
+          - copernican/validation/manifests/**
           - copernican/datasets/**
           - tests/**
           - devcovenant/**
@@ -4883,6 +4907,12 @@ policies:
       - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+      - copernican/engines/** => README.md, ABOUT.md
+      - copernican/models/** => README.md, ABOUT.md
+      - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+      - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
       replacement_values:
       - copernican/lib/** => README.md, ABOUT.md
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
@@ -5081,7 +5111,9 @@ policies:
       - htmlcov/**
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
-      - models/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
       - copernican/datasets/**
       - tests/**
       - devcovenant/**
@@ -5196,7 +5228,10 @@ policies:
     - copernican/datasets/**
     - copernican/lib/** => README.md
     - copernican/lib/gui/** => README.md
+    - copernican/models/**
     - copernican/rng_minigames/** => README.md
+    - copernican/validation/**
+    - copernican/validation/manifests/**
     - copernican/workflow.py => README.md
     - copernican_settings.yml => README.md
     - devcovenant/**
@@ -5206,7 +5241,6 @@ policies:
     - dist/**
     - engines/** => README.md
     - htmlcov/**
-    - models/**
     - pip-wheel-metadata/**
     - pyproject.toml => ABOUT.md
     - tests/**
@@ -5833,7 +5867,8 @@ policies:
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
       - copernican/rng_minigames/registry.json
-      - validation/manifests/**
+      - copernican/models/**
+      - copernican/validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/*.txt
@@ -6216,7 +6251,8 @@ policies:
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
           - copernican/rng_minigames/registry.json
-          - validation/manifests/**
+          - copernican/models/**
+          - copernican/validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/*.txt
@@ -6234,7 +6270,8 @@ policies:
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
           - copernican/rng_minigames/registry.json
-          - validation/manifests/**
+          - copernican/models/**
+          - copernican/validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/*.txt
@@ -6276,7 +6313,8 @@ policies:
           - '**/*.egg-info/**'
           - .matplotlib-cache/**
           - copernican/rng_minigames/registry.json
-          - validation/manifests/**
+          - copernican/models/**
+          - copernican/validation/manifests/**
           - licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
           - copernican/lib/licenses/*.txt
@@ -6614,7 +6652,8 @@ policies:
       - '**/*.egg-info/**'
       - .matplotlib-cache/**
       - copernican/rng_minigames/registry.json
-      - validation/manifests/**
+      - copernican/models/**
+      - copernican/validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/*.txt
@@ -6720,7 +6759,9 @@ policies:
     - copernican/datasets/**/metadata_*.yml
     - copernican/lib/licenses/*.txt
     - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+    - copernican/models/**
     - copernican/rng_minigames/registry.json
+    - copernican/validation/manifests/**
     - data:/**
     - devcovenant/**
     - devcovenant/custom/**
@@ -6759,7 +6800,6 @@ policies:
     - tests/devcovenant/custom/**
     - torrent:/**
     - urn:/**
-    - validation/manifests/**
     - ws:/**
     - ws://
     - wss:/**
@@ -14950,12 +14990,15 @@ profiles:
     category: application
     suffixes: []
     ignore_dirs:
-    - models/cache
+    - copernican/models/cache
     - cache
     - .matplotlib-cache
     - vendor
     - third_party
     - node_modules
+    gitignore_fragments:
+    - validation/output/
+    - VALIDATION.md
     assets: []
     doc_assets:
       user:
@@ -14993,13 +15036,20 @@ profiles:
         - SPEC.md
         - PLAN.md
         user_facing_exclude_globs:
-        - models/**
+        - copernican/models/**
+        - copernican/validation/**
+        - copernican/validation/manifests/**
         - copernican/datasets/**
         doc_routes:
         - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
         - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
         - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
-        - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+        - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+        - copernican/engines/** => README.md, ABOUT.md
+        - copernican/models/** => README.md, ABOUT.md
+        - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+        - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+        - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
       read-only-directories:
         include_prefixes:
         - copernican/datasets
@@ -15139,7 +15189,8 @@ profiles:
         exclude_globs:
         - .matplotlib-cache/**
         - copernican/rng_minigames/registry.json
-        - validation/manifests/**
+        - copernican/models/**
+        - copernican/validation/manifests/**
         - licenses/THIRD_PARTY_LICENSES.md
         - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
         - copernican/lib/licenses/*.txt

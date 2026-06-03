@@ -65,12 +65,6 @@ include-package-data = true
 include = [
     "copernican",
     "copernican.*",
-    "copernican.lib",
-    "copernican.lib.*",
-    "engines",
-    "engines.*",
-    "models",
-    "models.*",
 ]
 exclude = [
     "archive",
@@ -92,8 +86,10 @@ exclude = [
     "datasets/**/*",
     "docs/**/*",
     "img/**/*",
+    "models/**/*",
     "runtime-requirements.lock",
     "rng_minigames/**/*",
+    "validation/**/*",
 ]
 "copernican.lib" = [
     "latex_mappings.yml",

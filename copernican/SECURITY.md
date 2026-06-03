@@ -2,7 +2,7 @@
 **Doc ID:** SECURITY
 **Doc Type:** repo-security
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -30,9 +30,12 @@ execution, reproducibility, or data trust:
 - the managed environment in `.venv`
 - the package dependency surface in `pyproject.toml`
 - the workspace dependency lockfiles
+- the bundled runtime packages in `copernican/engines/`,
+  `copernican/models/`, and `copernican/validation/`
 - the dataset registry and parser trust checks
 - the GUI and CLI entry points
 - the generated documentation that explains the supported workflow
+- the home-folder validation marker at `~/VALIDATION.md`
 
 Those areas are treated as first-class project surfaces because a change in
 any one of them can alter how Copernican executes or what data it trusts.

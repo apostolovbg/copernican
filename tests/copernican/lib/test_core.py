@@ -13,11 +13,11 @@ import camb
 import numpy
 import pandas
 
+import copernican.engines.cosmo_engine_mcmc as engine
 import copernican.lib.dataset_registry as dataset_registry
 import copernican.lib.engine_adapter as engine_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
-import engines.cosmo_engine_mcmc as engine
 from copernican.lib.likelihoods import cmb
 from copernican.lib.run_pipeline import extract_cosmological_param_vector
 
@@ -38,7 +38,7 @@ class FunctionalTestCase(unittest.TestCase):
         """Prepare a validated reference plugin used by several tests."""
         # Prepare a validated reference plugin used by several tests.
         base = Path(__file__).resolve().parents[3]
-        models_dir = base / "models"
+        models_dir = base / "copernican" / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(

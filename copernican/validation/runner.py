@@ -33,9 +33,10 @@ def run_validation_suite(
     """
     Run every validation manifest through the standard run executor.
 
-    The golden manifests live under ``validation/manifests/`` and their outputs
-    are written to
-    ``validation/output/{manifest_stem}/validation_run_<timestamp>``.
+    The golden manifests live under ``copernican/validation/manifests/`` and
+    their outputs are written to
+    ``copernican/validation/output/{manifest_stem}/validation_run_``
+    ``<timestamp>``.
     """
 
     manifest_list = (

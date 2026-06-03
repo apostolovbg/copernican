@@ -1,4 +1,4 @@
-"""Behavior and integration tests for engines.cosmo_engine_mcmc."""
+"""Behavior and integration tests for copernican.engines.cosmo_engine_mcmc."""
 
 import contextlib
 import logging
@@ -15,13 +15,8 @@ import numpy
 import pandas
 import xarray as xarray_dataset
 
-from copernican.lib import chain_io
-from copernican.lib import engine_adapter as engine_plugin_validation
-from copernican.lib import model_coder, model_spec_validator
-from copernican.lib.progress import BatchProgressBar
-from copernican.lib.utils import set_random_seed
-from engines import cosmo_engine_mcmc as module
-from engines.cosmo_engine_mcmc import (
+from copernican.engines import cosmo_engine_mcmc as module
+from copernican.engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
     _build_joint_logposterior,
     _classify_parameter_bounds,
@@ -29,12 +24,17 @@ from engines.cosmo_engine_mcmc import (
     _initialise_active_walkers,
     _reseed_invalid_walkers,
 )
+from copernican.lib import chain_io
+from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_coder, model_spec_validator
+from copernican.lib.progress import BatchProgressBar
+from copernican.lib.utils import set_random_seed
 
 
 def _build_model_plugin(yaml_filename: str):
     """Return a validated plugin for ``yaml_filename``."""
 
-    models_dir = Path(__file__).resolve().parents[2] / "models"
+    models_dir = Path(__file__).resolve().parents[2] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
     cache_dir = models_dir / "cache"
     cache_path = model_spec_validator.validate_and_cache_model(
@@ -327,7 +327,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.isfinite(reseeded).all())
         self.assertTrue(numpy.isfinite(reseeded_logp).all())
 
-    @mock.patch("engines.cosmo_engine_mcmc.BatchProgressBar")
+    @mock.patch("copernican.engines.cosmo_engine_mcmc.BatchProgressBar")
     def test_progress_bar_reports_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
         sne_df = pandas.DataFrame(

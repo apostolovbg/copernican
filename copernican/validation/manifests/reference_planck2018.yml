@@ -6,14 +6,14 @@ models:
   filename: cosmo_model_ref_planck2018.yml
   priors: {}
 engine:
-  name: engines.cosmo_engine_mcmc
+  name: copernican.engines.cosmo_engine_mcmc
   version: validation
 seed: 0
 datasets:
   union3_2025:
     name: Union Through UNITY 2000 SNe
     version: '2025.1'
-    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/union3
+    path: copernican/datasets/sne/union3
     hashes:
       cosmo_parser_union3.py: 5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa
       metadata_union3.yml: 74ac21fa162fcc1c58319726abe35560573ec3c5204aa263195cd2d1a3c3dcdd
@@ -27,7 +27,7 @@ datasets:
   boss_dr12_bao:
     name: BOSS DR12 BAO Consensus
     version: DR12
-    path: /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+    path: copernican/datasets/bao/bossdr12
     hashes:
       BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
       BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
@@ -44,7 +44,7 @@ datasets:
   planck_2018_lite:
     name: Planck 2018 Lite TT/TE/EE
     version: '2018'
-    path: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite
+    path: copernican/datasets/cmb/planck2018lite
     hashes:
       c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
@@ -62,7 +62,7 @@ selection:
   models:
   - cosmo_model_ref_planck2018
   engine:
-    name: engines.cosmo_engine_mcmc
+    name: copernican.engines.cosmo_engine_mcmc
     version: validation
   datasets:
   - union3_2025
@@ -72,7 +72,7 @@ configuration:
   models:
   - cosmo_model_ref_planck2018
   engine:
-    name: engines.cosmo_engine_mcmc
+    name: copernican.engines.cosmo_engine_mcmc
     version: validation
   datasets:
   - union3_2025

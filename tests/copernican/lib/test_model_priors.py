@@ -18,7 +18,7 @@ class PriorParsingTestCase(unittest.TestCase):
 
     def setUp(self):
         base = Path(__file__).resolve().parents[3]
-        models_dir = base / "models"
+        models_dir = base / "copernican" / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(

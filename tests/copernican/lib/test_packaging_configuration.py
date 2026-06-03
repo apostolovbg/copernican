@@ -20,12 +20,6 @@ class TestPackagingConfiguration(unittest.TestCase):
         expected_include = (
             "copernican",
             "copernican.*",
-            "copernican.lib",
-            "copernican.lib.*",
-            "engines",
-            "engines.*",
-            "models",
-            "models.*",
         )
         expected_exclude = ("archive", "data", "licenses", "tests")
 

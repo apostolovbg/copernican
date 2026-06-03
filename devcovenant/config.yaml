@@ -978,7 +978,12 @@ autogen_metadata_overlays:
     - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
     - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
-    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+    - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+    - copernican/engines/** => README.md, ABOUT.md
+    - copernican/models/** => README.md, ABOUT.md
+    - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+    - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
     exclude_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -987,7 +992,9 @@ autogen_metadata_overlays:
     user_facing_exclude_files:
     - devcovenant/config.yaml
     user_facing_exclude_globs:
-    - models/**
+    - copernican/models/**
+    - copernican/validation/**
+    - copernican/validation/manifests/**
     - copernican/datasets/**
     user_facing_exclude_prefixes:
     - tests
@@ -1067,7 +1074,8 @@ autogen_metadata_overlays:
     - '**/*.egg-info/**'
     - .matplotlib-cache/**
     - copernican/rng_minigames/registry.json
-    - validation/manifests/**
+    - copernican/models/**
+    - copernican/validation/manifests/**
     - licenses/THIRD_PARTY_LICENSES.md
     - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
     - copernican/lib/licenses/*.txt

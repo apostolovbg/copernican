@@ -10,9 +10,9 @@ import unittest
 import pandas
 import yaml
 
+from copernican.engines import cosmo_engine_mcmc
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, result_writer
-from engines import cosmo_engine_mcmc
 
 
 class TestResultWriter(unittest.TestCase):
@@ -22,7 +22,7 @@ class TestResultWriter(unittest.TestCase):
         repo_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         )
-        models_dir = os.path.join(repo_root, "models")
+        models_dir = os.path.join(repo_root, "copernican", "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
         cache_path = model_spec_validator.validate_and_cache_model(

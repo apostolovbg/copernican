@@ -32,15 +32,15 @@ plus buttons for every page:
 - **Validation** – Executes `python -m copernican
   --run-validation`, streams the CLI output into a Run Monitor–style log box,
   saves outputs under
-  `validation/output/<manifest_stem>/validation_run_<timestamp>/` and writes
-  the latest summary to the gitignored `VALIDATION.md`. The manifest evaluates
+  `copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`
+  and writes the latest summary to `~/VALIDATION.md`. The manifest evaluates
   the fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO
   and Planck 2018 Lite, declaring every parameter via `fixed` priors so the
   sampler still leaves a trace and the corner plot highlights that canonical
   point even though the values remain numerically fixed for validation.
   **Cancel validation** terminates the background worker, **Clear validation**
-  removes every `validation/output/.../validation_run_*` folder plus
-  `VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
+  removes every `copernican/validation/output/.../validation_run_*` folder plus
+  `~/VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
   log pinned to the newest lines while the GUI progress bars mirror the CLI
   counter state.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory

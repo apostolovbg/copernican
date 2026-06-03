@@ -147,17 +147,18 @@ The navigation rail now includes a **Validation** button positioned between
 Engines and Settings. When you press it, the GUI launches `python -m copernican
 --run-validation`, streams the CLI stdout into the Run Monitor–style log box,
 writes the NEW_CONFIG, plots and logs into
-`validation/output/<manifest_stem>/validation_run_<timestamp>/`, and stores the
-textual summary in the gitignored `VALIDATION.md` file so the panel can reload
+`copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`,
+and stores the textual summary in `~/VALIDATION.md` so the panel can reload
 the latest results even when the suite is not rerun. The manifest evaluates the
 fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
 Planck 2018 Lite and declares each parameter using `fixed` priors so the
 sampler still records the canonical point while keeping the values numerically
 locked for regression checks. A **Cancel validation** button terminates the
 worker mid-run, **Clear validation** removes every
-`validation/output/.../validation_run_*` directory plus the gitignored summary,
-and the “Lock summary to latest entry” checkbox keeps the log pinned to the
-newest lines while the GUI progress bars mirror the CLI counter state. The
+`copernican/validation/output/.../validation_run_*` directory plus
+`~/VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
+log pinned to the newest lines while the GUI progress bars mirror the CLI
+counter state. The
 validation button stays disabled while the run is active so you cannot stack
 overlapping validations.
 
@@ -194,9 +195,10 @@ hash caching and offers a manual digest rebuild so trusted parsers stay
 current. GUI settings cover automatic detachment, managed `.venv` enforcement
 and the environment hints (`COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
 `COPERNICAN_DETACH_GUI`) shown on the status bar.  The Tools tab surfaces
-maintenance helpers such as rebuilding the sanitized `models/cache` files,
-revalidating the parser registry, and resetting the Run Builder workspace. All
-preferences persist through `copernican/lib/settings.py` into the shared
+maintenance helpers such as rebuilding the sanitized
+`copernican/models/cache` files, revalidating the parser registry, and
+resetting the Run Builder workspace. All preferences persist through
+`copernican/lib/settings.py` into the shared
 `copernican_settings.yml` file so GUI and CLI launches honour the same
 defaults.
 

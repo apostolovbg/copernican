@@ -69,8 +69,10 @@ class CMBBackgroundTestCase(unittest.TestCase):
 
         repo_root = Path(__file__).resolve().parents[4]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
-        yaml_path = repo_root / "models" / "cosmo_model_lcdm.yml"
-        cache_dir = repo_root / "models" / "cache"
+        yaml_path = (
+            repo_root / "copernican" / "models" / "cosmo_model_lcdm.yml"
+        )
+        cache_dir = repo_root / "copernican" / "models" / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(
             yaml_path, cache_dir
         )

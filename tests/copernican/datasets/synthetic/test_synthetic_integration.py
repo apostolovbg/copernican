@@ -11,8 +11,8 @@ import unittest
 import numpy as numpy_module
 import yaml
 
+from copernican.engines import cosmo_engine_mcmc, cosmo_engine_nested
 from copernican.lib import dataset_registry, result_writer, run_manifest, utils
-from engines import cosmo_engine_mcmc, cosmo_engine_nested
 from tests.copernican.datasets.synthetic import model_plugin
 
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.

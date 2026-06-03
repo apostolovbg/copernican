@@ -1,4 +1,4 @@
-"""Behavior tests for engines.cosmo_engine_nested."""
+"""Behavior tests for copernican.engines.cosmo_engine_nested."""
 
 import os
 import tempfile
@@ -11,10 +11,10 @@ from unittest import mock
 import pandas
 import xarray as xarray_dataset
 
+from copernican.engines import cosmo_engine_nested as module
 from copernican.lib import chain_io
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
-from engines import cosmo_engine_nested as module
 
 
 class _DummyJointLike:
@@ -31,7 +31,7 @@ class _DummyJointLike:
 def _build_model_plugin(yaml_filename: str):
     """Return a validated plugin for the supplied YAML file."""
 
-    models_dir = Path(__file__).resolve().parents[2] / "models"
+    models_dir = Path(__file__).resolve().parents[2] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
     cache_dir = models_dir / "cache"
     cache_path = model_spec_validator.validate_and_cache_model(
@@ -190,11 +190,13 @@ class TestCosmoEngineNested(unittest.TestCase):
         engine_entry = manifest.get("engine", {})
         self.assertEqual(
             engine_entry.get("name"),
-            getattr(module, "__name__", "engines.cosmo_engine_nested"),
+            getattr(
+                module, "__name__", "copernican.engines.cosmo_engine_nested"
+            ),
         )
         self.assertEqual(engine_entry.get("version"), module.ENGINE_VERSION)
 
-    @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
+    @mock.patch("copernican.engines.cosmo_engine_nested.BatchProgressBar")
     def test_progress_bar_initialises_and_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -231,7 +233,7 @@ class TestCosmoEngineNested(unittest.TestCase):
             self.assertEqual(call_kwargs["total"], 12)
         bar_instance.finish_batch.assert_called()
 
-    @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
+    @mock.patch("copernican.engines.cosmo_engine_nested.BatchProgressBar")
     def test_progress_bar_finishes_on_exception(self, bar_cls) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -245,7 +247,7 @@ class TestCosmoEngineNested(unittest.TestCase):
         bar_cls.return_value = bar_instance
 
         with mock.patch(
-            "engines.cosmo_engine_nested._replacement_sample",
+            "copernican.engines.cosmo_engine_nested._replacement_sample",
             side_effect=RuntimeError("replacement failure"),
         ):
             with self.assertRaises(RuntimeError):

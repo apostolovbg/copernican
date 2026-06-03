@@ -3,12 +3,15 @@ profile: userproject
 category: application
 suffixes: []
 ignore_dirs:
-  - models/cache
+  - copernican/models/cache
   - cache
   - .matplotlib-cache
   - vendor
   - third_party
   - node_modules
+gitignore_fragments:
+  - validation/output/
+  - VALIDATION.md
 assets: []
 doc_assets:
   user:
@@ -46,13 +49,20 @@ policy_overlays:
       - SPEC.md
       - PLAN.md
     user_facing_exclude_globs:
-      - models/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
       - copernican/datasets/**
     doc_routes:
       - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
-      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
+      - copernican/engines/** => README.md, ABOUT.md
+      - copernican/models/** => README.md, ABOUT.md
+      - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
+      - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
   read-only-directories:
     include_prefixes:
       - copernican/datasets
@@ -192,7 +202,8 @@ policy_overlays:
     exclude_globs:
       - .matplotlib-cache/**
       - copernican/rng_minigames/registry.json
-      - validation/manifests/**
+      - copernican/models/**
+      - copernican/validation/manifests/**
       - licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
       - copernican/lib/licenses/*.txt

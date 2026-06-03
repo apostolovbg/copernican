@@ -205,13 +205,13 @@ def _data_root() -> Path:
 def _models_root() -> Path:
     """Return the path where YAML models are stored."""
 
-    return Path(SCRIPT_DIR) / "models"
+    return Path(SCRIPT_DIR) / "copernican" / "models"
 
 
 def _engines_root() -> Path:
     """Return the path containing computational engine modules."""
 
-    return Path(SCRIPT_DIR) / "engines"
+    return Path(SCRIPT_DIR) / "copernican" / "engines"
 
 
 def _output_root(override: Path | None = None) -> Path:
@@ -375,7 +375,7 @@ def _collect_engine_index(
     for path in sorted(Path(root).glob("*.py")):
         if path.name.startswith("__"):
             continue
-        module_name = f"engines.{path.stem}"
+        module_name = f"copernican.engines.{path.stem}"
         try:
             module = importlib.import_module(module_name)
             label = getattr(module, "ENGINE_LABEL", path.stem)
@@ -640,12 +640,13 @@ def _print_manifest_file(path: Path) -> bool:
 def _run_validation_cli() -> bool:
     """Execute the lightweight validation suite and summarize results."""
 
-    from copernican.lib import validation as validation_utils
-    from validation.runner import run_validation_suite
+    from copernican import validation as validation_utils
 
     repo_root = REPO_ROOT
     try:
-        code, summary = run_validation_suite(script_dir=repo_root)
+        code, summary = validation_utils.run_validation_suite(
+            script_dir=repo_root
+        )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         code = 1
         summary = f"Validation runner could not start: {exc}"

@@ -26,7 +26,7 @@ class LikelihoodTestCase(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[3]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
 
-        models_dir = repo_root / "models"
+        models_dir = repo_root / "copernican" / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(

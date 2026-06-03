@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1021,7 +1021,9 @@ user_facing_exclude_globs:
 - htmlcov/**
 - devcovenant/logs/**
 - devcovenant/registry/runtime/**
-- models/**
+- copernican/models/**
+- copernican/validation/**
+- copernican/validation/manifests/**
 - copernican/datasets/**
 - tests/**
 - devcovenant/**
@@ -1210,7 +1212,8 @@ exclude_globs:
 - '**/*.egg-info/**'
 - .matplotlib-cache/**
 - copernican/rng_minigames/registry.json
-- validation/manifests/**
+- copernican/models/**
+- copernican/validation/manifests/**
 - licenses/THIRD_PARTY_LICENSES.md
 - copernican/lib/licenses/THIRD_PARTY_LICENSES.md
 - copernican/lib/licenses/*.txt

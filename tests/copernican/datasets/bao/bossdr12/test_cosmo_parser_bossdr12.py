@@ -27,7 +27,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
             "copernican.datasets.bao.bossdr12.cosmo_parser_bossdr12"
         )
 
-        models_dir = base / "models"
+        models_dir = base / "copernican" / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(

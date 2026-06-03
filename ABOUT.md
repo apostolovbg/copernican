@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -23,6 +23,11 @@ script entry points. The `copernican` package owns the runtime entry points,
 the bundled assets, and the mirrored package-root documentation that users
 see first when they open the repository or launch the GUI.
 
+The bundled engines, models, and validation helpers now live under
+`copernican/`, and validation writes its local summary marker to
+`~/VALIDATION.md` so package installs and source checkouts follow the same
+path layout.
+
 The CLI and GUI share one application logger, and each run keeps its own
 run logs inside the generated `output/copernican-run_*` folder.
 
@@ -40,6 +45,9 @@ the project behaves in practice.
 - `copernican/SECURITY.md` describes how to report security issues.
 - `copernican/SUPPORT.md` explains where to get help and what to include.
 - `copernican/CITATION.cff` carries the citation metadata for the package.
+- `copernican/engines/` contains the bundled cosmology engines.
+- `copernican/models/` contains the bundled model definitions.
+- `copernican/validation/` contains the manifest runner and validation docs.
 
 `copernican/workflow.py` and `copernican_settings.yml` sit behind those
 front-door docs, so changes in the launch path or GUI defaults should be

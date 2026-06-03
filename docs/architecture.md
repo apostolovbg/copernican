@@ -56,12 +56,13 @@ guardrails such as policy enforcement and dataset validation.
 
 ### Engines Layer
 
-- `engines/cosmo_engine_mcmc.py` – ensemble MCMC sampler with `emcee`, walker
-  reseeding for `nan` positions, `-np.inf` when proposals are invalid, and
-  counter-based progress updates emitted via `copernican.lib.progress`.
-- `engines/cosmo_engine_nested.py` – nested sampling backend providing live
-  point counts, enlargement factors, and log-evidence tracking while matching
-  the MCMC result schema.
+- `copernican/engines/cosmo_engine_mcmc.py` – ensemble MCMC sampler with
+  `emcee`, walker reseeding for `nan` positions, `-np.inf` when proposals are
+  invalid, and counter-based progress updates emitted via
+  `copernican.lib.progress`.
+- `copernican/engines/cosmo_engine_nested.py` – nested sampling backend
+  providing live point counts, enlargement factors, and log-evidence tracking
+  while matching the MCMC result schema.
 - Future engines must keep shared dependencies pure compute-only and rely on
   `copernican.lib.optim_utils` for shared helpers rather than importing CLI
   helpers themselves.

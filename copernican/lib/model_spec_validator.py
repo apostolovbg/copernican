@@ -13,7 +13,8 @@ required perturbation contract whenever a model declares
 """
 
 # This module validates model definition files against a JSON schema and writes
-# a sanitized copy to ``models/cache/``. The sanitized file is used by child
+# a sanitized copy to ``copernican/models/cache/``. The sanitized file is used
+# by child
 # processes so that validation only happens once in the main process.
 
 import math

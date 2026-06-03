@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -16,6 +16,10 @@ Copernican support is documentation-first. Most operator questions should be
 answerable from the README, the manual docs, the GUI help panel, or the
 validation and dataset guides. That keeps routine usage self-service and
 reduces the amount of guesswork needed when a run does not behave as expected.
+
+Validation runs now write their local summary marker to `~/VALIDATION.md`, so
+the package guide in `copernican/validation/README.md` and the GUI validation
+help stay aligned with the runtime path layout.
 
 Troubleshooting should start with the run folder logs and the shared
 application log shown in the GUI.
@@ -36,6 +40,7 @@ Start with the front-door documentation:
 - `docs/cli_guide.md` for command-line usage
 - `docs/gui_guide.md` for interactive usage
 - `docs/run_manifest.md` for manifest and run-record details
+- `copernican/validation/README.md` for the manifest runner and summary path
 
 `copernican_settings.yml` is the place to check when the GUI defaults do not
 match the behavior you expected from the front-door docs.

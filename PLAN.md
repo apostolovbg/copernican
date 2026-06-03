@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -247,7 +247,7 @@ coherent slices rather than in many narrowly separated ones.
    * package imports are clean;
    * basic import tests pass.
 
-3. [open] Slice 3 - Consolidate packaging, DevCovenant, docs,
+3. [closed] Slice 3 - Consolidate packaging, DevCovenant, docs,
    tests, and validation.
 
    Depends on:

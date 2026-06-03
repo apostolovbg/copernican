@@ -84,8 +84,8 @@ without dedicated Unicode glyphs fall back to their original form.
 
 ## Debugging Syntax Errors
 
-If `copernican.lib.model_spec_validator` reports a parsing failure, inspect the
-generated `models/cache/` entry to see the sanitised LaTeX.  Running the
-expression through `latex_utils.latex_to_unicode` can also help spot stray
-characters that were not translated.  When in doubt, reduce the equation to a
-minimal form and reintroduce terms gradually.
+If `copernican.lib.model_spec_validator` reports a parsing failure, inspect
+the generated `copernican/models/cache/` entry to see the sanitised LaTeX.
+Running the expression through `latex_utils.latex_to_unicode` can also help
+spot stray characters that were not translated.  When in doubt, reduce the
+equation to a minimal form and reintroduce terms gradually.

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-02
+**Last Updated:** 2026-06-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -52,7 +52,8 @@ the same convention.
   helpers so CLI and GUI paths stay consistent.
 - **Modular library layout:** `copernican/lib/` hosts shared helpers
   (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
-  while `models/`, `engines/`, `copernican/datasets/` and `output/`
+  while `copernican/models/`, `copernican/engines/`,
+  `copernican/validation/`, `copernican/datasets/` and `output/`
   remain the canonical asset roots.
 - **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
@@ -90,41 +91,46 @@ the same convention.
  - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.
- - `engines/` collects sampler back ends. The default `cosmo_engine_mcmc`
-   couples `emcee` with ArviZ when available; the nested sampler mirrors the
-   same schema while exposing evidences. Both reuse the shared progress
-   renderer and manifest helpers.
- - `models/` houses YAML model definitions with priors, transforms and dataset
-  compatibility metadata. Each definition is converted into a picklable
-  engine adapter so manifest generation stays deterministic even under
-  multiprocessing. CMB-valid models declare a backend contract under `cmb`
-  with `backend`, `param_map`, `grids`, `values`, `calls` and a mandatory
-  `perturbations` block; `standard: true` keeps the perturbation sections
-  empty, while `standard: false` requires typed derivative equations and
-  explicit backend mapping for the compiled declarative perturbation
-  solver.
+- `copernican/engines/` collects sampler back ends. The default
+  `copernican.engines.cosmo_engine_mcmc`
+  couples `emcee` with ArviZ when available; the nested sampler mirrors the
+  same schema while exposing evidences. Both reuse the shared progress
+  renderer and manifest helpers.
+- `copernican/models/` houses YAML model definitions with priors,
+  transforms and dataset compatibility metadata. Each definition is
+  converted into a picklable engine adapter so manifest generation stays
+  deterministic even under multiprocessing. CMB-valid models declare a
+  backend contract under `cmb` with `backend`, `param_map`, `grids`,
+  `values`, `calls` and a mandatory `perturbations` block; `standard:
+  true` keeps the perturbation sections empty, while `standard: false`
+  requires typed derivative equations and explicit backend mapping for the
+  compiled declarative perturbation solver.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except
   when a human explicitly edits the datasets.
+- `copernican/validation/` holds the manifest runner and manifests used by
+  the validation suite. The latest summary lives in `~/VALIDATION.md` so
+  package installs do not write validation state into the package tree.
 - `copernican/lib/gui/` provides a Tkinter scaffold with the navigation rail,
   Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
   page that renders Markdown assets inline; the package entrypoint launches
   the GUI inside the managed environment after logging the environment.
 
 ## Directory layout
- - `models/`: YAML definitions for every supported cosmological model.
- - `engines/`: Computational backends; the default MCMC engine records
-   diagnostics and writes NetCDF chains.
+- `copernican/models/`: YAML definitions for every supported cosmological
+  model.
+- `copernican/engines/`: Computational backends; the default MCMC engine
+  records diagnostics and writes NetCDF chains.
 - `copernican/datasets/`: Trusted datasets grouped by type (`sne`, `bao`,
   `cmb`) with parser metadata. Parsers compute SHA256 values and register
   their digests via `dataset_registry`.
- - `output/`: Per-run folders such as `copernican-run_<timestamp>/` that store
-   manifests, parameter summaries, logs and NetCDF chains.
- - `validation/`: Reference manifests, runner helpers and summaries used by the
-   validation suite.
- - `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
-   structure, datasets and the DevCovenant policies.
+- `output/`: Per-run folders such as `copernican-run_<timestamp>/` that store
+  manifests, parameter summaries, logs and NetCDF chains.
+- `copernican/validation/`: Reference manifests, runner helpers and summaries
+  used by the validation suite.
+- `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
+  structure, datasets and the DevCovenant policies.
 - `ABOUT.md`, `AGENTS.md`, `CHANGELOG.md`, `CITATION.cff`,
   `SECURITY.md`, `SUPPORT.md`, `licenses/THIRD_PARTY_LICENSES.md`:
   Governance, release history, citation, support and security metadata.
@@ -183,10 +189,11 @@ histogram assets from each `posterior-*.nc` snapshot on demand.
 ## Validation
 The Validation tab runs `python -m copernican --run-validation`, streams CLI
 output into a log box, and stores the summaries inside
-`validation/output/<manifest_stem>/validation_run_<timestamp>/` plus the
-gitignored `VALIDATION.md`. The fixed Planck 2018 manifest evaluates a
-reference model against Union3 UNITY SNe, BOSS DR12 BAO and Planck 2018 Lite
-CMB data with constant priors, so regression checks stay deterministic.
+`copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`
+plus `~/VALIDATION.md`. The fixed Planck 2018 manifest
+evaluates a reference model against Union3 UNITY SNe, BOSS DR12 BAO and
+Planck 2018 Lite CMB data with constant priors, so regression checks stay
+deterministic.
 “Cancel validation” terminates the worker, “Clear validation” removes the
 outputs and summary, and GUI progress bars mirror the counter-based batches
 the sampler emits. The Validation button stays disabled while a worker runs so
@@ -220,8 +227,8 @@ Command-line operators who skip the GUI can still run maintenance helpers:
 - `python -m copernican --list-manifests` lists every timestamped run folder
   and `--show-manifest <path>` pretty-prints a saved manifest.
 - `python -m copernican --run-validation` executes the lightweight validation
-  suite, prints the reference summary, stores it in `VALIDATION.md`, and exits
-  without opening the GUI.
+  suite, prints the reference summary, stores it in `~/VALIDATION.md`, and
+  exits without opening the GUI.
 - `python -m copernican --analysis-summary <run_dir>` loads the manifest/log/
   parameter summary from the specified run, prints the diagnostics table and
   (with `--analysis-summary-output <dir>`) writes structured `analysis-
