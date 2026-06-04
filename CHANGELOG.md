@@ -80,6 +80,18 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-04:
+  Change: Updated the banner image links in both README files to the
+  main-branch GitHub raw URL.
+  Why: Ensure PyPI renders the project banner from an absolute source
+  path.
+  Impact: Repo and package README banners now resolve to the package
+  image file on GitHub.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+
+- 2026-06-04:
   Change: Synced package docs and refreshed touched doc dates.
   Why: Clear the current refresh and verify violations.
   Impact: Package ABOUT and SUPPORT now match the source docs, and

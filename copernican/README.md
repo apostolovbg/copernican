@@ -11,7 +11,7 @@
 
 **Version:** 12.0.26
 
-![Copernican banner](docs/banner_github.png)
+![Copernican banner](https://raw.githubusercontent.com/apostolovbg/copernican/main/copernican/docs/banner_github.png)
 
 Copernican is a Python toolkit that helps researchers test cosmological models
 against SNe Ia, BAO and CMB observations with a single manifest-driven
