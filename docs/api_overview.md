@@ -5,7 +5,7 @@ functionality lives in the ``copernican.lib`` package which can be imported
 directly without using the command-line interface.  The core modules are:
 
 - `model_spec_validator.validate_and_cache_model(path, cache_dir)` – validate
-  and clean a `cosmo_model_*.yml` file.
+  and clean a `model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
 - `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
@@ -81,7 +81,7 @@ directly without using the command-line interface.  The core modules are:
   `save_cmb_results_csv` – persist fitting results with filenames that encode
   the dataset, model and timestamp.
 
-- `copernican.engines.cosmo_engine_mcmc.fit_cosmology_parameters` –
+- `copernican.engines.engine_mcmc.fit_cosmology_parameters` –
    returns a dictionary with posterior samples, joint chi-squared
    diagnostics for the SNe/BAO/CMB components, dataset-level point counts,
    burn-in length, acceptance fractions and a sanitised log-probability
@@ -98,7 +98,7 @@ directly without using the command-line interface.  The core modules are:
    worker pools, mirroring the available function arguments for scripted
    workflows. A legacy ``fit_sne_parameters`` alias remains for backward
    compatibility but now logs a deprecation warning.
-- `copernican.engines.cosmo_engine_nested.fit_cosmology_parameters` –
+- `copernican.engines.engine_nested.fit_cosmology_parameters` –
    wraps a lightweight nested-sampling routine that evaluates the same
    adapter-provided posterior while reporting log-evidence estimates,
    live-point counts, enlargement factors and iteration diagnostics. The
@@ -111,7 +111,7 @@ directly without using the command-line interface.  The core modules are:
   parameters, 1σ errors, covariance matrices and the recorded sampling
   configuration—including nested-sampling metadata such as live-point counts
   and evidence tolerances—to JSON and YAML for later analysis.
-  - `copernican.engines.cosmo_engine_mcmc` – lightweight `emcee`
+  - `copernican.engines.engine_mcmc` – lightweight `emcee`
     sampler for SNe posteriors. Walkers are initialised uniformly within
     declared parameter bounds, a burn-in run precedes production
     sampling and the returned dictionary includes log-probability
@@ -122,7 +122,7 @@ directly without using the command-line interface.  The core modules are:
     sentinels, and verbose progress updates report percentage completion
     for burn-in and production stages. Future engines can adopt the
     same public API to remain plug compatible with the suite.
-  - `copernican.engines.cosmo_engine_nested` – nested-sampling backend
+  - `copernican.engines.engine_nested` – nested-sampling backend
     that draws live points within declared bounds, replaces the lowest-
     likelihood point with constrained proposals and tracks log-evidence
     accumulation alongside the familiar χ² component breakdown. The
@@ -172,10 +172,10 @@ session looks like this:
 ```python
 from copernican.lib import dataset_registry, engine_adapter, model_coder
 from copernican.lib import model_spec_validator
-import copernican.engines.cosmo_engine_mcmc as engine
+import copernican.engines.engine_mcmc as engine
 
 cache = model_spec_validator.validate_and_cache_model(
-    "copernican/models/cosmo_model_ref_planck2018.yml",
+    "copernican/models/model_ref_planck2018.yml",
     "copernican/models/cache",
 )
 funcs, parsed = model_coder.generate_callables(cache)

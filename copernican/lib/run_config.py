@@ -75,7 +75,7 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
         models=list(selection.get("models", [])),
         engine=EngineDescriptor(
             module_name=engine_meta.get(
-                "name", "copernican.engines.cosmo_engine_mcmc"
+                "name", "copernican.engines.engine_mcmc"
             ),
             version=engine_meta.get("version", "unknown"),
         ),

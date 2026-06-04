@@ -1,4 +1,4 @@
-"""Behavior tests for copernican.engines.cosmo_engine_nested."""
+"""Behavior tests for copernican.engines.engine_nested."""
 
 import os
 import tempfile
@@ -11,7 +11,7 @@ from unittest import mock
 import pandas
 import xarray as xarray_dataset
 
-from copernican.engines import cosmo_engine_nested as module
+from copernican.engines import engine_nested as module
 from copernican.lib import chain_io
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
@@ -75,7 +75,7 @@ class TestCosmoEngineNested(unittest.TestCase):
         self.assertEqual(joint_like.calls, [(1.0, 2.0)])
 
     def test_fit_produces_weighted_samples(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
@@ -113,7 +113,7 @@ class TestCosmoEngineNested(unittest.TestCase):
         )
 
     def test_chain_serialisation_to_netcdf(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -146,7 +146,7 @@ class TestCosmoEngineNested(unittest.TestCase):
                     self.assertIn(name, dataset_reader.data_vars)
 
     def test_legacy_alias_warns_and_runs(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -190,15 +190,13 @@ class TestCosmoEngineNested(unittest.TestCase):
         engine_entry = manifest.get("engine", {})
         self.assertEqual(
             engine_entry.get("name"),
-            getattr(
-                module, "__name__", "copernican.engines.cosmo_engine_nested"
-            ),
+            getattr(module, "__name__", "copernican.engines.engine_nested"),
         )
         self.assertEqual(engine_entry.get("version"), module.ENGINE_VERSION)
 
-    @mock.patch("copernican.engines.cosmo_engine_nested.BatchProgressBar")
+    @mock.patch("copernican.engines.engine_nested.BatchProgressBar")
     def test_progress_bar_initialises_and_updates(self, bar_cls) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
@@ -233,9 +231,9 @@ class TestCosmoEngineNested(unittest.TestCase):
             self.assertEqual(call_kwargs["total"], 12)
         bar_instance.finish_batch.assert_called()
 
-    @mock.patch("copernican.engines.cosmo_engine_nested.BatchProgressBar")
+    @mock.patch("copernican.engines.engine_nested.BatchProgressBar")
     def test_progress_bar_finishes_on_exception(self, bar_cls) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
@@ -247,7 +245,7 @@ class TestCosmoEngineNested(unittest.TestCase):
         bar_cls.return_value = bar_instance
 
         with mock.patch(
-            "copernican.engines.cosmo_engine_nested._replacement_sample",
+            "copernican.engines.engine_nested._replacement_sample",
             side_effect=RuntimeError("replacement failure"),
         ):
             with self.assertRaises(RuntimeError):

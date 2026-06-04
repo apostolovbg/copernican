@@ -20,7 +20,7 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
         """Build the template plugin through the normal model pipeline."""
 
         repo_root = Path(__file__).resolve().parents[3]
-        template_path = repo_root / "docs" / "cosmo_model_template.yml"
+        template_path = repo_root / "docs" / "model_template.yml"
         with TemporaryDirectory() as cache_dir:
             cache_path = model_spec_validator.validate_and_cache_model(
                 template_path,

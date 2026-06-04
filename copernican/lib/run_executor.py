@@ -27,7 +27,7 @@ from copernican.lib.run_config import (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MODELS_DIR = _REPO_ROOT / "copernican" / "models"
 _MODEL_CACHE_DIR = _MODELS_DIR / "cache"
-_LCDM_MODEL_PATH = _MODELS_DIR / "cosmo_model_lcdm.yml"
+_LCDM_MODEL_PATH = _MODELS_DIR / "model_lcdm.yml"
 _MODEL_SUFFIXES = (".yml", ".yaml")
 
 _PLUGIN_CACHE: dict[str, Any] = {}
@@ -52,9 +52,7 @@ def _model_name_index() -> dict[str, Path]:
             model_name = str(
                 model_metadata.get("model_name") or path.stem
             ).strip()
-            stems = {path.stem, model_name}
-            if path.stem.startswith("cosmo_model_"):
-                stems.add(path.stem.split("cosmo_model_", 1)[-1])
+            stems = {path.stem, path.name, model_name}
             for stem in stems:
                 if not stem:
                     continue
@@ -209,7 +207,7 @@ def execute_run_from_manifest(
         raise
 
     if not _LCDM_MODEL_PATH.is_file():
-        raise RuntimeError("Missing required model cosmo_model_lcdm.yml.")
+        raise RuntimeError("Missing required model model_lcdm.yml.")
     lcdm_plugin = _build_plugin_from_path(_LCDM_MODEL_PATH)
     alt_name = config.models[0] if config.models else None
     alt_plugin = _load_model_plugin(alt_name) if alt_name else lcdm_plugin

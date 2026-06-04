@@ -13,7 +13,7 @@ import camb
 import numpy
 import pandas
 
-import copernican.engines.cosmo_engine_mcmc as engine
+import copernican.engines.engine_mcmc as engine
 import copernican.lib.dataset_registry as dataset_registry
 import copernican.lib.engine_adapter as engine_plugin_validation
 import copernican.lib.model_coder as model_coder
@@ -39,7 +39,7 @@ class FunctionalTestCase(unittest.TestCase):
         # Prepare a validated reference plugin used by several tests.
         base = Path(__file__).resolve().parents[3]
         models_dir = base / "copernican" / "models"
-        yaml_path = models_dir / "cosmo_model_lcdm.yml"
+        yaml_path = models_dir / "model_lcdm.yml"
         cache_dir = models_dir / "cache"
         cache_path = model_spec_validator.validate_and_cache_model(
             yaml_path, cache_dir

@@ -1,4 +1,4 @@
-"""Behavior and integration tests for copernican.engines.cosmo_engine_mcmc."""
+"""Behavior and integration tests for copernican.engines.engine_mcmc."""
 
 import contextlib
 import logging
@@ -15,8 +15,8 @@ import numpy
 import pandas
 import xarray as xarray_dataset
 
-from copernican.engines import cosmo_engine_mcmc as module
-from copernican.engines.cosmo_engine_mcmc import (
+from copernican.engines import engine_mcmc as module
+from copernican.engines.engine_mcmc import (
     _ActiveLogProbability,
     _build_joint_logposterior,
     _classify_parameter_bounds,
@@ -128,7 +128,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(adapter(numpy.array([4.0, 5.0])), 11.0)
 
     def test_sampler_produces_netcdf(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -187,7 +187,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             )
 
     def test_legacy_fit_alias_warns_and_runs(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -243,7 +243,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                     )
 
     def test_progress_logging_reports_statistics(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -327,9 +327,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.isfinite(reseeded).all())
         self.assertTrue(numpy.isfinite(reseeded_logp).all())
 
-    @mock.patch("copernican.engines.cosmo_engine_mcmc.BatchProgressBar")
+    @mock.patch("copernican.engines.engine_mcmc.BatchProgressBar")
     def test_progress_bar_reports_updates(self, bar_cls) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
@@ -356,7 +356,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertGreaterEqual(bar_instance.finish_batch.call_count, 1)
 
     def test_explicit_pool_size_respected(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -376,7 +376,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertGreaterEqual(res["n_walkers"], res["pool_workers"])
 
     def test_log_probability_penalty(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01],
@@ -393,7 +393,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.isneginf(log_posterior))
 
     def test_invalid_walkers_are_reseeded(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -436,7 +436,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(new_log_prob)))
 
     def test_sampler_respects_shared_seed(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -471,7 +471,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         set_random_seed(0)
 
     def test_active_log_probability_expands_parameters(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01],
@@ -508,7 +508,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
 
     def test_sampler_runs_with_spawn_pool(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -529,7 +529,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(math.isfinite(result["log_posterior_best"]))
 
     def test_sampler_handles_fixed_bounds(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_wcdm.yml")
+        plugin = _build_model_plugin("model_wcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -553,7 +553,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
     def test_likelihood_state_reported(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -577,7 +577,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(math.isfinite(result["log_prior_best"]))
 
     def test_joint_fit_component_chi2_totals(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],
@@ -654,7 +654,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
 
     def test_comoving_distance_vectorized(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         params = plugin.INITIAL_GUESSES
         z_vals = numpy.array([0.1, 0.2, 0.3])
         arr = plugin.get_comoving_distance_Mpc(z_vals, *params)
@@ -700,7 +700,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             self.assertLessEqual(cond, 1e12)
 
     def test_sampler_handles_near_fixed_bounds(self) -> None:
-        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        plugin = _build_model_plugin("model_lcdm.yml")
         tight_value = plugin.INITIAL_GUESSES[0]
         plugin.PARAMETER_BOUNDS = list(plugin.PARAMETER_BOUNDS)
         plugin.PARAMETER_BOUNDS[0] = (

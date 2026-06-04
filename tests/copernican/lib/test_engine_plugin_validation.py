@@ -613,16 +613,16 @@ class EngineInterfaceTestCase(unittest.TestCase):
         models_dir = repo_root / "copernican" / "models"
         cache_dir = models_dir / "cache"
         model_names = [
-            "cosmo_model_lcdm.yml",
-            "cosmo_model_lcdm_mnu.yml",
-            "cosmo_model_ref_planck2018.yml",
-            "cosmo_model_tog.yml",
-            "cosmo_model_torg.yml",
-            "cosmo_model_wcdm.yml",
-            "cosmo_model_w0wa.yml",
-            "cosmo_model_qauc.yml",
-            "cosmo_model_qrsf.yml",
-            "cosmo_model_usmf2.yml",
+            "model_lcdm.yml",
+            "model_lcdm_mnu.yml",
+            "model_ref_planck2018.yml",
+            "model_tog.yml",
+            "model_torg.yml",
+            "model_wcdm.yml",
+            "model_w0wa.yml",
+            "model_qauc.yml",
+            "model_qrsf.yml",
+            "model_usmf2.yml",
         ]
         for model_name in model_names:
             with self.subTest(model_name=model_name):
@@ -639,7 +639,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 self.assertIsNotNone(
                     plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
                 )
-                if model_name == "cosmo_model_torg.yml":
+                if model_name == "model_torg.yml":
                     self.assertTrue(plugin.CMB_PERTURBATION_STANDARD)
                     self.assertEqual(
                         plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"][

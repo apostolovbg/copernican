@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -966,10 +966,13 @@ min_word_count: '120'
 doc_routes:
 - copernican/lib/** => README.md, ABOUT.md
 - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
+- copernican/lib/cli/** => README.md, ABOUT.md
 - copernican/rng_minigames/** => README.md, ABOUT.md
 - engines/** => README.md, ABOUT.md
 - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
 - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+- copernican/docs/model_template.yml => README.md, ABOUT.md
+- docs/model_template.yml => README.md, ABOUT.md
 - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
 require_mentions: 'true'
 mention_min_length: '3'

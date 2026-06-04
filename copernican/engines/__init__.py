@@ -3,12 +3,12 @@
 """Engine package exposing available backends."""
 
 # The suite now ships exclusively with the MCMC backend. Engines remain
-# discoverable via ``copernican.engines.cosmo_engine_*.py`` modules so future
+# discoverable via ``copernican.engines.engine_*.py`` modules so future
 # contributors can add deterministic or stochastic solvers without touching the
 # import surface.
 
-from . import cosmo_engine_mcmc
+from . import engine_mcmc
 
 __all__ = [
-    "cosmo_engine_mcmc",
+    "engine_mcmc",
 ]

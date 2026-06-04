@@ -226,13 +226,13 @@ _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
 _ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
-    "copernican.engines.cosmo_engine_mcmc": {
+    "copernican.engines.engine_mcmc": {
         "n_steps": {"min": 1, "max": 500_000},
         "burn_in_steps": {"min": 0, "max": 100_000},
         "n_walkers": {"min": 1, "max": 10_000},
         "pool_size": {"min": 1, "max": "cpu"},
     },
-    "copernican.engines.cosmo_engine_nested": {
+    "copernican.engines.engine_nested": {
         "n_live_points": {"min": 1, "max": 20_000},
         "max_iterations": {"min": 1, "max": 1_000_000},
         "evidence_tolerance": {"min": 1e-6, "max": 1.0},
@@ -813,13 +813,14 @@ class CopernicanGUI:
         """Initialise run-level logging after confirmation."""
 
         log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
+        output_root = Path(self._output_root())
+        run_output_dir = output_root / Path(log_tag).stem
+        run_output_dir.mkdir(parents=True, exist_ok=True)
         self.run_logger, self.run_log_path = logger.setup_monitor_logging(
-            log_dir="logs/runs",
+            log_dir=str(run_output_dir),
             log_tag=log_tag,
         )
-        self._current_run_output_dir = os.path.join(
-            "output", Path(log_tag).stem
-        )
+        self._current_run_output_dir = str(run_output_dir)
         self.run_log_handler = _MemoryLogHandler(prefix="run")
         formatter = logging.Formatter(
             "%(asctime)s - %(levelname)s - %(message)s"
@@ -1287,29 +1288,36 @@ class CopernicanGUI:
                 return record
         return None
 
-    def _load_external_model_from_path(self, path: str) -> dict | None:
-        """Load an external model YAML file into the current selection."""
+    def _load_model_from_path(self, path: str) -> dict | None:
+        """Load a model YAML file from an arbitrary filesystem path."""
 
         candidate = Path(path).expanduser()
         if candidate.suffix.lower() not in {".yml", ".yaml"}:
             self.create_toast(
-                "External models must use a .yml or .yaml file.",
+                "Model files must use a .yml or .yaml file.",
                 severity="ERROR",
                 context="models",
             )
             return None
         if not candidate.is_file():
             self.create_toast(
-                f"External model not found: {candidate}",
+                f"Model not found: {candidate}",
                 severity="ERROR",
                 context="models",
             )
             return None
         try:
+            with tempfile.TemporaryDirectory(
+                prefix="copernican-model-cache-"
+            ) as cache_root:
+                model_spec_validator.validate_and_cache_model(
+                    candidate.resolve(),
+                    cache_root,
+                )
             entry = self._build_model_entry(candidate.resolve())
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
-                f"Failed to load external model: {exc}",
+                f"Failed to load model: {exc}",
                 severity="ERROR",
                 context="models",
             )
@@ -1320,7 +1328,7 @@ class CopernicanGUI:
         self.selected_models = [entry["path"]]
         self.draft.model = entry["path"]
         self.summary.manifest_actions.append(
-            f"Loaded external model from {entry['path']}"
+            f"Loaded model from {entry['path']}"
         )
         return entry
 
@@ -4541,7 +4549,7 @@ class CopernicanGUI:
             self.selected_models = [model_value]
             self.draft.model = model_value
             if entry.get("is_external"):
-                summary_text = f"Loaded external model: {entry['filename']}"
+                summary_text = f"Loaded model: {entry['filename']}"
             else:
                 summary_text = f"Selected model: {entry['id']}"
             summary.config(text=summary_text)
@@ -4574,8 +4582,8 @@ class CopernicanGUI:
                 return
             self._open_path_with_system(entry["path"])
 
-        def _load_external_model() -> None:
-            """Open a picker and load an external model YAML file."""
+        def _load_model() -> None:
+            """Open a picker and load a model YAML file."""
 
             if filedialog is None:
                 self.create_toast(
@@ -4585,7 +4593,7 @@ class CopernicanGUI:
                 )
                 return
             path = filedialog.askopenfilename(
-                title="Load external model",
+                title="Load model...",
                 initialdir=str(Path.home()),
                 filetypes=[
                     ("YAML files", "*.yml *.yaml"),
@@ -4594,11 +4602,11 @@ class CopernicanGUI:
             )
             if not path:
                 return
-            entry = self._load_external_model_from_path(path)
+            entry = self._load_model_from_path(path)
             if entry is None:
                 return
             self.create_toast(
-                f"Loaded external model {entry['filename']}.",
+                f"Loaded model {entry['filename']}.",
                 severity="INFO",
                 context="models",
             )
@@ -4611,8 +4619,8 @@ class CopernicanGUI:
         ).pack(fill="x", pady=(0, 4))
         ttk_module.Button(
             button_frame,
-            text="Load external model...",
-            command=_load_external_model,
+            text="Load model...",
+            command=_load_model,
         ).pack(fill="x", pady=(0, 4))
         ttk_module.Button(
             button_frame,
@@ -4714,11 +4722,7 @@ class CopernicanGUI:
             else:
                 current = self._selected_model_entry
                 if current and current.get("is_external"):
-                    summary.config(
-                        text=(
-                            "Loaded external model: " f"{current['filename']}"
-                        )
-                    )
+                    summary.config(text=f"Loaded model: {current['filename']}")
                     _refresh_model_preview(current)
                 else:
                     self.selected_models = []
@@ -5140,7 +5144,11 @@ class CopernicanGUI:
             (
                 key
                 for key, value in display_map.items()
-                if value["id"] == self.selected_engine
+                if (
+                    value["id"] == self.selected_engine
+                    or value["stem"] == self.selected_engine
+                    or value["filename"] == self.selected_engine
+                )
             ),
             choices[0],
         )
@@ -6638,13 +6646,14 @@ class CopernicanGUI:
         cache_dir = models_root / "cache"
         rebuilt = 0
         try:
-            for yaml_path in sorted(models_root.glob("*.yml")):
-                if yaml_path.name.startswith("__"):
-                    continue
-                model_spec_validator.validate_and_cache_model(
-                    yaml_path, cache_dir
-                )
-                rebuilt += 1
+            for pattern in ("*.yml", "*.yaml"):
+                for yaml_path in sorted(models_root.glob(pattern)):
+                    if yaml_path.name.startswith("__"):
+                        continue
+                    model_spec_validator.validate_and_cache_model(
+                        yaml_path, cache_dir
+                    )
+                    rebuilt += 1
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Model cache rebuild failed: {exc}",
@@ -7195,28 +7204,32 @@ class CopernicanGUI:
             for entry in self.engine_index.values():
                 if (
                     entry.get("id") == candidate
+                    or entry.get("stem") == candidate
                     or entry["filename"] == candidate
                 ):
                     self._selected_engine_entry = entry
                     return entry
         raise RuntimeError("Select an engine before starting the run.")
 
-    def _prepare_progress_path(self) -> str:
-        """Return the path where the CLI worker writes GUI progress."""
+    def _prepare_progress_path(self, base_dir: Path | None = None) -> str:
+        """Return the path where the GUI stores progress snapshots."""
 
-        directory = os.path.join("logs", "progress")
-        os.makedirs(directory, exist_ok=True)
-        return os.path.join(
-            directory,
-            f"gui_progress_{utils.get_timestamp()}.json",
+        directory = (
+            base_dir
+            if base_dir is not None
+            else Path(self._output_root()) / ".progress"
         )
+        directory.mkdir(parents=True, exist_ok=True)
+        return str(directory / f"gui_progress_{utils.get_timestamp()}.json")
 
     def _build_worker_config(self) -> dict:
         """Return the serialized configuration passed to the CLI worker."""
 
         if self.manifest_workspace is None:
             raise RuntimeError("No saved manifest is available.")
-        progress_path = self._prepare_progress_path()
+        progress_path = self._prepare_progress_path(
+            Path(self.manifest_workspace.folder)
+        )
         self._progress_state_path = progress_path
         progress_state.clear_progress(progress_path)
         return {

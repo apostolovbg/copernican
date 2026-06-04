@@ -10,7 +10,7 @@ import unittest
 import pandas
 import yaml
 
-from copernican.engines import cosmo_engine_mcmc
+from copernican.engines import engine_mcmc
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, result_writer
 
@@ -23,7 +23,7 @@ class TestResultWriter(unittest.TestCase):
             os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         )
         models_dir = os.path.join(repo_root, "copernican", "models")
-        yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
+        yaml_path = os.path.join(models_dir, "model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
         cache_path = model_spec_validator.validate_and_cache_model(
             yaml_path, cache_dir
@@ -40,7 +40,7 @@ class TestResultWriter(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_cosmology_parameters(
+        res = engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -76,7 +76,7 @@ class TestResultWriter(unittest.TestCase):
                 self.assertEqual(sampling.get("production_steps"), 6)
                 self.assertEqual(sampling.get("burn_in_steps"), 12)
                 _lower, _upper, fixed_mask = (
-                    cosmo_engine_mcmc._classify_parameter_bounds(
+                    engine_mcmc._classify_parameter_bounds(
                         plugin.PARAMETER_BOUNDS,
                         logger=logging.getLogger(),
                     )

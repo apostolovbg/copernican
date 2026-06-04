@@ -11,7 +11,7 @@ import unittest
 import numpy as numpy_module
 import yaml
 
-from copernican.engines import cosmo_engine_mcmc, cosmo_engine_nested
+from copernican.engines import engine_mcmc, engine_nested
 from copernican.lib import dataset_registry, result_writer, run_manifest, utils
 from tests.copernican.datasets.synthetic import model_plugin
 
@@ -113,8 +113,8 @@ class TestSyntheticIntegration(unittest.TestCase):
             ):
                 _assert_hashes(self, dataset_frame)
 
-            for engine_module in (cosmo_engine_mcmc, cosmo_engine_nested):
-                if engine_module is cosmo_engine_mcmc:
+            for engine_module in (engine_mcmc, engine_nested):
+                if engine_module is engine_mcmc:
                     fit_result = engine_module.fit_cosmology_parameters(
                         sne_dataframe,
                         plugin,

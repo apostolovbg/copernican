@@ -224,15 +224,15 @@ def setup_logging(
 
 
 def setup_monitor_logging(
-    log_dir: str = "logs/runs",
+    log_dir: str = str(Path.home() / "copernican_output" / ".monitor"),
     *,
     log_tag: str | None = None,
 ) -> tuple[logging.Logger, str]:
     """Prepare a dedicated monitor log file and return its logger.
 
     The GUI Run Monitor writes to this logger so its tail can be displayed in
-    the console.  The logs live under ``logs/runs`` by default so they remain
-    separate from the per-run reproducibility files stored under ``output/``.
+    the console.  The fallback keeps the monitor log under the user's output
+    root instead of the repository root.
     """
 
     ensure_dir_exists(log_dir)

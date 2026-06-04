@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -23,6 +23,9 @@ help stay aligned with the runtime path layout.
 
 Troubleshooting should start with the run folder logs and the shared
 application log shown in the GUI.
+
+If a model path fails to load, check the exact path, suffix, and
+validation error that the CLI or GUI reports.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and

@@ -4,7 +4,7 @@
 """Utilities for writing MCMC chains to NetCDF files.
 
 This module stores posterior samples produced by engines such as the
-``cosmo_engine_mcmc`` backend.  Chains are saved in the NetCDF format using
+``engine_mcmc`` backend.  Chains are saved in the NetCDF format using
 ArviZ so that users can analyse results with a broad ecosystem of Bayesian
 tools.  The helper aims to keep file handling consistent across engines and to
 centralise metadata attachment so future formats can be supported from one

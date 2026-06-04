@@ -6,12 +6,12 @@ The validation suite now runs *real* manifests through the same pipeline that
 the GUI and CLI use for ordinary analyses. The manifest files live under
 `copernican/validation/manifests/`, and the canonical manifest
 `reference_planck2018.yml` evaluates the fixed-parameter
-`copernican/models/cosmo_model_ref_planck2018.yml` against the publicly
+`copernican/models/model_ref_planck2018.yml` against the publicly
 released Union Through UNITY 2000 SNe, BOSS DR12 BAO and Planck 2018 Lite
 datasets.
 
 ## Reference model
-`copernican/models/cosmo_model_ref_planck2018.yml` fixes the Hubble constant,
+`copernican/models/model_ref_planck2018.yml` fixes the Hubble constant,
 matter/baryon densities, photon density, effective neutrino number and
 recombination redshift to the values reported in Planck Collaboration VI
 (2018, Table 2). Each prior is declared as a `fixed` value so the run still

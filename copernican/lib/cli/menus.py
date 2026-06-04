@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import os
 import secrets
+import tempfile
 import time
+from pathlib import Path
 from typing import Iterable
 
 from copernican.lib import console_output as console
 from copernican.lib import utils
+
+_MODEL_SUFFIXES = (".yml", ".yaml")
 
 
 def show_splash_screen(version: str) -> None:
@@ -99,7 +103,45 @@ def select_seed() -> int:
     return seed
 
 
-def select_from_list(options, prompt):
+def _load_model_path() -> str | None:
+    """Prompt for an exact model file path and validate it."""
+
+    from copernican.lib import model_spec_validator
+
+    while True:
+        entry = console.ask("Enter exact model path or 'c' to cancel: ")
+        candidate = Path(entry.strip()).expanduser()
+        if not entry.strip() or entry.strip().lower() == "c":
+            return None
+        if candidate.suffix.lower() not in _MODEL_SUFFIXES:
+            console.write(
+                "Model files must use a .yml or .yaml suffix.",
+                error=True,
+            )
+            continue
+        if not candidate.is_file():
+            console.write(f"Model not found: {candidate}", error=True)
+            continue
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="copernican-model-cache-"
+            ) as cache_root:
+                model_spec_validator.validate_and_cache_model(
+                    candidate.resolve(),
+                    cache_root,
+                )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            console.write(f"Failed to load model: {exc}", error=True)
+            continue
+        return str(candidate.resolve())
+
+
+def select_from_list(
+    options,
+    prompt,
+    *,
+    allow_load_model: bool = False,
+):
     """Display ``options`` and return the item chosen by the user."""
 
     if not options:
@@ -112,16 +154,42 @@ def select_from_list(options, prompt):
     console.write("-" * len(header))
     for i, opt in enumerate(options, start=1):
         console.write(f"  {i}. {opt}")
-    console.write(
-        "Write the number of your preferred choice or 'c' to cancel:"
-    )
+    load_model_option = None
+    if allow_load_model:
+        load_model_option = len(options) + 1
+        console.write(f"  {load_model_option}. Load model...")
+    if allow_load_model:
+        console.write(
+            "Write the number of your preferred choice, "
+            "'Load model...', or 'c' to cancel:"
+        )
+    else:
+        console.write(
+            "Write the number of your preferred choice or 'c' to cancel:"
+        )
     while True:
         choice = console.ask("> ").strip()
-        if choice.lower() == "c":
+        choice_lower = choice.lower()
+        if choice_lower == "c":
             return None
+        if allow_load_model and choice_lower in {
+            str(load_model_option),
+            "load model...",
+        }:
+            return _load_model_path()
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             return options[int(choice) - 1]
         console.write("Invalid selection. Try again.")
+
+
+def select_model_from_list(options, prompt):
+    """Display model choices and allow loading a YAML file by path."""
+
+    return select_from_list(
+        options,
+        prompt,
+        allow_load_model=True,
+    )
 
 
 def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:

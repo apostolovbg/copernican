@@ -48,7 +48,7 @@ described throughout this document.
   suspension context so diagnostics can print between updates without the old
   carriage-return renderer.
 * `copernican/engines/` contains back ends such as the default
-  ``cosmo_engine_mcmc.py``. Engines consume `EnginePlugin` definitions,
+  ``engine_mcmc.py``. Engines consume `EnginePlugin` definitions,
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
   ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
   unavailable the code falls back to a conservative Gelman–Rubin summary while
@@ -125,7 +125,7 @@ Stage 1 focuses on reproducibility and validation:
   Validation errors are aggregated and displayed as bullet points before the
   user is asked whether to restart Stage 1 or exit entirely.
 * Engine selection is dynamic: any file matching
-  `copernican/engines/cosmo_engine_*.py` appears in the menu. Prompts reflect
+  `copernican/engines/engine_*.py` appears in the menu. Prompts reflect
   the selected backend so ensemble MCMC users configure burn-in, walkers and
   worker pools while nested sampling users pick live-point budgets and
   evidence tolerances. A confirmation summary makes the intended plan explicit

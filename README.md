@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -95,7 +95,7 @@ the same convention.
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.
 - `copernican/engines/` collects sampler back ends. The default
-  `copernican.engines.cosmo_engine_mcmc`
+  `copernican.engines.engine_mcmc`
   couples `emcee` with ArviZ when available; the nested sampler mirrors the
   same schema while exposing evidences. Both reuse the shared progress
   renderer and manifest helpers.
@@ -152,17 +152,21 @@ clear remove temporary folders. The Run Settings panel mirrors the CLI
 prompts (walkers, burn-in, production, pool size) so GUI runs and CLI runs
 share the same configuration metadata. Quick actions keep the dataset catalog
 health overview, import manifest flow and output directory helpers within
-reach.
+reach. The Models step also includes a `Load model...` action that opens a
+file picker for any valid `.yml` or `.yaml` model path, matching the CLI's
+exact-path loading rule.
 Folder-open actions use the operating system's native handlers so the GUI can
 open output locations without changing the launch behavior that operators
 already expect.
 
-The Run Monitor threads CLI stdout/stderr into a log box that tails
-`logs/runs/*.txt`, mirrors the counter-based progress updates from the sampler
-and keeps the Cancel/Hard Stop buttons disabled until a run starts. A “Lock
-log to latest entry” checkbox pins the view so operators can watch batches
-finish without scrolling. Metadata dialogs size themselves to the longest
-line, add an “Open file…” action that launches the OS editor and keep
+The Run Monitor threads CLI stdout/stderr into a log box that tails the
+per-run `copernican-run_<timestamp>.txt` file inside
+`~/copernican_output/copernican-run_<timestamp>/`, mirrors the
+counter-based progress updates from the sampler and keeps the Cancel/
+Hard Stop buttons disabled until a run starts. A “Lock log to latest
+entry” checkbox pins the view so operators can watch batches finish
+without scrolling. Metadata dialogs size themselves to the longest line,
+add an “Open file…” action that launches the OS editor and keep
 horizontal resizing locked while allowing unlimited vertical growth.
 
 ## Analysis workspace

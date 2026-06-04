@@ -47,13 +47,14 @@ The CLI mirrors the Run Builder pages:
 
 1. **Seed selection** – Accept the default seed (`0`), supply your own value or
    request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
-2. **Model selection** – Choose any `cosmo_model_*.yml` discovered under
-   `copernican/models/`. The CLI validates YAML using the cached schema
-   before generating engine adapters.
+2. **Model selection** – Choose any `model_*.yml` discovered under
+   `copernican/models/`, or use the final `Load model...` option to type an
+   exact path to any valid `.yml` or `.yaml` file on disk. The CLI validates
+   YAML using the cached schema before generating engine adapters.
 3. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
    Parsers are verified by SHA256 digest before their modules are imported.
 4. **Engine selection** – Choose a sampler backend from `copernican/engines/`.
-   The default is `copernican/engines/cosmo_engine_mcmc.py` unless you
+   The default is `copernican/engines/engine_mcmc.py` unless you
    override it. Engine metadata (walkers, burn-in, production steps, pool
    size) is gathered immediately after the engine choice. When a selected
    engine detects that every parameter is fixed (for example, when the
@@ -66,13 +67,14 @@ The CLI mirrors the Run Builder pages:
    writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
    naming convention as the GUI. The manifest records dataset hashes, model
    metadata, engine knobs and Git information. The CLI run log for each
-   manifest resides under the resulting `output/copernican-run_<timestamp>/`
-   folder as `copernican-run_<timestamp>.txt`. GUI-launched runs also write a
-   lighter monitoring log to `logs/runs/*.txt` so the Run Monitor can tail
-   progress without editing the reproducibility artifacts.
+   manifest resides under the resulting
+   `~/copernican_output/copernican-run_<timestamp>/` folder as
+   `copernican-run_<timestamp>.txt`. GUI-launched runs also write the same
+   per-run monitoring log there so the Run Monitor can tail progress without
+   editing the reproducibility artifacts.
 6. **Confirm and Launch** – The CLI displays a summary, asks for confirmation
-   and starts the worker. Logs stream to stdout and to `logs/copernican-
-   run_<timestamp>.txt` in parallel.
+   and starts the worker. Logs stream to stdout and to the per-run
+   `copernican-run_<timestamp>.txt` file in parallel.
 
 Every stage logs progress and flushes stdout so long optimisations remain
 responsive even on remote terminals. Menu prompts use numbered options to keep
@@ -94,7 +96,7 @@ flags execute their action and exit immediately:
   inspect it without opening a GUI metadata viewer.
 - `--run-validation` – Executes the golden manifests under
   `copernican/validation/manifests/` (currently `reference_planck2018.yml`),
-  runs the fixed `copernican/models/cosmo_model_ref_planck2018.yml`, writes
+  runs the fixed `copernican/models/model_ref_planck2018.yml`, writes
   the NEW_CONFIG/results into
   `copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`,
   and saves the textual summary to `~/VALIDATION.md` before exiting. The
@@ -130,8 +132,8 @@ flags execute their action and exit immediately:
 Both the CLI and GUI rely on
 `copernican.lib.run_executor.execute_run_from_manifest`. To reuse a manifest:
 
-1. Save or copy the manifest (e.g., `output/copernican-run_20251203_154118/
-   run_manifest_20251203_154118.yml`).
+1. Save or copy the manifest (e.g.,
+   `~/copernican_output/.../run_manifest_20251203_154118.yml`).
 2. Run `python -m copernican --manifest /path/to/manifest.yml`.
 3. (Optional) Set `--output-dir` to store outputs in a deterministic folder for
    CI environments.
@@ -166,7 +168,8 @@ launcher policies and DevCovenant rules enforced in CI.
 The CLI prints an environment summary at startup (Python version, OS, CPU,
 NumPy/SciPy versions) and enables `faulthandler` so fatal signals dump stack
 traces to both stdout and the log file. Each run receives its own
-`logs/copernican-run_<timestamp>.txt` with the per-walker progress indicators,
+`~/copernican_output/.../copernican-run_<timestamp>.txt` with the
+per-walker progress indicators,
 engine messages and warnings. Use `tail -f` or your preferred log viewer to
 monitor long runs, and cross-reference the GUI Run Monitor if you transition
 from CLI to GUI mid-analysis—the manifest files remain compatible across both

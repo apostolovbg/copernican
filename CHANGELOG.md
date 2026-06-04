@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,199 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-04:
+  Change: Synced package docs and refreshed touched doc dates.
+  Why: Clear the current refresh and verify violations.
+  Impact: Package ABOUT and SUPPORT now match the source docs, and
+  touched docs carry today's Last Updated marker.
+  Files:
+  ABOUT.md
+  AGENTS.md
+  CHANGELOG.md
+  README.md
+  SUPPORT.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  LICENSE.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cosmo_model_template.yml
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/model_template.yml
+  copernican/engines/__init__.py
+  copernican/engines/cosmo_engine_mcmc.py
+  copernican/engines/cosmo_engine_nested.py
+  copernican/engines/engine_mcmc.py
+  copernican/engines/engine_nested.py
+  copernican/lib/chain_io.py
+  copernican/lib/cli/menus.py
+  copernican/lib/gui/app.py
+  copernican/lib/logger.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/models/cosmo_model_lcdm.yml
+  copernican/models/cosmo_model_lcdm_mnu.yml
+  copernican/models/cosmo_model_qauc.yml
+  copernican/models/cosmo_model_qrsf.yml
+  copernican/models/cosmo_model_ref_planck2018.yml
+  copernican/models/cosmo_model_tog.yml
+  copernican/models/cosmo_model_torg.yml
+  copernican/models/cosmo_model_usmf2.yml
+  copernican/models/cosmo_model_w0wa.yml
+  copernican/models/cosmo_model_wcdm.yml
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/cosmo_model_template.yml
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/model_template.yml
+  tests/copernican/datasets/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/copernican/datasets/synthetic/test_synthetic_integration.py
+  tests/copernican/lib/cli/test_menus.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/likelihoods/test_cmb.py
+  tests/copernican/lib/test_core.py
+  tests/copernican/lib/test_cosmo_model_template.py
+  tests/copernican/lib/test_engine_plugin_validation.py
+  tests/copernican/lib/test_likelihoods.py
+  tests/copernican/lib/test_model_priors.py
+  tests/copernican/lib/test_model_template.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/engines/test_cosmo_engine_mcmc.py
+  tests/engines/test_cosmo_engine_nested.py
+  tests/engines/test_engine_mcmc.py
+  tests/engines/test_engine_nested.py
+
+- 2026-06-03:
+  Change: Removed the root logs path from GUI monitor logging and
+  updated the monitor fallback to stay under the user output root.
+  Why: Preserve per-run output logs and prevent the repo root logs
+  directory from resurfacing.
+  Impact: Aligned the GUI monitor with the per-run output path and
+  documented the new log location.
+  Files:
+  ABOUT.md
+  CHANGELOG.md
+  LICENSE.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cli_guide.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/cosmo_model_template.yml
+  copernican/docs/model_template.yml
+  copernican/engines/__init__.py
+  copernican/engines/cosmo_engine_mcmc.py
+  copernican/engines/engine_mcmc.py
+  copernican/engines/cosmo_engine_nested.py
+  copernican/engines/engine_nested.py
+  copernican/lib/chain_io.py
+  copernican/lib/cli/menus.py
+  copernican/lib/gui/app.py
+  copernican/lib/logger.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/models/cosmo_model_lcdm.yml
+  copernican/models/model_lcdm.yml
+  copernican/models/cosmo_model_lcdm_mnu.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/cosmo_model_qauc.yml
+  copernican/models/model_qauc.yml
+  copernican/models/cosmo_model_qrsf.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/cosmo_model_ref_planck2018.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/cosmo_model_tog.yml
+  copernican/models/model_tog.yml
+  copernican/models/cosmo_model_torg.yml
+  copernican/models/model_torg.yml
+  copernican/models/cosmo_model_usmf2.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/cosmo_model_w0wa.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/cosmo_model_wcdm.yml
+  copernican/models/model_wcdm.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  SUPPORT.md
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/cosmo_model_template.yml
+  docs/model_template.yml
+  tests/copernican/datasets/bao/bossdr12/test_cosmo_parser_bossdr12.py
+  tests/copernican/datasets/synthetic/test_synthetic_integration.py
+  tests/copernican/lib/cli/test_menus.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/likelihoods/test_cmb.py
+  tests/copernican/lib/test_core.py
+  tests/copernican/lib/test_engine_plugin_validation.py
+  tests/copernican/lib/test_likelihoods.py
+  tests/copernican/lib/test_model_priors.py
+  tests/copernican/lib/test_cosmo_model_template.py
+  tests/copernican/lib/test_model_template.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/engines/test_cosmo_engine_mcmc.py
+  tests/engines/test_engine_mcmc.py
+  tests/engines/test_cosmo_engine_nested.py
+  tests/engines/test_engine_nested.py
+
+- 2026-06-03:
+  Change: Renamed the cached cosmo model filenames to match the new
+  model naming scheme.
+  Why: Preserve generated cache artifacts under the renamed models and
+  prevent stale cosmo prefixes from resurfacing.
+  Impact: Aligned the cache filenames with the renamed model files.
+  Files:
+  copernican/models/cache/cache_cosmo_model_lcdm.yml
+  copernican/models/cache/cache_model_lcdm.yml
+  copernican/models/cache/cache_cosmo_model_lcdm_mnu.yml
+  copernican/models/cache/cache_model_lcdm_mnu.yml
+  copernican/models/cache/cache_cosmo_model_qauc.yml
+  copernican/models/cache/cache_model_qauc.yml
+  copernican/models/cache/cache_cosmo_model_qrsf.yml
+  copernican/models/cache/cache_model_qrsf.yml
+  copernican/models/cache/cache_cosmo_model_ref_planck2018.yml
+  copernican/models/cache/cache_model_ref_planck2018.yml
+  copernican/models/cache/cache_cosmo_model_tog.yml
+  copernican/models/cache/cache_model_tog.yml
+  copernican/models/cache/cache_cosmo_model_torg.yml
+  copernican/models/cache/cache_model_torg.yml
+  copernican/models/cache/cache_cosmo_model_usmf2.yml
+  copernican/models/cache/cache_model_usmf2.yml
+  copernican/models/cache/cache_cosmo_model_w0wa.yml
+  copernican/models/cache/cache_model_w0wa.yml
+  copernican/models/cache/cache_cosmo_model_wcdm.yml
+  copernican/models/cache/cache_model_wcdm.yml
 
 - 2026-06-03:
   Change: Closed Slice 4 and Slice 5 in the plan after validation

@@ -24,7 +24,7 @@ class TestRunConfig(unittest.TestCase):
             "selection": {
                 "models": ["LambdaCDM"],
                 "engine": {
-                    "name": "copernican.engines.cosmo_engine_mcmc",
+                    "name": "copernican.engines.engine_mcmc",
                     "version": "7.6.20",
                 },
             },
@@ -51,7 +51,7 @@ class TestRunConfig(unittest.TestCase):
         self.assertEqual(config.seed, 42)
         self.assertEqual(config.models, ["LambdaCDM"])
         self.assertEqual(
-            config.engine.module_name, "copernican.engines.cosmo_engine_mcmc"
+            config.engine.module_name, "copernican.engines.engine_mcmc"
         )
         self.assertEqual(config.engine.version, "7.6.20")
         self.assertEqual(config.run_settings.engine_kind, "mcmc")

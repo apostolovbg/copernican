@@ -77,7 +77,9 @@ each page. The steps are:
    controls, all documented in the alien-invasion README.
 2. **Models** – Single-select list with quick metadata access. The preview pane
    stays pinned above the footer and shortens automatically so dataset controls
-   remain visible.
+   remain visible. The page also offers a `Load model...` button that opens a
+   file picker for any valid `.yml` or `.yaml` file, matching the CLI's
+   exact-path model-loading rule.
 3. **Data** – Three fixed-height (four-row) listboxes stack vertically for SNe,
    BAO and CMB catalogues. Each box is 500 px wide and uses a dedicated
    scrollbar so selections remain readable.

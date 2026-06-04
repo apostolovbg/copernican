@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import MethodType, SimpleNamespace
+from unittest import mock
 
 import yaml
 
@@ -181,7 +182,9 @@ def _case_external_model_loading_and_output_root(self) -> None:
             yaml.safe_dump(
                 {
                     "model_name": "ExternalModel",
+                    "version": "1.0",
                     "parameters": [],
+                    "equations": {},
                     "valid_for_bao": False,
                     "valid_for_cmb": False,
                 },
@@ -189,7 +192,7 @@ def _case_external_model_loading_and_output_root(self) -> None:
             ),
             encoding="utf-8",
         )
-        entry = gui._load_external_model_from_path(str(model_path))
+        entry = gui._load_model_from_path(str(model_path))
         self.assertIsNotNone(entry)
         self.assertEqual(entry["filename"], "external_model.yaml")
         self.assertEqual(gui.selected_models[0], str(model_path.resolve()))
@@ -321,7 +324,7 @@ def _case_auto_loads_saved_temp_manifest(
     workspace = output_dir / "copernican_run_NEW_CONFIG"
     workspace.mkdir(parents=True)
     engine_module = SimpleNamespace(
-        __name__="cosmo_engine_mcmc",
+        __name__="copernican.engines.engine_mcmc",
         ENGINE_VERSION="test",
     )
     model_plugin = SimpleNamespace(
@@ -351,7 +354,10 @@ def _case_auto_loads_saved_temp_manifest(
         output_policy="unprepared",
         configuration={
             "models": ["TestModel"],
-            "engine": {"name": "cosmo_engine_mcmc", "version": "test"},
+            "engine": {
+                "name": "copernican.engines.engine_mcmc",
+                "version": "test",
+            },
             "datasets": ["planck2020"],
         },
     )
@@ -364,7 +370,7 @@ def _case_auto_loads_saved_temp_manifest(
     )
     try:
         os.chdir(tmp_path)
-        with unittest.mock.patch.object(
+        with mock.patch.object(
             Path,
             "home",
             return_value=home_dir,
@@ -503,7 +509,7 @@ def _case_duplicate_manifest_prefills_builder(
     tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
     gui.selected_models = ["LambdaCDM"]
-    gui.selected_engine = "cosmo_engine_mcmc"
+    gui.selected_engine = "copernican.engines.engine_mcmc"
     gui.draft.seed = "5"
     gui.register_dataset(
         dataset_id="planck_2018_lite",

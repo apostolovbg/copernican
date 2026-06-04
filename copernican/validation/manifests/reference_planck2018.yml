@@ -3,10 +3,10 @@ copernican:
 models:
 - name: Planck 2018 Reference LambdaCDM
   version: '1.0'
-  filename: cosmo_model_ref_planck2018.yml
+  filename: model_ref_planck2018.yml
   priors: {}
 engine:
-  name: copernican.engines.cosmo_engine_mcmc
+  name: copernican.engines.engine_mcmc
   version: validation
 seed: 0
 datasets:
@@ -60,9 +60,9 @@ status:
   outputs: unprepared
 selection:
   models:
-  - cosmo_model_ref_planck2018
+  - model_ref_planck2018
   engine:
-    name: copernican.engines.cosmo_engine_mcmc
+    name: copernican.engines.engine_mcmc
     version: validation
   datasets:
   - union3_2025
@@ -70,9 +70,9 @@ selection:
   - planck_2018_lite
 configuration:
   models:
-  - cosmo_model_ref_planck2018
+  - model_ref_planck2018
   engine:
-    name: copernican.engines.cosmo_engine_mcmc
+    name: copernican.engines.engine_mcmc
     version: validation
   datasets:
   - union3_2025

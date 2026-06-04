@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -31,6 +31,12 @@ path layout.
 The CLI and GUI share one application logger, and each run keeps its own
 run logs inside the generated `~/copernican_output/copernican-run_*`
 folder.
+
+The model chooser now offers `Load model...` so any valid `.yml` or
+`.yaml` file can load by exact path in the CLI or GUI.
+
+The engine modules dropped the `cosmo_` prefix, so the docs and package
+surface now refer to `engine_*` files.
 
 `copernican/workflow.py` owns the launch flow for the package entry points,
 and `copernican/lib/global_settings/copernican_settings.yml` carries the

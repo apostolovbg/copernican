@@ -42,7 +42,7 @@ class TestRunExecutor(unittest.TestCase):
             "selection": {
                 "models": ["LambdaCDM"],
                 "engine": {
-                    "name": "copernican.engines.cosmo_engine_mcmc",
+                    "name": "copernican.engines.engine_mcmc",
                     "version": "7.6.20",
                 },
             },

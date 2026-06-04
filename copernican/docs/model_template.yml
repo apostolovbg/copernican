@@ -2,7 +2,7 @@ model_name: TemplateModel
 version: "1.0"
 description: |
   This template is the canonical source of truth for generative agents and
-  reviewers. It documents every field that a valid `cosmo_model_*.yml` may
+  reviewers. It documents every field that a valid `model_*.yml` may
   contain. The `parameters` list combines real physics knobs with instructive
   metadata so you can infer the required structure when composing a new model.
   * Define each parameter with `name`, `python_var` if the default identifier
