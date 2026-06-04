@@ -80,6 +80,38 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-04:
+  Change: Added the workflow doc route and bootstrapped the GitHub
+  Actions governance job with the repo-local `.venv`.
+  Why: Keep CI aligned with the managed environment and document the
+  workflow change.
+  Impact: Aligns GitHub CI with the repo venv, refreshes the mirrored
+  docs, and records the workflow doc route.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  copernican/README.md
+  copernican/ABOUT.md
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/github/assets/ci.yml
+  devcovenant/registry/registry.yaml
+  .github/workflows/ci.yml
+  AGENTS.md
+
+- 2026-06-04:
+  Change: Copied the builtin `devcovuser` profile into custom and
+  removed the vendor ignore so the bundled GUI assets can be tracked.
+  Why: Keep the vendored TkinterWeb sources available in clean
+  checkouts without shadowing the rest of the builtin profile.
+  Impact: Exposes `copernican/lib/vendor/` in git, removes the generated
+  vendor ignore, and updates the derived registry state.
+  Files:
+  CHANGELOG.md
+  devcovenant/custom/profiles/devcovuser/devcovuser.yaml
+  .gitignore
+  copernican/lib/vendor/
+
+- 2026-06-04:
   Change: Updated the banner image links in both README files to the
   main-branch GitHub raw URL.
   Why: Ensure PyPI renders the project banner from an absolute source

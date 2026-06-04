@@ -973,6 +973,7 @@ doc_routes:
 - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
 - copernican/docs/model_template.yml => README.md, ABOUT.md
 - docs/model_template.yml => README.md, ABOUT.md
+- .github/workflows/ci.yml => README.md, ABOUT.md
 - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
 require_mentions: 'true'
 mention_min_length: '3'

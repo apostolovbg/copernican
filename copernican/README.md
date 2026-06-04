@@ -29,6 +29,10 @@ run logs inside the generated `~/copernican_output/copernican-run_*` folder.
 `copernican/lib/global_settings/copernican_settings.yml` supplies the
 GUI-facing defaults that shape that flow.
 
+The GitHub Actions governance job now boots the repo-local `.venv`
+before it runs DevCovenant so CI matches the managed-environment
+contract used in local work.
+
 Union3 compressed SNe data require additive intercept marginalization in the
 SNe likelihood, CSV export and plot residual paths so all residual views use
 the same convention.

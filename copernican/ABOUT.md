@@ -42,6 +42,10 @@ surface now refer to `engine_*` files.
 and `copernican/lib/global_settings/copernican_settings.yml` carries the
 GUI-facing defaults that shape that flow.
 
+The GitHub Actions governance job also bootstraps the repo-local `.venv`
+before it invokes DevCovenant, keeping CI aligned with local managed
+environment runs.
+
 ## Package Surface
 The package root is part of the public contract. It includes the README,
 policy-facing metadata, and the mirrored support documents that describe how

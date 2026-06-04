@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: bab7c4cc958a4f2881508de1ab4bc964692ecf9ad975fd2874bfd6c31f27011a
+  policy_registry_input_hash: 5d4976bbd5e845eb8307835fc348236ea54b71b504e17d18c529468616ccc3cc
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3787,6 +3787,7 @@ policies:
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
       - copernican/docs/model_template.yml => README.md, ABOUT.md
       - docs/model_template.yml => README.md, ABOUT.md
+      - .github/workflows/ci.yml => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       require_mentions: 'true'
       mention_min_length: '3'
@@ -4441,6 +4442,7 @@ policies:
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
           - copernican/docs/model_template.yml => README.md, ABOUT.md
           - docs/model_template.yml => README.md, ABOUT.md
+          - .github/workflows/ci.yml => README.md, ABOUT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           behavior: replace
           replaced_inherited_values:
@@ -4464,6 +4466,7 @@ policies:
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
           - copernican/docs/model_template.yml => README.md, ABOUT.md
           - docs/model_template.yml => README.md, ABOUT.md
+          - .github/workflows/ci.yml => README.md, ABOUT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       require_mentions:
         descriptor:
@@ -4932,6 +4935,7 @@ policies:
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
       - copernican/docs/model_template.yml => README.md, ABOUT.md
       - docs/model_template.yml => README.md, ABOUT.md
+      - .github/workflows/ci.yml => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       message: user_overrides replaces inherited metadata for `documentation-growth-tracking.doc_routes`;
         use overlays if you intended additive behavior.
@@ -5076,6 +5080,8 @@ policies:
       - ABOUT.md
       - docs/model_template.yml => README.md
       - ABOUT.md
+      - .github/workflows/ci.yml => README.md
+      - ABOUT.md
       - copernican/workflow.py => README.md
       - ABOUT.md
       - SUPPORT.md
@@ -5182,6 +5188,7 @@ policies:
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
       - copernican/docs/model_template.yml => README.md, ABOUT.md
       - docs/model_template.yml => README.md, ABOUT.md
+      - .github/workflows/ci.yml => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     runtime_effective_options:
       id: documentation-growth-tracking
@@ -5227,6 +5234,7 @@ policies:
     - ./SUPPORT.md
     - .github/workflows/*.yaml
     - .github/workflows/*.yml
+    - .github/workflows/ci.yml => README.md
     - .hypothesis/**
     - .idea/**
     - .json
@@ -13107,7 +13115,6 @@ profiles:
     category: core
     suffixes: []
     ignore_dirs:
-    - vendor
     - third_party
     - node_modules
     policy_overlays:
@@ -13178,8 +13185,8 @@ profiles:
         - devcovenant
         force_include_globs:
         - devcovenant/custom/**/*.py
-    source: builtin
-    path: devcovenant/builtin/profiles/devcovuser
+    source: custom
+    path: devcovenant/custom/profiles/devcovuser
     assets_available: []
     active: true
   docker:
