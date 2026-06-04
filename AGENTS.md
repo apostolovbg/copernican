@@ -968,6 +968,7 @@ doc_routes:
 - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
 - copernican/lib/cli/** => README.md, ABOUT.md
 - copernican/rng_minigames/** => README.md, ABOUT.md
+- copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
 - engines/** => README.md, ABOUT.md
 - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
 - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md

@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 5d4976bbd5e845eb8307835fc348236ea54b71b504e17d18c529468616ccc3cc
+  policy_registry_input_hash: 85beaf0d8c48f65262f74d202986a4524ed51f919be5664d9286a16d02d2d43c
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3782,6 +3782,7 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
+      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4437,6 +4438,7 @@ policies:
           - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/cli/** => README.md, ABOUT.md
           - copernican/rng_minigames/** => README.md, ABOUT.md
+          - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4461,6 +4463,7 @@ policies:
           - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/cli/** => README.md, ABOUT.md
           - copernican/rng_minigames/** => README.md, ABOUT.md
+          - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4930,6 +4933,7 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
+      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -5068,6 +5072,8 @@ policies:
       - ABOUT.md
       - copernican/rng_minigames/** => README.md
       - ABOUT.md
+      - copernican/rng_minigames/*/ai_settings.yml => README.md
+      - copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md
       - ABOUT.md
       - pyproject.toml => ABOUT.md
@@ -5183,6 +5189,7 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
+      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -5261,6 +5268,8 @@ policies:
     - copernican/lib/gui/** => README.md
     - copernican/models/**
     - copernican/rng_minigames/** => README.md
+    - copernican/rng_minigames/*/ai_settings.yml => README.md
+    - copernican/rng_minigames/alien_invasion/README.md
     - copernican/validation/**
     - copernican/validation/manifests/**
     - copernican/workflow.py => README.md
