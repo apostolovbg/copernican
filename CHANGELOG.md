@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Untracked the generated model cache and moved the ignore into
+  the profile-owned fragment.
+  Why: Keep `copernican/models/cache/` ephemeral so `run` can recreate
+  it without restoring tracked payloads.
+  Impact: The cache files stop living in Git, while local runs still
+  recreate the directory as ignored runtime output.
+  Files:
+  CHANGELOG.md
+  .gitignore
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  copernican/models/cache/cache_model_lcdm.yml
+  copernican/models/cache/cache_model_lcdm_mnu.yml
+  copernican/models/cache/cache_model_qauc.yml
+  copernican/models/cache/cache_model_qrsf.yml
+  copernican/models/cache/cache_model_ref_planck2018.yml
+  copernican/models/cache/cache_model_tog.yml
+  copernican/models/cache/cache_model_torg.yml
+  copernican/models/cache/cache_model_usmf2.yml
+  copernican/models/cache/cache_model_w0wa.yml
+  copernican/models/cache/cache_model_wcdm.yml
+
+- 2026-06-05:
   Change: Skipped the generated Alien Invasion `ai_settings.yml` from
   changelog coverage.
   Why: Prevent runtime-only test writes from forcing a new release

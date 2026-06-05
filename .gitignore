@@ -61,6 +61,7 @@ build
 *.pyc
 validation/output/
 VALIDATION.md
+copernican/models/cache/
 
 # OS-specific ignores (DevCovenant)
 .DS_Store

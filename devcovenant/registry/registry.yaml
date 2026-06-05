@@ -15177,6 +15177,7 @@ profiles:
     - '*.pyc'
     - validation/output/
     - VALIDATION.md
+    - copernican/models/cache/
     assets: []
     doc_assets:
       user:
