@@ -22,8 +22,132 @@ consult [AGENTS.md](AGENTS.md) and
 the DevCovenant policies before making any edits because the repository
 enforces its laws through pre-commit checks.
 
-The CLI and GUI share one application logger, while each run keeps its own
-run logs inside the generated `~/copernican_output/copernican-run_*` folder.
+## Launch Copernican
+
+Use the Python 3 launcher that already exists on your computer. If your
+machine names that launcher differently, substitute the right name in the
+commands below.
+
+### macOS and Linux
+
+Create the virtual environment. This makes a private `.venv` folder for
+Copernican.
+
+```
+python3 -m venv .venv
+```
+
+Activate the environment. This tells your terminal to use the Python
+inside `.venv`.
+
+```
+source .venv/bin/activate
+```
+
+Install the locked dependencies. This puts the exact package versions
+Copernican expects into the environment.
+
+```
+python -m pip install -r requirements.lock
+```
+
+Start the command-line interface. This runs Copernican in text mode.
+
+```
+python -m copernican --cli
+```
+
+Start the graphical interface. This opens the GUI window.
+
+```
+python -m copernican --gui
+```
+
+### Windows PowerShell
+
+Create the virtual environment. This makes a private `.venv` folder for
+Copernican.
+
+```
+py -3 -m venv .venv
+```
+
+Activate the environment. This tells PowerShell to use the Python inside
+`.venv`.
+
+```
+.venv\Scripts\Activate.ps1
+```
+
+Install the locked dependencies. This puts the exact package versions
+Copernican expects into the environment.
+
+```
+python -m pip install -r requirements.lock
+```
+
+Start the command-line interface. This runs Copernican in text mode.
+
+```
+python -m copernican --cli
+```
+
+Start the graphical interface. This opens the GUI window.
+
+```
+python -m copernican --gui
+```
+
+### Windows cmd
+
+Create the virtual environment. This makes a private `.venv` folder for
+Copernican.
+
+```
+py -3 -m venv .venv
+```
+
+Activate the environment. This tells cmd to use the Python inside `.venv`.
+
+```
+.venv\Scripts\activate.bat
+```
+
+Install the locked dependencies. This puts the exact package versions
+Copernican expects into the environment.
+
+```
+python -m pip install -r requirements.lock
+```
+
+Start the command-line interface. This runs Copernican in text mode.
+
+```
+python -m copernican --cli
+```
+
+Start the graphical interface. This opens the GUI window.
+
+```
+python -m copernican --gui
+```
+
+If Copernican is already installed in the same `.venv`, use these
+commands instead.
+
+```
+copernican --cli
+```
+
+```
+copernican --gui
+```
+
+See [docs/packaging.md](docs/packaging.md#launch-copernican) for the
+packaging notes that sit alongside these commands.
+
+Each run keeps its own run logs inside the generated
+`~/copernican_output/copernican-run_*` folder.
 
 `copernican/workflow.py` owns the launch flow for both CLI and GUI, and
 `copernican/lib/global_settings/defaults.yml` supplies the GUI-facing

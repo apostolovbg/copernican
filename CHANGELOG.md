@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Documented the managed `.venv` setup and CLI or GUI launch
+  commands for macOS, Linux and Windows.
+  Why: Help operators start Copernican from a clean checkout without
+  restoring root start scripts.
+  Impact: Readers can create, activate and use the venv, then launch
+  the CLI or GUI from the source tree or an installed environment.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  docs/packaging.md
+  copernican/docs/packaging.md
+  docs/cli_guide.md
+  copernican/docs/cli_guide.md
+  docs/gui_overview.md
+  copernican/docs/gui_overview.md
+
+- 2026-06-05:
   Change: Renamed the packaged defaults file and moved mutable settings
   into the user config directory.
   Why: Preserve packaged defaults while migrating mutable settings

@@ -206,9 +206,12 @@ available even when operators prefer the GUI to the CLI.
 
 ## Launching the GUI
 
-Run the GUI from the managed `.venv` with `python -m copernican --gui` or the
-`copernican` console script. The package entrypoint now owns the launch flow,
-so there are no shell wrappers to keep in sync and no detached start scripts to
-maintain. The GUI still sets `COPERNICAN_DETACH_GUI=1` when it needs to hand
-off control to a background window, but the handoff happens through the
-package workflow instead of a separate launcher layer.
+Create and activate the managed `.venv` first. Then run `python -m
+copernican --gui` from the shell. The exact commands for macOS, Linux and
+Windows live in [docs/packaging.md](packaging.md#launch-copernican).
+Installed environments can use `copernican --gui`. The package entrypoint now
+owns the launch flow, so there are no shell wrappers to keep in sync and no
+detached start scripts to maintain. The GUI still sets
+`COPERNICAN_DETACH_GUI=1` when it needs to hand off control to a background
+window, but the handoff happens through the package workflow instead of a
+separate launcher layer.

@@ -25,6 +25,12 @@ Always work from the managed `.venv` created for the package:
 The entrypoint reuses the pinned environment in `.venv` and installs
 dependencies from `requirements.lock`.
 
+For a fresh checkout, create and activate `.venv` with the platform
+commands in [docs/packaging.md](packaging.md#launch-copernican). Then run
+`python -m copernican --cli` for the terminal workflow or
+`python -m copernican --gui` for the windowed workflow. Installed
+environments can use `copernican --cli` and `copernican --gui`.
+
 After the environment check you can select:
 
 1. **Start Copernican (GUI)** – Runs `python -m copernican --gui`
