@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,22 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-05:
+  Change: Stabilized the walker condition-number estimator with a
+  tolerance cutoff for tiny singular values.
+  Why: Keep the SVD-based check consistent across platforms and avoid
+  false CI failures from floating-point noise.
+  Impact: Well-conditioned walker ensembles now pass the init check
+  consistently on local and GitHub runners, and the docs now note the
+  initializer cutoff.
+  Files:
+  CHANGELOG.md
+  ABOUT.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/engines/engine_mcmc.py
 
 - 2026-06-04:
   Change: Added the workflow doc route and bootstrapped the GitHub

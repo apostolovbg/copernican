@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -36,7 +36,9 @@ The model chooser now offers `Load model...` so any valid `.yml` or
 `.yaml` file can load by exact path in the CLI or GUI.
 
 The engine modules dropped the `cosmo_` prefix, so the docs and package
-surface now refer to `engine_*` files.
+surface now refer to `engine_*` files. The MCMC initializer uses a
+tolerance cutoff for tiny singular values to keep walker startup stable
+across platforms.
 
 `copernican/workflow.py` owns the launch flow for the package entry points,
 and `copernican/lib/global_settings/copernican_settings.yml` carries the

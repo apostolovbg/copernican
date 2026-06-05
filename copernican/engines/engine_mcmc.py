@@ -1199,11 +1199,18 @@ def _estimate_condition_number(samples: numpy.ndarray) -> float | None:
     centred = samples - numpy.mean(samples, axis=0, keepdims=True)
     try:
         singular_values = numpy.linalg.svd(
-            centred, full_matrices=False, hermitian=False
-        )[1]
+            centred, full_matrices=False, compute_uv=False
+        )
     except numpy.linalg.LinAlgError:
         return float("inf")
-    positive = singular_values[singular_values > 0]
+    if singular_values.size == 0:
+        return float("inf")
+    largest = float(singular_values[0])
+    tolerance = (
+        largest * max(centred.shape) * numpy.finfo(singular_values.dtype).eps
+    )
+    # Match a rank-style cutoff so tiny SVD noise stays numerically zero.
+    positive = singular_values[singular_values > tolerance]
     if positive.size == 0:
         return float("inf")
     return float(positive.max() / positive.min())

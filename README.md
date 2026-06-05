@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -102,7 +102,9 @@ the same convention.
   `copernican.engines.engine_mcmc`
   couples `emcee` with ArviZ when available; the nested sampler mirrors the
   same schema while exposing evidences. Both reuse the shared progress
-  renderer and manifest helpers.
+  renderer and manifest helpers. The MCMC initializer uses a tolerance
+  cutoff for tiny singular values to keep walker startup stable across
+  platforms.
 - `copernican/models/` houses YAML model definitions with priors,
   transforms and dataset compatibility metadata. Each definition is
   converted into a picklable engine adapter so manifest generation stays
