@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 85beaf0d8c48f65262f74d202986a4524ed51f919be5664d9286a16d02d2d43c
+  policy_registry_input_hash: 50ad3729a6034d2ead8b37e1f6c7f319b8234b3c0dcea97b8285e2d7438ecc2e
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3782,7 +3782,6 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
-      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -3847,6 +3846,7 @@ policies:
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
+      - copernican/rng_minigames/**/ai_settings.yml
       user_facing_exclude_suffixes: []
       user_facing_dirs: []
       user_visible_globs: []
@@ -4438,7 +4438,6 @@ policies:
           - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/cli/** => README.md, ABOUT.md
           - copernican/rng_minigames/** => README.md, ABOUT.md
-          - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4463,7 +4462,6 @@ policies:
           - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/cli/** => README.md, ABOUT.md
           - copernican/rng_minigames/** => README.md, ABOUT.md
-          - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
           - engines/** => README.md, ABOUT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
           - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4639,14 +4637,62 @@ policies:
           behavior: append
           replaced_inherited_values:
           - ()
-        derived_selectors:
+        user_overrides:
           values:
+          - .vscode/**
+          - .idea/**
+          - .venv/**
+          - .python/**
+          - build/**
+          - dist/**
+          - __pycache__/**
+          - '*.egg-info/**'
+          - pip-wheel-metadata/**
+          - .pytest_cache/**
+          - .ruff_cache/**
+          - .mypy_cache/**
+          - .tox/**
+          - .nox/**
+          - .hypothesis/**
+          - .coverage
+          - .coverage.*
+          - htmlcov/**
+          - devcovenant/logs/**
+          - devcovenant/registry/runtime/**
+          - copernican/models/**
+          - copernican/validation/**
+          - copernican/validation/manifests/**
+          - copernican/datasets/**
           - tests/**
           - devcovenant/**
           - tests/devcovenant/**
-          behavior: derive
+          - copernican/rng_minigames/**/ai_settings.yml
+          behavior: replace
           replaced_inherited_values:
-          - ()
+          - .vscode/**
+          - .idea/**
+          - .venv/**
+          - .python/**
+          - build/**
+          - dist/**
+          - __pycache__/**
+          - '*.egg-info/**'
+          - pip-wheel-metadata/**
+          - .pytest_cache/**
+          - .ruff_cache/**
+          - .mypy_cache/**
+          - .tox/**
+          - .nox/**
+          - .hypothesis/**
+          - .coverage
+          - .coverage.*
+          - htmlcov/**
+          - devcovenant/logs/**
+          - devcovenant/registry/runtime/**
+          - copernican/models/**
+          - copernican/validation/**
+          - copernican/validation/manifests/**
+          - copernican/datasets/**
         effective:
           values:
           - .vscode/**
@@ -4676,6 +4722,7 @@ policies:
           - tests/**
           - devcovenant/**
           - tests/devcovenant/**
+          - copernican/rng_minigames/**/ai_settings.yml
       user_facing_exclude_suffixes:
         descriptor:
           values:
@@ -4933,7 +4980,6 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
-      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -4942,6 +4988,65 @@ policies:
       - .github/workflows/ci.yml => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       message: user_overrides replaces inherited metadata for `documentation-growth-tracking.doc_routes`;
+        use overlays if you intended additive behavior.
+    - policy_id: documentation-growth-tracking
+      key: user_facing_exclude_globs
+      layer: user_overrides
+      inherited_values:
+      - .vscode/**
+      - .idea/**
+      - .venv/**
+      - .python/**
+      - build/**
+      - dist/**
+      - __pycache__/**
+      - '*.egg-info/**'
+      - pip-wheel-metadata/**
+      - .pytest_cache/**
+      - .ruff_cache/**
+      - .mypy_cache/**
+      - .tox/**
+      - .nox/**
+      - .hypothesis/**
+      - .coverage
+      - .coverage.*
+      - htmlcov/**
+      - devcovenant/logs/**
+      - devcovenant/registry/runtime/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
+      - copernican/datasets/**
+      replacement_values:
+      - .vscode/**
+      - .idea/**
+      - .venv/**
+      - .python/**
+      - build/**
+      - dist/**
+      - __pycache__/**
+      - '*.egg-info/**'
+      - pip-wheel-metadata/**
+      - .pytest_cache/**
+      - .ruff_cache/**
+      - .mypy_cache/**
+      - .tox/**
+      - .nox/**
+      - .hypothesis/**
+      - .coverage
+      - .coverage.*
+      - htmlcov/**
+      - devcovenant/logs/**
+      - devcovenant/registry/runtime/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
+      - copernican/datasets/**
+      - tests/**
+      - devcovenant/**
+      - tests/devcovenant/**
+      - copernican/rng_minigames/**/ai_settings.yml
+      message: user_overrides replaces inherited metadata for `documentation-growth-tracking.user_facing_exclude_globs`;
         use overlays if you intended additive behavior.
     runtime_actions: []
     commands: []
@@ -5072,8 +5177,6 @@ policies:
       - ABOUT.md
       - copernican/rng_minigames/** => README.md
       - ABOUT.md
-      - copernican/rng_minigames/*/ai_settings.yml => README.md
-      - copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md
       - ABOUT.md
       - pyproject.toml => ABOUT.md
@@ -5120,7 +5223,7 @@ policies:
       - devcovenant/**
       - tests/devcovenant/**
       force_include_globs: []
-      user_facing_exclude_globs: &id033
+      user_facing_exclude_globs:
       - .vscode/**
       - .idea/**
       - .venv/**
@@ -5148,6 +5251,7 @@ policies:
       - tests/**
       - devcovenant/**
       - tests/devcovenant/**
+      - copernican/rng_minigames/**/ai_settings.yml
       user_facing_exclude_suffixes: []
       user_facing_dirs: []
       user_visible_globs: []
@@ -5189,7 +5293,6 @@ policies:
       - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/cli/** => README.md, ABOUT.md
       - copernican/rng_minigames/** => README.md, ABOUT.md
-      - copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
       - engines/** => README.md, ABOUT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -5197,6 +5300,35 @@ policies:
       - docs/model_template.yml => README.md, ABOUT.md
       - .github/workflows/ci.yml => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      user_facing_exclude_globs: &id033
+      - .vscode/**
+      - .idea/**
+      - .venv/**
+      - .python/**
+      - build/**
+      - dist/**
+      - __pycache__/**
+      - '*.egg-info/**'
+      - pip-wheel-metadata/**
+      - .pytest_cache/**
+      - .ruff_cache/**
+      - .mypy_cache/**
+      - .tox/**
+      - .nox/**
+      - .hypothesis/**
+      - .coverage
+      - .coverage.*
+      - htmlcov/**
+      - devcovenant/logs/**
+      - devcovenant/registry/runtime/**
+      - copernican/models/**
+      - copernican/validation/**
+      - copernican/validation/manifests/**
+      - copernican/datasets/**
+      - tests/**
+      - devcovenant/**
+      - tests/devcovenant/**
+      - copernican/rng_minigames/**/ai_settings.yml
     runtime_effective_options:
       id: documentation-growth-tracking
       severity: warning
@@ -5268,8 +5400,7 @@ policies:
     - copernican/lib/gui/** => README.md
     - copernican/models/**
     - copernican/rng_minigames/** => README.md
-    - copernican/rng_minigames/*/ai_settings.yml => README.md
-    - copernican/rng_minigames/alien_invasion/README.md
+    - copernican/rng_minigames/**/ai_settings.yml
     - copernican/validation/**
     - copernican/validation/manifests/**
     - copernican/workflow.py => README.md

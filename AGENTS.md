@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -968,7 +968,6 @@ doc_routes:
 - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
 - copernican/lib/cli/** => README.md, ABOUT.md
 - copernican/rng_minigames/** => README.md, ABOUT.md
-- copernican/rng_minigames/*/ai_settings.yml => README.md, copernican/rng_minigames/alien_invasion/README.md
 - engines/** => README.md, ABOUT.md
 - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
 - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
@@ -1033,6 +1032,7 @@ user_facing_exclude_globs:
 - tests/**
 - devcovenant/**
 - tests/devcovenant/**
+- copernican/rng_minigames/**/ai_settings.yml
 user_facing_exclude_suffixes: []
 user_facing_dirs: []
 user_visible_globs: []

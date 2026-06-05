@@ -80,6 +80,19 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Removed the Alien Invasion `ai_settings.yml` doc route and
+  excluded the generated settings file from documentation-growth
+  tracking.
+  Why: Preserve the runtime-only settings file as runtime state.
+  Impact: Prevent close-gate doc warnings for a file that `run`
+  generates on demand.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+
+- 2026-06-05:
   Change: Stabilized the walker condition-number estimator with a
   tolerance cutoff for tiny singular values.
   Why: Keep the SVD-based check consistent across platforms and avoid
