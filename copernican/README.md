@@ -26,8 +26,8 @@ The CLI and GUI share one application logger, while each run keeps its own
 run logs inside the generated `~/copernican_output/copernican-run_*` folder.
 
 `copernican/workflow.py` owns the launch flow for both CLI and GUI, and
-`copernican/lib/global_settings/copernican_settings.yml` supplies the
-GUI-facing defaults that shape that flow.
+`copernican/lib/global_settings/defaults.yml` supplies the GUI-facing
+defaults that shape that flow through `copernican/lib/settings.py`.
 
 The GitHub Actions governance job now boots the repo-local `.venv`
 before it runs DevCovenant so CI matches the managed-environment
@@ -93,8 +93,8 @@ the same convention.
    let CI and operators pick the desired entry point while the managed
    interpreter and dependencies come from `.venv`. The launch flow itself
    lives in `copernican/workflow.py`, and
-   `copernican/lib/global_settings/copernican_settings.yml` carries the
-   GUI-side defaults that shape the same workflow.
+   `copernican/lib/global_settings/defaults.yml` carries the GUI-side
+   defaults that shape the same workflow through `copernican/lib/settings.py`.
  - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
    diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
    engines stay lightweight and consistent across backends.

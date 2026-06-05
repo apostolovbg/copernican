@@ -183,21 +183,20 @@ handful of engines.
 
 ## Settings
 
-The Settings screen now mirrors the Run Builder navigation: four tabs list
-Logging, Datasets, GUI and Tools options in the same style as the wizard
-controls above.  Logging lets operators set retention counts, severity
-thresholds and console capture before purging archived diagnostics files
-directly from the same panel.  The Datasets page toggles automatic discovery,
-hash caching and offers a manual digest rebuild so trusted parsers stay
-current. GUI settings cover automatic detachment, managed `.venv` enforcement
-and the environment hints (`COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
-`COPERNICAN_DETACH_GUI`) shown on the status bar.  The Tools tab surfaces
-maintenance helpers such as rebuilding the sanitized
-`copernican/models/cache` files, revalidating the parser registry, and
-resetting the Run Builder workspace. All preferences persist through
-`copernican/lib/settings.py` into the shared
-`copernican_settings.yml` file so GUI and CLI launches honour the same
-defaults.
+The Settings screen now mirrors the Run Builder navigation: three tabs
+list Datasets, GUI and Tools options in the same style as the wizard
+controls above. The Datasets page toggles automatic discovery, hash
+caching and offers a manual digest rebuild so trusted parsers stay
+current. GUI settings cover automatic detachment, managed `.venv`
+enforcement and the environment hints (`COPERNICAN_SEED`,
+`COPERNICAN_STRICT_WARNINGS`, `COPERNICAN_DETACH_GUI`) shown on the
+status bar. The Tools tab surfaces maintenance helpers such as
+rebuilding the sanitized `copernican/models/cache` files,
+revalidating the parser registry, and resetting the Run Builder
+workspace. Preferences persist through `copernican/lib/settings.py`
+into the user config file at `~/.config/copernican/copernican_settings.yml`
+on Unix or the platform equivalent on Windows. Packaged defaults live
+in `copernican/lib/global_settings/defaults.yml`.
 
 ## Help
 

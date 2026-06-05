@@ -24,13 +24,24 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(hasattr(module, "save_settings"))
         self.assertTrue(hasattr(module, "get_settings"))
 
-    def test_settings_path_lives_under_global_settings(self) -> None:
+    def test_default_settings_file_lives_under_global_settings(self) -> None:
         expected = (
             Path(module.__file__).resolve().parent
             / "global_settings"
-            / "copernican_settings.yml"
+            / module.DEFAULT_SETTINGS_FILE
         )
-        self.assertEqual(module.get_settings_path(), expected)
+        self.assertEqual(module.DEFAULT_SETTINGS_FILE, "defaults.yml")
+        self.assertEqual(module.DEFAULT_SETTINGS_PATH, expected)
+
+    def test_settings_path_lives_under_user_config_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            expected = Path(tmpdir) / "copernican_settings.yml"
+            with mock.patch.object(
+                module,
+                "_get_user_config_dir",
+                return_value=Path(tmpdir),
+            ):
+                self.assertEqual(module.get_settings_path(), expected)
 
     def test_missing_settings_file_returns_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -45,7 +56,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 )
             self.assertFalse(path.exists())
 
-    def test_save_settings_writes_the_packaged_path(self) -> None:
+    def test_save_settings_writes_the_user_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "settings.yml"
             with mock.patch.object(

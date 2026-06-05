@@ -40,9 +40,10 @@ surface now refer to `engine_*` files. The MCMC initializer uses a
 tolerance cutoff for tiny singular values to keep walker startup stable
 across platforms.
 
-`copernican/workflow.py` owns the launch flow for the package entry points,
-and `copernican/lib/global_settings/copernican_settings.yml` carries the
-GUI-facing defaults that shape that flow.
+`copernican/workflow.py` owns the launch flow for the package entry
+points, and `copernican/lib/global_settings/defaults.yml` carries the
+GUI-facing defaults that shape that flow through
+`copernican/lib/settings.py`.
 
 The GitHub Actions governance job also bootstraps the repo-local `.venv`
 before it invokes DevCovenant, keeping CI aligned with local managed
@@ -63,9 +64,9 @@ the project behaves in practice.
 - `copernican/validation/` contains the manifest runner and validation docs.
 
 `copernican/workflow.py` and
-`copernican/lib/global_settings/copernican_settings.yml` sit behind those
+`copernican/lib/global_settings/defaults.yml` sit behind those
 front-door docs, so changes in the launch path or GUI defaults should be
-reflected there first.
+reflected there first through `copernican/lib/settings.py`.
 
 Those files are mirrored from the root copies so the package can ship the same
 documentation surface without inventing a second narrative.

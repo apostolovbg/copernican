@@ -65,10 +65,10 @@ imports `copernican` directly should mirror that guard so the manifest CLI
 remains usable without bringing back the retired staged-menu path.
 
 The Settings surface persists choices through `copernican/lib/settings.py`
-and the generated `copernican_settings.yml` file at the repository root. The
-Logging, Datasets, GUI, and Tools tabs reuse the shared services listed above
-so deterministic launches keep the same retention levels, dataset hashes, and
-GUI flags whether they start from the command line or the Tkinter shell.
+and the user settings file in the platform config directory. The Datasets,
+GUI, and Tools tabs reuse the shared services listed above so deterministic
+launches keep the same dataset hashes and GUI flags whether they start from
+the command line or the Tkinter shell.
 
 `python -m copernican --gui` prints this service map without entering the
 interactive menus.

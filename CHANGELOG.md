@@ -80,6 +80,36 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Renamed the packaged defaults file and moved mutable settings
+  into the user config directory.
+  Why: Preserve packaged defaults while migrating mutable settings
+  outside the repo tree.
+  Impact: Update Copernican to read `defaults.yml` from
+  `copernican/lib/global_settings/` and write `copernican_settings.yml`
+  under the platform config directory.
+  Files:
+  CHANGELOG.md
+  ABOUT.md
+  README.md
+  SUPPORT.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/gui_overview.md
+  copernican/docs/orchestration_services.md
+  copernican/lib/global_settings/copernican_settings.yml
+  copernican/lib/global_settings/defaults.yml
+  copernican/lib/settings.py
+  copernican_settings.yml
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  docs/gui_overview.md
+  docs/orchestration_services.md
+  tests/copernican/lib/test_settings.py
+  AGENTS.md
+
+- 2026-06-05:
   Change: Untracked the generated model cache and moved the ignore into
   the profile-owned fragment.
   Why: Keep `copernican/models/cache/` ephemeral so `run` can recreate

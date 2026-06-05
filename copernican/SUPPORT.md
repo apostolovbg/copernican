@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-06-05
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -29,7 +29,7 @@ validation error that the CLI or GUI reports.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and
-`copernican/lib/global_settings/copernican_settings.yml` first.
+`copernican/lib/global_settings/defaults.yml` first.
 
 If the docs do not answer your question, the next best step is to file an
 issue with enough context to let the maintainers reproduce the problem. Clear
@@ -46,9 +46,10 @@ Start with the front-door documentation:
 - `docs/run_manifest.md` for manifest and run-record details
 - `copernican/validation/README.md` for the manifest runner and summary path
 
-`copernican/lib/global_settings/copernican_settings.yml` is the place to
-check when the GUI defaults do not match the behavior you expected from the
-front-door docs.
+The shipped defaults live in `copernican/lib/global_settings/defaults.yml`.
+The mutable `copernican_settings.yml` file lives at
+`~/.config/copernican/copernican_settings.yml` on Unix or the platform
+equivalent on Windows.
 
 The GUI also exposes its own help page so users can review the same guidance
 inside the application. When you are troubleshooting a run, the logs and the

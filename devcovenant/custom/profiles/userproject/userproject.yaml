@@ -58,7 +58,8 @@ policy_overlays:
     doc_routes:
       - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
-      - copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+      - copernican/lib/global_settings/defaults.yml => README.md,
+        ABOUT.md, SUPPORT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
       - copernican/engines/** => README.md, ABOUT.md
       - copernican/models/** => README.md, ABOUT.md

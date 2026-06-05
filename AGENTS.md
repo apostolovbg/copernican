@@ -971,7 +971,7 @@ doc_routes:
 - copernican/rng_minigames/** => README.md, ABOUT.md
 - engines/** => README.md, ABOUT.md
 - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
-- copernican_settings.yml => README.md, ABOUT.md, SUPPORT.md
+- copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
 - copernican/docs/model_template.yml => README.md, ABOUT.md
 - docs/model_template.yml => README.md, ABOUT.md
 - .github/workflows/ci.yml => README.md, ABOUT.md
