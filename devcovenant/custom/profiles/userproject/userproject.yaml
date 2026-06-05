@@ -239,6 +239,7 @@ policy_overlays:
   changelog-coverage:
     skipped_globs:
       - .matplotlib-cache/**
+      - copernican/rng_minigames/**/ai_settings.yml
   name-clarity:
     force_include_globs:
       - devcovenant/custom/**/*.py

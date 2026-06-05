@@ -248,6 +248,7 @@ skipped_globs:
 - devcovenant/registry/runtime/**
 - '*_old.*'
 - .matplotlib-cache/**
+- copernican/rng_minigames/**/ai_settings.yml
 - devcovenant/**
 - tests/devcovenant/**
 skipped_prefixes:

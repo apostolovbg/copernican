@@ -527,6 +527,7 @@ autogen_metadata_overlays:
     skipped_globs:
     - '*_old.*'
     - .matplotlib-cache/**
+    - copernican/rng_minigames/**/ai_settings.yml
     skipped_prefixes:
     - devcovenant
     - tests/devcovenant

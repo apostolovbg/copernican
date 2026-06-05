@@ -80,6 +80,18 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Skipped the generated Alien Invasion `ai_settings.yml` from
+  changelog coverage.
+  Why: Prevent runtime-only test writes from forcing a new release
+  note.
+  Impact: Stop `gate --close` from demanding a changelog entry for the
+  generated settings file.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  devcovenant/custom/profiles/userproject/userproject.yaml
+
+- 2026-06-05:
   Change: Removed the Alien Invasion `ai_settings.yml` doc route and
   excluded the generated settings file from documentation-growth
   tracking.

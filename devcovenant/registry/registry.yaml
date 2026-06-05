@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 50ad3729a6034d2ead8b37e1f6c7f319b8234b3c0dcea97b8285e2d7438ecc2e
+  policy_registry_input_hash: ddcecf25f2951e9e00cb8cab8da2cbec5a0fa350c51f4a88a1ab04bb0bf00d82
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -234,6 +234,7 @@ policies:
       - devcovenant/registry/runtime/**
       - '*_old.*'
       - .matplotlib-cache/**
+      - copernican/rng_minigames/**/ai_settings.yml
       - devcovenant/**
       - tests/devcovenant/**
       skipped_prefixes:
@@ -643,6 +644,7 @@ policies:
           values:
           - '*_old.*'
           - .matplotlib-cache/**
+          - copernican/rng_minigames/**/ai_settings.yml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -650,6 +652,7 @@ policies:
           values:
           - '*_old.*'
           - .matplotlib-cache/**
+          - copernican/rng_minigames/**/ai_settings.yml
           behavior: append
           replaced_inherited_values:
           - ()
@@ -684,6 +687,7 @@ policies:
           - devcovenant/registry/runtime/**
           - '*_old.*'
           - .matplotlib-cache/**
+          - copernican/rng_minigames/**/ai_settings.yml
           - devcovenant/**
           - tests/devcovenant/**
       skipped_prefixes:
@@ -1699,6 +1703,7 @@ policies:
       - devcovenant/registry/runtime/**
       - '*_old.*'
       - .matplotlib-cache/**
+      - copernican/rng_minigames/**/ai_settings.yml
       - devcovenant/**
       - tests/devcovenant/**
       skipped_prefixes: &id004
@@ -2020,6 +2025,7 @@ policies:
     - SPEC.md
     - __pycache__/**
     - build/**
+    - copernican/rng_minigames/**/ai_settings.yml
     - devcovenant/**
     - devcovenant/config.yaml
     - devcovenant/logs/**
@@ -15397,6 +15403,7 @@ profiles:
       changelog-coverage:
         skipped_globs:
         - .matplotlib-cache/**
+        - copernican/rng_minigames/**/ai_settings.yml
       name-clarity:
         force_include_globs:
         - devcovenant/custom/**/*.py
