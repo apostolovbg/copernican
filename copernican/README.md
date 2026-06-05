@@ -13,112 +13,138 @@
 
 ![Copernican banner](https://raw.githubusercontent.com/apostolovbg/copernican/main/copernican/docs/banner_github.png)
 
-Copernican is a Python toolkit that helps researchers test cosmological models
-against SNe Ia, BAO and CMB observations with a single manifest-driven
-workflow. `python -m copernican` orchestrates everything from model loading
-through sampler execution while the managed `.venv` keeps the pinned Python
-3.11 environment portable across macOS, Linux and Windows. Developers must
-consult [AGENTS.md](AGENTS.md) and
-the DevCovenant policies before making any edits because the repository
-enforces its laws through pre-commit checks.
+Copernican is a Python toolkit that helps researchers test cosmological
+models against SNe Ia, BAO and CMB observations with a single
+manifest-driven workflow. `python -m copernican` orchestrates everything
+from model loading through sampler execution while the private `.python`
+bootstrap interpreter and managed `.venv` keep the pinned Python 3.11
+environment portable across macOS, Linux and Windows. Developers must
+consult [AGENTS.md](AGENTS.md) and the DevCovenant policies before
+making any edits because the repository enforces its laws through
+pre-commit checks.
 
 ## Launch Copernican
 
-Use the Python 3 launcher that already exists on your computer. If your
-machine names that launcher differently, substitute the right name in the
-commands below.
+Open a terminal anywhere. Then `cd` into the folder that contains the
+Copernican files. Every block below assumes that folder is the current
+working directory.
 
-### macOS and Linux
+The first block downloads a private Python 3.11 interpreter into
+`.python`. The second block builds `.venv` from that local interpreter.
+After that, activate `.venv`, install the locked dependencies, then run
+the CLI and GUI.
 
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
+### Bootstrap the private interpreter
+
+macOS and Linux:
+
+Download the Python 3.11 build.
 
 ```
-python3 -m venv .venv
+mkdir -p .python
+arch="$(uname -m)"
+case "$(uname -s)" in
+    Darwin)
+        plat="apple-darwin"
+        ;;
+    Linux)
+        plat="unknown-linux-gnu"
+        ;;
+    *)
+        echo "Unsupported platform." >&2
+        exit 1
+        ;;
+esac
+base="https://github.com/astral-sh/python-build-standalone/releases"
+file="download/20251028/cpython-3.11.14+20251028-${arch}-${plat}"
+file="${file}-install_only.tar.gz"
+url="$base/$file"
+curl -fL "$url" | tar -xz -C .python --strip-components=1
 ```
 
-Activate the environment. This tells your terminal to use the Python
-inside `.venv`.
+Windows PowerShell:
+
+Download the Python 3.11 build.
+
+```
+New-Item -ItemType Directory -Force .python | Out-Null
+$base = "https://github.com/astral-sh/python-build-standalone/releases"
+$file = "download/20251028/cpython-3.11.14+20251028-amd64-pc-windows-msvc"
+$file = "${file}-install_only.tar.gz"
+$url = "$base/$file"
+Invoke-WebRequest -Uri $url -OutFile python.tar.gz
+tar -xzf python.tar.gz -C .python --strip-components=1
+Remove-Item python.tar.gz
+```
+
+Windows cmd:
+
+Download the Python 3.11 build.
+
+```
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$base = 'https://github.com/astral-sh/python-build-standalone/releases'; ^
+     $file = 'download/20251028/'; ^
+     $file = $file + 'cpython-3.11.14+20251028-'; ^
+     $file = $file + 'amd64-pc-windows-msvc'; ^
+     $file = $file + '-install_only.tar.gz'; ^
+     $url = $base + '/' + $file; ^
+     New-Item -ItemType Directory -Force .python | Out-Null; ^
+     Invoke-WebRequest -Uri $url -OutFile python.tar.gz; ^
+     tar -xzf python.tar.gz -C .python --strip-components=1; ^
+     Remove-Item python.tar.gz"
+```
+
+### Create the managed virtual environment
+
+macOS and Linux:
+
+```
+./.python/bin/python3 -m venv .venv
+```
+
+Windows PowerShell:
+
+```
+.\.python\python.exe -m venv .venv
+```
+
+Windows cmd:
+
+```
+.\.python\python.exe -m venv .venv
+```
+
+### Activate the environment
+
+macOS and Linux:
 
 ```
 source .venv/bin/activate
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
-
-```
-python -m pip install -r requirements.lock
-```
-
-Start the command-line interface. This runs Copernican in text mode.
-
-```
-python -m copernican --cli
-```
-
-Start the graphical interface. This opens the GUI window.
-
-```
-python -m copernican --gui
-```
-
-### Windows PowerShell
-
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
-
-```
-py -3 -m venv .venv
-```
-
-Activate the environment. This tells PowerShell to use the Python inside
-`.venv`.
+Windows PowerShell:
 
 ```
 .venv\Scripts\Activate.ps1
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
-
-```
-python -m pip install -r requirements.lock
-```
-
-Start the command-line interface. This runs Copernican in text mode.
-
-```
-python -m copernican --cli
-```
-
-Start the graphical interface. This opens the GUI window.
-
-```
-python -m copernican --gui
-```
-
-### Windows cmd
-
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
-
-```
-py -3 -m venv .venv
-```
-
-Activate the environment. This tells cmd to use the Python inside `.venv`.
+Windows cmd:
 
 ```
 .venv\Scripts\activate.bat
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
+### Install the locked dependencies
+
+This puts the exact package versions Copernican expects into the
+environment.
 
 ```
 python -m pip install -r requirements.lock
 ```
+
+### Run Copernican
 
 Start the command-line interface. This runs Copernican in text mode.
 

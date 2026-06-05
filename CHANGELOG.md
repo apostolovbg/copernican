@@ -80,6 +80,39 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-05:
+  Change: Documented the folder-local Python 3.11 bootstrap and the
+  separate CLI and GUI launch commands for downloaded and installed
+  Copernican copies.
+  Why: Explained where to start Copernican from copied files, package
+  installs and local environments without assuming a repo checkout or
+  system Python 3.11.
+  Impact: Updated the README and packaging docs so readers know to
+  open the Copernican folder first, build the managed environment and
+  launch the CLI and GUI separately.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  docs/packaging.md
+  copernican/docs/packaging.md
+
+- 2026-06-05:
+  Change: Documented the local Python 3.11 bootstrap and split the CLI
+  and GUI launch commands for downloaded files and installed packages.
+  Why: Let users start Copernican from copied files, package installs
+  and local environments without relying on a repo clone or system
+  Python 3.11.
+  Impact: The README and packaging guides now show the local
+  interpreter bootstrap, venv creation, activation and the separate
+  installed-package launch commands.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  docs/packaging.md
+  copernican/docs/packaging.md
+
+- 2026-06-05:
   Change: Documented the managed `.venv` setup and CLI or GUI launch
   commands for macOS, Linux and Windows.
   Why: Help operators start Copernican from a clean checkout without

@@ -1,14 +1,20 @@
 # Packaging Guide
-This document explains how to prepare Copernican for development or packaging.
+This document explains how to prepare Copernican for development or
+packaging.
 
-CAMB only publishes wheels for Python 3.11 today, so Copernican intentionally
-sticks to that interpreter until upstream catches up. Blocking newer Python
-versions avoids forcing contributors to compile CAMB locally during bootstrap.
+CAMB only publishes wheels for Python 3.11 today, so Copernican keeps
+that interpreter until upstream catches up. Use this guide from the
+folder that contains the Copernican files. Every command below assumes
+that folder is the current working directory. The bootstrap below
+downloads Python 3.11 into `.python`, then builds `.venv` from that
+local interpreter. The system Python stays untouched.
 
 ## Table of Contents
 
-- [Choose the Python launcher](#choose-the-python-launcher)
-- [Bootstrap the virtual environment](#bootstrap-the-virtual-environment)
+- [Bootstrap the private interpreter](#bootstrap-the-private-interpreter)
+- [Create the venv](#create-the-venv)
+- [Activate the environment](#activate-the-environment)
+- [Install the locked dependencies](#install-the-locked-dependencies)
 - [Launch Copernican](#launch-copernican)
 - [Build optional distributions](#build-optional-distributions)
   - [Keep the tracked version in sync](#keep-the-tracked-version-in-sync)
@@ -16,82 +22,121 @@ versions avoids forcing contributors to compile CAMB locally during bootstrap.
 - [Verify the build](#verify-the-build)
 - [Troubleshooting](#troubleshooting)
 
-## Choose the Python launcher
+## Bootstrap the private interpreter
 
-Copernican still targets Python 3.11. Use the launcher on your computer that
-starts that interpreter. On many Unix-like systems that is `python` or
-`python3`. On Windows it is usually `py -3`.
+Open a terminal anywhere. Then `cd` into the folder that contains the
+Copernican files before you start. The commands below assume that
+current directory.
 
-## Bootstrap the virtual environment
+Open a terminal in the folder that contains the Copernican files. The
+commands below assume that current directory.
 
-Create or refresh `.venv`. This makes a private environment for Copernican.
-Use the Python 3 launcher that is already on your machine. If your
-machine names that launcher differently, substitute the right name in
-the commands below.
+This step downloads Python 3.11 into `.python`. The commands are
+copy/paste-safe on each platform.
 
 macOS and Linux:
 
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
+Download the Python 3.11 build.
 
 ```
-python3 -m venv .venv
+mkdir -p .python
+arch="$(uname -m)"
+case "$(uname -s)" in
+    Darwin)
+        plat="apple-darwin"
+        ;;
+    Linux)
+        plat="unknown-linux-gnu"
+        ;;
+    *)
+        echo "Unsupported platform." >&2
+        exit 1
+        ;;
+esac
+base="https://github.com/astral-sh/python-build-standalone/releases"
+file="download/20251028/cpython-3.11.14+20251028-${arch}-${plat}"
+file="${file}-install_only.tar.gz"
+url="$base/$file"
+curl -fL "$url" | tar -xz -C .python --strip-components=1
 ```
 
-Activate the environment. This tells your terminal to use the Python inside
-`.venv`.
+Windows PowerShell:
+
+Download the Python 3.11 build.
+
+```
+New-Item -ItemType Directory -Force .python | Out-Null
+$base = "https://github.com/astral-sh/python-build-standalone/releases"
+$file = "download/20251028/cpython-3.11.14+20251028-amd64-pc-windows-msvc"
+$file = "${file}-install_only.tar.gz"
+$url = "$base/$file"
+Invoke-WebRequest -Uri $url -OutFile python.tar.gz
+tar -xzf python.tar.gz -C .python --strip-components=1
+Remove-Item python.tar.gz
+```
+
+Windows cmd:
+
+Download the Python 3.11 build.
+
+```
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$base = 'https://github.com/astral-sh/python-build-standalone/releases'; ^
+     $file = 'download/20251028/'; ^
+     $file = $file + 'cpython-3.11.14+20251028-'; ^
+     $file = $file + 'amd64-pc-windows-msvc'; ^
+     $file = $file + '-install_only.tar.gz'; ^
+     $url = $base + '/' + $file; ^
+     New-Item -ItemType Directory -Force .python | Out-Null; ^
+     Invoke-WebRequest -Uri $url -OutFile python.tar.gz; ^
+     tar -xzf python.tar.gz -C .python --strip-components=1; ^
+     Remove-Item python.tar.gz"
+```
+
+## Create the venv
+
+macOS and Linux:
+
+```
+./.python/bin/python3 -m venv .venv
+```
+
+Windows PowerShell:
+
+```
+.\.python\python.exe -m venv .venv
+```
+
+Windows cmd:
+
+```
+.\.python\python.exe -m venv .venv
+```
+
+## Activate the environment
+
+macOS and Linux:
 
 ```
 source .venv/bin/activate
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
-
-```
-python -m pip install -r requirements.lock
-```
-
 Windows PowerShell:
-
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
-
-```
-py -3 -m venv .venv
-```
-
-Activate the environment. This tells PowerShell to use the Python inside
-`.venv`.
 
 ```
 .venv\Scripts\Activate.ps1
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
-
-```
-python -m pip install -r requirements.lock
-```
-
 Windows cmd:
-
-Create the virtual environment. This makes a private `.venv` folder for
-Copernican.
-
-```
-py -3 -m venv .venv
-```
-
-Activate the environment. This tells cmd to use the Python inside `.venv`.
 
 ```
 .venv\Scripts\activate.bat
 ```
 
-Install the locked dependencies. This puts the exact package versions
-Copernican expects into the environment.
+## Install the locked dependencies
+
+This puts the exact package versions Copernican expects into the
+environment.
 
 ```
 python -m pip install -r requirements.lock
@@ -99,8 +144,8 @@ python -m pip install -r requirements.lock
 
 ## Launch Copernican
 
-Use the same launch steps as the top README. The commands below are the same
-on macOS, Linux and Windows.
+Use the same launch steps as the top README. The commands below match
+the same launch flow on every supported platform.
 
 Start the command-line interface. This runs Copernican in text mode.
 
