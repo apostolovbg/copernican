@@ -29,16 +29,17 @@ The bundled engines, models, and validation helpers now live under
 path layout.
 
 The CMB surface now includes a generic physical scalar engine for
-`standard: false` contracts. It evolves Newtonian-gauge perturbations,
-recombination and line-of-sight transfer functions while rejecting
-unsupported custom sectors with explicit errors instead of toy projections.
-Non-standard contracts can either keep the built-in sector equations with
-`equation_mode: mapped_sector` or override them with typed declared equations
-through `equation_mode: declared_equations`; in both cases unsupported
-symbols, missing required equations, and incompatible gauges fail loudly.
-The implementation lives in `copernican/lib/likelihoods/cmb.py` and now
-uses bounded `k` sampling with adaptive mode stepping for the requested
-line-of-sight window.
+`standard: false` contracts. It evolves Newtonian-gauge perturbations per
+`k` mode, then projects the evolved histories through transfer functions and
+line-of-sight integration while rejecting unsupported custom sectors with
+explicit errors instead of toy projections. Non-standard contracts can either
+keep the built-in sector equations with `equation_mode: mapped_sector` or
+override them with typed declared equations through
+`equation_mode: declared_equations`; in both cases unsupported symbols,
+missing required equations, and incompatible gauges fail loudly. The
+implementation lives in `copernican/lib/likelihoods/cmb.py` and now uses
+bounded `k` sampling with cached mode histories and Bessel projection for the
+requested line-of-sight window.
 The front-door README mirrors that summary so package readers see the same
 custom CMB surface from the repository root.
 

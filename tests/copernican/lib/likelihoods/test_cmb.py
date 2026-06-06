@@ -439,8 +439,30 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             "project_declared_perturbation_series",
             "damping template",
             "source amplitude",
+            "_synthesise_mode_histories",
+            "acoustic_envelope",
+            "sin_phase",
+            "cos_phase",
+            "theta0_hist =",
+            "delta_b_hist =",
+            "sigma_nu_hist =",
         ):
             self.assertNotIn(needle, source_text)
+
+    def test_custom_histories_use_mode_evolution_path(self) -> None:
+        """The custom path should use an internal per-k evolution helper."""
+
+        contract = _custom_contract()
+        cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+            spectra=("TT",),
+        )
+        source_text = Path(cmb.__file__).read_text(encoding="utf-8")
+        self.assertIn("def _evolve_custom_cmb_mode_histories(", source_text)
+        self.assertIn("k_value", source_text)
+        self.assertIn("eta_los_grid", source_text)
+        self.assertIn("return histories, _evaluate_sources", source_text)
 
     def test_custom_background_peaks_near_recombination(self) -> None:
         """The visibility function should peak near recombination."""

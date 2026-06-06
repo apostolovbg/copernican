@@ -80,6 +80,22 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Replaced the synthetic custom CMB history generator with real per-k
+    mode evolution and aligned the custom CMB tests and package docs.
+  Why: Aligned the non-standard CMB surface with finite evolved histories,
+    explicit evolution coverage, and matching package documentation.
+  Impact: Custom CMB spectra now flow through evolved histories, the tests
+    exercise the evolution helper, and the root README and ABOUT docs describe
+    the updated surface.
+  Files:
+    copernican/lib/likelihoods/cmb.py
+    tests/copernican/lib/likelihoods/test_cmb.py
+    README.md
+    ABOUT.md
+    copernican/README.md
+    copernican/ABOUT.md
+
+- 2026-06-06:
   Change: Stabilized the custom CMB engine with adaptive mode stepping,
   bounded `k` sampling, and cached contract metadata.
   Why: Resolved non-standard `standard: false` spectra that still

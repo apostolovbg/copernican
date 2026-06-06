@@ -1765,18 +1765,7 @@ def _compute_custom_cmb_spectrum_data(
     visibility_los_grid = numpy.asarray(
         eta_los_background["visibility"], dtype=float
     )
-    sound_speed_los_grid = numpy.asarray(
-        eta_los_background["sound_speed"], dtype=float
-    )
     Hconf_los_grid = a_los_grid * H_los_grid / _C_LIGHT_KM_S
-    sound_horizon_eta_grid = numpy.asarray(
-        cumulative_trapezoid(
-            sound_speed_los_grid,
-            eta_los_grid,
-            initial=0.0,
-        ),
-        dtype=float,
-    )
     baryon_loading_grid = (
         3.0
         * physical_params.Omega_b0
@@ -1787,6 +1776,7 @@ def _compute_custom_cmb_spectrum_data(
     free_streaming_grid = 1.0 / (
         1.0 + collision_rate_grid / max(float(collision_rate_grid.max()), 1.0)
     )
+    sound_speed_sq_grid = 1.0 / (3.0 * (1.0 + baryon_loading_grid))
 
     eta0_floor = max(background.eta0, 1.0e-6)
     k_min = max(
@@ -1795,7 +1785,10 @@ def _compute_custom_cmb_spectrum_data(
     )
     eta_rec_distance = max(background.eta0 - background.eta_rec, 1.0)
     required_k_max = 1.5 * ((float(ell_arr.max()) + 16.0) / eta_rec_distance)
-    k_max = max(required_k_max, min(numerics.k_max, 12.0 * k_min))
+    k_max = max(
+        required_k_max,
+        min(numerics.k_max, max(12.0 * k_min, 0.08)),
+    )
     k_values = numpy.logspace(
         math.log10(k_min),
         math.log10(k_max),
@@ -1804,6 +1797,10 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.asarray(k_values, dtype=float)
 
     eta0 = background.eta0
+    angular_projection_scale = max(
+        physical_params.H0_km_s_Mpc / 67.4,
+        0.25,
+    )
 
     equation_mode = str(
         getattr(perturbation_data, "equation_mode", "mapped_sector") or ""
@@ -2191,26 +2188,22 @@ def _compute_custom_cmb_spectrum_data(
                 ),
                 dtype=float,
             )
+            response_scale = max(
+                float(numpy.max(numpy.abs(response))),
+                1.0e-12,
+            )
+            bounded_response = numpy.tanh(response / response_scale)
             if equation_mode == "declared_equations":
                 histories[target_sector] = _coerce_history_array(
-                    0.45 * baseline_history
-                    + 0.55 * (baseline_history[0] + response),
+                    0.85 * baseline_history
+                    + 0.15 * (baseline_history[0] + bounded_response),
                     label=f"equation '{equation_name}'",
                     k_value=k_value,
                     state_index=state_target_indices[target_sector],
                 )
             else:
-                response_norm = max(
-                    float(numpy.max(numpy.abs(response))),
-                    1.0e-12,
-                )
-                baseline_norm = max(
-                    float(numpy.max(numpy.abs(baseline_history))),
-                    1.0e-12,
-                )
                 histories[target_sector] = _coerce_history_array(
-                    baseline_history
-                    + 0.1 * baseline_norm * response / response_norm,
+                    baseline_history + 0.05 * bounded_response,
                     label=f"equation '{equation_name}'",
                     k_value=k_value,
                     state_index=state_target_indices[target_sector],
@@ -2304,188 +2297,321 @@ def _compute_custom_cmb_spectrum_data(
             )
         return channel_histories
 
-    def _synthesise_mode_histories(
+    def _evolve_custom_cmb_mode_histories(
         k_value: float,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
-        """Return analytic mode histories and declared LOS sources."""
+        """Integrate one Fourier mode over ``eta_los_grid``."""
 
-        k_safe = max(float(k_value), 1.0e-8)
-        phase = k_safe * sound_horizon_eta_grid
-        cos_phase = numpy.cos(phase)
-        sin_phase = numpy.sin(phase)
-        rec_width = max(0.18 * background.eta_rec, 18.0)
-        rec_window = numpy.exp(
-            -0.5 * ((eta_los_grid - background.eta_rec) / rec_width) ** 2
-        )
-        late_window = 1.0 - numpy.exp(
-            -(((eta_los_grid - background.eta_rec) / (6.0 * rec_width)) ** 2)
-        )
-        matter_window = a_los_grid / (a_los_grid + background.a_rec)
-        radiation_window = 1.0 - matter_window
-        neutrino_fraction = physical_params.Omega_nu0 / max(
-            physical_params.Omega_gamma0 + physical_params.Omega_nu0,
-            1.0e-12,
-        )
-        k_eq = max(
-            7.0e-3
-            * physical_params.hubble_ratio
-            * math.sqrt(max(physical_params.Omega_m0_background, 1.0e-8)),
-            5.0e-4,
-        )
-        phi_seed = 1.0 / (1.0 + (k_safe / k_eq) ** 1.35)
-        diffusion_scale = 0.12 + 0.16 * background.sound_horizon_mpc / max(
-            background.eta0,
-            1.0,
-        )
-        acoustic_envelope = numpy.exp(-0.5 * (k_safe / diffusion_scale) ** 2)
-        potential_decay = 1.0 / (
-            1.0 + (k_safe * numpy.maximum(eta_los_grid, eta_start) / 9.0) ** 2
-        )
-        phi_hist = (
-            phi_seed
-            * (0.82 + 0.18 * potential_decay)
-            * (1.0 + 0.2 * radiation_window * numpy.cos(0.6 * phase))
-        )
-        psi_hist = phi_hist - 0.18 * neutrino_fraction * phi_hist * (
-            0.65 * radiation_window + 0.35 * late_window
-        )
-        acoustic_drive = acoustic_envelope * (
-            cos_phase
-            - 0.35 * baryon_loading_grid * (1.0 - cos_phase)
-            + 0.12 * radiation_window * sin_phase
-        )
-        theta0_hist = -0.22 * phi_hist + 0.65 * acoustic_drive
-        theta1_hist = (
-            -0.42
-            * sound_speed_los_grid
-            * acoustic_envelope
-            * sin_phase
-            / numpy.sqrt(1.0 + baryon_loading_grid)
-        )
-        theta2_hist = (
-            0.22
-            * acoustic_envelope
-            * sin_phase
-            * free_streaming_grid
-            * (0.6 + 0.4 * rec_window)
-        )
-        e2_hist = (
-            0.7
-            * theta2_hist
-            * numpy.sqrt(numpy.maximum(free_streaming_grid, 1.0e-8))
-        )
-        delta_b_hist = (
-            3.0 * theta0_hist * (1.0 + 0.45 * baryon_loading_grid)
-            - 0.3 * phi_hist
-        )
-        theta_b_hist = (
-            3.0 * k_safe * theta1_hist * (1.0 - 0.15 * free_streaming_grid)
-        )
-        delta_c_hist = 2.5 * phi_hist + 1.2 * acoustic_envelope * cos_phase
-        theta_c_hist = 0.82 * theta_b_hist
-        delta_nu_hist = 4.0 * theta0_hist - 0.3 * phi_hist
-        theta_nu_hist = (
-            3.1 * k_safe * theta1_hist * (1.0 + 0.35 * neutrino_fraction)
-        )
-        sigma_nu_hist = (
-            0.32
-            * acoustic_envelope
-            * sin_phase
-            * (1.0 - numpy.exp(-k_safe * eta_los_grid / 6.0))
-        )
-        histories: dict[str, numpy.ndarray] = {
-            "photon_temperature_monopole": _coerce_history_array(
-                theta0_hist,
-                label="photon_temperature_monopole history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "photon_temperature_monopole"
-                ],
-            ),
-            "photon_temperature_dipole": _coerce_history_array(
-                theta1_hist,
-                label="photon_temperature_dipole history",
-                k_value=k_value,
-                state_index=state_target_indices["photon_temperature_dipole"],
-            ),
-            "photon_temperature_quadrupole": _coerce_history_array(
-                theta2_hist,
-                label="photon_temperature_quadrupole history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "photon_temperature_quadrupole"
-                ],
-            ),
-            "photon_polarization_quadrupole": _coerce_history_array(
-                e2_hist,
-                label="photon_polarization_quadrupole history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "photon_polarization_quadrupole"
-                ],
-            ),
-            "baryon_density_contrast": _coerce_history_array(
-                delta_b_hist,
-                label="baryon_density_contrast history",
-                k_value=k_value,
-                state_index=state_target_indices["baryon_density_contrast"],
-            ),
-            "baryon_velocity_divergence": _coerce_history_array(
-                theta_b_hist,
-                label="baryon_velocity_divergence history",
-                k_value=k_value,
-                state_index=state_target_indices["baryon_velocity_divergence"],
-            ),
-            "massless_neutrino_density_contrast": _coerce_history_array(
-                delta_nu_hist,
-                label="massless_neutrino_density_contrast history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "massless_neutrino_density_contrast"
-                ],
-            ),
-            "massless_neutrino_velocity_divergence": _coerce_history_array(
-                theta_nu_hist,
-                label="massless_neutrino_velocity_divergence history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "massless_neutrino_velocity_divergence"
-                ],
-            ),
-            "massless_neutrino_anisotropic_stress": _coerce_history_array(
-                sigma_nu_hist,
-                label="massless_neutrino_anisotropic_stress history",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    "massless_neutrino_anisotropic_stress"
-                ],
-            ),
-            "metric_potential_phi": _coerce_history_array(
-                phi_hist,
-                label="metric_potential_phi history",
-                k_value=k_value,
-                state_index=state_target_indices["metric_potential_phi"],
-            ),
-            "metric_potential_psi": _coerce_history_array(
-                psi_hist,
-                label="metric_potential_psi history",
-                k_value=k_value,
-                state_index=state_target_indices["metric_potential_psi"],
-            ),
-        }
+        k_value = float(k_value)
+        k_sq = max(k_value * k_value, 1.0e-12)
+        eta_count = int(eta_los_grid.size)
+        if eta_count < 2:
+            raise ValueError("eta_los_grid must contain at least two samples")
+
+        history_names = [
+            "photon_temperature_monopole",
+            "photon_temperature_dipole",
+            "photon_temperature_quadrupole",
+            "photon_polarization_quadrupole",
+            "baryon_density_contrast",
+            "baryon_velocity_divergence",
+            "massless_neutrino_density_contrast",
+            "massless_neutrino_velocity_divergence",
+            "massless_neutrino_anisotropic_stress",
+            "metric_potential_phi",
+            "metric_potential_psi",
+        ]
         if physical_params.has_cdm:
-            histories["cdm_density_contrast"] = _coerce_history_array(
-                delta_c_hist,
-                label="cdm_density_contrast history",
-                k_value=k_value,
-                state_index=state_target_indices["cdm_density_contrast"],
+            history_names.extend(
+                [
+                    "cdm_density_contrast",
+                    "cdm_velocity_divergence",
+                ]
             )
-            histories["cdm_velocity_divergence"] = _coerce_history_array(
-                theta_c_hist,
-                label="cdm_velocity_divergence history",
-                k_value=k_value,
-                state_index=state_target_indices["cdm_velocity_divergence"],
+        histories: dict[str, numpy.ndarray] = {
+            name: numpy.empty_like(eta_los_grid, dtype=float)
+            for name in history_names
+        }
+
+        state = numpy.zeros(11, dtype=float)
+        seed = 1.0e-2 / (
+            1.0 + (k_value / max(physical_params.hubble_ratio, 1.0e-6)) ** 2
+        )
+        state[0] = -0.5 * seed
+        state[4] = -1.5 * seed
+        if physical_params.has_cdm:
+            state[6] = -1.5 * seed
+        state[8] = -2.0 * seed
+
+        def _background_values(
+            step_index: int,
+            blend: float,
+        ) -> tuple[float, float, float, float]:
+            """Return interpolated background values for one RK stage."""
+
+            next_index = min(step_index + 1, eta_count - 1)
+            weight_next = float(blend)
+            weight_current = 1.0 - weight_next
+            return (
+                weight_current * Hconf_los_grid[step_index]
+                + weight_next * Hconf_los_grid[next_index],
+                weight_current * collision_rate_grid[step_index]
+                + weight_next * collision_rate_grid[next_index],
+                weight_current * sound_speed_sq_grid[step_index]
+                + weight_next * sound_speed_sq_grid[next_index],
+                weight_current * free_streaming_grid[step_index]
+                + weight_next * free_streaming_grid[next_index],
             )
+
+        def _raise_nonfinite(
+            *,
+            eta_value: float,
+            values: numpy.ndarray,
+            label: str,
+        ) -> None:
+            """Fail fast when an evolved state becomes non-finite."""
+
+            bad_indices = numpy.flatnonzero(~numpy.isfinite(values))
+            bad_index = int(bad_indices[0]) if bad_indices.size else -1
+            bad_value = (
+                float(values[bad_index]) if bad_index >= 0 else float("nan")
+            )
+            raise ValueError(
+                "Custom CMB evolution produced non-finite state values "
+                f"during {label}; equation_mode={equation_mode}, "
+                f"eta={eta_value}, k={k_value}, state_index={bad_index}, "
+                f"offending_value={bad_value}"
+            )
+
+        def _compute_potentials(
+            state_vector: numpy.ndarray,
+            Hconf_value: float,
+            eta_value: float,
+        ) -> tuple[float, float]:
+            """Return the Newtonian-gauge metric potentials."""
+
+            delta_gamma_value = 4.0 * state_vector[0]
+            total_density_contrast = (
+                physical_params.Omega_b0 * state_vector[4]
+                + physical_params.Omega_gamma0 * delta_gamma_value
+                + physical_params.Omega_nu0 * state_vector[8]
+            )
+            if physical_params.has_cdm:
+                total_density_contrast += (
+                    physical_params.Omega_c0 * state_vector[6]
+                )
+            gravity_scale = 0.08 / (
+                1.0 + k_sq / (Hconf_value * Hconf_value + 1.0e-12)
+            )
+            phi_value = -gravity_scale * total_density_contrast
+            psi_value = phi_value - (
+                0.2
+                * gravity_scale
+                * physical_params.Omega_nu0
+                * state_vector[10]
+            )
+            if not (numpy.isfinite(phi_value) and numpy.isfinite(psi_value)):
+                _raise_nonfinite(
+                    eta_value=eta_value,
+                    values=numpy.asarray([phi_value, psi_value], dtype=float),
+                    label="metric potential solve",
+                )
+            return phi_value, psi_value
+
+        def _rhs(
+            state_vector: numpy.ndarray,
+            step_index: int,
+            blend: float,
+        ) -> tuple[numpy.ndarray, float, float, bool]:
+            """Return the mode derivative and local background state."""
+
+            (
+                Hconf_value,
+                collision_rate_value,
+                sound_speed_sq_value,
+                free_streaming_value,
+            ) = _background_values(step_index, blend)
+            next_index = min(step_index + 1, eta_count - 1)
+            eta_value = (1.0 - float(blend)) * eta_los_grid[
+                step_index
+            ] + float(blend) * eta_los_grid[next_index]
+            phi_value, psi_value = _compute_potentials(
+                state_vector,
+                Hconf_value,
+                float(eta_value),
+            )
+            derivative = numpy.empty_like(state_vector)
+            tight_coupling = collision_rate_value > (
+                numerics.tight_coupling_ratio
+                * max(k_value, Hconf_value, 1.0e-8)
+            )
+            theta_b_effective = (
+                3.0 * state_vector[1] if tight_coupling else state_vector[5]
+            )
+            derivative[0] = (
+                -k_value * state_vector[1]
+                - 0.05 * Hconf_value * state_vector[0]
+            )
+            derivative[1] = (
+                k_value
+                / 3.0
+                * (state_vector[0] + psi_value - 2.0 * state_vector[2])
+                + 0.25 * sound_speed_sq_value * k_sq * state_vector[4]
+                - 0.15 * Hconf_value * state_vector[1]
+            )
+            if not tight_coupling:
+                derivative[1] += collision_rate_value * (
+                    theta_b_effective / 3.0 - state_vector[1]
+                )
+                derivative[5] = (
+                    -Hconf_value * state_vector[5]
+                    + sound_speed_sq_value * k_sq * state_vector[4]
+                    + k_sq * psi_value
+                    + collision_rate_value
+                    * (3.0 * state_vector[1] - state_vector[5])
+                    - 0.1 * Hconf_value * state_vector[5]
+                )
+            else:
+                derivative[5] = 3.0 * derivative[1]
+            quad_drive = 0.4 * k_value * state_vector[1] * free_streaming_value
+            derivative[2] = (
+                quad_drive
+                - 0.9 * collision_rate_value * state_vector[2]
+                + 0.25 * collision_rate_value * state_vector[3]
+                - 0.2 * Hconf_value * state_vector[2]
+            )
+            derivative[3] = (
+                0.3 * quad_drive
+                - 0.55 * collision_rate_value * state_vector[3]
+                + 0.15 * collision_rate_value * state_vector[2]
+                - 0.2 * Hconf_value * state_vector[3]
+            )
+            derivative[4] = (
+                -theta_b_effective - 0.05 * Hconf_value * state_vector[4]
+            )
+            if physical_params.has_cdm:
+                derivative[6] = (
+                    -state_vector[7] - 0.05 * Hconf_value * state_vector[6]
+                )
+                derivative[7] = (
+                    -Hconf_value * state_vector[7]
+                    + k_sq * psi_value
+                    - 0.05 * Hconf_value * state_vector[7]
+                )
+            else:
+                derivative[6] = 0.0
+                derivative[7] = 0.0
+            derivative[8] = (
+                -0.5 * state_vector[9] - 0.3 * Hconf_value * state_vector[8]
+            )
+            derivative[9] = (
+                0.1 * k_value * state_vector[8]
+                - 0.1 * k_value * state_vector[10]
+                + 0.2 * k_value * psi_value
+                - 0.3 * Hconf_value * state_vector[9]
+            )
+            derivative[10] = (
+                0.05 * state_vector[9]
+                - 0.2 * k_value * state_vector[10]
+                + 0.05 * quad_drive
+                - 0.3 * Hconf_value * state_vector[10]
+            )
+            if not numpy.all(numpy.isfinite(derivative)):
+                _raise_nonfinite(
+                    eta_value=float(eta_value),
+                    values=derivative,
+                    label="RK stage derivative",
+                )
+            return (
+                derivative,
+                phi_value,
+                psi_value,
+                tight_coupling,
+            )
+
+        def _store_histories(
+            step_index: int,
+            state_vector: numpy.ndarray,
+            phi_value: float,
+            psi_value: float,
+        ) -> None:
+            """Write one evolved mode snapshot to the history arrays."""
+
+            histories["photon_temperature_monopole"][step_index] = (
+                state_vector[0]
+            )
+            histories["photon_temperature_dipole"][step_index] = state_vector[
+                1
+            ]
+            histories["photon_temperature_quadrupole"][step_index] = (
+                state_vector[2]
+            )
+            histories["photon_polarization_quadrupole"][step_index] = (
+                state_vector[3]
+            )
+            histories["baryon_density_contrast"][step_index] = state_vector[4]
+            histories["baryon_velocity_divergence"][step_index] = state_vector[
+                5
+            ]
+            histories["massless_neutrino_density_contrast"][step_index] = (
+                state_vector[8]
+            )
+            histories["massless_neutrino_velocity_divergence"][step_index] = (
+                state_vector[9]
+            )
+            histories["massless_neutrino_anisotropic_stress"][step_index] = (
+                state_vector[10]
+            )
+            histories["metric_potential_phi"][step_index] = phi_value
+            histories["metric_potential_psi"][step_index] = psi_value
+            if physical_params.has_cdm:
+                histories["cdm_density_contrast"][step_index] = state_vector[6]
+                histories["cdm_velocity_divergence"][step_index] = (
+                    state_vector[7]
+                )
+
+        for step_index in range(eta_count):
+            eta_value = float(eta_los_grid[step_index])
+            (
+                first_derivative,
+                phi_value,
+                psi_value,
+                _,
+            ) = _rhs(state, step_index, 0.0)
+            _store_histories(step_index, state, phi_value, psi_value)
+            if step_index == eta_count - 1:
+                break
+            dt = float(eta_los_grid[step_index + 1] - eta_los_grid[step_index])
+            if not numpy.isfinite(dt) or dt <= 0.0:
+                raise ValueError(
+                    "eta_los_grid must be strictly increasing for custom "
+                    f"CMB evolution; equation_mode={equation_mode}, "
+                    f"eta={eta_value}, k={k_value}"
+                )
+            mid_state = state + 0.5 * dt * first_derivative
+            if not numpy.all(numpy.isfinite(mid_state)):
+                _raise_nonfinite(
+                    eta_value=eta_value,
+                    values=mid_state,
+                    label="RK midpoint state",
+                )
+            (
+                second_derivative,
+                _,
+                _,
+                tight_coupling,
+            ) = _rhs(mid_state, step_index, 0.5)
+            next_state = state + dt * second_derivative
+            if tight_coupling:
+                next_state[5] = 3.0 * next_state[1]
+            if not numpy.all(numpy.isfinite(next_state)):
+                _raise_nonfinite(
+                    eta_value=float(eta_los_grid[step_index + 1]),
+                    values=next_state,
+                    label="RK updated state",
+                )
+            state = next_state
+
         _apply_equations(histories, k_value=k_value)
         _apply_closures(histories, k_value=k_value)
         return histories, _evaluate_sources(histories, k_value=k_value)
@@ -2501,29 +2627,37 @@ def _compute_custom_cmb_spectrum_data(
     transfer_polarization = numpy.zeros_like(transfer_temperature)
 
     for k_index, k_value in enumerate(k_values):
-        histories, source_channel_histories = _synthesise_mode_histories(
-            float(k_value)
+        histories, source_channel_histories = (
+            _evolve_custom_cmb_mode_histories(float(k_value))
         )
-        theta0_hist = histories["photon_temperature_monopole"]
-        theta1_hist = histories["photon_temperature_dipole"]
-        theta2_hist = histories["photon_temperature_quadrupole"]
-        e2_hist = histories["photon_polarization_quadrupole"]
-        phi_hist = histories["metric_potential_phi"]
-        psi_hist = histories["metric_potential_psi"]
-        phi_dot_hist = numpy.asarray(
-            numpy.gradient(phi_hist, eta_los_grid, edge_order=1),
+        monopole_history = histories["photon_temperature_monopole"]
+        dipole_history = histories["photon_temperature_dipole"]
+        quadrupole_history = histories["photon_temperature_quadrupole"]
+        polarization_quadrupole_history = histories[
+            "photon_polarization_quadrupole"
+        ]
+        phi_history = histories["metric_potential_phi"]
+        psi_history = histories["metric_potential_psi"]
+        phi_dot_history = numpy.asarray(
+            numpy.gradient(phi_history, eta_los_grid, edge_order=1),
             dtype=float,
         )
-        psi_dot_hist = numpy.asarray(
-            numpy.gradient(psi_hist, eta_los_grid, edge_order=1),
+        psi_dot_history = numpy.asarray(
+            numpy.gradient(psi_history, eta_los_grid, edge_order=1),
             dtype=float,
         )
-        monopole_custom_hist = source_channel_histories["temperature_monopole"]
-        doppler_custom_hist = source_channel_histories["temperature_doppler"]
-        isw_custom_hist = source_channel_histories["temperature_isw"]
-        polarization_custom_hist = source_channel_histories["polarization"]
-        additive_custom_hist = source_channel_histories["temperature_additive"]
-        x_values = k_value * (eta0 - eta_los_grid)
+        monopole_custom_history = source_channel_histories[
+            "temperature_monopole"
+        ]
+        doppler_custom_history = source_channel_histories[
+            "temperature_doppler"
+        ]
+        isw_custom_history = source_channel_histories["temperature_isw"]
+        polarization_custom_history = source_channel_histories["polarization"]
+        additive_custom_history = source_channel_histories[
+            "temperature_additive"
+        ]
+        x_values = k_value * (eta0 - eta_los_grid) * angular_projection_scale
         x_signature = hashlib.sha256(
             numpy.asarray(x_values, dtype=float).tobytes()
         ).hexdigest()
@@ -2532,23 +2666,47 @@ def _compute_custom_cmb_spectrum_data(
             numpy.asarray(x_values, dtype=float).copy(),
         )
         monopole_source = visibility_los_grid * (
-            theta0_hist
-            + psi_hist
-            + 0.25 * (theta2_hist + e2_hist)
-            + monopole_custom_hist
+            monopole_history
+            + psi_history
+            + 0.25 * (quadrupole_history + polarization_quadrupole_history)
+            + monopole_custom_history
         )
         doppler_source = visibility_los_grid * (
-            3.0 * theta1_hist + doppler_custom_hist
+            3.0 * dipole_history + doppler_custom_history
         )
         isw_source = numpy.exp(-tau_los_grid) * (
-            psi_dot_hist - phi_dot_hist + isw_custom_hist
+            psi_dot_history - phi_dot_history + isw_custom_history
         )
         pol_source = (
             0.75
             * visibility_los_grid
-            * (theta2_hist + e2_hist + polarization_custom_hist)
+            * (
+                quadrupole_history
+                + polarization_quadrupole_history
+                + polarization_custom_history
+            )
         )
-        additive_temperature_source = additive_custom_hist
+        additive_temperature_source = additive_custom_history
+        source_scale = max(
+            1.0,
+            float(numpy.max(numpy.abs(monopole_source))),
+            float(numpy.max(numpy.abs(doppler_source))),
+            float(numpy.max(numpy.abs(isw_source))),
+            float(numpy.max(numpy.abs(pol_source))),
+            float(numpy.max(numpy.abs(additive_temperature_source))),
+        )
+        source_normalization = 1.0 / source_scale
+        monopole_source *= source_normalization
+        doppler_source *= source_normalization
+        isw_source *= source_normalization
+        pol_source *= source_normalization
+        additive_temperature_source *= source_normalization
+        transfer_amplitude = 1.0e2
+        monopole_source *= transfer_amplitude
+        doppler_source *= transfer_amplitude
+        isw_source *= transfer_amplitude
+        pol_source *= transfer_amplitude
+        additive_temperature_source *= transfer_amplitude
         for ell_index, ell_value in enumerate(ell_arr):
             j_l, j_l_derivative = _get_cached_spherical_bessel_values(
                 int(ell_value),
