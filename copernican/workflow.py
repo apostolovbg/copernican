@@ -1188,6 +1188,21 @@ def _launch_detached_process(
     subprocess.Popen(command, **kwargs)  # nosec
 
 
+def _detached_gui_env() -> dict[str, str]:
+    """Return the GUI child environment with bundled Tcl/Tk paths."""
+
+    env = os.environ.copy()
+    bundle_lib = REPO_ROOT / ".python" / "lib"
+    tcl_dir = bundle_lib / "tcl8.6"
+    tk_dir = bundle_lib / "tk8.6"
+    if tcl_dir.exists():
+        env["TCL_LIBRARY"] = str(tcl_dir)
+    if tk_dir.exists():
+        env["TK_LIBRARY"] = str(tk_dir)
+    env["COPERNICAN_DETACH_GUI"] = "0"
+    return env
+
+
 def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
     """Attempt to hand GUI launch to a detached interpreter.
 
@@ -1206,8 +1221,7 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
         argv,
     )
 
-    env = os.environ.copy()
-    env["COPERNICAN_DETACH_GUI"] = "0"
+    env = _detached_gui_env()
     command_tail = list(argv)
     failures: list[str] = []
     for candidate in _gui_executable_candidates():

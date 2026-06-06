@@ -80,6 +80,26 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Added bundled Tcl and Tk library paths to the detached GUI
+  launcher so the background child can start the window.
+  Why: Explained that the detached launch path was starting Copernican
+  but the Tk runtime could not find init.tcl after the launcher exited.
+  Impact: Updated detached GUI launches so the window path stays
+  available on every supported platform, and the launch docs mention
+  the bundled Tcl/Tk requirement.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  SUPPORT.md
+  docs/packaging.md
+  copernican/README.md
+  copernican/ABOUT.md
+  copernican/SUPPORT.md
+  copernican/docs/packaging.md
+  copernican/workflow.py
+
+- 2026-06-06:
   Change: Fixed the detached GUI launcher to re-enter through the
   package entrypoint and documented that launch path in the mirrored
   docs.

@@ -160,7 +160,8 @@ python -m copernican --gui
 
 When the GUI launcher detaches, it re-runs `python -m copernican --gui`
 inside the managed `.venv` so the same package entrypoint starts on every
-platform.
+platform. It also passes the bundled Tcl and Tk library paths so the
+window can open after the launcher terminal closes.
 
 If Copernican is already installed in the same `.venv`, use these
 commands instead.

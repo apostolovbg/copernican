@@ -23,6 +23,8 @@ help stay aligned with the runtime path layout.
 
 Troubleshooting should start with the run folder logs and the run logs
 shown in the GUI.
+If the detached GUI opens nothing, confirm that the bundled Tcl and Tk
+library paths were bootstrapped under `.python`.
 
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.
