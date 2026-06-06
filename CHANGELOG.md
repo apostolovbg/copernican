@@ -80,6 +80,32 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Implemented a generic physical scalar CMB engine for
+  `standard: false` contracts and removed the fake projection path.
+  Why: Updated the custom CMB route to evolve backgrounds, recombination,
+  perturbations, transfer functions, and spectra without toy templates.
+  Impact: Enables `standard: false` to return finite TT/TE/EE from the real
+  engine, unsupported contracts to fail clearly, and the tests and docs to
+  cover the new path.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  ABOUT.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/design_overview.md
+  copernican/lib/likelihoods/cmb.py
+  tests/copernican/datasets/synthetic/model_plugin.py
+  tests/copernican/datasets/synthetic/test_synthetic_integration.py
+  tests/copernican/lib/likelihoods/test_cmb.py
+  tests/copernican/lib/test_model_template.py
+  tests/engines/test_engine_mcmc.py
+
+- 2026-06-06:
   Change: Removed the detached GUI launch path and related settings.
   Why: Removed the background-child contract because the GUI must open
   directly from the managed `.venv` on every platform.

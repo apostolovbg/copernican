@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import copy
 import os
+from functools import partial
 from pathlib import Path
 
 import numpy as numpy_module
 import yaml
 
 from copernican.lib.engine_adapter import build_engine_plugin
+from copernican.lib.likelihoods import cmb as cmb_likelihood
 
 _DATA_DIR = Path(__file__).parent
 _MODEL_PATH = _DATA_DIR / "model.yml"
@@ -97,18 +100,34 @@ def _sound_horizon(hubble_constant: float, matter_density_0: float) -> float:
     return 147.0 / numpy_module.sqrt(1.0 + matter_density_0)
 
 
-def _cmb_spectrum(camb_params: dict, ell_values, spectra=("TT",)):
-    ell_array = numpy_module.asarray(list(ell_values), dtype=float)
-    template = 1200.0 / (ell_array + 3.0)
-    if len(spectra) == 1:
-        return template
-    return {spec: template.copy() for spec in spectra}
+def _cmb_spectrum_from_contract(
+    camb_params: dict,
+    ell_values,
+    spectra=("TT",),
+    *,
+    perturbation_contract: dict,
+):
+    """Delegate synthetic CMB calls to the production helper."""
+
+    structured_contract = dict(camb_params)
+    structured_contract["perturbations"] = copy.deepcopy(perturbation_contract)
+    return cmb_likelihood.compute_cmb_spectrum_from_dict(
+        structured_contract,
+        ell_values,
+        spectra=spectra,
+    )
 
 
 def build_plugin():
     with _MODEL_PATH.open("r", encoding="utf-8") as handle:
         model_data = yaml.safe_load(handle)
     model_data["filename"] = os.fspath(_MODEL_PATH)
+    cmb_perturbations = model_data["cmb"]["perturbations"]
+    _cmb_spectrum = partial(
+        _cmb_spectrum_from_contract,
+        perturbation_contract=cmb_perturbations,
+    )
+
     functions = {
         "distance_modulus_model": _mu_model,
         "get_comoving_distance_Mpc": _comoving_distance,

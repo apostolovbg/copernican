@@ -51,11 +51,11 @@ directly without using the command-line interface.  The core modules are:
   implementations in a single place so engines remain thin orchestration
   layers. The helpers expose SNe chi-squared evaluations that always return
   finite values for physically meaningful proposals so MCMC reseeding can fall
-  back to them reliably. CI runners that lack CAMB can opt into
-  ``COPERNICAN_FAKE_CMB=1`` so the CMB helpers return deterministic synthetic
-  spectra instead of performing heavy physics evaluations, leaving production
-  calculations untouched. Structured CMB contracts are required in the
-  production path; the explicit legacy helper is reserved for tests.
+  back to them reliably. Structured CMB contracts are required in the
+  production path. `standard: false` contracts route to the generic physical
+  scalar engine, while unsupported custom sectors or solver keys raise clear
+  errors instead of falling back to a toy spectrum. The explicit legacy helper
+  remains reserved for tests.
   - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
     interactive prompt lists the human readable `dataset_name` and description,
@@ -80,6 +80,21 @@ directly without using the command-line interface.  The core modules are:
 - `csv_writer.save_sne_results_detailed_csv`, `save_bao_results_csv` and
   `save_cmb_results_csv` – persist fitting results with filenames that encode
   the dataset, model and timestamp.
+
+## CMB Likelihood Helpers
+
+The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
+non-standard paths separate. Standard CAMB contracts continue to use the
+backend's native perturbation solver. Non-standard contracts flow through the
+generic physical scalar engine in the same module, which evolves Newtonian-
+gauge perturbations, rebuilds the recombination visibility function, and
+integrates the transfer functions into `TT`, `TE`, and `EE`.
+
+Unsupported custom sectors fail with explicit `ValueError`s so callers can
+see which physical ingredient is missing. The helper also exposes internal
+transfer-function data for tests that need to inspect the `ell` grid, the `k`
+grid, the transfer matrices, and the derived spectra without going through the
+top-level likelihood wrapper.
 
 - `copernican.engines.engine_mcmc.fit_cosmology_parameters` –
    returns a dictionary with posterior samples, joint chi-squared

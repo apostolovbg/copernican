@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import mock
 
 from copernican.lib import engine_adapter, model_coder, model_spec_validator
 from copernican.lib.likelihoods import cmb
@@ -53,24 +51,18 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
     def test_template_execution_rejects_unsupported_generic_execution(
         self,
     ) -> None:
-        """The root template should fail on unsupported generic execution."""
+        """The root template should fail on unsupported custom CMB input."""
 
         plugin = self._build_template_plugin()
-        with mock.patch.dict(
-            os.environ,
-            {"COPERNICAN_FAKE_CMB": ""},
-            clear=False,
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unsupported custom perturbation variable 'delta_x'",
         ):
-            with self.assertRaisesRegex(
-                ValueError,
-                "native non-standard perturbations|generic declarative "
-                "executor is required",
-            ):
-                cmb.compute_cmb_spectrum_cached(
-                    plugin,
-                    plugin.INITIAL_GUESSES,
-                    [2, 3],
-                )
+            cmb.compute_cmb_spectrum_cached(
+                plugin,
+                plugin.INITIAL_GUESSES,
+                [2, 3],
+            )
 
 
 if __name__ == "__main__":

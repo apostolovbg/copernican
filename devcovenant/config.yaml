@@ -975,6 +975,7 @@ autogen_metadata_overlays:
     - SUPPORT.md
     doc_routes:
     - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican/lib/likelihoods/** => README.md, ABOUT.md
     - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
     - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -1388,6 +1389,7 @@ user_metadata_overrides:
     - ./PLAN.md
     doc_routes:
     - copernican/lib/** => README.md, ABOUT.md
+    - copernican/lib/likelihoods/** => README.md, ABOUT.md
     - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
     - copernican/lib/cli/** => README.md, ABOUT.md
     - copernican/rng_minigames/** => README.md, ABOUT.md

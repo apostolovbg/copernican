@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -966,6 +966,7 @@ min_section_count: '3'
 min_word_count: '120'
 doc_routes:
 - copernican/lib/** => README.md, ABOUT.md
+- copernican/lib/likelihoods/** => README.md, ABOUT.md
 - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
 - copernican/lib/cli/** => README.md, ABOUT.md
 - copernican/rng_minigames/** => README.md, ABOUT.md

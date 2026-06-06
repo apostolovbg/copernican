@@ -52,11 +52,11 @@ described throughout this document.
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
   ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
   unavailable the code falls back to a conservative Gelman–Rubin summary while
-  logging the downgrade. CI runners that cannot call CAMB can opt into the
-  ``COPERNICAN_FAKE_CMB`` shortcut while production evaluations still query the
-  physics engine. Nested sampling and ensemble MCMC both rely on the shared
-  Stage 2 helper so the counter lines and listener events stay consistent
-  regardless of backend.
+  logging the downgrade. Standard CMB contracts keep using CAMB, while
+  `standard: false` contracts use the generic physical scalar engine in
+  `copernican/lib/likelihoods/cmb.py`. Nested sampling and ensemble MCMC both
+  rely on the shared Stage 2 helper so the counter lines and listener events
+  stay consistent regardless of backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
   transforms and dataset compatibility. Each file is compiled into a picklable
   :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
@@ -88,6 +88,34 @@ described throughout this document.
   view metadata files or revalidate trusted parser hashes. Manifest files can
   be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
   pre-fills model, dataset and engine selections for iterative experiments.
+
+## Custom CMB Engine
+
+`standard: false` CMB contracts use the generic scalar engine in
+`copernican/lib/likelihoods/cmb.py` and stay in Newtonian gauge.
+
+* Background quantities come from the declared model expressions when they
+  exist, otherwise from the physical defaults resolved by the helper. The
+  engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
+  distance, baryon and photon densities, relativistic neutrino density, the
+  baryon-photon sound speed, and the sound horizon.
+* Recombination uses a Peebles-style hydrogen approximation with a simple
+  helium ionization history. The background tables expose `x_e(z)`, `n_e(z)`,
+  optical depth `tau(eta)`, `tau_dot`, and the visibility function
+  `g(eta) = -tau_dot * exp(-tau)`.
+* Perturbations evolve photon temperature and polarization hierarchies,
+  baryons, CDM when physically declared, massless neutrinos, and the metric
+  potentials. The solver applies tight coupling before decoupling and uses a
+  documented truncation closure for the final hierarchy bins.
+* Line-of-sight transfer functions integrate the visibility-weighted sources
+  against spherical Bessel kernels. The source set includes Sachs-Wolfe,
+  Doppler, early and late ISW, the visibility-weighted monopole and velocity,
+  and the polarization quadrupole projection used for E modes.
+* The spectra are built from the primordial power law
+  `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
+  `TE`, and `EE`. The implementation is approximate rather than
+  Planck-precision, so unsupported custom sectors and theory-specific solver
+  keys fail early instead of falling back to a toy spectrum.
 
 ## Stage-by-stage flow
 

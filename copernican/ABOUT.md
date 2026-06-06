@@ -28,6 +28,12 @@ The bundled engines, models, and validation helpers now live under
 `~/VALIDATION.md` so package installs and source checkouts follow the same
 path layout.
 
+The CMB surface now includes a generic physical scalar engine for
+`standard: false` contracts. It evolves Newtonian-gauge perturbations,
+recombination and line-of-sight transfer functions while rejecting
+unsupported custom sectors with explicit errors instead of toy projections.
+The implementation lives in `copernican/lib/likelihoods/cmb.py`.
+
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`
 folder.

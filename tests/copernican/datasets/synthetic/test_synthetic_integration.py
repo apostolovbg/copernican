@@ -85,16 +85,10 @@ class TestSyntheticIntegration(unittest.TestCase):
     """Exercise the synthetic end-to-end pipeline against both engines."""
 
     def setUp(self) -> None:
-        self._old_fake_cmb = os.environ.get("COPERNICAN_FAKE_CMB")
         self._old_dont_write = os.environ.get("PYTHONDONTWRITEBYTECODE")
-        os.environ["COPERNICAN_FAKE_CMB"] = "1"
         os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
     def tearDown(self) -> None:
-        if self._old_fake_cmb is None:
-            os.environ.pop("COPERNICAN_FAKE_CMB", None)
-        else:
-            os.environ["COPERNICAN_FAKE_CMB"] = self._old_fake_cmb
         if self._old_dont_write is None:
             os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
         else:

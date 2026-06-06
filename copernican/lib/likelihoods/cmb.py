@@ -5,35 +5,28 @@ background evaluator. The helpers consume structured CAMB contracts so scalar
 parameters, declared grids, evaluated values and ordered backend calls stay
 aligned across the spectrum and background paths. The spectra returned here
 are expressed as :math:`D_\ell` so downstream tests comparing against
-published Planck-lite tables use consistent conventions.
-The generic nonstandard path evaluates declared perturbation equations and
-projects them through a Boltzmann-hierarchy line-of-sight solver so CMB-valid
-models cannot silently fall back to standard CAMB perturbations when they
-claim a non-standard backend mapping.
+published Planck-lite tables use consistent conventions. Non-standard
+perturbation contracts route through the generic scalar CMB engine in this
+module instead of falling back to CAMB.
 """
 
 from __future__ import annotations
 
-import ast
 import logging
 import math
-import os
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import camb
 import numpy
 import pandas
 from scipy.integrate import cumulative_trapezoid
+from scipy.interpolate import PchipInterpolator
 from scipy.special import spherical_jn
 
-from ..engine_adapter import (
-    _SUPPORTED_CMB_BACKEND,
-    _evaluate_safe_expression,
-    _parse_safe_expression,
-)
+from ..engine_adapter import _SUPPORTED_CMB_BACKEND
 from ..model_coder import validate_native_perturbation_execution
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
@@ -42,20 +35,6 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
-_FAKE_CMB_BASELINE = 1200.0
-_FAKE_CMB_OFFSET = 3.0
-
-# CI and developer workstations occasionally lack usable CAMB wheels.  A
-# dedicated stub hook lets tests swap out the heavy numerical path for a
-# deterministic placeholder spectrum so regression suites avoid hour-long
-# physics evaluations while still exercising the chi-squared plumbing.
-_FAKE_CMB_PROVIDER: (
-    Callable[
-        [Mapping[str, Any], Iterable[int], Sequence[str]],
-        Mapping[str, numpy.ndarray] | numpy.ndarray,
-    ]
-    | None
-) = None
 
 
 def _normalise_value(entry_value: Any) -> Any:
@@ -84,60 +63,6 @@ def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
     for key, restored_value in items:
         restored[str(key)] = restored_value
     return restored
-
-
-def _coerce_fake_output(
-    fake: Mapping[str, numpy.ndarray] | numpy.ndarray,
-    spectra: Sequence[str],
-) -> Mapping[str, numpy.ndarray] | numpy.ndarray:
-    """Normalise stubbed spectra for deterministic test execution.
-
-    The injected provider may return a bare array for single-spectrum
-    scenarios.  This helper mirrors :func:`compute_cmb_spectrum_from_dict`
-    by forwarding single entries directly while ensuring multi-spectrum
-    runs respect the requested ordering.
-    """
-
-    if isinstance(fake, Mapping):
-        result: dict[str, numpy.ndarray] = {}
-        for spec in spectra:
-            spectrum_output = fake.get(spec)
-            if spectrum_output is None:
-                continue
-            result[str(spec)] = numpy.asarray(spectrum_output, dtype=float)
-        return result
-
-    coerced = numpy.asarray(fake, dtype=float)
-    if len(spectra) == 1:
-        return coerced
-    return {spec: coerced for spec in spectra}
-
-
-def _fake_cmb_enabled() -> bool:
-    """Return ``True`` when the CMB helper should bypass CAMB entirely."""
-
-    flag = os.environ.get("COPERNICAN_FAKE_CMB", "")
-    return flag.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _fake_background_payload(z_arr: numpy.ndarray) -> dict[str, numpy.ndarray]:
-    """Return deterministic background observables for CI-only runs."""
-
-    rs_drag = numpy.full(1, 147.0, dtype=float)
-    dm_vals = z_arr * 1000.0
-    dh_vals = numpy.full_like(z_arr, 1000.0)
-    da_vals = numpy.divide(dm_vals, 1.0 + z_arr, dtype=float)
-    dv_vals = numpy.power(dm_vals * numpy.square(1.0 + z_arr), 1.0 / 3.0)
-    hz_vals = numpy.full_like(z_arr, 70.0)
-    return {
-        "rs_drag": rs_drag,
-        "DM": dm_vals,
-        "DH": dh_vals,
-        "DA": da_vals,
-        "DV": dv_vals,
-        "Hz": hz_vals,
-        "z": z_arr.copy(),
-    }
 
 
 def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
@@ -647,79 +572,1493 @@ def _build_generic_background_payload_from_contract(
     }
 
 
-def _project_declared_perturbation_series(
-    source_series: numpy.ndarray,
-    ell_value: int,
-    k_value: float,
-    tau_grid: numpy.ndarray,
-    *,
-    kernel_kind: str = "scalar",
-) -> float:
-    """Project a declared source series onto a single multipole."""
+@dataclass(slots=True)
+class _CustomCMBNumerics:
+    """Numerical settings used by the generic scalar CMB engine."""
 
-    tau_distance = numpy.maximum(float(tau_grid[-1]) - tau_grid, 0.0)
-    x_values = k_value * tau_distance
-    if kernel_kind == "spin2":
-        if ell_value < 2:
-            return 0.0
-        factor = math.exp(
-            0.5
-            * (
-                math.lgamma(int(ell_value) + 3)
-                - math.lgamma(int(ell_value) - 1)
+    ell_min: int = 2
+    ell_max: int = 2500
+    k_min: float = 1.0e-5
+    k_max: float = 0.4
+    k_sample_count: int = 64
+    eta_sample_count: int = 1024
+    photon_hierarchy_l_max: int = 8
+    neutrino_hierarchy_l_max: int = 8
+    ode_rtol: float = 1.0e-6
+    ode_atol: float = 1.0e-9
+    tight_coupling_ratio: float = 50.0
+    a_min: float = 1.0e-8
+    source_grid_multiplier: int = 2
+
+
+@dataclass(slots=True)
+class _CustomCMBPhysicalParameters:
+    """Resolved physical background inputs for the generic CMB solver."""
+
+    H0_km_s_Mpc: float
+    hubble_ratio: float
+    H0_over_c_Mpc_inv: float
+    ombh2: float
+    omch2: float
+    Omega_b0: float
+    Omega_c0: float
+    Omega_m0_background: float
+    Omega_gamma0: float
+    Omega_nu0: float
+    Omega_r0: float
+    Omega_k0: float
+    Omega_de0: float
+    dark_energy_eos0: float
+    dark_energy_eos1: float
+    YHe: float
+    Neff: float
+    primordial_amplitude: float
+    primordial_spectral_index: float
+    z_rec: float
+    Tcmb_K: float
+    n_b0_m3: float
+    n_H0_m3: float
+    rho_b0_kg_m3: float
+    has_cdm: bool
+    has_dark_energy: bool
+
+
+@dataclass(slots=True)
+class _CustomCMBBackgroundData:
+    """Background and recombination tables for the generic CMB solver."""
+
+    a_grid: numpy.ndarray
+    z_grid: numpy.ndarray
+    eta_grid: numpy.ndarray
+    eta0: float
+    chi_grid: numpy.ndarray
+    da_grid: numpy.ndarray
+    H_grid: numpy.ndarray
+    Hconf_grid: numpy.ndarray
+    tau_grid: numpy.ndarray
+    tau_dot_grid: numpy.ndarray
+    visibility_grid: numpy.ndarray
+    n_e_grid: numpy.ndarray
+    n_H_grid: numpy.ndarray
+    sound_speed_grid: numpy.ndarray
+    sound_horizon_mpc: float
+    eta_rec: float
+    a_rec: float
+    z_rec: float
+    eta_of_a: PchipInterpolator
+    a_of_eta: PchipInterpolator
+    z_of_eta: PchipInterpolator
+    H_of_eta: PchipInterpolator
+    chi_of_eta: PchipInterpolator
+    da_of_eta: PchipInterpolator
+    tau_of_eta: PchipInterpolator
+    tau_dot_of_eta: PchipInterpolator
+    visibility_of_eta: PchipInterpolator
+    sound_speed_of_eta: PchipInterpolator
+
+    def sample(
+        self, eta_values: numpy.ndarray | float
+    ) -> dict[str, numpy.ndarray]:
+        """Return the background quantities interpolated at ``eta_values``."""
+
+        eta_arr = numpy.asarray(eta_values, dtype=float)
+        return {
+            "a": numpy.asarray(self.a_of_eta(eta_arr), dtype=float),
+            "z": numpy.asarray(self.z_of_eta(eta_arr), dtype=float),
+            "H": numpy.asarray(self.H_of_eta(eta_arr), dtype=float),
+            "chi": numpy.asarray(self.chi_of_eta(eta_arr), dtype=float),
+            "angular_diameter_distance": numpy.asarray(
+                self.da_of_eta(eta_arr), dtype=float
+            ),
+            "tau": numpy.asarray(self.tau_of_eta(eta_arr), dtype=float),
+            "tau_dot": numpy.asarray(
+                self.tau_dot_of_eta(eta_arr), dtype=float
+            ),
+            "visibility": numpy.asarray(
+                self.visibility_of_eta(eta_arr), dtype=float
+            ),
+            "sound_speed": numpy.asarray(
+                self.sound_speed_of_eta(eta_arr), dtype=float
+            ),
+        }
+
+
+@dataclass(slots=True)
+class CustomCMBSpectrumData:
+    """Internal transfer-function and spectrum payload for CMB outputs."""
+
+    ell_grid: numpy.ndarray
+    k_grid: numpy.ndarray
+    Delta_l_T: numpy.ndarray
+    Delta_l_E: numpy.ndarray
+    C_l_TT: numpy.ndarray
+    C_l_TE: numpy.ndarray
+    C_l_EE: numpy.ndarray
+
+
+def _extract_contract_scalar(
+    contract: Mapping[str, Any],
+    names: Sequence[str],
+    *,
+    default: float | None = None,
+) -> float | None:
+    """Return the first finite scalar matching ``names`` from ``contract``."""
+
+    for source in (
+        contract.get("param_map", {}) or {},
+        contract.get("model_parameters", {}) or {},
+    ):
+        if not isinstance(source, Mapping):
+            continue
+        for name in names:
+            if name not in source:
+                continue
+            try:
+                return _coerce_numeric_scalar(source[name], name=name)
+            except ValueError:
+                continue
+    if default is None:
+        return None
+    return float(default)
+
+
+def _resolve_custom_cmb_numerics(
+    contract: Mapping[str, Any],
+) -> _CustomCMBNumerics:
+    """Return numerical settings for the generic custom CMB solver."""
+
+    raw = contract.get("numerical", {}) or {}
+    if not isinstance(raw, Mapping):
+        raise ValueError("cmb.numerical must be a mapping when declared")
+    defaults = _CustomCMBNumerics()
+
+    def _read_int(name: str, default: int) -> int:
+        """Return a positive integer from ``raw`` or ``default``."""
+
+        value = raw.get(name, default)
+        numeric = int(_coerce_numeric_scalar(value, name=name))
+        if numeric < 1:
+            raise ValueError(f"cmb.numerical.{name} must be positive")
+        return numeric
+
+    def _read_float(name: str, default: float) -> float:
+        """Return a positive float from ``raw`` or ``default``."""
+
+        value = raw.get(name, default)
+        numeric = float(_coerce_numeric_scalar(value, name=name))
+        if numeric <= 0.0:
+            raise ValueError(f"cmb.numerical.{name} must be positive")
+        return numeric
+
+    ell_min = max(2, _read_int("ell_min", defaults.ell_min))
+    ell_max = max(ell_min, _read_int("ell_max", defaults.ell_max))
+    k_min = _read_float("k_min", defaults.k_min)
+    k_max = _read_float("k_max", defaults.k_max)
+    k_sample_count = max(
+        16, _read_int("k_sample_count", defaults.k_sample_count)
+    )
+    eta_sample_count = max(
+        128,
+        _read_int("eta_sample_count", defaults.eta_sample_count),
+    )
+    photon_hierarchy_l_max = max(
+        2,
+        _read_int(
+            "photon_hierarchy_l_max",
+            defaults.photon_hierarchy_l_max,
+        ),
+    )
+    neutrino_hierarchy_l_max = max(
+        2,
+        _read_int(
+            "neutrino_hierarchy_l_max",
+            defaults.neutrino_hierarchy_l_max,
+        ),
+    )
+    ode_rtol = _read_float("ode_rtol", defaults.ode_rtol)
+    ode_atol = _read_float("ode_atol", defaults.ode_atol)
+    tight_coupling_ratio = _read_float(
+        "tight_coupling_ratio",
+        defaults.tight_coupling_ratio,
+    )
+    a_min = _read_float("a_min", defaults.a_min)
+    source_grid_multiplier = max(
+        1,
+        _read_int(
+            "source_grid_multiplier",
+            defaults.source_grid_multiplier,
+        ),
+    )
+    return _CustomCMBNumerics(
+        ell_min=ell_min,
+        ell_max=ell_max,
+        k_min=k_min,
+        k_max=k_max,
+        k_sample_count=k_sample_count,
+        eta_sample_count=eta_sample_count,
+        photon_hierarchy_l_max=photon_hierarchy_l_max,
+        neutrino_hierarchy_l_max=neutrino_hierarchy_l_max,
+        ode_rtol=ode_rtol,
+        ode_atol=ode_atol,
+        tight_coupling_ratio=tight_coupling_ratio,
+        a_min=a_min,
+        source_grid_multiplier=source_grid_multiplier,
+    )
+
+
+def _resolve_custom_cmb_physical_parameters(
+    contract: Mapping[str, Any],
+    background_provider: Any | None = None,
+) -> _CustomCMBPhysicalParameters:
+    """Return physical CMB parameters from the structured contract."""
+
+    hubble_km_s_mpc = _extract_contract_scalar(
+        contract,
+        ("H0", "hubble_constant", "Hubble constant"),
+        default=None,
+    )
+    if hubble_km_s_mpc is None and background_provider is not None:
+        hz_fn = getattr(background_provider, "get_Hz_per_Mpc", None)
+        if callable(hz_fn):
+            hubble_km_s_mpc = _coerce_numeric_scalar(
+                hz_fn(numpy.asarray([0.0])),
+                name="H0",
+            )
+    if hubble_km_s_mpc is None:
+        hubble_km_s_mpc = 67.4
+    hubble_km_s_mpc = max(float(hubble_km_s_mpc), 1.0e-6)
+    hubble_ratio = hubble_km_s_mpc / 100.0
+    hubble_over_c = hubble_km_s_mpc / _C_LIGHT_KM_S
+
+    ombh2 = _extract_contract_scalar(
+        contract,
+        ("ombh2", "Omega_b_h2", "omega_b_h2", "baryon_density_h2"),
+        default=None,
+    )
+    Omega_b0 = _extract_contract_scalar(
+        contract,
+        ("Omega_b", "Omega_b0", "omega_b"),
+        default=None,
+    )
+    if Omega_b0 is None and ombh2 is not None:
+        Omega_b0 = ombh2 / (hubble_ratio * hubble_ratio)
+    if Omega_b0 is None:
+        Omega_b0 = 0.05
+    if ombh2 is None:
+        ombh2 = Omega_b0 * hubble_ratio * hubble_ratio
+
+    explicit_cdm = any(
+        key in (contract.get("param_map", {}) or {})
+        for key in (
+            "omch2",
+            "Omega_c",
+            "Omega_c0",
+            "omega_c",
+            "Omega_cdm",
+            "Omega_cdm0",
+            "omega_cdm",
+            "cdm_density_h2",
+        )
+    )
+    omch2 = _extract_contract_scalar(
+        contract,
+        ("omch2", "Omega_c_h2", "omega_c_h2", "cdm_density_h2"),
+        default=None,
+    )
+    Omega_c0 = _extract_contract_scalar(
+        contract,
+        ("Omega_c", "Omega_c0", "omega_c", "Omega_cdm", "Omega_cdm0"),
+        default=None,
+    )
+    if explicit_cdm:
+        if Omega_c0 is None and omch2 is not None:
+            Omega_c0 = omch2 / (hubble_ratio * hubble_ratio)
+        if Omega_c0 is None:
+            Omega_c0 = 0.0
+        if omch2 is None:
+            omch2 = Omega_c0 * hubble_ratio * hubble_ratio
+    else:
+        Omega_c0 = 0.0
+        omch2 = 0.0
+
+    Tcmb_K = _extract_contract_scalar(
+        contract,
+        ("Tcmb", "T_cmb", "Tcmb_K"),
+        default=2.7255,
+    )
+    YHe = _extract_contract_scalar(
+        contract,
+        ("YHe", "Yp", "helium_fraction"),
+        default=0.245,
+    )
+    Neff = _extract_contract_scalar(contract, ("Neff", "N_eff"), default=3.046)
+
+    Omega_gamma0 = _extract_contract_scalar(
+        contract,
+        ("Omega_gamma", "Omega_gamma0", "omega_gamma", "omgamma"),
+        default=None,
+    )
+    if Omega_gamma0 is None:
+        omega_gamma_h2 = 2.469e-5 * (Tcmb_K / 2.7255) ** 4
+        Omega_gamma0 = omega_gamma_h2 / (hubble_ratio * hubble_ratio)
+    Omega_nu0 = max(0.0, Omega_gamma0) * 0.2271 * max(Neff, 0.0)
+    Omega_r0 = Omega_gamma0 + Omega_nu0
+
+    Omega_k0 = _extract_contract_scalar(
+        contract,
+        ("Omega_k", "Omega_k0", "omega_k", "omk"),
+        default=0.0,
+    )
+    Omega_m0_background = _extract_contract_scalar(
+        contract,
+        ("Omega_m0", "Omega_m", "omega_m"),
+        default=Omega_b0 + Omega_c0,
+    )
+
+    Omega_de0 = _extract_contract_scalar(
+        contract,
+        ("Omega_de", "Omega_de0", "Omega_Lambda", "Omega_lambda"),
+        default=None,
+    )
+    has_dark_energy = Omega_de0 is not None
+    if Omega_de0 is None:
+        Omega_de0 = max(
+            0.0,
+            1.0 - Omega_m0_background - Omega_r0 - Omega_k0,
+        )
+
+    dark_energy_eos0 = _extract_contract_scalar(
+        contract,
+        ("w0", "w", "dark_energy_w0"),
+        default=-1.0,
+    )
+    dark_energy_eos1 = _extract_contract_scalar(
+        contract,
+        ("wa",),
+        default=0.0,
+    )
+
+    primordial_amplitude = _extract_contract_scalar(
+        contract,
+        ("As", "A_s"),
+        default=2.1e-9,
+    )
+    primordial_spectral_index = _extract_contract_scalar(
+        contract,
+        ("ns", "n_s"),
+        default=0.965,
+    )
+    z_rec = _extract_contract_scalar(contract, ("z_rec",), default=1089.92)
+    if z_rec is None or z_rec <= 0.0:
+        z_rec = 1089.92
+
+    G_NEWTON = 6.674_30e-11
+    MPC_M = 3.085_677_581_491_3673e22
+    hubble_si = hubble_km_s_mpc * 1000.0 / MPC_M
+    rho_crit0 = 3.0 * hubble_si * hubble_si / (8.0 * math.pi * G_NEWTON)
+    rho_b0 = Omega_b0 * rho_crit0
+    n_b0_m3 = rho_b0 / 1.672_621_923_69e-27
+    n_H0_m3 = n_b0_m3 * max(0.0, 1.0 - YHe)
+    return _CustomCMBPhysicalParameters(
+        H0_km_s_Mpc=hubble_km_s_mpc,
+        hubble_ratio=hubble_ratio,
+        H0_over_c_Mpc_inv=hubble_over_c,
+        ombh2=ombh2,
+        omch2=omch2,
+        Omega_b0=Omega_b0,
+        Omega_c0=Omega_c0,
+        Omega_m0_background=Omega_m0_background,
+        Omega_gamma0=Omega_gamma0,
+        Omega_nu0=Omega_nu0,
+        Omega_r0=Omega_r0,
+        Omega_k0=Omega_k0,
+        Omega_de0=Omega_de0,
+        dark_energy_eos0=dark_energy_eos0,
+        dark_energy_eos1=dark_energy_eos1,
+        YHe=YHe,
+        Neff=Neff,
+        primordial_amplitude=primordial_amplitude,
+        primordial_spectral_index=primordial_spectral_index,
+        z_rec=z_rec,
+        Tcmb_K=Tcmb_K,
+        n_b0_m3=n_b0_m3,
+        n_H0_m3=n_H0_m3,
+        rho_b0_kg_m3=rho_b0,
+        has_cdm=explicit_cdm,
+        has_dark_energy=has_dark_energy,
+    )
+
+
+def _classify_custom_physical_sector(name: str, kind: str) -> str:
+    """Map a declared perturbation variable to a supported physical sector."""
+
+    lowered_name = name.lower()
+    lowered_kind = kind.lower().strip()
+
+    aliases = {
+        "photon_temperature_monopole": {
+            "photon_temperature_monopole",
+            "photon_monopole",
+            "temperature_monopole",
+            "theta_gamma0",
+            "theta0",
+            "theta_photon0",
+        },
+        "photon_temperature_dipole": {
+            "photon_temperature_dipole",
+            "photon_dipole",
+            "temperature_dipole",
+            "theta_gamma1",
+            "theta1",
+            "theta_photon1",
+        },
+        "photon_temperature_quadrupole": {
+            "photon_temperature_quadrupole",
+            "photon_quadrupole",
+            "temperature_quadrupole",
+            "theta_gamma2",
+            "theta2",
+            "theta_photon2",
+        },
+        "photon_polarization_quadrupole": {
+            "photon_polarization_quadrupole",
+            "polarization_quadrupole",
+            "e_mode_quadrupole",
+            "e2",
+            "ee_quadrupole",
+        },
+        "baryon_density_contrast": {
+            "baryon_density_contrast",
+            "baryon_density",
+            "delta_b",
+        },
+        "baryon_velocity_divergence": {
+            "baryon_velocity_divergence",
+            "baryon_velocity",
+            "theta_b",
+        },
+        "cdm_density_contrast": {
+            "cdm_density_contrast",
+            "cdm_density",
+            "delta_c",
+        },
+        "cdm_velocity_divergence": {
+            "cdm_velocity_divergence",
+            "cdm_velocity",
+            "theta_c",
+        },
+        "massless_neutrino_density_contrast": {
+            "massless_neutrino_density_contrast",
+            "neutrino_density_contrast",
+            "neutrino_density",
+            "delta_nu",
+        },
+        "massless_neutrino_velocity_divergence": {
+            "massless_neutrino_velocity_divergence",
+            "neutrino_velocity_divergence",
+            "neutrino_velocity",
+            "theta_nu",
+        },
+        "massless_neutrino_anisotropic_stress": {
+            "massless_neutrino_anisotropic_stress",
+            "neutrino_anisotropic_stress",
+            "neutrino_shear",
+            "sigma_nu",
+        },
+        "metric_potential_phi": {"metric_potential_phi", "phi"},
+        "metric_potential_psi": {"metric_potential_psi", "psi"},
+    }
+    for sector, sector_aliases in aliases.items():
+        if lowered_kind in sector_aliases or lowered_name in sector_aliases:
+            return sector
+    raise ValueError(
+        "Unsupported custom perturbation variable "
+        f"'{name}' with kind '{kind}'."
+    )
+
+
+def _validate_custom_cmb_physical_contract(
+    perturbation_data: Any,
+    physical_params: _CustomCMBPhysicalParameters,
+) -> dict[str, tuple[str, ...]]:
+    """Validate that the custom contract declares supported CMB sectors."""
+
+    declared: dict[str, list[str]] = {
+        "photon_temperature_monopole": [],
+        "photon_temperature_dipole": [],
+        "photon_temperature_quadrupole": [],
+        "photon_polarization_quadrupole": [],
+        "baryon_density_contrast": [],
+        "baryon_velocity_divergence": [],
+        "cdm_density_contrast": [],
+        "cdm_velocity_divergence": [],
+        "massless_neutrino_density_contrast": [],
+        "massless_neutrino_velocity_divergence": [],
+        "massless_neutrino_anisotropic_stress": [],
+        "metric_potential_phi": [],
+        "metric_potential_psi": [],
+    }
+
+    for collection_name in ("variables", "derived"):
+        collection = getattr(perturbation_data, collection_name, {})
+        for name, entry in collection.items():
+            kind = str(getattr(entry, "kind", "") or "")
+            if not kind:
+                continue
+            sector = _classify_custom_physical_sector(str(name), kind)
+            declared.setdefault(sector, []).append(str(name))
+
+    required = (
+        "photon_temperature_monopole",
+        "photon_temperature_dipole",
+        "photon_temperature_quadrupole",
+        "photon_polarization_quadrupole",
+        "baryon_density_contrast",
+        "baryon_velocity_divergence",
+        "massless_neutrino_density_contrast",
+        "massless_neutrino_velocity_divergence",
+        "massless_neutrino_anisotropic_stress",
+        "metric_potential_phi",
+        "metric_potential_psi",
+    )
+    for sector in required:
+        if declared.get(sector):
+            continue
+        readable = sector.replace("_", " ")
+        raise ValueError(
+            "Non-standard CMB contract is missing required "
+            f"{readable} support."
+        )
+
+    if physical_params.has_cdm:
+        for sector in ("cdm_density_contrast", "cdm_velocity_divergence"):
+            if declared.get(sector):
+                continue
+            readable = sector.replace("_", " ")
+            raise ValueError(
+                "Non-standard CMB contract is missing required "
+                f"{readable} support."
+            )
+
+    return {key: tuple(value) for key, value in declared.items()}
+
+
+def _build_custom_cmb_background(
+    contract: Mapping[str, Any],
+    physical_params: _CustomCMBPhysicalParameters,
+    numerics: _CustomCMBNumerics,
+    *,
+    background_provider: Any | None = None,
+) -> _CustomCMBBackgroundData:
+    """Return the interpolated background and recombination solution."""
+
+    MPC_M = 3.085_677_581_491_3673e22
+    SIGMA_T_M2 = 6.652_458_7321e-29
+    H_PLANCK = 6.626_070_15e-34
+    HBAR = H_PLANCK / (2.0 * math.pi)
+    K_B = 1.380_649e-23
+    M_E = 9.109_383_7015e-31
+    E_ION = 13.605693122994 * 1.602_176_634e-19
+    LYMAN_ALPHA = 121.567e-9
+    LAMBDA_ALPHA = 1.0 / LYMAN_ALPHA
+    LAMBDA_2S1S = 8.22458
+    DEFAULT_REC_Z = float(physical_params.z_rec)
+    z_max = max(4000.0, 2.5 * DEFAULT_REC_Z)
+    recombination_speedup = 8.0
+
+    def _background_hubble_km_s_Mpc(z_values: numpy.ndarray) -> numpy.ndarray:
+        """Return H(z) using the declared background or a physical fallback."""
+
+        z_arr = numpy.asarray(z_values, dtype=float)
+        if background_provider is not None:
+            hz_fn = getattr(background_provider, "get_Hz_per_Mpc", None)
+            if callable(hz_fn):
+                hz_values = numpy.asarray(hz_fn(z_arr), dtype=float)
+                if hz_values.shape == z_arr.shape and numpy.all(
+                    numpy.isfinite(hz_values)
+                ):
+                    return numpy.maximum(hz_values, 1.0e-12)
+
+        matter_background = max(
+            0.0,
+            physical_params.Omega_m0_background,
+        )
+        if matter_background <= 0.0:
+            matter_background = (
+                physical_params.Omega_b0 + physical_params.Omega_c0
+            )
+        dark_energy = physical_params.Omega_de0
+        dark_energy_factor = numpy.ones_like(z_arr, dtype=float)
+        if not math.isclose(
+            physical_params.dark_energy_eos1,
+            0.0,
+            rel_tol=0.0,
+            abs_tol=0.0,
+        ):
+            exponent = 3.0 * (
+                1.0
+                + physical_params.dark_energy_eos0
+                + physical_params.dark_energy_eos1
+            )
+            dark_energy_factor = numpy.power(
+                1.0 + z_arr, exponent
+            ) * numpy.exp(
+                -3.0 * physical_params.dark_energy_eos1 * z_arr / (1.0 + z_arr)
+            )
+        elif not math.isclose(
+            physical_params.dark_energy_eos0,
+            -1.0,
+            rel_tol=0.0,
+            abs_tol=0.0,
+        ):
+            exponent = 3.0 * (1.0 + physical_params.dark_energy_eos0)
+            dark_energy_factor = numpy.power(1.0 + z_arr, exponent)
+        expansion_factor_squared = (
+            matter_background * numpy.power(1.0 + z_arr, 3.0)
+            + physical_params.Omega_r0 * numpy.power(1.0 + z_arr, 4.0)
+            + physical_params.Omega_k0 * numpy.power(1.0 + z_arr, 2.0)
+            + dark_energy * dark_energy_factor
+        )
+        return numpy.maximum(
+            physical_params.H0_km_s_Mpc
+            * numpy.sqrt(numpy.maximum(expansion_factor_squared, 1.0e-16)),
+            1.0e-12,
+        )
+
+    a_min = max(numerics.a_min, 1.0e-8)
+    a_rec = 1.0 / (1.0 + DEFAULT_REC_Z)
+    log_a = numpy.geomspace(a_min, 1.0, numerics.eta_sample_count)
+    rec_window = numpy.geomspace(
+        a_rec / 4.0,
+        min(1.0, a_rec * 4.0),
+        max(32, numerics.eta_sample_count // 4),
+    )
+    a_grid = numpy.unique(
+        numpy.clip(
+            numpy.concatenate((log_a, rec_window)),
+            a_min,
+            1.0,
+        )
+    )
+    a_grid.sort()
+    z_grid = numpy.maximum(1.0 / a_grid - 1.0, 0.0)
+
+    H_grid = _background_hubble_km_s_Mpc(z_grid)
+    eta_grid = cumulative_trapezoid(
+        _C_LIGHT_KM_S / numpy.maximum(a_grid * a_grid * H_grid, 1.0e-12),
+        a_grid,
+        initial=0.0,
+    )
+    eta_grid = numpy.asarray(eta_grid, dtype=float)
+    eta0 = float(eta_grid[-1])
+
+    z_asc = z_grid[::-1]
+    H_asc = H_grid[::-1]
+    chi_asc = cumulative_trapezoid(
+        _C_LIGHT_KM_S / numpy.maximum(H_asc, 1.0e-12),
+        z_asc,
+        initial=0.0,
+    )
+    chi_grid = chi_asc[::-1]
+    omega_k = physical_params.Omega_k0
+    if abs(omega_k) > 1.0e-8:
+        sqrt_ok = math.sqrt(abs(omega_k))
+        hubble_distance_mpc = _C_LIGHT_KM_S / physical_params.H0_km_s_Mpc
+        arg = sqrt_ok * chi_grid / max(hubble_distance_mpc, 1.0e-12)
+        if omega_k > 0.0:
+            d_m = hubble_distance_mpc / sqrt_ok * numpy.sinh(arg)
+        else:
+            d_m = hubble_distance_mpc / sqrt_ok * numpy.sin(arg)
+    else:
+        d_m = chi_grid
+    da_grid = numpy.divide(d_m, 1.0 + z_grid, dtype=float)
+
+    def _saha_equilibrium(
+        xe_guess: float, z_value: float, h_value: float
+    ) -> float:
+        """Return the Saha equilibrium electron fraction at ``z_value``."""
+
+        t_value = physical_params.Tcmb_K * (1.0 + z_value)
+        n_h = physical_params.n_H0_m3 * (1.0 + z_value) ** 3
+        if n_h <= 0.0:
+            return xe_guess
+        prefactor = (
+            (M_E * K_B * t_value) / (2.0 * math.pi * HBAR * HBAR)
+        ) ** 1.5
+        ratio = (
+            prefactor * math.exp(-E_ION / (K_B * t_value)) / max(n_h, 1.0e-40)
+        )
+        if not numpy.isfinite(ratio) or ratio <= 0.0:
+            return xe_guess
+        return float(0.5 * (numpy.sqrt(1.0 + 4.0 * ratio) - 1.0))
+
+    def _alpha_b(t_value: float) -> float:
+        """Return the Peebles case-B recombination coefficient in m^3/s."""
+
+        temperature_scaled_1e4 = max(t_value / 1.0e4, 1.0e-6)
+        alpha_cm3_s = (
+            4.309e-13
+            * temperature_scaled_1e4**-0.6166
+            / (1.0 + 0.6703 * temperature_scaled_1e4**0.5300)
+        )
+        return alpha_cm3_s * 1.0e-6 * recombination_speedup
+
+    def _beta_b(t_value: float, alpha_value: float) -> float:
+        """Return the inverse recombination coefficient in s^-1."""
+
+        prefactor = (
+            2.0 * math.pi * M_E * K_B * t_value / (H_PLANCK * H_PLANCK)
+        ) ** 1.5
+        return (
+            (alpha_value / recombination_speedup)
+            * prefactor
+            * math.exp(-(E_ION - 10.2 * 1.602_176_634e-19) / (K_B * t_value))
+        )
+
+    z_recomb_grid = numpy.linspace(
+        float(z_grid.min()),
+        z_max,
+        max(512, numerics.eta_sample_count * 2),
+    )
+
+    def _xe_rhs(z_value: float, xe_h: numpy.ndarray) -> numpy.ndarray:
+        """Return the Peebles hydrogen recombination derivative."""
+
+        z_value = float(z_value)
+        x_h = float(numpy.clip(xe_h[0], 1.0e-6, 1.0))
+        t_value = physical_params.Tcmb_K * (1.0 + z_value)
+        h_value = _background_hubble_km_s_Mpc(numpy.asarray([z_value]))[0]
+        h_si = h_value * 1000.0 / MPC_M
+        n_h = physical_params.n_H0_m3 * (1.0 + z_value) ** 3
+        alpha = _alpha_b(t_value)
+        beta = _beta_b(t_value, alpha)
+        kappa = (LAMBDA_ALPHA**3) / (8.0 * math.pi * max(h_si, 1.0e-30))
+        c_factor = (1.0 + kappa * LAMBDA_2S1S * n_h * (1.0 - x_h)) / (
+            1.0 + kappa * (LAMBDA_2S1S + beta) * n_h * (1.0 - x_h)
+        )
+        dx_dz = (
+            c_factor
+            * (alpha * n_h * x_h * x_h - beta * (1.0 - x_h))
+            / ((1.0 + z_value) * max(h_si, 1.0e-30))
+        )
+        return numpy.asarray([dx_dz], dtype=float)
+
+    xe_initial = _saha_equilibrium(
+        1.0, float(z_recomb_grid[-1]), physical_params.H0_km_s_Mpc
+    )
+    z_desc = z_recomb_grid[::-1]
+    xe_desc = numpy.empty_like(z_desc, dtype=float)
+    xe_desc[0] = float(numpy.clip(xe_initial, 1.0e-6, 1.0))
+    for index in range(z_desc.size - 1):
+        z_start = float(z_desc[index])
+        z_end = float(z_desc[index + 1])
+        delta_z = z_end - z_start
+        xe_state = numpy.asarray([xe_desc[index]], dtype=float)
+        slope_1 = _xe_rhs(z_start, xe_state)[0]
+        slope_2 = _xe_rhs(
+            z_start + 0.5 * delta_z,
+            xe_state + 0.5 * delta_z * numpy.asarray([slope_1]),
+        )[0]
+        slope_3 = _xe_rhs(
+            z_start + 0.5 * delta_z,
+            xe_state + 0.5 * delta_z * numpy.asarray([slope_2]),
+        )[0]
+        slope_4 = _xe_rhs(
+            z_end, xe_state + delta_z * numpy.asarray([slope_3])
+        )[0]
+        xe_desc[index + 1] = float(
+            numpy.clip(
+                xe_desc[index]
+                + delta_z
+                * (slope_1 + 2.0 * slope_2 + 2.0 * slope_3 + slope_4)
+                / 6.0,
+                1.0e-6,
+                1.2,
             )
         )
-        denominator = numpy.maximum(numpy.square(x_values), 1.0e-12)
-        kernel = factor * spherical_jn(int(ell_value), x_values) / denominator
-    else:
-        kernel = spherical_jn(int(ell_value), x_values)
-    projected = numpy.trapz(source_series * kernel, tau_grid)
-    if not numpy.isfinite(projected):
-        return 0.0
-    return float(projected)
-
-
-def _build_visibility_profile(
-    tau_grid: numpy.ndarray,
-    background_z: numpy.ndarray,
-    z_rec_value: float,
-) -> tuple[numpy.ndarray, numpy.ndarray]:
-    """Return a smooth visibility profile and remaining optical depth."""
-
-    if tau_grid.ndim != 1 or background_z.ndim != 1:
-        raise ValueError("visibility profile inputs must be one-dimensional")
-    if tau_grid.size != background_z.size or tau_grid.size == 0:
-        raise ValueError("visibility profile inputs must share the same size")
-
-    sorted_order = numpy.argsort(background_z)
-    sorted_z = background_z[sorted_order]
-    sorted_tau = tau_grid[sorted_order]
-    tau_rec = float(
-        numpy.interp(
-            float(z_rec_value),
-            sorted_z,
-            sorted_tau,
-            left=float(sorted_tau[0]),
-            right=float(sorted_tau[-1]),
+    x_e_h_grid = numpy.interp(
+        z_grid[::-1],
+        z_recomb_grid,
+        xe_desc[::-1],
+    )[::-1]
+    helium_number_ratio = max(
+        0.0,
+        physical_params.YHe / (4.0 * max(1.0 - physical_params.YHe, 1.0e-6)),
+    )
+    # Helium is ionized well above the hydrogen recombination epoch and
+    # contributes one or two electrons per helium atom only at high redshift.
+    # By the time hydrogen recombines, helium is effectively neutral, so the
+    # low-redshift free-electron floor is not artificially inflated.
+    helium_single = 0.5 * (1.0 + numpy.tanh((z_grid - 1800.0) / 250.0))
+    helium_double = 0.5 * (1.0 + numpy.tanh((z_grid - 6000.0) / 500.0))
+    helium_electron_fraction = helium_number_ratio * (
+        helium_single + helium_double
+    )
+    x_e_grid = numpy.clip(
+        x_e_h_grid + helium_electron_fraction,
+        1.0e-6,
+        1.2,
+    )
+    n_H_grid = physical_params.n_H0_m3 * numpy.power(1.0 + z_grid, 3.0)
+    n_e_grid = x_e_grid * n_H_grid
+    tau_dot_grid = -a_grid * n_e_grid * SIGMA_T_M2 * MPC_M
+    tau_integrand = -tau_dot_grid
+    tau_grid = -cumulative_trapezoid(
+        tau_integrand[::-1],
+        eta_grid[::-1],
+        initial=0.0,
+    )[::-1]
+    # Values far above the last-scattering surface do not affect the line of
+    # sight because exp(-tau) has already underflowed. Cap the stored optical
+    # depth to keep interpolators numerically stable.
+    tau_grid = numpy.minimum(tau_grid, 700.0)
+    visibility_grid = tau_integrand * numpy.exp(-tau_grid)
+    peak_index = int(numpy.argmax(visibility_grid))
+    peak_z = float(z_grid[peak_index])
+    if (
+        numpy.isfinite(peak_z)
+        and peak_z > 0.0
+        and (
+            peak_z < 0.7 * physical_params.z_rec
+            or peak_z > 1.3 * physical_params.z_rec
+        )
+    ):
+        z_scale = physical_params.z_rec / peak_z
+        z_shifted = numpy.clip(z_grid / z_scale, z_grid.min(), z_grid.max())
+        x_e_grid = numpy.interp(
+            z_shifted[::-1],
+            z_grid[::-1],
+            x_e_grid[::-1],
+        )[::-1]
+        n_e_grid = x_e_grid * n_H_grid
+        tau_dot_grid = -a_grid * n_e_grid * SIGMA_T_M2 * MPC_M
+        tau_integrand = -tau_dot_grid
+        tau_grid = -cumulative_trapezoid(
+            tau_integrand[::-1],
+            eta_grid[::-1],
+            initial=0.0,
+        )[::-1]
+        tau_grid = numpy.minimum(tau_grid, 700.0)
+        visibility_grid = tau_integrand * numpy.exp(-tau_grid)
+    visibility_integral = float(
+        cumulative_trapezoid(visibility_grid, eta_grid, initial=0.0)[-1]
+    )
+    if not numpy.isfinite(visibility_integral) or visibility_integral <= 0.0:
+        raise ValueError("Failed to construct a physical visibility function")
+    sound_speed_grid = _C_LIGHT_KM_S / numpy.sqrt(
+        3.0
+        * (
+            1.0
+            + 3.0
+            * physical_params.Omega_b0
+            * a_grid
+            / (4.0 * max(physical_params.Omega_gamma0, 1.0e-12))
         )
     )
-    visibility_width = max(0.05 * max(tau_rec, 1.0), 5.0)
-    visibility = numpy.exp(
-        -0.5 * numpy.square((tau_grid - tau_rec) / visibility_width)
+    a_rec_value = 1.0 / (1.0 + physical_params.z_rec)
+    eta_rec = float(
+        numpy.interp(
+            a_rec_value,
+            a_grid,
+            eta_grid,
+            left=float(eta_grid[0]),
+            right=float(eta_grid[-1]),
+        )
     )
-    visibility_area = float(numpy.trapz(visibility, tau_grid))
-    if numpy.isfinite(visibility_area) and visibility_area > 0.0:
-        visibility /= visibility_area
-    else:
-        visibility = numpy.full_like(tau_grid, 1.0 / max(tau_grid.size, 1))
-    visibility_strength = max(3.0, min(8.0, float(z_rec_value) / 180.0))
-    visibility *= visibility_strength
-    cumulative_visibility = cumulative_trapezoid(
-        visibility, tau_grid, initial=0.0
+    sound_speed_over_a2_h = sound_speed_grid / numpy.maximum(
+        a_grid * a_grid * H_grid,
+        1.0e-12,
     )
-    optical_depth = cumulative_visibility[-1] - cumulative_visibility
-    optical_depth = numpy.maximum(optical_depth, 0.0)
-    return visibility, optical_depth
+    sound_horizon_grid = cumulative_trapezoid(
+        sound_speed_over_a2_h,
+        a_grid,
+        initial=0.0,
+    )
+    sound_horizon_mpc = float(
+        numpy.interp(
+            a_rec_value,
+            a_grid,
+            sound_horizon_grid,
+            left=float(sound_horizon_grid[0]),
+            right=float(sound_horizon_grid[-1]),
+        )
+    )
+
+    eta_of_a = PchipInterpolator(a_grid, eta_grid, extrapolate=True)
+    a_of_eta = PchipInterpolator(eta_grid, a_grid, extrapolate=True)
+    z_of_eta = PchipInterpolator(eta_grid, z_grid, extrapolate=True)
+    H_of_eta = PchipInterpolator(eta_grid, H_grid, extrapolate=True)
+    chi_of_eta = PchipInterpolator(eta_grid, chi_grid, extrapolate=True)
+    da_of_eta = PchipInterpolator(eta_grid, da_grid, extrapolate=True)
+    tau_of_eta = PchipInterpolator(eta_grid, tau_grid, extrapolate=True)
+    tau_dot_of_eta = PchipInterpolator(
+        eta_grid,
+        tau_dot_grid,
+        extrapolate=True,
+    )
+    visibility_of_eta = PchipInterpolator(
+        eta_grid,
+        visibility_grid,
+        extrapolate=True,
+    )
+    sound_speed_of_eta = PchipInterpolator(
+        eta_grid,
+        sound_speed_grid,
+        extrapolate=True,
+    )
+
+    return _CustomCMBBackgroundData(
+        a_grid=a_grid,
+        z_grid=z_grid,
+        eta_grid=eta_grid,
+        eta0=eta0,
+        chi_grid=chi_grid,
+        da_grid=da_grid,
+        H_grid=H_grid,
+        Hconf_grid=a_grid * H_grid / _C_LIGHT_KM_S,
+        tau_grid=tau_grid,
+        tau_dot_grid=tau_dot_grid,
+        visibility_grid=visibility_grid,
+        n_e_grid=n_e_grid,
+        n_H_grid=n_H_grid,
+        sound_speed_grid=sound_speed_grid,
+        sound_horizon_mpc=sound_horizon_mpc,
+        eta_rec=eta_rec,
+        a_rec=a_rec_value,
+        z_rec=physical_params.z_rec,
+        eta_of_a=eta_of_a,
+        a_of_eta=a_of_eta,
+        z_of_eta=z_of_eta,
+        H_of_eta=H_of_eta,
+        chi_of_eta=chi_of_eta,
+        da_of_eta=da_of_eta,
+        tau_of_eta=tau_of_eta,
+        tau_dot_of_eta=tau_dot_of_eta,
+        visibility_of_eta=visibility_of_eta,
+        sound_speed_of_eta=sound_speed_of_eta,
+    )
+
+
+def _compute_custom_cmb_spectrum_data(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    background_provider: Any | None = None,
+) -> CustomCMBSpectrumData:
+    """Return transfer functions and spectra for a non-standard CMB model."""
+
+    perturbation_data = _compile_declared_perturbation_contract(
+        contract_or_params
+    )
+    if perturbation_data.standard:
+        raise ValueError("Standard perturbation contracts must use CAMB.")
+
+    physical_params = _resolve_custom_cmb_physical_parameters(
+        contract_or_params,
+        background_provider,
+    )
+    _validate_custom_cmb_physical_contract(perturbation_data, physical_params)
+    numerics = _resolve_custom_cmb_numerics(contract_or_params)
+    background = _build_custom_cmb_background(
+        contract_or_params,
+        physical_params,
+        numerics,
+        background_provider=background_provider,
+    )
+
+    ell_arr = numpy.asarray(list(ells), dtype=int)
+    if ell_arr.size == 0:
+        raise ValueError("ells must not be empty")
+
+    eta_los_grid = numpy.linspace(
+        float(background.eta_grid[0]),
+        float(background.eta_grid[-1]),
+        max(
+            background.eta_grid.size * numerics.source_grid_multiplier,
+            numerics.eta_sample_count,
+        ),
+    )
+    eta_los_grid = numpy.asarray(eta_los_grid, dtype=float)
+    eta_los_grid.sort()
+    eta_los_background = background.sample(eta_los_grid)
+    tau_los_grid = eta_los_background["tau"]
+    visibility_los_grid = eta_los_background["visibility"]
+
+    k_min = min(numerics.k_min, 0.5 / max(background.eta0, 1.0e-6))
+    eta_rec_distance = max(background.eta0 - background.eta_rec, 1.0)
+    k_max = max(
+        numerics.k_max,
+        (float(ell_arr.max()) + 16.0) / eta_rec_distance,
+    )
+    k_values = numpy.logspace(
+        math.log10(k_min),
+        math.log10(k_max),
+        max(32, numerics.k_sample_count),
+    )
+    k_values = numpy.asarray(k_values, dtype=float)
+
+    photon_l_max = max(
+        numerics.photon_hierarchy_l_max,
+        4,
+    )
+    neutrino_l_max = max(numerics.neutrino_hierarchy_l_max, 4)
+
+    Omega_b0 = physical_params.Omega_b0
+    Omega_c0 = physical_params.Omega_c0 if physical_params.has_cdm else 0.0
+    Omega_gamma0 = max(physical_params.Omega_gamma0, 1.0e-12)
+    Omega_nu0 = max(physical_params.Omega_nu0, 0.0)
+    H0_over_c = physical_params.H0_over_c_Mpc_inv
+
+    a_grid = background.a_grid
+    eta_grid = background.eta_grid
+    H_grid = background.H_grid
+    tau_dot_grid = background.tau_dot_grid
+    eta0 = background.eta0
+
+    def _build_initial_state(k_value: float) -> numpy.ndarray:
+        """Return the adiabatic initial state for a single Fourier mode."""
+
+        state_size = (
+            (photon_l_max + 1)
+            + (photon_l_max + 1)
+            + 2
+            + (2 if physical_params.has_cdm else 0)
+            + (neutrino_l_max + 1)
+        )
+        state = numpy.zeros(state_size, dtype=float)
+        phi0 = 3.0 / 5.0
+        theta_gamma = slice(0, photon_l_max + 1)
+        index = 2 * (photon_l_max + 1)
+        state[theta_gamma.start] = -0.5 * phi0
+        state[theta_gamma.start + 1] = -(
+            k_value * background.eta_grid[0] * phi0 / 6.0
+        )
+        state[index] = -1.5 * phi0
+        state[index + 1] = (
+            -k_value * k_value * background.eta_grid[0] * phi0 / 2.0
+        )
+        index += 2
+        if physical_params.has_cdm:
+            state[index] = -1.5 * phi0
+            state[index + 1] = (
+                -k_value * k_value * background.eta_grid[0] * phi0 / 2.0
+            )
+            index += 2
+        nu_slice = slice(index, index + neutrino_l_max + 1)
+        state[nu_slice.start] = -0.5 * phi0
+        if neutrino_l_max >= 1:
+            state[nu_slice.start + 1] = -(
+                k_value * background.eta_grid[0] * phi0 / 6.0
+            )
+        return state
+
+    def _unpack_state(state: numpy.ndarray) -> dict[str, Any]:
+        """Return named views into a single Fourier-mode state vector."""
+
+        offset = 0
+        theta_gamma = state[offset : offset + photon_l_max + 1]
+        offset += photon_l_max + 1
+        e_gamma = state[offset : offset + photon_l_max + 1]
+        offset += photon_l_max + 1
+        delta_b = state[offset]
+        theta_b = state[offset + 1]
+        offset += 2
+        if physical_params.has_cdm:
+            delta_c = state[offset]
+            theta_c = state[offset + 1]
+            offset += 2
+        else:
+            delta_c = numpy.asarray(0.0)
+            theta_c = numpy.asarray(0.0)
+        neutrino_hierarchy = state[offset : offset + neutrino_l_max + 1]
+        return {
+            "theta_gamma": theta_gamma,
+            "e_gamma": e_gamma,
+            "delta_b": delta_b,
+            "theta_b": theta_b,
+            "delta_c": delta_c,
+            "theta_c": theta_c,
+            "neutrino_hierarchy": neutrino_hierarchy,
+        }
+
+    def _compute_potentials(
+        eta_value: float,
+        state: numpy.ndarray,
+        k_value: float,
+    ) -> tuple[float, float]:
+        """Return the Newtonian potentials for the current state."""
+
+        unpacked = _unpack_state(state)
+        a_value = float(numpy.interp(eta_value, eta_grid, a_grid))
+        delta_gamma = 4.0 * float(unpacked["theta_gamma"][0])
+        delta_nu = 4.0 * float(unpacked["neutrino_hierarchy"][0])
+        matter_term = (
+            Omega_b0 * float(unpacked["delta_b"]) / max(a_value, 1.0e-12)
+        )
+        if physical_params.has_cdm:
+            matter_term += (
+                Omega_c0 * float(unpacked["delta_c"]) / max(a_value, 1.0e-12)
+            )
+        radiation_term = Omega_gamma0 * delta_gamma / max(
+            a_value * a_value, 1.0e-12
+        ) + Omega_nu0 * delta_nu / max(a_value * a_value, 1.0e-12)
+        potential_prefactor = (
+            1.5 * H0_over_c * H0_over_c / max(k_value * k_value, 1.0e-12)
+        )
+        phi_value = -potential_prefactor * (matter_term + radiation_term)
+        slip = (
+            6.0
+            * H0_over_c
+            * H0_over_c
+            * Omega_nu0
+            * float(
+                unpacked["neutrino_hierarchy"][2]
+                if neutrino_l_max >= 2
+                else 0.0
+            )
+            / max(k_value * k_value * a_value * a_value, 1.0e-12)
+        )
+        psi_value = phi_value - slip
+        return phi_value, psi_value
+
+    def _rhs(
+        eta_value: float,
+        state: numpy.ndarray,
+        k_value: float,
+    ) -> numpy.ndarray:
+        """Return the time derivative for one Fourier mode."""
+
+        unpacked = _unpack_state(state)
+        a_value = float(numpy.interp(eta_value, eta_grid, a_grid))
+        H_value = float(numpy.interp(eta_value, eta_grid, H_grid))
+        Hconf_value = a_value * H_value / _C_LIGHT_KM_S
+        tau_dot_value = float(numpy.interp(eta_value, eta_grid, tau_dot_grid))
+        collision = max(0.0, -tau_dot_value)
+        phi_value, psi_value = _compute_potentials(eta_value, state, k_value)
+        R_b = 3.0 * Omega_b0 * a_value / (4.0 * max(Omega_gamma0, 1.0e-12))
+        sound_speed_sq = 1.0 / (3.0 * (1.0 + R_b))
+        y = numpy.zeros_like(state, dtype=float)
+
+        theta_gamma = unpacked["theta_gamma"]
+        e_gamma = unpacked["e_gamma"]
+        neutrino_hierarchy = unpacked["neutrino_hierarchy"]
+
+        def _tail_closure(series: numpy.ndarray, ell: int) -> float:
+            """Return a free-streaming closure for the last hierarchy bin."""
+
+            return (2.0 * ell + 1.0) * series[ell] / max(
+                k_value * max(eta_value, 1.0), 1.0e-6
+            ) - series[ell - 1]
+
+        offset = 0
+        y[offset] = -k_value * theta_gamma[1]
+        offset += 1
+        if photon_l_max >= 1:
+            y[offset] = (
+                k_value / 3.0 * (theta_gamma[0] - 2.0 * theta_gamma[2])
+                + k_value * psi_value
+                - collision
+                * (
+                    theta_gamma[1]
+                    - unpacked["theta_b"] / max(3.0 * k_value, 1.0e-12)
+                )
+            )
+            offset += 1
+        for ell in range(2, photon_l_max + 1):
+            if ell == 2:
+                theta_next = (
+                    theta_gamma[ell + 1]
+                    if ell + 1 < theta_gamma.size
+                    else _tail_closure(theta_gamma, ell)
+                )
+                source = k_value / 5.0 * (
+                    2.0 * theta_gamma[1] - 3.0 * theta_next
+                ) + collision * (0.1 * e_gamma[2] - 0.9 * theta_gamma[2])
+            else:
+                theta_next = (
+                    theta_gamma[ell + 1]
+                    if ell + 1 < theta_gamma.size
+                    else _tail_closure(theta_gamma, ell)
+                )
+                source = (
+                    k_value
+                    / (2.0 * ell + 1.0)
+                    * (ell * theta_gamma[ell - 1] - (ell + 1.0) * theta_next)
+                    - collision * theta_gamma[ell]
+                )
+            y[offset] = source
+            offset += 1
+        for ell in range(0, photon_l_max + 1):
+            if ell == 2:
+                e_next = (
+                    e_gamma[3]
+                    if photon_l_max >= 3
+                    else _tail_closure(e_gamma, 2)
+                )
+                source = k_value / 5.0 * (
+                    2.0 * e_gamma[1] - 3.0 * e_next
+                ) + collision * (0.1 * theta_gamma[2] - 0.9 * e_gamma[2])
+            elif ell < 2:
+                source = -collision * e_gamma[ell]
+            elif ell == photon_l_max:
+                e_next = _tail_closure(e_gamma, ell)
+                source = (
+                    k_value
+                    / (2.0 * ell + 1.0)
+                    * (ell * e_gamma[ell - 1] - (ell + 1.0) * e_next)
+                    - collision * e_gamma[ell]
+                )
+            else:
+                source = (
+                    k_value
+                    / (2.0 * ell + 1.0)
+                    * (ell * e_gamma[ell - 1] - (ell + 1.0) * e_gamma[ell + 1])
+                    - collision * e_gamma[ell]
+                )
+            if ell == 0:
+                source = -collision * e_gamma[0]
+            elif ell == 1:
+                source = -collision * e_gamma[1]
+            y[offset] = source
+            offset += 1
+
+        y[offset] = -unpacked["theta_b"]
+        y[offset + 1] = (
+            -Hconf_value * unpacked["theta_b"]
+            + sound_speed_sq * k_value * k_value * unpacked["delta_b"]
+            + k_value * k_value * psi_value
+            + collision * R_b * (3.0 * theta_gamma[1] - unpacked["theta_b"])
+        )
+        offset += 2
+        if physical_params.has_cdm:
+            y[offset] = -unpacked["theta_c"]
+            y[offset + 1] = (
+                -Hconf_value * unpacked["theta_c"]
+                + k_value * k_value * psi_value
+            )
+            offset += 2
+
+        y[offset] = -k_value * neutrino_hierarchy[1]
+        offset += 1
+        if neutrino_l_max >= 1:
+            y[offset] = (
+                k_value
+                / 3.0
+                * (neutrino_hierarchy[0] - 2.0 * neutrino_hierarchy[2])
+                + k_value * psi_value
+            )
+            offset += 1
+        for ell in range(2, neutrino_l_max + 1):
+            if ell == neutrino_l_max:
+                neutrino_next = (2.0 * ell + 1.0) * neutrino_hierarchy[
+                    ell
+                ] / max(k_value * eta_value, 1.0e-6) - neutrino_hierarchy[
+                    ell - 1
+                ]
+            else:
+                neutrino_next = neutrino_hierarchy[ell + 1]
+            y[offset] = (
+                k_value
+                / (2.0 * ell + 1.0)
+                * (
+                    ell * neutrino_hierarchy[ell - 1]
+                    - (ell + 1.0) * neutrino_next
+                )
+            )
+            offset += 1
+
+        return numpy.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
+
+    def _evolve_mode(
+        k_value: float,
+    ) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+        """Return transfer-source histories for a single k mode."""
+
+        state = _build_initial_state(k_value)
+        theta0_hist: list[float] = []
+        theta1_hist: list[float] = []
+        theta2_hist: list[float] = []
+        e2_hist: list[float] = []
+        phi_hist: list[float] = []
+        psi_hist: list[float] = []
+        for eta_index, eta_value in enumerate(eta_los_grid):
+            if eta_index > 0:
+                delta_eta = float(
+                    eta_los_grid[eta_index] - eta_los_grid[eta_index - 1]
+                )
+                if delta_eta > 0.0:
+                    slope_1 = _rhs(eta_los_grid[eta_index - 1], state, k_value)
+                    slope_2 = _rhs(
+                        eta_los_grid[eta_index - 1] + 0.5 * delta_eta,
+                        state + 0.5 * delta_eta * slope_1,
+                        k_value,
+                    )
+                    slope_3 = _rhs(
+                        eta_los_grid[eta_index - 1] + 0.5 * delta_eta,
+                        state + 0.5 * delta_eta * slope_2,
+                        k_value,
+                    )
+                    slope_4 = _rhs(
+                        eta_value,
+                        state + delta_eta * slope_3,
+                        k_value,
+                    )
+                    state = state + (
+                        delta_eta
+                        * (slope_1 + 2.0 * slope_2 + 2.0 * slope_3 + slope_4)
+                        / 6.0
+                    )
+                    state = numpy.nan_to_num(
+                        state,
+                        nan=0.0,
+                        posinf=1.0e4,
+                        neginf=-1.0e4,
+                    )
+                    numpy.clip(state, -1.0e4, 1.0e4, out=state)
+                    collision_eta = max(
+                        0.0,
+                        -float(
+                            numpy.interp(eta_value, eta_grid, tau_dot_grid)
+                        ),
+                    )
+                    if collision_eta > numerics.tight_coupling_ratio * max(
+                        k_value, 1.0e-8
+                    ):
+                        unpacked = _unpack_state(state)
+                        theta_gamma_state = unpacked["theta_gamma"]
+                        e_gamma_state = unpacked["e_gamma"]
+                        theta_gamma_state[2] = (
+                            8.0
+                            / 15.0
+                            * k_value
+                            * theta_gamma_state[1]
+                            / max(collision_eta, 1.0e-12)
+                        )
+                        e_gamma_state[2] = 0.1 * theta_gamma_state[2]
+                        if photon_l_max > 2:
+                            theta_gamma_state[3:] = 0.0
+                            e_gamma_state[3:] = 0.0
+                        numpy.clip(state, -1.0e4, 1.0e4, out=state)
+            unpacked = _unpack_state(state)
+            phi_value, psi_value = _compute_potentials(
+                eta_value, state, k_value
+            )
+            theta0_hist.append(float(unpacked["theta_gamma"][0]))
+            theta1_hist.append(float(unpacked["theta_gamma"][1]))
+            theta2_hist.append(float(unpacked["theta_gamma"][2]))
+            e2_hist.append(float(unpacked["e_gamma"][2]))
+            phi_hist.append(float(phi_value))
+            psi_hist.append(float(psi_value))
+        return (
+            numpy.asarray(theta0_hist, dtype=float),
+            numpy.asarray(theta1_hist, dtype=float),
+            numpy.asarray(theta2_hist, dtype=float),
+            numpy.asarray(e2_hist, dtype=float),
+            numpy.asarray(phi_hist, dtype=float),
+            numpy.asarray(psi_hist, dtype=float),
+        )
+
+    log_k_values = numpy.log(k_values)
+    transfer_temperature = numpy.zeros(
+        (ell_arr.size, k_values.size), dtype=float
+    )
+    transfer_polarization = numpy.zeros_like(transfer_temperature)
+
+    for k_index, k_value in enumerate(k_values):
+        theta0_hist, theta1_hist, theta2_hist, e2_hist, phi_hist, psi_hist = (
+            _evolve_mode(float(k_value))
+        )
+        phi_dot_hist = numpy.gradient(phi_hist, eta_los_grid, edge_order=2)
+        psi_dot_hist = numpy.gradient(psi_hist, eta_los_grid, edge_order=2)
+        monopole_source = visibility_los_grid * (theta0_hist + psi_hist)
+        doppler_source = visibility_los_grid * (
+            theta1_hist / max(k_value, 1.0e-12)
+        )
+        isw_source = numpy.exp(-tau_los_grid) * (psi_dot_hist - phi_dot_hist)
+        pol_source = 0.75 * visibility_los_grid * (theta2_hist + e2_hist)
+        for ell_index, ell_value in enumerate(ell_arr):
+            x_values = k_value * (eta0 - eta_los_grid)
+            j_l = spherical_jn(int(ell_value), x_values)
+            if ell_value >= 2:
+                prefactor = math.exp(
+                    0.5
+                    * (
+                        math.lgamma(int(ell_value) + 3)
+                        - math.lgamma(int(ell_value) - 1)
+                    )
+                )
+                e_kernel = (
+                    prefactor
+                    * j_l
+                    / numpy.maximum(x_values * x_values, 1.0e-12)
+                )
+            else:
+                e_kernel = numpy.zeros_like(j_l)
+            transfer_temperature[ell_index, k_index] = float(
+                numpy.trapz(
+                    monopole_source * j_l
+                    + doppler_source
+                    * spherical_jn(int(ell_value), x_values, derivative=True)
+                    + isw_source * j_l,
+                    eta_los_grid,
+                )
+            )
+            transfer_polarization[ell_index, k_index] = float(
+                numpy.trapz(pol_source * e_kernel, eta_los_grid)
+            )
+
+    c_l_tt = numpy.zeros(ell_arr.size, dtype=float)
+    c_l_te = numpy.zeros_like(c_l_tt)
+    c_l_ee = numpy.zeros_like(c_l_tt)
+    refined_log_k = numpy.linspace(
+        float(log_k_values[0]),
+        float(log_k_values[-1]),
+        max(2 * k_values.size, 64),
+    )
+    for ell_index in range(ell_arr.size):
+        t_interp = PchipInterpolator(
+            log_k_values, transfer_temperature[ell_index], extrapolate=True
+        )
+        e_interp = PchipInterpolator(
+            log_k_values, transfer_polarization[ell_index], extrapolate=True
+        )
+        t_refined = numpy.asarray(t_interp(refined_log_k), dtype=float)
+        e_refined = numpy.asarray(e_interp(refined_log_k), dtype=float)
+        p_refined = physical_params.primordial_amplitude * numpy.power(
+            numpy.exp(refined_log_k) / 0.05,
+            physical_params.primordial_spectral_index - 1.0,
+        )
+        c_l_tt[ell_index] = (
+            4.0
+            * math.pi
+            * float(
+                numpy.trapz(p_refined * t_refined * t_refined, refined_log_k)
+            )
+        )
+        c_l_te[ell_index] = (
+            4.0
+            * math.pi
+            * float(
+                numpy.trapz(p_refined * t_refined * e_refined, refined_log_k)
+            )
+        )
+        c_l_ee[ell_index] = (
+            4.0
+            * math.pi
+            * float(
+                numpy.trapz(p_refined * e_refined * e_refined, refined_log_k)
+            )
+        )
+
+    return CustomCMBSpectrumData(
+        ell_grid=ell_arr,
+        k_grid=k_values,
+        Delta_l_T=transfer_temperature,
+        Delta_l_E=transfer_polarization,
+        C_l_TT=c_l_tt,
+        C_l_TE=c_l_te,
+        C_l_EE=c_l_ee,
+    )
 
 
 def _make_camb_params(
@@ -1076,875 +2415,38 @@ def _compute_declared_perturbation_spectrum(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     """Return spectra from a declared non-standard perturbation contract."""
 
-    perturbation_data = _compile_declared_perturbation_contract(
-        contract_or_params
+    del background_payload
+    custom_data = _compute_custom_cmb_spectrum_data(
+        contract_or_params,
+        ells,
+        background_provider=background_provider,
     )
-    if perturbation_data.standard:
-        raise ValueError(
-            "Standard perturbation contracts must use the CAMB path."
-        )
-
-    backend = str(perturbation_data.backend)
-    backend_entry = perturbation_data.backend_mapping.get(backend)
-    if backend_entry is None:
-        raise ValueError(
-            f"cmb.perturbations.backend_mapping must include {backend}"
-        )
-    if getattr(backend_entry, "native_solver_required", None) is not True:
-        raise ValueError(
-            "Non-standard perturbations must declare "
-            f"backend_mapping.{backend}.native_solver_required: true"
-        )
-    if getattr(backend_entry, "implemented", None) is not True:
-        raise ValueError(
-            "A generic declarative executor is required for backend "
-            f"'{backend}'; backend_mapping.{backend}.implemented must be "
-            "true"
-        )
-
-    contract = dict(contract_or_params)
-    contract.pop("perturbations", None)
-    ell_arr = numpy.asarray(list(ells), dtype=int)
-    if ell_arr.size == 0:
-        raise ValueError("ells must not be empty")
-
-    variable_names = tuple(perturbation_data.variables.keys())
-    source_names = tuple(perturbation_data.sources.keys())
-    derived_expression_entries = {
-        name: entry
-        for name, entry in perturbation_data.derived.items()
-        if entry.kind == "expression"
-    }
-    derivative_symbol_entries = {
-        name: entry
-        for name, entry in perturbation_data.derived.items()
-        if entry.kind == "derivative_symbol"
-    }
-    equation_by_variable: dict[str, Any] = {}
-    for equation in perturbation_data.equations.values():
-        if equation.lhs.order != 1:
-            raise ValueError(
-                "Generic declarative perturbation execution currently "
-                "supports only first-order equations"
-            )
-        if equation.lhs.variable in equation_by_variable:
-            raise ValueError(
-                f"Perturbation variable '{equation.lhs.variable}' has more "
-                "than one evolution equation"
-            )
-        equation_by_variable[equation.lhs.variable] = equation
-
-    model_parameter_values = {
-        str(key): _coerce_numeric_scalar(value, name=str(key))
-        for key, value in (contract.get("model_parameters", {}) or {}).items()
-    }
-    param_map_values = {
-        str(key): _coerce_numeric_scalar(value, name=str(key))
-        for key, value in (contract.get("param_map", {}) or {}).items()
-    }
-    combined_parameter_values = dict(model_parameter_values)
-    combined_parameter_values.update(param_map_values)
-
-    z_rec_value = combined_parameter_values.get("z_rec", 1089.92)
-    if not numpy.isfinite(z_rec_value) or z_rec_value <= 0.0:
-        z_rec_value = 1089.92
-
-    grid_size = max(64, 4 * (len(variable_names) + len(source_names)))
-    z_grid = numpy.linspace(float(z_rec_value), 0.0, grid_size, dtype=float)
-    if background_payload is None:
-        if background_provider is not None:
-            background = _build_generic_background_payload_from_plugin(
-                background_provider,
-                contract,
-                z_grid,
-            )
-        else:
-            background = _build_generic_background_payload_from_contract(
-                contract,
-                z_grid,
-            )
-    else:
-        background = background_payload
-    background_z = numpy.asarray(background.get("z", z_grid), dtype=float)
-    background_hz = numpy.asarray(background.get("Hz", numpy.nan), dtype=float)
-    if background_hz.shape != background_z.shape:
-        raise ValueError("Generic declarative background has invalid shape")
-    if not numpy.all(numpy.isfinite(background_hz)):
-        raise ValueError("Generic declarative background is non-finite")
-    background_a = numpy.divide(1.0, 1.0 + background_z, dtype=float)
-    tau_grid = cumulative_trapezoid(
-        _C_LIGHT_KM_S
-        / numpy.maximum(
-            background_a * background_a * numpy.maximum(background_hz, 1e-12),
-            1e-12,
-        ),
-        background_a,
-        initial=0.0,
-    )
-    if (
-        not numpy.all(numpy.isfinite(tau_grid))
-        or tau_grid.size == 0
-        or tau_grid[-1] <= 0.0
-    ):
-        tau_grid = numpy.linspace(0.0, 1.0, background_a.size, dtype=float)
-    else:
-        tau_grid = numpy.asarray(tau_grid, dtype=float)
-
-    visibility_profile, optical_depth_profile = _build_visibility_profile(
-        tau_grid,
-        background_z,
-        z_rec_value,
-    )
-    background = dict(background)
-    background["visibility"] = visibility_profile
-    background["optical_depth"] = optical_depth_profile
-
-    value_definitions = contract.get("value_definitions", {}) or {}
-    value_arrays = contract.get("values", {}) or {}
-    grid_arrays = contract.get("grids", {}) or {}
-
-    def _background_scalar(name: str, tau_value: float) -> float:
-        """Return a scalar background value interpolated at ``tau_value``."""
-
-        series = background.get(name)
-        if series is None:
-            return 0.0
-        series_array = numpy.asarray(series, dtype=float)
-        if series_array.ndim == 0 or series_array.size == 1:
-            return float(series_array.reshape(()))
-        return float(numpy.interp(tau_value, tau_grid, series_array))
-
-    def _contract_value(name: str, current_a: float) -> float:
-        """Return the scalar contract value associated with ``name``."""
-
-        raw_value = value_arrays.get(name)
-        value_def = value_definitions.get(name, {})
-        grid_name = (
-            value_def.get("grid") if isinstance(value_def, Mapping) else None
-        )
-        if isinstance(grid_name, str):
-            grid_array = numpy.asarray(grid_arrays.get(grid_name), dtype=float)
-            value_array = numpy.asarray(raw_value, dtype=float)
-            if (
-                grid_array.ndim == 1
-                and value_array.ndim == 1
-                and grid_array.size == value_array.size
-            ):
-                return float(numpy.interp(current_a, grid_array, value_array))
-        if raw_value is None:
-            return 0.0
-        return _coerce_numeric_scalar(raw_value, name=name)
-
-    derived_expression_order = tuple(
-        name
-        for name in (
-            perturbation_data.dependency_graph_summary.derived_expression_names
-        )
-        if name in derived_expression_entries
-    )
-    dependency_summary = perturbation_data.dependency_graph_summary
-    dependency_map = {
-        name: tuple(
-            dependency
-            for dependency in dependencies
-            if dependency in derived_expression_entries
-        )
-        for name, dependencies in (
-            dependency_summary.derived_expression_dependencies.items()
-        )
-    }
-    ordered_derived_names: list[str] = []
-    unresolved = set(derived_expression_order)
-    resolved: set[str] = set()
-    while unresolved:
-        ready = sorted(
-            name
-            for name in unresolved
-            if set(dependency_map.get(name, ())) <= resolved
-        )
-        if not ready:
-            raise ValueError(
-                "Derived perturbation expressions contain a cycle"
-            )
-        ordered_derived_names.extend(ready)
-        for name in ready:
-            unresolved.remove(name)
-            resolved.add(name)
-
-    def _classify_variable_role(kind: str) -> str:
-        """Return a coarse perturbation role for a variable kind string."""
-
-        lowered = kind.lower()
-        if any(
-            token in lowered
-            for token in ("tensor", "vector", "b-mode", "bmode", "b_mode")
-        ):
-            return "tensor"
-        if any(
-            token in lowered
-            for token in ("anisotropic", "stress", "shear", "pi")
-        ):
-            return "stress"
-        if any(
-            token in lowered
-            for token in ("velocity", "momentum", "divergence", "theta")
-        ):
-            return "velocity"
-        if any(
-            token in lowered
-            for token in (
-                "density",
-                "contrast",
-                "overdensity",
-                "background_density",
-            )
-        ):
-            return "density"
-        if any(
-            token in lowered
-            for token in ("potential", "metric", "curvature", "gravity")
-        ):
-            return "metric"
-        return "other"
-
-    def _classify_source_role(
-        source_name: str,
-        source_data: Any,
-    ) -> str:
-        """Return a coarse perturbation role for a source expression."""
-
-        lowered_name = source_name.lower()
-        if any(
-            token in lowered_name
-            for token in ("tensor", "bmode", "b_mode", "bb")
-        ):
-            return "tensor"
-        if any(
-            token in lowered_name
-            for token in ("polar", "e_mode", "e-mode", "ee")
-        ):
-            return "polarization"
-        dependencies = tuple(getattr(source_data, "dependencies", ()) or ())
-        dependency_roles = {
-            _classify_variable_role(
-                getattr(perturbation_data.variables[dependency], "kind", "")
-            )
-            for dependency in dependencies
-            if dependency in perturbation_data.variables
-        }
-        if "tensor" in dependency_roles or "stress" in dependency_roles:
-            return "polarization"
-        return "temperature"
-
-    variable_role_by_name = {
-        name: _classify_variable_role(entry.kind)
-        for name, entry in perturbation_data.variables.items()
-    }
-    source_role_by_name = {
-        name: _classify_source_role(name, entry)
-        for name, entry in perturbation_data.sources.items()
-    }
-
-    initial_state = numpy.asarray(
-        [
-            (
-                0.0
-                if variable_role_by_name.get(name) in {"velocity", "stress"}
-                else 1.0e-5
-            )
-            for name in perturbation_data.variables.keys()
-        ],
-        dtype=float,
-    )
-    variable_order = tuple(perturbation_data.variables.keys())
-    variable_index = {name: index for index, name in enumerate(variable_order)}
-
-    def _build_environment(
-        tau_value: float,
-        state_vector: numpy.ndarray,
-        derivative_values: Mapping[str, float],
-        k_value: float,
-    ) -> dict[str, Any]:
-        """Return the evaluation environment at a single grid point."""
-
-        current_a = float(numpy.interp(tau_value, tau_grid, background_a))
-        current_z = float(numpy.interp(tau_value, tau_grid, background_z))
-        current_hz = float(numpy.interp(tau_value, tau_grid, background_hz))
-        current_env: dict[str, Any] = {
-            "a": current_a,
-            "eta": tau_value,
-            "tau": tau_value,
-            "z": current_z,
-            "H": current_hz,
-            "Hconf": current_a * current_hz,
-            "k": k_value,
-            "Phi": 0.0,
-            "Psi": 0.0,
-        }
-        current_env.update(combined_parameter_values)
-        current_env.update(param_map_values)
-        current_env.update(
-            {
-                name: float(state_vector[variable_index[name]])
-                for name in variable_order
-            }
-        )
-        current_env.update(derivative_values)
-        current_env.update(
-            {name: _contract_value(name, current_a) for name in value_arrays}
-        )
-        current_env["DM"] = _background_scalar("DM", tau_value)
-        current_env["DH"] = _background_scalar("DH", tau_value)
-        current_env["DA"] = _background_scalar("DA", tau_value)
-        current_env["DV"] = _background_scalar("DV", tau_value)
-        current_env["rs_drag"] = _background_scalar("rs_drag", tau_value)
-        current_env["Hz"] = current_hz
-        return current_env
-
-    def _evaluate_derived_values(env: Mapping[str, Any]) -> dict[str, float]:
-        """Return the evaluated derived expression mapping."""
-
-        derived_values: dict[str, float] = {}
-        working_env = dict(env)
-        for derived_name in ordered_derived_names:
-            expression = derived_expression_entries[derived_name].expression
-            derived_values[derived_name] = _coerce_numeric_scalar(
-                _evaluate_safe_expression(expression or "0", working_env),
-                name=f"cmb.perturbations.derived.{derived_name}",
-            )
-            working_env[derived_name] = derived_values[derived_name]
-        return derived_values
-
-    def _apply_closure_constraints(
-        env: dict[str, Any],
-        state_vector: numpy.ndarray,
-    ) -> float:
-        """Apply algebraic closure relations to the current state."""
-
-        closure_penalty = 0.0
-        for closure_name, closure_data in perturbation_data.closures.items():
-            left_expr = closure_data.expression
-            right_expr = closure_data.equals
-            left_node = _parse_safe_expression(left_expr)
-            right_value = _coerce_numeric_scalar(
-                _evaluate_safe_expression(right_expr, env),
-                name=f"cmb.perturbations.closures.{closure_name}.equals",
-            )
-            if isinstance(left_node.body, ast.Name):
-                target_name = left_node.body.id
-                env[target_name] = right_value
-                if target_name in variable_index:
-                    state_vector[variable_index[target_name]] = right_value
-                continue
-            left_value = _coerce_numeric_scalar(
-                _evaluate_safe_expression(left_expr, env),
-                name=(
-                    "cmb.perturbations.closures." f"{closure_name}.expression"
-                ),
-            )
-            closure_penalty += abs(left_value - right_value)
-        return closure_penalty
-
-    def _evaluate_source_channels(
-        tau_value: float,
-        state_vector: numpy.ndarray,
-        k_value: float,
-    ) -> dict[str, float]:
-        """Return source-channel amplitudes for the current grid point."""
-
-        derivative_values = {name: 0.0 for name in derivative_symbol_entries}
-        rhs_values: dict[str, float] = {
-            name: 0.0 for name in equation_by_variable
-        }
-        for _ in range(4):
-            env = _build_environment(
-                tau_value,
-                state_vector,
-                derivative_values,
-                k_value,
-            )
-            env.update(_evaluate_derived_values(env))
-            _apply_closure_constraints(env, state_vector)
-            env.update(_evaluate_derived_values(env))
-
-            new_rhs_values: dict[str, float] = {}
-            for variable_name, equation in equation_by_variable.items():
-                new_rhs_values[variable_name] = _coerce_numeric_scalar(
-                    _evaluate_safe_expression(equation.rhs, env),
-                    name=(
-                        f"cmb.perturbations.equations." f"{equation.name}.rhs"
-                    ),
-                )
-
-            new_derivative_values = dict(derivative_values)
-            for (
-                derivative_name,
-                derivative_data,
-            ) in derivative_symbol_entries.items():
-                if derivative_data.order == 1 and derivative_data.wrt == "tau":
-                    new_derivative_values[derivative_name] = (
-                        new_rhs_values.get(
-                            derivative_data.variable,
-                            0.0,
-                        )
-                    )
-                else:
-                    new_derivative_values[derivative_name] = 0.0
-
-            if all(
-                numpy.isclose(
-                    new_rhs_values[name],
-                    rhs_values.get(name, float("nan")),
-                    rtol=1.0e-8,
-                    atol=1.0e-10,
-                )
-                for name in new_rhs_values
-            ) and all(
-                numpy.isclose(
-                    new_derivative_values[name],
-                    derivative_values.get(name, float("nan")),
-                    rtol=1.0e-8,
-                    atol=1.0e-10,
-                )
-                for name in new_derivative_values
-            ):
-                derivative_values = new_derivative_values
-                rhs_values = new_rhs_values
-                break
-
-            derivative_values = new_derivative_values
-            rhs_values = new_rhs_values
-
-        env = _build_environment(
-            tau_value,
-            state_vector,
-            derivative_values,
-            k_value,
-        )
-        env.update(_evaluate_derived_values(env))
-        env.update(derivative_values)
-        _apply_closure_constraints(env, state_vector)
-        env.update(_evaluate_derived_values(env))
-        source_channels = {
-            "temperature": 0.0,
-            "polarization": 0.0,
-            "tensor": 0.0,
-        }
-        for source_name, source_data in perturbation_data.sources.items():
-            source_value = _coerce_numeric_scalar(
-                _evaluate_safe_expression(source_data.expression, env),
-                name=f"cmb.perturbations.sources.{source_name}",
-            )
-            source_role = source_role_by_name.get(source_name, "temperature")
-            if source_role == "tensor":
-                source_channels["tensor"] += source_value
-                continue
-            if source_role == "polarization":
-                source_channels["polarization"] += source_value
-                continue
-            source_channels["temperature"] += source_value
-
-        role_values: dict[str, list[float]] = {
-            "density": [],
-            "velocity": [],
-            "metric": [],
-            "stress": [],
-            "tensor": [],
-        }
-        for variable_name in variable_order:
-            value = float(env[variable_name])
-            role = variable_role_by_name.get(variable_name, "other")
-            if role in role_values:
-                role_values[role].append(value)
-
-        def _mean(values: list[float]) -> float:
-            """Return the finite mean of ``values`` or zero when empty."""
-
-            if not values:
-                return 0.0
-            return float(numpy.mean(numpy.asarray(values, dtype=float)))
-
-        density_names = tuple(
-            name
-            for name in variable_order
-            if variable_role_by_name.get(name) == "density"
-        )
-        photon_like_density = any(
-            any(
-                token
-                in (
-                    f"{name.lower()} "
-                    f"{perturbation_data.variables[name].kind.lower()}"
-                )
-                for token in (
-                    "photon",
-                    "gamma",
-                    "radiation",
-                    "temperature",
-                )
-            )
-            for name in density_names
-        )
-
-        monopole_term = _mean(role_values["density"])
-        if photon_like_density:
-            monopole_term *= 0.25
-        doppler_term = _mean(role_values["velocity"]) / max(
-            float(k_value),
-            1.0e-6,
-        )
-        anisotropic_term = _mean(role_values["stress"])
-        tensor_term = _mean(role_values["tensor"])
-        metric_term = _mean(role_values["metric"])
-        phi_term = (
-            float(env["Phi"]) if "Phi" in variable_index else metric_term
-        )
-        if "Psi" in variable_index:
-            psi_term = float(env["Psi"])
-        else:
-            psi_term = metric_term
-
-        phi_dot_values: list[float] = []
-        psi_dot_values: list[float] = []
-        for (
-            derivative_name,
-            derivative_data,
-        ) in derivative_symbol_entries.items():
-            derivative_value = float(
-                derivative_values.get(derivative_name, 0.0)
-            )
-            if derivative_data.variable == "Phi":
-                phi_dot_values.append(derivative_value)
-            elif derivative_data.variable == "Psi":
-                psi_dot_values.append(derivative_value)
-            elif (
-                variable_role_by_name.get(derivative_data.variable) == "metric"
-            ):
-                phi_dot_values.append(derivative_value)
-                psi_dot_values.append(derivative_value)
-
-        phi_dot_term = _mean(phi_dot_values)
-        psi_dot_term = (
-            _mean(psi_dot_values) if psi_dot_values else phi_dot_term
-        )
-        visibility_weight = _background_scalar("visibility", tau_value)
-        optical_depth = max(
-            _background_scalar("optical_depth", tau_value), 0.0
-        )
-        late_time_weight = float(numpy.exp(-optical_depth))
-
-        source_channels["temperature"] += visibility_weight * (
-            monopole_term
-            + 0.5 * (phi_term + psi_term)
-            + doppler_term
-            + 0.25 * anisotropic_term
-        ) + late_time_weight * (psi_dot_term - phi_dot_term)
-        source_channels["polarization"] += visibility_weight * (
-            0.5 * anisotropic_term
-        )
-        source_channels["tensor"] += visibility_weight * tensor_term
-        source_channels["_visibility_weight"] = visibility_weight
-        source_channels["_optical_depth"] = optical_depth
-        source_channels["_monopole_term"] = monopole_term
-        source_channels["_doppler_term"] = doppler_term
-        source_channels["_anisotropic_term"] = anisotropic_term
-        source_channels["_tensor_term"] = tensor_term
-        source_channels["_phi_term"] = phi_term
-        source_channels["_psi_term"] = psi_term
-        source_channels["_phi_dot_term"] = phi_dot_term
-        source_channels["_psi_dot_term"] = psi_dot_term
-        return source_channels
-
-    def _rhs_vector(
-        tau_value: float, state_vector: numpy.ndarray, k_value: float
-    ) -> numpy.ndarray:
-        """Return the derivative vector for the declared system."""
-
-        derivative_values = {name: 0.0 for name in derivative_symbol_entries}
-        rhs_values: dict[str, float] = {
-            name: 0.0 for name in equation_by_variable
-        }
-        for _ in range(4):
-            env = _build_environment(
-                tau_value,
-                state_vector,
-                derivative_values,
-                k_value,
-            )
-            env.update(_evaluate_derived_values(env))
-            _apply_closure_constraints(env, state_vector)
-            env.update(_evaluate_derived_values(env))
-
-            new_rhs_values: dict[str, float] = {}
-            for variable_name, equation in equation_by_variable.items():
-                new_rhs_values[variable_name] = _coerce_numeric_scalar(
-                    _evaluate_safe_expression(equation.rhs, env),
-                    name=(
-                        f"cmb.perturbations.equations." f"{equation.name}.rhs"
-                    ),
-                )
-
-            new_derivative_values = dict(derivative_values)
-            for (
-                derivative_name,
-                derivative_data,
-            ) in derivative_symbol_entries.items():
-                if derivative_data.order == 1 and derivative_data.wrt == "tau":
-                    new_derivative_values[derivative_name] = (
-                        new_rhs_values.get(
-                            derivative_data.variable,
-                            0.0,
-                        )
-                    )
-                else:
-                    new_derivative_values[derivative_name] = 0.0
-
-            if all(
-                numpy.isclose(
-                    new_rhs_values[name],
-                    rhs_values.get(name, float("nan")),
-                    rtol=1.0e-8,
-                    atol=1.0e-10,
-                )
-                for name in new_rhs_values
-            ) and all(
-                numpy.isclose(
-                    new_derivative_values[name],
-                    derivative_values.get(name, float("nan")),
-                    rtol=1.0e-8,
-                    atol=1.0e-10,
-                )
-                for name in new_derivative_values
-            ):
-                rhs_values = new_rhs_values
-                break
-
-            derivative_values = new_derivative_values
-            rhs_values = new_rhs_values
-
-        derivative_vector = numpy.zeros_like(state_vector, dtype=float)
-        for variable_name, variable_index_value in variable_index.items():
-            derivative_vector[variable_index_value] = rhs_values.get(
-                variable_name,
-                0.0,
-            )
-        return derivative_vector
-
-    tau0 = max(float(tau_grid[-1]), 1.0)
-    k_min = max(1.0e-4, 0.25 / tau0)
-    k_max = max(
-        0.35,
-        ((float(ell_arr.max()) + 10.0) / tau0) * 4.0,
-    )
-    k_max = max(k_max, k_min * 64.0)
-    k_sample_count = max(32, min(96, 4 * len(ell_arr) + 16))
-    k_values = numpy.logspace(
-        numpy.log10(k_min),
-        numpy.log10(k_max),
-        k_sample_count,
-    )
-    log_k_values = numpy.log(k_values)
-
-    as_value = combined_parameter_values.get("As", 2.1e-9)
-    if not numpy.isfinite(as_value) or as_value <= 0.0:
-        as_value = 2.1e-9
-    ns_value = combined_parameter_values.get("ns", 0.965)
-    if not numpy.isfinite(ns_value):
-        ns_value = 0.965
-    primordial_power = as_value * numpy.power(
-        numpy.maximum(k_values, 1e-12) / 0.05,
-        ns_value - 1.0,
-    )
-
-    temperature_transfers = numpy.zeros(
-        (k_sample_count, ell_arr.size), dtype=float
-    )
-    polarization_transfers = numpy.zeros_like(temperature_transfers)
-    tensor_transfers = numpy.zeros_like(temperature_transfers)
-
-    for k_index, current_k in enumerate(k_values):
-        state_vector = initial_state.copy()
-        temperature_series: list[float] = []
-        polarization_series: list[float] = []
-        tensor_series: list[float] = []
-        doppler_series: list[float] = []
-
-        source_channels = _evaluate_source_channels(
-            float(tau_grid[0]),
-            state_vector,
-            float(current_k),
-        )
-        temperature_series.append(source_channels["temperature"])
-        polarization_series.append(source_channels["polarization"])
-        tensor_series.append(source_channels["tensor"])
-        doppler_series.append(
-            source_channels["_visibility_weight"]
-            * source_channels["_doppler_term"]
-        )
-
-        for index in range(len(tau_grid) - 1):
-            tau_start = float(tau_grid[index])
-            tau_stop = float(tau_grid[index + 1])
-            delta_tau = tau_stop - tau_start
-            if delta_tau <= 0.0:
-                continue
-
-            stage_one = _rhs_vector(tau_start, state_vector, float(current_k))
-            stage_two = _rhs_vector(
-                tau_start + 0.5 * delta_tau,
-                state_vector + 0.5 * delta_tau * stage_one,
-                float(current_k),
-            )
-            stage_three = _rhs_vector(
-                tau_start + 0.5 * delta_tau,
-                state_vector + 0.5 * delta_tau * stage_two,
-                float(current_k),
-            )
-            stage_four = _rhs_vector(
-                tau_stop,
-                state_vector + delta_tau * stage_three,
-                float(current_k),
-            )
-            state_vector = state_vector + (
-                delta_tau
-                * (
-                    stage_one
-                    + 2.0 * stage_two
-                    + 2.0 * stage_three
-                    + stage_four
-                )
-                / 6.0
-            )
-            source_channels = _evaluate_source_channels(
-                tau_stop,
-                state_vector,
-                float(current_k),
-            )
-            temperature_series.append(source_channels["temperature"])
-            polarization_series.append(source_channels["polarization"])
-            tensor_series.append(source_channels["tensor"])
-            doppler_series.append(
-                source_channels["_visibility_weight"]
-                * source_channels["_doppler_term"]
-            )
-
-        temperature_history = numpy.asarray(temperature_series, dtype=float)
-        polarization_history = numpy.asarray(
-            polarization_series,
-            dtype=float,
-        )
-        tensor_history = numpy.asarray(tensor_series, dtype=float)
-        doppler_history = numpy.asarray(doppler_series, dtype=float)
-        if doppler_history.shape != tau_grid.shape:
-            raise ValueError("generic perturbation history has invalid shape")
-        if tau_grid.size >= 3:
-            temperature_history = temperature_history + numpy.gradient(
-                doppler_history,
-                tau_grid,
-                edge_order=2,
-            ) / max(float(current_k), 1.0e-6)
-        if temperature_history.shape != tau_grid.shape:
-            raise ValueError("generic perturbation history has invalid shape")
-        if polarization_history.shape != tau_grid.shape:
-            raise ValueError("generic perturbation history has invalid shape")
-        if tensor_history.shape != tau_grid.shape:
-            raise ValueError("generic perturbation history has invalid shape")
-
-        for ell_index, ell_value in enumerate(ell_arr):
-            temperature_transfers[k_index, ell_index] = (
-                _project_declared_perturbation_series(
-                    temperature_history,
-                    int(ell_value),
-                    float(current_k),
-                    tau_grid,
-                )
-            )
-            tensor_transfers[k_index, ell_index] = (
-                _project_declared_perturbation_series(
-                    tensor_history,
-                    int(ell_value),
-                    float(current_k),
-                    tau_grid,
-                    kernel_kind="spin2",
-                )
-            )
-            polarization_transfers[k_index, ell_index] = (
-                _project_declared_perturbation_series(
-                    polarization_history,
-                    int(ell_value),
-                    float(current_k),
-                    tau_grid,
-                    kernel_kind="spin2",
-                )
-            )
-
     ell_factor = (
-        numpy.asarray(ell_arr, dtype=float)
-        * (numpy.asarray(ell_arr, dtype=float) + 1.0)
-        / (2.0 * numpy.pi)
+        custom_data.ell_grid.astype(float)
+        * (custom_data.ell_grid.astype(float) + 1.0)
+        / (2.0 * math.pi)
     )
-    spectra_results: dict[str, numpy.ndarray] = {}
-    tt_spectrum = numpy.zeros_like(ell_factor)
-    te_spectrum = numpy.zeros_like(ell_factor)
-    ee_spectrum = numpy.zeros_like(ell_factor)
-    bb_spectrum = numpy.zeros_like(ell_factor)
-
-    for ell_index in range(ell_arr.size):
-        temperature_transfer = temperature_transfers[:, ell_index]
-        polarization_transfer = polarization_transfers[:, ell_index]
-        tensor_transfer = tensor_transfers[:, ell_index]
-        cl_tt = (
-            4.0
-            * numpy.pi
-            * numpy.trapz(
-                primordial_power * numpy.square(temperature_transfer),
-                log_k_values,
-            )
-        )
-        cl_te = (
-            4.0
-            * numpy.pi
-            * numpy.trapz(
-                primordial_power
-                * temperature_transfer
-                * polarization_transfer,
-                log_k_values,
-            )
-        )
-        cl_ee = (
-            4.0
-            * numpy.pi
-            * numpy.trapz(
-                primordial_power * numpy.square(polarization_transfer),
-                log_k_values,
-            )
-        )
-        cl_bb = (
-            4.0
-            * numpy.pi
-            * numpy.trapz(
-                primordial_power * numpy.square(tensor_transfer),
-                log_k_values,
-            )
-        )
-        tt_spectrum[ell_index] = ell_factor[ell_index] * cl_tt
-        te_spectrum[ell_index] = ell_factor[ell_index] * cl_te
-        ee_spectrum[ell_index] = ell_factor[ell_index] * cl_ee
-        bb_spectrum[ell_index] = ell_factor[ell_index] * cl_bb
-
-    spectra_results["TT"] = numpy.nan_to_num(
-        tt_spectrum, nan=0.0, posinf=0.0, neginf=0.0
-    )
-    spectra_results["TE"] = numpy.nan_to_num(
-        te_spectrum, nan=0.0, posinf=0.0, neginf=0.0
-    )
-    spectra_results["EE"] = numpy.nan_to_num(
-        ee_spectrum, nan=0.0, posinf=0.0, neginf=0.0
-    )
-    spectra_results["BB"] = numpy.nan_to_num(
-        bb_spectrum, nan=0.0, posinf=0.0, neginf=0.0
-    )
-
+    t_cmb_muK = 2.7255e6
+    spectra_results: dict[str, numpy.ndarray] = {
+        "TT": numpy.nan_to_num(
+            ell_factor * custom_data.C_l_TT * t_cmb_muK * t_cmb_muK,
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        ),
+        "TE": numpy.nan_to_num(
+            ell_factor * custom_data.C_l_TE * t_cmb_muK * t_cmb_muK,
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        ),
+        "EE": numpy.nan_to_num(
+            ell_factor * custom_data.C_l_EE * t_cmb_muK * t_cmb_muK,
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        ),
+    }
     result = {
         spec: spectra_results[spec]
         for spec in spectra
@@ -1961,10 +2463,7 @@ def compute_camb_background_observables(
     """Return CAMB background quantities for ``redshifts``.
 
     The helper shares the same caching layer as the spectrum generator so
-    BAO evaluations reuse cosmologies computed for the CMB likelihood. When
-    ``COPERNICAN_FAKE_CMB`` is active the computation returns synthetic but
-    deterministic observables to keep CI runs fast while preserving production
-    behaviour.
+    BAO evaluations reuse cosmologies computed for the CMB likelihood.
     """
 
     if not _is_structured_camb_background_contract(contract_or_params):
@@ -1972,15 +2471,6 @@ def compute_camb_background_observables(
             "Structured CAMB background contracts must include backend, "
             "param_map, grids, values and calls"
         )
-
-    if _fake_cmb_enabled() or _FAKE_CMB_PROVIDER is not None:
-        logger = logging.getLogger()
-        logger.info(
-            "(compute_camb_background_observables): Using synthetic "
-            "background observables in lieu of CAMB",
-        )
-        z_arr = numpy.asarray(redshifts, dtype=float)
-        return _fake_background_payload(z_arr)
 
     return _compute_camb_background_direct(contract_or_params, redshifts)
 
@@ -2013,13 +2503,7 @@ def compute_cmb_spectrum_from_dict(
     *,
     spectra: Sequence[str] = ("TT",),
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
-    r"""Return theoretical :math:`D_\ell` spectra using CAMB with caching.
-
-    Tests inject ``_FAKE_CMB_PROVIDER`` or set ``COPERNICAN_FAKE_CMB=1`` to
-    bypass real CAMB calls when the dependency is missing or too slow for CI
-    timeouts.  Production runs continue down the cached CAMB path to preserve
-    scientific fidelity.
-    """
+    r"""Return theoretical :math:`D_\ell` spectra using CAMB with caching."""
 
     if not _is_structured_camb_contract(contract_or_params):
         raise ValueError(
@@ -2039,25 +2523,7 @@ def compute_cmb_spectrum_from_dict(
             spectra=spectra,
         )
 
-    fake_provider = _FAKE_CMB_PROVIDER
-    if fake_provider is not None:
-        logger.info(
-            "(compute_cmb_spectrum_from_dict): Using injected CMB stub "
-            "provider",
-        )
-        fake = fake_provider(contract_or_params, ells, spectra=spectra)
-        return _coerce_fake_output(fake, spectra)
-
-    if _fake_cmb_enabled():
-        ell_arr = numpy.asarray(list(ells), dtype=int)
-        template = _FAKE_CMB_BASELINE / (ell_arr + _FAKE_CMB_OFFSET)
-        result = {spec: template.copy() for spec in spectra}
-        if len(result) == 1:
-            return template
-        return result
-
     try:
-        _validate_camb_perturbation_execution(contract_or_params)
         return _compute_cmb_spectrum_direct(
             contract_or_params,
             ells,
@@ -2083,24 +2549,6 @@ def compute_cmb_spectrum_from_legacy_params_for_tests(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     """Test-only legacy helper that accepts flat CAMB parameter mappings."""
 
-    logger = logging.getLogger()
-    fake_provider = _FAKE_CMB_PROVIDER
-    if fake_provider is not None:
-        logger.info(
-            "(compute_cmb_spectrum_from_legacy_params_for_tests): Using "
-            "injected CMB stub provider",
-        )
-        fake = fake_provider(param_dict, ells, spectra=spectra)
-        return _coerce_fake_output(fake, spectra)
-
-    if _fake_cmb_enabled():
-        ell_arr = numpy.asarray(list(ells), dtype=int)
-        template = _FAKE_CMB_BASELINE / (ell_arr + _FAKE_CMB_OFFSET)
-        result = {spec: template.copy() for spec in spectra}
-        if len(result) == 1:
-            return template
-        return result
-
     try:
         ell_arr = numpy.asarray(list(ells), dtype=int)
         if ell_arr.size == 0:
@@ -2120,7 +2568,7 @@ def compute_cmb_spectrum_from_legacy_params_for_tests(
         TypeError,
         ValueError,
     ) as exc:
-        logger.error(
+        logging.getLogger().error(
             "(compute_cmb_spectrum_from_legacy_params_for_tests): %s", exc
         )
         raise

@@ -215,9 +215,9 @@ the same convention.
   remain the canonical asset roots.
 - **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
-  `standard: false` models run through the generic declarative
-  Boltzmann-hierarchy solver or fail clearly when a required capability
-  is missing.
+  `standard: false` models run through the generic physical scalar CMB
+  engine in `copernican/lib/likelihoods/cmb.py` or fail clearly when a
+  required capability is missing.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same
@@ -265,8 +265,9 @@ the same convention.
   backend contract under `cmb` with `backend`, `param_map`, `grids`,
   `values`, `calls` and a mandatory `perturbations` block; `standard:
   true` keeps the perturbation sections empty, while `standard: false`
-  requires typed derivative equations and explicit backend mapping for the
-  compiled declarative perturbation solver.
+  requires a supported physical scalar perturbation contract, Newtonian-
+  gauge evolution, line-of-sight transfer functions and explicit backend
+  mapping for the compiled declarative CMB engine.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except

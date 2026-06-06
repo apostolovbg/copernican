@@ -57,6 +57,7 @@ policy_overlays:
       - copernican/datasets/**
     doc_routes:
       - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/lib/likelihoods/** => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md,
         ABOUT.md, SUPPORT.md

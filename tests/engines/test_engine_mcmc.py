@@ -1,6 +1,5 @@
 """Behavior and integration tests for copernican.engines.engine_mcmc."""
 
-import contextlib
 import logging
 import math
 import os
@@ -600,42 +599,29 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         bao_df.attrs["covariance_matrix_inv"] = numpy.eye(1)
 
         ells = numpy.arange(30, 34)
-        ell_arr = numpy.asarray(ells, dtype=float)
-        simulated = 1200.0 / (ell_arr + 3.0)
-        with contextlib.ExitStack() as stack:
-            stack.enter_context(
-                mock.patch.dict(
-                    os.environ,
-                    {"COPERNICAN_FAKE_CMB": "1"},
-                    clear=False,
-                )
-            )
+        camb_contract = plugin.get_camb_contract(initial)
+        perturbation_contract = plugin.get_cmb_perturbation_contract(initial)
+        structured_contract = dict(camb_contract)
+        structured_contract["perturbations"] = perturbation_contract
+        dl_vals = module.compute_cmb_spectrum(
+            structured_contract,
+            ells,
+            spectra=("TT",),
+        )
+        self.assertTrue(numpy.all(numpy.isfinite(dl_vals)))
+        cmb_df = pandas.DataFrame({"ell": ells, "Dl_obs": dl_vals})
+        cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(len(ells))
 
-            camb_contract = plugin.get_camb_contract(initial)
-            perturbation_contract = plugin.get_cmb_perturbation_contract(
-                initial
-            )
-            structured_contract = dict(camb_contract)
-            structured_contract["perturbations"] = perturbation_contract
-            dl_vals = module.compute_cmb_spectrum(
-                structured_contract,
-                ells,
-                spectra=("TT",),
-            )
-            numpy.testing.assert_allclose(dl_vals, simulated)
-            cmb_df = pandas.DataFrame({"ell": ells, "Dl_obs": dl_vals})
-            cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(len(ells))
-
-            result = module.fit_cosmology_parameters(
-                sne_df,
-                plugin,
-                bao_data_df=bao_df,
-                cmb_data_df=cmb_df,
-                n_walkers=4,
-                n_steps=2,
-                pool_size=1,
-                burn_in_steps=2,
-            )
+        result = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            bao_data_df=bao_df,
+            cmb_data_df=cmb_df,
+            n_walkers=4,
+            n_steps=2,
+            pool_size=1,
+            burn_in_steps=2,
+        )
         components = result.get("chi2_components", {})
         total = sum(components.values())
         self.assertTrue(result["success"])
