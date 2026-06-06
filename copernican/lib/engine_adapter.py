@@ -43,6 +43,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 
 import numpy
@@ -247,6 +248,7 @@ def _safe_expression_names() -> set[str]:
     return set(_ALLOWED_CONSTANTS).union(_ALLOWED_MATH_FUNCS)
 
 
+@lru_cache(maxsize=2048)
 def _parse_safe_expression(expr: str) -> ast.Expression:
     """Parse ``expr`` with the restricted expression grammar."""
 

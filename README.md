@@ -25,7 +25,8 @@ pre-commit checks.
 
 The CMB surface now includes a generic `standard: false` scalar engine
 that evolves Newtonian-gauge perturbations, recombination, and
-line-of-sight transfer functions from the declared contract.
+line-of-sight transfer functions from the declared contract with bounded
+`k` sampling and adaptive mode stepping across the requested `ell` window.
 
 ## Launch Copernican
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 from .engine_adapter import (
@@ -17,6 +18,7 @@ from .engine_adapter import (
     _SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES,
     FrozenMapping,
     _build_parameter_replacements,
+    _freeze_for_cache,
     _parse_safe_expression,
     _replace_latex_tokens,
     _validate_safe_expression,
@@ -73,6 +75,18 @@ _NONSTANDARD_BACKEND_KEYS = {
     "implemented",
     "native_solver_required",
 }
+_COMPILED_CONTRACT_RESULTS: dict[
+    tuple[Any, ...], "PerturbationContractData"
+] = {}
+
+
+@lru_cache(maxsize=256)
+def _get_cached_perturbation_contract(
+    cache_key: tuple[Any, ...],
+) -> "PerturbationContractData":
+    """Return a cached perturbation contract for ``cache_key``."""
+
+    return _COMPILED_CONTRACT_RESULTS[cache_key]
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,6 +218,7 @@ class PerturbationContractData:
     manifest_summary: FrozenMapping
 
 
+@lru_cache(maxsize=2048)
 def _collect_expression_names(expr: str) -> tuple[str, ...]:
     """Return the symbol names referenced by ``expr``."""
 
@@ -382,6 +397,18 @@ def compile_perturbation_contract(
 
     if not isinstance(contract, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
+
+    cache_key = (
+        _freeze_for_cache(contract),
+        str(model_name),
+        str(backend),
+        tuple(str(name) for name in parameter_names),
+        tuple(str(name) for name in latex_names),
+        tuple(str(name) for name in background_reference_names),
+    )
+    cached_result = _COMPILED_CONTRACT_RESULTS.get(cache_key)
+    if cached_result is not None:
+        return cached_result
 
     contract_keys = {str(key) for key in contract.keys()}
     missing_keys = {
@@ -1263,7 +1290,7 @@ def compile_perturbation_contract(
         )
     )
 
-    return PerturbationContractData(
+    compiled = PerturbationContractData(
         model_name=model_name,
         backend=backend,
         contract_version=contract_version,
@@ -1285,6 +1312,8 @@ def compile_perturbation_contract(
         dependency_graph_summary=dependency_graph,
         manifest_summary=manifest_summary,
     )
+    _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
+    return _get_cached_perturbation_contract(cache_key)
 
 
 __all__ = [

@@ -127,6 +127,12 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 if getattr(entry, "channel", "")
             }
         )
+        numerical_settings = contract.get("numerical", {}) or {}
+        numerical_settings = (
+            dict(numerical_settings)
+            if isinstance(numerical_settings, dict)
+            else numerical_settings
+        )
         grid_meta = {
             str(grid_name): {
                 "lower": grid_def.get("lower"),
@@ -202,6 +208,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     getattr(perturbation_data, "closures", {}) or {}
                 ),
                 "perturbation_source_count": len(perturbation_sources),
+                "perturbation_numerical_settings": numerical_settings,
                 "perturbation_independent_variables_used": sorted(
                     str(key)
                     for key in getattr(
@@ -275,7 +282,26 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     if not perturbation_standard
                     else "camb.standard"
                 ),
+                "custom_cmb_equation_mode": getattr(
+                    perturbation_data,
+                    "equation_mode",
+                    perturbations.get("equation_mode", "mapped_sector"),
+                ),
+                "custom_cmb_equation_count": len(
+                    getattr(perturbation_data, "equations", {}) or {}
+                ),
+                "custom_cmb_closure_count": len(
+                    getattr(perturbation_data, "closures", {}) or {}
+                ),
+                "custom_cmb_source_count": len(perturbation_sources),
+                "custom_cmb_source_channels": source_channels,
+                "custom_cmb_numerical_settings": numerical_settings,
                 "custom_cmb_reference_validation_status": (
+                    configuration.get("reference_validation_status")
+                    if isinstance(configuration, dict)
+                    else None
+                ),
+                "custom_cmb_validation_status": (
                     configuration.get("reference_validation_status")
                     if isinstance(configuration, dict)
                     else None

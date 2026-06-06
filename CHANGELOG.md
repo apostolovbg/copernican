@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Stabilized the custom CMB engine with adaptive mode stepping,
+  bounded `k` sampling, and cached contract metadata.
+  Why: Resolved non-standard `standard: false` spectra that still
+  overflowed in the line-of-sight solver and needed a repo-traceable fix.
+  Impact: Enabled custom CMB runs to keep the declared manifest metadata
+  while the managed `.venv` workflow can verify the solver path.
+  Files:
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/cmb.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  README.md
+  ABOUT.md
+  copernican/README.md
+  copernican/ABOUT.md
+  CHANGELOG.md
+
+- 2026-06-06:
   Change: Updated the root docs and solver helper for the stabilized
     custom CMB engine.
   Why: Satisfied the repo-facing documentation gate and kept the explicit

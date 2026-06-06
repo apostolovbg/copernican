@@ -36,7 +36,9 @@ Non-standard contracts can either keep the built-in sector equations with
 `equation_mode: mapped_sector` or override them with typed declared equations
 through `equation_mode: declared_equations`; in both cases unsupported
 symbols, missing required equations, and incompatible gauges fail loudly.
-The implementation lives in `copernican/lib/likelihoods/cmb.py`.
+The implementation lives in `copernican/lib/likelihoods/cmb.py` and now
+uses bounded `k` sampling with adaptive mode stepping for the requested
+line-of-sight window.
 The front-door README mirrors that summary so package readers see the same
 custom CMB surface from the repository root.
 
