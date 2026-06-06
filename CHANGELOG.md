@@ -80,6 +80,47 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Enabled the detached macOS GUI from the launcher so the
+  background child becomes the frontmost Python app.
+  Why: The detached child could create the Tk window, but it stayed
+  behind other apps until System Events brought the process forward.
+  Impact: Detached GUI launches now show the Dock icon and frontmost
+  window on macOS, and the mirrored launch docs and support notes
+  describe that behavior.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  SUPPORT.md
+  docs/packaging.md
+  copernican/README.md
+  copernican/ABOUT.md
+  copernican/SUPPORT.md
+  copernican/docs/packaging.md
+  copernican/lib/gui/app.py
+  copernican/workflow.py
+
+- 2026-06-06:
+  Change: Preserved the `.venv` wrapper path in detached GUI launches so
+  the background child stays inside the managed interpreter context.
+  Why: Fixed the detached child from resolving the base interpreter, which
+  dropped installed packages before Tk could stay alive.
+  Impact: Detached GUI launches keep the venv wrapper path, and the mirrored
+  launch docs and troubleshooting text explain the managed-wrapper
+  requirement.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  SUPPORT.md
+  docs/packaging.md
+  copernican/README.md
+  copernican/ABOUT.md
+  copernican/SUPPORT.md
+  copernican/docs/packaging.md
+  copernican/workflow.py
+
+- 2026-06-06:
   Change: Added bundled Tcl and Tk library paths to the detached GUI
   launcher so the background child can start the window.
   Why: Explained that the detached launch path was starting Copernican

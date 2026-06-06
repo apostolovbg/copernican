@@ -24,7 +24,9 @@ help stay aligned with the runtime path layout.
 Troubleshooting should start with the run folder logs and the run logs
 shown in the GUI.
 If the detached GUI opens nothing, confirm that the bundled Tcl and Tk
-library paths were bootstrapped under `.python`.
+library paths were bootstrapped under `.python`, and that the `.venv`
+wrapper path still points at the Copernican interpreter. On macOS, also
+check that System Events can bring the Python app frontmost.
 
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.

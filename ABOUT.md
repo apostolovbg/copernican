@@ -33,6 +33,10 @@ inside the managed `.venv`, and each run keeps its own run logs inside
 the generated `~/copernican_output/copernican-run_*` folder.
 It also passes the bundled Tcl and Tk library paths so the detached GUI
 can open on the supported platforms.
+It keeps the `.venv` wrapper path intact so the detached child stays in
+the managed interpreter context instead of resolving the base Python
+first. On macOS, it also asks System Events to bring the Python app
+frontmost so the Dock icon appears.
 
 The model chooser now offers `Load model...` so any valid `.yml` or
 `.yaml` file can load by exact path in the CLI or GUI.

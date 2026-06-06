@@ -1156,7 +1156,8 @@ def _gui_executable_candidates() -> list[Path]:
     interpreter.
     """
 
-    exe_path = Path(sys.executable).resolve()
+    # Keep the venv wrapper path so the child preserves the managed env.
+    exe_path = Path(sys.executable)
     candidates = [exe_path]
     for suffix in ("pythonw.exe", "pythonw"):
         alt = exe_path.with_name(suffix)
@@ -1167,7 +1168,7 @@ def _gui_executable_candidates() -> list[Path]:
 
 def _launch_detached_process(
     command: list[str], env: Mapping[str, str]
-) -> None:
+) -> subprocess.Popen[Any]:
     """Launch ``command`` in the background without tying up the console."""
 
     devnull = subprocess.DEVNULL
@@ -1185,7 +1186,30 @@ def _launch_detached_process(
         kwargs["creationflags"] = creation_flags
     else:
         kwargs["start_new_session"] = True
-    subprocess.Popen(command, **kwargs)  # nosec
+    return subprocess.Popen(command, **kwargs)  # nosec
+
+
+def _activate_detached_gui_on_macos(pid: int) -> None:
+    """Ask macOS to bring the detached Copernican GUI to the front."""
+
+    if sys.platform != "darwin":
+        return
+    script = (
+        "delay 2\n"
+        'tell application "System Events"\n'
+        f"  set frontmost of first process whose unix id is {pid} to true\n"
+        "end tell"
+    )
+    try:
+        osascript = "/usr/bin/osascript"
+        subprocess.Popen(
+            [osascript, "-e", script],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )  # nosec
+    except (OSError, RuntimeError, ValueError):
+        pass
 
 
 def _detached_gui_env() -> dict[str, str]:
@@ -1230,7 +1254,8 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
         # detached child the same way they do for the normal launcher.
         cmd = [str(candidate), "-m", "copernican", *command_tail]
         try:
-            _launch_detached_process(cmd, env)
+            detached_proc = _launch_detached_process(cmd, env)
+            _activate_detached_gui_on_macos(detached_proc.pid)
             app_logger.info("Detached GUI launched with %s", candidate)
             console.write(
                 "Handed GUI startup to a detached Copernican process; "

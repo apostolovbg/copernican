@@ -1013,6 +1013,9 @@ class CopernicanGUI:
             self._build_layout()
             if self.root is not None:
                 self.root.after(10, self._raise_root_window)
+                if sys.platform == "darwin":
+                    for delay in (250, 1500, 4000):
+                        self.root.after(delay, self._activate_macos_app)
         except (
             RuntimeError,
             OSError,
@@ -1058,7 +1061,29 @@ class CopernicanGUI:
                 1500,
                 lambda: self.root and self.root.attributes("-topmost", False),
             )
+            if sys.platform == "darwin":
+                self._activate_macos_app()
         except (RuntimeError, ValueError, tk_tcl_error):
+            pass
+
+    def _activate_macos_app(self) -> None:
+        """Ask macOS to bring the Copernican app to the front."""
+
+        if not self.render or self.root is None or sys.platform != "darwin":
+            return
+        script = (
+            'tell application "System Events" to set frontmost of '
+            'process "python" to true'
+        )
+        osascript = "/usr/bin/osascript"
+        try:
+            subprocess.run(
+                [osascript, "-e", script],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )  # nosec
+        except (OSError, RuntimeError, ValueError):
             pass
 
     def _data_root(self) -> str:

@@ -162,7 +162,11 @@ python -m copernican --gui
 When the GUI launcher detaches, it re-runs `python -m copernican --gui`
 inside the managed `.venv` so the same package entrypoint starts on
 every platform. It also passes the bundled Tcl and Tk library paths so
-the window can open after the launcher terminal closes.
+the window can open after the launcher terminal closes. It keeps the
+`.venv` wrapper path intact so the detached child stays in the managed
+interpreter context instead of resolving the base Python first. On
+macOS, it also asks System Events to bring the Python app frontmost so
+the Dock icon appears.
 
 If Copernican is already installed in the same `.venv`, use these commands
 instead.
