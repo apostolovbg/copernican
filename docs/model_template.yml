@@ -211,6 +211,7 @@ cmb:
         equals: "0"
     sources:
       poisson_x:
+        channel: temperature_additive
         expression: delta_rho_eff + delta_x + theta_x
     validity:
       regimes:

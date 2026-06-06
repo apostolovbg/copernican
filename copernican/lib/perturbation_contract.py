@@ -58,7 +58,14 @@ _SUPPORTED_CLOSURE_KEYS = {
     "expression",
     "notes",
 }
-_SUPPORTED_SOURCE_KEYS = {"description", "expression", "notes"}
+_SUPPORTED_SOURCE_KEYS = {"channel", "description", "expression", "notes"}
+_SUPPORTED_SOURCE_CHANNELS = {
+    "polarization",
+    "temperature_additive",
+    "temperature_doppler",
+    "temperature_isw",
+    "temperature_monopole",
+}
 _SUPPORTED_VALIDITY_KEYS = {"notes", "regimes"}
 _SUPPORTED_BACKEND_KEYS = {"camb"}
 _STANDARD_BACKEND_KEYS = {"uses_standard_perturbations"}
@@ -133,6 +140,7 @@ class PerturbationSourceData:
 
     name: str
     expression: str
+    channel: str
     description: str | None = None
     notes: str | None = None
     dependencies: tuple[str, ...] = ()
@@ -980,6 +988,18 @@ def compile_perturbation_contract(
             raise ValueError(
                 f"Perturbation source '{source_name}' needs expression"
             )
+        channel = source_def.get("channel")
+        if not isinstance(channel, str) or not channel.strip():
+            raise ValueError(
+                f"Perturbation source '{source_name}' needs channel"
+            )
+        channel = channel.strip()
+        if channel not in _SUPPORTED_SOURCE_CHANNELS:
+            supported = ", ".join(sorted(_SUPPORTED_SOURCE_CHANNELS))
+            raise ValueError(
+                f"Perturbation source '{source_name}' declares unsupported "
+                f"channel '{channel}'. Supported channels are: {supported}"
+            )
         description = source_def.get("description")
         if description is not None and not isinstance(description, str):
             raise ValueError(
@@ -1010,6 +1030,7 @@ def compile_perturbation_contract(
         source_entries[source_name] = PerturbationSourceData(
             name=source_name,
             expression=clean_expression,
+            channel=channel,
             description=description,
             notes=notes,
             dependencies=dependencies,

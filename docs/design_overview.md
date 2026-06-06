@@ -98,6 +98,10 @@ described throughout this document.
   scalar equations. `declared_equations` mode requires typed derivative
   equations for every supported sector and uses those declared equations
   instead of the built-in sector equations.
+* Source declarations choose an explicit channel:
+  `temperature_monopole`, `temperature_doppler`, `temperature_isw`,
+  `polarization`, or `temperature_additive`. The engine routes those channel
+  values into the corresponding line-of-sight source terms.
 * Background quantities come from the declared model expressions when they
   exist, otherwise from the physical defaults resolved by the helper. The
   engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
@@ -124,10 +128,9 @@ described throughout this document.
   and the polarization quadrupole projection used for E modes.
 * The spectra are built from the primordial power law
   `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
-  `TE`, and `EE`. The implementation is approximate rather than
-  Planck-precision, so unsupported custom sectors, missing declared equations,
-  and theory-specific solver keys fail early instead of falling back to a toy
-  spectrum.
+  `TE`, and `EE`. The custom path keeps the numerical settings explicit and
+  rejects unsupported custom sectors, missing declared equations, and
+  theory-specific solver keys before any spectrum is produced.
 
 ## Stage-by-stage flow
 

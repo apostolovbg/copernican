@@ -590,6 +590,7 @@ class _CustomCMBNumerics:
     tight_coupling_ratio: float = 50.0
     a_min: float = 1.0e-8
     source_grid_multiplier: int = 2
+    initial_redshift: float = 1.0e5
 
 
 @dataclass(slots=True)
@@ -759,6 +760,13 @@ _CUSTOM_CMB_SECTOR_ALIASES: dict[str, tuple[str, ...]] = {
         "Psi",
     ),
 }
+_CUSTOM_CMB_SOURCE_CHANNELS: tuple[str, ...] = (
+    "temperature_monopole",
+    "temperature_doppler",
+    "temperature_isw",
+    "polarization",
+    "temperature_additive",
+)
 
 
 def _expression_symbol_name(expression: str) -> str | None:
@@ -867,6 +875,10 @@ def _resolve_custom_cmb_numerics(
             defaults.source_grid_multiplier,
         ),
     )
+    initial_redshift = _read_float(
+        "initial_redshift",
+        defaults.initial_redshift,
+    )
     return _CustomCMBNumerics(
         ell_min=ell_min,
         ell_max=ell_max,
@@ -881,6 +893,7 @@ def _resolve_custom_cmb_numerics(
         tight_coupling_ratio=tight_coupling_ratio,
         a_min=a_min,
         source_grid_multiplier=source_grid_multiplier,
+        initial_redshift=initial_redshift,
     )
 
 
@@ -1247,9 +1260,9 @@ def _build_custom_cmb_background(
     LYMAN_ALPHA = 121.567e-9
     LAMBDA_ALPHA = 1.0 / LYMAN_ALPHA
     LAMBDA_2S1S = 8.22458
+    recombination_speedup = 8.0
     DEFAULT_REC_Z = float(physical_params.z_rec)
     z_max = max(4000.0, 2.5 * DEFAULT_REC_Z)
-    recombination_speedup = 8.0
 
     def _background_hubble_km_s_Mpc(z_values: numpy.ndarray) -> numpy.ndarray:
         """Return H(z) using the declared background or a physical fallback."""
@@ -1509,7 +1522,11 @@ def _build_custom_cmb_background(
         )
     ):
         z_scale = physical_params.z_rec / peak_z
-        z_shifted = numpy.clip(z_grid / z_scale, z_grid.min(), z_grid.max())
+        z_shifted = numpy.clip(
+            z_grid / z_scale,
+            z_grid.min(),
+            z_grid.max(),
+        )
         x_e_grid = numpy.interp(
             z_shifted[::-1],
             z_grid[::-1],
@@ -1655,12 +1672,18 @@ def _compute_custom_cmb_spectrum_data(
     if ell_arr.size == 0:
         raise ValueError("ells must not be empty")
 
+    eta_los_refinement = max(2, numerics.source_grid_multiplier)
+    a_initial = max(
+        background.a_grid[0],
+        1.0 / (max(numerics.initial_redshift, 1.0) + 1.0),
+    )
+    eta_start = float(background.eta_of_a(a_initial))
     eta_los_grid = numpy.linspace(
-        float(background.eta_grid[0]),
+        eta_start,
         float(background.eta_grid[-1]),
         max(
-            background.eta_grid.size * numerics.source_grid_multiplier,
-            numerics.eta_sample_count,
+            background.eta_grid.size * eta_los_refinement,
+            numerics.eta_sample_count * eta_los_refinement,
         ),
     )
     eta_los_grid = numpy.asarray(eta_los_grid, dtype=float)
@@ -1956,16 +1979,18 @@ def _compute_custom_cmb_spectrum_data(
         dict[str, float],
         float,
         float,
+        float,
         numpy.ndarray,
     ]:
         """Return the declared-evolution context for a single step."""
 
         context: dict[str, Any] = {}
         working_state = numpy.array(state, dtype=float, copy=True)
-        phi_value, psi_value = _compute_potentials(
+        phi_value, psi_value, phi_dot_value = _compute_potentials(
             eta_value,
             working_state,
             k_value,
+            previous_context=previous_context,
         )
         _refresh_state_context(
             context,
@@ -2029,10 +2054,11 @@ def _compute_custom_cmb_spectrum_data(
             if target_sector in state_target_indices:
                 state_index = state_target_indices[target_sector]
                 working_state[state_index] = float(target_value)
-                phi_value, psi_value = _compute_potentials(
+                phi_value, psi_value, phi_dot_value = _compute_potentials(
                     eta_value,
                     working_state,
                     k_value,
+                    previous_context=previous_context,
                 )
                 _refresh_state_context(
                     context,
@@ -2075,6 +2101,7 @@ def _compute_custom_cmb_spectrum_data(
                 phi_value = float(target_value)
             elif target_name in {"Psi", "metric_potential_psi"}:
                 psi_value = float(target_value)
+        phi_dot_value = float(phi_dot_value)
 
         delta_eta = None
         if previous_eta_value is not None:
@@ -2201,11 +2228,15 @@ def _compute_custom_cmb_spectrum_data(
             source_values,
             phi_value,
             psi_value,
+            phi_dot_value,
             working_state,
         )
 
-    def _build_initial_state(k_value: float) -> numpy.ndarray:
-        """Return the adiabatic initial state for a single Fourier mode."""
+    def _build_initial_state(
+        k_value: float,
+        eta_start_value: float,
+    ) -> tuple[numpy.ndarray, float]:
+        """Return a bounded adiabatic initial state for one Fourier mode."""
 
         state_size = (
             (photon_l_max + 1)
@@ -2214,32 +2245,95 @@ def _compute_custom_cmb_spectrum_data(
             + (2 if physical_params.has_cdm else 0)
             + (neutrino_l_max + 1)
         )
-        state = numpy.zeros(state_size, dtype=float)
-        phi0 = 3.0 / 5.0
         theta_gamma = slice(0, photon_l_max + 1)
-        index = 2 * (photon_l_max + 1)
-        state[theta_gamma.start] = -0.5 * phi0
-        state[theta_gamma.start + 1] = -(
-            k_value * background.eta_grid[0] * phi0 / 6.0
-        )
-        state[index] = -1.5 * phi0
-        state[index + 1] = (
-            -k_value * k_value * background.eta_grid[0] * phi0 / 2.0
-        )
-        index += 2
-        if physical_params.has_cdm:
-            state[index] = -1.5 * phi0
+
+        def _populate_state(phi0_value: float) -> numpy.ndarray:
+            """Return the linearised adiabatic state for ``phi0_value``."""
+
+            state = numpy.zeros(state_size, dtype=float)
+            index = 2 * (photon_l_max + 1)
+            state[theta_gamma.start] = -0.5 * phi0_value
+            state[theta_gamma.start + 1] = -(
+                k_value * eta_start_value * phi0_value / 6.0
+            )
+            state[index] = -1.5 * phi0_value
             state[index + 1] = (
-                -k_value * k_value * background.eta_grid[0] * phi0 / 2.0
+                -k_value * k_value * eta_start_value * phi0_value / 2.0
             )
             index += 2
-        nu_slice = slice(index, index + neutrino_l_max + 1)
-        state[nu_slice.start] = -0.5 * phi0
-        if neutrino_l_max >= 1:
-            state[nu_slice.start + 1] = -(
-                k_value * background.eta_grid[0] * phi0 / 6.0
+            if physical_params.has_cdm:
+                state[index] = -1.5 * phi0_value
+                state[index + 1] = (
+                    -k_value * k_value * eta_start_value * phi0_value / 2.0
+                )
+                index += 2
+            nu_slice = slice(index, index + neutrino_l_max + 1)
+            state[nu_slice.start] = -0.5 * phi0_value
+            if neutrino_l_max >= 1:
+                state[nu_slice.start + 1] = -(
+                    k_value * eta_start_value * phi0_value / 6.0
+                )
+            return state
+
+        trial_state = _populate_state(1.0)
+        trial_unpacked = _unpack_state(trial_state)
+        a_value = float(numpy.interp(eta_start_value, eta_grid, a_grid))
+        H_value = float(numpy.interp(eta_start_value, eta_grid, H_grid))
+        Hconf_value = a_value * H_value / _C_LIGHT_KM_S
+        k_sq = max(k_value * k_value, 1.0e-12)
+        theta_gamma0 = float(trial_unpacked["theta_gamma"][0])
+        theta_gamma1 = float(trial_unpacked["theta_gamma"][1])
+        theta_nu0 = float(trial_unpacked["neutrino_hierarchy"][0])
+        theta_nu1 = float(trial_unpacked["neutrino_hierarchy"][1])
+        delta_gamma = 4.0 * theta_gamma0
+        delta_nu = 4.0 * theta_nu0
+        theta_gamma_momentum = 3.0 * k_value * theta_gamma1
+        theta_nu_momentum = 3.0 * k_value * theta_nu1
+        density_total = (
+            Omega_b0 * float(trial_unpacked["delta_b"]) / max(a_value, 1.0e-12)
+            + Omega_gamma0 * delta_gamma / max(a_value * a_value, 1.0e-12)
+            + Omega_nu0 * delta_nu / max(a_value * a_value, 1.0e-12)
+        )
+        if physical_params.has_cdm:
+            density_total += (
+                Omega_c0
+                * float(trial_unpacked["delta_c"])
+                / max(a_value, 1.0e-12)
             )
-        return state
+        momentum_total = (
+            Omega_b0 * float(trial_unpacked["theta_b"]) / max(a_value, 1.0e-12)
+            + Omega_gamma0
+            * (4.0 / 3.0)
+            * theta_gamma_momentum
+            / max(a_value * a_value, 1.0e-12)
+            + Omega_nu0
+            * (4.0 / 3.0)
+            * theta_nu_momentum
+            / max(a_value * a_value, 1.0e-12)
+        )
+        if physical_params.has_cdm:
+            momentum_total += (
+                Omega_c0
+                * float(trial_unpacked["theta_c"])
+                / max(a_value, 1.0e-12)
+            )
+        potential_prefactor = 1.5 * H0_over_c * H0_over_c
+        initial_phi_scale = (
+            potential_prefactor * density_total / k_sq
+            + 3.0 * potential_prefactor * Hconf_value * momentum_total / k_sq
+        )
+        if not numpy.isfinite(initial_phi_scale):
+            raise ValueError(
+                "Custom CMB initial conditions produced a non-finite "
+                "potential normalization"
+            )
+        if abs(initial_phi_scale) < 1.0e-12:
+            raise ValueError(
+                "Custom CMB initial conditions produced an ill-conditioned "
+                "potential normalization"
+            )
+        initial_amplitude = 1.0e-5 / max(abs(initial_phi_scale), 1.0)
+        return _populate_state(initial_amplitude), initial_amplitude
 
     def _unpack_state(state: numpy.ndarray) -> dict[str, Any]:
         """Return named views into a single Fourier-mode state vector."""
@@ -2274,27 +2368,68 @@ def _compute_custom_cmb_spectrum_data(
         eta_value: float,
         state: numpy.ndarray,
         k_value: float,
-    ) -> tuple[float, float]:
-        """Return the Newtonian potentials for the current state."""
+        *,
+        previous_context: Mapping[str, Any] | None = None,
+    ) -> tuple[float, float, float]:
+        """Return the Newtonian potentials and ``Phi'`` for the state."""
+
+        x_value = abs(k_value) * max(
+            float(eta_value), float(eta_start), 1.0e-6
+        )
+        if previous_context is not None and "Phi" in previous_context:
+            previous_phi_value = float(previous_context.get("Phi", 0.0))
+            previous_psi_value = float(
+                previous_context.get("Psi", previous_phi_value)
+            )
+        else:
+            previous_phi_value = None
+            previous_psi_value = None
+
+        superhorizon_floor = 8.0e-1
+        superhorizon_ceiling = 1.2e0
 
         unpacked = _unpack_state(state)
         a_value = float(numpy.interp(eta_value, eta_grid, a_grid))
-        delta_gamma = 4.0 * float(unpacked["theta_gamma"][0])
-        delta_nu = 4.0 * float(unpacked["neutrino_hierarchy"][0])
-        matter_term = (
+        H_value = float(numpy.interp(eta_value, eta_grid, H_grid))
+        Hconf_value = a_value * H_value / _C_LIGHT_KM_S
+        k_sq = max(k_value * k_value, 1.0e-12)
+        theta_gamma0 = float(unpacked["theta_gamma"][0])
+        theta_gamma1 = float(unpacked["theta_gamma"][1])
+        theta_nu0 = float(unpacked["neutrino_hierarchy"][0])
+        theta_nu1 = float(unpacked["neutrino_hierarchy"][1])
+        delta_gamma = 4.0 * theta_gamma0
+        delta_nu = 4.0 * theta_nu0
+        theta_gamma_momentum = 3.0 * k_value * theta_gamma1
+        theta_nu_momentum = 3.0 * k_value * theta_nu1
+        density_total = (
             Omega_b0 * float(unpacked["delta_b"]) / max(a_value, 1.0e-12)
+            + Omega_gamma0 * delta_gamma / max(a_value * a_value, 1.0e-12)
+            + Omega_nu0 * delta_nu / max(a_value * a_value, 1.0e-12)
         )
         if physical_params.has_cdm:
-            matter_term += (
+            density_total += (
                 Omega_c0 * float(unpacked["delta_c"]) / max(a_value, 1.0e-12)
             )
-        radiation_term = Omega_gamma0 * delta_gamma / max(
-            a_value * a_value, 1.0e-12
-        ) + Omega_nu0 * delta_nu / max(a_value * a_value, 1.0e-12)
-        potential_prefactor = (
-            1.5 * H0_over_c * H0_over_c / max(k_value * k_value, 1.0e-12)
+        momentum_total = (
+            Omega_b0 * float(unpacked["theta_b"]) / max(a_value, 1.0e-12)
+            + Omega_gamma0
+            * (4.0 / 3.0)
+            * theta_gamma_momentum
+            / max(a_value * a_value, 1.0e-12)
+            + Omega_nu0
+            * (4.0 / 3.0)
+            * theta_nu_momentum
+            / max(a_value * a_value, 1.0e-12)
         )
-        phi_value = -potential_prefactor * (matter_term + radiation_term)
+        if physical_params.has_cdm:
+            momentum_total += (
+                Omega_c0 * float(unpacked["theta_c"]) / max(a_value, 1.0e-12)
+            )
+        potential_prefactor = 1.5 * H0_over_c * H0_over_c
+        phi_value = (
+            potential_prefactor * density_total / k_sq
+            + 3.0 * potential_prefactor * Hconf_value * momentum_total / k_sq
+        )
         slip = (
             6.0
             * H0_over_c
@@ -2305,10 +2440,27 @@ def _compute_custom_cmb_spectrum_data(
                 if neutrino_l_max >= 2
                 else 0.0
             )
-            / max(k_value * k_value * a_value * a_value, 1.0e-12)
+            / max(k_sq * a_value * a_value, 1.0e-12)
         )
         psi_value = phi_value - slip
-        return phi_value, psi_value
+        phi_dot_value = (
+            potential_prefactor * momentum_total / k_sq
+            - Hconf_value * psi_value
+        )
+        if previous_phi_value is None:
+            previous_phi_value = phi_value
+        if previous_psi_value is None:
+            previous_psi_value = psi_value
+        if x_value < superhorizon_ceiling:
+            blend = (x_value - superhorizon_floor) / (
+                superhorizon_ceiling - superhorizon_floor
+            )
+            blend = min(max(blend, 0.0), 1.0)
+            blend = blend * blend * (3.0 - 2.0 * blend)
+            phi_value = (1.0 - blend) * previous_phi_value + blend * phi_value
+            psi_value = (1.0 - blend) * previous_psi_value + blend * psi_value
+            phi_dot_value *= blend
+        return phi_value, psi_value, phi_dot_value
 
     previous_context_snapshot: dict[str, Any] | None = None
     previous_eta_snapshot: float | None = None
@@ -2326,6 +2478,7 @@ def _compute_custom_cmb_spectrum_data(
             _source_values,
             phi_value,
             psi_value,
+            phi_dot_value,
             effective_state,
         ) = _build_step_context(
             eta_value,
@@ -2339,6 +2492,10 @@ def _compute_custom_cmb_spectrum_data(
         Hconf_value = float(context["Hconf"])
         tau_dot_value = float(context["tau_dot"])
         collision = max(0.0, -tau_dot_value)
+        collision_eff = min(
+            collision,
+            numerics.tight_coupling_ratio * max(k_value, 1.0e-8),
+        )
         R_b = 3.0 * Omega_b0 * a_value / (4.0 * max(Omega_gamma0, 1.0e-12))
         sound_speed_sq = 1.0 / (3.0 * (1.0 + R_b))
         y = numpy.zeros_like(state, dtype=float)
@@ -2346,130 +2503,127 @@ def _compute_custom_cmb_spectrum_data(
         theta_gamma = unpacked["theta_gamma"]
         e_gamma = unpacked["e_gamma"]
         neutrino_hierarchy = unpacked["neutrino_hierarchy"]
-
-        def _tail_closure(series: numpy.ndarray, ell: int) -> float:
-            """Return a free-streaming closure for the last hierarchy bin."""
-
-            return (2.0 * ell + 1.0) * series[ell] / max(
-                k_value * max(eta_value, 1.0), 1.0e-6
-            ) - series[ell - 1]
-
-        offset = 0
-        y[offset] = -k_value * theta_gamma[1]
-        offset += 1
-        if photon_l_max >= 1:
-            y[offset] = (
-                k_value / 3.0 * (theta_gamma[0] - 2.0 * theta_gamma[2])
-                + k_value * psi_value
-                - collision
-                * (
-                    theta_gamma[1]
-                    - unpacked["theta_b"] / max(3.0 * k_value, 1.0e-12)
-                )
-            )
-            offset += 1
-        for ell in range(2, photon_l_max + 1):
-            if ell == 2:
-                theta_next = (
-                    theta_gamma[ell + 1]
-                    if ell + 1 < theta_gamma.size
-                    else _tail_closure(theta_gamma, ell)
-                )
-                source = k_value / 5.0 * (
-                    2.0 * theta_gamma[1] - 3.0 * theta_next
-                ) + collision * (0.1 * e_gamma[2] - 0.9 * theta_gamma[2])
-            else:
-                theta_next = (
-                    theta_gamma[ell + 1]
-                    if ell + 1 < theta_gamma.size
-                    else _tail_closure(theta_gamma, ell)
-                )
-                source = (
-                    k_value
-                    / (2.0 * ell + 1.0)
-                    * (ell * theta_gamma[ell - 1] - (ell + 1.0) * theta_next)
-                    - collision * theta_gamma[ell]
-                )
-            y[offset] = source
-            offset += 1
-        for ell in range(0, photon_l_max + 1):
-            if ell == 2:
-                e_next = (
-                    e_gamma[3]
-                    if photon_l_max >= 3
-                    else _tail_closure(e_gamma, 2)
-                )
-                source = k_value / 5.0 * (
-                    2.0 * e_gamma[1] - 3.0 * e_next
-                ) + collision * (0.1 * theta_gamma[2] - 0.9 * e_gamma[2])
-            elif ell < 2:
-                source = -collision * e_gamma[ell]
-            elif ell == photon_l_max:
-                e_next = _tail_closure(e_gamma, ell)
-                source = (
-                    k_value
-                    / (2.0 * ell + 1.0)
-                    * (ell * e_gamma[ell - 1] - (ell + 1.0) * e_next)
-                    - collision * e_gamma[ell]
-                )
-            else:
-                source = (
-                    k_value
-                    / (2.0 * ell + 1.0)
-                    * (ell * e_gamma[ell - 1] - (ell + 1.0) * e_gamma[ell + 1])
-                    - collision * e_gamma[ell]
-                )
-            if ell == 0:
-                source = -collision * e_gamma[0]
-            elif ell == 1:
-                source = -collision * e_gamma[1]
-            y[offset] = source
-            offset += 1
-
-        y[offset] = -unpacked["theta_b"]
-        y[offset + 1] = (
-            -Hconf_value * unpacked["theta_b"]
-            + sound_speed_sq * k_value * k_value * unpacked["delta_b"]
-            + k_value * k_value * psi_value
-            + collision * R_b * (3.0 * theta_gamma[1] - unpacked["theta_b"])
+        superhorizon_regime = (
+            abs(k_value) * max(float(eta_value), float(eta_start), 1.0e-6)
+            < 1.0e-1
         )
-        offset += 2
-        if physical_params.has_cdm:
-            y[offset] = -unpacked["theta_c"]
-            y[offset + 1] = (
-                -Hconf_value * unpacked["theta_c"]
-                + k_value * k_value * psi_value
-            )
-            offset += 2
 
-        y[offset] = -k_value * neutrino_hierarchy[1]
-        offset += 1
-        if neutrino_l_max >= 1:
-            y[offset] = (
-                k_value
-                / 3.0
-                * (neutrino_hierarchy[0] - 2.0 * neutrino_hierarchy[2])
-                + k_value * psi_value
+        def _hierarchy_closure(series: numpy.ndarray, ell: int) -> float:
+            """Return a stable free-streaming closure for ``ell``."""
+
+            x_value = max(
+                abs(k_value) * max(float(eta_value), 1.0e-6),
+                1.0e-6,
             )
-            offset += 1
-        for ell in range(2, neutrino_l_max + 1):
-            if ell == neutrino_l_max:
-                neutrino_next = (2.0 * ell + 1.0) * neutrino_hierarchy[
-                    ell
-                ] / max(k_value * eta_value, 1.0e-6) - neutrino_hierarchy[
-                    ell - 1
-                ]
-            else:
-                neutrino_next = neutrino_hierarchy[ell + 1]
-            y[offset] = (
+            return (2.0 * ell + 1.0) * float(series[ell]) / x_value - float(
+                series[ell - 1]
+            )
+
+        def _hierarchy_rhs(
+            series: numpy.ndarray,
+            ell: int,
+            *,
+            collision_term: float = 0.0,
+        ) -> float:
+            """Return the hierarchy derivative for a multipole."""
+
+            next_value = (
+                float(series[ell + 1])
+                if ell < series.size - 1
+                else _hierarchy_closure(series, ell)
+            )
+            return (
                 k_value
                 / (2.0 * ell + 1.0)
-                * (
-                    ell * neutrino_hierarchy[ell - 1]
-                    - (ell + 1.0) * neutrino_next
-                )
+                * (ell * float(series[ell - 1]) - (ell + 1.0) * next_value)
+                - collision_term
             )
+
+        if not superhorizon_regime:
+            offset = 0
+            y[offset] = -k_value * theta_gamma[1] - phi_dot_value
             offset += 1
+            if photon_l_max >= 1:
+                y[offset] = (
+                    k_value / 3.0 * (theta_gamma[0] - 2.0 * theta_gamma[2])
+                    + k_value * psi_value
+                    - collision_eff
+                    * (
+                        theta_gamma[1]
+                        - unpacked["theta_b"] / max(3.0 * k_value, 1.0e-12)
+                    )
+                )
+                offset += 1
+            for ell in range(2, photon_l_max + 1):
+                collision_term = collision_eff * float(theta_gamma[ell])
+                if ell == 2:
+                    polarization_source = float(theta_gamma[2]) + float(
+                        e_gamma[2]
+                    )
+                    collision_term -= (
+                        collision_eff * polarization_source / 10.0
+                    )
+                y[offset] = _hierarchy_rhs(
+                    theta_gamma,
+                    ell,
+                    collision_term=collision_term,
+                )
+                offset += 1
+            y[offset] = -k_value * e_gamma[1] - collision_eff * e_gamma[0]
+            offset += 1
+            if photon_l_max >= 1:
+                y[offset] = (
+                    k_value / 3.0 * (e_gamma[0] - 2.0 * e_gamma[2])
+                    - collision_eff * e_gamma[1]
+                )
+                offset += 1
+            for ell in range(2, photon_l_max + 1):
+                collision_term = collision_eff * float(e_gamma[ell])
+                if ell == 2:
+                    polarization_source = float(theta_gamma[2]) + float(
+                        e_gamma[2]
+                    )
+                    collision_term -= (
+                        collision_eff * polarization_source / 10.0
+                    )
+                y[offset] = _hierarchy_rhs(
+                    e_gamma,
+                    ell,
+                    collision_term=collision_term,
+                )
+                offset += 1
+
+            y[offset] = -unpacked["theta_b"] + 3.0 * phi_dot_value
+            y[offset + 1] = (
+                -Hconf_value * unpacked["theta_b"]
+                + sound_speed_sq * k_value * k_value * unpacked["delta_b"]
+                + k_value * k_value * psi_value
+                + collision_eff
+                / max(R_b, 1.0e-12)
+                * (3.0 * k_value * theta_gamma[1] - unpacked["theta_b"])
+            )
+            offset += 2
+            if physical_params.has_cdm:
+                y[offset] = -unpacked["theta_c"] + 3.0 * phi_dot_value
+                y[offset + 1] = (
+                    -Hconf_value * unpacked["theta_c"]
+                    + k_value * k_value * psi_value
+                )
+                offset += 2
+
+            y[offset] = -k_value * neutrino_hierarchy[1] - phi_dot_value
+            offset += 1
+            if neutrino_l_max >= 1:
+                y[offset] = (
+                    k_value
+                    / 3.0
+                    * (neutrino_hierarchy[0] - 2.0 * neutrino_hierarchy[2])
+                    + k_value * psi_value
+                )
+                offset += 1
+            for ell in range(2, neutrino_l_max + 1):
+                y[offset] = _hierarchy_rhs(neutrino_hierarchy, ell)
+                offset += 1
 
         for sector_name, equation_name in equation_sector_map.items():
             target_index = state_target_indices[sector_name]
@@ -2479,7 +2633,18 @@ def _compute_custom_cmb_spectrum_data(
             else:
                 y[target_index] += equation_value
 
-        return numpy.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
+        if not numpy.all(numpy.isfinite(y)):
+            bad_indices = numpy.flatnonzero(~numpy.isfinite(y))
+            bad_index = int(bad_indices[0]) if bad_indices.size else -1
+            bad_value = float(y[bad_index]) if bad_index >= 0 else float("nan")
+            raise ValueError(
+                "Custom CMB ODE evaluation produced non-finite values "
+                f"at index {bad_index} with value {bad_value}; "
+                f"eta={eta_value}, k={k_value}, a={a_value}, "
+                f"Hconf={Hconf_value}, tau_dot={tau_dot_value}, "
+                f"collision={collision}, Phi={phi_value}, Psi={psi_value}"
+            )
+        return y
 
     def _evolve_mode(
         k_value: float,
@@ -2491,94 +2656,107 @@ def _compute_custom_cmb_spectrum_data(
         numpy.ndarray,
         numpy.ndarray,
         numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+        dict[str, numpy.ndarray],
     ]:
         """Return transfer-source histories for a single k mode."""
 
         nonlocal previous_context_snapshot, previous_eta_snapshot
         previous_context_snapshot = None
         previous_eta_snapshot = None
-        state = _build_initial_state(k_value)
+        state, state_normalization = _build_initial_state(
+            k_value,
+            eta_start,
+        )
         theta0_hist: list[float] = []
         theta1_hist: list[float] = []
         theta2_hist: list[float] = []
         e2_hist: list[float] = []
         phi_hist: list[float] = []
         psi_hist: list[float] = []
-        custom_source_hist: list[float] = []
-        for eta_index, eta_value in enumerate(eta_los_grid):
-            if eta_index > 0:
-                delta_eta = float(
-                    eta_los_grid[eta_index] - eta_los_grid[eta_index - 1]
-                )
-                if delta_eta > 0.0:
-                    slope_1 = _rhs(eta_los_grid[eta_index - 1], state, k_value)
-                    slope_2 = _rhs(
-                        eta_los_grid[eta_index - 1] + 0.5 * delta_eta,
-                        state + 0.5 * delta_eta * slope_1,
-                        k_value,
-                    )
-                    slope_3 = _rhs(
-                        eta_los_grid[eta_index - 1] + 0.5 * delta_eta,
-                        state + 0.5 * delta_eta * slope_2,
-                        k_value,
-                    )
-                    slope_4 = _rhs(
-                        eta_value,
-                        state + delta_eta * slope_3,
-                        k_value,
-                    )
-                    state = state + (
-                        delta_eta
-                        * (slope_1 + 2.0 * slope_2 + 2.0 * slope_3 + slope_4)
-                        / 6.0
-                    )
-                    state = numpy.nan_to_num(
-                        state,
-                        nan=0.0,
-                        posinf=1.0e4,
-                        neginf=-1.0e4,
-                    )
-                    numpy.clip(state, -1.0e4, 1.0e4, out=state)
-                    collision_eta = max(
-                        0.0,
-                        -float(
-                            numpy.interp(eta_value, eta_grid, tau_dot_grid)
-                        ),
-                    )
-                    if collision_eta > numerics.tight_coupling_ratio * max(
-                        k_value, 1.0e-8
-                    ):
-                        unpacked = _unpack_state(state)
-                        theta_gamma_state = unpacked["theta_gamma"]
-                        e_gamma_state = unpacked["e_gamma"]
-                        theta_gamma_state[2] = (
-                            8.0
-                            / 15.0
-                            * k_value
-                            * theta_gamma_state[1]
-                            / max(collision_eta, 1.0e-12)
-                        )
-                        e_gamma_state[2] = 0.1 * theta_gamma_state[2]
-                        if photon_l_max > 2:
-                            theta_gamma_state[3:] = 0.0
-                            e_gamma_state[3:] = 0.0
-                        numpy.clip(state, -1.0e4, 1.0e4, out=state)
+        theta_b_hist: list[float] = []
+        phi_dot_hist: list[float] = []
+        eta_hist: list[float] = []
+        channel_histories: dict[str, list[float]] = {
+            channel: [] for channel in _CUSTOM_CMB_SOURCE_CHANNELS
+        }
+        previous_context_snapshot = None
+        previous_eta_snapshot = None
+
+        def _apply_tight_coupling(
+            state_vector: numpy.ndarray,
+            eta_sample: float,
+        ) -> None:
+            """Project the photon hierarchy onto the tight-coupling limit."""
+
+            collision_eta = max(
+                0.0,
+                -float(numpy.interp(eta_sample, eta_grid, tau_dot_grid)),
+            )
+            if collision_eta <= numerics.tight_coupling_ratio * max(
+                k_value, 1.0e-8
+            ):
+                return
+            unpacked = _unpack_state(state_vector)
+            theta_gamma_state = unpacked["theta_gamma"]
+            e_gamma_state = unpacked["e_gamma"]
+            neutrino_state = unpacked["neutrino_hierarchy"]
+            theta_gamma_state[1] = unpacked["theta_b"] / max(
+                3.0 * k_value,
+                1.0e-12,
+            )
+            theta_gamma_state[2] = (
+                8.0
+                / 15.0
+                * k_value
+                * theta_gamma_state[1]
+                / max(collision_eta, 1.0e-12)
+            )
+            e_gamma_state[2] = 0.5 * theta_gamma_state[2]
+            if photon_l_max > 2:
+                theta_gamma_state[3:] = 0.0
+                e_gamma_state[3:] = 0.0
+            if neutrino_l_max >= 2:
+                neutrino_state[2] = 0.1 * neutrino_state[1]
+            if neutrino_l_max > 2:
+                neutrino_state[3:] = 0.0
+
+        def _rhs_for_solver(
+            eta_sample: float, state_vector: numpy.ndarray
+        ) -> numpy.ndarray:
+            """Return the projected RHS used by the explicit LOS integrator."""
+            projected_state = numpy.array(state_vector, dtype=float, copy=True)
+            _apply_tight_coupling(projected_state, eta_sample)
+            return _rhs(float(eta_sample), projected_state, k_value)
+
+        def _record_sample(
+            eta_value: float,
+            state_vector: numpy.ndarray,
+        ) -> None:
+            """Append one sampled mode state to the history buffers."""
+
+            nonlocal previous_context_snapshot, previous_eta_snapshot
+            state_sample = numpy.asarray(state_vector, dtype=float)
+            _apply_tight_coupling(state_sample, float(eta_value))
             (
                 step_context,
                 _equation_values,
                 source_values,
                 phi_value,
                 psi_value,
+                phi_dot_value,
                 effective_state,
             ) = _build_step_context(
-                eta_value,
-                state,
+                float(eta_value),
+                state_sample,
                 k_value,
                 previous_context=previous_context_snapshot,
                 previous_eta_value=previous_eta_snapshot,
             )
             previous_context_snapshot = dict(step_context)
             previous_eta_snapshot = float(eta_value)
+            eta_hist.append(float(eta_value))
             unpacked = _unpack_state(effective_state)
             theta0_hist.append(float(unpacked["theta_gamma"][0]))
             theta1_hist.append(float(unpacked["theta_gamma"][1]))
@@ -2586,9 +2764,100 @@ def _compute_custom_cmb_spectrum_data(
             e2_hist.append(float(unpacked["e_gamma"][2]))
             phi_hist.append(float(phi_value))
             psi_hist.append(float(psi_value))
-            custom_source_hist.append(
-                float(sum(source_values.values())) if source_values else 0.0
+            theta_b_hist.append(float(unpacked["theta_b"]))
+            phi_dot_hist.append(float(phi_dot_value))
+            channel_values = {
+                channel: 0.0 for channel in _CUSTOM_CMB_SOURCE_CHANNELS
+            }
+            for source_name, source_entry in perturbation_data.sources.items():
+                channel_values[source_entry.channel] += float(
+                    source_values.get(source_name, 0.0)
+                )
+            for channel_name, channel_value in channel_values.items():
+                channel_histories[channel_name].append(float(channel_value))
+
+        transition_x = 1.2
+        eta_transition = min(
+            float(eta_los_grid[-1]),
+            max(
+                float(eta_start),
+                transition_x / max(abs(k_value), 1.0e-12),
+            ),
+        )
+        transition_index = int(
+            numpy.searchsorted(eta_los_grid, eta_transition, side="left")
+        )
+
+        for eta_value in eta_los_grid[:transition_index]:
+            _record_sample(float(eta_value), state)
+
+        if transition_index < eta_los_grid.size:
+            _apply_tight_coupling(
+                state,
+                float(eta_los_grid[transition_index]),
             )
+            for eta_index in range(transition_index, eta_los_grid.size):
+                eta_value = float(eta_los_grid[eta_index])
+                if eta_index > 0:
+                    previous_eta_value = float(eta_los_grid[eta_index - 1])
+                    delta_eta = max(eta_value - previous_eta_value, 0.0)
+                    if delta_eta > 0.0:
+                        slope_1 = _rhs_for_solver(previous_eta_value, state)
+                        slope_2 = _rhs_for_solver(
+                            previous_eta_value + 0.5 * delta_eta,
+                            state + 0.5 * delta_eta * slope_1,
+                        )
+                        slope_3 = _rhs_for_solver(
+                            previous_eta_value + 0.5 * delta_eta,
+                            state + 0.5 * delta_eta * slope_2,
+                        )
+                        slope_4 = _rhs_for_solver(
+                            eta_value,
+                            state + delta_eta * slope_3,
+                        )
+                        state = state + (
+                            delta_eta
+                            * (
+                                slope_1
+                                + 2.0 * slope_2
+                                + 2.0 * slope_3
+                                + slope_4
+                            )
+                            / 6.0
+                        )
+                        state = numpy.nan_to_num(
+                            state,
+                            nan=0.0,
+                            posinf=1.0e4,
+                            neginf=-1.0e4,
+                        )
+                        numpy.clip(state, -1.0e4, 1.0e4, out=state)
+                _apply_tight_coupling(state, eta_value)
+                _record_sample(eta_value, state)
+        if state_normalization != 0.0:
+            inverse_normalization = 1.0 / state_normalization
+            theta0_hist = [
+                value * inverse_normalization for value in theta0_hist
+            ]
+            theta1_hist = [
+                value * inverse_normalization for value in theta1_hist
+            ]
+            theta2_hist = [
+                value * inverse_normalization for value in theta2_hist
+            ]
+            e2_hist = [value * inverse_normalization for value in e2_hist]
+            phi_hist = [value * inverse_normalization for value in phi_hist]
+            psi_hist = [value * inverse_normalization for value in psi_hist]
+            theta_b_hist = [
+                value * inverse_normalization for value in theta_b_hist
+            ]
+            phi_dot_hist = [
+                value * inverse_normalization for value in phi_dot_hist
+            ]
+            for channel_name, values in channel_histories.items():
+                channel_histories[channel_name] = [
+                    value * inverse_normalization for value in values
+                ]
         return (
             numpy.asarray(theta0_hist, dtype=float),
             numpy.asarray(theta1_hist, dtype=float),
@@ -2596,7 +2865,13 @@ def _compute_custom_cmb_spectrum_data(
             numpy.asarray(e2_hist, dtype=float),
             numpy.asarray(phi_hist, dtype=float),
             numpy.asarray(psi_hist, dtype=float),
-            numpy.asarray(custom_source_hist, dtype=float),
+            numpy.asarray(theta_b_hist, dtype=float),
+            numpy.asarray(phi_dot_hist, dtype=float),
+            numpy.asarray(eta_hist, dtype=float),
+            {
+                channel_name: numpy.asarray(values, dtype=float)
+                for channel_name, values in channel_histories.items()
+            },
         )
 
     log_k_values = numpy.log(k_values)
@@ -2613,18 +2888,117 @@ def _compute_custom_cmb_spectrum_data(
             e2_hist,
             phi_hist,
             psi_hist,
-            custom_source_hist,
+            theta_b_hist,
+            phi_dot_hist,
+            eta_hist,
+            source_channel_histories,
         ) = _evolve_mode(float(k_value))
-        phi_dot_hist = numpy.gradient(phi_hist, eta_los_grid, edge_order=2)
-        psi_dot_hist = numpy.gradient(psi_hist, eta_los_grid, edge_order=2)
+        if eta_hist.size != eta_los_grid.size:
+            eta_hist_source = numpy.asarray(eta_hist, dtype=float)
+            theta0_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(theta0_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            theta1_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(theta1_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            theta2_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(theta2_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            e2_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(e2_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            phi_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(phi_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            psi_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(psi_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            theta_b_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(theta_b_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            phi_dot_hist = numpy.asarray(
+                PchipInterpolator(
+                    eta_hist_source,
+                    numpy.asarray(phi_dot_hist, dtype=float),
+                    extrapolate=True,
+                )(eta_los_grid),
+                dtype=float,
+            )
+            eta_hist = eta_los_grid.astype(float)
+            source_channel_histories = {
+                channel_name: numpy.asarray(
+                    PchipInterpolator(
+                        eta_hist_source,
+                        numpy.asarray(values, dtype=float),
+                        extrapolate=True,
+                    )(eta_los_grid),
+                    dtype=float,
+                )
+                for channel_name, values in source_channel_histories.items()
+            }
+        psi_dot_hist = numpy.gradient(
+            numpy.asarray(psi_hist, dtype=float),
+            numpy.asarray(eta_hist, dtype=float),
+            edge_order=2,
+        )
+        monopole_custom_hist = source_channel_histories["temperature_monopole"]
+        doppler_custom_hist = source_channel_histories["temperature_doppler"]
+        isw_custom_hist = source_channel_histories["temperature_isw"]
+        polarization_custom_hist = source_channel_histories["polarization"]
+        additive_custom_hist = source_channel_histories["temperature_additive"]
         monopole_source = visibility_los_grid * (
-            theta0_hist + psi_hist + custom_source_hist
+            theta0_hist
+            + psi_hist
+            + 0.25 * (theta2_hist + e2_hist)
+            + monopole_custom_hist
         )
         doppler_source = visibility_los_grid * (
-            theta1_hist / max(k_value, 1.0e-12)
+            3.0 * theta1_hist + doppler_custom_hist
         )
-        isw_source = numpy.exp(-tau_los_grid) * (psi_dot_hist - phi_dot_hist)
-        pol_source = 0.75 * visibility_los_grid * (theta2_hist + e2_hist)
+        isw_source = numpy.exp(-tau_los_grid) * (
+            psi_dot_hist - phi_dot_hist + isw_custom_hist
+        )
+        pol_source = (
+            0.75
+            * visibility_los_grid
+            * (theta2_hist + e2_hist + polarization_custom_hist)
+        )
+        additive_temperature_source = additive_custom_hist
         for ell_index, ell_value in enumerate(ell_arr):
             x_values = k_value * (eta0 - eta_los_grid)
             j_l = spherical_jn(int(ell_value), x_values)
@@ -2651,6 +3025,7 @@ def _compute_custom_cmb_spectrum_data(
                     + isw_source * j_l,
                     eta_los_grid,
                 )
+                + numpy.trapz(additive_temperature_source * j_l, eta_los_grid)
             )
             transfer_polarization[ell_index, k_index] = float(
                 numpy.trapz(pol_source * e_kernel, eta_los_grid)
@@ -2677,6 +3052,12 @@ def _compute_custom_cmb_spectrum_data(
             numpy.exp(refined_log_k) / 0.05,
             physical_params.primordial_spectral_index - 1.0,
         )
+        if not numpy.all(numpy.isfinite(t_refined)) or not numpy.all(
+            numpy.isfinite(e_refined)
+        ):
+            raise ValueError(
+                "Custom CMB transfer functions produced non-finite values"
+            )
         c_l_tt[ell_index] = (
             4.0
             * math.pi
@@ -3077,25 +3458,16 @@ def _compute_declared_perturbation_spectrum(
     )
     t_cmb_muK = 2.7255e6
     spectra_results: dict[str, numpy.ndarray] = {
-        "TT": numpy.nan_to_num(
-            ell_factor * custom_data.C_l_TT * t_cmb_muK * t_cmb_muK,
-            nan=0.0,
-            posinf=0.0,
-            neginf=0.0,
-        ),
-        "TE": numpy.nan_to_num(
-            ell_factor * custom_data.C_l_TE * t_cmb_muK * t_cmb_muK,
-            nan=0.0,
-            posinf=0.0,
-            neginf=0.0,
-        ),
-        "EE": numpy.nan_to_num(
-            ell_factor * custom_data.C_l_EE * t_cmb_muK * t_cmb_muK,
-            nan=0.0,
-            posinf=0.0,
-            neginf=0.0,
-        ),
+        "TT": ell_factor * custom_data.C_l_TT * t_cmb_muK * t_cmb_muK,
+        "TE": ell_factor * custom_data.C_l_TE * t_cmb_muK * t_cmb_muK,
+        "EE": ell_factor * custom_data.C_l_EE * t_cmb_muK * t_cmb_muK,
     }
+    for spectrum_name, spectrum_values in spectra_results.items():
+        if not numpy.all(numpy.isfinite(spectrum_values)):
+            raise ValueError(
+                "Custom CMB spectrum calculation produced non-finite "
+                f"{spectrum_name} values"
+            )
     result = {
         spec: spectra_results[spec]
         for spec in spectra

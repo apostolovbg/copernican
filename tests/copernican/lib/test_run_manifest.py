@@ -83,7 +83,9 @@ def _dummy_plugin():
                 "no_anisotropic_stress": object(),
             },
             sources={
-                "poisson": object(),
+                "poisson": SimpleNamespace(
+                    channel="temperature_additive",
+                ),
             },
             validity=SimpleNamespace(
                 regimes=("standard_camb",),
@@ -197,6 +199,13 @@ class TestRunManifest(unittest.TestCase):
                 ["poisson"],
             )
             self.assertEqual(
+                model_entry["perturbation_source_channels"],
+                ["temperature_additive"],
+            )
+            self.assertEqual(model_entry["perturbation_equation_count"], 1)
+            self.assertEqual(model_entry["perturbation_closure_count"], 1)
+            self.assertEqual(model_entry["perturbation_source_count"], 1)
+            self.assertEqual(
                 model_entry["perturbation_independent_variables_used"],
                 ["tau"],
             )
@@ -215,6 +224,22 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertIsNone(
                 model_entry["perturbation_backend_native_solver_required"]
+            )
+            self.assertEqual(
+                model_entry["custom_cmb_engine"],
+                "camb",
+            )
+            self.assertTrue(model_entry["custom_cmb_standard_backend_used"])
+            self.assertTrue(
+                model_entry["custom_cmb_uses_camb_standard_perturbations"]
+            )
+            self.assertFalse(model_entry["custom_cmb_no_camb_prediction_used"])
+            self.assertFalse(
+                model_entry["custom_cmb_no_camb_standard_perturbations_used"]
+            )
+            self.assertEqual(
+                model_entry["custom_cmb_transfer_function_path"],
+                "camb.standard",
             )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]

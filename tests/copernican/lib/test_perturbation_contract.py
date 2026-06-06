@@ -84,7 +84,12 @@ class PerturbationContractTestCase(unittest.TestCase):
                     "equals": equals,
                 }
             },
-            "sources": {"poisson": {"expression": "delta_rho_eff + delta_x"}},
+            "sources": {
+                "poisson": {
+                    "channel": "temperature_additive",
+                    "expression": "delta_rho_eff + delta_x",
+                }
+            },
             "validity": {
                 "regimes": ["linear", "scalar"],
                 "notes": "Declared for first-order scalar perturbations.",
@@ -250,6 +255,24 @@ class PerturbationContractTestCase(unittest.TestCase):
                 background_reference_names=("H0",),
             )
 
+    def test_unknown_source_channel_is_rejected(self) -> None:
+        """Unknown source channels should fail validation."""
+
+        contract = self._make_nonstandard_contract()
+        contract["sources"]["poisson"]["channel"] = "bogus_channel"
+        with self.assertRaisesRegex(
+            ValueError,
+            "unsupported channel",
+        ):
+            compile_perturbation_contract(
+                contract,
+                model_name="TemplateModel",
+                backend="camb",
+                parameter_names=("H0",),
+                latex_names=("H_0",),
+                background_reference_names=("H0",),
+            )
+
     def test_numeric_closure_equals_is_rejected(self) -> None:
         """Closure equality expressions must remain string literals."""
 
@@ -324,6 +347,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         source_data = PerturbationSourceData(
             name="poisson",
             expression="delta_x",
+            channel="temperature_additive",
         )
         validity_data = PerturbationValidityData(
             regimes=("linear",),

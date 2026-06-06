@@ -7,8 +7,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import camb
 import numpy
+
+try:
+    import camb
+except ImportError:  # pragma: no cover - optional external reference
+    camb = None
 
 from copernican.lib.likelihoods import cmb
 
@@ -73,6 +77,7 @@ def _base_custom_cmb_contract() -> dict[str, object]:
             },
             "sources": {
                 "cmb_source": {
+                    "channel": "temperature_additive",
                     "expression": "theta_gamma0 + theta_b + Phi + Psi",
                 }
             },
@@ -179,6 +184,7 @@ def _declared_equation_perturbations(
     photon_monopole_rhs: str = "-theta_gamma1",
     metric_closure_expression: str = "Psi - Phi",
     source_expression: str = "theta_gamma0 + theta_b + Phi + Psi",
+    source_channel: str = "temperature_additive",
 ) -> dict[str, object]:
     """Return a full declared-equation perturbation contract."""
 
@@ -333,6 +339,7 @@ def _declared_equation_perturbations(
         },
         "sources": {
             "cmb_source": {
+                "channel": source_channel,
                 "expression": source_expression,
             }
         },
@@ -368,6 +375,7 @@ def _declared_equation_contract(
     photon_monopole_rhs: str = "-theta_gamma1",
     metric_closure_expression: str = "Psi - Phi",
     source_expression: str = "theta_gamma0 + theta_b + Phi + Psi",
+    source_channel: str = "temperature_additive",
 ) -> dict[str, object]:
     """Return a contract that replaces the built-in sector equations."""
 
@@ -377,6 +385,7 @@ def _declared_equation_contract(
         photon_monopole_rhs=photon_monopole_rhs,
         metric_closure_expression=metric_closure_expression,
         source_expression=source_expression,
+        source_channel=source_channel,
     )
     return contract
 
@@ -501,6 +510,9 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
 
     def test_camb_background_observables_are_finite(self) -> None:
         """The structured CAMB background helper should stay finite."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
 
         standard_contract = _standard_contract()
         redshifts = numpy.asarray([0.0, 0.5, 1.0], dtype=float)
@@ -731,6 +743,97 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             1.0e-12,
         )
 
+    def test_declared_source_channels_affect_expected_los_terms(
+        self,
+    ) -> None:
+        """Each declared source channel should move its intended LOS term."""
+
+        baseline = _declared_equation_contract(
+            source_expression="0.0",
+            source_channel="temperature_additive",
+        )
+        baseline["numerical"].update(
+            {
+                "k_sample_count": 4,
+                "eta_sample_count": 64,
+                "photon_hierarchy_l_max": 4,
+                "neutrino_hierarchy_l_max": 4,
+            }
+        )
+        ells = numpy.arange(20, 35, dtype=int)
+        baseline_spectra = cmb.compute_cmb_spectrum_from_dict(
+            baseline,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+
+        for channel_name in (
+            "temperature_monopole",
+            "temperature_doppler",
+            "temperature_isw",
+            "temperature_additive",
+        ):
+            contract = _declared_equation_contract(
+                source_expression="1.0",
+                source_channel=channel_name,
+            )
+            contract["numerical"].update(
+                {
+                    "k_sample_count": 4,
+                    "eta_sample_count": 64,
+                    "photon_hierarchy_l_max": 4,
+                    "neutrino_hierarchy_l_max": 4,
+                }
+            )
+            spectra = cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                ells,
+                spectra=("TT", "TE", "EE"),
+            )
+            tt_delta = numpy.asarray(
+                spectra["TT"] - baseline_spectra["TT"],
+                dtype=float,
+            )
+            self.assertGreater(float(numpy.max(numpy.abs(tt_delta))), 0.0)
+
+        polarization_contract = _declared_equation_contract(
+            source_expression="1.0",
+            source_channel="polarization",
+        )
+        polarization_contract["numerical"].update(
+            {
+                "k_sample_count": 4,
+                "eta_sample_count": 64,
+                "photon_hierarchy_l_max": 4,
+                "neutrino_hierarchy_l_max": 4,
+            }
+        )
+        polarization_spectra = cmb.compute_cmb_spectrum_from_dict(
+            polarization_contract,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        polarization_spectra["EE"] - baseline_spectra["EE"]
+                    )
+                )
+            ),
+            0.0,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        polarization_spectra["TE"] - baseline_spectra["TE"]
+                    )
+                )
+            ),
+            0.0,
+        )
+
     def test_unsupported_symbol_in_declared_equation_fails_loudly(
         self,
     ) -> None:
@@ -900,6 +1003,9 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
 
     def test_standard_lcdm_matches_camb_when_available(self) -> None:
         """The standard path should stay aligned with CAMB."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
 
         standard_contract = _standard_contract()
         ells = numpy.arange(2, 35, dtype=int)

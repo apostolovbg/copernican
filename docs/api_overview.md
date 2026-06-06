@@ -104,6 +104,12 @@ functions already exposed by the evaluator. Unsupported symbols, missing
 required equations, or incompatible gauges raise `ValueError` exceptions
 before the engine can produce a spectrum.
 
+Source declarations also choose one of the documented channels:
+`temperature_monopole`, `temperature_doppler`, `temperature_isw`,
+`polarization`, or `temperature_additive`. The engine uses the channel name
+to route the declared expression into the corresponding line-of-sight source
+term.
+
 Unsupported custom sectors fail with explicit `ValueError`s so callers can
 see which physical ingredient is missing. The helper also exposes internal
 transfer-function data for tests that need to inspect the `ell` grid, the `k`

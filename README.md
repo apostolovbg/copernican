@@ -23,6 +23,10 @@ consult [AGENTS.md](AGENTS.md) and the DevCovenant policies before
 making any edits because the repository enforces its laws through
 pre-commit checks.
 
+The CMB surface now includes a generic `standard: false` scalar engine
+that evolves Newtonian-gauge perturbations, recombination, and
+line-of-sight transfer functions from the declared contract.
+
 ## Launch Copernican
 
 Open a terminal anywhere. Then `cd` into the folder that contains the

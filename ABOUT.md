@@ -37,6 +37,8 @@ Non-standard contracts can either keep the built-in sector equations with
 through `equation_mode: declared_equations`; in both cases unsupported
 symbols, missing required equations, and incompatible gauges fail loudly.
 The implementation lives in `copernican/lib/likelihoods/cmb.py`.
+The front-door README mirrors that summary so package readers see the same
+custom CMB surface from the repository root.
 
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`

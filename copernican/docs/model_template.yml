@@ -216,6 +216,7 @@ cmb:
         equals: "0"
     sources:
       poisson_x:
+        channel: temperature_additive
         expression: delta_rho_eff + delta_x + theta_x
     validity:
       regimes:
@@ -245,6 +246,9 @@ notes: |
     `Hconf`, `tau`, `tau_dot`, `visibility`, `k`, `Phi`, and `Psi`, and the
     safe math functions already exposed by the validator. Unsupported names or
     incompatible gauges fail validation instead of flowing into the engine.
+  * Source declarations must choose one of the documented channels:
+    `temperature_monopole`, `temperature_doppler`, `temperature_isw`,
+    `polarization`, or `temperature_additive`.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

@@ -185,6 +185,7 @@ _SUPPORTED_CMB_PERTURBATION_VALUE_KEYS = {
     "description",
     "equals",
     "expression",
+    "channel",
     "kind",
     "notes",
     "rhs",

@@ -204,6 +204,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             },
             "sources": {
                 "poisson": {
+                    "channel": "temperature_additive",
                     "expression": "delta_rho_eff + delta_x + theta_x",
                 }
             },
