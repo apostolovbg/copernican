@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,27 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-06:
+  Change: Fixed the detached GUI launcher to re-enter through the
+  package entrypoint and documented that launch path in the mirrored
+  docs.
+  Why: Kept detached and non-detached GUI launches aligned with the
+  package-based commands in the README and packaging guide.
+  Impact: Updated detached GUI launches to run through
+  `python -m copernican --gui`, and the launch docs now describe that
+  behavior for users.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  SUPPORT.md
+  docs/packaging.md
+  copernican/README.md
+  copernican/ABOUT.md
+  copernican/SUPPORT.md
+  copernican/docs/packaging.md
+  copernican/workflow.py
 
 - 2026-06-05:
   Change: Documented the folder-local Python 3.11 bootstrap and the

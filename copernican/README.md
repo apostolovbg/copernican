@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -157,6 +157,10 @@ Start the graphical interface. This opens the GUI window.
 ```
 python -m copernican --gui
 ```
+
+When the GUI launcher detaches, it re-runs `python -m copernican --gui`
+inside the managed `.venv` so the same package entrypoint starts on every
+platform.
 
 If Copernican is already installed in the same `.venv`, use these
 commands instead.

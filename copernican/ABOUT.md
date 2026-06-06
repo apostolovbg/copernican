@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -28,9 +28,9 @@ The bundled engines, models, and validation helpers now live under
 `~/VALIDATION.md` so package installs and source checkouts follow the same
 path layout.
 
-The CLI and GUI share one application logger, and each run keeps its own
-run logs inside the generated `~/copernican_output/copernican-run_*`
-folder.
+The GUI launcher detaches by re-running `python -m copernican --gui`
+inside the managed `.venv`, and each run keeps its own run logs inside
+the generated `~/copernican_output/copernican-run_*` folder.
 
 The model chooser now offers `Load model...` so any valid `.yml` or
 `.yaml` file can load by exact path in the CLI or GUI.

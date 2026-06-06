@@ -1212,7 +1212,9 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
     failures: list[str] = []
     for candidate in _gui_executable_candidates():
         app_logger.debug("Trying GUI detachment candidate: %s", candidate)
-        cmd = [str(candidate), str(Path(__file__).resolve()), *command_tail]
+        # Re-enter through the package entrypoint so imports resolve in the
+        # detached child the same way they do for the normal launcher.
+        cmd = [str(candidate), "-m", "copernican", *command_tail]
         try:
             _launch_detached_process(cmd, env)
             app_logger.info("Detached GUI launched with %s", candidate)

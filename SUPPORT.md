@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-06-06
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -21,8 +21,8 @@ Validation runs now write their local summary marker to `~/VALIDATION.md`, so
 the package guide in `copernican/validation/README.md` and the GUI validation
 help stay aligned with the runtime path layout.
 
-Troubleshooting should start with the run folder logs and the shared
-application log shown in the GUI.
+Troubleshooting should start with the run folder logs and the run logs
+shown in the GUI.
 
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.
