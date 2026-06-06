@@ -34,8 +34,12 @@ description: |
   * Every CMB-valid model also declares a perturbation contract under
     `cmb.perturbations`. `standard: true` means the backend owns the full
     perturbation machinery and the math sections stay empty. `standard: false`
-    requires a fully declared perturbation contract with typed derivative
-    equations and backend mapping.
+    accepts two non-standard modes: `equation_mode: mapped_sector` lets
+    Copernican evolve the declared sectors with its built-in scalar equations,
+    while `equation_mode: declared_equations` requires typed derivative
+    equations that override the built-in sector equations. In both cases the
+    contract must keep the variables typed, the background symbols explicit,
+    and the backend mapping present so unsupported symbols fail loudly.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -166,6 +170,7 @@ cmb:
   perturbations:
     contract_version: 1
     standard: false
+    equation_mode: mapped_sector
     gauge: conformal_newtonian
     variables:
       delta_x:
@@ -235,6 +240,11 @@ notes: |
   * The `Hz_expression` and `rs_expression` examples show how to reference
     every parameter you defined. If you need a new parameter, add it to the
     `parameters` list first and give it the same metadata everywhere else.
+  * Non-standard perturbation expressions can use the declared variables,
+    mapped sector aliases, the background symbols `a`, `z`, `eta`, `H`,
+    `Hconf`, `tau`, `tau_dot`, `visibility`, `k`, `Phi`, and `Psi`, and the
+    safe math functions already exposed by the validator. Unsupported names or
+    incompatible gauges fail validation instead of flowing into the engine.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

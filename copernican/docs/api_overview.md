@@ -1,5 +1,3 @@
-# Copernican API Overview
-
 Copernican exposes a lightweight API intended for advanced scripting. Most
 functionality lives in the ``copernican.lib`` package which can be imported
 directly without using the command-line interface.  The core modules are:
@@ -89,6 +87,22 @@ backend's native perturbation solver. Non-standard contracts flow through the
 generic physical scalar engine in the same module, which evolves Newtonian-
 gauge perturbations, rebuilds the recombination visibility function, and
 integrates the transfer functions into `TT`, `TE`, and `EE`.
+
+The non-standard contract exposes two modes through `cmb.perturbations.
+equation_mode`:
+
+- `mapped_sector` keeps the contract declarative about supported sectors and
+  lets Copernican use the built-in scalar equations for those mapped sectors.
+- `declared_equations` requires typed sector equations and uses the declared
+  derivatives to override the built-in sector equations during evolution.
+
+Both modes share the same safe expression environment. Declared equations,
+closures, and sources may reference the background symbols `a`, `z`, `eta`,
+`H`, `Hconf`, `tau`, `tau_dot`, `visibility`, `k`, `Phi`, and `Psi`, the
+mapped physical aliases for the supported scalar sectors, and the safe math
+functions already exposed by the evaluator. Unsupported symbols, missing
+required equations, or incompatible gauges raise `ValueError` exceptions
+before the engine can produce a spectrum.
 
 Unsupported custom sectors fail with explicit `ValueError`s so callers can
 see which physical ingredient is missing. The helper also exposes internal

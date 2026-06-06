@@ -1,4 +1,3 @@
-
 This document expands on the high-level summary in the README by tracing
 how the Copernican organises its architecture. The command-line launcher
 (`python -m copernican`) steers each run, the `copernican/lib/` package
@@ -94,6 +93,11 @@ described throughout this document.
 `standard: false` CMB contracts use the generic scalar engine in
 `copernican/lib/likelihoods/cmb.py` and stay in Newtonian gauge.
 
+* `mapped_sector` mode keeps the contract declarative about the supported
+  physical sectors but lets Copernican advance those sectors with the built-in
+  scalar equations. `declared_equations` mode requires typed derivative
+  equations for every supported sector and uses those declared equations
+  instead of the built-in sector equations.
 * Background quantities come from the declared model expressions when they
   exist, otherwise from the physical defaults resolved by the helper. The
   engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
@@ -107,6 +111,13 @@ described throughout this document.
   baryons, CDM when physically declared, massless neutrinos, and the metric
   potentials. The solver applies tight coupling before decoupling and uses a
   documented truncation closure for the final hierarchy bins.
+* Declared equations, closures, and sources may reference the background
+  symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`, `visibility`, `k`,
+  `Phi`, and `Psi`, the mapped sector aliases for the supported scalar
+  variables, and the safe math functions already exposed by the expression
+  evaluator. Unsupported symbols and incompatible gauges fail fast during
+  validation or step evaluation instead of falling back to a decorative
+  metadata path.
 * Line-of-sight transfer functions integrate the visibility-weighted sources
   against spherical Bessel kernels. The source set includes Sachs-Wolfe,
   Doppler, early and late ISW, the visibility-weighted monopole and velocity,
@@ -114,8 +125,9 @@ described throughout this document.
 * The spectra are built from the primordial power law
   `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
   `TE`, and `EE`. The implementation is approximate rather than
-  Planck-precision, so unsupported custom sectors and theory-specific solver
-  keys fail early instead of falling back to a toy spectrum.
+  Planck-precision, so unsupported custom sectors, missing declared equations,
+  and theory-specific solver keys fail early instead of falling back to a toy
+  spectrum.
 
 ## Stage-by-stage flow
 

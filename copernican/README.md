@@ -217,7 +217,11 @@ the same convention.
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the generic physical scalar CMB
   engine in `copernican/lib/likelihoods/cmb.py` or fail clearly when a
-  required capability is missing.
+  required capability is missing. Non-standard contracts can either keep the
+  built-in sector equations with `equation_mode: mapped_sector` or replace
+  them with typed declared equations through `equation_mode:
+  declared_equations`; unsupported symbols, missing required equations, and
+  incompatible gauges fail fast.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same
@@ -267,7 +271,11 @@ the same convention.
   true` keeps the perturbation sections empty, while `standard: false`
   requires a supported physical scalar perturbation contract, Newtonian-
   gauge evolution, line-of-sight transfer functions and explicit backend
-  mapping for the compiled declarative CMB engine.
+  mapping for the compiled declarative CMB engine. Non-standard models can
+  map sectors onto Copernican's built-in scalar equations or replace those
+  equations with typed declarations, but the available background symbols
+  stay limited to the documented CMB engine context so unsupported names fail
+  loudly.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except

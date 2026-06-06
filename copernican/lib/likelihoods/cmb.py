@@ -12,6 +12,7 @@ module instead of falling back to CAMB.
 
 from __future__ import annotations
 
+import ast
 import logging
 import math
 import re
@@ -26,7 +27,7 @@ from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import PchipInterpolator
 from scipy.special import spherical_jn
 
-from ..engine_adapter import _SUPPORTED_CMB_BACKEND
+from ..engine_adapter import _SUPPORTED_CMB_BACKEND, _evaluate_safe_expression
 from ..model_coder import validate_native_perturbation_execution
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
@@ -696,6 +697,83 @@ class CustomCMBSpectrumData:
     C_l_EE: numpy.ndarray
 
 
+_CUSTOM_CMB_SECTOR_ALIASES: dict[str, tuple[str, ...]] = {
+    "photon_temperature_monopole": (
+        "photon_temperature_monopole",
+        "theta_gamma0",
+        "theta0",
+        "theta_photon0",
+    ),
+    "photon_temperature_dipole": (
+        "photon_temperature_dipole",
+        "theta_gamma1",
+        "theta1",
+        "theta_photon1",
+    ),
+    "photon_temperature_quadrupole": (
+        "photon_temperature_quadrupole",
+        "theta_gamma2",
+        "theta2",
+        "theta_photon2",
+    ),
+    "photon_polarization_quadrupole": (
+        "photon_polarization_quadrupole",
+        "e_gamma2",
+        "e2",
+        "ee_quadrupole",
+    ),
+    "baryon_density_contrast": (
+        "baryon_density_contrast",
+        "delta_b",
+    ),
+    "baryon_velocity_divergence": (
+        "baryon_velocity_divergence",
+        "theta_b",
+    ),
+    "cdm_density_contrast": (
+        "cdm_density_contrast",
+        "delta_c",
+    ),
+    "cdm_velocity_divergence": (
+        "cdm_velocity_divergence",
+        "theta_c",
+    ),
+    "massless_neutrino_density_contrast": (
+        "massless_neutrino_density_contrast",
+        "delta_nu",
+    ),
+    "massless_neutrino_velocity_divergence": (
+        "massless_neutrino_velocity_divergence",
+        "theta_nu",
+    ),
+    "massless_neutrino_anisotropic_stress": (
+        "massless_neutrino_anisotropic_stress",
+        "sigma_nu",
+    ),
+    "metric_potential_phi": (
+        "metric_potential_phi",
+        "Phi",
+    ),
+    "metric_potential_psi": (
+        "metric_potential_psi",
+        "Psi",
+    ),
+}
+
+
+def _expression_symbol_name(expression: str) -> str | None:
+    """Return the bare symbol name in ``expression`` when one is present."""
+
+    try:
+        node = ast.parse(expression, mode="eval")
+    except SyntaxError:
+        return None
+    body = node.body
+    if isinstance(body, ast.Name):
+        return body.id
+    return None
+
+
 def _extract_contract_scalar(
     contract: Mapping[str, Any],
     names: Sequence[str],
@@ -1082,6 +1160,13 @@ def _validate_custom_cmb_physical_contract(
     physical_params: _CustomCMBPhysicalParameters,
 ) -> dict[str, tuple[str, ...]]:
     """Validate that the custom contract declares supported CMB sectors."""
+
+    gauge = str(getattr(perturbation_data, "gauge", "") or "")
+    if gauge not in {"conformal_newtonian", "gauge_invariant"}:
+        raise ValueError(
+            "Custom scalar CMB evolution only supports conformal Newtonian "
+            "gauge."
+        )
 
     declared: dict[str, list[str]] = {
         "photon_temperature_monopole": [],
@@ -1612,8 +1697,512 @@ def _compute_custom_cmb_spectrum_data(
     a_grid = background.a_grid
     eta_grid = background.eta_grid
     H_grid = background.H_grid
+    tau_grid = background.tau_grid
     tau_dot_grid = background.tau_dot_grid
     eta0 = background.eta0
+
+    equation_mode = str(
+        getattr(perturbation_data, "equation_mode", "mapped_sector") or ""
+    ).strip()
+    if equation_mode not in {"mapped_sector", "declared_equations"}:
+        raise ValueError(
+            "Custom CMB perturbation equation_mode must be either "
+            "'mapped_sector' or 'declared_equations'"
+        )
+
+    variable_sector_map: dict[str, str] = {}
+    for variable_name, variable_entry in perturbation_data.variables.items():
+        sector = _classify_custom_physical_sector(
+            str(variable_name),
+            str(getattr(variable_entry, "kind", "")),
+        )
+        variable_sector_map[str(variable_name)] = sector
+
+    equation_sector_map: dict[str, str] = {}
+    for equation_name, equation_entry in perturbation_data.equations.items():
+        lhs_variable = str(getattr(equation_entry.lhs, "variable", ""))
+        if lhs_variable not in variable_sector_map:
+            raise ValueError(
+                "Perturbation equation "
+                f"'{equation_name}' references unknown variable "
+                f"'{lhs_variable}'"
+            )
+        sector = variable_sector_map[lhs_variable]
+        if sector in equation_sector_map:
+            raise ValueError(
+                "Perturbation equations declare more than one derivative "
+                f"for mapped sector '{sector}'"
+            )
+        if sector in {
+            "metric_potential_phi",
+            "metric_potential_psi",
+        }:
+            raise ValueError(
+                "Metric potentials must be controlled by closures, not "
+                "equations."
+            )
+        equation_sector_map[sector] = equation_name
+
+    required_equation_sectors: tuple[str, ...] = (
+        "photon_temperature_monopole",
+        "photon_temperature_dipole",
+        "photon_temperature_quadrupole",
+        "photon_polarization_quadrupole",
+        "baryon_density_contrast",
+        "baryon_velocity_divergence",
+        "massless_neutrino_density_contrast",
+        "massless_neutrino_velocity_divergence",
+        "massless_neutrino_anisotropic_stress",
+    )
+    if physical_params.has_cdm:
+        required_equation_sectors += (
+            "cdm_density_contrast",
+            "cdm_velocity_divergence",
+        )
+    if equation_mode == "declared_equations":
+        missing_equations = [
+            sector
+            for sector in required_equation_sectors
+            if sector not in equation_sector_map
+        ]
+        if missing_equations:
+            readable = ", ".join(sorted(missing_equations))
+            raise ValueError(
+                "Declared-equation mode is missing required sector "
+                f"equation(s): {readable}"
+            )
+    if not physical_params.has_cdm:
+        forbidden_cdm_equations = [
+            sector
+            for sector in (
+                "cdm_density_contrast",
+                "cdm_velocity_divergence",
+            )
+            if sector in equation_sector_map
+        ]
+        if forbidden_cdm_equations:
+            readable = ", ".join(sorted(forbidden_cdm_equations))
+            raise ValueError(
+                "The physical background does not declare CDM, so custom "
+                f"equations for {readable} cannot be applied."
+            )
+
+    alias_to_sector: dict[str, str] = {}
+    for sector_name, aliases in _CUSTOM_CMB_SECTOR_ALIASES.items():
+        for alias_name in aliases:
+            alias_to_sector[alias_name] = sector_name
+    alias_to_sector.update(variable_sector_map)
+
+    theta_gamma0_index = 0
+    theta_gamma1_index = 1
+    theta_gamma2_index = 2
+    e_gamma2_index = photon_l_max + 3
+    delta_b_index = 2 * (photon_l_max + 1)
+    theta_b_index = delta_b_index + 1
+    if physical_params.has_cdm:
+        delta_c_index = delta_b_index + 2
+        theta_c_index = delta_b_index + 3
+    else:
+        delta_c_index = None
+        theta_c_index = None
+    neutrino_base_index = (
+        delta_b_index + 2 + (2 if physical_params.has_cdm else 0)
+    )
+    delta_nu_index = neutrino_base_index
+    theta_nu_index = neutrino_base_index + 1
+    sigma_nu_index = neutrino_base_index + 2
+
+    state_target_indices: dict[str, int] = {
+        "photon_temperature_monopole": theta_gamma0_index,
+        "photon_temperature_dipole": theta_gamma1_index,
+        "photon_temperature_quadrupole": theta_gamma2_index,
+        "photon_polarization_quadrupole": e_gamma2_index,
+        "baryon_density_contrast": delta_b_index,
+        "baryon_velocity_divergence": theta_b_index,
+        "massless_neutrino_density_contrast": delta_nu_index,
+        "massless_neutrino_velocity_divergence": theta_nu_index,
+        "massless_neutrino_anisotropic_stress": sigma_nu_index,
+    }
+    if physical_params.has_cdm and delta_c_index is not None:
+        state_target_indices["cdm_density_contrast"] = delta_c_index
+        state_target_indices["cdm_velocity_divergence"] = theta_c_index
+
+    def _state_sector_values(
+        state: numpy.ndarray,
+    ) -> tuple[dict[str, float], dict[str, Any]]:
+        """Return canonical sector values and unpacked hierarchy views."""
+
+        unpacked = _unpack_state(state)
+        sector_values: dict[str, float] = {
+            "photon_temperature_monopole": float(unpacked["theta_gamma"][0]),
+            "photon_temperature_dipole": float(unpacked["theta_gamma"][1]),
+            "photon_temperature_quadrupole": float(unpacked["theta_gamma"][2]),
+            "photon_polarization_quadrupole": float(unpacked["e_gamma"][2]),
+            "baryon_density_contrast": float(unpacked["delta_b"]),
+            "baryon_velocity_divergence": float(unpacked["theta_b"]),
+            "massless_neutrino_density_contrast": float(
+                unpacked["neutrino_hierarchy"][0]
+            ),
+            "massless_neutrino_velocity_divergence": float(
+                unpacked["neutrino_hierarchy"][1]
+            ),
+            "massless_neutrino_anisotropic_stress": float(
+                unpacked["neutrino_hierarchy"][2]
+            ),
+        }
+        if physical_params.has_cdm:
+            sector_values["cdm_density_contrast"] = float(unpacked["delta_c"])
+            sector_values["cdm_velocity_divergence"] = float(
+                unpacked["theta_c"]
+            )
+        return sector_values, unpacked
+
+    def _refresh_state_context(
+        context: dict[str, Any],
+        state: numpy.ndarray,
+        eta_value: float,
+        k_value: float,
+        phi_value: float,
+        psi_value: float,
+    ) -> dict[str, float]:
+        """Refresh ``context`` with state, background, and potential values."""
+
+        sector_values, _ = _state_sector_values(state)
+        a_value = float(numpy.interp(eta_value, eta_grid, a_grid))
+        z_value = float(numpy.interp(eta_value, eta_grid, background.z_grid))
+        H_value = float(numpy.interp(eta_value, eta_grid, H_grid))
+        tau_value = float(numpy.interp(eta_value, eta_grid, tau_grid))
+        tau_dot_value = float(numpy.interp(eta_value, eta_grid, tau_dot_grid))
+        visibility_value = float(
+            numpy.interp(eta_value, eta_grid, background.visibility_grid)
+        )
+        context.update(
+            {
+                "a": a_value,
+                "z": z_value,
+                "eta": float(eta_value),
+                "H": H_value,
+                "Hconf": a_value * H_value / _C_LIGHT_KM_S,
+                "tau": tau_value,
+                "tau_dot": tau_dot_value,
+                "visibility": visibility_value,
+                "k": float(k_value),
+                "Phi": float(phi_value),
+                "Psi": float(psi_value),
+            }
+        )
+        for sector_name, sector_value in sector_values.items():
+            context[sector_name] = sector_value
+            for alias_name in _CUSTOM_CMB_SECTOR_ALIASES.get(
+                sector_name, (sector_name,)
+            ):
+                context[alias_name] = sector_value
+        for variable_name, sector_name in variable_sector_map.items():
+            if sector_name in sector_values:
+                context[variable_name] = sector_values[sector_name]
+        return sector_values
+
+    def _resolve_closure_override(
+        closure_expression: str,
+        closure_equals: str,
+        context: Mapping[str, Any],
+    ) -> tuple[str, float] | None:
+        """Return a symbol/value pair for a simple algebraic closure."""
+
+        try:
+            expression_node = ast.parse(closure_expression, mode="eval").body
+        except SyntaxError as exc:
+            raise ValueError(
+                f"Invalid closure expression '{closure_expression}'"
+            ) from exc
+
+        equals_value = float(
+            _evaluate_safe_expression(closure_equals, context)
+        )
+        if isinstance(expression_node, ast.Name):
+            return expression_node.id, equals_value
+
+        if not isinstance(expression_node, ast.BinOp):
+            return None
+
+        if isinstance(expression_node.left, ast.Name):
+            rhs_name = ast.unparse(expression_node.right)
+            rhs_value = float(_evaluate_safe_expression(rhs_name, context))
+            if isinstance(expression_node.op, ast.Add):
+                return expression_node.left.id, equals_value - rhs_value
+            if isinstance(expression_node.op, ast.Sub):
+                return expression_node.left.id, equals_value + rhs_value
+
+        if isinstance(expression_node.right, ast.Name):
+            lhs_name = ast.unparse(expression_node.left)
+            lhs_value = float(_evaluate_safe_expression(lhs_name, context))
+            if isinstance(expression_node.op, ast.Add):
+                return expression_node.right.id, equals_value - lhs_value
+            if isinstance(expression_node.op, ast.Sub):
+                return expression_node.right.id, lhs_value - equals_value
+
+        return None
+
+    def _build_step_context(
+        eta_value: float,
+        state: numpy.ndarray,
+        k_value: float,
+        *,
+        previous_context: Mapping[str, Any] | None = None,
+        previous_eta_value: float | None = None,
+    ) -> tuple[
+        dict[str, Any],
+        dict[str, float],
+        dict[str, float],
+        float,
+        float,
+        numpy.ndarray,
+    ]:
+        """Return the declared-evolution context for a single step."""
+
+        context: dict[str, Any] = {}
+        working_state = numpy.array(state, dtype=float, copy=True)
+        phi_value, psi_value = _compute_potentials(
+            eta_value,
+            working_state,
+            k_value,
+        )
+        _refresh_state_context(
+            context,
+            working_state,
+            eta_value,
+            k_value,
+            phi_value,
+            psi_value,
+        )
+
+        for source in (
+            contract_or_params.get("param_map", {}) or {},
+            contract_or_params.get("model_parameters", {}) or {},
+        ):
+            if not isinstance(source, Mapping):
+                continue
+            for name, value in source.items():
+                if str(name) in context:
+                    continue
+                try:
+                    context[str(name)] = _coerce_numeric_scalar(
+                        value,
+                        name=str(name),
+                    )
+                except ValueError:
+                    continue
+
+        deferred_override_entries: list[tuple[str, Any]] = []
+        for closure_name, closure_entry in perturbation_data.closures.items():
+            resolved_target = _resolve_closure_override(
+                str(closure_entry.expression),
+                str(closure_entry.equals),
+                context,
+            )
+            if resolved_target is None:
+                raise ValueError(
+                    "Unsupported closure expression in "
+                    f"'{closure_name}'. Declared closures must assign a "
+                    "single supported symbol."
+                )
+            target_name, target_value = resolved_target
+            if target_name not in alias_to_sector:
+                raise ValueError(
+                    "Declared closure "
+                    f"'{closure_name}' references unsupported symbol "
+                    f"'{target_name}'"
+                )
+            target_sector = alias_to_sector.get(target_name)
+            if (
+                target_sector
+                in {
+                    "cdm_density_contrast",
+                    "cdm_velocity_divergence",
+                }
+                and not physical_params.has_cdm
+            ):
+                raise ValueError(
+                    "The physical background does not declare CDM, so "
+                    "custom CDM closures cannot be applied."
+                )
+            if target_sector in state_target_indices:
+                state_index = state_target_indices[target_sector]
+                working_state[state_index] = float(target_value)
+                phi_value, psi_value = _compute_potentials(
+                    eta_value,
+                    working_state,
+                    k_value,
+                )
+                _refresh_state_context(
+                    context,
+                    working_state,
+                    eta_value,
+                    k_value,
+                    phi_value,
+                    psi_value,
+                )
+                continue
+            deferred_override_entries.append((closure_name, closure_entry))
+
+        for closure_name, closure_entry in deferred_override_entries:
+            resolved_target = _resolve_closure_override(
+                str(closure_entry.expression),
+                str(closure_entry.equals),
+                context,
+            )
+            if resolved_target is None:
+                raise ValueError(
+                    "Unsupported closure expression in "
+                    f"'{closure_name}'. Declared closures must assign a "
+                    "single supported symbol."
+                )
+            target_name, target_value = resolved_target
+            if target_name not in alias_to_sector:
+                raise ValueError(
+                    "Declared closure "
+                    f"'{closure_name}' references unsupported symbol "
+                    f"'{target_name}'"
+                )
+            context[target_name] = float(target_value)
+            target_sector = alias_to_sector.get(target_name)
+            if target_sector is not None:
+                for alias_name in _CUSTOM_CMB_SECTOR_ALIASES.get(
+                    target_sector, (target_sector,)
+                ):
+                    context[alias_name] = float(target_value)
+            if target_name in {"Phi", "metric_potential_phi"}:
+                phi_value = float(target_value)
+            elif target_name in {"Psi", "metric_potential_psi"}:
+                psi_value = float(target_value)
+
+        delta_eta = None
+        if previous_eta_value is not None:
+            delta_eta = max(
+                float(eta_value) - float(previous_eta_value), 1.0e-12
+            )
+
+        for symbol_name, symbol_entry in perturbation_data.derived.items():
+            if getattr(symbol_entry, "kind", "") != "derivative_symbol":
+                continue
+            target_name = str(symbol_entry.variable or "")
+            if target_name not in context:
+                raise ValueError(
+                    "Derivative symbol "
+                    f"'{symbol_name}' references unknown symbol "
+                    f"'{target_name}'"
+                )
+            if (
+                previous_context is None
+                or delta_eta is None
+                or target_name not in previous_context
+            ):
+                derivative_value = 0.0
+            else:
+                derivative_value = (
+                    float(context[target_name])
+                    - float(previous_context[target_name])
+                ) / delta_eta
+            context[symbol_name] = float(derivative_value)
+
+        pending_expression_entries = {
+            name: entry
+            for name, entry in perturbation_data.derived.items()
+            if getattr(entry, "kind", "") == "expression"
+        }
+        while pending_expression_entries:
+            progress = False
+            for derived_name, derived_entry in list(
+                pending_expression_entries.items()
+            ):
+                missing_dependencies = [
+                    dependency
+                    for dependency in derived_entry.dependencies
+                    if dependency not in context
+                ]
+                if missing_dependencies:
+                    continue
+                context[derived_name] = float(
+                    _evaluate_safe_expression(
+                        str(derived_entry.expression),
+                        context,
+                    )
+                )
+                pending_expression_entries.pop(derived_name)
+                progress = True
+            if not progress:
+                missing_name = sorted(
+                    {
+                        dependency
+                        for entry in pending_expression_entries.values()
+                        for dependency in entry.dependencies
+                        if dependency not in context
+                    }
+                )
+                if missing_name:
+                    missing_str = ", ".join(missing_name)
+                    raise ValueError(
+                        "Declared derived perturbation expressions "
+                        f"reference missing symbol(s): {missing_str}"
+                    )
+                raise ValueError(
+                    "Declared derived perturbation expressions could not be "
+                    "resolved"
+                )
+
+        equation_values: dict[str, float] = {}
+        for (
+            equation_name,
+            equation_entry,
+        ) in perturbation_data.equations.items():
+            missing_dependencies = [
+                dependency
+                for dependency in equation_entry.dependencies
+                if dependency not in context
+            ]
+            if missing_dependencies:
+                missing_str = ", ".join(sorted(missing_dependencies))
+                raise ValueError(
+                    "Declared perturbation equation "
+                    f"'{equation_name}' references missing symbol(s): "
+                    f"{missing_str}"
+                )
+            equation_values[equation_name] = float(
+                _evaluate_safe_expression(
+                    str(equation_entry.rhs),
+                    context,
+                )
+            )
+
+        source_values: dict[str, float] = {}
+        for source_name, source_entry in perturbation_data.sources.items():
+            missing_dependencies = [
+                dependency
+                for dependency in source_entry.dependencies
+                if dependency not in context
+            ]
+            if missing_dependencies:
+                missing_str = ", ".join(sorted(missing_dependencies))
+                raise ValueError(
+                    "Declared perturbation source "
+                    f"'{source_name}' references missing symbol(s): "
+                    f"{missing_str}"
+                )
+            source_values[source_name] = float(
+                _evaluate_safe_expression(
+                    str(source_entry.expression),
+                    context,
+                )
+            )
+
+        return (
+            context,
+            equation_values,
+            source_values,
+            phi_value,
+            psi_value,
+            working_state,
+        )
 
     def _build_initial_state(k_value: float) -> numpy.ndarray:
         """Return the adiabatic initial state for a single Fourier mode."""
@@ -1721,6 +2310,9 @@ def _compute_custom_cmb_spectrum_data(
         psi_value = phi_value - slip
         return phi_value, psi_value
 
+    previous_context_snapshot: dict[str, Any] | None = None
+    previous_eta_snapshot: float | None = None
+
     def _rhs(
         eta_value: float,
         state: numpy.ndarray,
@@ -1728,13 +2320,25 @@ def _compute_custom_cmb_spectrum_data(
     ) -> numpy.ndarray:
         """Return the time derivative for one Fourier mode."""
 
-        unpacked = _unpack_state(state)
-        a_value = float(numpy.interp(eta_value, eta_grid, a_grid))
-        H_value = float(numpy.interp(eta_value, eta_grid, H_grid))
-        Hconf_value = a_value * H_value / _C_LIGHT_KM_S
-        tau_dot_value = float(numpy.interp(eta_value, eta_grid, tau_dot_grid))
+        (
+            context,
+            equation_values,
+            _source_values,
+            phi_value,
+            psi_value,
+            effective_state,
+        ) = _build_step_context(
+            eta_value,
+            state,
+            k_value,
+            previous_context=previous_context_snapshot,
+            previous_eta_value=previous_eta_snapshot,
+        )
+        unpacked = _unpack_state(effective_state)
+        a_value = float(context["a"])
+        Hconf_value = float(context["Hconf"])
+        tau_dot_value = float(context["tau_dot"])
         collision = max(0.0, -tau_dot_value)
-        phi_value, psi_value = _compute_potentials(eta_value, state, k_value)
         R_b = 3.0 * Omega_b0 * a_value / (4.0 * max(Omega_gamma0, 1.0e-12))
         sound_speed_sq = 1.0 / (3.0 * (1.0 + R_b))
         y = numpy.zeros_like(state, dtype=float)
@@ -1867,13 +2471,32 @@ def _compute_custom_cmb_spectrum_data(
             )
             offset += 1
 
+        for sector_name, equation_name in equation_sector_map.items():
+            target_index = state_target_indices[sector_name]
+            equation_value = equation_values[equation_name]
+            if equation_mode == "declared_equations":
+                y[target_index] = equation_value
+            else:
+                y[target_index] += equation_value
+
         return numpy.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
 
     def _evolve_mode(
         k_value: float,
-    ) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]:
+    ) -> tuple[
+        numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+        numpy.ndarray,
+    ]:
         """Return transfer-source histories for a single k mode."""
 
+        nonlocal previous_context_snapshot, previous_eta_snapshot
+        previous_context_snapshot = None
+        previous_eta_snapshot = None
         state = _build_initial_state(k_value)
         theta0_hist: list[float] = []
         theta1_hist: list[float] = []
@@ -1881,6 +2504,7 @@ def _compute_custom_cmb_spectrum_data(
         e2_hist: list[float] = []
         phi_hist: list[float] = []
         psi_hist: list[float] = []
+        custom_source_hist: list[float] = []
         for eta_index, eta_value in enumerate(eta_los_grid):
             if eta_index > 0:
                 delta_eta = float(
@@ -1939,16 +2563,32 @@ def _compute_custom_cmb_spectrum_data(
                             theta_gamma_state[3:] = 0.0
                             e_gamma_state[3:] = 0.0
                         numpy.clip(state, -1.0e4, 1.0e4, out=state)
-            unpacked = _unpack_state(state)
-            phi_value, psi_value = _compute_potentials(
-                eta_value, state, k_value
+            (
+                step_context,
+                _equation_values,
+                source_values,
+                phi_value,
+                psi_value,
+                effective_state,
+            ) = _build_step_context(
+                eta_value,
+                state,
+                k_value,
+                previous_context=previous_context_snapshot,
+                previous_eta_value=previous_eta_snapshot,
             )
+            previous_context_snapshot = dict(step_context)
+            previous_eta_snapshot = float(eta_value)
+            unpacked = _unpack_state(effective_state)
             theta0_hist.append(float(unpacked["theta_gamma"][0]))
             theta1_hist.append(float(unpacked["theta_gamma"][1]))
             theta2_hist.append(float(unpacked["theta_gamma"][2]))
             e2_hist.append(float(unpacked["e_gamma"][2]))
             phi_hist.append(float(phi_value))
             psi_hist.append(float(psi_value))
+            custom_source_hist.append(
+                float(sum(source_values.values())) if source_values else 0.0
+            )
         return (
             numpy.asarray(theta0_hist, dtype=float),
             numpy.asarray(theta1_hist, dtype=float),
@@ -1956,6 +2596,7 @@ def _compute_custom_cmb_spectrum_data(
             numpy.asarray(e2_hist, dtype=float),
             numpy.asarray(phi_hist, dtype=float),
             numpy.asarray(psi_hist, dtype=float),
+            numpy.asarray(custom_source_hist, dtype=float),
         )
 
     log_k_values = numpy.log(k_values)
@@ -1965,12 +2606,20 @@ def _compute_custom_cmb_spectrum_data(
     transfer_polarization = numpy.zeros_like(transfer_temperature)
 
     for k_index, k_value in enumerate(k_values):
-        theta0_hist, theta1_hist, theta2_hist, e2_hist, phi_hist, psi_hist = (
-            _evolve_mode(float(k_value))
-        )
+        (
+            theta0_hist,
+            theta1_hist,
+            theta2_hist,
+            e2_hist,
+            phi_hist,
+            psi_hist,
+            custom_source_hist,
+        ) = _evolve_mode(float(k_value))
         phi_dot_hist = numpy.gradient(phi_hist, eta_los_grid, edge_order=2)
         psi_dot_hist = numpy.gradient(psi_hist, eta_los_grid, edge_order=2)
-        monopole_source = visibility_los_grid * (theta0_hist + psi_hist)
+        monopole_source = visibility_los_grid * (
+            theta0_hist + psi_hist + custom_source_hist
+        )
         doppler_source = visibility_los_grid * (
             theta1_hist / max(k_value, 1.0e-12)
         )

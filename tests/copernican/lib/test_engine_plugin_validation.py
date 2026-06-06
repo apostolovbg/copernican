@@ -135,6 +135,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def _make_nonstandard_perturbations(
         self,
         *,
+        equation_mode: str = "mapped_sector",
         implemented: bool = False,
     ) -> dict[str, object]:
         """Return a fully declared non-standard perturbation contract."""
@@ -142,6 +143,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         return {
             "contract_version": 1,
             "standard": False,
+            "equation_mode": equation_mode,
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -438,6 +440,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
             plugin.CMB_PERTURBATION_CONTRACT["gauge"],
             "conformal_newtonian",
         )
+        self.assertEqual(
+            plugin.CMB_PERTURBATION_CONTRACT["equation_mode"],
+            "mapped_sector",
+        )
         self.assertIsInstance(
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
             PerturbationContractData,
@@ -450,6 +456,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         model_data["cmb"]["perturbations"] = {
             "contract_version": 1,
             "standard": False,
+            "equation_mode": "declared_equations",
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -473,7 +480,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
             },
             "notes": "Missing mathematical content.",
         }
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError,
+            "declared_equations mode must declare equations",
+        ):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_standard_true_rejects_non_empty_math_sections(self):
@@ -539,25 +549,25 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_nonstandard_equations_fails(self):
-        """Non-standard perturbations must declare equations."""
+    def test_mapped_sector_mode_accepts_empty_equations(self):
+        """Mapped-sector mode may defer to the built-in sector equations."""
 
         model_data = copy.deepcopy(self.model_data)
         perturbations = self._make_nonstandard_perturbations()
         perturbations["equations"] = {}
         model_data["cmb"]["perturbations"] = perturbations
-        with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
 
-    def test_missing_nonstandard_sources_fails(self):
-        """Non-standard perturbations must declare sources."""
+    def test_mapped_sector_mode_accepts_empty_sources(self):
+        """Mapped-sector mode may omit custom source expressions."""
 
         model_data = copy.deepcopy(self.model_data)
         perturbations = self._make_nonstandard_perturbations()
         perturbations["sources"] = {}
         model_data["cmb"]["perturbations"] = perturbations
-        with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
 
     def test_missing_nonstandard_backend_mapping_fails(self):
         """Non-standard perturbations must declare backend mapping."""

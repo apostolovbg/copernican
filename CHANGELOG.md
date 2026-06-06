@@ -80,6 +80,36 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Implemented declarative perturbation-mode wiring for the custom
+    CMB engine, including mapped-sector and declared-equation evolution,
+    closure application, source construction, and supporting validation.
+  Why: Updated custom `standard: false` contracts so their YAML equations,
+    closures, and sources participate in the scalar CMB engine instead of
+    acting as metadata only.
+  Impact: Enabled declared contracts to fail loudly on unsupported or
+    incomplete math while the physics tests, manifest plumbing, and package
+    docs cover the new modes.
+  Files:
+  CHANGELOG.md
+  ABOUT.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/cmb.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  docs/api_overview.md
+  docs/design_overview.md
+  tests/copernican/lib/likelihoods/test_cmb.py
+  tests/copernican/lib/test_engine_plugin_validation.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-06:
   Change: Implemented a generic physical scalar CMB engine for
   `standard: false` contracts and removed the fake projection path.
   Why: Updated the custom CMB route to evolve backgrounds, recombination,

@@ -28,12 +28,17 @@ _SUPPORTED_PERTURBATION_KEYS = {
     "contract_version",
     "derived",
     "equations",
+    "equation_mode",
     "gauge",
     "notes",
     "sources",
     "standard",
     "validity",
     "variables",
+}
+_SUPPORTED_EQUATION_MODES = {
+    "declared_equations",
+    "mapped_sector",
 }
 _SUPPORTED_VARIABLE_KEYS = {"description", "kind", "notes"}
 _SUPPORTED_DERIVED_KEYS = {
@@ -178,6 +183,7 @@ class PerturbationContractData:
     backend: str
     contract_version: int
     standard: bool
+    equation_mode: str
     gauge: str
     variables: FrozenMapping
     derived: FrozenMapping
@@ -312,6 +318,7 @@ def _build_manifest_summary(
     backend: str,
     contract_version: int,
     standard: bool,
+    equation_mode: str,
     gauge: str,
     variables: tuple[str, ...],
     derived: tuple[str, ...],
@@ -329,6 +336,7 @@ def _build_manifest_summary(
         "backend": backend,
         "contract_version": contract_version,
         "standard": standard,
+        "equation_mode": equation_mode,
         "gauge": gauge,
         "variable_names": variables,
         "derived_names": derived,
@@ -372,9 +380,7 @@ def compile_perturbation_contract(
         "backend_mapping",
         "contract_version",
         "derived",
-        "equations",
         "gauge",
-        "sources",
         "standard",
         "validity",
         "variables",
@@ -399,6 +405,23 @@ def compile_perturbation_contract(
     standard = contract.get("standard")
     if not isinstance(standard, bool):
         raise ValueError("cmb.perturbations.standard must be boolean")
+
+    equation_mode = contract.get("equation_mode", "mapped_sector")
+    if not isinstance(equation_mode, str):
+        raise ValueError("cmb.perturbations.equation_mode must be a string")
+    equation_mode = equation_mode.strip()
+    if not equation_mode:
+        raise ValueError("cmb.perturbations.equation_mode must not be empty")
+    if equation_mode not in _SUPPORTED_EQUATION_MODES:
+        allowed_modes = ", ".join(sorted(_SUPPORTED_EQUATION_MODES))
+        raise ValueError(
+            "cmb.perturbations.equation_mode must be one of "
+            f"{allowed_modes}"
+        )
+    if standard and equation_mode != "mapped_sector":
+        raise ValueError(
+            "Standard perturbations must use equation_mode: mapped_sector"
+        )
 
     gauge = contract.get("gauge")
     if gauge not in {
@@ -516,12 +539,6 @@ def compile_perturbation_contract(
             raise ValueError(
                 "Non-standard perturbations must declare variables"
             )
-        if not equations:
-            raise ValueError(
-                "Non-standard perturbations must declare equations"
-            )
-        if not sources:
-            raise ValueError("Non-standard perturbations must declare sources")
         if not validity:
             raise ValueError(
                 "Non-standard perturbations must declare validity"
@@ -529,6 +546,11 @@ def compile_perturbation_contract(
         if not backend_mapping:
             raise ValueError(
                 "Non-standard perturbations must declare backend mapping"
+            )
+        if equation_mode == "declared_equations" and not equations:
+            raise ValueError(
+                "Non-standard perturbations in declared_equations mode "
+                "must declare equations"
             )
 
     variable_names: set[str] = set()
@@ -1203,6 +1225,7 @@ def compile_perturbation_contract(
             backend=backend,
             contract_version=contract_version,
             standard=standard,
+            equation_mode=equation_mode,
             gauge=gauge,
             variables=tuple(sorted(variable_names)),
             derived=tuple(
@@ -1224,6 +1247,7 @@ def compile_perturbation_contract(
         backend=backend,
         contract_version=contract_version,
         standard=standard,
+        equation_mode=equation_mode,
         gauge=gauge,
         variables=FrozenMapping(variable_entries),
         derived=FrozenMapping(

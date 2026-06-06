@@ -34,6 +34,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         contract: dict[str, object] = {
             "contract_version": 1,
             "standard": False,
+            "equation_mode": "mapped_sector",
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -201,6 +202,9 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertFalse(nonstandard_contract_data.standard)
         self.assertEqual(
+            nonstandard_contract_data.equation_mode, "mapped_sector"
+        )
+        self.assertEqual(
             nonstandard_contract_data.equations["continuity_x"].lhs.variable,
             "delta_x",
         )
@@ -210,6 +214,41 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         dependency_summary = nonstandard_contract_data.dependency_graph_summary
         self.assertIn("tau", dependency_summary.independent_variables_used)
+
+    def test_mapped_sector_contract_compiles_without_equations(self) -> None:
+        """Mapped-sector mode should allow the built-in sector equations."""
+
+        contract = self._make_nonstandard_contract()
+        contract["equations"] = {}
+        contract_data = compile_perturbation_contract(
+            contract,
+            model_name="TemplateModel",
+            backend="camb",
+            parameter_names=("H0",),
+            latex_names=("H_0",),
+            background_reference_names=("H0",),
+        )
+        self.assertEqual(contract_data.equation_mode, "mapped_sector")
+        self.assertEqual(contract_data.equations, {})
+
+    def test_declared_equation_mode_requires_equations(self) -> None:
+        """Declared-equation mode should fail without equations."""
+
+        contract = self._make_nonstandard_contract()
+        contract["equation_mode"] = "declared_equations"
+        contract["equations"] = {}
+        with self.assertRaisesRegex(
+            ValueError,
+            "declared_equations mode must declare equations",
+        ):
+            compile_perturbation_contract(
+                contract,
+                model_name="TemplateModel",
+                backend="camb",
+                parameter_names=("H0",),
+                latex_names=("H_0",),
+                background_reference_names=("H0",),
+            )
 
     def test_numeric_closure_equals_is_rejected(self) -> None:
         """Closure equality expressions must remain string literals."""

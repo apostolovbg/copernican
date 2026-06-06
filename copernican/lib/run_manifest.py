@@ -143,6 +143,11 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     "standard",
                     perturbations.get("standard"),
                 ),
+                "perturbation_equation_mode": getattr(
+                    perturbation_data,
+                    "equation_mode",
+                    perturbations.get("equation_mode", "mapped_sector"),
+                ),
                 "perturbation_gauge": getattr(
                     perturbation_data, "gauge", perturbations.get("gauge")
                 ),

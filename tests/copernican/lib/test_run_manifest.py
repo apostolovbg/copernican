@@ -68,6 +68,7 @@ def _dummy_plugin():
             backend="camb",
             contract_version=1,
             standard=True,
+            equation_mode="mapped_sector",
             gauge="unspecified",
             variables={
                 "delta_x": object(),
@@ -170,6 +171,10 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(model_entry["value_names"], [])
             self.assertEqual(model_entry["perturbation_contract_version"], 1)
             self.assertTrue(model_entry["perturbation_standard"])
+            self.assertEqual(
+                model_entry["perturbation_equation_mode"],
+                "mapped_sector",
+            )
             self.assertEqual(model_entry["perturbation_gauge"], "unspecified")
             self.assertEqual(
                 model_entry["perturbation_variable_names"],

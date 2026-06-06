@@ -36,6 +36,7 @@ def _base_custom_cmb_contract() -> dict[str, object]:
         "perturbations": {
             "contract_version": 1,
             "standard": False,
+            "equation_mode": "mapped_sector",
             "gauge": "conformal_newtonian",
             "variables": {
                 "theta_gamma0": {"kind": "photon_temperature_monopole"},
@@ -170,6 +171,214 @@ def _custom_perturbations() -> dict[str, object]:
     """Return the custom perturbation contract from the fixture."""
 
     return copy.deepcopy(_base_custom_cmb_contract()["perturbations"])
+
+
+def _declared_equation_perturbations(
+    *,
+    baryon_rhs: str = "-theta_b + 0.05 * Phi",
+    photon_monopole_rhs: str = "-theta_gamma1",
+    metric_closure_expression: str = "Psi - Phi",
+    source_expression: str = "theta_gamma0 + theta_b + Phi + Psi",
+) -> dict[str, object]:
+    """Return a full declared-equation perturbation contract."""
+
+    return {
+        "contract_version": 1,
+        "standard": False,
+        "equation_mode": "declared_equations",
+        "gauge": "conformal_newtonian",
+        "variables": {
+            "theta_gamma0": {"kind": "photon_temperature_monopole"},
+            "theta_gamma1": {"kind": "photon_temperature_dipole"},
+            "theta_gamma2": {"kind": "photon_temperature_quadrupole"},
+            "e_gamma2": {"kind": "photon_polarization_quadrupole"},
+            "delta_b": {"kind": "baryon_density_contrast"},
+            "theta_b": {"kind": "baryon_velocity_divergence"},
+            "delta_c": {"kind": "cdm_density_contrast"},
+            "theta_c": {"kind": "cdm_velocity_divergence"},
+            "delta_nu": {
+                "kind": "massless_neutrino_density_contrast",
+            },
+            "theta_nu": {
+                "kind": "massless_neutrino_velocity_divergence",
+            },
+            "sigma_nu": {
+                "kind": "massless_neutrino_anisotropic_stress",
+            },
+            "Phi": {"kind": "metric_potential_phi"},
+            "Psi": {"kind": "metric_potential_psi"},
+        },
+        "derived": {},
+        "equations": {
+            "evolve_theta_gamma0": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_gamma0",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": photon_monopole_rhs,
+            },
+            "evolve_theta_gamma1": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_gamma1",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "k / 3 * (theta_gamma0 - 2 * theta_gamma2) + k * Psi "
+                    "- (-tau_dot) * (theta_gamma1 - theta_b / (3 * k))"
+                ),
+            },
+            "evolve_theta_gamma2": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_gamma2",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "k / 5 * (2 * theta_gamma1 - 3 * theta_gamma2) "
+                    "- (-tau_dot) * theta_gamma2"
+                ),
+            },
+            "evolve_e_gamma2": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "e_gamma2",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "k / 5 * (2 * theta_gamma1 - 3 * theta_gamma2) "
+                    "- (-tau_dot) * e_gamma2 + 0.1 * theta_gamma2"
+                ),
+            },
+            "evolve_delta_b": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "delta_b",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": baryon_rhs,
+            },
+            "evolve_theta_b": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_b",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "-Hconf * theta_b + k ** 2 * Psi "
+                    "+ (-tau_dot) * (theta_gamma1 - theta_b / (3 * k))"
+                ),
+            },
+            "evolve_delta_c": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "delta_c",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "-theta_c + 0.25 * Phi",
+            },
+            "evolve_theta_c": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_c",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "-Hconf * theta_c + k ** 2 * Psi",
+            },
+            "evolve_delta_nu": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "delta_nu",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "-theta_nu + Phi",
+            },
+            "evolve_theta_nu": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_nu",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "k / 3 * (delta_nu - 2 * sigma_nu) + k * Psi",
+            },
+            "evolve_sigma_nu": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "sigma_nu",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "k / 5 * (2 * theta_nu - 3 * sigma_nu) "
+                    "- (-tau_dot) * sigma_nu"
+                ),
+            },
+        },
+        "closures": {
+            "metric_closure": {
+                "expression": metric_closure_expression,
+                "equals": "0",
+            }
+        },
+        "sources": {
+            "cmb_source": {
+                "expression": source_expression,
+            }
+        },
+        "validity": {
+            "regimes": ["linear", "scalar"],
+            "notes": "Synthetic non-standard scalar test fixture.",
+        },
+        "backend_mapping": {
+            "camb": {
+                "native_solver_required": True,
+                "implemented": True,
+            }
+        },
+        "notes": (
+            "Synthetic non-standard scalar test fixture for the generic "
+            "CMB engine."
+        ),
+    }
+
+
+def _mapped_sector_only_contract() -> dict[str, object]:
+    """Return a non-standard contract that uses built-in sector equations."""
+
+    contract = _custom_contract()
+    contract["perturbations"]["equation_mode"] = "mapped_sector"
+    contract["perturbations"]["equations"] = {}
+    return contract
+
+
+def _declared_equation_contract(
+    *,
+    baryon_rhs: str = "-theta_b + 0.05 * Phi",
+    photon_monopole_rhs: str = "-theta_gamma1",
+    metric_closure_expression: str = "Psi - Phi",
+    source_expression: str = "theta_gamma0 + theta_b + Phi + Psi",
+) -> dict[str, object]:
+    """Return a contract that replaces the built-in sector equations."""
+
+    contract = _custom_contract()
+    contract["perturbations"] = _declared_equation_perturbations(
+        baryon_rhs=baryon_rhs,
+        photon_monopole_rhs=photon_monopole_rhs,
+        metric_closure_expression=metric_closure_expression,
+        source_expression=source_expression,
+    )
+    return contract
 
 
 def _strip_perturbations(contract: dict[str, object]) -> dict[str, object]:
@@ -394,6 +603,230 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             int(numpy.argmax(base_h0)),
             int(numpy.argmax(hi_h0)),
         )
+
+    def test_declared_baryon_equation_changes_tt_spectrum(self) -> None:
+        """Declared baryon evolution should change the TT spectrum."""
+
+        baseline = _mapped_sector_only_contract()
+        declared = _declared_equation_contract(
+            baryon_rhs="-theta_b + 0.2 * Phi",
+        )
+        ells = numpy.arange(20, 70, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        declared_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                declared,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(declared_tt - baseline_tt))),
+            1.0e-12,
+        )
+
+    def test_declared_photon_monopole_equation_changes_tt_spectrum(
+        self,
+    ) -> None:
+        """Declared photon-monopole evolution should change TT."""
+
+        baseline = _mapped_sector_only_contract()
+        declared = _declared_equation_contract(
+            photon_monopole_rhs="-theta_gamma1 + 0.15 * Phi",
+        )
+        ells = numpy.arange(20, 70, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        declared_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                declared,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(declared_tt - baseline_tt))),
+            1.0e-12,
+        )
+
+    def test_declared_metric_closure_changes_te_or_ee_spectrum(self) -> None:
+        """Declared metric closures should move the TE/EE spectra."""
+
+        baseline = _declared_equation_contract(
+            metric_closure_expression="Psi - Phi",
+        )
+        changed = _declared_equation_contract(
+            metric_closure_expression="Psi - 1.15 * Phi",
+        )
+        ells = numpy.arange(20, 70, dtype=int)
+        baseline_spectra = cmb.compute_cmb_spectrum_from_dict(
+            baseline,
+            ells,
+            spectra=("TE", "EE"),
+        )
+        changed_spectra = cmb.compute_cmb_spectrum_from_dict(
+            changed,
+            ells,
+            spectra=("TE", "EE"),
+        )
+        te_delta = numpy.asarray(
+            changed_spectra["TE"] - baseline_spectra["TE"],
+            dtype=float,
+        )
+        ee_delta = numpy.asarray(
+            changed_spectra["EE"] - baseline_spectra["EE"],
+            dtype=float,
+        )
+        self.assertGreater(
+            max(
+                float(numpy.max(numpy.abs(te_delta))),
+                float(numpy.max(numpy.abs(ee_delta))),
+            ),
+            1.0e-12,
+        )
+
+    def test_declared_source_expression_changes_los_result(self) -> None:
+        """Declared source expressions should affect the LOS temperature."""
+
+        baseline = _declared_equation_contract(
+            source_expression="0.0",
+        )
+        changed = _declared_equation_contract(
+            source_expression="theta_gamma0 + theta_b + Phi + Psi",
+        )
+        ells = numpy.arange(20, 70, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
+            1.0e-12,
+        )
+
+    def test_unsupported_symbol_in_declared_equation_fails_loudly(
+        self,
+    ) -> None:
+        """Unsupported equation symbols should fail at compile time."""
+
+        contract = _declared_equation_contract()
+        equations = contract["perturbations"]["equations"]
+        equations["evolve_delta_b"]["rhs"] = "mystery_symbol + Phi"
+        with self.assertRaisesRegex(ValueError, "mystery_symbol"):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_missing_background_symbol_in_declared_equation_fails_loudly(
+        self,
+    ) -> None:
+        """Missing background names should fail at compile time."""
+
+        contract = _declared_equation_contract()
+        equations = contract["perturbations"]["equations"]
+        theta_b_equation = equations["evolve_theta_b"]
+        theta_b_equation["rhs"] = "-H_background * theta_b + k ** 2 * Psi"
+        with self.assertRaisesRegex(ValueError, "H_background"):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_duplicate_derivative_declaration_fails_loudly(self) -> None:
+        """Duplicate derivative declarations should be rejected."""
+
+        contract = _declared_equation_contract()
+        contract["perturbations"]["variables"]["delta_b_alt"] = {
+            "kind": "baryon_density_contrast",
+        }
+        contract["perturbations"]["equations"]["evolve_delta_b_alt"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_b_alt",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-theta_b + Phi",
+        }
+        duplicate_sector_message = (
+            "more than one derivative for mapped sector "
+            "'baryon_density_contrast'"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            duplicate_sector_message,
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_declared_equation_override_mode_requires_required_equations(
+        self,
+    ) -> None:
+        """Declared-equation mode should require the full sector set."""
+
+        contract = _declared_equation_contract()
+        contract["perturbations"]["equations"] = {
+            "evolve_delta_b": contract["perturbations"]["equations"][
+                "evolve_delta_b"
+            ]
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "Declared-equation mode is missing required sector equation",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_mapped_sector_mode_still_passes(self) -> None:
+        """Mapped-sector mode should continue to produce valid spectra."""
+
+        contract = _mapped_sector_only_contract()
+        ells = numpy.arange(20, 45, dtype=int)
+        spectra = cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+
+        self.assertEqual(set(spectra), {"TT", "TE", "EE"})
+        for spectrum in spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
 
     def test_custom_contract_validation_fails_loudly(self) -> None:
         """Unsupported or incomplete custom contracts should fail clearly."""
