@@ -190,7 +190,6 @@ class TestCliUtilities(unittest.TestCase):
         parse_launch_args.return_value = SimpleNamespace(
             mode=copernican.orchestration.LaunchMode.CLI,
             manifest_path=Path("manifest.yml"),
-            detach_gui=False,
         )
         handle_auxiliary_requests.return_value = (False, 0)
         result = copernican.main([])
@@ -343,15 +342,6 @@ class LaunchArgParsingTestCase(unittest.TestCase):
             )
         self.assertEqual(args.manifest_path, manifest_path.resolve())
         self.assertEqual(args.output_dir, output_dir.resolve())
-
-    def test_detach_flag_respects_environment_override(self) -> None:
-        with mock.patch.dict(
-            os.environ,
-            {"VIRTUAL_ENV": self.venv_path, "COPERNICAN_DETACH_GUI": "0"},
-            clear=True,
-        ):
-            args = self.copernican._parse_launch_args(["--gui"])
-        self.assertFalse(args.detach_gui)
 
 
 if __name__ == "__main__":

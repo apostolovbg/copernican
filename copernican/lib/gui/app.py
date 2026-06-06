@@ -1013,9 +1013,6 @@ class CopernicanGUI:
             self._build_layout()
             if self.root is not None:
                 self.root.after(10, self._raise_root_window)
-                if sys.platform == "darwin":
-                    for delay in (250, 1500, 4000):
-                        self.root.after(delay, self._activate_macos_app)
         except (
             RuntimeError,
             OSError,
@@ -1061,29 +1058,7 @@ class CopernicanGUI:
                 1500,
                 lambda: self.root and self.root.attributes("-topmost", False),
             )
-            if sys.platform == "darwin":
-                self._activate_macos_app()
         except (RuntimeError, ValueError, tk_tcl_error):
-            pass
-
-    def _activate_macos_app(self) -> None:
-        """Ask macOS to bring the Copernican app to the front."""
-
-        if not self.render or self.root is None or sys.platform != "darwin":
-            return
-        script = (
-            'tell application "System Events" to set frontmost of '
-            'process "python" to true'
-        )
-        osascript = "/usr/bin/osascript"
-        try:
-            subprocess.run(
-                [osascript, "-e", script],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )  # nosec
-        except (OSError, RuntimeError, ValueError):
             pass
 
     def _data_root(self) -> str:
@@ -3642,7 +3617,6 @@ class CopernicanGUI:
             "--run-validation",
         ]
         env = os.environ.copy()
-        env.setdefault("COPERNICAN_DETACH_GUI", "0")
         env.setdefault("COPERNICAN_HEADLESS_RUN", "1")
         if self._progress_state_path:
             env["COPERNICAN_GUI_PROGRESS_PATH"] = self._progress_state_path
@@ -6514,14 +6488,6 @@ class CopernicanGUI:
     ) -> None:
         """Surface GUI-specific toggles and environment hints."""
 
-        detach_var = self._ensure_setting_var("gui", "detach_gui")
-        if detach_var is not None:
-            ttk_module.Checkbutton(
-                container,
-                text="Detach GUI launches by default",
-                variable=detach_var,
-                takefocus=True,
-            ).pack(anchor="w", pady=(0, 4))
         venv_var = self._ensure_setting_var("gui", "require_managed_venv")
         if venv_var is not None:
             ttk_module.Checkbutton(
@@ -6549,10 +6515,6 @@ class CopernicanGUI:
             (
                 "COPERNICAN_STRICT_WARNINGS",
                 os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
-            ),
-            (
-                "COPERNICAN_DETACH_GUI",
-                os.environ.get("COPERNICAN_DETACH_GUI", "0"),
             ),
         ]
         for env_name, env_value in env_values:
@@ -7289,7 +7251,6 @@ class CopernicanGUI:
             config_path,
         ]
         env = os.environ.copy()
-        env.setdefault("COPERNICAN_DETACH_GUI", "0")
         try:
             process = subprocess.Popen(  # nosec
                 command,

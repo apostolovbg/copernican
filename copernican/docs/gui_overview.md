@@ -187,11 +187,10 @@ The Settings screen now mirrors the Run Builder navigation: three tabs
 list Datasets, GUI and Tools options in the same style as the wizard
 controls above. The Datasets page toggles automatic discovery, hash
 caching and offers a manual digest rebuild so trusted parsers stay
-current. GUI settings cover automatic detachment, managed `.venv`
-enforcement and the environment hints (`COPERNICAN_SEED`,
-`COPERNICAN_STRICT_WARNINGS`, `COPERNICAN_DETACH_GUI`) shown on the
-status bar. The Tools tab surfaces maintenance helpers such as
-rebuilding the sanitized `copernican/models/cache` files,
+current. GUI settings cover managed `.venv` enforcement and the
+environment hints (`COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`)
+shown on the status bar. The Tools tab surfaces maintenance helpers such
+as rebuilding the sanitized `copernican/models/cache` files,
 revalidating the parser registry, and resetting the Run Builder
 workspace. Preferences persist through `copernican/lib/settings.py`
 into the user config file at `~/.config/copernican/copernican_settings.yml`
@@ -207,11 +206,9 @@ available even when operators prefer the GUI to the CLI.
 ## Launching the GUI
 
 Create and activate the managed `.venv` first. Then run `python -m
-copernican --gui` from the shell. The exact commands for macOS, Linux and
-Windows live in [docs/packaging.md](packaging.md#launch-copernican).
-Installed environments can use `copernican --gui`. The package entrypoint now
-owns the launch flow, so there are no shell wrappers to keep in sync and no
-detached start scripts to maintain. The GUI still sets
-`COPERNICAN_DETACH_GUI=1` when it needs to hand off control to a background
-window, but the handoff happens through the package workflow instead of a
-separate launcher layer.
+copernican --gui` from the shell. The exact commands for macOS, Linux
+and Windows live in
+[docs/packaging.md](packaging.md#launch-copernican).
+Installed environments can use `copernican --gui`. The package
+entrypoint owns the launch flow, so there are no shell wrappers to keep
+in sync.

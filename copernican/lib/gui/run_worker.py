@@ -27,7 +27,6 @@ def main(argv: list[str] | None = None) -> int:
     progress_path = config.get("progress_path")
     if progress_path:
         os.environ.setdefault("COPERNICAN_GUI_PROGRESS_PATH", progress_path)
-    os.environ.setdefault("COPERNICAN_DETACH_GUI", "0")
     os.environ.setdefault("COPERNICAN_HEADLESS_RUN", "1")
     run_args = ["--manifest", manifest_path]
     output_dir = config.get("output_dir")

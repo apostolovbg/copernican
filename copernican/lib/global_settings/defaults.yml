@@ -3,7 +3,6 @@ datasets:
   dataset_hash_auto_rebuild: false
   dataset_hash_ttl_hours: 24
 gui:
-  detach_gui: true
   require_managed_venv: true
   show_environment_hints: true
 tools:

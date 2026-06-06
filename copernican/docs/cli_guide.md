@@ -161,8 +161,6 @@ and log output match the GUI’s Run Monitor display.
 - `COPERNICAN_SEED=<value>` – Pre-fills the seed question.
 - `COPERNICAN_DEP_CACHE_DIR=<path>` – Overrides the default `.cache/` location
   used by the dependency scanner.
-- `COPERNICAN_DETACH_GUI=1` – Forces the GUI to detach if you need to keep the
-  CLI prompt free while the window runs.
 
 The staged CLI menu has been retired; there is no longer a
 `COPERNICAN_ENABLE_STAGED_MENU` flag or equivalent toggle.

@@ -22,10 +22,8 @@ import os
 import platform
 import shutil
 import signal
-import subprocess  # nosec
 import sys
 from collections import Counter
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -36,9 +34,7 @@ import copernican.version as version_module
 from copernican.lib import analysis as analysis
 from copernican.lib import console_output as console
 from copernican.lib import logger as log_mod
-from copernican.lib import orchestration, progress_state, run_manifest
-from copernican.lib import settings as settings_mod
-from copernican.lib import utils
+from copernican.lib import orchestration, progress_state, run_manifest, utils
 from copernican.lib.cli import dependencies as cli_dependencies
 
 # Verify interpreter version early so users see clear feedback
@@ -169,7 +165,6 @@ def _build_gui_progress_callback() -> (
 
 COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
-_launch_args: LaunchRequest | None = None
 
 
 @dataclass
@@ -177,7 +172,6 @@ class LaunchRequest:
     """Parsed launcher arguments shared across CLI and GUI flows."""
 
     mode: orchestration.LaunchMode
-    detach_gui: bool
     manifest_path: Path | None
     output_dir: Path | None
     catalogue_summary: bool = False
@@ -1054,13 +1048,6 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)
-    settings_data = settings_mod.get_settings()
-    gui_defaults = settings_data.get("gui", {})
-    default_detach = bool(gui_defaults.get("detach_gui", True))
-    detach_env = os.environ.get("COPERNICAN_DETACH_GUI")
-    detach_gui = (
-        detach_env != "0" if detach_env is not None else default_detach
-    )
     manifest_path = (
         Path(parsed.manifest).expanduser().resolve()
         if parsed.manifest
@@ -1127,7 +1114,6 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         mode = orchestration.LaunchMode.CLI
     return LaunchRequest(
         mode=mode,
-        detach_gui=detach_gui,
         manifest_path=manifest_path,
         output_dir=output_dir,
         catalogue_summary=parsed.catalogue_summary,
@@ -1146,145 +1132,6 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     )
 
 
-def _gui_executable_candidates() -> list[Path]:
-    """Return possible Python executables suitable for GUI launchers.
-
-    GUI shells should prefer ``pythonw`` on platforms that supply it so the
-    calling terminal can close without warning about a lingering console.  The
-    managed virtual environment ships a ``pythonw`` binary on Windows, so the
-    launcher checks for the variant before falling back to the active
-    interpreter.
-    """
-
-    # Keep the venv wrapper path so the child preserves the managed env.
-    exe_path = Path(sys.executable)
-    candidates = [exe_path]
-    for suffix in ("pythonw.exe", "pythonw"):
-        alt = exe_path.with_name(suffix)
-        if alt.exists():
-            candidates.insert(0, alt)
-    return candidates
-
-
-def _launch_detached_process(
-    command: list[str], env: Mapping[str, str]
-) -> subprocess.Popen[Any]:
-    """Launch ``command`` in the background without tying up the console."""
-
-    devnull = subprocess.DEVNULL
-    kwargs: dict[str, Any] = {
-        "stdin": devnull,
-        "stdout": devnull,
-        "stderr": devnull,
-        "env": env,
-        "cwd": REPO_ROOT,
-    }
-    if os.name == "nt":
-        creation_flags = 0
-        creation_flags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        creation_flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
-        kwargs["creationflags"] = creation_flags
-    else:
-        kwargs["start_new_session"] = True
-    return subprocess.Popen(command, **kwargs)  # nosec
-
-
-def _activate_detached_gui_on_macos(pid: int) -> None:
-    """Ask macOS to bring the detached Copernican GUI to the front."""
-
-    if sys.platform != "darwin":
-        return
-    script = (
-        "delay 2\n"
-        'tell application "System Events"\n'
-        f"  set frontmost of first process whose unix id is {pid} to true\n"
-        "end tell"
-    )
-    try:
-        osascript = "/usr/bin/osascript"
-        subprocess.Popen(
-            [osascript, "-e", script],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )  # nosec
-    except (OSError, RuntimeError, ValueError):
-        pass
-
-
-def _detached_gui_env() -> dict[str, str]:
-    """Return the GUI child environment with bundled Tcl/Tk paths."""
-
-    env = os.environ.copy()
-    bundle_lib = REPO_ROOT / ".python" / "lib"
-    tcl_dir = bundle_lib / "tcl8.6"
-    tk_dir = bundle_lib / "tk8.6"
-    if tcl_dir.exists():
-        env["TCL_LIBRARY"] = str(tcl_dir)
-    if tk_dir.exists():
-        env["TK_LIBRARY"] = str(tk_dir)
-    env["COPERNICAN_DETACH_GUI"] = "0"
-    return env
-
-
-def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
-    """Attempt to hand GUI launch to a detached interpreter.
-
-    Returning ``True`` signals that the GUI is already running in a new
-    process, allowing the bootstrapper to exit so terminals close cleanly on
-    macOS, Windows and Linux alike.
-    """
-
-    if not launch.detach_gui:
-        return False
-
-    app_logger = log_mod.get_logger()
-    app_logger.info(
-        "Attempting to detach GUI: detach flag=%s, argv=%s",
-        launch.detach_gui,
-        argv,
-    )
-
-    env = _detached_gui_env()
-    command_tail = list(argv)
-    failures: list[str] = []
-    for candidate in _gui_executable_candidates():
-        app_logger.debug("Trying GUI detachment candidate: %s", candidate)
-        # Re-enter through the package entrypoint so imports resolve in the
-        # detached child the same way they do for the normal launcher.
-        cmd = [str(candidate), "-m", "copernican", *command_tail]
-        try:
-            detached_proc = _launch_detached_process(cmd, env)
-            _activate_detached_gui_on_macos(detached_proc.pid)
-            app_logger.info("Detached GUI launched with %s", candidate)
-            console.write(
-                "Handed GUI startup to a detached Copernican process; "
-                "closing the launcher terminal."
-            )
-            return True
-        except (
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-            subprocess.SubprocessError,
-        ) as exc:  # pragma: no cover - defensive guard
-            failures.append(f"{candidate}: {exc}")
-            app_logger.warning(
-                "Failed to detach GUI with %s: %s", candidate, exc
-            )
-    if failures:
-        console.write(
-            "Falling back to inline GUI startup because detaching failed: "
-            + "; ".join(failures),
-            error=True,
-        )
-        app_logger.warning(
-            "All GUI detachment attempts failed: %s", "; ".join(failures)
-        )
-    return False
-
-
 def launch_gui() -> None:
     """Start the GUI scaffold and log the shared orchestration services.
 
@@ -1300,8 +1147,7 @@ def launch_gui() -> None:
     from copernican.lib.gui import CopernicanGUI
 
     app_logger.info(
-        "GUI mode requested inline; detach flag=%s, Tcl=%s, Tk=%s",
-        _launch_args.detach_gui if _launch_args else None,
+        "GUI mode requested inline; Tcl=%s, Tk=%s",
         os.getenv("TCL_LIBRARY"),
         os.getenv("TK_LIBRARY"),
     )
@@ -1592,10 +1438,6 @@ def main(argv: Iterable[str] | None = None) -> int:
         return aux_exit
     _announce_program_start(launch_request, app_logger)
     if launch_request.mode is orchestration.LaunchMode.GUI:
-        if _spawn_detached_gui(
-            list(argv) if argv is not None else [], launch_request
-        ):
-            return 0
         launch_gui()
         return 0
     return _run_cli_launch(launch_request, argv)

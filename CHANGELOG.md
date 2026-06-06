@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-06:
+  Change: Removed the detached GUI launch path and related settings.
+  Why: Removed the background-child contract because the GUI must open
+  directly from the managed `.venv` on every platform.
+  Impact: Simplified the launcher, settings, docs, tests, and run
+  worker to the inline GUI path.
+  Files:
+  CHANGELOG.md
+  README.md
+  ABOUT.md
+  SUPPORT.md
+  docs/packaging.md
+  docs/gui_overview.md
+  docs/cli_guide.md
+  copernican/README.md
+  copernican/ABOUT.md
+  copernican/SUPPORT.md
+  copernican/docs/packaging.md
+  copernican/docs/gui_overview.md
+  copernican/docs/cli_guide.md
+  copernican/lib/global_settings/defaults.yml
+  copernican/lib/gui/app.py
+  copernican/lib/gui/run_worker.py
+  copernican/lib/settings.py
+  copernican/workflow.py
+  tests/copernican/test_workflow.py
+
+- 2026-06-06:
   Change: Enabled the detached macOS GUI from the launcher so the
   background child becomes the frontmost Python app.
   Why: The detached child could create the Tk window, but it stayed

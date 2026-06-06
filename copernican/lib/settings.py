@@ -21,7 +21,6 @@ DEFAULT_SETTINGS_TEMPLATE: dict[str, dict[str, object]] = {
         "dataset_hash_ttl_hours": 24,
     },
     "gui": {
-        "detach_gui": True,
         "require_managed_venv": True,
         "show_environment_hints": True,
     },
