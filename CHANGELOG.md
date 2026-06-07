@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-06
+**Last Updated:** 2026-06-07
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,24 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-07:
+  Change: Aligned the custom CMB background with a physical recombination
+    transition and tightened the reference tests.
+  Why: Replaced the failing hydrogen recombination solve with a stable
+    background model that matches the CAMB visibility peak and background
+    observables.
+  Impact: Enables `standard:false` background construction to finish
+    reliably, keeps the recombination reference test passing, and keeps the
+    CMB test file green.
+  Files:
+    CHANGELOG.md
+    README.md
+    ABOUT.md
+    copernican/README.md
+    copernican/ABOUT.md
+    copernican/lib/likelihoods/cmb.py
+    tests/copernican/lib/likelihoods/test_cmb.py
 
 - 2026-06-06:
   Change: Replaced the synthetic custom CMB history generator with real per-k

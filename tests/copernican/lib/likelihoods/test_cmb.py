@@ -446,6 +446,17 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             "theta0_hist =",
             "delta_b_hist =",
             "sigma_nu_hist =",
+            "z_rec_fit",
+            "recombination_width",
+            "residual_floor",
+            "x_e_h_grid",
+            "helium_double_recombination_z",
+            "helium_single_recombination_z",
+            "numpy.tanh((z_grid -",
+            "numpy.tanh((z_reion_value - z_grid",
+            "fitted",
+            "visibility shift",
+            "visibility rescale",
         ):
             self.assertNotIn(needle, source_text)
 
@@ -463,6 +474,81 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         self.assertIn("k_value", source_text)
         self.assertIn("eta_los_grid", source_text)
         self.assertIn("return histories, _evaluate_sources", source_text)
+
+    def test_custom_background_matches_camb_recombination_reference(
+        self,
+    ) -> None:
+        """The custom background should match CAMB recombination references."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        contract = _custom_contract()
+        physical = cmb._resolve_custom_cmb_physical_parameters(contract)
+        numerics = cmb._resolve_custom_cmb_numerics(contract)
+        background = cmb._build_custom_cmb_background(
+            contract,
+            physical,
+            numerics,
+        )
+        reference_contract = _strip_perturbations(contract)
+        reference_contract["param_map"].pop("z_rec", None)
+        params = cmb._make_camb_params(reference_contract, lmax=32)
+        results = camb.get_results(params)
+        reference = results.get_background_time_evolution(
+            background.eta_grid,
+            vars=["x_e", "visibility", "opacity"],
+            format="dict",
+        )
+
+        reference_peak_eta = float(results.tau_maxvis)
+        reference_peak_z = float(
+            results.redshift_at_conformal_time(reference_peak_eta)
+        )
+        reference_eta0 = float(results.conformal_time(0.0))
+        reference_sound_horizon = float(
+            results.sound_horizon(reference_peak_z)
+        )
+        reference_x_e = numpy.asarray(reference["x_e"], dtype=float)
+        reference_visibility = numpy.asarray(
+            reference["visibility"],
+            dtype=float,
+        )
+
+        peak_index = int(numpy.argmax(background.visibility_grid))
+        peak_z = float(background.z_grid[peak_index])
+        median_relative_x_e_error = float(
+            numpy.median(
+                numpy.abs(background.x_e_grid - reference_x_e)
+                / numpy.maximum(reference_x_e, 1.0e-8)
+            )
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(background.x_e_grid)))
+        self.assertTrue(numpy.all(background.x_e_grid >= 0.0))
+        self.assertTrue(numpy.all(background.x_e_grid <= 4.0))
+        self.assertTrue(numpy.all(numpy.isfinite(reference_x_e)))
+        self.assertTrue(numpy.all(numpy.isfinite(reference_visibility)))
+        self.assertTrue(numpy.all(numpy.diff(background.tau_grid) <= 1.0e-8))
+        self.assertLess(
+            abs(peak_z - reference_peak_z) / reference_peak_z,
+            0.01,
+        )
+        self.assertLess(
+            abs(background.eta0 - reference_eta0) / reference_eta0,
+            0.005,
+        )
+        self.assertLess(
+            abs(background.sound_horizon_mpc - reference_sound_horizon)
+            / reference_sound_horizon,
+            0.005,
+        )
+        self.assertLess(median_relative_x_e_error, 0.15)
+        self.assertLess(
+            abs(background.reionization_tau - physical.tau_reio)
+            / max(physical.tau_reio, 1.0e-12),
+            0.05,
+        )
 
     def test_custom_background_peaks_near_recombination(self) -> None:
         """The visibility function should peak near recombination."""

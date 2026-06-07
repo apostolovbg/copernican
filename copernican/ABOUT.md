@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-06
+**Last Updated:** 2026-06-07
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -39,7 +39,9 @@ override them with typed declared equations through
 missing required equations, and incompatible gauges fail loudly. The
 implementation lives in `copernican/lib/likelihoods/cmb.py` and now uses
 bounded `k` sampling with cached mode histories and Bessel projection for the
-requested line-of-sight window.
+requested line-of-sight window. The background helper also computes a
+physical recombination history, visibility function, optical-depth grid,
+and residual ionization curve before the transfer-function projection runs.
 The front-door README mirrors that summary so package readers see the same
 custom CMB surface from the repository root.
 

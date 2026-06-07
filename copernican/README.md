@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-06
+**Last Updated:** 2026-06-07
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -27,6 +27,9 @@ The CMB surface now includes a generic `standard: false` scalar engine
 that evolves Newtonian-gauge perturbations per `k` mode across the
 line-of-sight grid, then builds transfer functions and spectra from the
 evolved histories with bounded `k` sampling and cached Bessel tables.
+The background path also computes a physical recombination history,
+visibility function, and optical-depth grid before the perturbation and
+line-of-sight steps run.
 
 ## Launch Copernican
 

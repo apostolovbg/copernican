@@ -648,10 +648,13 @@ class _CustomCMBBackgroundData:
     tau_grid: numpy.ndarray
     tau_dot_grid: numpy.ndarray
     visibility_grid: numpy.ndarray
+    x_e_grid: numpy.ndarray
     n_e_grid: numpy.ndarray
     n_H_grid: numpy.ndarray
     sound_speed_grid: numpy.ndarray
     sound_horizon_mpc: float
+    reionization_z: float
+    reionization_tau: float
     eta_rec: float
     a_rec: float
     z_rec: float
@@ -664,6 +667,7 @@ class _CustomCMBBackgroundData:
     tau_of_eta: PchipInterpolator
     tau_dot_of_eta: PchipInterpolator
     visibility_of_eta: PchipInterpolator
+    x_e_of_eta: PchipInterpolator
     sound_speed_of_eta: PchipInterpolator
 
     def sample(
@@ -687,6 +691,7 @@ class _CustomCMBBackgroundData:
             "visibility": numpy.asarray(
                 self.visibility_of_eta(eta_arr), dtype=float
             ),
+            "x_e": numpy.asarray(self.x_e_of_eta(eta_arr), dtype=float),
             "sound_speed": numpy.asarray(
                 self.sound_speed_of_eta(eta_arr), dtype=float
             ),
@@ -1361,7 +1366,6 @@ def _build_custom_cmb_background(
 
     MPC_M = 3.085_677_581_491_3673e22
     SIGMA_T_M2 = 6.652_458_7321e-29
-    DEFAULT_REC_Z = float(physical_params.z_rec)
 
     def _background_hubble_km_s_Mpc(z_values: numpy.ndarray) -> numpy.ndarray:
         """Return H(z) using the declared background or a physical fallback."""
@@ -1423,23 +1427,38 @@ def _build_custom_cmb_background(
         )
 
     a_min = max(numerics.a_min, 1.0e-8)
-    a_rec = 1.0 / (1.0 + DEFAULT_REC_Z)
     log_a = numpy.geomspace(a_min, 1.0, numerics.eta_sample_count)
-    rec_window = numpy.geomspace(
-        a_rec / 4.0,
-        min(1.0, a_rec * 4.0),
-        max(32, numerics.eta_sample_count // 4),
+
+    helium_ionization_energy_j = 24.587_387 * 1.602_176_634e-19
+    helium_double_ionization_energy_j = 54.417_763 * 1.602_176_634e-19
+    boltzmann_j_k = 1.380_649e-23
+    planck_j_s = 6.626_070_15e-34
+    electron_mass_kg = 9.109_383_7015e-31
+    helium_number_ratio = max(
+        0.0,
+        physical_params.YHe / (4.0 * max(1.0 - physical_params.YHe, 1.0e-6)),
+    )
+    recombination_window = numpy.geomspace(
+        1.0 / 5_000.0,
+        1.0 / 30.0,
+        max(256, numerics.eta_sample_count),
+    )
+    reionization_window = numpy.geomspace(
+        1.0 / 30.0,
+        1.0,
+        max(128, numerics.eta_sample_count // 2),
     )
     a_grid = numpy.unique(
         numpy.clip(
-            numpy.concatenate((log_a, rec_window)),
+            numpy.concatenate(
+                (log_a, recombination_window, reionization_window)
+            ),
             a_min,
             1.0,
         )
     )
     a_grid.sort()
     z_grid = numpy.maximum(1.0 / a_grid - 1.0, 0.0)
-
     H_grid = _background_hubble_km_s_Mpc(z_grid)
     eta_grid = cumulative_trapezoid(
         _C_LIGHT_KM_S / numpy.maximum(a_grid * a_grid * H_grid, 1.0e-12),
@@ -1469,86 +1488,185 @@ def _build_custom_cmb_background(
     else:
         d_m = chi_grid
     da_grid = numpy.divide(d_m, 1.0 + z_grid, dtype=float)
-
-    omega_m_h2 = max(
-        physical_params.ombh2 + physical_params.omch2,
-        physical_params.Omega_m0_background
-        * physical_params.hubble_ratio
-        * physical_params.hubble_ratio,
-        1.0e-8,
-    )
-    z_rec_fit = (
-        1048.0
-        * (1.0 + 0.00124 * physical_params.ombh2**-0.738)
-        * (
-            1.0
-            + (0.0783 * omega_m_h2**-0.238 / (1.0 + 39.5 * omega_m_h2**0.763))
-            * omega_m_h2 ** (0.560 / (1.0 + 21.1 * omega_m_h2**1.81))
-        )
-    )
-    z_rec_fit = 0.5 * z_rec_fit + 0.5 * max(
-        physical_params.z_rec,
-        1.0,
-    )
-    recombination_width = max(60.0, 0.085 * z_rec_fit)
-    residual_floor = max(
-        2.0e-4,
-        1.0e-4 * math.sqrt(max(physical_params.ombh2, 1.0e-12) / 0.02237),
-    )
-    x_e_h_grid = residual_floor + (1.0 - residual_floor) * 0.5 * (
-        1.0 + numpy.tanh((z_grid - z_rec_fit) / recombination_width)
-    )
-    x_e_h_grid = numpy.clip(x_e_h_grid, residual_floor, 1.0)
-    helium_number_ratio = max(
-        0.0,
-        physical_params.YHe / (4.0 * max(1.0 - physical_params.YHe, 1.0e-6)),
-    )
-    helium_double_recombination_z = 5000.0
-    helium_single_recombination_z = 1800.0
-    helium_double_recombination_width = 250.0
-    helium_single_recombination_width = 180.0
-    helium_electron_grid = helium_number_ratio * (
-        0.5
-        * (
-            1.0
-            + numpy.tanh(
-                (z_grid - helium_double_recombination_z)
-                / helium_double_recombination_width,
-            )
-        )
-        + 0.5
-        * (
-            1.0
-            + numpy.tanh(
-                (z_grid - helium_single_recombination_z)
-                / helium_single_recombination_width,
-            )
-        )
-    )
     n_H_grid = physical_params.n_H0_m3 * numpy.power(1.0 + z_grid, 3.0)
+
+    def _safe_exp(log_value: float) -> float:
+        """Return ``exp(log_value)`` while avoiding overflow."""
+
+        if log_value > 700.0:
+            return float("inf")
+        if log_value < -700.0:
+            return 0.0
+        return math.exp(log_value)
+
+    def _saha_ratio(
+        temperature_k: float,
+        ionization_energy_j: float,
+        statistical_weight_ratio: float,
+    ) -> float:
+        """Return the Saha equilibrium ratio for a bound state transition."""
+
+        if temperature_k <= 0.0:
+            return 0.0
+        thermal_prefactor = (
+            2.0
+            * math.pi
+            * electron_mass_kg
+            * boltzmann_j_k
+            * temperature_k
+            / (planck_j_s * planck_j_s)
+        )
+        log_ratio = 1.5 * math.log(max(thermal_prefactor, 1.0e-300))
+        log_ratio += math.log(max(statistical_weight_ratio, 1.0e-12))
+        log_ratio -= ionization_energy_j / (boltzmann_j_k * temperature_k)
+        return _safe_exp(log_ratio)
+
+    def _hydrogen_alpha_coefficient(temperature_k: float) -> float:
+        """Return the case-B hydrogen recombination coefficient in m^3/s."""
+
+        temperature_10k_ratio = max(temperature_k / 1.0e4, 1.0e-4)
+        numerator = 1.14 * 4.309e-19 * temperature_10k_ratio**-0.6166
+        denominator = 1.0 + 0.6703 * temperature_10k_ratio**0.5300
+        return numerator / denominator
+
+    def _helium_electron_fraction(
+        z_value: float,
+        hydrogen_fraction: float,
+        n_h_value: float,
+    ) -> tuple[float, float]:
+        """Return the total and helium electron fractions at ``z_value``."""
+
+        temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
+        total_fraction = hydrogen_fraction + 2.0 * helium_number_ratio
+        helium_fraction = 2.0 * helium_number_ratio
+        for _ in range(5):
+            n_e_value = max(total_fraction * n_h_value, 1.0e-30)
+            he_ii_ratio = (
+                _saha_ratio(
+                    temperature_k,
+                    helium_ionization_energy_j,
+                    4.0,
+                )
+                / n_e_value
+            )
+            he_iii_ratio = (
+                _saha_ratio(
+                    temperature_k,
+                    helium_double_ionization_energy_j,
+                    1.0,
+                )
+                / n_e_value
+            )
+            he_denominator = 1.0 + he_ii_ratio + he_ii_ratio * he_iii_ratio
+            helium_fraction = (
+                helium_number_ratio
+                * (he_ii_ratio + 2.0 * he_ii_ratio * he_iii_ratio)
+                / he_denominator
+            )
+            updated_fraction = hydrogen_fraction + helium_fraction
+            if abs(updated_fraction - total_fraction) <= 1.0e-8 * max(
+                1.0, updated_fraction
+            ):
+                total_fraction = updated_fraction
+                break
+            total_fraction = 0.5 * (total_fraction + updated_fraction)
+        return total_fraction, helium_fraction
+
+    # The hydrogen recombination history is modeled by a smooth physical
+    # transition centered on the standard visibility epoch and bounded by
+    # a residual freeze-out floor derived from the local expansion and
+    # recombination rates.
+    ombh2 = max(physical_params.ombh2, 1.0e-12)
+    ommh2 = max(
+        physical_params.hubble_ratio**2 * physical_params.Omega_m0_background,
+        1.0e-12,
+    )
+    recombination_g1 = 0.0783 * ombh2 ** (-0.2380)
+    recombination_g1 /= 1.0 + 39.5 * ombh2**0.763
+    recombination_g2 = 0.560 / (1.0 + 21.1 * ombh2**1.81)
+    recombination_center_z = 1048.0
+    recombination_center_z *= 1.0 + 0.00124 * ombh2 ** (-0.738)
+    recombination_center_z *= 1.0 + recombination_g1 * ommh2**recombination_g2
+    recombination_center_z *= 1.13
+    transition_half_width_z = max(42.0, 0.065 * recombination_center_z)
+    transition_argument = (
+        recombination_center_z - z_grid
+    ) / transition_half_width_z
+    hydrogen_transition_grid = 1.0 / (
+        1.0 + numpy.exp(numpy.clip(transition_argument, -700.0, 700.0))
+    )
+    temperature_grid = physical_params.Tcmb_K * (1.0 + z_grid)
+    hydrogen_alpha_grid = numpy.asarray(
+        [
+            _hydrogen_alpha_coefficient(float(temperature_k))
+            for temperature_k in temperature_grid
+        ],
+        dtype=float,
+    )
+    hydrogen_rate_grid = H_grid * 1000.0 / MPC_M
+    hydrogen_freezeout_grid = numpy.sqrt(
+        numpy.maximum(
+            hydrogen_rate_grid
+            / numpy.maximum(hydrogen_alpha_grid * n_H_grid, 1.0e-30),
+            0.0,
+        )
+    )
+    hydrogen_freezeout_grid = numpy.clip(
+        hydrogen_freezeout_grid,
+        1.0e-5,
+        1.0e-4,
+    )
+    x_h_grid = (
+        hydrogen_freezeout_grid
+        + (1.0 - hydrogen_freezeout_grid) * hydrogen_transition_grid
+    )
+
+    x_e_recomb_grid = numpy.empty_like(z_grid, dtype=float)
+    helium_electron_grid = numpy.empty_like(z_grid, dtype=float)
+    for index, (z_value, hydrogen_fraction, n_h_value) in enumerate(
+        zip(z_grid, x_h_grid, n_H_grid, strict=True)
+    ):
+        total_fraction, helium_fraction = _helium_electron_fraction(
+            float(z_value),
+            float(hydrogen_fraction),
+            float(n_h_value),
+        )
+        x_e_recomb_grid[index] = total_fraction
+        helium_electron_grid[index] = helium_fraction
 
     reionization_width = 1.0
     helium_reionization_z = 3.5
     helium_reionization_width = 0.5
     target_reionization_tau = max(0.0, physical_params.tau_reio)
 
+    def _smooth_transition(
+        z_values: numpy.ndarray, center: float
+    ) -> numpy.ndarray:
+        """Return a compact smooth step from one to zero around ``center``."""
+
+        scaled = numpy.clip(
+            (center - z_values) / reionization_width + 0.5,
+            0.0,
+            1.0,
+        )
+        return scaled * scaled * (3.0 - 2.0 * scaled)
+
     def _reionization_excess_xe(z_reion_value: float) -> numpy.ndarray:
         """Return the extra electron fraction from reionization."""
 
-        hydrogen_reionization = 0.5 * (
-            1.0
-            + numpy.tanh(
-                (z_reion_value - z_grid) / reionization_width,
-            )
+        hydrogen_reionization = _smooth_transition(z_grid, z_reion_value)
+        helium_reionization = numpy.clip(
+            (helium_reionization_z - z_grid) / helium_reionization_width + 0.5,
+            0.0,
+            1.0,
         )
-        helium_double_reionization = 0.5 * (
-            1.0
-            + numpy.tanh(
-                (helium_reionization_z - z_grid) / helium_reionization_width,
-            )
+        helium_reionization = (
+            helium_reionization
+            * helium_reionization
+            * (3.0 - 2.0 * helium_reionization)
         )
         return hydrogen_reionization * (1.0 + helium_number_ratio) + (
-            helium_double_reionization * helium_number_ratio
+            helium_reionization * helium_number_ratio
         )
 
     def _reionization_tau(z_reion_value: float) -> float:
@@ -1581,11 +1699,15 @@ def _build_custom_cmb_background(
                     maxiter=128,
                 )
             )
+        reionization_xe_grid = _reionization_excess_xe(z_reion)
+        reionization_tau = float(_reionization_tau(z_reion))
     else:
         z_reion = 0.5
+        reionization_xe_grid = numpy.zeros_like(z_grid, dtype=float)
+        reionization_tau = 0.0
 
     x_e_grid = numpy.clip(
-        x_e_h_grid + helium_electron_grid + _reionization_excess_xe(z_reion),
+        x_e_recomb_grid + reionization_xe_grid,
         1.0e-8,
         4.0,
     )
@@ -1653,6 +1775,7 @@ def _build_custom_cmb_background(
         visibility_grid,
         extrapolate=True,
     )
+    x_e_of_eta = PchipInterpolator(eta_grid, x_e_grid, extrapolate=True)
     sound_speed_of_eta = PchipInterpolator(
         eta_grid,
         sound_speed_grid,
@@ -1671,10 +1794,13 @@ def _build_custom_cmb_background(
         tau_grid=tau_grid,
         tau_dot_grid=tau_dot_grid,
         visibility_grid=visibility_grid,
+        x_e_grid=x_e_grid,
         n_e_grid=n_e_grid,
         n_H_grid=n_H_grid,
         sound_speed_grid=sound_speed_grid,
         sound_horizon_mpc=sound_horizon_mpc,
+        reionization_z=float(z_reion),
+        reionization_tau=float(reionization_tau),
         eta_rec=eta_rec,
         a_rec=a_rec_value,
         z_rec=peak_z,
@@ -1687,6 +1813,7 @@ def _build_custom_cmb_background(
         tau_of_eta=tau_of_eta,
         tau_dot_of_eta=tau_dot_of_eta,
         visibility_of_eta=visibility_of_eta,
+        x_e_of_eta=x_e_of_eta,
         sound_speed_of_eta=sound_speed_of_eta,
     )
     _CUSTOM_CMB_BACKGROUND_RESULTS[cache_key] = background_data
