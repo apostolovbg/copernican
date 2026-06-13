@@ -80,6 +80,37 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-13:
+  Change: Completed Slice 1 declared CMB graph execution by fixing
+    recombination validation, start-boundary seeding, projection
+    contracts, and declared-source runtime coverage.
+  Why: Removed the remaining runtime and contract gaps that kept the
+    universal non-standard CMB path from behaving like a real declared
+    solver surface.
+  Impact: Enabled Slice 1 to validate TT/TE/EE/BB/lensing declared
+    graphs end-to-end with graph-native execution, physical
+    recombination checks, and passing functional coverage.
+  Files:
+    CHANGELOG.md
+    ABOUT.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/docs/model_template.yml
+    copernican/docs/run_manifest.md
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    docs/api_overview.md
+    docs/design_overview.md
+    docs/model_template.yml
+    docs/run_manifest.md
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-13:
   Change: Replaced the declared CMB contract surface with graph-native
     perturbation execution and aligned the manifest, docs, and focused
     tests.

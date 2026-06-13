@@ -43,9 +43,9 @@ when output directories change.
   treated as statistically separate when building the joint posterior.
 - CMB adapter metadata summarising the backend contract plus the perturbation
   contract summary, including the contract version, gauge, standard flag,
-  declared symbol names, source channels, equation/closure/source counts,
-  transfer-path summary and backend mapping details for each CMB-capable
-  model.
+  declared symbol names, source and observable names, equation,
+  constraint, closure, and source counts, transfer-path summary, and
+  backend mapping details for each CMB-capable model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
   burn-in, production steps, pool/core hints and nested-sampling parameters
   stay tied to the manifest that produced a run.

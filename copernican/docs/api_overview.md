@@ -50,9 +50,9 @@ directly without using the command-line interface.  The core modules are:
   layers. The helpers expose SNe chi-squared evaluations that always return
   finite values for physically meaningful proposals so MCMC reseeding can fall
   back to them reliably. Structured CMB contracts are required in the
-  production path. `standard: false` contracts route to the generic physical
-  scalar engine, while unsupported custom sectors or solver keys raise clear
-  errors instead of falling back to a toy spectrum. The explicit legacy helper
+  production path. `standard: false` contracts route to the declared-math
+  graph engine, while unsupported or incomplete graphs raise clear errors
+  instead of falling back to a toy spectrum. The explicit legacy helper
   remains reserved for tests.
   - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -97,11 +97,13 @@ domains, and numerical requirements without a solver-family selector.
 Declared equations, constraints, closures, sources, and conditions may
 reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
 `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
-`sound_speed_sq`, `collision_rate`, `free_streaming`, `Phi`, and `Psi`,
-plus any solved or derived graph quantity and the safe math functions
-already exposed by the evaluator. Unsupported symbols, missing initial
-conditions, missing observables, or incompatible gauges raise
-`ValueError` exceptions before the engine can produce a spectrum.
+`sound_speed_sq`, `collision_rate`, `free_streaming`,
+`tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus any
+solved or derived graph quantity and the safe math functions already
+exposed by the evaluator. Unsupported symbols, missing initial conditions,
+missing observables, incompatible gauges, or incompatible projection
+source-role bindings raise `ValueError` exceptions before the engine can
+produce a spectrum.
 
 Observable declarations choose the projection kernel and bind the named
 source terms that feed each transfer component or angular spectrum. The

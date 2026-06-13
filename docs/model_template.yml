@@ -285,6 +285,16 @@ notes: |
   * The `Hz_expression` and `rs_expression` examples show how to reference
     every parameter you defined. If you need a new parameter, add it to the
     `parameters` list first and give it the same metadata everywhere else.
+  * Non-standard perturbation expressions can use the declared variables, the
+    background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
+    `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
+    `sound_speed_sq`, `collision_rate`, `free_streaming`,
+    `tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus the
+    safe math functions already exposed by the validator.
+  * Transfer components bind named source terms through declared observable
+    mappings. Match the source-term roles required by the chosen projection,
+    for example `monopole` for `cmb_temperature_scalar` or `polarization` for
+    `cmb_polarization_e_scalar`.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

@@ -52,7 +52,7 @@ described throughout this document.
   ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
   unavailable the code falls back to a conservative Gelman–Rubin summary while
   logging the downgrade. Standard CMB contracts keep using CAMB, while
-  `standard: false` contracts use the generic physical scalar engine in
+  `standard: false` contracts use the declared-math graph engine in
   `copernican/lib/likelihoods/cmb.py`. Nested sampling and ensemble MCMC both
   rely on the shared Stage 2 helper so the counter lines and listener events
   stay consistent regardless of backend.
@@ -107,8 +107,9 @@ described throughout this document.
   engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
   distance, baryon and photon densities, relativistic neutrino density, the
   baryon-photon sound speed, and the sound horizon.
-* Recombination uses a Peebles-style hydrogen approximation with a simple
-  helium ionization history. The background tables expose `x_e(z)`, `n_e(z)`,
+* Recombination uses a Peebles-style hydrogen ODE with detailed-balance
+  photoionization, equilibrium helium ionization, and tau-matched
+  reionization. The background tables expose `x_e(z)`, `n_e(z)`,
   optical depth `tau(eta)`, `tau_dot`, and the visibility function
   `g(eta) = -tau_dot * exp(-tau)`.
 * Perturbations evolve whichever declared variables expose differential
@@ -117,8 +118,9 @@ described throughout this document.
 * Declared equations, constraints, closures, sources, and conditions may
   reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
   `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
-  `sound_speed_sq`, `collision_rate`, `free_streaming`, `Phi`, and `Psi`,
-  plus any solved or derived graph quantity.
+  `sound_speed_sq`, `collision_rate`, `free_streaming`,
+  `tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus any
+  solved or derived graph quantity.
   variables, and the safe math functions already exposed by the expression
   evaluator. Unsupported symbols and incompatible gauges fail fast during
   validation or step evaluation instead of falling back to a decorative
@@ -129,9 +131,10 @@ described throughout this document.
   and the polarization quadrupole projection used for E modes.
 * The spectra are built from the primordial power law
   `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
-  `TE`, and `EE`. The custom path keeps the numerical settings explicit and
-  rejects unsupported custom sectors, missing declared equations, and
-  theory-specific solver keys before any spectrum is produced.
+  `TE`, `EE`, and any declared `BB`, lensing-potential, or custom transfer
+  target. The custom path keeps the numerical settings explicit and rejects
+  unsupported custom sectors, missing declared equations, and theory-specific
+  solver keys before any spectrum is produced.
 
 ## Stage-by-stage flow
 

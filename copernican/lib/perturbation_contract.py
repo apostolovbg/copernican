@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Mapping, Sequence
 
+from .cmb_projection_contract import validate_declared_projection_source_roles
 from .engine_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
@@ -44,6 +45,8 @@ _RUNTIME_REFERENCE_NAMES = {
     "sound_horizon",
     "sound_speed",
     "sound_speed_sq",
+    "tight_coupling_drag",
+    "tight_coupling_ratio",
 }
 
 _SUPPORTED_PERTURBATION_KEYS = {
@@ -127,6 +130,7 @@ _SUPPORTED_OBSERVABLE_KEYS = {
     "source_terms",
 }
 _SUPPORTED_CONDITION_KEYS = {
+    "anchor",
     "dependencies",
     "description",
     "domain",
@@ -148,6 +152,7 @@ _SUPPORTED_GAUGES = {
     "synchronous",
     "unspecified",
 }
+_SUPPORTED_CONDITION_ANCHORS = {"end", "start"}
 _SUPPORTED_OBSERVABLE_KINDS = {
     "angular_power_spectrum",
     "transfer_component",
@@ -298,6 +303,7 @@ class PerturbationConditionData:
     name: str
     target: PerturbationConditionTargetData
     expression: str
+    anchor: str = "start"
     description: str | None = None
     notes: str | None = None
     domain: str | None = None
@@ -1348,6 +1354,11 @@ def compile_perturbation_contract(
                     f"Perturbation observable '{name}' must declare "
                     "projection"
                 )
+            validate_declared_projection_source_roles(
+                str(projection),
+                observable_name=name,
+                source_roles=set(source_term_refs),
+            )
             transfer_component_names.add(name)
         else:
             if primary is None or secondary is None:
@@ -1400,6 +1411,7 @@ def compile_perturbation_contract(
         condition_defs: Mapping[str, Any],
         *,
         label_prefix: str,
+        default_anchor: str,
     ) -> dict[str, PerturbationConditionData]:
         """Compile initial or boundary-condition mappings into typed data."""
 
@@ -1472,6 +1484,18 @@ def compile_perturbation_contract(
                 )
                 | {entry_name for entry_name in variable_entries},
             )
+            anchor_name = str(
+                _validate_optional_string(
+                    condition_def.get("anchor"),
+                    label=f"{label_prefix}.{name}.anchor",
+                )
+                or default_anchor
+            )
+            if anchor_name not in _SUPPORTED_CONDITION_ANCHORS:
+                raise ValueError(
+                    f"Perturbation condition '{name}' uses unsupported "
+                    f"anchor '{anchor_name}'"
+                )
             compiled[name] = PerturbationConditionData(
                 name=name,
                 target=PerturbationConditionTargetData(
@@ -1480,6 +1504,7 @@ def compile_perturbation_contract(
                     order=order_value,
                 ),
                 expression=expression_text,
+                anchor=anchor_name,
                 description=_validate_optional_string(
                     condition_def.get("description"),
                     label=f"{label_prefix}.{name}.description",
@@ -1500,10 +1525,12 @@ def compile_perturbation_contract(
     initial_condition_entries = _compile_conditions(
         sections["initial_conditions"],
         label_prefix="cmb.perturbations.initial_conditions",
+        default_anchor="start",
     )
     boundary_condition_entries = _compile_conditions(
         sections["boundary_conditions"],
         label_prefix="cmb.perturbations.boundary_conditions",
+        default_anchor="start",
     )
 
     if standard:
@@ -1581,9 +1608,14 @@ def compile_perturbation_contract(
             equation_orders.get(key, 0),
             entry.lhs.order,
         )
+    relation_target_names = set(
+        _relation_target_nodes(constraint_entries, closure_entries)
+    )
     for key, required_order in derivative_symbol_orders.items():
         if key not in equation_orders:
             variable_name, wrt_name = key
+            if variable_name in relation_target_names:
+                continue
             raise ValueError(
                 "Derivative symbol requires an evolved variable: "
                 f"{variable_name} wrt {wrt_name}"
@@ -1612,8 +1644,31 @@ def compile_perturbation_contract(
         )
         for condition_entry in initial_condition_entries.values()
     }
+    declared_start_boundary_targets = {
+        (
+            condition_entry.target.variable,
+            condition_entry.target.wrt,
+            condition_entry.target.order,
+        )
+        for condition_entry in boundary_condition_entries.values()
+        if condition_entry.anchor == "start"
+    }
+    duplicate_start_targets = sorted(
+        declared_initial_targets & declared_start_boundary_targets
+    )
+    if duplicate_start_targets:
+        readable = ", ".join(
+            f"{variable} wrt {wrt} order {order}"
+            for variable, wrt, order in duplicate_start_targets
+        )
+        raise ValueError(
+            "Initial conditions and start-anchored boundary conditions "
+            f"duplicate targets: {readable}"
+        )
     missing_initial_targets = sorted(
-        required_initial_targets - declared_initial_targets
+        required_initial_targets
+        - declared_initial_targets
+        - declared_start_boundary_targets
     )
     if missing_initial_targets:
         readable = ", ".join(

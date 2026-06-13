@@ -450,6 +450,83 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_unsupported_projection_fails_during_compilation(self) -> None:
+        """Transfer projections should be validated before runtime."""
+
+        contract = _base_nonstandard_contract()
+        temperature_observable = contract["observables"]["temperature"]
+        temperature_observable["projection"] = "bogus_projection"
+
+        with self.assertRaisesRegex(ValueError, "unsupported projection"):
+            self._compile(contract)
+
+    def test_projection_source_role_mismatch_fails(self) -> None:
+        """Projection source-role requirements should fail clearly."""
+
+        contract = _base_nonstandard_contract()
+        contract["observables"]["polarization_e"]["source_terms"] = {
+            "signal": "polarization_source"
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires one of the source-term roles",
+        ):
+            self._compile(contract)
+
+    def test_relation_target_derivative_symbols_compile(self) -> None:
+        """Derivative symbols may target algebraic relation outputs."""
+
+        contract = _base_nonstandard_contract()
+        contract["derived"]["phi_tau"] = {
+            "kind": "derivative_symbol",
+            "variable": "phi_aux",
+            "wrt": "tau",
+            "order": 1,
+        }
+        monopole_source = contract["sources"]["monopole_source"]
+        monopole_source["expression"] = (
+            "visibility * (density_drive + phi_tau)"
+        )
+
+        contract_data = self._compile(contract)
+
+        self.assertIn("phi_tau", contract_data.derived)
+
+    def test_start_boundary_conditions_satisfy_missing_initial_data(
+        self,
+    ) -> None:
+        """Start boundary conditions may provide native-solver seed data."""
+
+        contract = _base_nonstandard_contract()
+        theta_seed = contract["initial_conditions"].pop("theta_seed")
+        theta_seed["anchor"] = "start"
+        contract["boundary_conditions"]["theta_start"] = theta_seed
+
+        contract_data = self._compile(contract)
+
+        self.assertIn("theta_start", contract_data.boundary_conditions)
+
+    def test_duplicate_start_boundary_target_fails(self) -> None:
+        """Initial and start-boundary conditions may not target one slot."""
+
+        contract = _base_nonstandard_contract()
+        contract["boundary_conditions"]["delta_again"] = {
+            "target": {
+                "variable": "delta_x",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "seed",
+            "anchor": "start",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "duplicate targets",
+        ):
+            self._compile(contract)
+
     def test_perturbation_dataclasses_are_constructible(self) -> None:
         """The typed perturbation objects should be individually usable."""
 
@@ -555,6 +632,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(observable_data.projection, "cmb_temperature_scalar")
         self.assertIsInstance(observable_data, PerturbationObservableData)
         self.assertEqual(condition_data.target.variable, "delta_x")
+        self.assertEqual(condition_data.anchor, "start")
         self.assertIsInstance(target_data, PerturbationConditionTargetData)
         self.assertIsInstance(condition_data, PerturbationConditionData)
         self.assertEqual(validity_data.regimes, ("linear", "synthetic"))

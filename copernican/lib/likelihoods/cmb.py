@@ -6,8 +6,8 @@ parameters, declared grids, evaluated values and ordered backend calls stay
 aligned across the spectrum and background paths. The spectra returned here
 are expressed as :math:`D_\ell` so downstream tests comparing against
 published Planck-lite tables use consistent conventions. Non-standard
-perturbation contracts route through the generic scalar CMB engine in this
-module instead of falling back to CAMB.
+perturbation contracts route through the declared-math CMB graph engine in
+this module instead of falling back to CAMB.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq
 from scipy.special import spherical_jn
 
+from ..cmb_projection_contract import SUPPORTED_DECLARED_TRANSFER_PROJECTIONS
 from ..engine_adapter import (
     _SUPPORTED_CMB_BACKEND,
     FrozenMapping,
@@ -44,6 +45,7 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
+_SUPPORTED_NATIVE_GRAPH_GAUGES = {"conformal_newtonian", "unspecified"}
 
 
 def _normalise_value(entry_value: Any) -> Any:
@@ -583,7 +585,7 @@ def _build_generic_background_payload_from_contract(
 
 @dataclass(slots=True)
 class _CustomCMBNumerics:
-    """Numerical settings used by the generic scalar CMB engine."""
+    """Numerical settings used by the declared-graph CMB engine."""
 
     ell_min: int = 2
     ell_max: int = 2500
@@ -603,7 +605,7 @@ class _CustomCMBNumerics:
 
 @dataclass(slots=True)
 class _CustomCMBPhysicalParameters:
-    """Resolved physical background inputs for the generic CMB solver."""
+    """Resolved physical background inputs for the native CMB solver."""
 
     H0_km_s_Mpc: float
     hubble_ratio: float
@@ -1329,7 +1331,7 @@ def _build_custom_cmb_background(
         """Return the case-B hydrogen recombination coefficient in m^3/s."""
 
         temperature_10k_ratio = max(temperature_k / 1.0e4, 1.0e-4)
-        numerator = 1.14 * 4.309e-19 * temperature_10k_ratio**-0.6166
+        numerator = 4.309e-19 * temperature_10k_ratio**-0.6166
         denominator = 1.0 + 0.6703 * temperature_10k_ratio**0.5300
         return numerator / denominator
 
@@ -1376,67 +1378,203 @@ def _build_custom_cmb_background(
             total_fraction = 0.5 * (total_fraction + updated_fraction)
         return total_fraction, helium_fraction
 
-    # The hydrogen recombination history is modeled by a smooth physical
-    # transition centered on the standard visibility epoch and bounded by
-    # a residual freeze-out floor derived from the local expansion and
-    # recombination rates.
-    ombh2 = max(physical_params.ombh2, 1.0e-12)
-    ommh2 = max(
-        physical_params.hubble_ratio**2 * physical_params.Omega_m0_background,
-        1.0e-12,
+    hydrogen_ground_state_energy_j = 13.605_693_122_994
+    hydrogen_ground_state_energy_j *= 1.602_176_634e-19
+    hydrogen_n2_binding_energy_j = 0.25 * hydrogen_ground_state_energy_j
+    lyman_alpha_energy_j = (
+        hydrogen_ground_state_energy_j - hydrogen_n2_binding_energy_j
     )
-    recombination_g1 = 0.0783 * ombh2 ** (-0.2380)
-    recombination_g1 /= 1.0 + 39.5 * ombh2**0.763
-    recombination_g2 = 0.560 / (1.0 + 21.1 * ombh2**1.81)
-    recombination_center_z = 1048.0
-    recombination_center_z *= 1.0 + 0.00124 * ombh2 ** (-0.738)
-    recombination_center_z *= 1.0 + recombination_g1 * ommh2**recombination_g2
-    recombination_center_z *= 1.13
-    transition_half_width_z = max(42.0, 0.065 * recombination_center_z)
-    transition_argument = (
-        recombination_center_z - z_grid
-    ) / transition_half_width_z
-    hydrogen_transition_grid = 1.0 / (
-        1.0 + numpy.exp(numpy.clip(transition_argument, -700.0, 700.0))
-    )
-    temperature_grid = physical_params.Tcmb_K * (1.0 + z_grid)
-    hydrogen_alpha_grid = numpy.asarray(
-        [
-            _hydrogen_alpha_coefficient(float(temperature_k))
-            for temperature_k in temperature_grid
-        ],
-        dtype=float,
-    )
+    lambda_alpha_m = planck_j_s * 299_792_458.0 / lyman_alpha_energy_j
+    hydrogen_two_photon_decay_rate = 8.22458
     hydrogen_rate_grid = H_grid * 1000.0 / MPC_M
-    hydrogen_freezeout_grid = numpy.sqrt(
-        numpy.maximum(
-            hydrogen_rate_grid
-            / numpy.maximum(hydrogen_alpha_grid * n_H_grid, 1.0e-30),
-            0.0,
-        )
-    )
-    hydrogen_freezeout_grid = numpy.clip(
-        hydrogen_freezeout_grid,
-        1.0e-5,
-        1.0e-4,
-    )
-    x_h_grid = (
-        hydrogen_freezeout_grid
-        + (1.0 - hydrogen_freezeout_grid) * hydrogen_transition_grid
-    )
 
-    x_e_recomb_grid = numpy.empty_like(z_grid, dtype=float)
+    def _hydrogen_saha_fraction(
+        z_value: float,
+        helium_fraction: float,
+        n_h_value: float,
+    ) -> float:
+        """Return the Saha hydrogen ionization fraction at ``z_value``."""
+
+        temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
+        saha_ratio = _saha_ratio(
+            temperature_k,
+            hydrogen_ground_state_energy_j,
+            1.0,
+        ) / max(n_h_value, 1.0e-30)
+        coefficient_b = helium_fraction + saha_ratio
+        discriminant = coefficient_b * coefficient_b + 4.0 * saha_ratio
+        return float(
+            numpy.clip(
+                0.5 * (-coefficient_b + math.sqrt(max(discriminant, 0.0))),
+                1.0e-8,
+                1.0,
+            )
+        )
+
+    def _hydrogen_recombination_da(
+        a_value: float,
+        hydrogen_fraction: float,
+        *,
+        a_left: float,
+        a_right: float,
+        z_left: float,
+        z_right: float,
+        n_h_left: float,
+        n_h_right: float,
+        rate_left: float,
+        rate_right: float,
+    ) -> float:
+        """Return the Peebles hydrogen derivative with respect to ``a``."""
+
+        interval = max(a_right - a_left, 1.0e-30)
+        blend = numpy.clip((a_value - a_left) / interval, 0.0, 1.0)
+        z_value = float((1.0 - blend) * z_left + blend * z_right)
+        n_h_value = float((1.0 - blend) * n_h_left + blend * n_h_right)
+        hubble_rate = float((1.0 - blend) * rate_left + blend * rate_right)
+        temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
+        alpha_b = _hydrogen_alpha_coefficient(temperature_k)
+        beta_continuum = alpha_b * _saha_ratio(
+            temperature_k,
+            hydrogen_ground_state_energy_j,
+            1.0,
+        )
+        beta_2 = alpha_b * _saha_ratio(
+            temperature_k,
+            hydrogen_n2_binding_energy_j,
+            1.0,
+        )
+        _, helium_fraction = _helium_electron_fraction(
+            z_value,
+            float(numpy.clip(hydrogen_fraction, 1.0e-8, 1.0)),
+            n_h_value,
+        )
+        neutral_fraction = max(1.0 - hydrogen_fraction, 1.0e-12)
+        peebles_k = lambda_alpha_m**3 / (
+            8.0 * math.pi * max(hubble_rate, 1.0e-30)
+        )
+        peebles_c = (
+            1.0
+            + peebles_k
+            * hydrogen_two_photon_decay_rate
+            * n_h_value
+            * neutral_fraction
+        ) / (
+            1.0
+            + peebles_k
+            * (hydrogen_two_photon_decay_rate + beta_2)
+            * n_h_value
+            * neutral_fraction
+        )
+        del helium_fraction
+        dx_dt = peebles_c * (
+            beta_continuum * neutral_fraction
+            - n_h_value * alpha_b * hydrogen_fraction * hydrogen_fraction
+        )
+        return dx_dt / max(a_value * hubble_rate, 1.0e-30)
+
+    x_h_grid = numpy.empty_like(z_grid, dtype=float)
     helium_electron_grid = numpy.empty_like(z_grid, dtype=float)
-    for index, (z_value, hydrogen_fraction, n_h_value) in enumerate(
-        zip(z_grid, x_h_grid, n_H_grid, strict=True)
+    x_e_recomb_grid = numpy.empty_like(z_grid, dtype=float)
+    hydrogen_fraction = 1.0
+    saha_mode = True
+    for index, (
+        a_value,
+        z_value,
+        n_h_value,
+        hubble_rate,
+    ) in enumerate(
+        zip(a_grid, z_grid, n_H_grid, hydrogen_rate_grid, strict=True)
     ):
-        total_fraction, helium_fraction = _helium_electron_fraction(
+        hydrogen_fraction = float(numpy.clip(hydrogen_fraction, 1.0e-8, 1.0))
+        _, helium_fraction_guess = _helium_electron_fraction(
             float(z_value),
-            float(hydrogen_fraction),
+            hydrogen_fraction,
             float(n_h_value),
         )
-        x_e_recomb_grid[index] = total_fraction
+        hydrogen_saha = _hydrogen_saha_fraction(
+            float(z_value),
+            float(helium_fraction_guess),
+            float(n_h_value),
+        )
+        if index == 0 or (saha_mode and hydrogen_saha >= 0.99):
+            hydrogen_fraction = hydrogen_saha
+        else:
+            saha_mode = False
+            a_left = float(a_grid[index - 1])
+            a_right = float(a_value)
+            step = a_right - a_left
+            if step > 0.0:
+                prev_hydrogen_fraction = float(x_h_grid[index - 1])
+                slope_start = _hydrogen_recombination_da(
+                    a_left,
+                    prev_hydrogen_fraction,
+                    a_left=a_left,
+                    a_right=a_right,
+                    z_left=float(z_grid[index - 1]),
+                    z_right=float(z_value),
+                    n_h_left=float(n_H_grid[index - 1]),
+                    n_h_right=float(n_h_value),
+                    rate_left=float(hydrogen_rate_grid[index - 1]),
+                    rate_right=float(hubble_rate),
+                )
+                midpoint_a = a_left + 0.5 * step
+                slope_mid_a = _hydrogen_recombination_da(
+                    midpoint_a,
+                    prev_hydrogen_fraction + 0.5 * step * slope_start,
+                    a_left=a_left,
+                    a_right=a_right,
+                    z_left=float(z_grid[index - 1]),
+                    z_right=float(z_value),
+                    n_h_left=float(n_H_grid[index - 1]),
+                    n_h_right=float(n_h_value),
+                    rate_left=float(hydrogen_rate_grid[index - 1]),
+                    rate_right=float(hubble_rate),
+                )
+                slope_mid_b = _hydrogen_recombination_da(
+                    midpoint_a,
+                    prev_hydrogen_fraction + 0.5 * step * slope_mid_a,
+                    a_left=a_left,
+                    a_right=a_right,
+                    z_left=float(z_grid[index - 1]),
+                    z_right=float(z_value),
+                    n_h_left=float(n_H_grid[index - 1]),
+                    n_h_right=float(n_h_value),
+                    rate_left=float(hydrogen_rate_grid[index - 1]),
+                    rate_right=float(hubble_rate),
+                )
+                slope_end = _hydrogen_recombination_da(
+                    a_right,
+                    prev_hydrogen_fraction + step * slope_mid_b,
+                    a_left=a_left,
+                    a_right=a_right,
+                    z_left=float(z_grid[index - 1]),
+                    z_right=float(z_value),
+                    n_h_left=float(n_H_grid[index - 1]),
+                    n_h_right=float(n_h_value),
+                    rate_left=float(hydrogen_rate_grid[index - 1]),
+                    rate_right=float(hubble_rate),
+                )
+                hydrogen_fraction = prev_hydrogen_fraction + (step / 6.0) * (
+                    slope_start
+                    + 2.0 * slope_mid_a
+                    + 2.0 * slope_mid_b
+                    + slope_end
+                )
+            hydrogen_fraction = float(
+                numpy.clip(
+                    max(hydrogen_fraction, hydrogen_saha),
+                    1.0e-8,
+                    1.0,
+                )
+            )
+        total_fraction, helium_fraction = _helium_electron_fraction(
+            float(z_value),
+            hydrogen_fraction,
+            float(n_h_value),
+        )
+        x_h_grid[index] = hydrogen_fraction
         helium_electron_grid[index] = helium_fraction
+        x_e_recomb_grid[index] = total_fraction
 
     reionization_width = 1.0
     helium_reionization_z = 3.5
@@ -1624,15 +1762,6 @@ def _build_custom_cmb_background(
     return _get_cached_custom_cmb_background(cache_key)
 
 
-_SUPPORTED_DECLARED_TRANSFER_PROJECTIONS = {
-    "cmb_lensing_potential_scalar",
-    "cmb_polarization_e_scalar",
-    "cmb_temperature_scalar",
-    "scalar_e_mode",
-    "scalar_jl",
-    "scalar_jl_derivative",
-    "scalar_potential",
-}
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 
 
@@ -1662,11 +1791,19 @@ def _prepare_declared_graph_runtime_spec(
 ) -> _DeclaredGraphRuntimeSpec:
     """Return state-vector metadata for the declared graph contract."""
 
-    if perturbation_data.boundary_conditions:
+    if str(getattr(perturbation_data, "gauge", "")) not in (
+        _SUPPORTED_NATIVE_GRAPH_GAUGES
+    ):
         raise ValueError(
-            "Declared CMB graph boundary conditions are not yet supported "
-            "by the native solver."
+            "Declared CMB graph native execution requires "
+            "gauge='conformal_newtonian' or 'unspecified'."
         )
+    for entry in perturbation_data.boundary_conditions.values():
+        if str(getattr(entry, "anchor", "start")) != "start":
+            raise ValueError(
+                "Declared CMB graph native execution only supports "
+                "start-anchored boundary conditions."
+            )
 
     wrt_names = {
         str(entry.lhs.wrt) for entry in perturbation_data.equations.values()
@@ -1725,9 +1862,9 @@ def _declared_runtime_seed(
 ) -> float:
     """Return the default scale for declared-graph initial conditions."""
 
-    return 1.0e-5 / (
-        1.0 + (k_value / max(physical_params.hubble_ratio, 1.0e-6)) ** 2
-    )
+    del k_value
+    del physical_params
+    return 1.0e-5
 
 
 def _build_declared_base_context(
@@ -1741,6 +1878,11 @@ def _build_declared_base_context(
 ) -> dict[str, Any]:
     """Return scalar runtime values shared by equations and conditions."""
 
+    tight_coupling_drag = _compute_tight_coupling_drag(
+        collision_rate=float(background_scalars["collision_rate"]),
+        k_value=float(k_value),
+        tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+    )
     context: dict[str, Any] = dict(model_parameters)
     context.update(background_scalars)
     context["k"] = float(k_value)
@@ -1762,14 +1904,37 @@ def _build_declared_base_context(
     context["sound_speed_sq"] = float(background_scalars["sound_speed_sq"])
     context["collision_rate"] = float(background_scalars["collision_rate"])
     context["free_streaming"] = float(background_scalars["free_streaming"])
+    context["tight_coupling_drag"] = float(tight_coupling_drag)
     context["tight_coupling_ratio"] = float(numerics.tight_coupling_ratio)
     return context
+
+
+def _compute_tight_coupling_drag(
+    *,
+    collision_rate: float | numpy.ndarray,
+    k_value: float,
+    tight_coupling_ratio: float,
+) -> float | numpy.ndarray:
+    """Return the capped collision rate used by declared CMB graphs."""
+
+    tight_coupling_cap = max(
+        float(k_value) * float(tight_coupling_ratio),
+        1.0e-12,
+    )
+    collision_rate_array = numpy.asarray(collision_rate, dtype=float)
+    drag = collision_rate_array / (
+        1.0 + collision_rate_array / tight_coupling_cap
+    )
+    if drag.ndim == 0:
+        return float(drag)
+    return drag
 
 
 def _resolve_declared_graph_context(
     context: dict[str, Any],
     perturbation_data: Any,
     *,
+    allow_partial: bool = False,
     eta_grid: numpy.ndarray | None,
     runtime_spec: _DeclaredGraphRuntimeSpec | None,
 ) -> dict[str, Any]:
@@ -1861,6 +2026,8 @@ def _resolve_declared_graph_context(
             progress = True
 
         if not progress:
+            if allow_partial:
+                return context
             pending_names = sorted(
                 list(unresolved_derivatives)
                 + list(unresolved_expressions)
@@ -1871,7 +2038,7 @@ def _resolve_declared_graph_context(
                 "Declared CMB graph references unresolved symbol(s): "
                 f"{pending_str}"
             )
-        return context
+    return context
 
 
 def _evaluate_declared_initial_state(
@@ -1885,7 +2052,12 @@ def _evaluate_declared_initial_state(
     state_vector = numpy.zeros(len(runtime_spec.state_slots), dtype=float)
     context = dict(base_context)
     condition_entries = sorted(
-        perturbation_data.initial_conditions.values(),
+        tuple(perturbation_data.initial_conditions.values())
+        + tuple(
+            entry
+            for entry in perturbation_data.boundary_conditions.values()
+            if str(getattr(entry, "anchor", "start")) == "start"
+        ),
         key=lambda entry: (
             str(entry.target.variable),
             str(entry.target.wrt),
@@ -1908,7 +2080,7 @@ def _evaluate_declared_initial_state(
                 continue
             value = _coerce_numeric_scalar(
                 _evaluate_safe_expression(str(entry.expression), context),
-                name=f"initial condition '{entry.name}'",
+                name=f"condition '{entry.name}'",
             )
             state_index = runtime_spec.state_index_by_key[
                 (
@@ -1931,7 +2103,7 @@ def _evaluate_declared_initial_state(
         if not progress and next_round:
             pending_names = ", ".join(entry.name for entry in next_round)
             raise ValueError(
-                "Declared CMB initial conditions could not be resolved: "
+                "Declared CMB start conditions could not be resolved: "
                 f"{pending_names}"
             )
         pending = next_round
@@ -1953,6 +2125,26 @@ def _declared_graph_projection(
         int(ell_value),
         x_signature,
     )
+    prefactor = 0.0
+    if ell_value >= 2:
+        prefactor = math.exp(
+            0.5
+            * (
+                math.lgamma(int(ell_value) + 3)
+                - math.lgamma(int(ell_value) - 1)
+            )
+        )
+    inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
+    inverse_x_sq = inverse_x * inverse_x
+    e_kernel = numpy.zeros_like(j_l, dtype=float)
+    b_kernel = numpy.zeros_like(j_l, dtype=float)
+    if ell_value >= 2:
+        e_kernel = prefactor * j_l * inverse_x_sq
+        # B-mode transfer kernels must differ from the E-mode kernel so the
+        # graph can only produce BB when it declares a dedicated odd-parity
+        # source history.
+        b_kernel = prefactor * j_l_derivative * inverse_x
+
     if projection == "cmb_temperature_scalar":
         source = numpy.zeros_like(eta_grid, dtype=float)
         if "monopole" in source_histories:
@@ -1965,20 +2157,6 @@ def _declared_graph_projection(
             source += source_histories["additive"] * j_l
         return float(numpy.trapz(source, eta_grid))
     if projection == "cmb_polarization_e_scalar":
-        prefactor = 0.0
-        if ell_value >= 2:
-            prefactor = math.exp(
-                0.5
-                * (
-                    math.lgamma(int(ell_value) + 3)
-                    - math.lgamma(int(ell_value) - 1)
-                )
-            )
-        e_kernel = numpy.zeros_like(j_l, dtype=float)
-        if ell_value >= 2:
-            e_kernel = (
-                prefactor * j_l / numpy.maximum(x_values * x_values, 1.0e-12)
-            )
         source = source_histories.get("polarization")
         if source is None:
             raise ValueError(
@@ -2000,28 +2178,30 @@ def _declared_graph_projection(
         return float(
             numpy.trapz(source_histories["signal"] * j_l_derivative, eta_grid)
         )
-    if projection == "scalar_e_mode":
-        if "signal" not in source_histories:
+    if projection in {"scalar_e_mode", "spin2_e_mode"}:
+        if "signal" in source_histories:
+            source = source_histories["signal"]
+        elif "polarization" in source_histories:
+            source = source_histories["polarization"]
+        else:
             raise ValueError(
-                "scalar_e_mode projection requires a 'signal' source term."
+                f"{projection} projection requires a 'signal' or "
+                "'polarization' source term."
             )
-        prefactor = 0.0
-        if ell_value >= 2:
-            prefactor = math.exp(
-                0.5
-                * (
-                    math.lgamma(int(ell_value) + 3)
-                    - math.lgamma(int(ell_value) - 1)
-                )
+        return float(numpy.trapz(source * e_kernel, eta_grid))
+    if projection == "spin2_b_mode":
+        if "polarization_b" in source_histories:
+            source = source_histories["polarization_b"]
+        elif "polarization" in source_histories:
+            source = source_histories["polarization"]
+        elif "signal" in source_histories:
+            source = source_histories["signal"]
+        else:
+            raise ValueError(
+                "spin2_b_mode projection requires a 'polarization_b', "
+                "'polarization', or 'signal' source term."
             )
-        e_kernel = numpy.zeros_like(j_l, dtype=float)
-        if ell_value >= 2:
-            e_kernel = (
-                prefactor * j_l / numpy.maximum(x_values * x_values, 1.0e-12)
-            )
-        return float(
-            numpy.trapz(source_histories["signal"] * e_kernel, eta_grid)
-        )
+        return float(numpy.trapz(source * b_kernel, eta_grid))
     if projection in {
         "cmb_lensing_potential_scalar",
         "scalar_potential",
@@ -2037,6 +2217,11 @@ def _declared_graph_projection(
             )
         kernel = j_l / numpy.maximum(x_values * x_values, 1.0e-12)
         return float(numpy.trapz(signal * kernel, eta_grid))
+    if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
+        raise ValueError(
+            "Declared observable projection dispatch is incomplete for "
+            f"'{projection}'"
+        )
     raise ValueError(
         "Declared observable requests unsupported projection "
         f"'{projection}'"
@@ -2084,26 +2269,27 @@ def _compute_custom_cmb_spectrum_data(
     if ell_arr.size == 0:
         raise ValueError("ells must not be empty")
 
-    eta_los_refinement = max(1, min(numerics.source_grid_multiplier, 2))
     a_initial = max(
         background.a_grid[0],
         1.0 / (max(numerics.initial_redshift, 1.0) + 1.0),
     )
     eta_start = float(background.eta_of_a(a_initial))
-    eta_los_grid = numpy.linspace(
-        eta_start,
-        float(background.eta_grid[-1]),
-        max(
-            128,
-            min(
-                background.eta_grid.size * eta_los_refinement,
-                512 * eta_los_refinement,
-            ),
-            min(numerics.eta_sample_count, 512) * eta_los_refinement,
-        ),
+    eta_los_grid = numpy.asarray(
+        background.eta_grid[background.eta_grid >= eta_start],
+        dtype=float,
     )
-    eta_los_grid = numpy.asarray(eta_los_grid, dtype=float)
-    eta_los_grid.sort()
+    eta_los_refinement = max(1, min(numerics.source_grid_multiplier, 2))
+    for _ in range(eta_los_refinement - 1):
+        midpoint_grid = 0.5 * (eta_los_grid[:-1] + eta_los_grid[1:])
+        eta_los_grid = numpy.unique(
+            numpy.concatenate((eta_los_grid, midpoint_grid))
+        )
+    if eta_los_grid.size < 128:
+        eta_los_grid = numpy.linspace(
+            eta_start,
+            float(background.eta_grid[-1]),
+            128,
+        )
     eta_los_background = background.sample(eta_los_grid)
     a_los_grid = numpy.asarray(eta_los_background["a"], dtype=float)
     z_los_grid = numpy.asarray(eta_los_background["z"], dtype=float)
@@ -2303,6 +2489,7 @@ def _compute_custom_cmb_spectrum_data(
         return _resolve_declared_graph_context(
             context,
             perturbation_data,
+            allow_partial=True,
             eta_grid=None,
             runtime_spec=runtime_spec,
         )
@@ -2332,6 +2519,11 @@ def _compute_custom_cmb_spectrum_data(
             "sound_speed_sq": sound_speed_sq_grid,
             "collision_rate": collision_rate_grid,
             "free_streaming": free_streaming_grid,
+            "tight_coupling_drag": _compute_tight_coupling_drag(
+                collision_rate=collision_rate_grid,
+                k_value=float(k_value),
+                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+            ),
             "sound_horizon": numpy.full_like(
                 eta_los_grid,
                 float(background.sound_horizon_mpc),
@@ -2395,6 +2587,7 @@ def _compute_custom_cmb_spectrum_data(
         return _resolve_declared_graph_context(
             context,
             perturbation_data,
+            allow_partial=False,
             eta_grid=eta_los_grid,
             runtime_spec=runtime_spec,
         )
@@ -2520,8 +2713,39 @@ def _compute_custom_cmb_spectrum_data(
         ) -> numpy.ndarray:
             """Advance one LOS interval with adaptive RK4 sub-stepping."""
 
+            _, start_scalars = _scalar_background_context(step_index, 0.0)
+            _, end_scalars = _scalar_background_context(step_index, 1.0)
+            start_drag = _compute_tight_coupling_drag(
+                collision_rate=float(start_scalars["collision_rate"]),
+                k_value=float(k_value),
+                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+            )
+            end_drag = _compute_tight_coupling_drag(
+                collision_rate=float(end_scalars["collision_rate"]),
+                k_value=float(k_value),
+                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+            )
+            stiffness_scale = max(
+                abs(float(k_value)),
+                abs(float(start_scalars["Hconf"])),
+                abs(float(end_scalars["Hconf"])),
+                abs(float(start_drag)),
+                abs(float(end_drag)),
+                1.0e-12,
+            )
+            target_stage_scale = 0.25
+            required_substeps = max(
+                1,
+                int(
+                    math.ceil(
+                        abs(float(dt)) * stiffness_scale / target_stage_scale
+                    )
+                ),
+            )
             substep_count = 1
-            max_substep_count = 128
+            while substep_count < required_substeps:
+                substep_count *= 2
+            max_substep_count = 512
             while substep_count <= max_substep_count:
                 trial_state = numpy.asarray(state_vector, dtype=float).copy()
                 sub_dt = dt / float(substep_count)

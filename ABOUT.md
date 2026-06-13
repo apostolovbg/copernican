@@ -41,9 +41,11 @@ projections fail loudly. The implementation lives in
 mode histories and Bessel projection for the requested line-of-sight window.
 The background helper also computes a physical recombination history,
 visibility function, optical-depth grid, and residual ionization curve
-before the transfer-function projection runs. The front-door README mirrors
-that summary so package readers see the same custom CMB surface from the
-repository root.
+before the transfer-function projection runs. Declared observables may now
+target TT, TE, EE, BB, lensing-potential, or custom transfer components when
+their required graph quantities and projection roles are present. The
+front-door README mirrors that summary so package readers see the same custom
+CMB surface from the repository root.
 
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`

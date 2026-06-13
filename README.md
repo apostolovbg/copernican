@@ -23,11 +23,12 @@ consult [AGENTS.md](AGENTS.md) and the DevCovenant policies before
 making any edits because the repository enforces its laws through
 pre-commit checks.
 
-The CMB surface now includes a generic `standard: false` scalar engine
-that evolves Newtonian-gauge perturbations per `k` mode across the
-line-of-sight grid, then builds transfer functions and spectra from the
-evolved histories with bounded `k` sampling and cached Bessel tables.
-The background path also computes a physical recombination history,
+The CMB surface now includes a declared-math graph engine for
+`standard: false` contracts. It evolves one Newtonian-gauge graph per
+`k` mode, applies algebraic constraints and closures inside that graph,
+and projects the declared observables into transfer functions and
+spectra with bounded `k` sampling and cached Bessel tables. The
+background path also computes a physical recombination history,
 visibility function, and optical-depth grid before the perturbation and
 line-of-sight steps run.
 
