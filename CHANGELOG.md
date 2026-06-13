@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-07
+**Last Updated:** 2026-06-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,16 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-13:
+  Change: Logged the gate-open verification session and recorded the
+    required changelog entry for this work.
+  Why: DevCovenant validated the gate-open snapshot and required a fresh
+    entry for the touched files.
+  Impact: Clears the changelog-coverage violation on the next verify run.
+  Files:
+    CHANGELOG.md
+    PLAN.md
 
 - 2026-06-07:
   Change: Aligned the custom CMB background with a physical recombination
