@@ -90,18 +90,18 @@ described throughout this document.
 
 ## Custom CMB Engine
 
-`standard: false` CMB contracts use the generic scalar engine in
+`standard: false` CMB contracts use the declared-math graph engine in
 `copernican/lib/likelihoods/cmb.py` and stay in Newtonian gauge.
 
-* `mapped_sector` mode keeps the contract declarative about the supported
-  physical sectors but lets Copernican advance those sectors with the built-in
-  scalar equations. `declared_equations` mode requires typed derivative
-  equations for every supported sector and uses those declared equations
-  instead of the built-in sector equations.
-* Source declarations choose an explicit channel:
-  `temperature_monopole`, `temperature_doppler`, `temperature_isw`,
-  `polarization`, or `temperature_additive`. The engine routes those channel
-  values into the corresponding line-of-sight source terms.
+* One immutable graph now carries variables, derived quantities,
+  differential equations, algebraic constraints, closures, source terms,
+  initial conditions, observable mappings, validity notes, and numerical
+  requirements. Variable metadata such as rank, spin, parity, tensor
+  character, gauge role, source role, and projection role stay attached to
+  graph nodes instead of selecting a solver family.
+* Source terms are declared as named graph expressions. Observable mappings
+  choose the projection kernel and bind the named source terms that feed
+  each transfer component or spectrum.
 * Background quantities come from the declared model expressions when they
   exist, otherwise from the physical defaults resolved by the helper. The
   engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
@@ -111,13 +111,14 @@ described throughout this document.
   helium ionization history. The background tables expose `x_e(z)`, `n_e(z)`,
   optical depth `tau(eta)`, `tau_dot`, and the visibility function
   `g(eta) = -tau_dot * exp(-tau)`.
-* Perturbations evolve photon temperature and polarization hierarchies,
-  baryons, CDM when physically declared, massless neutrinos, and the metric
-  potentials. The solver applies tight coupling before decoupling and uses a
-  documented truncation closure for the final hierarchy bins.
-* Declared equations, closures, and sources may reference the background
-  symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`, `visibility`, `k`,
-  `Phi`, and `Psi`, the mapped sector aliases for the supported scalar
+* Perturbations evolve whichever declared variables expose differential
+  equations. Constraints and closures resolve algebraic targets inside the
+  same graph before the declared observables are projected.
+* Declared equations, constraints, closures, sources, and conditions may
+  reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
+  `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
+  `sound_speed_sq`, `collision_rate`, `free_streaming`, `Phi`, and `Psi`,
+  plus any solved or derived graph quantity.
   variables, and the safe math functions already exposed by the expression
   evaluator. Unsupported symbols and incompatible gauges fail fast during
   validation or step evaluation instead of falling back to a decorative

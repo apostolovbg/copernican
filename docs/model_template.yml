@@ -164,32 +164,34 @@ cmb:
   values: {}
   calls: []
   perturbations:
-    contract_version: 1
+    contract_version: 2
     standard: false
     gauge: conformal_newtonian
     variables:
       delta_x:
         kind: density_contrast
-        description: Template density contrast for a custom sector.
+        description: Template evolved density perturbation.
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
       theta_x:
         kind: velocity_divergence
-        description: Template velocity divergence for a custom sector.
-      rho_x:
-        kind: background_density
-        description: Template density source for a custom sector.
-      sigma_x:
-        kind: anisotropic_stress
-        description: Template anisotropic-stress source for a custom sector.
+        description: Template evolved velocity perturbation.
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      phi_aux:
+        kind: metric_potential_phi
+        description: Template Newtonian potential target.
+        gauge_role: newtonian_potential
+      psi_aux:
+        kind: metric_potential_psi
+        description: Template curvature potential target.
+        gauge_role: curvature_potential
     derived:
-      Phi_tau:
-        kind: derivative_symbol
-        variable: Phi
-        wrt: tau
-        order: 1
-        description: First conformal-time derivative of Phi.
-      delta_rho_eff:
-        expression: rho_x * delta_x
-        description: Template effective density perturbation.
+      density_drive:
+        expression: delta_x + phi_aux
+        description: Template effective source combination.
     equations:
       continuity_x:
         lhs:
@@ -197,33 +199,80 @@ cmb:
           variable: delta_x
           wrt: tau
           order: 1
-        rhs: -theta_x + 3 * Phi_tau
+        rhs: -theta_x + phi_aux
+        role: continuity
       euler_x:
         lhs:
           kind: derivative
           variable: theta_x
           wrt: tau
           order: 1
-        rhs: -Hconf * theta_x + k**2 * Psi
+        rhs: -Hconf * theta_x + k * psi_aux
+        role: euler
+    constraints:
+      poisson_phi_x:
+        target: phi_aux
+        expression: 0.25 * delta_x
+        role: constraint
     closures:
-      no_anisotropic_stress_x:
-        expression: sigma_x
-        equals: "0"
+      psi_equals_phi_x:
+        target: psi_aux
+        expression: phi_aux
+        role: closure
     sources:
-      poisson_x:
-        channel: temperature_additive
-        expression: delta_rho_eff + delta_x + theta_x
+      monopole_x:
+        expression: visibility * density_drive
+        role: monopole
+      polarization_x:
+        expression: visibility * theta_x
+        role: polarization
+    observables:
+      temperature:
+        kind: transfer_component
+        projection: cmb_temperature_scalar
+        source_terms:
+          monopole: monopole_x
+      polarization_e:
+        kind: transfer_component
+        projection: cmb_polarization_e_scalar
+        source_terms:
+          polarization: polarization_x
+      TT:
+        kind: angular_power_spectrum
+        primary: temperature
+        secondary: temperature
+      TE:
+        kind: angular_power_spectrum
+        primary: temperature
+        secondary: polarization_e
+    initial_conditions:
+      delta_x_seed:
+        target:
+          variable: delta_x
+          wrt: tau
+          order: 0
+        expression: seed
+      theta_x_seed:
+        target:
+          variable: theta_x
+          wrt: tau
+          order: 0
+        expression: 0.1 * seed
+    boundary_conditions: {}
+    numerics:
+      ode_rtol: 1.0e-5
+      ode_atol: 1.0e-8
     validity:
       regimes:
         - linear
-        - scalar
-      notes: Template first-order scalar perturbation declaration.
+        - scalar_like
+      notes: Template declared-math perturbation graph.
     backend_mapping:
       camb:
         native_solver_required: true
         implemented: false
     notes: >-
-      This template demonstrates the complete non-standard perturbation
+      This template demonstrates the forward-only declared-math graph
       contract. It is not executable until the backend mapping marks the
       generic declarative implementation as available.
 notes: |

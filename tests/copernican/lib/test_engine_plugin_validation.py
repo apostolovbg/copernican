@@ -65,14 +65,19 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "values": {},
             "calls": [],
             "perturbations": {
-                "contract_version": 1,
+                "contract_version": 2,
                 "standard": True,
                 "gauge": "unspecified",
                 "variables": {},
                 "derived": {},
                 "equations": {},
+                "constraints": {},
                 "closures": {},
                 "sources": {},
+                "observables": {},
+                "initial_conditions": {},
+                "boundary_conditions": {},
+                "numerics": {},
                 "validity": {
                     "regimes": ["standard_camb"],
                     "notes": (
@@ -135,15 +140,13 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def _make_nonstandard_perturbations(
         self,
         *,
-        equation_mode: str = "mapped_sector",
         implemented: bool = False,
     ) -> dict[str, object]:
         """Return a fully declared non-standard perturbation contract."""
 
         return {
-            "contract_version": 1,
+            "contract_version": 2,
             "standard": False,
-            "equation_mode": equation_mode,
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -154,25 +157,18 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     "kind": "velocity_divergence",
                     "description": "Example velocity perturbation.",
                 },
-                "rho_x": {
-                    "kind": "background_density",
-                    "description": "Example density source.",
+                "phi_aux": {
+                    "kind": "metric_potential_phi",
+                    "description": "Example Newtonian potential.",
                 },
-                "sigma_x": {
-                    "kind": "anisotropic_stress",
-                    "description": "Example stress source.",
+                "psi_aux": {
+                    "kind": "metric_potential_psi",
+                    "description": "Example curvature potential.",
                 },
             },
             "derived": {
-                "Phi_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "Phi",
-                    "wrt": "tau",
-                    "order": 1,
-                    "description": "First conformal-time derivative.",
-                },
-                "delta_rho_eff": {
-                    "expression": "rho_x * delta_x",
+                "density_drive": {
+                    "expression": "delta_x + phi_aux",
                     "description": "Effective density perturbation.",
                 },
             },
@@ -184,7 +180,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
                         "wrt": "tau",
                         "order": 1,
                     },
-                    "rhs": "-theta_x + 3 * Phi_tau",
+                    "rhs": "-theta_x + phi_aux",
+                    "role": "continuity",
                 },
                 "euler_x": {
                     "lhs": {
@@ -193,20 +190,78 @@ class EngineInterfaceTestCase(unittest.TestCase):
                         "wrt": "tau",
                         "order": 1,
                     },
-                    "rhs": "-Hconf * theta_x + k**2 * Psi",
+                    "rhs": "-Hconf * theta_x + k * psi_aux",
+                    "role": "euler",
                 },
+            },
+            "constraints": {
+                "poisson_phi": {
+                    "target": "phi_aux",
+                    "expression": "0.25 * delta_x",
+                    "role": "constraint",
+                }
             },
             "closures": {
                 "no_anisotropic_stress": {
-                    "expression": "sigma_x",
-                    "equals": "0",
+                    "target": "psi_aux",
+                    "expression": "phi_aux",
+                    "role": "closure",
                 }
             },
             "sources": {
                 "poisson": {
-                    "channel": "temperature_additive",
-                    "expression": "delta_rho_eff + delta_x + theta_x",
+                    "expression": "visibility * density_drive",
+                    "role": "monopole",
+                },
+                "polarization": {
+                    "expression": "visibility * theta_x",
+                    "role": "polarization",
                 }
+            },
+            "observables": {
+                "temperature": {
+                    "kind": "transfer_component",
+                    "projection": "cmb_temperature_scalar",
+                    "source_terms": {"monopole": "poisson"},
+                },
+                "polarization_e": {
+                    "kind": "transfer_component",
+                    "projection": "cmb_polarization_e_scalar",
+                    "source_terms": {"polarization": "polarization"},
+                },
+                "TT": {
+                    "kind": "angular_power_spectrum",
+                    "primary": "temperature",
+                    "secondary": "temperature",
+                },
+                "TE": {
+                    "kind": "angular_power_spectrum",
+                    "primary": "temperature",
+                    "secondary": "polarization_e",
+                },
+            },
+            "initial_conditions": {
+                "delta_seed": {
+                    "target": {
+                        "variable": "delta_x",
+                        "wrt": "tau",
+                        "order": 0,
+                    },
+                    "expression": "seed",
+                },
+                "theta_seed": {
+                    "target": {
+                        "variable": "theta_x",
+                        "wrt": "tau",
+                        "order": 0,
+                    },
+                    "expression": "0.1 * seed",
+                },
+            },
+            "boundary_conditions": {},
+            "numerics": {
+                "ode_rtol": 1.0e-5,
+                "ode_atol": 1.0e-8,
             },
             "validity": {
                 "regimes": ["linear", "scalar"],
@@ -442,8 +497,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "conformal_newtonian",
         )
         self.assertEqual(
-            plugin.CMB_PERTURBATION_CONTRACT["equation_mode"],
-            "mapped_sector",
+            plugin.CMB_PERTURBATION_CONTRACT["contract_version"],
+            2,
         )
         self.assertIsInstance(
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
@@ -455,9 +510,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = {
-            "contract_version": 1,
+            "contract_version": 2,
             "standard": False,
-            "equation_mode": "declared_equations",
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -466,9 +520,13 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
             "derived": {},
+            "constraints": {},
             "equations": {},
             "closures": {},
             "sources": {},
+            "observables": {},
+            "initial_conditions": {},
+            "boundary_conditions": {},
             "validity": {
                 "regimes": ["linear"],
                 "notes": "Declared but incomplete.",
@@ -483,7 +541,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         }
         with self.assertRaisesRegex(
             ValueError,
-            "declared_equations mode must declare equations",
+            "must declare equations",
         ):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
@@ -515,7 +573,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         model_data = copy.deepcopy(self.model_data)
         perturbations = self._make_nonstandard_perturbations()
-        perturbations["derived"]["delta_rho_eff"]["expression"] = "unknown_x"
+        perturbations["derived"]["density_drive"]["expression"] = "unknown_x"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
@@ -550,25 +608,28 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_mapped_sector_mode_accepts_empty_equations(self):
-        """Mapped-sector mode may defer to the built-in sector equations."""
+    def test_missing_nonstandard_equations_fail(self):
+        """Non-standard perturbations must declare equations."""
 
         model_data = copy.deepcopy(self.model_data)
         perturbations = self._make_nonstandard_perturbations()
         perturbations["equations"] = {}
         model_data["cmb"]["perturbations"] = perturbations
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
-        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        with self.assertRaisesRegex(ValueError, "must declare equations"):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_mapped_sector_mode_accepts_empty_sources(self):
-        """Mapped-sector mode may omit custom source expressions."""
+    def test_missing_nonstandard_initial_conditions_fail(self):
+        """Non-standard perturbations must declare initial conditions."""
 
         model_data = copy.deepcopy(self.model_data)
         perturbations = self._make_nonstandard_perturbations()
-        perturbations["sources"] = {}
+        perturbations["initial_conditions"] = {}
         model_data["cmb"]["perturbations"] = perturbations
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
-        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        with self.assertRaisesRegex(
+            ValueError,
+            "must declare initial_conditions",
+        ):
+            engine_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_missing_nonstandard_backend_mapping_fails(self):
         """Non-standard perturbations must declare backend mapping."""

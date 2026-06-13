@@ -1,4 +1,4 @@
-"""Tests for the perturbation contract compiler."""
+"""Tests for the declared perturbation-graph compiler."""
 
 from __future__ import annotations
 
@@ -8,11 +8,15 @@ import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
     PerturbationBackendMappingData,
     PerturbationClosureData,
+    PerturbationConditionData,
+    PerturbationConditionTargetData,
+    PerturbationConstraintData,
     PerturbationContractData,
     PerturbationDependencyGraphSummaryData,
     PerturbationDerivativeLhsData,
     PerturbationDerivedData,
     PerturbationEquationData,
+    PerturbationObservableData,
     PerturbationSourceData,
     PerturbationValidityData,
     PerturbationVariableData,
@@ -20,93 +24,171 @@ from copernican.lib.perturbation_contract import (
 )
 
 
-class PerturbationContractTestCase(unittest.TestCase):
-    """Validate the typed perturbation contract compiler."""
+def _base_nonstandard_contract() -> dict[str, object]:
+    """Return a reusable declared-math perturbation graph fixture."""
 
-    def _make_nonstandard_contract(
-        self,
-        *,
-        equals: object = "0",
-        lhs: object | None = None,
-    ) -> dict[str, object]:
-        """Return a reusable non-standard perturbation contract fixture."""
-
-        contract: dict[str, object] = {
-            "contract_version": 1,
-            "standard": False,
-            "equation_mode": "mapped_sector",
-            "gauge": "conformal_newtonian",
-            "variables": {
-                "delta_x": {
-                    "kind": "density_contrast",
-                    "description": "Template density contrast.",
-                },
-                "theta_x": {
-                    "kind": "velocity_divergence",
-                    "description": "Template velocity divergence.",
-                },
-                "rho_x": {
-                    "kind": "background_density",
-                    "description": "Template density source.",
-                },
-                "sigma_x": {
-                    "kind": "anisotropic_stress",
-                    "description": "Template stress source.",
-                },
+    return {
+        "contract_version": 2,
+        "standard": False,
+        "gauge": "conformal_newtonian",
+        "variables": {
+            "delta_x": {
+                "kind": "density_contrast",
+                "description": "Synthetic density perturbation.",
+                "tensor_character": "scalar_like",
+                "rank": 0,
+                "spin": 0.0,
             },
-            "derived": {
-                "Phi_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "Phi",
+            "theta_x": {
+                "kind": "velocity_divergence",
+                "description": "Synthetic velocity perturbation.",
+                "tensor_character": "scalar_like",
+                "rank": 0,
+                "spin": 0.0,
+            },
+            "phi_aux": {
+                "kind": "metric_potential_phi",
+                "gauge_role": "newtonian_potential",
+            },
+            "psi_aux": {
+                "kind": "metric_potential_psi",
+                "gauge_role": "curvature_potential",
+            },
+        },
+        "derived": {
+            "density_drive": {
+                "expression": "delta_x + phi_aux",
+                "description": "Synthetic driving term.",
+            }
+        },
+        "equations": {
+            "evolve_delta_x": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "delta_x",
                     "wrt": "tau",
                     "order": 1,
-                    "description": "Template derivative symbol.",
                 },
-                "delta_rho_eff": {
-                    "expression": "rho_x * delta_x",
-                    "description": "Template effective density.",
+                "rhs": "-theta_x + phi_aux",
+                "role": "continuity",
+            },
+            "evolve_theta_x": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "theta_x",
+                    "wrt": "tau",
+                    "order": 1,
                 },
+                "rhs": "-Hconf * theta_x + k * psi_aux",
+                "role": "euler",
             },
-            "equations": {
-                "continuity_x": {
-                    "lhs": {
-                        "kind": "derivative",
-                        "variable": "delta_x",
-                        "wrt": "tau",
-                        "order": 1,
-                    },
-                    "rhs": "-theta_x + 3 * Phi_tau",
-                }
+        },
+        "constraints": {
+            "poisson_phi": {
+                "target": "phi_aux",
+                "expression": "0.25 * delta_x",
+                "role": "constraint",
+            }
+        },
+        "closures": {
+            "psi_equals_phi": {
+                "target": "psi_aux",
+                "expression": "phi_aux",
+                "role": "closure",
+            }
+        },
+        "sources": {
+            "monopole_source": {
+                "expression": "visibility * density_drive",
+                "role": "monopole",
             },
-            "closures": {
-                "no_anisotropic_stress": {
-                    "expression": "sigma_x",
-                    "equals": equals,
-                }
+            "polarization_source": {
+                "expression": "visibility * theta_x",
+                "role": "polarization",
             },
-            "sources": {
-                "poisson": {
-                    "channel": "temperature_additive",
-                    "expression": "delta_rho_eff + delta_x",
-                }
+        },
+        "observables": {
+            "temperature": {
+                "kind": "transfer_component",
+                "projection": "cmb_temperature_scalar",
+                "source_terms": {"monopole": "monopole_source"},
             },
-            "validity": {
-                "regimes": ["linear", "scalar"],
-                "notes": "Declared for first-order scalar perturbations.",
+            "polarization_e": {
+                "kind": "transfer_component",
+                "projection": "cmb_polarization_e_scalar",
+                "source_terms": {"polarization": "polarization_source"},
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": False,
-                }
+            "TT": {
+                "kind": "angular_power_spectrum",
+                "primary": "temperature",
+                "secondary": "temperature",
             },
-        }
-        if lhs is not None:
-            contract["equations"]["continuity_x"]["lhs"] = lhs
-        return contract
+            "TE": {
+                "kind": "angular_power_spectrum",
+                "primary": "temperature",
+                "secondary": "polarization_e",
+            },
+            "EE": {
+                "kind": "angular_power_spectrum",
+                "primary": "polarization_e",
+                "secondary": "polarization_e",
+            },
+        },
+        "initial_conditions": {
+            "delta_seed": {
+                "target": {
+                    "variable": "delta_x",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "seed",
+            },
+            "theta_seed": {
+                "target": {
+                    "variable": "theta_x",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.1 * seed",
+            },
+        },
+        "boundary_conditions": {},
+        "numerics": {
+            "ode_rtol": 1.0e-5,
+            "ode_atol": 1.0e-8,
+        },
+        "validity": {
+            "regimes": ["linear", "synthetic"],
+            "notes": "Synthetic declared graph for compiler tests.",
+        },
+        "backend_mapping": {
+            "camb": {
+                "native_solver_required": True,
+                "implemented": True,
+            }
+        },
+    }
+
+
+class PerturbationContractTestCase(unittest.TestCase):
+    """Validate the typed perturbation graph compiler."""
+
+    def _compile(
+        self, contract: dict[str, object]
+    ) -> PerturbationContractData:
+        """Compile one test contract with a stable environment."""
+
+        return compile_perturbation_contract(
+            contract,
+            model_name="TemplateModel",
+            backend="camb",
+            parameter_names=("H0",),
+            latex_names=("H_0",),
+            background_reference_names=("H0",),
+        )
 
     def test_module_symbols_are_exported(self) -> None:
-        """The module should export the declared data symbols."""
+        """The module should export the declared graph data symbols."""
 
         self.assertIs(
             perturbation_contract_module.compile_perturbation_contract,
@@ -117,55 +199,36 @@ class PerturbationContractTestCase(unittest.TestCase):
             PerturbationContractData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationVariableData,
-            PerturbationVariableData,
+            perturbation_contract_module.PerturbationConstraintData,
+            PerturbationConstraintData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationDerivedData,
-            PerturbationDerivedData,
+            perturbation_contract_module.PerturbationObservableData,
+            PerturbationObservableData,
         )
         self.assertIs(
-            perturbation_contract_module.PerturbationDerivativeLhsData,
-            PerturbationDerivativeLhsData,
+            perturbation_contract_module.PerturbationConditionData,
+            PerturbationConditionData,
         )
-        self.assertIs(
-            perturbation_contract_module.PerturbationEquationData,
-            PerturbationEquationData,
-        )
-        self.assertIs(
-            perturbation_contract_module.PerturbationClosureData,
-            PerturbationClosureData,
-        )
-        self.assertIs(
-            perturbation_contract_module.PerturbationSourceData,
-            PerturbationSourceData,
-        )
-        self.assertIs(
-            perturbation_contract_module.PerturbationValidityData,
-            PerturbationValidityData,
-        )
-        self.assertIs(
-            perturbation_contract_module.PerturbationBackendMappingData,
-            PerturbationBackendMappingData,
-        )
-        summary_data = (
-            perturbation_contract_module.PerturbationDependencyGraphSummaryData
-        )
-        self.assertIs(summary_data, PerturbationDependencyGraphSummaryData)
 
     def test_standard_contract_compiles(self) -> None:
         """Standard contracts should compile into immutable data."""
 
-        standard_contract_data = compile_perturbation_contract(
+        standard_contract_data = self._compile(
             {
-                "contract_version": 1,
+                "contract_version": 2,
                 "standard": True,
                 "gauge": "unspecified",
                 "variables": {},
                 "derived": {},
                 "equations": {},
+                "constraints": {},
                 "closures": {},
                 "sources": {},
+                "observables": {},
+                "initial_conditions": {},
+                "boundary_conditions": {},
+                "numerics": {},
                 "validity": {
                     "regimes": ["standard_camb"],
                     "notes": "Uses standard backend perturbations.",
@@ -173,12 +236,7 @@ class PerturbationContractTestCase(unittest.TestCase):
                 "backend_mapping": {
                     "camb": {"uses_standard_perturbations": True}
                 },
-            },
-            model_name="TemplateModel",
-            backend="camb",
-            parameter_names=("H0",),
-            latex_names=("H_0",),
-            background_reference_names=("H0",),
+            }
         )
 
         self.assertIsInstance(standard_contract_data, PerturbationContractData)
@@ -191,128 +249,206 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
 
     def test_nonstandard_contract_compiles(self) -> None:
-        """Non-standard contracts should preserve typed equation metadata."""
+        """Non-standard contracts should preserve graph metadata."""
 
-        nonstandard_contract_data = compile_perturbation_contract(
-            self._make_nonstandard_contract(),
-            model_name="TemplateModel",
-            backend="camb",
-            parameter_names=("H0",),
-            latex_names=("H_0",),
-            background_reference_names=("H0",),
-        )
+        contract_data = self._compile(_base_nonstandard_contract())
 
-        self.assertIsInstance(
-            nonstandard_contract_data, PerturbationContractData
-        )
-        self.assertFalse(nonstandard_contract_data.standard)
+        self.assertFalse(contract_data.standard)
+        self.assertEqual(contract_data.contract_version, 2)
         self.assertEqual(
-            nonstandard_contract_data.equation_mode, "mapped_sector"
-        )
-        self.assertEqual(
-            nonstandard_contract_data.equations["continuity_x"].lhs.variable,
+            contract_data.equations["evolve_delta_x"].lhs.variable,
             "delta_x",
         )
-        self.assertEqual(
-            nonstandard_contract_data.derived["Phi_tau"].kind,
-            "derivative_symbol",
+        self.assertIsInstance(
+            contract_data.variables["delta_x"],
+            PerturbationVariableData,
         )
-        dependency_summary = nonstandard_contract_data.dependency_graph_summary
-        self.assertIn("tau", dependency_summary.independent_variables_used)
-
-    def test_mapped_sector_contract_compiles_without_equations(self) -> None:
-        """Mapped-sector mode should allow the built-in sector equations."""
-
-        contract = self._make_nonstandard_contract()
-        contract["equations"] = {}
-        contract_data = compile_perturbation_contract(
-            contract,
-            model_name="TemplateModel",
-            backend="camb",
-            parameter_names=("H0",),
-            latex_names=("H_0",),
-            background_reference_names=("H0",),
+        self.assertIsInstance(
+            contract_data.derived["density_drive"],
+            PerturbationDerivedData,
         )
-        self.assertEqual(contract_data.equation_mode, "mapped_sector")
-        self.assertEqual(contract_data.equations, {})
-
-    def test_declared_equation_mode_requires_equations(self) -> None:
-        """Declared-equation mode should fail without equations."""
-
-        contract = self._make_nonstandard_contract()
-        contract["equation_mode"] = "declared_equations"
-        contract["equations"] = {}
-        with self.assertRaisesRegex(
-            ValueError,
-            "declared_equations mode must declare equations",
-        ):
-            compile_perturbation_contract(
-                contract,
-                model_name="TemplateModel",
-                backend="camb",
-                parameter_names=("H0",),
-                latex_names=("H_0",),
-                background_reference_names=("H0",),
-            )
-
-    def test_unknown_source_channel_is_rejected(self) -> None:
-        """Unknown source channels should fail validation."""
-
-        contract = self._make_nonstandard_contract()
-        contract["sources"]["poisson"]["channel"] = "bogus_channel"
-        with self.assertRaisesRegex(
-            ValueError,
-            "unsupported channel",
-        ):
-            compile_perturbation_contract(
-                contract,
-                model_name="TemplateModel",
-                backend="camb",
-                parameter_names=("H0",),
-                latex_names=("H_0",),
-                background_reference_names=("H0",),
-            )
-
-    def test_numeric_closure_equals_is_rejected(self) -> None:
-        """Closure equality expressions must remain string literals."""
-
-        with self.assertRaises(ValueError):
-            compile_perturbation_contract(
-                self._make_nonstandard_contract(equals=0),
-                model_name="TemplateModel",
-                backend="camb",
-                parameter_names=("H0",),
-                latex_names=("H_0",),
-                background_reference_names=("H0",),
-            )
-
-    def test_quoted_closure_equals_compiles(self) -> None:
-        """Quoted closure equality expressions should compile cleanly."""
-
-        contract_data = compile_perturbation_contract(
-            self._make_nonstandard_contract(equals="0"),
-            model_name="TemplateModel",
-            backend="camb",
-            parameter_names=("H0",),
-            latex_names=("H_0",),
-            background_reference_names=("H0",),
+        self.assertIsInstance(
+            contract_data.equations["evolve_delta_x"].lhs,
+            PerturbationDerivativeLhsData,
+        )
+        self.assertIsInstance(
+            contract_data.equations["evolve_delta_x"],
+            PerturbationEquationData,
         )
         self.assertEqual(
-            contract_data.closures["no_anisotropic_stress"].equals, "0"
+            contract_data.constraints["poisson_phi"].target,
+            "phi_aux",
+        )
+        self.assertIsInstance(
+            contract_data.constraints["poisson_phi"],
+            PerturbationConstraintData,
+        )
+        self.assertIsInstance(
+            contract_data.closures["psi_equals_phi"],
+            PerturbationClosureData,
+        )
+        self.assertIsInstance(
+            contract_data.sources["monopole_source"],
+            PerturbationSourceData,
+        )
+        self.assertEqual(
+            contract_data.observables["TT"].primary,
+            "temperature",
+        )
+        self.assertIsInstance(
+            contract_data.observables["temperature"],
+            PerturbationObservableData,
+        )
+        self.assertEqual(
+            contract_data.initial_conditions["delta_seed"].target.order,
+            0,
+        )
+        self.assertIsInstance(
+            contract_data.initial_conditions["delta_seed"].target,
+            PerturbationConditionTargetData,
+        )
+        self.assertIsInstance(
+            contract_data.initial_conditions["delta_seed"],
+            PerturbationConditionData,
+        )
+        dependency_summary = contract_data.dependency_graph_summary
+        self.assertIsInstance(
+            contract_data.validity,
+            PerturbationValidityData,
+        )
+        self.assertIsInstance(
+            contract_data.backend_mapping["camb"],
+            PerturbationBackendMappingData,
+        )
+        self.assertIsInstance(
+            dependency_summary,
+            PerturbationDependencyGraphSummaryData,
+        )
+        self.assertIn("seed", dependency_summary.background_references_used)
+        self.assertIn("phi_aux", dependency_summary.evaluation_order)
+
+    def test_hybrid_graph_compiles_as_one_graph(self) -> None:
+        """Tagged scalar/vector/tensor variables should share one graph."""
+
+        contract = _base_nonstandard_contract()
+        contract["variables"]["vector_mode"] = {
+            "kind": "custom_vector_mode",
+            "rank": 1,
+            "spin": 1.0,
+            "parity": "odd",
+            "tensor_character": "vector_like",
+        }
+        contract["variables"]["tensor_mode"] = {
+            "kind": "custom_tensor_mode",
+            "rank": 2,
+            "spin": 2.0,
+            "parity": "even",
+            "tensor_character": "tensor_like",
+        }
+        contract["equations"]["evolve_vector_mode"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "vector_mode",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-Hconf * vector_mode + tensor_mode",
+            "role": "vector_coupling",
+        }
+        contract["equations"]["evolve_tensor_mode"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "tensor_mode",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-0.5 * tensor_mode + vector_mode",
+            "role": "tensor_coupling",
+        }
+        contract["initial_conditions"]["vector_seed"] = {
+            "target": {
+                "variable": "vector_mode",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+        contract["initial_conditions"]["tensor_seed"] = {
+            "target": {
+                "variable": "tensor_mode",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+
+        contract_data = self._compile(contract)
+
+        self.assertIn("vector_mode", contract_data.variables)
+        self.assertIn("tensor_mode", contract_data.variables)
+        self.assertIn(
+            "psi_aux",
+            contract_data.dependency_graph_summary.evaluation_order,
         )
 
-    def test_string_equation_lhs_is_rejected(self) -> None:
-        """Free-text equation left-hand sides are not accepted."""
+    def test_missing_initial_conditions_fail(self) -> None:
+        """Each evolved variable should require explicit initial data."""
 
-        with self.assertRaises(ValueError):
-            compile_perturbation_contract(
-                self._make_nonstandard_contract(lhs="delta_x"),
-                model_name="TemplateModel",
-                backend="camb",
-                parameter_names=("H0",),
-                latex_names=("H_0",),
-                background_reference_names=("H0",),
-            )
+        contract = _base_nonstandard_contract()
+        del contract["initial_conditions"]["theta_seed"]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "missing required initial conditions",
+        ):
+            self._compile(contract)
+
+    def test_missing_observables_fail(self) -> None:
+        """Non-standard graphs should declare observable mappings."""
+
+        contract = _base_nonstandard_contract()
+        contract["observables"] = {}
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "must declare observables",
+        ):
+            self._compile(contract)
+
+    def test_duplicate_relation_targets_fail(self) -> None:
+        """Duplicate closure or constraint targets should be rejected."""
+
+        contract = _base_nonstandard_contract()
+        contract["closures"]["psi_again"] = {
+            "target": "psi_aux",
+            "expression": "phi_aux",
+            "role": "closure",
+        }
+
+        with self.assertRaisesRegex(ValueError, "duplicates target 'psi_aux'"):
+            self._compile(contract)
+
+    def test_circular_derived_dependencies_fail(self) -> None:
+        """Circular derived expressions should fail clearly."""
+
+        contract = _base_nonstandard_contract()
+        contract["derived"]["alpha"] = {"expression": "beta"}
+        contract["derived"]["beta"] = {"expression": "alpha"}
+
+        with self.assertRaisesRegex(ValueError, "contains a cycle"):
+            self._compile(contract)
+
+    def test_unknown_transfer_component_reference_fails(self) -> None:
+        """Power spectra should reference declared transfer components."""
+
+        contract = _base_nonstandard_contract()
+        contract["observables"]["TT"]["primary"] = "unknown_component"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "unknown transfer component 'unknown_component'",
+        ):
+            self._compile(contract)
 
     def test_perturbation_dataclasses_are_constructible(self) -> None:
         """The typed perturbation objects should be individually usable."""
@@ -321,12 +457,10 @@ class PerturbationContractTestCase(unittest.TestCase):
             name="delta_x",
             kind="density_contrast",
         )
-        derived_symbol_data = PerturbationDerivedData(
-            name="Phi_tau",
-            kind="derivative_symbol",
-            variable="Phi",
-            wrt="tau",
-            order=1,
+        derived_data = PerturbationDerivedData(
+            name="density_drive",
+            kind="derived_quantity",
+            expression="delta_x + phi_aux",
         )
         lhs_data = PerturbationDerivativeLhsData(
             kind="derivative",
@@ -335,52 +469,109 @@ class PerturbationContractTestCase(unittest.TestCase):
             order=1,
         )
         equation_data = PerturbationEquationData(
-            name="continuity_x",
+            name="evolve_delta_x",
             lhs=lhs_data,
-            rhs="-theta_x + 3 * Phi_tau",
+            rhs="-theta_x + phi_aux",
+            role="continuity",
+        )
+        constraint_data = PerturbationConstraintData(
+            name="poisson_phi",
+            target="phi_aux",
+            expression="0.25 * delta_x",
+            role="constraint",
         )
         closure_data = PerturbationClosureData(
-            name="no_anisotropic_stress",
-            expression="sigma_x",
-            equals="0",
+            name="psi_equals_phi",
+            target="psi_aux",
+            expression="phi_aux",
+            role="closure",
         )
         source_data = PerturbationSourceData(
-            name="poisson",
-            expression="delta_x",
-            channel="temperature_additive",
+            name="monopole_source",
+            expression="visibility * density_drive",
+            role="monopole",
+        )
+        observable_data = PerturbationObservableData(
+            name="temperature",
+            kind="transfer_component",
+            projection="cmb_temperature_scalar",
+        )
+        target_data = PerturbationConditionTargetData(
+            variable="delta_x",
+            wrt="tau",
+            order=0,
+        )
+        condition_data = PerturbationConditionData(
+            name="delta_seed",
+            target=target_data,
+            expression="seed",
         )
         validity_data = PerturbationValidityData(
-            regimes=("linear",),
-            notes="Template",
+            regimes=("linear", "synthetic"),
+            notes="Synthetic graph.",
         )
         backend_mapping_data = PerturbationBackendMappingData(
             backend="camb",
-            uses_standard_perturbations=True,
+            native_solver_required=True,
+            implemented=True,
         )
-        dependency_graph_data = PerturbationDependencyGraphSummaryData(
+        dependency_summary = PerturbationDependencyGraphSummaryData(
             variable_names=("delta_x",),
-            derived_expression_names=("delta_rho_eff",),
-            derivative_symbol_names=("Phi_tau",),
-            equation_names=("continuity_x",),
-            closure_names=("no_anisotropic_stress",),
-            source_names=("poisson",),
+            derived_names=("density_drive",),
+            equation_names=("evolve_delta_x",),
+            constraint_names=("poisson_phi",),
+            closure_names=("psi_equals_phi",),
+            source_names=("monopole_source",),
+            observable_names=("temperature",),
+            initial_condition_names=("delta_seed",),
+            boundary_condition_names=(),
             independent_variables_used=("tau",),
-            model_parameters_used=("H0",),
-            background_references_used=("Phi",),
-            derived_expression_dependencies={"delta_rho_eff": ("delta_x",)},
-            equation_dependencies={"continuity_x": ("delta_x",)},
-            closure_dependencies={"no_anisotropic_stress": ("sigma_x",)},
-            source_dependencies={"poisson": ("delta_x",)},
+            model_parameters_used=(),
+            background_references_used=("H0",),
+            derived_dependencies={},
+            equation_dependencies={},
+            constraint_dependencies={},
+            closure_dependencies={},
+            source_dependencies={},
+            observable_dependencies={},
+            initial_condition_dependencies={},
+            boundary_condition_dependencies={},
+            evaluation_order=("equation:evolve_delta_x",),
         )
 
-        self.assertEqual(variable_data.kind, "density_contrast")
-        self.assertEqual(derived_symbol_data.wrt, "tau")
-        self.assertEqual(equation_data.lhs.variable, "delta_x")
-        self.assertEqual(closure_data.equals, "0")
-        self.assertEqual(source_data.expression, "delta_x")
-        self.assertEqual(validity_data.regimes, ("linear",))
-        self.assertTrue(backend_mapping_data.uses_standard_perturbations)
-        self.assertIn("tau", dependency_graph_data.independent_variables_used)
+        self.assertEqual(variable_data.name, "delta_x")
+        self.assertIsInstance(variable_data, PerturbationVariableData)
+        self.assertEqual(derived_data.expression, "delta_x + phi_aux")
+        self.assertIsInstance(derived_data, PerturbationDerivedData)
+        self.assertEqual(equation_data.lhs.order, 1)
+        self.assertIsInstance(lhs_data, PerturbationDerivativeLhsData)
+        self.assertIsInstance(equation_data, PerturbationEquationData)
+        self.assertEqual(constraint_data.target, "phi_aux")
+        self.assertIsInstance(constraint_data, PerturbationConstraintData)
+        self.assertEqual(closure_data.target, "psi_aux")
+        self.assertIsInstance(closure_data, PerturbationClosureData)
+        self.assertEqual(source_data.role, "monopole")
+        self.assertIsInstance(source_data, PerturbationSourceData)
+        self.assertEqual(observable_data.projection, "cmb_temperature_scalar")
+        self.assertIsInstance(observable_data, PerturbationObservableData)
+        self.assertEqual(condition_data.target.variable, "delta_x")
+        self.assertIsInstance(target_data, PerturbationConditionTargetData)
+        self.assertIsInstance(condition_data, PerturbationConditionData)
+        self.assertEqual(validity_data.regimes, ("linear", "synthetic"))
+        self.assertIsInstance(validity_data, PerturbationValidityData)
+        self.assertTrue(backend_mapping_data.implemented)
+        self.assertIsInstance(
+            backend_mapping_data,
+            PerturbationBackendMappingData,
+        )
+        self.assertEqual(
+            dependency_summary.evaluation_order,
+            ("equation:evolve_delta_x",),
+        )
+        self.assertIsInstance(
+            dependency_summary,
+            PerturbationDependencyGraphSummaryData,
+        )
 
 
 if __name__ == "__main__":

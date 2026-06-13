@@ -107,6 +107,16 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         dependency_summary = getattr(
             perturbation_data, "dependency_graph_summary", None
         )
+        manifest_summary = getattr(perturbation_data, "manifest_summary", {})
+        manifest_summary_data = (
+            manifest_summary.to_dict()
+            if hasattr(manifest_summary, "to_dict")
+            else (
+                dict(manifest_summary)
+                if isinstance(manifest_summary, dict)
+                else {}
+            )
+        )
         backend_mapping_data = getattr(
             perturbation_data, "backend_mapping", {}
         )
@@ -120,13 +130,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         values = contract.get("values", {}) or {}
         calls = contract.get("calls", []) or []
         perturbation_sources = getattr(perturbation_data, "sources", {}) or {}
-        source_channels = sorted(
-            {
-                str(getattr(entry, "channel", ""))
-                for entry in perturbation_sources.values()
-                if getattr(entry, "channel", "")
-            }
-        )
         numerical_settings = contract.get("numerical", {}) or {}
         numerical_settings = (
             dict(numerical_settings)
@@ -162,11 +165,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     "standard",
                     perturbations.get("standard"),
                 ),
-                "perturbation_equation_mode": getattr(
-                    perturbation_data,
-                    "equation_mode",
-                    perturbations.get("equation_mode", "mapped_sector"),
-                ),
                 "perturbation_gauge": getattr(
                     perturbation_data, "gauge", perturbations.get("gauge")
                 ),
@@ -188,6 +186,12 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         getattr(perturbation_data, "equations", {}) or {}
                     )
                 ),
+                "perturbation_constraint_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "constraints", {}) or {}
+                    )
+                ),
                 "perturbation_closure_names": sorted(
                     str(key)
                     for key in (
@@ -200,14 +204,53 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         getattr(perturbation_data, "sources", {}) or {}
                     )
                 ),
-                "perturbation_source_channels": source_channels,
+                "perturbation_observable_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "observables", {}) or {}
+                    )
+                ),
+                "perturbation_initial_condition_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(
+                            perturbation_data,
+                            "initial_conditions",
+                            {},
+                        )
+                        or {}
+                    )
+                ),
+                "perturbation_boundary_condition_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(
+                            perturbation_data,
+                            "boundary_conditions",
+                            {},
+                        )
+                        or {}
+                    )
+                ),
                 "perturbation_equation_count": len(
                     getattr(perturbation_data, "equations", {}) or {}
+                ),
+                "perturbation_constraint_count": len(
+                    getattr(perturbation_data, "constraints", {}) or {}
                 ),
                 "perturbation_closure_count": len(
                     getattr(perturbation_data, "closures", {}) or {}
                 ),
                 "perturbation_source_count": len(perturbation_sources),
+                "perturbation_observable_count": len(
+                    getattr(perturbation_data, "observables", {}) or {}
+                ),
+                "perturbation_initial_condition_count": len(
+                    getattr(perturbation_data, "initial_conditions", {}) or {}
+                ),
+                "perturbation_boundary_condition_count": len(
+                    getattr(perturbation_data, "boundary_conditions", {}) or {}
+                ),
                 "perturbation_numerical_settings": numerical_settings,
                 "perturbation_independent_variables_used": sorted(
                     str(key)
@@ -227,6 +270,12 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         dependency_summary, "background_references_used", ()
                     )
                 ),
+                "perturbation_evaluation_order": [
+                    str(key)
+                    for key in getattr(
+                        dependency_summary, "evaluation_order", ()
+                    )
+                ],
                 "perturbation_backend": getattr(
                     perturbation_data, "backend", contract.get("backend")
                 ),
@@ -282,20 +331,38 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     if not perturbation_standard
                     else "camb.standard"
                 ),
-                "custom_cmb_equation_mode": getattr(
-                    perturbation_data,
-                    "equation_mode",
-                    perturbations.get("equation_mode", "mapped_sector"),
+                "custom_cmb_solver": (
+                    "declared_math_graph"
+                    if not perturbation_standard
+                    else "camb_standard"
                 ),
                 "custom_cmb_equation_count": len(
                     getattr(perturbation_data, "equations", {}) or {}
+                ),
+                "custom_cmb_constraint_count": len(
+                    getattr(perturbation_data, "constraints", {}) or {}
                 ),
                 "custom_cmb_closure_count": len(
                     getattr(perturbation_data, "closures", {}) or {}
                 ),
                 "custom_cmb_source_count": len(perturbation_sources),
-                "custom_cmb_source_channels": source_channels,
+                "custom_cmb_observable_count": len(
+                    getattr(perturbation_data, "observables", {}) or {}
+                ),
+                "custom_cmb_observable_names": [
+                    str(key)
+                    for key in manifest_summary_data.get(
+                        "observable_names", ()
+                    )
+                ],
+                "custom_cmb_initial_condition_count": len(
+                    getattr(perturbation_data, "initial_conditions", {}) or {}
+                ),
+                "custom_cmb_boundary_condition_count": len(
+                    getattr(perturbation_data, "boundary_conditions", {}) or {}
+                ),
                 "custom_cmb_numerical_settings": numerical_settings,
+                "custom_cmb_graph_manifest_summary": manifest_summary_data,
                 "custom_cmb_reference_validation_status": (
                     configuration.get("reference_validation_status")
                     if isinstance(configuration, dict)

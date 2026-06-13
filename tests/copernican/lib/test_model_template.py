@@ -41,11 +41,16 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
         self.assertEqual(perturbation_data.gauge, "conformal_newtonian")
         self.assertIn("delta_x", perturbation_data.variables)
         self.assertIn("theta_x", perturbation_data.variables)
-        self.assertIn("Phi_tau", perturbation_data.derived)
-        self.assertIn("delta_rho_eff", perturbation_data.derived)
+        self.assertIn("phi_aux", perturbation_data.variables)
+        self.assertIn("psi_aux", perturbation_data.variables)
+        self.assertIn("density_drive", perturbation_data.derived)
         self.assertIn("continuity_x", perturbation_data.equations)
         self.assertIn("euler_x", perturbation_data.equations)
-        self.assertIn("poisson_x", perturbation_data.sources)
+        self.assertIn("poisson_phi_x", perturbation_data.constraints)
+        self.assertIn("psi_equals_phi_x", perturbation_data.closures)
+        self.assertIn("monopole_x", perturbation_data.sources)
+        self.assertIn("temperature", perturbation_data.observables)
+        self.assertIn("delta_x_seed", perturbation_data.initial_conditions)
         self.assertFalse(perturbation_data.backend_mapping["camb"].implemented)
 
     def test_template_execution_rejects_unsupported_generic_execution(
@@ -56,7 +61,7 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
         plugin = self._build_template_plugin()
         with self.assertRaisesRegex(
             ValueError,
-            "Unsupported custom perturbation variable 'delta_x'",
+            "generic declarative implementation as available",
         ):
             cmb.compute_cmb_spectrum_cached(
                 plugin,

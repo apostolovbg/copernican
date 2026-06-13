@@ -170,27 +170,21 @@ _SUPPORTED_CMB_VALUE_KEYS = {"expression", "grid"}
 _SUPPORTED_CMB_CALL_KEYS = {"args", "kwargs", "method"}
 _SUPPORTED_CMB_PERTURBATION_KEYS = {
     "backend_mapping",
+    "boundary_conditions",
     "closures",
+    "constraints",
     "contract_version",
     "derived",
     "equations",
-    "equation_mode",
     "gauge",
+    "initial_conditions",
     "notes",
+    "numerics",
+    "observables",
     "sources",
     "standard",
     "validity",
     "variables",
-}
-_SUPPORTED_CMB_PERTURBATION_VALUE_KEYS = {
-    "description",
-    "equals",
-    "expression",
-    "channel",
-    "kind",
-    "notes",
-    "rhs",
-    "lhs",
 }
 _SUPPORTED_CMB_GRID_SPACING = {"linear"}
 _SUPPORTED_CMB_PERTURBATION_GAUGES = {

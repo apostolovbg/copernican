@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-07
+**Last Updated:** 2026-06-13
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -28,22 +28,22 @@ The bundled engines, models, and validation helpers now live under
 `~/VALIDATION.md` so package installs and source checkouts follow the same
 path layout.
 
-The CMB surface now includes a generic physical scalar engine for
-`standard: false` contracts. It evolves Newtonian-gauge perturbations per
-`k` mode, then projects the evolved histories through transfer functions and
-line-of-sight integration while rejecting unsupported custom sectors with
-explicit errors instead of toy projections. Non-standard contracts can either
-keep the built-in sector equations with `equation_mode: mapped_sector` or
-override them with typed declared equations through
-`equation_mode: declared_equations`; in both cases unsupported symbols,
-missing required equations, and incompatible gauges fail loudly. The
-implementation lives in `copernican/lib/likelihoods/cmb.py` and now uses
-bounded `k` sampling with cached mode histories and Bessel projection for the
-requested line-of-sight window. The background helper also computes a
-physical recombination history, visibility function, optical-depth grid,
-and residual ionization curve before the transfer-function projection runs.
-The front-door README mirrors that summary so package readers see the same
-custom CMB surface from the repository root.
+The CMB surface now includes a declared-math graph engine for
+`standard: false` contracts. It evolves one Newtonian-gauge graph per `k`
+mode, then projects the solved graph through declared transfer components and
+line-of-sight integration instead of routing models through a scalar-only
+compatibility layer. Non-standard contracts now declare variables,
+equations, constraints, closures, sources, initial conditions, observable
+mappings, and numerical requirements in one immutable graph; unsupported
+symbols, missing initial conditions, missing observables, and unsupported
+projections fail loudly. The implementation lives in
+`copernican/lib/likelihoods/cmb.py` and uses bounded `k` sampling with cached
+mode histories and Bessel projection for the requested line-of-sight window.
+The background helper also computes a physical recombination history,
+visibility function, optical-depth grid, and residual ionization curve
+before the transfer-function projection runs. The front-door README mirrors
+that summary so package readers see the same custom CMB surface from the
+repository root.
 
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`

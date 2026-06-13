@@ -32,6 +32,7 @@ from scipy.special import spherical_jn
 
 from ..engine_adapter import (
     _SUPPORTED_CMB_BACKEND,
+    FrozenMapping,
     _evaluate_safe_expression,
     _freeze_for_cache,
 )
@@ -700,86 +701,50 @@ class _CustomCMBBackgroundData:
 
 @dataclass(slots=True)
 class CustomCMBSpectrumData:
-    """Internal transfer-function and spectrum payload for CMB outputs."""
+    """Internal transfer-component and spectrum payload for CMB outputs."""
 
     ell_grid: numpy.ndarray
     k_grid: numpy.ndarray
-    Delta_l_T: numpy.ndarray
-    Delta_l_E: numpy.ndarray
-    C_l_TT: numpy.ndarray
-    C_l_TE: numpy.ndarray
-    C_l_EE: numpy.ndarray
+    transfer_components: Mapping[str, numpy.ndarray]
+    spectra: Mapping[str, numpy.ndarray]
+
+    @property
+    def Delta_l_T(self) -> numpy.ndarray:
+        """Return the scalar temperature transfer component when present."""
+
+        return numpy.asarray(
+            self.transfer_components.get("temperature", []),
+            dtype=float,
+        )
+
+    @property
+    def Delta_l_E(self) -> numpy.ndarray:
+        """Return the scalar E-mode transfer component when present."""
+
+        return numpy.asarray(
+            self.transfer_components.get("polarization_e", []),
+            dtype=float,
+        )
+
+    @property
+    def C_l_TT(self) -> numpy.ndarray:
+        """Return the TT power spectrum when present."""
+
+        return numpy.asarray(self.spectra.get("TT", []), dtype=float)
+
+    @property
+    def C_l_TE(self) -> numpy.ndarray:
+        """Return the TE power spectrum when present."""
+
+        return numpy.asarray(self.spectra.get("TE", []), dtype=float)
+
+    @property
+    def C_l_EE(self) -> numpy.ndarray:
+        """Return the EE power spectrum when present."""
+
+        return numpy.asarray(self.spectra.get("EE", []), dtype=float)
 
 
-_CUSTOM_CMB_SECTOR_ALIASES: dict[str, tuple[str, ...]] = {
-    "photon_temperature_monopole": (
-        "photon_temperature_monopole",
-        "theta_gamma0",
-        "theta0",
-        "theta_photon0",
-    ),
-    "photon_temperature_dipole": (
-        "photon_temperature_dipole",
-        "theta_gamma1",
-        "theta1",
-        "theta_photon1",
-    ),
-    "photon_temperature_quadrupole": (
-        "photon_temperature_quadrupole",
-        "theta_gamma2",
-        "theta2",
-        "theta_photon2",
-    ),
-    "photon_polarization_quadrupole": (
-        "photon_polarization_quadrupole",
-        "e_gamma2",
-        "e2",
-        "ee_quadrupole",
-    ),
-    "baryon_density_contrast": (
-        "baryon_density_contrast",
-        "delta_b",
-    ),
-    "baryon_velocity_divergence": (
-        "baryon_velocity_divergence",
-        "theta_b",
-    ),
-    "cdm_density_contrast": (
-        "cdm_density_contrast",
-        "delta_c",
-    ),
-    "cdm_velocity_divergence": (
-        "cdm_velocity_divergence",
-        "theta_c",
-    ),
-    "massless_neutrino_density_contrast": (
-        "massless_neutrino_density_contrast",
-        "delta_nu",
-    ),
-    "massless_neutrino_velocity_divergence": (
-        "massless_neutrino_velocity_divergence",
-        "theta_nu",
-    ),
-    "massless_neutrino_anisotropic_stress": (
-        "massless_neutrino_anisotropic_stress",
-        "sigma_nu",
-    ),
-    "metric_potential_phi": (
-        "metric_potential_phi",
-        "Phi",
-    ),
-    "metric_potential_psi": (
-        "metric_potential_psi",
-        "Psi",
-    ),
-}
-_CUSTOM_CMB_SOURCE_CHANNELS: tuple[str, ...] = (
-    "temperature_monopole",
-    "temperature_doppler",
-    "temperature_isw",
-    "polarization",
-    "temperature_additive",
-)
 _CUSTOM_CMB_BACKGROUND_INPUTS: dict[tuple[Any, ...], tuple[Any, ...]] = {}
 _CUSTOM_CMB_BACKGROUND_RESULTS: dict[
     tuple[Any, ...], "_CustomCMBBackgroundData"
@@ -1178,167 +1143,6 @@ def _resolve_custom_cmb_physical_parameters(
         has_cdm=explicit_cdm,
         has_dark_energy=has_dark_energy,
     )
-
-
-def _classify_custom_physical_sector(name: str, kind: str) -> str:
-    """Map a declared perturbation variable to a supported physical sector."""
-
-    lowered_name = name.lower()
-    lowered_kind = kind.lower().strip()
-
-    aliases = {
-        "photon_temperature_monopole": {
-            "photon_temperature_monopole",
-            "photon_monopole",
-            "temperature_monopole",
-            "theta_gamma0",
-            "theta0",
-            "theta_photon0",
-        },
-        "photon_temperature_dipole": {
-            "photon_temperature_dipole",
-            "photon_dipole",
-            "temperature_dipole",
-            "theta_gamma1",
-            "theta1",
-            "theta_photon1",
-        },
-        "photon_temperature_quadrupole": {
-            "photon_temperature_quadrupole",
-            "photon_quadrupole",
-            "temperature_quadrupole",
-            "theta_gamma2",
-            "theta2",
-            "theta_photon2",
-        },
-        "photon_polarization_quadrupole": {
-            "photon_polarization_quadrupole",
-            "polarization_quadrupole",
-            "e_mode_quadrupole",
-            "e2",
-            "ee_quadrupole",
-        },
-        "baryon_density_contrast": {
-            "baryon_density_contrast",
-            "baryon_density",
-            "delta_b",
-        },
-        "baryon_velocity_divergence": {
-            "baryon_velocity_divergence",
-            "baryon_velocity",
-            "theta_b",
-        },
-        "cdm_density_contrast": {
-            "cdm_density_contrast",
-            "cdm_density",
-            "delta_c",
-        },
-        "cdm_velocity_divergence": {
-            "cdm_velocity_divergence",
-            "cdm_velocity",
-            "theta_c",
-        },
-        "massless_neutrino_density_contrast": {
-            "massless_neutrino_density_contrast",
-            "neutrino_density_contrast",
-            "neutrino_density",
-            "delta_nu",
-        },
-        "massless_neutrino_velocity_divergence": {
-            "massless_neutrino_velocity_divergence",
-            "neutrino_velocity_divergence",
-            "neutrino_velocity",
-            "theta_nu",
-        },
-        "massless_neutrino_anisotropic_stress": {
-            "massless_neutrino_anisotropic_stress",
-            "neutrino_anisotropic_stress",
-            "neutrino_shear",
-            "sigma_nu",
-        },
-        "metric_potential_phi": {"metric_potential_phi", "phi"},
-        "metric_potential_psi": {"metric_potential_psi", "psi"},
-    }
-    for sector, sector_aliases in aliases.items():
-        if lowered_kind in sector_aliases or lowered_name in sector_aliases:
-            return sector
-    raise ValueError(
-        "Unsupported custom perturbation variable "
-        f"'{name}' with kind '{kind}'."
-    )
-
-
-def _validate_custom_cmb_physical_contract(
-    perturbation_data: Any,
-    physical_params: _CustomCMBPhysicalParameters,
-) -> dict[str, tuple[str, ...]]:
-    """Validate that the custom contract declares supported CMB sectors."""
-
-    gauge = str(getattr(perturbation_data, "gauge", "") or "")
-    if gauge not in {"conformal_newtonian", "gauge_invariant"}:
-        raise ValueError(
-            "Custom scalar CMB evolution only supports conformal Newtonian "
-            "gauge."
-        )
-
-    declared: dict[str, list[str]] = {
-        "photon_temperature_monopole": [],
-        "photon_temperature_dipole": [],
-        "photon_temperature_quadrupole": [],
-        "photon_polarization_quadrupole": [],
-        "baryon_density_contrast": [],
-        "baryon_velocity_divergence": [],
-        "cdm_density_contrast": [],
-        "cdm_velocity_divergence": [],
-        "massless_neutrino_density_contrast": [],
-        "massless_neutrino_velocity_divergence": [],
-        "massless_neutrino_anisotropic_stress": [],
-        "metric_potential_phi": [],
-        "metric_potential_psi": [],
-    }
-
-    for collection_name in ("variables", "derived"):
-        collection = getattr(perturbation_data, collection_name, {})
-        for name, entry in collection.items():
-            kind = str(getattr(entry, "kind", "") or "")
-            if not kind:
-                continue
-            sector = _classify_custom_physical_sector(str(name), kind)
-            declared.setdefault(sector, []).append(str(name))
-
-    required = (
-        "photon_temperature_monopole",
-        "photon_temperature_dipole",
-        "photon_temperature_quadrupole",
-        "photon_polarization_quadrupole",
-        "baryon_density_contrast",
-        "baryon_velocity_divergence",
-        "massless_neutrino_density_contrast",
-        "massless_neutrino_velocity_divergence",
-        "massless_neutrino_anisotropic_stress",
-        "metric_potential_phi",
-        "metric_potential_psi",
-    )
-    for sector in required:
-        if declared.get(sector):
-            continue
-        readable = sector.replace("_", " ")
-        raise ValueError(
-            "Non-standard CMB contract is missing required "
-            f"{readable} support."
-        )
-
-    if physical_params.has_cdm:
-        for sector in ("cdm_density_contrast", "cdm_velocity_divergence"):
-            if declared.get(sector):
-                continue
-            readable = sector.replace("_", " ")
-            raise ValueError(
-                "Non-standard CMB contract is missing required "
-                f"{readable} support."
-            )
-
-    return {key: tuple(value) for key, value in declared.items()}
 
 
 def _build_custom_cmb_background(
@@ -1820,13 +1624,432 @@ def _build_custom_cmb_background(
     return _get_cached_custom_cmb_background(cache_key)
 
 
+_SUPPORTED_DECLARED_TRANSFER_PROJECTIONS = {
+    "cmb_lensing_potential_scalar",
+    "cmb_polarization_e_scalar",
+    "cmb_temperature_scalar",
+    "scalar_e_mode",
+    "scalar_jl",
+    "scalar_jl_derivative",
+    "scalar_potential",
+}
+_CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredStateSlot:
+    """Describe one state-vector slot for the declared graph solver."""
+
+    variable: str
+    wrt: str
+    order: int
+    index: int
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredGraphRuntimeSpec:
+    """Prepared runtime metadata for the declared graph solver."""
+
+    evolution_variable: str
+    state_slots: tuple[_DeclaredStateSlot, ...]
+    state_index_by_key: FrozenMapping
+    equation_by_variable: FrozenMapping
+    equation_orders: FrozenMapping
+
+
+def _prepare_declared_graph_runtime_spec(
+    perturbation_data: Any,
+) -> _DeclaredGraphRuntimeSpec:
+    """Return state-vector metadata for the declared graph contract."""
+
+    if perturbation_data.boundary_conditions:
+        raise ValueError(
+            "Declared CMB graph boundary conditions are not yet supported "
+            "by the native solver."
+        )
+
+    wrt_names = {
+        str(entry.lhs.wrt) for entry in perturbation_data.equations.values()
+    }
+    if len(wrt_names) != 1:
+        readable = ", ".join(sorted(wrt_names))
+        raise ValueError(
+            "Declared CMB graph evolution must use one independent "
+            f"variable, got: {readable}"
+        )
+    evolution_variable = next(iter(wrt_names))
+    equation_by_variable: dict[str, Any] = {}
+    equation_orders: dict[str, int] = {}
+    for equation_name, equation_entry in perturbation_data.equations.items():
+        variable_name = str(equation_entry.lhs.variable)
+        if variable_name in equation_by_variable:
+            previous_name = equation_by_variable[variable_name].name
+            raise ValueError(
+                "Declared CMB graph defines more than one differential "
+                f"equation for variable '{variable_name}' via "
+                f"'{previous_name}' and '{equation_name}'"
+            )
+        equation_by_variable[variable_name] = equation_entry
+        equation_orders[variable_name] = int(equation_entry.lhs.order)
+
+    state_slots: list[_DeclaredStateSlot] = []
+    state_index_by_key: dict[tuple[str, str, int], int] = {}
+    for variable_name in sorted(equation_by_variable):
+        order = equation_orders[variable_name]
+        for derivative_order in range(order):
+            index = len(state_slots)
+            slot = _DeclaredStateSlot(
+                variable=variable_name,
+                wrt=evolution_variable,
+                order=derivative_order,
+                index=index,
+            )
+            state_slots.append(slot)
+            state_index_by_key[
+                (variable_name, evolution_variable, derivative_order)
+            ] = index
+
+    return _DeclaredGraphRuntimeSpec(
+        evolution_variable=evolution_variable,
+        state_slots=tuple(state_slots),
+        state_index_by_key=FrozenMapping(state_index_by_key),
+        equation_by_variable=FrozenMapping(equation_by_variable),
+        equation_orders=FrozenMapping(equation_orders),
+    )
+
+
+def _declared_runtime_seed(
+    *,
+    k_value: float,
+    physical_params: _CustomCMBPhysicalParameters,
+) -> float:
+    """Return the default scale for declared-graph initial conditions."""
+
+    return 1.0e-5 / (
+        1.0 + (k_value / max(physical_params.hubble_ratio, 1.0e-6)) ** 2
+    )
+
+
+def _build_declared_base_context(
+    *,
+    model_parameters: Mapping[str, float],
+    physical_params: _CustomCMBPhysicalParameters,
+    numerics: _CustomCMBNumerics,
+    k_value: float,
+    eta_value: float,
+    background_scalars: Mapping[str, float],
+) -> dict[str, Any]:
+    """Return scalar runtime values shared by equations and conditions."""
+
+    context: dict[str, Any] = dict(model_parameters)
+    context.update(background_scalars)
+    context["k"] = float(k_value)
+    context["seed"] = _declared_runtime_seed(
+        k_value=float(k_value),
+        physical_params=physical_params,
+    )
+    context["a_initial"] = float(background_scalars["a"])
+    context["eta_initial"] = float(eta_value)
+    context["Omega_b0"] = float(physical_params.Omega_b0)
+    context["Omega_c0"] = float(physical_params.Omega_c0)
+    context["Omega_m0"] = float(physical_params.Omega_m0_background)
+    context["Omega_gamma0"] = float(physical_params.Omega_gamma0)
+    context["Omega_nu0"] = float(physical_params.Omega_nu0)
+    context["Omega_r0"] = float(physical_params.Omega_r0)
+    context["Omega_k0"] = float(physical_params.Omega_k0)
+    context["Omega_de0"] = float(physical_params.Omega_de0)
+    context["sound_horizon"] = float(background_scalars["sound_horizon"])
+    context["sound_speed_sq"] = float(background_scalars["sound_speed_sq"])
+    context["collision_rate"] = float(background_scalars["collision_rate"])
+    context["free_streaming"] = float(background_scalars["free_streaming"])
+    context["tight_coupling_ratio"] = float(numerics.tight_coupling_ratio)
+    return context
+
+
+def _resolve_declared_graph_context(
+    context: dict[str, Any],
+    perturbation_data: Any,
+    *,
+    eta_grid: numpy.ndarray | None,
+    runtime_spec: _DeclaredGraphRuntimeSpec | None,
+) -> dict[str, Any]:
+    """Resolve derivative symbols, derived expressions, and relations."""
+
+    unresolved_derivatives = {
+        name: entry
+        for name, entry in perturbation_data.derived.items()
+        if entry.expression is None
+    }
+    unresolved_expressions = {
+        name: entry
+        for name, entry in perturbation_data.derived.items()
+        if entry.expression is not None
+    }
+    unresolved_relations: dict[str, Any] = {}
+    for entry in perturbation_data.constraints.values():
+        unresolved_relations[entry.target] = entry
+    for entry in perturbation_data.closures.values():
+        unresolved_relations[entry.target] = entry
+
+    while (
+        unresolved_derivatives
+        or unresolved_expressions
+        or unresolved_relations
+    ):
+        progress = False
+        for name, entry in list(unresolved_derivatives.items()):
+            target_name = str(entry.variable or "")
+            if target_name not in context:
+                continue
+            target_value = context[target_name]
+            derivative_order = int(entry.order or 1)
+            if eta_grid is None:
+                if runtime_spec is None:
+                    continue
+                slot_index = runtime_spec.state_index_by_key.get(
+                    (target_name, str(entry.wrt or ""), derivative_order)
+                )
+                slot_name = (
+                    f"__d{derivative_order}_{target_name}_{entry.wrt or ''}"
+                )
+                if slot_index is None or slot_name not in context:
+                    continue
+                context[name] = context[slot_name]
+            else:
+                derivative_value = numpy.asarray(target_value, dtype=float)
+                for _ in range(derivative_order):
+                    derivative_value = numpy.asarray(
+                        numpy.gradient(
+                            derivative_value,
+                            eta_grid,
+                            edge_order=1,
+                        ),
+                        dtype=float,
+                    )
+                context[name] = derivative_value
+            unresolved_derivatives.pop(name)
+            progress = True
+
+        for name, entry in list(unresolved_expressions.items()):
+            missing = [
+                dependency
+                for dependency in entry.dependencies
+                if dependency not in context
+            ]
+            if missing:
+                continue
+            context[name] = _evaluate_safe_expression(
+                str(entry.expression),
+                context,
+            )
+            unresolved_expressions.pop(name)
+            progress = True
+
+        for target_name, entry in list(unresolved_relations.items()):
+            missing = [
+                dependency
+                for dependency in entry.dependencies
+                if dependency not in context
+            ]
+            if missing:
+                continue
+            context[target_name] = _evaluate_safe_expression(
+                str(entry.expression),
+                context,
+            )
+            unresolved_relations.pop(target_name)
+            progress = True
+
+        if not progress:
+            pending_names = sorted(
+                list(unresolved_derivatives)
+                + list(unresolved_expressions)
+                + list(unresolved_relations)
+            )
+            pending_str = ", ".join(pending_names)
+            raise ValueError(
+                "Declared CMB graph references unresolved symbol(s): "
+                f"{pending_str}"
+            )
+        return context
+
+
+def _evaluate_declared_initial_state(
+    *,
+    perturbation_data: Any,
+    runtime_spec: _DeclaredGraphRuntimeSpec,
+    base_context: Mapping[str, Any],
+) -> numpy.ndarray:
+    """Return the initial state vector for one Fourier mode."""
+
+    state_vector = numpy.zeros(len(runtime_spec.state_slots), dtype=float)
+    context = dict(base_context)
+    condition_entries = sorted(
+        perturbation_data.initial_conditions.values(),
+        key=lambda entry: (
+            str(entry.target.variable),
+            str(entry.target.wrt),
+            int(entry.target.order),
+            str(entry.name),
+        ),
+    )
+    pending = list(condition_entries)
+    while pending:
+        progress = False
+        next_round: list[Any] = []
+        for entry in pending:
+            missing = [
+                dependency
+                for dependency in entry.dependencies
+                if dependency not in context
+            ]
+            if missing:
+                next_round.append(entry)
+                continue
+            value = _coerce_numeric_scalar(
+                _evaluate_safe_expression(str(entry.expression), context),
+                name=f"initial condition '{entry.name}'",
+            )
+            state_index = runtime_spec.state_index_by_key[
+                (
+                    str(entry.target.variable),
+                    str(entry.target.wrt),
+                    int(entry.target.order),
+                )
+            ]
+            state_vector[state_index] = value
+            if int(entry.target.order) == 0:
+                context[str(entry.target.variable)] = value
+            else:
+                context[
+                    "__d"
+                    f"{int(entry.target.order)}_"
+                    f"{entry.target.variable}_"
+                    f"{entry.target.wrt}"
+                ] = value
+            progress = True
+        if not progress and next_round:
+            pending_names = ", ".join(entry.name for entry in next_round)
+            raise ValueError(
+                "Declared CMB initial conditions could not be resolved: "
+                f"{pending_names}"
+            )
+        pending = next_round
+    return state_vector
+
+
+def _declared_graph_projection(
+    *,
+    projection: str,
+    ell_value: int,
+    x_signature: str,
+    x_values: numpy.ndarray,
+    eta_grid: numpy.ndarray,
+    source_histories: Mapping[str, numpy.ndarray],
+) -> float:
+    """Return one projected transfer component value."""
+
+    j_l, j_l_derivative = _get_cached_spherical_bessel_values(
+        int(ell_value),
+        x_signature,
+    )
+    if projection == "cmb_temperature_scalar":
+        source = numpy.zeros_like(eta_grid, dtype=float)
+        if "monopole" in source_histories:
+            source += source_histories["monopole"] * j_l
+        if "doppler" in source_histories:
+            source += source_histories["doppler"] * j_l_derivative
+        if "isw" in source_histories:
+            source += source_histories["isw"] * j_l
+        if "additive" in source_histories:
+            source += source_histories["additive"] * j_l
+        return float(numpy.trapz(source, eta_grid))
+    if projection == "cmb_polarization_e_scalar":
+        prefactor = 0.0
+        if ell_value >= 2:
+            prefactor = math.exp(
+                0.5
+                * (
+                    math.lgamma(int(ell_value) + 3)
+                    - math.lgamma(int(ell_value) - 1)
+                )
+            )
+        e_kernel = numpy.zeros_like(j_l, dtype=float)
+        if ell_value >= 2:
+            e_kernel = (
+                prefactor * j_l / numpy.maximum(x_values * x_values, 1.0e-12)
+            )
+        source = source_histories.get("polarization")
+        if source is None:
+            raise ValueError(
+                "E-mode projection requires a 'polarization' source term."
+            )
+        return float(numpy.trapz(source * e_kernel, eta_grid))
+    if projection == "scalar_jl":
+        if "signal" not in source_histories:
+            raise ValueError(
+                "scalar_jl projection requires a 'signal' source term."
+            )
+        return float(numpy.trapz(source_histories["signal"] * j_l, eta_grid))
+    if projection == "scalar_jl_derivative":
+        if "signal" not in source_histories:
+            raise ValueError(
+                "scalar_jl_derivative projection requires a 'signal' "
+                "source term."
+            )
+        return float(
+            numpy.trapz(source_histories["signal"] * j_l_derivative, eta_grid)
+        )
+    if projection == "scalar_e_mode":
+        if "signal" not in source_histories:
+            raise ValueError(
+                "scalar_e_mode projection requires a 'signal' source term."
+            )
+        prefactor = 0.0
+        if ell_value >= 2:
+            prefactor = math.exp(
+                0.5
+                * (
+                    math.lgamma(int(ell_value) + 3)
+                    - math.lgamma(int(ell_value) - 1)
+                )
+            )
+        e_kernel = numpy.zeros_like(j_l, dtype=float)
+        if ell_value >= 2:
+            e_kernel = (
+                prefactor * j_l / numpy.maximum(x_values * x_values, 1.0e-12)
+            )
+        return float(
+            numpy.trapz(source_histories["signal"] * e_kernel, eta_grid)
+        )
+    if projection in {
+        "cmb_lensing_potential_scalar",
+        "scalar_potential",
+    }:
+        if "potential" in source_histories:
+            signal = source_histories["potential"]
+        elif "signal" in source_histories:
+            signal = source_histories["signal"]
+        else:
+            raise ValueError(
+                f"{projection} requires a 'potential' or 'signal' source "
+                "term."
+            )
+        kernel = j_l / numpy.maximum(x_values * x_values, 1.0e-12)
+        return float(numpy.trapz(signal * kernel, eta_grid))
+    raise ValueError(
+        "Declared observable requests unsupported projection "
+        f"'{projection}'"
+    )
+
+
 def _compute_custom_cmb_spectrum_data(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     *,
     background_provider: Any | None = None,
 ) -> CustomCMBSpectrumData:
-    """Return transfer functions and spectra for a non-standard CMB model."""
+    """Return transfer functions and spectra for a declared CMB graph."""
 
     cache_key = _custom_cmb_spectrum_cache_key(
         contract_or_params,
@@ -1844,11 +2067,11 @@ def _compute_custom_cmb_spectrum_data(
     if perturbation_data.standard:
         raise ValueError("Standard perturbation contracts must use CAMB.")
 
+    runtime_spec = _prepare_declared_graph_runtime_spec(perturbation_data)
     physical_params = _resolve_custom_cmb_physical_parameters(
         contract_or_params,
         background_provider,
     )
-    _validate_custom_cmb_physical_contract(perturbation_data, physical_params)
     numerics = _resolve_custom_cmb_numerics(contract_or_params)
     background = _build_custom_cmb_background(
         contract_or_params,
@@ -1871,12 +2094,12 @@ def _compute_custom_cmb_spectrum_data(
         eta_start,
         float(background.eta_grid[-1]),
         max(
-            96,
+            128,
             min(
                 background.eta_grid.size * eta_los_refinement,
-                256 * eta_los_refinement,
+                512 * eta_los_refinement,
             ),
-            min(numerics.eta_sample_count, 256) * eta_los_refinement,
+            min(numerics.eta_sample_count, 512) * eta_los_refinement,
         ),
     )
     eta_los_grid = numpy.asarray(eta_los_grid, dtype=float)
@@ -1887,10 +2110,24 @@ def _compute_custom_cmb_spectrum_data(
     H_los_grid = numpy.asarray(eta_los_background["H"], dtype=float)
     tau_los_grid = numpy.asarray(eta_los_background["tau"], dtype=float)
     tau_dot_los_grid = numpy.asarray(
-        eta_los_background["tau_dot"], dtype=float
+        eta_los_background["tau_dot"],
+        dtype=float,
     )
     visibility_los_grid = numpy.asarray(
-        eta_los_background["visibility"], dtype=float
+        eta_los_background["visibility"],
+        dtype=float,
+    )
+    chi_los_grid = numpy.asarray(
+        eta_los_background["chi"],
+        dtype=float,
+    )
+    angular_diameter_distance_grid = numpy.asarray(
+        eta_los_background["angular_diameter_distance"],
+        dtype=float,
+    )
+    sound_speed_los_grid = numpy.asarray(
+        eta_los_background["sound_speed"],
+        dtype=float,
     )
     Hconf_los_grid = a_los_grid * H_los_grid / _C_LIGHT_KM_S
     baryon_loading_grid = (
@@ -1919,7 +2156,7 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.logspace(
         math.log10(k_min),
         math.log10(k_max),
-        max(12, min(numerics.k_sample_count, 40)),
+        max(16, min(numerics.k_sample_count, 48)),
     )
     k_values = numpy.asarray(k_values, dtype=float)
 
@@ -1928,114 +2165,6 @@ def _compute_custom_cmb_spectrum_data(
         physical_params.H0_km_s_Mpc / 67.4,
         0.25,
     )
-
-    equation_mode = str(
-        getattr(perturbation_data, "equation_mode", "mapped_sector") or ""
-    ).strip()
-    if equation_mode not in {"mapped_sector", "declared_equations"}:
-        raise ValueError(
-            "Custom CMB perturbation equation_mode must be either "
-            "'mapped_sector' or 'declared_equations'"
-        )
-
-    variable_sector_map: dict[str, str] = {}
-    for variable_name, variable_entry in perturbation_data.variables.items():
-        sector = _classify_custom_physical_sector(
-            str(variable_name),
-            str(getattr(variable_entry, "kind", "")),
-        )
-        variable_sector_map[str(variable_name)] = sector
-
-    equation_sector_map: dict[str, str] = {}
-    for equation_name, equation_entry in perturbation_data.equations.items():
-        lhs_variable = str(getattr(equation_entry.lhs, "variable", ""))
-        if lhs_variable not in variable_sector_map:
-            raise ValueError(
-                "Perturbation equation "
-                f"'{equation_name}' references unknown variable "
-                f"'{lhs_variable}'"
-            )
-        sector = variable_sector_map[lhs_variable]
-        if sector in equation_sector_map:
-            raise ValueError(
-                "Perturbation equations declare more than one derivative "
-                f"for mapped sector '{sector}'"
-            )
-        if sector in {
-            "metric_potential_phi",
-            "metric_potential_psi",
-        }:
-            raise ValueError(
-                "Metric potentials must be controlled by closures, not "
-                "equations."
-            )
-        equation_sector_map[sector] = equation_name
-
-    required_equation_sectors: tuple[str, ...] = (
-        "photon_temperature_monopole",
-        "photon_temperature_dipole",
-        "photon_temperature_quadrupole",
-        "photon_polarization_quadrupole",
-        "baryon_density_contrast",
-        "baryon_velocity_divergence",
-        "massless_neutrino_density_contrast",
-        "massless_neutrino_velocity_divergence",
-        "massless_neutrino_anisotropic_stress",
-    )
-    if physical_params.has_cdm:
-        required_equation_sectors += (
-            "cdm_density_contrast",
-            "cdm_velocity_divergence",
-        )
-    if equation_mode == "declared_equations":
-        missing_equations = [
-            sector
-            for sector in required_equation_sectors
-            if sector not in equation_sector_map
-        ]
-        if missing_equations:
-            readable = ", ".join(sorted(missing_equations))
-            raise ValueError(
-                "Declared-equation mode is missing required sector "
-                f"equation(s): {readable}"
-            )
-    if not physical_params.has_cdm:
-        forbidden_cdm_equations = [
-            sector
-            for sector in (
-                "cdm_density_contrast",
-                "cdm_velocity_divergence",
-            )
-            if sector in equation_sector_map
-        ]
-        if forbidden_cdm_equations:
-            readable = ", ".join(sorted(forbidden_cdm_equations))
-            raise ValueError(
-                "The physical background does not declare CDM, so custom "
-                f"equations for {readable} cannot be applied."
-            )
-
-    alias_to_sector: dict[str, str] = {}
-    for sector_name, aliases in _CUSTOM_CMB_SECTOR_ALIASES.items():
-        for alias_name in aliases:
-            alias_to_sector[alias_name] = sector_name
-    alias_to_sector.update(variable_sector_map)
-
-    state_target_indices = {
-        "photon_temperature_monopole": 0,
-        "photon_temperature_dipole": 1,
-        "photon_temperature_quadrupole": 2,
-        "photon_polarization_quadrupole": 3,
-        "baryon_density_contrast": 4,
-        "baryon_velocity_divergence": 5,
-        "cdm_density_contrast": 6,
-        "cdm_velocity_divergence": 7,
-        "massless_neutrino_density_contrast": 8,
-        "massless_neutrino_velocity_divergence": 9,
-        "massless_neutrino_anisotropic_stress": 10,
-        "metric_potential_phi": 11,
-        "metric_potential_psi": 12,
-    }
     source_parameters: dict[str, float] = {}
     for source in (
         contract_or_params.get("param_map", {}) or {},
@@ -2054,59 +2183,138 @@ def _compute_custom_cmb_spectrum_data(
             except ValueError:
                 continue
 
-    def _coerce_history_array(
-        value: Any,
+    transfer_component_observables = {
+        name: entry
+        for name, entry in perturbation_data.observables.items()
+        if entry.kind == "transfer_component"
+    }
+    power_spectrum_observables = {
+        name: entry
+        for name, entry in perturbation_data.observables.items()
+        if entry.kind == "angular_power_spectrum"
+    }
+    transfer_components = {
+        name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
+        for name in transfer_component_observables
+    }
+
+    los_step_sizes = numpy.diff(eta_los_grid)
+    if los_step_sizes.size == 0 or not numpy.all(
+        numpy.isfinite(los_step_sizes)
+    ):
+        raise ValueError("eta_los_grid must be a finite grid")
+    if numpy.any(los_step_sizes <= 0.0):
+        raise ValueError("eta_los_grid must be strictly increasing")
+
+    def _scalar_background_context(
+        step_index: int,
+        blend: float,
+    ) -> tuple[float, dict[str, float]]:
+        """Return one interpolated scalar background context."""
+
+        next_index = min(step_index + 1, eta_los_grid.size - 1)
+        weight_next = float(blend)
+        weight_current = 1.0 - weight_next
+        eta_value = (
+            weight_current * eta_los_grid[step_index]
+            + weight_next * eta_los_grid[next_index]
+        )
+        scalar_context = {
+            "a": float(
+                weight_current * a_los_grid[step_index]
+                + weight_next * a_los_grid[next_index]
+            ),
+            "z": float(
+                weight_current * z_los_grid[step_index]
+                + weight_next * z_los_grid[next_index]
+            ),
+            "eta": float(eta_value),
+            "H": float(
+                weight_current * H_los_grid[step_index]
+                + weight_next * H_los_grid[next_index]
+            ),
+            "Hconf": float(
+                weight_current * Hconf_los_grid[step_index]
+                + weight_next * Hconf_los_grid[next_index]
+            ),
+            "tau": float(
+                weight_current * tau_los_grid[step_index]
+                + weight_next * tau_los_grid[next_index]
+            ),
+            "tau_dot": float(
+                weight_current * tau_dot_los_grid[step_index]
+                + weight_next * tau_dot_los_grid[next_index]
+            ),
+            "visibility": float(
+                weight_current * visibility_los_grid[step_index]
+                + weight_next * visibility_los_grid[next_index]
+            ),
+            "chi": float(
+                weight_current * chi_los_grid[step_index]
+                + weight_next * chi_los_grid[next_index]
+            ),
+            "angular_diameter_distance": float(
+                weight_current * angular_diameter_distance_grid[step_index]
+                + weight_next * angular_diameter_distance_grid[next_index]
+            ),
+            "sound_speed": float(
+                weight_current * sound_speed_los_grid[step_index]
+                + weight_next * sound_speed_los_grid[next_index]
+            ),
+            "sound_speed_sq": float(
+                weight_current * sound_speed_sq_grid[step_index]
+                + weight_next * sound_speed_sq_grid[next_index]
+            ),
+            "collision_rate": float(
+                weight_current * collision_rate_grid[step_index]
+                + weight_next * collision_rate_grid[next_index]
+            ),
+            "free_streaming": float(
+                weight_current * free_streaming_grid[step_index]
+                + weight_next * free_streaming_grid[next_index]
+            ),
+            "sound_horizon": float(background.sound_horizon_mpc),
+        }
+        return float(eta_value), scalar_context
+
+    def _build_scalar_state_context(
+        state_vector: numpy.ndarray,
         *,
-        label: str,
         k_value: float,
-        state_index: int,
-    ) -> numpy.ndarray:
-        """Return ``value`` as a finite history over ``eta_los_grid``."""
+        eta_value: float,
+        background_scalars: Mapping[str, float],
+    ) -> dict[str, Any]:
+        """Return the scalar expression environment for one solver stage."""
 
-        array_value = numpy.asarray(value, dtype=float)
-        if array_value.ndim == 0:
-            history = numpy.full_like(
-                eta_los_grid,
-                float(array_value),
-                dtype=float,
-            )
-        else:
-            try:
-                history = numpy.broadcast_to(
-                    array_value,
-                    eta_los_grid.shape,
-                ).astype(float, copy=True)
-            except ValueError as exc:
-                raise ValueError(
-                    f"{label} did not evaluate to a history over eta"
-                ) from exc
-        if numpy.all(numpy.isfinite(history)):
-            return history
-        bad_indices = numpy.flatnonzero(~numpy.isfinite(history))
-        bad_index = int(bad_indices[0]) if bad_indices.size else -1
-        bad_value = (
-            float(history[bad_index]) if bad_index >= 0 else float("nan")
+        context = _build_declared_base_context(
+            model_parameters=source_parameters,
+            physical_params=physical_params,
+            numerics=numerics,
+            k_value=float(k_value),
+            eta_value=float(eta_value),
+            background_scalars=background_scalars,
         )
-        eta_bad = (
-            float(eta_los_grid[bad_index])
-            if bad_index >= 0
-            else float(eta_los_grid[0])
-        )
-        raise ValueError(
-            "Custom CMB evolution produced non-finite state values "
-            f"during {label}; equation_mode={equation_mode}, eta={eta_bad}, "
-            f"k={k_value}, state_index={state_index}, "
-            f"offending_value={bad_value}"
+        for slot in runtime_spec.state_slots:
+            value = float(state_vector[slot.index])
+            if slot.order == 0:
+                context[slot.variable] = value
+            else:
+                context[f"__d{slot.order}_{slot.variable}_{slot.wrt}"] = value
+        return _resolve_declared_graph_context(
+            context,
+            perturbation_data,
+            eta_grid=None,
+            runtime_spec=runtime_spec,
         )
 
-    def _build_history_context(
+    def _build_array_context(
         histories: Mapping[str, numpy.ndarray],
         *,
         k_value: float,
     ) -> dict[str, Any]:
         """Return the array-valued expression environment for one mode."""
 
-        context: dict[str, Any] = {
+        context = {
             "a": a_los_grid,
             "z": z_los_grid,
             "eta": eta_los_grid,
@@ -2115,675 +2323,284 @@ def _compute_custom_cmb_spectrum_data(
             "tau": tau_los_grid,
             "tau_dot": tau_dot_los_grid,
             "visibility": visibility_los_grid,
+            "chi": chi_los_grid,
+            "angular_diameter_distance": numpy.asarray(
+                angular_diameter_distance_grid,
+                dtype=float,
+            ),
+            "sound_speed": sound_speed_los_grid,
+            "sound_speed_sq": sound_speed_sq_grid,
+            "collision_rate": collision_rate_grid,
+            "free_streaming": free_streaming_grid,
+            "sound_horizon": numpy.full_like(
+                eta_los_grid,
+                float(background.sound_horizon_mpc),
+                dtype=float,
+            ),
             "k": float(k_value),
+            "seed": _declared_runtime_seed(
+                k_value=float(k_value),
+                physical_params=physical_params,
+            ),
+            "Omega_b0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_b0),
+                dtype=float,
+            ),
+            "Omega_c0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_c0),
+                dtype=float,
+            ),
+            "Omega_m0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_m0_background),
+                dtype=float,
+            ),
+            "Omega_gamma0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_gamma0),
+                dtype=float,
+            ),
+            "Omega_nu0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_nu0),
+                dtype=float,
+            ),
+            "Omega_r0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_r0),
+                dtype=float,
+            ),
+            "Omega_k0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_k0),
+                dtype=float,
+            ),
+            "Omega_de0": numpy.full_like(
+                eta_los_grid,
+                float(physical_params.Omega_de0),
+                dtype=float,
+            ),
         }
-        context.update(source_parameters)
-        for sector_name, history in histories.items():
-            context[sector_name] = history
-            for alias_name in _CUSTOM_CMB_SECTOR_ALIASES.get(
-                sector_name, (sector_name,)
-            ):
-                context[alias_name] = history
-        for variable_name, sector_name in variable_sector_map.items():
-            history = histories.get(sector_name)
-            if history is not None:
-                context[variable_name] = history
-
-        for symbol_name, symbol_entry in perturbation_data.derived.items():
-            if getattr(symbol_entry, "kind", "") != "derivative_symbol":
+        for name, value in source_parameters.items():
+            context[name] = float(value)
+        for slot in runtime_spec.state_slots:
+            if slot.order != 0:
                 continue
-            target_name = str(symbol_entry.variable or "")
-            target_history = context.get(target_name)
-            if target_history is None:
-                raise ValueError(
-                    "Derivative symbol "
-                    f"'{symbol_name}' references unknown symbol "
-                    f"'{target_name}'"
-                )
-            context[symbol_name] = _coerce_history_array(
-                numpy.gradient(
-                    numpy.asarray(target_history, dtype=float),
-                    eta_los_grid,
-                    edge_order=1,
-                ),
-                label=f"derivative symbol '{symbol_name}'",
-                k_value=k_value,
-                state_index=state_target_indices.get(
-                    alias_to_sector.get(target_name, ""),
-                    -1,
-                ),
+            context[slot.variable] = numpy.asarray(
+                histories[slot.variable],
+                dtype=float,
             )
+        return _resolve_declared_graph_context(
+            context,
+            perturbation_data,
+            eta_grid=eta_los_grid,
+            runtime_spec=runtime_spec,
+        )
 
-        pending_expression_entries = {
-            name: entry
-            for name, entry in perturbation_data.derived.items()
-            if getattr(entry, "kind", "") == "expression"
-        }
-        while pending_expression_entries:
-            progress = False
-            for derived_name, derived_entry in list(
-                pending_expression_entries.items()
-            ):
-                missing_dependencies = [
-                    dependency
-                    for dependency in derived_entry.dependencies
-                    if dependency not in context
-                ]
-                if missing_dependencies:
-                    continue
-                context[derived_name] = _coerce_history_array(
-                    _evaluate_safe_expression(
-                        str(derived_entry.expression),
-                        context,
-                    ),
-                    label=f"derived expression '{derived_name}'",
-                    k_value=k_value,
-                    state_index=-1,
-                )
-                pending_expression_entries.pop(derived_name)
-                progress = True
-            if not progress:
-                missing_name = sorted(
-                    {
-                        dependency
-                        for entry in pending_expression_entries.values()
-                        for dependency in entry.dependencies
-                        if dependency not in context
-                    }
-                )
-                if missing_name:
-                    missing_str = ", ".join(missing_name)
-                    raise ValueError(
-                        "Declared derived perturbation expressions "
-                        f"reference missing symbol(s): {missing_str}"
-                    )
-                raise ValueError(
-                    "Declared derived perturbation expressions could not be "
-                    "resolved"
-                )
-
-        return context
-
-    def _resolve_closure_history(
-        closure_expression: str,
-        closure_equals: str,
+    def _evaluate_declared_sources(
         context: Mapping[str, Any],
         *,
         k_value: float,
-    ) -> tuple[str, numpy.ndarray] | None:
-        """Return the target history implied by a simple closure."""
-
-        try:
-            expression_node = ast.parse(closure_expression, mode="eval").body
-        except SyntaxError as exc:
-            raise ValueError(
-                f"Invalid closure expression '{closure_expression}'"
-            ) from exc
-        equals_value = _coerce_history_array(
-            _evaluate_safe_expression(closure_equals, context),
-            label=f"closure '{closure_expression}'",
-            k_value=k_value,
-            state_index=-1,
-        )
-        if isinstance(expression_node, ast.Name):
-            return expression_node.id, equals_value
-        if not isinstance(expression_node, ast.BinOp):
-            return None
-        if isinstance(expression_node.left, ast.Name):
-            rhs_history = _coerce_history_array(
-                _evaluate_safe_expression(
-                    ast.unparse(expression_node.right),
-                    context,
-                ),
-                label=f"closure '{closure_expression}'",
-                k_value=k_value,
-                state_index=-1,
-            )
-            if isinstance(expression_node.op, ast.Add):
-                return expression_node.left.id, equals_value - rhs_history
-            if isinstance(expression_node.op, ast.Sub):
-                return expression_node.left.id, equals_value + rhs_history
-        if isinstance(expression_node.right, ast.Name):
-            lhs_history = _coerce_history_array(
-                _evaluate_safe_expression(
-                    ast.unparse(expression_node.left),
-                    context,
-                ),
-                label=f"closure '{closure_expression}'",
-                k_value=k_value,
-                state_index=-1,
-            )
-            if isinstance(expression_node.op, ast.Add):
-                return expression_node.right.id, equals_value - lhs_history
-            if isinstance(expression_node.op, ast.Sub):
-                return expression_node.right.id, lhs_history - equals_value
-        return None
-
-    def _apply_equations(
-        histories: dict[str, numpy.ndarray],
-        *,
-        k_value: float,
-    ) -> None:
-        """Apply declared equation responses to ``histories``."""
-
-        if not perturbation_data.equations:
-            return
-        context = _build_history_context(histories, k_value=k_value)
-        stiff_scale = max(
-            float(numpy.percentile(collision_rate_grid, 75)),
-            1.0,
-        )
-        stiff_window = 1.0 / (
-            1.0 + collision_rate_grid / stiff_scale + 0.1 * k_value * eta0
-        )
-        for (
-            equation_name,
-            equation_entry,
-        ) in perturbation_data.equations.items():
-            missing_dependencies = [
-                dependency
-                for dependency in equation_entry.dependencies
-                if dependency not in context
-            ]
-            if missing_dependencies:
-                missing_str = ", ".join(sorted(missing_dependencies))
-                raise ValueError(
-                    "Declared perturbation equation "
-                    f"'{equation_name}' references missing symbol(s): "
-                    f"{missing_str}"
-                )
-            rhs_history = _coerce_history_array(
-                _evaluate_safe_expression(str(equation_entry.rhs), context),
-                label=f"equation '{equation_name}'",
-                k_value=k_value,
-                state_index=state_target_indices[
-                    variable_sector_map[
-                        str(getattr(equation_entry.lhs, "variable", ""))
-                    ]
-                ],
-            )
-            target_sector = variable_sector_map[
-                str(getattr(equation_entry.lhs, "variable", ""))
-            ]
-            baseline_history = histories[target_sector]
-            filtered_rhs = rhs_history * stiff_window
-            response = numpy.asarray(
-                cumulative_trapezoid(
-                    filtered_rhs,
-                    eta_los_grid,
-                    initial=0.0,
-                ),
-                dtype=float,
-            )
-            response_scale = max(
-                float(numpy.max(numpy.abs(response))),
-                1.0e-12,
-            )
-            bounded_response = numpy.tanh(response / response_scale)
-            if equation_mode == "declared_equations":
-                histories[target_sector] = _coerce_history_array(
-                    0.85 * baseline_history
-                    + 0.15 * (baseline_history[0] + bounded_response),
-                    label=f"equation '{equation_name}'",
-                    k_value=k_value,
-                    state_index=state_target_indices[target_sector],
-                )
-            else:
-                histories[target_sector] = _coerce_history_array(
-                    baseline_history + 0.05 * bounded_response,
-                    label=f"equation '{equation_name}'",
-                    k_value=k_value,
-                    state_index=state_target_indices[target_sector],
-                )
-            context = _build_history_context(histories, k_value=k_value)
-
-    def _apply_closures(
-        histories: dict[str, numpy.ndarray],
-        *,
-        k_value: float,
-    ) -> None:
-        """Apply declared closures to ``histories``."""
-
-        if not perturbation_data.closures:
-            return
-        context = _build_history_context(histories, k_value=k_value)
-        for closure_name, closure_entry in perturbation_data.closures.items():
-            resolved_target = _resolve_closure_history(
-                str(closure_entry.expression),
-                str(closure_entry.equals),
-                context,
-                k_value=k_value,
-            )
-            if resolved_target is None:
-                raise ValueError(
-                    "Unsupported closure expression in "
-                    f"'{closure_name}'. Declared closures must assign a "
-                    "single supported symbol."
-                )
-            target_name, target_history = resolved_target
-            if target_name not in alias_to_sector:
-                raise ValueError(
-                    "Declared closure "
-                    f"'{closure_name}' references unsupported symbol "
-                    f"'{target_name}'"
-                )
-            target_sector = alias_to_sector[target_name]
-            if (
-                target_sector
-                in {
-                    "cdm_density_contrast",
-                    "cdm_velocity_divergence",
-                }
-                and not physical_params.has_cdm
-            ):
-                raise ValueError(
-                    "The physical background does not declare CDM, so "
-                    "custom CDM closures cannot be applied."
-                )
-            histories[target_sector] = _coerce_history_array(
-                target_history,
-                label=f"closure '{closure_name}'",
-                k_value=k_value,
-                state_index=state_target_indices.get(target_sector, -1),
-            )
-            context = _build_history_context(histories, k_value=k_value)
-
-    def _evaluate_sources(
-        histories: Mapping[str, numpy.ndarray],
-        *,
-        k_value: float,
     ) -> dict[str, numpy.ndarray]:
-        """Return source-channel histories for one Fourier mode."""
+        """Return source arrays keyed by source-term name."""
 
-        context = _build_history_context(histories, k_value=k_value)
-        channel_histories = {
-            channel: numpy.zeros_like(eta_los_grid)
-            for channel in _CUSTOM_CMB_SOURCE_CHANNELS
-        }
+        source_arrays: dict[str, numpy.ndarray] = {}
         for source_name, source_entry in perturbation_data.sources.items():
-            missing_dependencies = [
-                dependency
-                for dependency in source_entry.dependencies
-                if dependency not in context
-            ]
-            if missing_dependencies:
-                missing_str = ", ".join(sorted(missing_dependencies))
-                raise ValueError(
-                    "Declared perturbation source "
-                    f"'{source_name}' references missing symbol(s): "
-                    f"{missing_str}"
-                )
-            channel_histories[source_entry.channel] += _coerce_history_array(
+            value = numpy.asarray(
                 _evaluate_safe_expression(
                     str(source_entry.expression),
                     context,
                 ),
-                label=f"source '{source_name}'",
-                k_value=k_value,
-                state_index=-1,
+                dtype=float,
             )
-        return channel_histories
+            if value.ndim == 0:
+                value = numpy.full_like(
+                    eta_los_grid,
+                    float(value),
+                    dtype=float,
+                )
+            if value.shape != eta_los_grid.shape:
+                raise ValueError(
+                    f"Source term '{source_name}' did not evaluate to an "
+                    "eta-grid history."
+                )
+            if not numpy.all(numpy.isfinite(value)):
+                raise ValueError(
+                    "Declared source term produced non-finite values: "
+                    f"{source_name} at k={k_value}"
+                )
+            source_arrays[source_name] = value
+        return source_arrays
 
-    def _evolve_custom_cmb_mode_histories(
+    def _mode_rhs(
+        state_vector: numpy.ndarray,
+        *,
+        step_index: int,
+        blend: float,
+        k_value: float,
+    ) -> numpy.ndarray:
+        """Return the state derivative for one RK stage."""
+
+        eta_value, background_scalars = _scalar_background_context(
+            step_index,
+            blend,
+        )
+        scalar_context = _build_scalar_state_context(
+            state_vector,
+            k_value=float(k_value),
+            eta_value=float(eta_value),
+            background_scalars=background_scalars,
+        )
+        derivative = numpy.zeros_like(state_vector, dtype=float)
+        for slot in runtime_spec.state_slots:
+            if slot.order + 1 < runtime_spec.equation_orders[slot.variable]:
+                derivative[slot.index] = float(
+                    state_vector[
+                        runtime_spec.state_index_by_key[
+                            (
+                                slot.variable,
+                                slot.wrt,
+                                slot.order + 1,
+                            )
+                        ]
+                    ]
+                )
+                continue
+            equation_entry = runtime_spec.equation_by_variable[slot.variable]
+            derivative[slot.index] = _coerce_numeric_scalar(
+                _evaluate_safe_expression(
+                    str(equation_entry.rhs),
+                    scalar_context,
+                ),
+                name=f"equation '{equation_entry.name}'",
+            )
+        if not numpy.all(numpy.isfinite(derivative)):
+            bad_indices = numpy.flatnonzero(~numpy.isfinite(derivative))
+            bad_index = int(bad_indices[0]) if bad_indices.size else -1
+            raise ValueError(
+                "Declared CMB evolution produced non-finite derivatives at "
+                f"eta={eta_value}, k={k_value}, state_index={bad_index}"
+            )
+        return derivative
+
+    def _evolve_declared_mode(
         k_value: float,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
-        """Integrate one Fourier mode over ``eta_los_grid``."""
+        """Integrate one Fourier mode through the declared graph."""
 
-        k_value = float(k_value)
-        k_sq = max(k_value * k_value, 1.0e-12)
-        eta_count = int(eta_los_grid.size)
-        if eta_count < 2:
-            raise ValueError("eta_los_grid must contain at least two samples")
-
-        history_names = [
-            "photon_temperature_monopole",
-            "photon_temperature_dipole",
-            "photon_temperature_quadrupole",
-            "photon_polarization_quadrupole",
-            "baryon_density_contrast",
-            "baryon_velocity_divergence",
-            "massless_neutrino_density_contrast",
-            "massless_neutrino_velocity_divergence",
-            "massless_neutrino_anisotropic_stress",
-            "metric_potential_phi",
-            "metric_potential_psi",
-        ]
-        if physical_params.has_cdm:
-            history_names.extend(
-                [
-                    "cdm_density_contrast",
-                    "cdm_velocity_divergence",
-                ]
-            )
-        histories: dict[str, numpy.ndarray] = {
-            name: numpy.empty_like(eta_los_grid, dtype=float)
-            for name in history_names
-        }
-
-        state = numpy.zeros(11, dtype=float)
-        seed = 1.0e-2 / (
-            1.0 + (k_value / max(physical_params.hubble_ratio, 1.0e-6)) ** 2
+        initial_eta, initial_background = _scalar_background_context(0, 0.0)
+        initial_context = _build_declared_base_context(
+            model_parameters=source_parameters,
+            physical_params=physical_params,
+            numerics=numerics,
+            k_value=float(k_value),
+            eta_value=float(initial_eta),
+            background_scalars=initial_background,
         )
-        state[0] = -0.5 * seed
-        state[4] = -1.5 * seed
-        if physical_params.has_cdm:
-            state[6] = -1.5 * seed
-        state[8] = -2.0 * seed
+        state = _evaluate_declared_initial_state(
+            perturbation_data=perturbation_data,
+            runtime_spec=runtime_spec,
+            base_context=initial_context,
+        )
+        histories = {
+            slot.variable: numpy.empty_like(eta_los_grid, dtype=float)
+            for slot in runtime_spec.state_slots
+            if slot.order == 0
+        }
+        state = numpy.asarray(state, dtype=float)
 
-        def _background_values(
-            step_index: int,
-            blend: float,
-        ) -> tuple[float, float, float, float]:
-            """Return interpolated background values for one RK stage."""
-
-            next_index = min(step_index + 1, eta_count - 1)
-            weight_next = float(blend)
-            weight_current = 1.0 - weight_next
-            return (
-                weight_current * Hconf_los_grid[step_index]
-                + weight_next * Hconf_los_grid[next_index],
-                weight_current * collision_rate_grid[step_index]
-                + weight_next * collision_rate_grid[next_index],
-                weight_current * sound_speed_sq_grid[step_index]
-                + weight_next * sound_speed_sq_grid[next_index],
-                weight_current * free_streaming_grid[step_index]
-                + weight_next * free_streaming_grid[next_index],
-            )
-
-        def _raise_nonfinite(
+        def _advance_declared_interval(
+            state_vector: numpy.ndarray,
             *,
-            eta_value: float,
-            values: numpy.ndarray,
-            label: str,
-        ) -> None:
-            """Fail fast when an evolved state becomes non-finite."""
+            step_index: int,
+            dt: float,
+            k_value: float,
+        ) -> numpy.ndarray:
+            """Advance one LOS interval with adaptive RK4 sub-stepping."""
 
-            bad_indices = numpy.flatnonzero(~numpy.isfinite(values))
-            bad_index = int(bad_indices[0]) if bad_indices.size else -1
-            bad_value = (
-                float(values[bad_index]) if bad_index >= 0 else float("nan")
-            )
+            substep_count = 1
+            max_substep_count = 128
+            while substep_count <= max_substep_count:
+                trial_state = numpy.asarray(state_vector, dtype=float).copy()
+                sub_dt = dt / float(substep_count)
+                failed = False
+                for substep_index in range(substep_count):
+                    blend_start = substep_index / substep_count
+                    blend_mid = (substep_index + 0.5) / substep_count
+                    blend_end = (substep_index + 1.0) / substep_count
+                    stage_rhs_initial = _mode_rhs(
+                        trial_state,
+                        step_index=step_index,
+                        blend=blend_start,
+                        k_value=float(k_value),
+                    )
+                    stage_rhs_mid_a = _mode_rhs(
+                        trial_state + 0.5 * sub_dt * stage_rhs_initial,
+                        step_index=step_index,
+                        blend=blend_mid,
+                        k_value=float(k_value),
+                    )
+                    stage_rhs_mid_b = _mode_rhs(
+                        trial_state + 0.5 * sub_dt * stage_rhs_mid_a,
+                        step_index=step_index,
+                        blend=blend_mid,
+                        k_value=float(k_value),
+                    )
+                    stage_rhs_final = _mode_rhs(
+                        trial_state + sub_dt * stage_rhs_mid_b,
+                        step_index=step_index,
+                        blend=blend_end,
+                        k_value=float(k_value),
+                    )
+                    candidate_state = trial_state + (sub_dt / 6.0) * (
+                        stage_rhs_initial
+                        + 2.0 * stage_rhs_mid_a
+                        + 2.0 * stage_rhs_mid_b
+                        + stage_rhs_final
+                    )
+                    if not numpy.all(numpy.isfinite(candidate_state)):
+                        failed = True
+                        break
+                    trial_state = candidate_state
+                if not failed:
+                    return trial_state
+                substep_count *= 2
             raise ValueError(
-                "Custom CMB evolution produced non-finite state values "
-                f"during {label}; equation_mode={equation_mode}, "
-                f"eta={eta_value}, k={k_value}, state_index={bad_index}, "
-                f"offending_value={bad_value}"
+                "Declared CMB evolution produced non-finite state values "
+                f"at k={k_value}, step_index={step_index}"
             )
 
-        def _compute_potentials(
-            state_vector: numpy.ndarray,
-            Hconf_value: float,
-            eta_value: float,
-        ) -> tuple[float, float]:
-            """Return the Newtonian-gauge metric potentials."""
-
-            delta_gamma_value = 4.0 * state_vector[0]
-            total_density_contrast = (
-                physical_params.Omega_b0 * state_vector[4]
-                + physical_params.Omega_gamma0 * delta_gamma_value
-                + physical_params.Omega_nu0 * state_vector[8]
-            )
-            if physical_params.has_cdm:
-                total_density_contrast += (
-                    physical_params.Omega_c0 * state_vector[6]
-                )
-            gravity_scale = 0.08 / (
-                1.0 + k_sq / (Hconf_value * Hconf_value + 1.0e-12)
-            )
-            phi_value = -gravity_scale * total_density_contrast
-            psi_value = phi_value - (
-                0.2
-                * gravity_scale
-                * physical_params.Omega_nu0
-                * state_vector[10]
-            )
-            if not (numpy.isfinite(phi_value) and numpy.isfinite(psi_value)):
-                _raise_nonfinite(
-                    eta_value=eta_value,
-                    values=numpy.asarray([phi_value, psi_value], dtype=float),
-                    label="metric potential solve",
-                )
-            return phi_value, psi_value
-
-        def _rhs(
-            state_vector: numpy.ndarray,
-            step_index: int,
-            blend: float,
-        ) -> tuple[numpy.ndarray, float, float, bool]:
-            """Return the mode derivative and local background state."""
-
-            (
-                Hconf_value,
-                collision_rate_value,
-                sound_speed_sq_value,
-                free_streaming_value,
-            ) = _background_values(step_index, blend)
-            next_index = min(step_index + 1, eta_count - 1)
-            eta_value = (1.0 - float(blend)) * eta_los_grid[
-                step_index
-            ] + float(blend) * eta_los_grid[next_index]
-            phi_value, psi_value = _compute_potentials(
-                state_vector,
-                Hconf_value,
-                float(eta_value),
-            )
-            derivative = numpy.empty_like(state_vector)
-            tight_coupling = collision_rate_value > (
-                numerics.tight_coupling_ratio
-                * max(k_value, Hconf_value, 1.0e-8)
-            )
-            theta_b_effective = (
-                3.0 * state_vector[1] if tight_coupling else state_vector[5]
-            )
-            derivative[0] = (
-                -k_value * state_vector[1]
-                - 0.05 * Hconf_value * state_vector[0]
-            )
-            derivative[1] = (
-                k_value
-                / 3.0
-                * (state_vector[0] + psi_value - 2.0 * state_vector[2])
-                + 0.25 * sound_speed_sq_value * k_sq * state_vector[4]
-                - 0.15 * Hconf_value * state_vector[1]
-            )
-            if not tight_coupling:
-                derivative[1] += collision_rate_value * (
-                    theta_b_effective / 3.0 - state_vector[1]
-                )
-                derivative[5] = (
-                    -Hconf_value * state_vector[5]
-                    + sound_speed_sq_value * k_sq * state_vector[4]
-                    + k_sq * psi_value
-                    + collision_rate_value
-                    * (3.0 * state_vector[1] - state_vector[5])
-                    - 0.1 * Hconf_value * state_vector[5]
-                )
-            else:
-                derivative[5] = 3.0 * derivative[1]
-            quad_drive = 0.4 * k_value * state_vector[1] * free_streaming_value
-            derivative[2] = (
-                quad_drive
-                - 0.9 * collision_rate_value * state_vector[2]
-                + 0.25 * collision_rate_value * state_vector[3]
-                - 0.2 * Hconf_value * state_vector[2]
-            )
-            derivative[3] = (
-                0.3 * quad_drive
-                - 0.55 * collision_rate_value * state_vector[3]
-                + 0.15 * collision_rate_value * state_vector[2]
-                - 0.2 * Hconf_value * state_vector[3]
-            )
-            derivative[4] = (
-                -theta_b_effective - 0.05 * Hconf_value * state_vector[4]
-            )
-            if physical_params.has_cdm:
-                derivative[6] = (
-                    -state_vector[7] - 0.05 * Hconf_value * state_vector[6]
-                )
-                derivative[7] = (
-                    -Hconf_value * state_vector[7]
-                    + k_sq * psi_value
-                    - 0.05 * Hconf_value * state_vector[7]
-                )
-            else:
-                derivative[6] = 0.0
-                derivative[7] = 0.0
-            derivative[8] = (
-                -0.5 * state_vector[9] - 0.3 * Hconf_value * state_vector[8]
-            )
-            derivative[9] = (
-                0.1 * k_value * state_vector[8]
-                - 0.1 * k_value * state_vector[10]
-                + 0.2 * k_value * psi_value
-                - 0.3 * Hconf_value * state_vector[9]
-            )
-            derivative[10] = (
-                0.05 * state_vector[9]
-                - 0.2 * k_value * state_vector[10]
-                + 0.05 * quad_drive
-                - 0.3 * Hconf_value * state_vector[10]
-            )
-            if not numpy.all(numpy.isfinite(derivative)):
-                _raise_nonfinite(
-                    eta_value=float(eta_value),
-                    values=derivative,
-                    label="RK stage derivative",
-                )
-            return (
-                derivative,
-                phi_value,
-                psi_value,
-                tight_coupling,
-            )
-
-        def _store_histories(
-            step_index: int,
-            state_vector: numpy.ndarray,
-            phi_value: float,
-            psi_value: float,
-        ) -> None:
-            """Write one evolved mode snapshot to the history arrays."""
-
-            histories["photon_temperature_monopole"][step_index] = (
-                state_vector[0]
-            )
-            histories["photon_temperature_dipole"][step_index] = state_vector[
-                1
-            ]
-            histories["photon_temperature_quadrupole"][step_index] = (
-                state_vector[2]
-            )
-            histories["photon_polarization_quadrupole"][step_index] = (
-                state_vector[3]
-            )
-            histories["baryon_density_contrast"][step_index] = state_vector[4]
-            histories["baryon_velocity_divergence"][step_index] = state_vector[
-                5
-            ]
-            histories["massless_neutrino_density_contrast"][step_index] = (
-                state_vector[8]
-            )
-            histories["massless_neutrino_velocity_divergence"][step_index] = (
-                state_vector[9]
-            )
-            histories["massless_neutrino_anisotropic_stress"][step_index] = (
-                state_vector[10]
-            )
-            histories["metric_potential_phi"][step_index] = phi_value
-            histories["metric_potential_psi"][step_index] = psi_value
-            if physical_params.has_cdm:
-                histories["cdm_density_contrast"][step_index] = state_vector[6]
-                histories["cdm_velocity_divergence"][step_index] = (
-                    state_vector[7]
-                )
-
-        for step_index in range(eta_count):
-            eta_value = float(eta_los_grid[step_index])
-            (
-                first_derivative,
-                phi_value,
-                psi_value,
-                _,
-            ) = _rhs(state, step_index, 0.0)
-            _store_histories(step_index, state, phi_value, psi_value)
-            if step_index == eta_count - 1:
+        for step_index, eta_value in enumerate(eta_los_grid):
+            for slot in runtime_spec.state_slots:
+                if slot.order != 0:
+                    continue
+                histories[slot.variable][step_index] = state[slot.index]
+            if step_index == eta_los_grid.size - 1:
                 break
-            dt = float(eta_los_grid[step_index + 1] - eta_los_grid[step_index])
-            if not numpy.isfinite(dt) or dt <= 0.0:
-                raise ValueError(
-                    "eta_los_grid must be strictly increasing for custom "
-                    f"CMB evolution; equation_mode={equation_mode}, "
-                    f"eta={eta_value}, k={k_value}"
-                )
-            mid_state = state + 0.5 * dt * first_derivative
-            if not numpy.all(numpy.isfinite(mid_state)):
-                _raise_nonfinite(
-                    eta_value=eta_value,
-                    values=mid_state,
-                    label="RK midpoint state",
-                )
-            (
-                second_derivative,
-                _,
-                _,
-                tight_coupling,
-            ) = _rhs(mid_state, step_index, 0.5)
-            next_state = state + dt * second_derivative
-            if tight_coupling:
-                next_state[5] = 3.0 * next_state[1]
-            if not numpy.all(numpy.isfinite(next_state)):
-                _raise_nonfinite(
-                    eta_value=float(eta_los_grid[step_index + 1]),
-                    values=next_state,
-                    label="RK updated state",
-                )
-            state = next_state
-
-        _apply_equations(histories, k_value=k_value)
-        _apply_closures(histories, k_value=k_value)
-        return histories, _evaluate_sources(histories, k_value=k_value)
+            dt = float(eta_los_grid[step_index + 1] - eta_value)
+            state = _advance_declared_interval(
+                state,
+                step_index=step_index,
+                dt=dt,
+                k_value=float(k_value),
+            )
+        array_context = _build_array_context(histories, k_value=float(k_value))
+        source_arrays = _evaluate_declared_sources(
+            array_context,
+            k_value=float(k_value),
+        )
+        return histories, source_arrays
 
     log_k_values = numpy.log(k_values)
     primordial_grid = physical_params.primordial_amplitude * numpy.power(
         k_values / 0.05,
         physical_params.primordial_spectral_index - 1.0,
     )
-    transfer_temperature = numpy.zeros(
-        (ell_arr.size, k_values.size), dtype=float
-    )
-    transfer_polarization = numpy.zeros_like(transfer_temperature)
 
     for k_index, k_value in enumerate(k_values):
-        histories, source_channel_histories = (
-            _evolve_custom_cmb_mode_histories(float(k_value))
-        )
-        monopole_history = histories["photon_temperature_monopole"]
-        dipole_history = histories["photon_temperature_dipole"]
-        quadrupole_history = histories["photon_temperature_quadrupole"]
-        polarization_quadrupole_history = histories[
-            "photon_polarization_quadrupole"
-        ]
-        phi_history = histories["metric_potential_phi"]
-        psi_history = histories["metric_potential_psi"]
-        phi_dot_history = numpy.asarray(
-            numpy.gradient(phi_history, eta_los_grid, edge_order=1),
-            dtype=float,
-        )
-        psi_dot_history = numpy.asarray(
-            numpy.gradient(psi_history, eta_los_grid, edge_order=1),
-            dtype=float,
-        )
-        monopole_custom_history = source_channel_histories[
-            "temperature_monopole"
-        ]
-        doppler_custom_history = source_channel_histories[
-            "temperature_doppler"
-        ]
-        isw_custom_history = source_channel_histories["temperature_isw"]
-        polarization_custom_history = source_channel_histories["polarization"]
-        additive_custom_history = source_channel_histories[
-            "temperature_additive"
-        ]
+        _, source_arrays = _evolve_declared_mode(float(k_value))
         x_values = k_value * (eta0 - eta_los_grid) * angular_projection_scale
         x_signature = hashlib.sha256(
             numpy.asarray(x_values, dtype=float).tobytes()
@@ -2792,132 +2609,65 @@ def _compute_custom_cmb_spectrum_data(
             x_signature,
             numpy.asarray(x_values, dtype=float).copy(),
         )
-        monopole_source = visibility_los_grid * (
-            monopole_history
-            + psi_history
-            + 0.25 * (quadrupole_history + polarization_quadrupole_history)
-            + monopole_custom_history
-        )
-        doppler_source = visibility_los_grid * (
-            3.0 * dipole_history + doppler_custom_history
-        )
-        isw_source = numpy.exp(-tau_los_grid) * (
-            psi_dot_history - phi_dot_history + isw_custom_history
-        )
-        pol_source = (
-            0.75
-            * visibility_los_grid
-            * (
-                quadrupole_history
-                + polarization_quadrupole_history
-                + polarization_custom_history
-            )
-        )
-        additive_temperature_source = additive_custom_history
-        source_scale = max(
-            1.0,
-            float(numpy.max(numpy.abs(monopole_source))),
-            float(numpy.max(numpy.abs(doppler_source))),
-            float(numpy.max(numpy.abs(isw_source))),
-            float(numpy.max(numpy.abs(pol_source))),
-            float(numpy.max(numpy.abs(additive_temperature_source))),
-        )
-        source_normalization = 1.0 / source_scale
-        monopole_source *= source_normalization
-        doppler_source *= source_normalization
-        isw_source *= source_normalization
-        pol_source *= source_normalization
-        additive_temperature_source *= source_normalization
-        transfer_amplitude = 1.0e2
-        monopole_source *= transfer_amplitude
-        doppler_source *= transfer_amplitude
-        isw_source *= transfer_amplitude
-        pol_source *= transfer_amplitude
-        additive_temperature_source *= transfer_amplitude
-        for ell_index, ell_value in enumerate(ell_arr):
-            j_l, j_l_derivative = _get_cached_spherical_bessel_values(
-                int(ell_value),
-                x_signature,
-            )
-            if ell_value >= 2:
-                prefactor = math.exp(
-                    0.5
-                    * (
-                        math.lgamma(int(ell_value) + 3)
-                        - math.lgamma(int(ell_value) - 1)
+        for (
+            component_name,
+            component_entry,
+        ) in transfer_component_observables.items():
+            component_source_terms = component_entry.source_terms.items()
+            source_histories = {
+                role_name: source_arrays[source_name]
+                for role_name, source_name in component_source_terms
+            }
+            for ell_index, ell_value in enumerate(ell_arr):
+                transfer_components[component_name][ell_index, k_index] = (
+                    _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        ell_value=int(ell_value),
+                        x_signature=x_signature,
+                        x_values=x_values,
+                        eta_grid=eta_los_grid,
+                        source_histories=source_histories,
                     )
                 )
-                e_kernel = (
-                    prefactor
-                    * j_l
-                    / numpy.maximum(x_values * x_values, 1.0e-12)
-                )
-            else:
-                e_kernel = numpy.zeros_like(j_l)
-            transfer_temperature[ell_index, k_index] = float(
-                numpy.trapz(
-                    monopole_source * j_l
-                    + doppler_source * j_l_derivative
-                    + isw_source * j_l,
-                    eta_los_grid,
-                )
-                + numpy.trapz(additive_temperature_source * j_l, eta_los_grid)
-            )
-            transfer_polarization[ell_index, k_index] = float(
-                numpy.trapz(pol_source * e_kernel, eta_los_grid)
+
+    for component_name, component_matrix in transfer_components.items():
+        if not numpy.all(numpy.isfinite(component_matrix)):
+            raise ValueError(
+                "Declared transfer component produced non-finite values: "
+                f"{component_name}"
             )
 
-    if not numpy.all(numpy.isfinite(transfer_temperature)) or not numpy.all(
-        numpy.isfinite(transfer_polarization)
-    ):
-        raise ValueError(
-            "Custom CMB transfer functions produced non-finite values"
+    spectra_results: dict[str, numpy.ndarray] = {}
+    for (
+        observable_name,
+        observable_entry,
+    ) in power_spectrum_observables.items():
+        primary = numpy.asarray(
+            transfer_components[str(observable_entry.primary)],
+            dtype=float,
         )
-    weighted_temperature = primordial_grid[numpy.newaxis, :] * (
-        transfer_temperature * transfer_temperature
-    )
-    weighted_cross = primordial_grid[numpy.newaxis, :] * (
-        transfer_temperature * transfer_polarization
-    )
-    weighted_polarization = primordial_grid[numpy.newaxis, :] * (
-        transfer_polarization * transfer_polarization
-    )
-    c_l_tt = (
-        4.0
-        * math.pi
-        * numpy.trapz(
-            weighted_temperature,
-            log_k_values,
-            axis=1,
+        secondary = numpy.asarray(
+            transfer_components[str(observable_entry.secondary)],
+            dtype=float,
         )
-    )
-    c_l_te = (
-        4.0
-        * math.pi
-        * numpy.trapz(
-            weighted_cross,
-            log_k_values,
-            axis=1,
+        weighted = primordial_grid[numpy.newaxis, :] * (primary * secondary)
+        spectra_results[observable_name] = (
+            4.0
+            * math.pi
+            * numpy.trapz(
+                weighted,
+                log_k_values,
+                axis=1,
+            )
         )
-    )
-    c_l_ee = (
-        4.0
-        * math.pi
-        * numpy.trapz(
-            weighted_polarization,
-            log_k_values,
-            axis=1,
-        )
-    )
 
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,
         k_grid=k_values,
-        Delta_l_T=transfer_temperature,
-        Delta_l_E=transfer_polarization,
-        C_l_TT=c_l_tt,
-        C_l_TE=c_l_te,
-        C_l_EE=c_l_ee,
+        transfer_components=FrozenMapping(
+            {name: matrix for name, matrix in transfer_components.items()}
+        ),
+        spectra=FrozenMapping(spectra_results),
     )
     _CUSTOM_CMB_SPECTRUM_RESULTS[cache_key] = spectrum_data
     return _get_cached_custom_cmb_spectrum_data(cache_key)
@@ -3289,11 +3039,12 @@ def _compute_declared_perturbation_spectrum(
         / (2.0 * math.pi)
     )
     t_cmb_muK = 2.7255e6
-    spectra_results: dict[str, numpy.ndarray] = {
-        "TT": ell_factor * custom_data.C_l_TT * t_cmb_muK * t_cmb_muK,
-        "TE": ell_factor * custom_data.C_l_TE * t_cmb_muK * t_cmb_muK,
-        "EE": ell_factor * custom_data.C_l_EE * t_cmb_muK * t_cmb_muK,
-    }
+    spectra_results: dict[str, numpy.ndarray] = {}
+    for spectrum_name, spectrum_values in custom_data.spectra.items():
+        raw_values = numpy.asarray(spectrum_values, dtype=float)
+        if spectrum_name in _CMB_TEMPERATURE_SPECTRA:
+            raw_values = ell_factor * raw_values * t_cmb_muK * t_cmb_muK
+        spectra_results[str(spectrum_name)] = raw_values
     for spectrum_name, spectrum_values in spectra_results.items():
         if not numpy.all(numpy.isfinite(spectrum_values)):
             raise ValueError(
@@ -3301,10 +3052,17 @@ def _compute_declared_perturbation_spectrum(
                 f"{spectrum_name} values"
             )
     result = {
-        spec: spectra_results[spec]
+        spec: numpy.asarray(spectra_results[spec], dtype=float)
         for spec in spectra
         if spec in spectra_results
     }
+    if len(result) != len(tuple(spectra)):
+        missing = sorted(set(spectra) - set(result))
+        missing_str = ", ".join(missing)
+        raise ValueError(
+            "Declared CMB graph does not provide requested spectra: "
+            f"{missing_str}"
+        )
     if len(result) == 1:
         return next(iter(result.values()))
     return result
@@ -3452,6 +3210,7 @@ def compute_cmb_spectrum_cached(
             )
             perturbations = perturbation_contract.get("standard")
             if perturbations is False:
+                _validate_camb_perturbation_execution(camb_params)
                 return _compute_declared_perturbation_spectrum(
                     camb_params,
                     ells,

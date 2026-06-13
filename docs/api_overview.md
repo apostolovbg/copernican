@@ -84,30 +84,29 @@ directly without using the command-line interface.  The core modules are:
 The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
 non-standard paths separate. Standard CAMB contracts continue to use the
 backend's native perturbation solver. Non-standard contracts flow through the
-generic physical scalar engine in the same module, which evolves Newtonian-
-gauge perturbations, rebuilds the recombination visibility function, and
-integrates the transfer functions into `TT`, `TE`, and `EE`.
+declared-math graph engine in the same module, which evolves Newtonian-gauge
+graph variables, rebuilds the recombination visibility function, and
+integrates the declared transfer components into spectra such as `TT`, `TE`,
+`EE`, `BB`, or custom outputs when the required observable mappings exist.
 
-The non-standard contract exposes two modes through `cmb.perturbations.
-equation_mode`:
+The non-standard contract is now a single graph declaration. It exposes
+variables, derived quantities, equations, constraints, closures, source
+terms, initial conditions, boundary conditions, observables, validity
+domains, and numerical requirements without a solver-family selector.
 
-- `mapped_sector` keeps the contract declarative about supported sectors and
-  lets Copernican use the built-in scalar equations for those mapped sectors.
-- `declared_equations` requires typed sector equations and uses the declared
-  derivatives to override the built-in sector equations during evolution.
+Declared equations, constraints, closures, sources, and conditions may
+reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
+`tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
+`sound_speed_sq`, `collision_rate`, `free_streaming`, `Phi`, and `Psi`,
+plus any solved or derived graph quantity and the safe math functions
+already exposed by the evaluator. Unsupported symbols, missing initial
+conditions, missing observables, or incompatible gauges raise
+`ValueError` exceptions before the engine can produce a spectrum.
 
-Both modes share the same safe expression environment. Declared equations,
-closures, and sources may reference the background symbols `a`, `z`, `eta`,
-`H`, `Hconf`, `tau`, `tau_dot`, `visibility`, `k`, `Phi`, and `Psi`, the
-mapped physical aliases for the supported scalar sectors, and the safe math
-functions already exposed by the evaluator. Unsupported symbols, missing
-required equations, or incompatible gauges raise `ValueError` exceptions
-before the engine can produce a spectrum.
-
-Source declarations also choose one of the documented channels:
-`temperature_monopole`, `temperature_doppler`, `temperature_isw`,
-`polarization`, or `temperature_additive`. The engine uses the channel name
-to route the declared expression into the corresponding line-of-sight source
+Observable declarations choose the projection kernel and bind the named
+source terms that feed each transfer component or angular spectrum. The
+engine uses that mapping rather than hidden source-channel switches to route
+declared graph quantities into the corresponding line-of-sight source
 term.
 
 Unsupported custom sectors fail with explicit `ValueError`s so callers can

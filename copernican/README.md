@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-07
+**Last Updated:** 2026-06-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -223,13 +223,13 @@ the same convention.
   remain the canonical asset roots.
 - **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
-  `standard: false` models run through the generic physical scalar CMB
-  engine in `copernican/lib/likelihoods/cmb.py` or fail clearly when a
-  required capability is missing. Non-standard contracts can either keep the
-  built-in sector equations with `equation_mode: mapped_sector` or replace
-  them with typed declared equations through `equation_mode:
-  declared_equations`; unsupported symbols, missing required equations, and
-  incompatible gauges fail fast.
+  `standard: false` models run through the declared-math CMB graph engine in
+  `copernican/lib/likelihoods/cmb.py` or fail clearly when a required
+  capability is missing. Non-standard contracts now declare one immutable
+  graph of variables, equations, constraints, closures, sources, initial
+  conditions, observable mappings, and numerical requirements. Unsupported
+  symbols, missing initial conditions, missing observables, and unsupported
+  projections fail fast.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same

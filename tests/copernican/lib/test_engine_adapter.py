@@ -70,14 +70,19 @@ class TestEngineAdapterExports(unittest.TestCase):
                 "values": {},
                 "calls": [],
                 "perturbations": {
-                    "contract_version": 1,
+                    "contract_version": 2,
                     "standard": True,
                     "gauge": "unspecified",
                     "variables": {},
                     "derived": {},
                     "equations": {},
+                    "constraints": {},
                     "closures": {},
                     "sources": {},
+                    "observables": {},
+                    "initial_conditions": {},
+                    "boundary_conditions": {},
+                    "numerics": {},
                     "validity": {"regimes": ["standard_camb"]},
                     "backend_mapping": {
                         "camb": {

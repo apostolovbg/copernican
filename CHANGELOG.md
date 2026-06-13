@@ -80,6 +80,38 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-13:
+  Change: Replaced the declared CMB contract surface with graph-native
+    perturbation execution and aligned the manifest, docs, and focused
+    tests.
+  Why: Removed legacy scalar-sector shortcuts so `standard: false`
+    contracts execute the universal declared graph and expose the new
+    provenance surfaces.
+  Impact: Enables Slice 1 to run the generic CMB solver end-to-end with
+    graph metadata, stabilized mode stepping, and passing functional
+    coverage for the non-standard path.
+  Files:
+    CHANGELOG.md
+    ABOUT.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/lib/engine_adapter.py
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    copernican/lib/run_manifest.py
+    docs/api_overview.md
+    docs/design_overview.md
+    docs/model_template.yml
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_engine_adapter.py
+    tests/copernican/lib/test_engine_plugin_validation.py
+    tests/copernican/lib/test_model_template.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-13:
   Change: Logged the gate-open verification session and recorded the
     required changelog entry for this work.
   Why: DevCovenant validated the gate-open snapshot and required a fresh

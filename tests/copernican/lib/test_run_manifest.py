@@ -39,14 +39,18 @@ def _dummy_plugin():
             "Neff": 3.044,
         },
         CMB_PERTURBATION_CONTRACT={
-            "contract_version": 1,
+            "contract_version": 2,
             "standard": True,
             "gauge": "unspecified",
             "variables": {},
             "derived": {},
             "equations": {},
+            "constraints": {},
             "closures": {},
             "sources": {},
+            "observables": {},
+            "initial_conditions": {},
+            "boundary_conditions": {},
             "validity": {
                 "regimes": ["standard_camb"],
                 "notes": "Uses the backend standard perturbation machinery.",
@@ -66,27 +70,36 @@ def _dummy_plugin():
         CMB_PERTURBATION_DATA=PerturbationContractData(
             model_name="DummyModel",
             backend="camb",
-            contract_version=1,
+            contract_version=2,
             standard=True,
-            equation_mode="mapped_sector",
             gauge="unspecified",
             variables={
                 "delta_x": object(),
             },
             derived={
-                "Phi_tau": object(),
+                "density_drive": object(),
             },
             equations={
                 "continuity_x": object(),
             },
+            constraints={
+                "poisson_phi": object(),
+            },
             closures={
-                "no_anisotropic_stress": object(),
+                "psi_equals_phi": object(),
             },
             sources={
-                "poisson": SimpleNamespace(
-                    channel="temperature_additive",
-                ),
+                "monopole_source": object(),
             },
+            observables={
+                "temperature": object(),
+                "TT": object(),
+            },
+            initial_conditions={
+                "delta_seed": object(),
+            },
+            boundary_conditions={},
+            numerics={},
             validity=SimpleNamespace(
                 regimes=("standard_camb",),
                 notes="Uses standard backend.",
@@ -102,8 +115,11 @@ def _dummy_plugin():
                 independent_variables_used=("tau",),
                 model_parameters_used=("p1",),
                 background_references_used=("H0",),
+                evaluation_order=("equation:continuity_x",),
             ),
-            manifest_summary={},
+            manifest_summary={
+                "observable_names": ("temperature", "TT"),
+            },
         ),
     )
 
@@ -171,12 +187,8 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(model_entry["call_methods"], [])
             self.assertEqual(model_entry["grids"], {})
             self.assertEqual(model_entry["value_names"], [])
-            self.assertEqual(model_entry["perturbation_contract_version"], 1)
+            self.assertEqual(model_entry["perturbation_contract_version"], 2)
             self.assertTrue(model_entry["perturbation_standard"])
-            self.assertEqual(
-                model_entry["perturbation_equation_mode"],
-                "mapped_sector",
-            )
             self.assertEqual(model_entry["perturbation_gauge"], "unspecified")
             self.assertEqual(
                 model_entry["perturbation_variable_names"],
@@ -184,27 +196,41 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertEqual(
                 model_entry["perturbation_derived_names"],
-                ["Phi_tau"],
+                ["density_drive"],
             )
             self.assertEqual(
                 model_entry["perturbation_equation_names"],
                 ["continuity_x"],
             )
             self.assertEqual(
+                model_entry["perturbation_constraint_names"],
+                ["poisson_phi"],
+            )
+            self.assertEqual(
                 model_entry["perturbation_closure_names"],
-                ["no_anisotropic_stress"],
+                ["psi_equals_phi"],
             )
             self.assertEqual(
                 model_entry["perturbation_source_names"],
-                ["poisson"],
+                ["monopole_source"],
             )
             self.assertEqual(
-                model_entry["perturbation_source_channels"],
-                ["temperature_additive"],
+                model_entry["perturbation_observable_names"],
+                ["TT", "temperature"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_initial_condition_names"],
+                ["delta_seed"],
             )
             self.assertEqual(model_entry["perturbation_equation_count"], 1)
+            self.assertEqual(model_entry["perturbation_constraint_count"], 1)
             self.assertEqual(model_entry["perturbation_closure_count"], 1)
             self.assertEqual(model_entry["perturbation_source_count"], 1)
+            self.assertEqual(model_entry["perturbation_observable_count"], 2)
+            self.assertEqual(
+                model_entry["perturbation_initial_condition_count"],
+                1,
+            )
             self.assertEqual(
                 model_entry["perturbation_independent_variables_used"],
                 ["tau"],
@@ -216,6 +242,10 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["perturbation_background_references_used"],
                 ["H0"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_evaluation_order"],
+                ["equation:continuity_x"],
             )
             self.assertEqual(model_entry["perturbation_backend"], "camb")
             self.assertIsNone(model_entry["perturbation_backend_implemented"])
@@ -240,6 +270,13 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["custom_cmb_transfer_function_path"],
                 "camb.standard",
+            )
+            self.assertEqual(model_entry["custom_cmb_solver"], "camb_standard")
+            self.assertEqual(model_entry["custom_cmb_constraint_count"], 1)
+            self.assertEqual(model_entry["custom_cmb_observable_count"], 2)
+            self.assertEqual(
+                model_entry["custom_cmb_observable_names"],
+                ["temperature", "TT"],
             )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]
