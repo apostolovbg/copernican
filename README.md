@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -24,14 +24,14 @@ making any edits because the repository enforces its laws through
 pre-commit checks.
 
 The CMB surface now includes a declared-math graph engine for
-`standard: false` contracts. It evolves one Newtonian-gauge graph per
-`k` mode, applies algebraic constraints and closures inside that graph,
+`standard: false` contracts. It evolves one declared graph per `k`
+mode, applies algebraic constraints and closures inside that graph,
 and projects the declared observables into transfer functions and
 spectra with bounded `k` sampling and cached Bessel tables. The
-background path also computes a Peebles-style recombination history, a
-photoionization-balance reionization history, the visibility function,
-and the optical-depth grid before the perturbation and line-of-sight
-steps run.
+background path consumes the declared background graph, computes a
+Peebles-style recombination history, integrates the declared
+reionization ODE, and builds the visibility and optical-depth grids
+before the perturbation and line-of-sight steps run.
 
 ## Launch Copernican
 
@@ -279,13 +279,12 @@ the same convention.
   backend contract under `cmb` with `backend`, `param_map`, `grids`,
   `values`, `calls` and a mandatory `perturbations` block; `standard:
   true` keeps the perturbation sections empty, while `standard: false`
-  requires a supported physical scalar perturbation contract, Newtonian-
-  gauge evolution, line-of-sight transfer functions and explicit backend
-  mapping for the compiled declarative CMB engine. Non-standard models can
-  map sectors onto Copernican's built-in scalar equations or replace those
-  equations with typed declarations, but the available background symbols
-  stay limited to the documented CMB engine context so unsupported names fail
-  loudly.
+  requires a supported declared background graph, declared perturbation
+  graph, line-of-sight transfer functions and explicit backend mapping for
+  the compiled declarative CMB engine. Non-standard models declare their
+  own equations, closures and observable projections directly, while the
+  available background and perturbation symbols stay limited to the
+  documented CMB engine context so unsupported names fail loudly.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except

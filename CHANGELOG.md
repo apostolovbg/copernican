@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,40 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-14:
+  Change: Completed Slice 1 declared CMB graph delivery by replacing the
+    remaining hydrogen-recombination shortcut with a physical
+    detailed-balance Peebles solve, removing background fallback behavior,
+    and aligning declared projection and background contracts with the
+    universal graph runtime.
+  Why: Fixed the last implementation defects that kept `standard: false`
+    from running as one declared-math CMB engine with physical
+    recombination, declared background sourcing, and fail-loud observable
+    requirements.
+  Impact: Enabled declared TT/TE/EE/BB/lensing executions to use physical
+    background histories, graph-native sources and projections, and
+    passing CAMB-reference recombination and spectrum validation for Slice
+    1 implementation.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/docs/model_template.yml
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/engine_adapter.py
+    copernican/lib/likelihoods/cmb.py
+    docs/api_overview.md
+    docs/design_overview.md
+    docs/model_template.yml
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_engine_plugin_validation.py
+    tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-06-13:
   Change: Completed Slice 1 CMB hardening by replacing the smooth-step

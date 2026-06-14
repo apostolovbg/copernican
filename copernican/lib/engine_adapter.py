@@ -156,6 +156,7 @@ _REQUIRED_CMB_CONTRACT_KEYS = {
 }
 _SUPPORTED_CMB_CONTRACT_KEYS = {
     *_REQUIRED_CMB_CONTRACT_KEYS,
+    "background",
     "model_parameters",
     "value_definitions",
 }

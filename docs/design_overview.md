@@ -91,7 +91,7 @@ described throughout this document.
 ## Custom CMB Engine
 
 `standard: false` CMB contracts use the declared-math graph engine in
-`copernican/lib/likelihoods/cmb.py` and stay in Newtonian gauge.
+`copernican/lib/likelihoods/cmb.py`.
 
 * One immutable graph now carries variables, derived quantities,
   differential equations, algebraic constraints, closures, source terms,
@@ -133,8 +133,7 @@ described throughout this document.
   Doppler, early and late ISW, the visibility-weighted monopole and velocity,
   and the polarization quadrupole projection used for E modes.
   `spin2_b_mode` requires a declared `polarization_b` source ancestry, and
-  the native lensing-potential projections require a declared `potential`
-  source.
+  `line_of_sight_lensing_potential` requires a declared `potential` source.
 * The spectra are built from the primordial power law
   `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
   `TE`, `EE`, and any declared `BB`, lensing-potential, or custom transfer

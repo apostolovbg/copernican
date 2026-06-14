@@ -84,10 +84,11 @@ directly without using the command-line interface.  The core modules are:
 The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
 non-standard paths separate. Standard CAMB contracts continue to use the
 backend's native perturbation solver. Non-standard contracts flow through the
-declared-math graph engine in the same module, which evolves Newtonian-gauge
-graph variables, rebuilds the recombination visibility function, and
-integrates the declared transfer components into spectra such as `TT`, `TE`,
-`EE`, `BB`, or custom outputs when the required observable mappings exist.
+declared-math graph engine in the same module, which evolves declared graph
+variables, rebuilds the recombination visibility function, integrates the
+declared reionization history, and projects the declared transfer components
+into spectra such as `TT`, `TE`, `EE`, `BB`, or custom outputs when the
+required observable mappings exist.
 
 The non-standard contract is now a single graph declaration. It exposes
 variables, derived quantities, equations, constraints, closures, source
@@ -104,17 +105,15 @@ evaluator. The default `seed` is a unit-normalized transfer seed unless
 the contract overrides it, and declared relation targets such as `Phi`
 or `Psi` only become available after equations, constraints, or closures
 solve them. Unsupported symbols, missing initial conditions, missing
-observables, incompatible gauges, or incompatible projection source-role
-bindings raise `ValueError` exceptions before the engine can produce a
-spectrum.
+observables, or incompatible projection source-role bindings raise
+`ValueError` exceptions before the engine can produce a spectrum.
 
 Observable declarations choose the projection kernel and bind the named
 source terms that feed each transfer component or angular spectrum. The
 engine uses that mapping rather than hidden source-channel switches to route
 declared graph quantities into the corresponding line-of-sight source
 term. `spin2_b_mode` requires a declared `polarization_b` source, while
-the native lensing-potential projections require a declared `potential`
-source.
+`line_of_sight_lensing_potential` requires a declared `potential` source.
 
 Unsupported custom sectors fail with explicit `ValueError`s so callers can
 see which physical ingredient is missing. The helper also exposes internal

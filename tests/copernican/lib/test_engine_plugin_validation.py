@@ -221,12 +221,12 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "observables": {
                 "temperature": {
                     "kind": "transfer_component",
-                    "projection": "cmb_temperature_scalar",
+                    "projection": "line_of_sight_temperature",
                     "source_terms": {"monopole": "poisson"},
                 },
                 "polarization_e": {
                     "kind": "transfer_component",
-                    "projection": "cmb_polarization_e_scalar",
+                    "projection": "line_of_sight_polarization_e",
                     "source_terms": {"polarization": "polarization"},
                 },
                 "TT": {

@@ -110,12 +110,12 @@ def _base_nonstandard_contract() -> dict[str, object]:
         "observables": {
             "temperature": {
                 "kind": "transfer_component",
-                "projection": "cmb_temperature_scalar",
+                "projection": "line_of_sight_temperature",
                 "source_terms": {"monopole": "monopole_source"},
             },
             "polarization_e": {
                 "kind": "transfer_component",
-                "projection": "cmb_polarization_e_scalar",
+                "projection": "line_of_sight_polarization_e",
                 "source_terms": {"polarization": "polarization_source"},
             },
             "TT": {
@@ -484,7 +484,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         }
         contract["observables"]["lensing"] = {
             "kind": "transfer_component",
-            "projection": "cmb_lensing_potential_scalar",
+            "projection": "line_of_sight_lensing_potential",
             "source_terms": {"signal": "lensing_source"},
         }
 
@@ -648,7 +648,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         observable_data = PerturbationObservableData(
             name="temperature",
             kind="transfer_component",
-            projection="cmb_temperature_scalar",
+            projection="line_of_sight_temperature",
         )
         target_data = PerturbationConditionTargetData(
             variable="delta_x",
@@ -706,7 +706,10 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(closure_data, PerturbationClosureData)
         self.assertEqual(source_data.role, "monopole")
         self.assertIsInstance(source_data, PerturbationSourceData)
-        self.assertEqual(observable_data.projection, "cmb_temperature_scalar")
+        self.assertEqual(
+            observable_data.projection,
+            "line_of_sight_temperature",
+        )
         self.assertIsInstance(observable_data, PerturbationObservableData)
         self.assertEqual(condition_data.target.variable, "delta_x")
         self.assertEqual(condition_data.anchor, "start")

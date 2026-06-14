@@ -21,11 +21,11 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         """The supported surface should list native dispatch keys."""
 
         self.assertIn(
-            "cmb_temperature_scalar",
+            "line_of_sight_temperature",
             SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
         )
         self.assertIn(
-            "cmb_polarization_e_scalar",
+            "line_of_sight_polarization_e",
             SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
         )
         self.assertIn(
@@ -38,7 +38,7 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         self.assertIsNone(
             validate_declared_projection_source_roles(
-                projection="cmb_temperature_scalar",
+                projection="line_of_sight_temperature",
                 observable_name="temperature",
                 source_roles={"monopole", "doppler", "isw", "additive"},
             )
@@ -52,7 +52,7 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             "requires the source-term roles",
         ):
             validate_declared_projection_source_roles(
-                projection="cmb_polarization_e_scalar",
+                projection="line_of_sight_polarization_e",
                 observable_name="polarization_e",
                 source_roles=set(),
             )
@@ -65,7 +65,7 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             "does not accept source-term roles",
         ):
             validate_declared_projection_source_roles(
-                projection="cmb_lensing_potential_scalar",
+                projection="line_of_sight_lensing_potential",
                 observable_name="lensing",
                 source_roles={"potential", "signal"},
             )

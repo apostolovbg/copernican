@@ -25,13 +25,15 @@ from typing import Any, Iterable, Mapping, Sequence
 import camb
 import numpy
 import pandas
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import cumulative_trapezoid, solve_ivp
 from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq
 from scipy.special import spherical_jn
 
 from ..cmb_projection_contract import SUPPORTED_DECLARED_TRANSFER_PROJECTIONS
 from ..engine_adapter import (
+    _ALLOWED_CONSTANTS,
+    _ALLOWED_MATH_FUNCS,
     _SUPPORTED_CMB_BACKEND,
     FrozenMapping,
     _evaluate_safe_expression,
@@ -45,7 +47,6 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
-_SUPPORTED_NATIVE_GRAPH_GAUGES = {"conformal_newtonian", "unspecified"}
 
 
 def _normalise_value(entry_value: Any) -> Any:
@@ -99,6 +100,199 @@ def _coerce_numeric_array(value: Any, *, name: str) -> numpy.ndarray:
     if not numpy.all(numpy.isfinite(array_value)):
         raise ValueError(f"{name} must contain only finite values")
     return array_value
+
+
+def _get_declared_background_section(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the declared background mapping for native CMB execution."""
+
+    section = contract.get("background")
+    if not isinstance(section, Mapping):
+        raise ValueError(
+            "Declared CMB native execution requires a 'background' mapping."
+        )
+    derived = section.get("derived", {})
+    if not isinstance(derived, Mapping):
+        raise ValueError("background.derived must be a mapping.")
+    reionization = section.get("reionization", {})
+    if reionization is None:
+        reionization = {}
+    if not isinstance(reionization, Mapping):
+        raise ValueError("background.reionization must be a mapping.")
+    calibration = reionization.get("calibration", {})
+    if calibration is None:
+        calibration = {}
+    if not isinstance(calibration, Mapping):
+        raise ValueError(
+            "background.reionization.calibration must be a mapping."
+        )
+    quantities = reionization.get("quantities", {})
+    if quantities is None:
+        quantities = {}
+    if not isinstance(quantities, Mapping):
+        raise ValueError(
+            "background.reionization.quantities must be a mapping."
+        )
+    return section
+
+
+def _expression_symbol_names(expression: str) -> set[str]:
+    """Return bare symbol names referenced by ``expression``."""
+
+    try:
+        node = ast.parse(str(expression), mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"Invalid declared background expression: {expression!r}"
+        ) from exc
+    names = {
+        child.id for child in ast.walk(node) if isinstance(child, ast.Name)
+    }
+    names.difference_update(_ALLOWED_CONSTANTS)
+    names.difference_update(_ALLOWED_MATH_FUNCS)
+    return names
+
+
+def _resolve_declared_symbol_context(
+    entries: Mapping[str, Any],
+    *,
+    base_context: Mapping[str, Any],
+    label: str,
+) -> dict[str, Any]:
+    """Resolve numeric values and safe expressions from one declaration map."""
+
+    resolved: dict[str, Any] = dict(base_context)
+    pending = {str(name): value for name, value in entries.items()}
+    local_names = set(pending)
+    while pending:
+        progress = False
+        for name, raw_value in tuple(pending.items()):
+            if isinstance(raw_value, bool):
+                raise ValueError(
+                    f"{label}.{name} must be numeric or a string expression."
+                )
+            if isinstance(
+                raw_value, (int, float, numpy.integer, numpy.floating)
+            ):
+                resolved[name] = float(raw_value)
+                del pending[name]
+                progress = True
+                continue
+            if not isinstance(raw_value, str) or not raw_value.strip():
+                raise ValueError(
+                    f"{label}.{name} must be numeric or a string expression."
+                )
+            expression_text = raw_value.strip()
+            dependencies = _expression_symbol_names(expression_text)
+            unresolved_locals = {
+                dependency
+                for dependency in dependencies
+                if dependency in local_names and dependency not in resolved
+            }
+            if unresolved_locals:
+                continue
+            missing_names = sorted(
+                dependency
+                for dependency in dependencies
+                if dependency not in resolved and dependency not in local_names
+            )
+            if missing_names:
+                missing_text = ", ".join(missing_names)
+                raise ValueError(
+                    f"{label}.{name} references unknown symbol(s): "
+                    f"{missing_text}"
+                )
+            resolved[name] = _evaluate_safe_expression(
+                expression_text, resolved
+            )
+            del pending[name]
+            progress = True
+        if progress:
+            continue
+        unresolved_names = ", ".join(sorted(pending))
+        raise ValueError(
+            f"{label} contains circular or unresolved expressions: "
+            f"{unresolved_names}"
+        )
+    return resolved
+
+
+def _resolve_declared_background_context(
+    contract: Mapping[str, Any],
+    *,
+    a_values: Any,
+    z_values: Any,
+) -> dict[str, Any]:
+    """Return the resolved declared background graph context."""
+
+    section = _get_declared_background_section(contract)
+    env: dict[str, Any] = {
+        "a": a_values,
+        "z": z_values,
+    }
+    for source in (
+        contract.get("param_map", {}) or {},
+        contract.get("model_parameters", {}) or {},
+    ):
+        if not isinstance(source, Mapping):
+            continue
+        for name, value in source.items():
+            key = str(name)
+            if key in env:
+                continue
+            if isinstance(value, (int, float, numpy.integer, numpy.floating)):
+                env[key] = float(value)
+    return _resolve_declared_symbol_context(
+        section.get("derived", {}) or {},
+        base_context=env,
+        label="background.derived",
+    )
+
+
+def _get_declared_reionization_section(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the declared reionization mapping for native CMB execution."""
+
+    section = _get_declared_background_section(contract)
+    reionization = section.get("reionization", {}) or {}
+    return reionization
+
+
+def _resolve_declared_reionization_context(
+    contract: Mapping[str, Any],
+    *,
+    base_context: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return resolved declared reionization quantities."""
+
+    reionization = _get_declared_reionization_section(contract)
+    return _resolve_declared_symbol_context(
+        reionization.get("quantities", {}) or {},
+        base_context=base_context,
+        label="background.reionization.quantities",
+    )
+
+
+def _lookup_declared_background_scalar(
+    contract: Mapping[str, Any],
+    background_context: Mapping[str, Any],
+    names: Sequence[str],
+) -> float | None:
+    """Return the first declared scalar value among ``names``."""
+
+    value = _extract_contract_scalar(contract, names, default=None)
+    if value is not None:
+        return float(value)
+    for name in names:
+        if name not in background_context:
+            continue
+        return _coerce_numeric_scalar(
+            background_context[name],
+            name=f"background.derived.{name}",
+        )
+    return None
 
 
 def _normalise_camb_contract(
@@ -226,6 +420,11 @@ def _compile_declared_perturbation_contract(
         str(key) for key in (contract.get("values", {}) or {})
     )
     background_reference_names.update(parameter_names)
+    background_section = contract.get("background")
+    if isinstance(background_section, Mapping):
+        background_reference_names.update(
+            str(key) for key in (background_section.get("derived", {}) or {})
+        )
 
     perturbations = contract.get("perturbations", {})
     if isinstance(perturbations, Mapping):
@@ -242,345 +441,6 @@ def _compile_declared_perturbation_contract(
         latex_names=latex_names,
         background_reference_names=tuple(sorted(background_reference_names)),
     )
-
-
-def _build_generic_background_payload_from_plugin(
-    plugin: Any,
-    contract: Mapping[str, Any],
-    redshifts: Sequence[float],
-) -> dict[str, numpy.ndarray]:
-    """Return background observables using the model's own callables."""
-
-    z_arr = numpy.asarray(redshifts, dtype=float)
-    if z_arr.ndim != 1 or z_arr.size == 0:
-        raise ValueError("redshifts must be a one-dimensional array")
-
-    parameter_names = tuple(getattr(plugin, "PARAMETER_NAMES", ()) or ())
-    model_parameters = contract.get("model_parameters", {}) or {}
-    param_map = contract.get("param_map", {}) or {}
-    parameter_values: list[float] = []
-    for parameter_name in parameter_names:
-        if (
-            isinstance(model_parameters, Mapping)
-            and parameter_name in model_parameters
-        ):
-            parameter_values.append(
-                _coerce_numeric_scalar(
-                    model_parameters[parameter_name],
-                    name=str(parameter_name),
-                )
-            )
-            continue
-        if isinstance(param_map, Mapping) and parameter_name in param_map:
-            parameter_values.append(
-                _coerce_numeric_scalar(
-                    param_map[parameter_name],
-                    name=str(parameter_name),
-                )
-            )
-            continue
-        raise ValueError(
-            "Generic declarative perturbation execution requires model "
-            f"parameter '{parameter_name}'"
-        )
-
-    parameter_tuple = tuple(parameter_values)
-
-    def _coerce_series(
-        value: Any,
-        *,
-        name: str,
-    ) -> numpy.ndarray:
-        """Return a finite series with the same shape as the redshift grid."""
-
-        array_value = numpy.asarray(value, dtype=float)
-        if array_value.ndim == 0:
-            return numpy.full(z_arr.shape, float(array_value), dtype=float)
-        if array_value.shape != z_arr.shape:
-            if array_value.size == 1:
-                return numpy.full(
-                    z_arr.shape,
-                    float(array_value.reshape(())),
-                    dtype=float,
-                )
-            raise ValueError(
-                f"{name} must evaluate to an array with shape {z_arr.shape}"
-            )
-        if not numpy.all(numpy.isfinite(array_value)):
-            raise ValueError(f"{name} must contain only finite values")
-        return array_value
-
-    hz_fn = getattr(plugin, "get_Hz_per_Mpc", None)
-    if not callable(hz_fn):
-        raise ValueError(
-            "Generic declarative perturbation execution requires "
-            "get_Hz_per_Mpc"
-        )
-    hz_values = _coerce_series(hz_fn(z_arr, *parameter_tuple), name="Hz")
-
-    dm_fn = getattr(plugin, "get_comoving_distance_Mpc", None)
-    if callable(dm_fn):
-        dm_values = _coerce_series(
-            dm_fn(z_arr, *parameter_tuple),
-            name="DM",
-        )
-    else:
-        sorted_order = numpy.argsort(z_arr)
-        sorted_z = z_arr[sorted_order]
-        sorted_hz = hz_values[sorted_order]
-        with numpy.errstate(divide="ignore", invalid="ignore"):
-            integrand = numpy.where(
-                numpy.abs(sorted_hz) > 1e-12,
-                _C_LIGHT_KM_S / sorted_hz,
-                numpy.nan,
-            )
-        integrated = cumulative_trapezoid(
-            integrand,
-            sorted_z,
-            initial=0.0,
-        )
-        dm_values = numpy.interp(z_arr, sorted_z, integrated)
-        dm_values = _coerce_series(dm_values, name="DM")
-
-    dh_values = numpy.where(
-        numpy.abs(hz_values) > 1e-12,
-        _C_LIGHT_KM_S / hz_values,
-        numpy.nan,
-    )
-
-    da_fn = getattr(plugin, "get_angular_diameter_distance_Mpc", None)
-    if callable(da_fn):
-        da_values = _coerce_series(
-            da_fn(z_arr, *parameter_tuple),
-            name="DA",
-        )
-    else:
-        da_values = numpy.divide(dm_values, 1.0 + z_arr, dtype=float)
-
-    dv_fn = getattr(plugin, "get_DV_Mpc", None)
-    if callable(dv_fn):
-        dv_values = _coerce_series(
-            dv_fn(z_arr, *parameter_tuple),
-            name="DV",
-        )
-    else:
-        with numpy.errstate(divide="ignore", invalid="ignore"):
-            dv_term = dm_values * dm_values * z_arr * dh_values
-            dv_values = numpy.where(
-                dv_term >= 0.0, numpy.power(dv_term, 1.0 / 3.0), numpy.nan
-            )
-
-    rs_fn = getattr(plugin, "get_sound_horizon_rs_Mpc", None)
-    if callable(rs_fn):
-        rs_drag = _coerce_numeric_scalar(
-            rs_fn(*parameter_tuple),
-            name="rs_drag",
-        )
-    else:
-        rs_drag = 1.0
-
-    return {
-        "rs_drag": numpy.asarray([rs_drag], dtype=float),
-        "DM": dm_values,
-        "DH": dh_values,
-        "DA": da_values,
-        "DV": dv_values,
-        "Hz": hz_values,
-        "z": z_arr.copy(),
-    }
-
-
-def _build_generic_background_payload_from_contract(
-    contract: Mapping[str, Any],
-    redshifts: Sequence[float],
-) -> dict[str, numpy.ndarray]:
-    """Return a self-contained background payload from contract values."""
-
-    z_arr = numpy.asarray(redshifts, dtype=float)
-    if z_arr.ndim != 1 or z_arr.size == 0:
-        raise ValueError("redshifts must be a one-dimensional array")
-
-    model_parameters = contract.get("model_parameters", {}) or {}
-    param_map = contract.get("param_map", {}) or {}
-
-    def _lookup(*names: str, default: float) -> float:
-        """Return the first declared scalar value among ``names``."""
-
-        for source in (model_parameters, param_map):
-            if not isinstance(source, Mapping):
-                continue
-            for name in names:
-                if name not in source:
-                    continue
-                try:
-                    return _coerce_numeric_scalar(source[name], name=name)
-                except ValueError:
-                    continue
-        return float(default)
-
-    hubble_constant_value = max(
-        abs(_lookup("H0", "hubble_constant", default=70.0)),
-        1.0,
-    )
-    hubble_constant_squared = max(
-        (hubble_constant_value / 100.0) ** 2,
-        1e-6,
-    )
-
-    omega_m = None
-    for candidate in ("Omega_m0", "Omega_m", "omega_m"):
-        if candidate in model_parameters:
-            omega_m = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_m = _coerce_numeric_scalar(
-                param_map[candidate], name=candidate
-            )
-            break
-    if omega_m is None:
-        omega_b_h2 = _lookup("ombh2", default=0.0)
-        omega_c_h2 = _lookup("omch2", default=0.0)
-        if omega_b_h2 or omega_c_h2:
-            omega_m = (omega_b_h2 + omega_c_h2) / hubble_constant_squared
-        else:
-            omega_m = 0.3
-
-    omega_b = None
-    for candidate in ("Omega_b", "omega_b"):
-        if candidate in model_parameters:
-            omega_b = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_b = _coerce_numeric_scalar(
-                param_map[candidate], name=candidate
-            )
-            break
-    if omega_b is None:
-        omega_b_h2 = _lookup("ombh2", default=0.0)
-        if omega_b_h2:
-            omega_b = omega_b_h2 / hubble_constant_squared
-        else:
-            omega_b = 0.05
-
-    omega_gamma = None
-    for candidate in ("Omega_gamma", "omega_gamma"):
-        if candidate in model_parameters:
-            omega_gamma = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_gamma = _coerce_numeric_scalar(
-                param_map[candidate],
-                name=candidate,
-            )
-            break
-
-    omega_r = None
-    for candidate in ("Omega_r0", "Omega_r", "omega_r", "omr"):
-        if candidate in model_parameters:
-            omega_r = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_r = _coerce_numeric_scalar(
-                param_map[candidate], name=candidate
-            )
-            break
-    if omega_r is None:
-        neff = _lookup("Neff", default=3.046)
-        if omega_gamma is not None:
-            omega_r = max(omega_gamma, 0.0) * (1.0 + 0.2271 * max(neff, 0.0))
-        else:
-            omega_r = 8.5e-5 / hubble_constant_squared
-
-    omega_k = None
-    for candidate in ("Omega_k0", "Omega_k", "omega_k", "omk"):
-        if candidate in model_parameters:
-            omega_k = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_k = _coerce_numeric_scalar(
-                param_map[candidate], name=candidate
-            )
-            break
-    if omega_k is None:
-        omega_k = 0.0
-
-    omega_de = None
-    for candidate in ("Omega_Lambda", "Omega_de", "omega_de"):
-        if candidate in model_parameters:
-            omega_de = _coerce_numeric_scalar(
-                model_parameters[candidate],
-                name=candidate,
-            )
-            break
-        if candidate in param_map:
-            omega_de = _coerce_numeric_scalar(
-                param_map[candidate], name=candidate
-            )
-            break
-    if omega_de is None:
-        omega_de = max(0.0, 1.0 - omega_m - omega_r - omega_k)
-
-    background_hz = hubble_constant_value * numpy.sqrt(
-        numpy.maximum(
-            omega_m * numpy.power(1.0 + z_arr, 3.0)
-            + omega_r * numpy.power(1.0 + z_arr, 4.0)
-            + omega_k * numpy.power(1.0 + z_arr, 2.0)
-            + omega_de,
-            1e-12,
-        )
-    )
-    background_hz = numpy.maximum(background_hz, 1e-12)
-
-    sorted_order = numpy.argsort(z_arr)
-    sorted_z = z_arr[sorted_order]
-    sorted_hz = background_hz[sorted_order]
-    with numpy.errstate(divide="ignore", invalid="ignore"):
-        integrand = numpy.where(
-            numpy.abs(sorted_hz) > 1e-12,
-            _C_LIGHT_KM_S / sorted_hz,
-            numpy.nan,
-        )
-    dm_sorted = cumulative_trapezoid(integrand, sorted_z, initial=0.0)
-    dm_values = numpy.interp(z_arr, sorted_z, dm_sorted)
-    dh_values = numpy.where(
-        numpy.abs(background_hz) > 1e-12,
-        _C_LIGHT_KM_S / background_hz,
-        numpy.nan,
-    )
-    da_values = numpy.divide(dm_values, 1.0 + z_arr, dtype=float)
-    dv_values = numpy.full_like(z_arr, numpy.nan, dtype=float)
-    dv_term = dm_values * dm_values * z_arr * dh_values
-    dv_mask = numpy.isfinite(dv_term) & (dv_term >= 0.0)
-    dv_values[dv_mask] = numpy.power(dv_term[dv_mask], 1.0 / 3.0)
-    dv_values[z_arr == 0.0] = 0.0
-    rs_drag = 147.0 / numpy.sqrt(
-        1.0 + max(omega_b, 0.0) / max(omega_gamma or 1e-6, 1e-6)
-    )
-
-    return {
-        "rs_drag": numpy.asarray([rs_drag], dtype=float),
-        "DM": dm_values,
-        "DH": dh_values,
-        "DA": da_values,
-        "DV": dv_values,
-        "Hz": background_hz,
-        "z": z_arr.copy(),
-    }
 
 
 @dataclass(slots=True)
@@ -712,7 +572,7 @@ class CustomCMBSpectrumData:
 
     @property
     def Delta_l_T(self) -> numpy.ndarray:
-        """Return the scalar temperature transfer component when present."""
+        """Return the temperature transfer component when present."""
 
         return numpy.asarray(
             self.transfer_components.get("temperature", []),
@@ -721,7 +581,7 @@ class CustomCMBSpectrumData:
 
     @property
     def Delta_l_E(self) -> numpy.ndarray:
-        """Return the scalar E-mode transfer component when present."""
+        """Return the E-mode transfer component when present."""
 
         return numpy.asarray(
             self.transfer_components.get("polarization_e", []),
@@ -962,38 +822,56 @@ def _resolve_custom_cmb_physical_parameters(
 ) -> _CustomCMBPhysicalParameters:
     """Return physical CMB parameters from the structured contract."""
 
-    hubble_km_s_mpc = _extract_contract_scalar(
+    del background_provider
+    background_scalar_context = _resolve_declared_background_context(
         contract,
-        ("H0", "hubble_constant", "Hubble constant"),
-        default=None,
+        a_values=1.0,
+        z_values=0.0,
     )
-    if hubble_km_s_mpc is None and background_provider is not None:
-        hz_fn = getattr(background_provider, "get_Hz_per_Mpc", None)
-        if callable(hz_fn):
-            hubble_km_s_mpc = _coerce_numeric_scalar(
-                hz_fn(numpy.asarray([0.0])),
-                name="H0",
-            )
+
+    def _require_scalar(names: Sequence[str], *, label: str) -> float:
+        """Return a declared scalar or fail with a clear error."""
+
+        value = _lookup_declared_background_scalar(
+            contract,
+            background_scalar_context,
+            names,
+        )
+        if value is not None:
+            return float(value)
+        names_text = ", ".join(names)
+        raise ValueError(
+            "Declared CMB native execution requires explicit "
+            f"{label}. Provide one of: {names_text}"
+        )
+
+    hubble_km_s_mpc = _lookup_declared_background_scalar(
+        contract,
+        background_scalar_context,
+        ("H0", "hubble_constant", "Hubble constant"),
+    )
     if hubble_km_s_mpc is None:
-        hubble_km_s_mpc = 67.4
+        hubble_km_s_mpc = _require_scalar(("H",), label="background H(z)")
     hubble_km_s_mpc = max(float(hubble_km_s_mpc), 1.0e-6)
     hubble_ratio = hubble_km_s_mpc / 100.0
     hubble_over_c = hubble_km_s_mpc / _C_LIGHT_KM_S
 
-    ombh2 = _extract_contract_scalar(
+    ombh2 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("ombh2", "Omega_b_h2", "omega_b_h2", "baryon_density_h2"),
-        default=None,
     )
-    Omega_b0 = _extract_contract_scalar(
+    Omega_b0 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("Omega_b", "Omega_b0", "omega_b"),
-        default=None,
     )
     if Omega_b0 is None and ombh2 is not None:
         Omega_b0 = ombh2 / (hubble_ratio * hubble_ratio)
     if Omega_b0 is None:
-        Omega_b0 = 0.05
+        raise ValueError(
+            "Declared CMB native execution requires explicit baryon density."
+        )
     if ombh2 is None:
         ombh2 = Omega_b0 * hubble_ratio * hubble_ratio
 
@@ -1010,43 +888,44 @@ def _resolve_custom_cmb_physical_parameters(
             "cdm_density_h2",
         )
     )
-    omch2 = _extract_contract_scalar(
+    omch2 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("omch2", "Omega_c_h2", "omega_c_h2", "cdm_density_h2"),
-        default=None,
     )
-    Omega_c0 = _extract_contract_scalar(
+    Omega_c0 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("Omega_c", "Omega_c0", "omega_c", "Omega_cdm", "Omega_cdm0"),
-        default=None,
     )
     if explicit_cdm:
         if Omega_c0 is None and omch2 is not None:
             Omega_c0 = omch2 / (hubble_ratio * hubble_ratio)
         if Omega_c0 is None:
-            Omega_c0 = 0.0
+            raise ValueError(
+                "Declared CMB native execution requires explicit CDM "
+                "density when CDM parameters are declared."
+            )
         if omch2 is None:
             omch2 = Omega_c0 * hubble_ratio * hubble_ratio
     else:
         Omega_c0 = 0.0
         omch2 = 0.0
 
-    Tcmb_K = _extract_contract_scalar(
-        contract,
+    Tcmb_K = _require_scalar(
         ("Tcmb", "T_cmb", "Tcmb_K"),
-        default=2.7255,
+        label="CMB temperature",
     )
-    YHe = _extract_contract_scalar(
-        contract,
+    YHe = _require_scalar(
         ("YHe", "Yp", "helium_fraction"),
-        default=0.245,
+        label="helium fraction",
     )
-    Neff = _extract_contract_scalar(contract, ("Neff", "N_eff"), default=3.046)
+    Neff = _require_scalar(("Neff", "N_eff"), label="effective neutrino count")
 
-    Omega_gamma0 = _extract_contract_scalar(
+    Omega_gamma0 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("Omega_gamma", "Omega_gamma0", "omega_gamma", "omgamma"),
-        default=None,
     )
     if Omega_gamma0 is None:
         omega_gamma_h2 = 2.469e-5 * (Tcmb_K / 2.7255) ** 4
@@ -1054,60 +933,58 @@ def _resolve_custom_cmb_physical_parameters(
     Omega_nu0 = max(0.0, Omega_gamma0) * 0.2271 * max(Neff, 0.0)
     Omega_r0 = Omega_gamma0 + Omega_nu0
 
-    Omega_k0 = _extract_contract_scalar(
-        contract,
+    Omega_k0 = _require_scalar(
         ("Omega_k", "Omega_k0", "omega_k", "omk"),
-        default=0.0,
+        label="curvature density",
     )
-    Omega_m0_background = _extract_contract_scalar(
-        contract,
+    Omega_m0_background = _require_scalar(
         ("Omega_m0", "Omega_m", "omega_m"),
-        default=Omega_b0 + Omega_c0,
+        label="matter density",
     )
 
-    Omega_de0 = _extract_contract_scalar(
-        contract,
+    Omega_de0 = _require_scalar(
         ("Omega_de", "Omega_de0", "Omega_Lambda", "Omega_lambda"),
-        default=None,
+        label="dark-energy density",
     )
-    has_dark_energy = Omega_de0 is not None
-    if Omega_de0 is None:
-        Omega_de0 = max(
-            0.0,
-            1.0 - Omega_m0_background - Omega_r0 - Omega_k0,
-        )
+    has_dark_energy = abs(float(Omega_de0)) > 1.0e-12
 
-    dark_energy_eos0 = _extract_contract_scalar(
+    dark_energy_eos0 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("w0", "w", "dark_energy_w0"),
-        default=-1.0,
     )
-    dark_energy_eos1 = _extract_contract_scalar(
+    if dark_energy_eos0 is None:
+        dark_energy_eos0 = -1.0
+    dark_energy_eos1 = _lookup_declared_background_scalar(
         contract,
+        background_scalar_context,
         ("wa",),
-        default=0.0,
     )
+    if dark_energy_eos1 is None:
+        dark_energy_eos1 = 0.0
 
-    primordial_amplitude = _extract_contract_scalar(
-        contract,
+    primordial_amplitude = _require_scalar(
         ("As", "A_s"),
-        default=2.1e-9,
+        label="primordial amplitude",
     )
-    primordial_spectral_index = _extract_contract_scalar(
-        contract,
+    primordial_spectral_index = _require_scalar(
         ("ns", "n_s"),
-        default=0.965,
+        label="primordial tilt",
     )
-    z_rec = _extract_contract_scalar(contract, ("z_rec",), default=1089.92)
-    if z_rec is None or z_rec <= 0.0:
-        z_rec = 1089.92
-    tau_reio = _extract_contract_scalar(
+    z_rec = _lookup_declared_background_scalar(
         contract,
-        ("tau", "tau_reio", "reionization_tau"),
-        default=0.054,
+        background_scalar_context,
+        ("z_rec",),
     )
-    if tau_reio is None or tau_reio < 0.0:
-        tau_reio = 0.054
+    if z_rec is None or z_rec <= 0.0:
+        z_rec = 0.0
+    tau_reio = _lookup_declared_background_scalar(
+        contract,
+        background_scalar_context,
+        ("tau", "tau_reio", "reionization_tau"),
+    )
+    if tau_reio is None:
+        tau_reio = 0.0
 
     G_NEWTON = 6.674_30e-11
     MPC_M = 3.085_677_581_491_3673e22
@@ -1165,72 +1042,10 @@ def _build_custom_cmb_background(
     cached_background = _CUSTOM_CMB_BACKGROUND_RESULTS.get(cache_key)
     if cached_background is not None:
         return _get_cached_custom_cmb_background(cache_key)
-    if background_provider is not None:
-        _CUSTOM_CMB_PROVIDER_REGISTRY[
-            _custom_cmb_provider_key(background_provider)
-        ] = background_provider
+    del background_provider
 
     MPC_M = 3.085_677_581_491_3673e22
     SIGMA_T_M2 = 6.652_458_7321e-29
-
-    def _background_hubble_km_s_Mpc(z_values: numpy.ndarray) -> numpy.ndarray:
-        """Return H(z) using the declared background or a physical fallback."""
-
-        z_arr = numpy.asarray(z_values, dtype=float)
-        if background_provider is not None:
-            hz_fn = getattr(background_provider, "get_Hz_per_Mpc", None)
-            if callable(hz_fn):
-                hz_values = numpy.asarray(hz_fn(z_arr), dtype=float)
-                if hz_values.shape == z_arr.shape and numpy.all(
-                    numpy.isfinite(hz_values)
-                ):
-                    return numpy.maximum(hz_values, 1.0e-12)
-
-        matter_background = max(
-            0.0,
-            physical_params.Omega_m0_background,
-        )
-        if matter_background <= 0.0:
-            matter_background = (
-                physical_params.Omega_b0 + physical_params.Omega_c0
-            )
-        dark_energy = physical_params.Omega_de0
-        dark_energy_factor = numpy.ones_like(z_arr, dtype=float)
-        if not math.isclose(
-            physical_params.dark_energy_eos1,
-            0.0,
-            rel_tol=0.0,
-            abs_tol=0.0,
-        ):
-            exponent = 3.0 * (
-                1.0
-                + physical_params.dark_energy_eos0
-                + physical_params.dark_energy_eos1
-            )
-            dark_energy_factor = numpy.power(
-                1.0 + z_arr, exponent
-            ) * numpy.exp(
-                -3.0 * physical_params.dark_energy_eos1 * z_arr / (1.0 + z_arr)
-            )
-        elif not math.isclose(
-            physical_params.dark_energy_eos0,
-            -1.0,
-            rel_tol=0.0,
-            abs_tol=0.0,
-        ):
-            exponent = 3.0 * (1.0 + physical_params.dark_energy_eos0)
-            dark_energy_factor = numpy.power(1.0 + z_arr, exponent)
-        expansion_factor_squared = (
-            matter_background * numpy.power(1.0 + z_arr, 3.0)
-            + physical_params.Omega_r0 * numpy.power(1.0 + z_arr, 4.0)
-            + physical_params.Omega_k0 * numpy.power(1.0 + z_arr, 2.0)
-            + dark_energy * dark_energy_factor
-        )
-        return numpy.maximum(
-            physical_params.H0_km_s_Mpc
-            * numpy.sqrt(numpy.maximum(expansion_factor_squared, 1.0e-16)),
-            1.0e-12,
-        )
 
     a_min = max(numerics.a_min, 1.0e-8)
     log_a = numpy.geomspace(a_min, 1.0, numerics.eta_sample_count)
@@ -1265,7 +1080,30 @@ def _build_custom_cmb_background(
     )
     a_grid.sort()
     z_grid = numpy.maximum(1.0 / a_grid - 1.0, 0.0)
-    H_grid = _background_hubble_km_s_Mpc(z_grid)
+    background_grid_context = _resolve_declared_background_context(
+        contract,
+        a_values=a_grid,
+        z_values=z_grid,
+    )
+    if "H" not in background_grid_context:
+        raise ValueError(
+            "Declared CMB background must provide a derived 'H' "
+            "expression in km/s/Mpc."
+        )
+    H_grid = numpy.asarray(background_grid_context["H"], dtype=float)
+    if H_grid.ndim == 0:
+        H_grid = numpy.full_like(z_grid, float(H_grid), dtype=float)
+    if H_grid.shape != z_grid.shape:
+        raise ValueError(
+            "Declared CMB background H expression must match the "
+            "requested redshift grid."
+        )
+    if not numpy.all(numpy.isfinite(H_grid)):
+        raise ValueError(
+            "Declared CMB background H expression produced non-finite "
+            "values."
+        )
+    H_grid = numpy.maximum(H_grid, 1.0e-12)
     eta_grid = cumulative_trapezoid(
         _C_LIGHT_KM_S / numpy.maximum(a_grid * a_grid * H_grid, 1.0e-12),
         a_grid,
@@ -1411,39 +1249,27 @@ def _build_custom_cmb_background(
             )
         )
 
-    def _hydrogen_recombination_da(
+    def _hydrogen_recombination_rate(
+        *,
         a_value: float,
         hydrogen_fraction: float,
-        *,
-        a_left: float,
-        a_right: float,
-        z_left: float,
-        z_right: float,
-        n_h_left: float,
-        n_h_right: float,
-        rate_left: float,
-        rate_right: float,
+        z_value: float,
+        n_h_value: float,
+        hubble_rate: float,
     ) -> float:
         """Return the Peebles hydrogen derivative with respect to ``a``."""
 
-        interval = max(a_right - a_left, 1.0e-30)
-        blend = numpy.clip((a_value - a_left) / interval, 0.0, 1.0)
-        z_value = float((1.0 - blend) * z_left + blend * z_right)
-        n_h_value = float((1.0 - blend) * n_h_left + blend * n_h_right)
-        hubble_rate = float((1.0 - blend) * rate_left + blend * rate_right)
         temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
         alpha_b = _hydrogen_alpha_coefficient(temperature_k)
-        beta_continuum = alpha_b * _saha_ratio(
-            temperature_k,
-            hydrogen_ground_state_energy_j,
-            1.0,
-        )
-        beta_2 = alpha_b * _saha_ratio(
+        beta_n2 = alpha_b * _saha_ratio(
             temperature_k,
             hydrogen_n2_binding_energy_j,
             1.0,
         )
-        _, helium_fraction = _helium_electron_fraction(
+        beta_continuum = beta_n2 * math.exp(
+            -lyman_alpha_energy_j / (boltzmann_j_k * temperature_k)
+        )
+        total_fraction, _ = _helium_electron_fraction(
             z_value,
             float(numpy.clip(hydrogen_fraction, 1.0e-8, 1.0)),
             n_h_value,
@@ -1461,140 +1287,191 @@ def _build_custom_cmb_background(
         ) / (
             1.0
             + peebles_k
-            * (hydrogen_two_photon_decay_rate + beta_2)
+            * (hydrogen_two_photon_decay_rate + beta_n2)
             * n_h_value
             * neutral_fraction
         )
-        del helium_fraction
         dx_dt = peebles_c * (
             beta_continuum * neutral_fraction
-            - n_h_value * alpha_b * hydrogen_fraction * hydrogen_fraction
+            - n_h_value * alpha_b * total_fraction * hydrogen_fraction
         )
         return dx_dt / max(a_value * hubble_rate, 1.0e-30)
 
+    hydrogen_saha_grid = numpy.ones_like(z_grid, dtype=float)
+    hydrogen_recombination_start_index = int(
+        numpy.searchsorted(
+            a_grid,
+            float(recombination_window[0]),
+            side="left",
+        )
+    )
+    saha_break_index = z_grid.size
+    peebles_switch_fraction = 0.99
+    hydrogen_guess = 1.0
+    for index in range(hydrogen_recombination_start_index, z_grid.size):
+        z_value = float(z_grid[index])
+        n_h_value = float(n_H_grid[index])
+        _, helium_fraction_guess = _helium_electron_fraction(
+            z_value,
+            hydrogen_guess,
+            n_h_value,
+        )
+        hydrogen_saha_grid[index] = _hydrogen_saha_fraction(
+            z_value,
+            float(helium_fraction_guess),
+            n_h_value,
+        )
+        hydrogen_guess = float(hydrogen_saha_grid[index])
+        if (
+            saha_break_index == z_grid.size
+            and float(hydrogen_saha_grid[index]) < peebles_switch_fraction
+        ):
+            saha_break_index = index
+
     x_h_grid = numpy.empty_like(z_grid, dtype=float)
+    if saha_break_index > 0:
+        x_h_grid[:saha_break_index] = hydrogen_saha_grid[:saha_break_index]
+    if saha_break_index < z_grid.size:
+        initial_fraction = float(hydrogen_saha_grid[saha_break_index])
+
+        def _hydrogen_ode(
+            a_value: float,
+            state: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Return the stiff hydrogen recombination derivative."""
+
+            z_value = float(numpy.interp(a_value, a_grid, z_grid))
+            n_h_value = float(numpy.interp(a_value, a_grid, n_H_grid))
+            hubble_rate = float(
+                numpy.interp(a_value, a_grid, hydrogen_rate_grid)
+            )
+            derivative = _hydrogen_recombination_rate(
+                a_value=float(a_value),
+                hydrogen_fraction=float(numpy.clip(state[0], 1.0e-8, 1.0)),
+                z_value=z_value,
+                n_h_value=n_h_value,
+                hubble_rate=hubble_rate,
+            )
+            return numpy.asarray((derivative,), dtype=float)
+
+        recombination_solution = solve_ivp(
+            _hydrogen_ode,
+            (
+                float(a_grid[saha_break_index]),
+                float(a_grid[-1]),
+            ),
+            numpy.asarray((initial_fraction,), dtype=float),
+            method="Radau",
+            t_eval=numpy.asarray(a_grid[saha_break_index:], dtype=float),
+            rtol=1.0e-6,
+            atol=1.0e-9,
+        )
+        if not recombination_solution.success:
+            raise ValueError(
+                "Hydrogen recombination integration failed: "
+                f"{recombination_solution.message}"
+            )
+        x_h_grid[saha_break_index:] = numpy.clip(
+            recombination_solution.y[0],
+            1.0e-8,
+            1.0,
+        )
+    else:
+        x_h_grid[:] = hydrogen_saha_grid
     helium_electron_grid = numpy.empty_like(z_grid, dtype=float)
     x_e_recomb_grid = numpy.empty_like(z_grid, dtype=float)
-    hydrogen_fraction = 1.0
-    saha_mode = True
-    for index, (
-        a_value,
-        z_value,
-        n_h_value,
-        hubble_rate,
-    ) in enumerate(
-        zip(a_grid, z_grid, n_H_grid, hydrogen_rate_grid, strict=True)
+    for index, (z_value, n_h_value, hydrogen_fraction) in enumerate(
+        zip(z_grid, n_H_grid, x_h_grid, strict=True)
     ):
-        hydrogen_fraction = float(numpy.clip(hydrogen_fraction, 1.0e-8, 1.0))
-        _, helium_fraction_guess = _helium_electron_fraction(
-            float(z_value),
-            hydrogen_fraction,
-            float(n_h_value),
-        )
-        hydrogen_saha = _hydrogen_saha_fraction(
-            float(z_value),
-            float(helium_fraction_guess),
-            float(n_h_value),
-        )
-        if index == 0 or (saha_mode and hydrogen_saha >= 0.99):
-            hydrogen_fraction = hydrogen_saha
-        else:
-            saha_mode = False
-            a_left = float(a_grid[index - 1])
-            a_right = float(a_value)
-            step = a_right - a_left
-            if step > 0.0:
-                prev_hydrogen_fraction = float(x_h_grid[index - 1])
-                slope_start = _hydrogen_recombination_da(
-                    a_left,
-                    prev_hydrogen_fraction,
-                    a_left=a_left,
-                    a_right=a_right,
-                    z_left=float(z_grid[index - 1]),
-                    z_right=float(z_value),
-                    n_h_left=float(n_H_grid[index - 1]),
-                    n_h_right=float(n_h_value),
-                    rate_left=float(hydrogen_rate_grid[index - 1]),
-                    rate_right=float(hubble_rate),
-                )
-                midpoint_a = a_left + 0.5 * step
-                slope_mid_a = _hydrogen_recombination_da(
-                    midpoint_a,
-                    prev_hydrogen_fraction + 0.5 * step * slope_start,
-                    a_left=a_left,
-                    a_right=a_right,
-                    z_left=float(z_grid[index - 1]),
-                    z_right=float(z_value),
-                    n_h_left=float(n_H_grid[index - 1]),
-                    n_h_right=float(n_h_value),
-                    rate_left=float(hydrogen_rate_grid[index - 1]),
-                    rate_right=float(hubble_rate),
-                )
-                slope_mid_b = _hydrogen_recombination_da(
-                    midpoint_a,
-                    prev_hydrogen_fraction + 0.5 * step * slope_mid_a,
-                    a_left=a_left,
-                    a_right=a_right,
-                    z_left=float(z_grid[index - 1]),
-                    z_right=float(z_value),
-                    n_h_left=float(n_H_grid[index - 1]),
-                    n_h_right=float(n_h_value),
-                    rate_left=float(hydrogen_rate_grid[index - 1]),
-                    rate_right=float(hubble_rate),
-                )
-                slope_end = _hydrogen_recombination_da(
-                    a_right,
-                    prev_hydrogen_fraction + step * slope_mid_b,
-                    a_left=a_left,
-                    a_right=a_right,
-                    z_left=float(z_grid[index - 1]),
-                    z_right=float(z_value),
-                    n_h_left=float(n_H_grid[index - 1]),
-                    n_h_right=float(n_h_value),
-                    rate_left=float(hydrogen_rate_grid[index - 1]),
-                    rate_right=float(hubble_rate),
-                )
-                hydrogen_fraction = prev_hydrogen_fraction + (step / 6.0) * (
-                    slope_start
-                    + 2.0 * slope_mid_a
-                    + 2.0 * slope_mid_b
-                    + slope_end
-                )
-            hydrogen_fraction = float(
-                numpy.clip(
-                    max(hydrogen_fraction, hydrogen_saha),
-                    1.0e-8,
-                    1.0,
-                )
-            )
         total_fraction, helium_fraction = _helium_electron_fraction(
             float(z_value),
-            hydrogen_fraction,
+            float(hydrogen_fraction),
             float(n_h_value),
         )
-        x_h_grid[index] = hydrogen_fraction
         helium_electron_grid[index] = helium_fraction
         x_e_recomb_grid[index] = total_fraction
 
-    target_reionization_tau = max(0.0, physical_params.tau_reio)
-    stellar_source_temperature_k = 5.0e4
-    quasar_source_temperature_k = 1.5e5
-    ionized_region_temperature_k = 1.0e4
-    doubly_ionized_helium_temperature_k = 2.0e4
-    collapse_threshold = 1.686
+    reionization_section = _get_declared_reionization_section(contract)
+    calibration_section = reionization_section.get("calibration", {}) or {}
+    reionization_quantities = reionization_section.get("quantities", {}) or {}
     hubble0_si = physical_params.H0_km_s_Mpc * 1000.0 / MPC_M
-    stellar_helium_hardness = _safe_exp(
-        -(helium_ionization_energy_j - hydrogen_ground_state_energy_j)
-        / (boltzmann_j_k * stellar_source_temperature_k)
-    )
-    quasar_helium_hardness = _safe_exp(
-        -(helium_double_ionization_energy_j - hydrogen_ground_state_energy_j)
-        / (boltzmann_j_k * quasar_source_temperature_k)
-    )
     helium_floor_grid = numpy.minimum(
         helium_electron_grid,
         helium_number_ratio,
     )
+
+    def _resolve_reionization_target_tau() -> float | None:
+        """Return the declared reionization optical-depth target."""
+
+        target_entry = calibration_section.get("target_optical_depth")
+        if target_entry is None:
+            return None
+        scalar_context = _resolve_declared_background_context(
+            contract,
+            a_values=1.0,
+            z_values=0.0,
+        )
+        if isinstance(
+            target_entry, (int, float, numpy.integer, numpy.floating)
+        ):
+            return float(target_entry)
+        if not isinstance(target_entry, str) or not target_entry.strip():
+            raise ValueError(
+                "background.reionization.calibration.target_optical_depth "
+                "must be numeric or a string expression."
+            )
+        return _coerce_numeric_scalar(
+            _evaluate_safe_expression(target_entry.strip(), scalar_context),
+            name="background.reionization.calibration.target_optical_depth",
+        )
+
+    calibration_symbol = calibration_section.get("symbol")
+    if calibration_symbol is not None:
+        if (
+            not isinstance(calibration_symbol, str)
+            or not calibration_symbol.strip()
+        ):
+            raise ValueError(
+                "background.reionization.calibration.symbol must be a "
+                "non-empty string."
+            )
+        calibration_symbol = calibration_symbol.strip()
+    target_reionization_tau = _resolve_reionization_target_tau()
+    if target_reionization_tau is not None:
+        if not reionization_quantities:
+            raise ValueError(
+                "Declared reionization calibration requires "
+                "background.reionization.quantities."
+            )
+        if calibration_symbol is None:
+            raise ValueError(
+                "background.reionization.calibration.symbol is required "
+                "when target_optical_depth is declared."
+            )
+        if (
+            "lower" not in calibration_section
+            or "upper" not in calibration_section
+        ):
+            raise ValueError(
+                "background.reionization.calibration must declare lower "
+                "and upper bounds."
+            )
+        calibration_lower = _coerce_numeric_scalar(
+            calibration_section["lower"],
+            name="background.reionization.calibration.lower",
+        )
+        calibration_upper = _coerce_numeric_scalar(
+            calibration_section["upper"],
+            name="background.reionization.calibration.upper",
+        )
+        if calibration_upper <= calibration_lower:
+            raise ValueError(
+                "background.reionization.calibration.upper must be "
+                "greater than lower."
+            )
+    else:
+        calibration_lower = 0.0
+        calibration_upper = 0.0
 
     def _helium_recombination_coefficient(temperature_k: float) -> float:
         """Return an effective case-B He I recombination coefficient."""
@@ -1609,17 +1486,55 @@ def _build_custom_cmb_background(
 
         return 4.0 * _hydrogen_alpha_coefficient(temperature_k / 4.0)
 
-    def _reionization_source_proxies(a_value: float) -> tuple[float, float]:
-        """Return effective stellar and hard-source emissivity proxies."""
+    def _resolve_stage_reionization_quantities(
+        *,
+        a_value: float,
+        z_value: float,
+        n_h_value: float,
+        x_h_floor: float,
+        helium_electron_floor: float,
+        x_e_floor: float,
+        hubble_rate: float,
+        calibration_value: float | None,
+    ) -> Mapping[str, Any]:
+        """Return the resolved declared reionization quantities."""
 
-        collapse_proxy = _safe_exp(-collapse_threshold / max(a_value, 1.0e-6))
-        return collapse_proxy, collapse_proxy * collapse_proxy
+        if not reionization_quantities:
+            return {}
+        background_context = _resolve_declared_background_context(
+            contract,
+            a_values=float(a_value),
+            z_values=float(z_value),
+        )
+        reionization_context = dict(background_context)
+        reionization_context.update(
+            {
+                "n_H": float(n_h_value),
+                "x_h_floor": float(x_h_floor),
+                "helium_electron_floor": float(helium_electron_floor),
+                "x_e_floor": float(x_e_floor),
+                "neutral_h_floor": max(1.0 - float(x_h_floor), 0.0),
+                "neutral_he_floor": max(
+                    helium_number_ratio - float(helium_electron_floor),
+                    0.0,
+                ),
+                "helium_number_ratio": float(helium_number_ratio),
+                "H_SI": float(hubble_rate),
+                "H0_SI": float(hubble0_si),
+            }
+        )
+        if calibration_symbol is not None and calibration_value is not None:
+            reionization_context[calibration_symbol] = float(calibration_value)
+        return _resolve_declared_reionization_context(
+            contract,
+            base_context=reionization_context,
+        )
 
     def _reionization_state_da(
         a_value: float,
         state_vector: numpy.ndarray,
         *,
-        amplitude: float,
+        calibration_value: float | None,
         a_left: float,
         a_right: float,
         floor_h_left: float,
@@ -1676,17 +1591,65 @@ def _build_custom_cmb_background(
             helium_number_ratio - floor_he - delta_he_single - delta_he_double,
             0.0,
         )
-        stellar_proxy, quasar_proxy = _reionization_source_proxies(a_value)
-        gamma_h = amplitude * hubble0_si * stellar_proxy
-        gamma_he = gamma_h * stellar_helium_hardness
-        gamma_he_double = amplitude * hubble0_si * quasar_proxy
-        gamma_he_double *= quasar_helium_hardness
-        alpha_h = _hydrogen_alpha_coefficient(ionized_region_temperature_k)
-        alpha_he = _helium_recombination_coefficient(
-            ionized_region_temperature_k
+        reionization_context = _resolve_stage_reionization_quantities(
+            a_value=float(a_value),
+            z_value=z_value,
+            n_h_value=n_h_value,
+            x_h_floor=floor_h,
+            helium_electron_floor=floor_he,
+            x_e_floor=x_e_floor,
+            hubble_rate=hubble_rate,
+            calibration_value=calibration_value,
         )
+        if not reionization_context:
+            return numpy.zeros(3, dtype=float)
+        for required_name in (
+            "hydrogen_ionization_rate",
+            "helium_ionization_rate",
+            "helium_double_ionization_rate",
+            "hydrogen_temperature_K",
+            "helium_temperature_K",
+            "helium_double_temperature_K",
+        ):
+            if required_name not in reionization_context:
+                raise ValueError(
+                    "Declared reionization quantities must define "
+                    f"'{required_name}'."
+                )
+        gamma_h = _coerce_numeric_scalar(
+            reionization_context["hydrogen_ionization_rate"],
+            name="background.reionization.quantities.hydrogen_ionization_rate",
+        )
+        gamma_he = _coerce_numeric_scalar(
+            reionization_context["helium_ionization_rate"],
+            name="background.reionization.quantities.helium_ionization_rate",
+        )
+        gamma_he_double = _coerce_numeric_scalar(
+            reionization_context["helium_double_ionization_rate"],
+            name=(
+                "background.reionization.quantities."
+                "helium_double_ionization_rate"
+            ),
+        )
+        hydrogen_temperature_k = _coerce_numeric_scalar(
+            reionization_context["hydrogen_temperature_K"],
+            name="background.reionization.quantities.hydrogen_temperature_K",
+        )
+        helium_temperature_k = _coerce_numeric_scalar(
+            reionization_context["helium_temperature_K"],
+            name="background.reionization.quantities.helium_temperature_K",
+        )
+        helium_double_temperature_k = _coerce_numeric_scalar(
+            reionization_context["helium_double_temperature_K"],
+            name=(
+                "background.reionization.quantities."
+                "helium_double_temperature_K"
+            ),
+        )
+        alpha_h = _hydrogen_alpha_coefficient(hydrogen_temperature_k)
+        alpha_he = _helium_recombination_coefficient(helium_temperature_k)
         alpha_he_double = _helium_double_recombination_coefficient(
-            doubly_ionized_helium_temperature_k
+            helium_double_temperature_k
         )
         hydrogen_dt = gamma_h * neutral_h - alpha_h * n_e_value * delta_h
         helium_single_dt = (
@@ -1709,17 +1672,16 @@ def _build_custom_cmb_background(
         ) / max(a_value * hubble_rate, 1.0e-30)
 
     def _integrate_reionization_history(
-        log10_amplitude: float | None,
+        calibration_value: float | None,
     ) -> tuple[numpy.ndarray, float, float]:
         """Return reionization electrons, tau, and midpoint redshift."""
 
-        if log10_amplitude is None:
+        if not reionization_quantities:
             return (
                 numpy.zeros_like(z_grid, dtype=float),
                 0.0,
                 0.0,
             )
-        amplitude = float(10.0**log10_amplitude)
         state = numpy.zeros(3, dtype=float)
         delta_h_grid = numpy.zeros_like(z_grid, dtype=float)
         delta_he_single_grid = numpy.zeros_like(z_grid, dtype=float)
@@ -1745,7 +1707,7 @@ def _build_custom_cmb_background(
                 return _reionization_state_da(
                     stage_a,
                     stage_state,
-                    amplitude=amplitude,
+                    calibration_value=calibration_value,
                     a_left=a_left,
                     a_right=a_right,
                     floor_h_left=float(x_h_grid[index]),
@@ -1837,47 +1799,47 @@ def _build_custom_cmb_background(
     ] = {}
 
     def _get_reionization_history(
-        log10_amplitude: float | None,
+        calibration_value: float | None,
     ) -> tuple[numpy.ndarray, float, float]:
-        """Return the cached reionization history for ``log10_amplitude``."""
+        """Return the cached reionization history for one calibration value."""
 
-        if log10_amplitude not in reionization_history_cache:
-            reionization_history_cache[log10_amplitude] = (
-                _integrate_reionization_history(log10_amplitude)
+        if calibration_value not in reionization_history_cache:
+            reionization_history_cache[calibration_value] = (
+                _integrate_reionization_history(calibration_value)
             )
-        return reionization_history_cache[log10_amplitude]
+        return reionization_history_cache[calibration_value]
 
-    if target_reionization_tau > 0.0:
-        lower = -24.0
-        upper = 12.0
-        _, lower_tau, _ = _get_reionization_history(lower)
-        _, upper_tau, _ = _get_reionization_history(upper)
-        while upper_tau < target_reionization_tau and upper < 36.0:
-            upper += 4.0
-            _, upper_tau, _ = _get_reionization_history(upper)
-        if lower_tau > target_reionization_tau:
-            chosen_amplitude = lower
-        elif upper_tau < target_reionization_tau:
-            chosen_amplitude = upper
+    if target_reionization_tau is not None:
+        _, lower_tau, _ = _get_reionization_history(calibration_lower)
+        _, upper_tau, _ = _get_reionization_history(calibration_upper)
+        lower_offset = lower_tau - target_reionization_tau
+        upper_offset = upper_tau - target_reionization_tau
+        if lower_offset == 0.0:
+            chosen_calibration = calibration_lower
+        elif upper_offset == 0.0:
+            chosen_calibration = calibration_upper
+        elif lower_offset * upper_offset > 0.0:
+            raise ValueError(
+                "Declared reionization calibration range does not bracket "
+                "the requested optical depth."
+            )
         else:
-            chosen_amplitude = float(
+            chosen_calibration = float(
                 brentq(
                     lambda value: _get_reionization_history(value)[1]
                     - target_reionization_tau,
-                    lower,
-                    upper,
+                    calibration_lower,
+                    calibration_upper,
                     maxiter=96,
                 )
             )
-        (
-            reionization_xe_grid,
-            reionization_tau,
-            z_reion,
-        ) = _get_reionization_history(chosen_amplitude)
+        reionization_xe_grid, reionization_tau, z_reion = (
+            _get_reionization_history(chosen_calibration)
+        )
     else:
-        z_reion = 0.0
-        reionization_xe_grid = numpy.zeros_like(z_grid, dtype=float)
-        reionization_tau = 0.0
+        reionization_xe_grid, reionization_tau, z_reion = (
+            _get_reionization_history(None)
+        )
 
     x_e_grid = numpy.clip(
         x_e_recomb_grid + reionization_xe_grid,
@@ -2022,13 +1984,6 @@ def _prepare_declared_graph_runtime_spec(
 ) -> _DeclaredGraphRuntimeSpec:
     """Return state-vector metadata for the declared graph contract."""
 
-    if str(getattr(perturbation_data, "gauge", "")) not in (
-        _SUPPORTED_NATIVE_GRAPH_GAUGES
-    ):
-        raise ValueError(
-            "Declared CMB graph native execution requires "
-            "gauge='conformal_newtonian' or 'unspecified'."
-        )
     for entry in perturbation_data.boundary_conditions.values():
         if str(getattr(entry, "anchor", "start")) != "start":
             raise ValueError(
@@ -2134,14 +2089,14 @@ def _build_declared_base_context(
     )
     context["a_initial"] = float(background_scalars["a"])
     context["eta_initial"] = float(eta_value)
-    context["Omega_b0"] = float(physical_params.Omega_b0)
-    context["Omega_c0"] = float(physical_params.Omega_c0)
-    context["Omega_m0"] = float(physical_params.Omega_m0_background)
-    context["Omega_gamma0"] = float(physical_params.Omega_gamma0)
-    context["Omega_nu0"] = float(physical_params.Omega_nu0)
-    context["Omega_r0"] = float(physical_params.Omega_r0)
-    context["Omega_k0"] = float(physical_params.Omega_k0)
-    context["Omega_de0"] = float(physical_params.Omega_de0)
+    context.setdefault("Omega_b0", float(physical_params.Omega_b0))
+    context.setdefault("Omega_c0", float(physical_params.Omega_c0))
+    context.setdefault("Omega_m0", float(physical_params.Omega_m0_background))
+    context.setdefault("Omega_gamma0", float(physical_params.Omega_gamma0))
+    context.setdefault("Omega_nu0", float(physical_params.Omega_nu0))
+    context.setdefault("Omega_r0", float(physical_params.Omega_r0))
+    context.setdefault("Omega_k0", float(physical_params.Omega_k0))
+    context.setdefault("Omega_de0", float(physical_params.Omega_de0))
     context["sound_horizon"] = float(background_scalars["sound_horizon"])
     context["sound_speed_sq"] = float(background_scalars["sound_speed_sq"])
     context["collision_rate"] = float(background_scalars["collision_rate"])
@@ -2373,6 +2328,8 @@ def _declared_graph_projection(
     x_signature: str,
     x_values: numpy.ndarray,
     eta_grid: numpy.ndarray,
+    chi_grid: numpy.ndarray,
+    source_chi: float,
     source_histories: Mapping[str, numpy.ndarray],
 ) -> float:
     """Return one projected transfer component value."""
@@ -2401,7 +2358,7 @@ def _declared_graph_projection(
         # source history.
         b_kernel = prefactor * j_l_derivative * inverse_x
 
-    if projection == "cmb_temperature_scalar":
+    if projection == "line_of_sight_temperature":
         source = numpy.zeros_like(eta_grid, dtype=float)
         if "monopole" in source_histories:
             source += source_histories["monopole"] * j_l
@@ -2412,29 +2369,30 @@ def _declared_graph_projection(
         if "additive" in source_histories:
             source += source_histories["additive"] * j_l
         return float(numpy.trapz(source, eta_grid))
-    if projection == "cmb_polarization_e_scalar":
+    if projection == "line_of_sight_polarization_e":
         source = source_histories.get("polarization")
         if source is None:
             raise ValueError(
                 "E-mode projection requires a 'polarization' source term."
             )
         return float(numpy.trapz(source * e_kernel, eta_grid))
-    if projection == "scalar_jl":
+    if projection == "line_of_sight_signal":
         if "signal" not in source_histories:
             raise ValueError(
-                "scalar_jl projection requires a 'signal' source term."
+                "line_of_sight_signal projection requires a 'signal' "
+                "source term."
             )
         return float(numpy.trapz(source_histories["signal"] * j_l, eta_grid))
-    if projection == "scalar_jl_derivative":
+    if projection == "line_of_sight_signal_derivative":
         if "signal" not in source_histories:
             raise ValueError(
-                "scalar_jl_derivative projection requires a 'signal' "
-                "source term."
+                "line_of_sight_signal_derivative projection requires a "
+                "'signal' source term."
             )
         return float(
             numpy.trapz(source_histories["signal"] * j_l_derivative, eta_grid)
         )
-    if projection in {"scalar_e_mode", "spin2_e_mode"}:
+    if projection == "spin2_e_mode":
         if "signal" in source_histories:
             source = source_histories["signal"]
         elif "polarization" in source_histories:
@@ -2453,16 +2411,24 @@ def _declared_graph_projection(
             )
         source = source_histories["polarization_b"]
         return float(numpy.trapz(source * b_kernel, eta_grid))
-    if projection in {
-        "cmb_lensing_potential_scalar",
-        "scalar_potential",
-    }:
+    if projection == "line_of_sight_potential":
         if "potential" not in source_histories:
             raise ValueError(
                 f"{projection} requires a 'potential' source term."
             )
         signal = source_histories["potential"]
-        kernel = j_l / numpy.maximum(x_values * x_values, 1.0e-12)
+        kernel = j_l
+        return float(numpy.trapz(signal * kernel, eta_grid))
+    if projection == "line_of_sight_lensing_potential":
+        if "potential" not in source_histories:
+            raise ValueError(
+                f"{projection} requires a 'potential' source term."
+            )
+        signal = source_histories["potential"]
+        geometry = numpy.clip(source_chi - chi_grid, 0.0, None) / (
+            max(float(source_chi), 1.0e-12) * numpy.maximum(chi_grid, 1.0e-12)
+        )
+        kernel = 2.0 * geometry * j_l
         return float(numpy.trapz(signal * kernel, eta_grid))
     if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
         raise ValueError(
@@ -2574,6 +2540,11 @@ def _compute_custom_cmb_spectrum_data(
         1.0 + collision_rate_grid / max(float(collision_rate_grid.max()), 1.0)
     )
     sound_speed_sq_grid = 1.0 / (3.0 * (1.0 + baryon_loading_grid))
+    declared_background_los = _resolve_declared_background_context(
+        contract_or_params,
+        a_values=a_los_grid,
+        z_values=z_los_grid,
+    )
 
     eta0_floor = max(background.eta0, 1.0e-6)
     k_min = max(
@@ -2594,6 +2565,7 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.asarray(k_values, dtype=float)
 
     eta0 = background.eta0
+    source_chi = float(background.chi_of_eta(background.eta_rec))
     source_parameters: dict[str, float] = {}
     for source in (
         contract_or_params.get("param_map", {}) or {},
@@ -2704,6 +2676,22 @@ def _compute_custom_cmb_spectrum_data(
             ),
             "sound_horizon": float(background.sound_horizon_mpc),
         }
+        for name, raw_value in declared_background_los.items():
+            if name in {"a", "z"}:
+                continue
+            value = numpy.asarray(raw_value, dtype=float)
+            if value.ndim == 0:
+                scalar_context[name] = float(value)
+                continue
+            if value.shape != eta_los_grid.shape:
+                raise ValueError(
+                    "Declared background symbol did not match the "
+                    f"line-of-sight grid: {name}"
+                )
+            scalar_context[name] = float(
+                weight_current * value[step_index]
+                + weight_next * value[next_index]
+            )
         return float(eta_value), scalar_context
 
     def _build_scalar_state_context(
@@ -2819,6 +2807,23 @@ def _compute_custom_cmb_spectrum_data(
                 dtype=float,
             ),
         }
+        for name, raw_value in declared_background_los.items():
+            if name in {"a", "z"}:
+                continue
+            value = numpy.asarray(raw_value, dtype=float)
+            if value.ndim == 0:
+                context[name] = numpy.full_like(
+                    eta_los_grid,
+                    float(value),
+                    dtype=float,
+                )
+                continue
+            if value.shape != eta_los_grid.shape:
+                raise ValueError(
+                    "Declared background symbol did not match the "
+                    f"line-of-sight grid: {name}"
+                )
+            context[name] = value
         for name, value in source_parameters.items():
             context[name] = float(value)
         for slot in runtime_spec.state_slots:
@@ -3094,6 +3099,8 @@ def _compute_custom_cmb_spectrum_data(
                         x_signature=x_signature,
                         x_values=x_values,
                         eta_grid=eta_los_grid,
+                        chi_grid=chi_los_grid,
+                        source_chi=source_chi,
                         source_histories=source_histories,
                     )
                 )

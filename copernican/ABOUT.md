@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-14
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -29,9 +29,9 @@ The bundled engines, models, and validation helpers now live under
 path layout.
 
 The CMB surface now includes a declared-math graph engine for
-`standard: false` contracts. It evolves one Newtonian-gauge graph per `k`
-mode, then projects the solved graph through declared transfer components and
-line-of-sight integration instead of routing models through a scalar-only
+`standard: false` contracts. It evolves one declared graph per `k` mode, then
+projects the solved graph through declared transfer components and
+line-of-sight integration instead of routing models through a theory-family
 compatibility layer. Non-standard contracts now declare variables,
 equations, constraints, closures, sources, initial conditions, observable
 mappings, and numerical requirements in one immutable graph; unsupported
@@ -40,14 +40,15 @@ observables, and incompatible projection-role bindings fail loudly. The
 implementation lives in
 `copernican/lib/likelihoods/cmb.py` and uses bounded `k` sampling with cached
 mode histories and Bessel projection for the requested line-of-sight window.
-The background helper also computes a Peebles-style recombination history,
-photoionization-balance reionization, the visibility function,
-optical-depth grid, and residual ionization curve before the
-transfer-function projection runs. Declared observables may now target TT,
+The background helper consumes the declared background graph, computes a
+Peebles-style recombination history, integrates the declared reionization
+ODE, and builds the visibility, optical-depth, and residual-ionization
+curves before the transfer-function projection runs. Declared observables may
+now target TT,
 TE, EE, BB, lensing-potential, or custom transfer components when their
 required graph quantities and projection roles are present. `spin2_b_mode`
-requires a declared `polarization_b` source, and lensing projections
-require a declared `potential` source. The
+requires a declared `polarization_b` source, and
+`line_of_sight_lensing_potential` requires a declared `potential` source. The
 front-door README mirrors that summary so package readers see the same custom
 CMB surface from the repository root.
 

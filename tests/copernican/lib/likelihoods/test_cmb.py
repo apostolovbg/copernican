@@ -330,7 +330,7 @@ def _declared_graph_perturbations(
         "observables": {
             "temperature": {
                 "kind": "transfer_component",
-                "projection": "cmb_temperature_scalar",
+                "projection": "line_of_sight_temperature",
                 "source_terms": {
                     "monopole": "temperature_monopole",
                     "doppler": "temperature_doppler",
@@ -340,7 +340,7 @@ def _declared_graph_perturbations(
             },
             "polarization_e": {
                 "kind": "transfer_component",
-                "projection": "cmb_polarization_e_scalar",
+                "projection": "line_of_sight_polarization_e",
                 "source_terms": {"polarization": "polarization_source"},
             },
             "TT": {
@@ -547,7 +547,7 @@ def _declared_graph_perturbations(
         }
         perturbations["observables"]["lensing_potential"] = {
             "kind": "transfer_component",
-            "projection": "cmb_lensing_potential_scalar",
+            "projection": "line_of_sight_lensing_potential",
             "source_terms": {"potential": "lensing_potential"},
         }
         perturbations["observables"]["PP"] = {
@@ -556,6 +556,72 @@ def _declared_graph_perturbations(
             "secondary": "lensing_potential",
         }
     return perturbations
+
+
+def _declared_background() -> dict[str, object]:
+    """Return the declared background and reionization contract."""
+
+    return {
+        "derived": {
+            "h": "H0 / 100.0",
+            "Omega_k0": "0.0",
+            "Tcmb": "Tcmb_K",
+            "Omega_b0": "ombh2 / (h * h)",
+            "Omega_c0": "omch2 / (h * h)",
+            "Omega_gamma0": ("2.469e-5 * ((Tcmb_K / 2.7255) ** 4) / (h * h)"),
+            "Omega_nu0": "0.22710731766 * Neff * Omega_gamma0",
+            "Omega_r0": "Omega_gamma0 + Omega_nu0",
+            "Omega_m0": "Omega_b0 + Omega_c0",
+            "Omega_de0": "1.0 - Omega_m0 - Omega_r0 - Omega_k0",
+            "H": (
+                "H0 * sqrt("
+                "Omega_r0 / (a ** 4) + "
+                "Omega_m0 / (a ** 3) + "
+                "Omega_k0 / (a ** 2) + "
+                "Omega_de0"
+                ")"
+            ),
+        },
+        "reionization": {
+            "calibration": {
+                "symbol": "reionization_log10_amplitude",
+                "target_optical_depth": "tau",
+                "lower": -24.0,
+                "upper": 32.0,
+            },
+            "quantities": {
+                "stellar_temperature_K": 5.0e4,
+                "quasar_temperature_K": 1.5e5,
+                "hydrogen_temperature_K": 1.0e4,
+                "helium_temperature_K": 1.0e4,
+                "helium_double_temperature_K": 2.0e4,
+                "collapse_threshold": 1.686,
+                "collapse_source": ("exp(-collapse_threshold / (a + 1.0e-6))"),
+                "hard_source": "collapse_source * collapse_source",
+                "stellar_helium_hardness": (
+                    "exp(-("
+                    "(24.587387 - 13.605693122994) * 1.602176634e-19"
+                    ") / (1.380649e-23 * stellar_temperature_K))"
+                ),
+                "quasar_helium_hardness": (
+                    "exp(-("
+                    "(54.417763 - 13.605693122994) * 1.602176634e-19"
+                    ") / (1.380649e-23 * quasar_temperature_K))"
+                ),
+                "hydrogen_ionization_rate": (
+                    "(10 ** reionization_log10_amplitude) "
+                    "* H_SI * collapse_source"
+                ),
+                "helium_ionization_rate": (
+                    "hydrogen_ionization_rate * stellar_helium_hardness"
+                ),
+                "helium_double_ionization_rate": (
+                    "(10 ** reionization_log10_amplitude) "
+                    "* H_SI * hard_source * quasar_helium_hardness"
+                ),
+            },
+        },
+    }
 
 
 def _base_custom_cmb_contract(
@@ -575,8 +641,11 @@ def _base_custom_cmb_contract(
             "ns": 0.965,
             "Neff": 3.046,
             "YHe": 0.245,
-            "z_rec": 1090.0,
         },
+        "model_parameters": {
+            "Tcmb_K": 2.7255,
+        },
+        "background": _declared_background(),
         "grids": {},
         "values": {},
         "calls": [],
@@ -1377,14 +1446,63 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
                 spectra=("TT",),
             )
 
-    def test_incompatible_gauge_fails_loudly(self) -> None:
-        """The native graph solver should refuse unsupported gauges."""
+    def test_declared_gauge_metadata_is_not_restricted(self) -> None:
+        """The native graph solver should accept declared gauge metadata."""
 
         contract = _speedup_contract(_custom_contract())
         contract["perturbations"]["gauge"] = "synchronous"
+        spectra = cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            numpy.arange(20, 30, dtype=int),
+            spectra=("TT",),
+        )
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
+
+    def test_declared_background_symbols_feed_native_equations(self) -> None:
+        """Declared background symbols should flow into perturbation math."""
+
+        baseline = _speedup_contract(_custom_contract())
+        changed = _speedup_contract(_custom_contract())
+        baseline["background"]["derived"]["metric_drive"] = "0.25 * Omega_b0"
+        changed["background"]["derived"]["metric_drive"] = "0.75 * Omega_b0"
+        baseline_baryon_equation = baseline["perturbations"]["equations"][
+            "evolve_theta_b"
+        ]
+        changed_baryon_equation = changed["perturbations"]["equations"][
+            "evolve_theta_b"
+        ]
+        baseline_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
+        changed_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
+            1.0e-12,
+        )
+
+    def test_missing_declared_background_h_fails_loudly(self) -> None:
+        """Declared native contracts must provide the background H."""
+
+        contract = _speedup_contract(_custom_contract())
+        contract["background"]["derived"].pop("H", None)
         with self.assertRaisesRegex(
             ValueError,
-            "requires gauge='conformal_newtonian' or 'unspecified'",
+            "must provide a derived 'H' expression",
         ):
             cmb.compute_cmb_spectrum_from_dict(
                 contract,

@@ -17,38 +17,33 @@ class DeclaredProjectionSpec:
 
 
 _DECLARED_PROJECTION_SPECS = {
-    "cmb_lensing_potential_scalar": DeclaredProjectionSpec(
-        name="cmb_lensing_potential_scalar",
+    "line_of_sight_lensing_potential": DeclaredProjectionSpec(
+        name="line_of_sight_lensing_potential",
         required_roles=("potential",),
         allowed_roles=("potential",),
     ),
-    "cmb_polarization_e_scalar": DeclaredProjectionSpec(
-        name="cmb_polarization_e_scalar",
+    "line_of_sight_polarization_e": DeclaredProjectionSpec(
+        name="line_of_sight_polarization_e",
         required_roles=("polarization",),
         allowed_roles=("polarization",),
     ),
-    "cmb_temperature_scalar": DeclaredProjectionSpec(
-        name="cmb_temperature_scalar",
+    "line_of_sight_temperature": DeclaredProjectionSpec(
+        name="line_of_sight_temperature",
         required_roles=(),
         allowed_roles=("additive", "doppler", "isw", "monopole"),
     ),
-    "scalar_e_mode": DeclaredProjectionSpec(
-        name="scalar_e_mode",
+    "line_of_sight_signal": DeclaredProjectionSpec(
+        name="line_of_sight_signal",
         required_roles=("signal",),
         allowed_roles=("signal",),
     ),
-    "scalar_jl": DeclaredProjectionSpec(
-        name="scalar_jl",
+    "line_of_sight_signal_derivative": DeclaredProjectionSpec(
+        name="line_of_sight_signal_derivative",
         required_roles=("signal",),
         allowed_roles=("signal",),
     ),
-    "scalar_jl_derivative": DeclaredProjectionSpec(
-        name="scalar_jl_derivative",
-        required_roles=("signal",),
-        allowed_roles=("signal",),
-    ),
-    "scalar_potential": DeclaredProjectionSpec(
-        name="scalar_potential",
+    "line_of_sight_potential": DeclaredProjectionSpec(
+        name="line_of_sight_potential",
         required_roles=("potential",),
         allowed_roles=("potential",),
     ),
