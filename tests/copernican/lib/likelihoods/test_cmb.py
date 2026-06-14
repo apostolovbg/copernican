@@ -724,12 +724,14 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             "declared_equations",
             "source_normalization",
             "transfer_amplitude",
+            "angular_projection_scale",
             "_evolve_custom_cmb_mode_histories",
             "_CUSTOM_CMB_SOURCE_CHANNELS",
             "_CUSTOM_CMB_SECTOR_ALIASES",
             "_classify_custom_physical_sector",
             "visibility shift",
             "visibility rescale",
+            "_smooth_transition",
         ):
             self.assertNotIn(needle, source_text)
 
@@ -781,10 +783,26 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
                 / numpy.maximum(reference_x_e, 1.0e-8)
             )
         )
+        reionization_transition_band = (background.z_grid >= 6.0) & (
+            background.z_grid <= 10.0
+        )
+        reionization_transition_error = float(
+            numpy.median(
+                numpy.abs(
+                    background.x_e_grid[reionization_transition_band]
+                    - reference_x_e[reionization_transition_band]
+                )
+            )
+        )
+        max_ionized_fraction = 1.0 + (
+            physical.YHe / (2.0 * max(1.0 - physical.YHe, 1.0e-6))
+        )
 
         self.assertTrue(numpy.all(numpy.isfinite(background.x_e_grid)))
         self.assertTrue(numpy.all(background.x_e_grid >= 0.0))
-        self.assertTrue(numpy.all(background.x_e_grid <= 4.0))
+        self.assertTrue(
+            numpy.all(background.x_e_grid <= max_ionized_fraction + 1.0e-6)
+        )
         self.assertTrue(numpy.all(numpy.isfinite(reference_x_e)))
         self.assertTrue(numpy.all(numpy.isfinite(reference_visibility)))
         self.assertTrue(numpy.all(numpy.diff(background.tau_grid) <= 1.0e-8))
@@ -801,11 +819,12 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             / reference_sound_horizon,
             0.005,
         )
-        self.assertLess(median_relative_x_e_error, 0.18)
+        self.assertLess(median_relative_x_e_error, 0.08)
+        self.assertLess(reionization_transition_error, 0.12)
         self.assertLess(
             abs(background.reionization_tau - physical.tau_reio)
             / max(physical.tau_reio, 1.0e-12),
-            0.05,
+            0.03,
         )
 
     def test_custom_declared_spectra_track_camb_reference_shape(self) -> None:
@@ -842,12 +861,14 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
                     dtype=float,
                 )
             )
-            normalization = max(
+            candidate_norm = candidate / max(
+                float(numpy.max(numpy.abs(candidate))),
+                1.0e-12,
+            )
+            reference_norm = reference_values / max(
                 float(numpy.max(numpy.abs(reference_values))),
                 1.0e-12,
             )
-            candidate_norm = candidate / normalization
-            reference_norm = reference_values / normalization
             rms_error = float(
                 numpy.sqrt(numpy.mean((candidate_norm - reference_norm) ** 2))
             )
@@ -968,6 +989,106 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         self.assertGreater(
             float(numpy.max(numpy.abs(hi_h0_tt - base_tt))),
             0.0,
+        )
+
+    def test_primordial_tilt_changes_temperature_shape(self) -> None:
+        """Primordial tilt should reshape the declared temperature spectrum."""
+
+        ells = numpy.arange(20, 90, dtype=int)
+        low_ns_contract = _speedup_contract(_custom_contract())
+        high_ns_contract = _speedup_contract(_custom_contract())
+        low_ns_contract["param_map"]["ns"] = 0.92
+        high_ns_contract["param_map"]["ns"] = 1.01
+        low_ns_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                low_ns_contract,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        high_ns_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                high_ns_contract,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        low_shape = float(
+            numpy.mean(numpy.abs(low_ns_tt[ells >= 60]))
+            / max(numpy.mean(numpy.abs(low_ns_tt[ells <= 35])), 1.0e-12)
+        )
+        high_shape = float(
+            numpy.mean(numpy.abs(high_ns_tt[ells >= 60]))
+            / max(numpy.mean(numpy.abs(high_ns_tt[ells <= 35])), 1.0e-12)
+        )
+        self.assertGreater(high_shape, low_shape)
+
+    def test_reionization_tau_changes_background_and_temperature(self) -> None:
+        """The physical reionization ODE should feed the spectrum response."""
+
+        low_tau_contract = _speedup_contract(_custom_contract())
+        high_tau_contract = _speedup_contract(_custom_contract())
+        low_tau_contract["param_map"]["tau"] = 0.03
+        high_tau_contract["param_map"]["tau"] = 0.08
+        low_physical = cmb._resolve_custom_cmb_physical_parameters(
+            low_tau_contract
+        )
+        high_physical = cmb._resolve_custom_cmb_physical_parameters(
+            high_tau_contract
+        )
+        numerics = cmb._resolve_custom_cmb_numerics(low_tau_contract)
+        low_background = cmb._build_custom_cmb_background(
+            low_tau_contract,
+            low_physical,
+            numerics,
+        )
+        high_background = cmb._build_custom_cmb_background(
+            high_tau_contract,
+            high_physical,
+            numerics,
+        )
+        z_probe = 8.0
+        low_probe = float(
+            low_background.x_e_grid[
+                numpy.argmin(numpy.abs(low_background.z_grid - z_probe))
+            ]
+        )
+        high_probe = float(
+            high_background.x_e_grid[
+                numpy.argmin(numpy.abs(high_background.z_grid - z_probe))
+            ]
+        )
+        ells = numpy.arange(20, 60, dtype=int)
+        low_tau_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                low_tau_contract,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        high_tau_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                high_tau_contract,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertLess(
+            abs(low_background.reionization_tau - low_physical.tau_reio),
+            0.01,
+        )
+        self.assertLess(
+            abs(high_background.reionization_tau - high_physical.tau_reio),
+            0.01,
+        )
+        self.assertGreater(high_probe, low_probe)
+        self.assertGreater(
+            float(numpy.max(numpy.abs(high_tau_tt - low_tau_tt))),
+            1.0e-12,
         )
 
     def test_custom_equations_change_spectrum(self) -> None:
@@ -1106,6 +1227,36 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             1.0e-12,
         )
 
+    def test_b_mode_source_changes_bb(self) -> None:
+        """Declared odd-parity sources should drive the BB observable."""
+
+        baseline = _speedup_contract(_custom_contract(include_bb=True))
+        changed = _speedup_contract(_custom_contract(include_bb=True))
+        changed["perturbations"]["sources"]["polarization_b_source"][
+            "expression"
+        ] = "1.25 * visibility * tensor_b"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        changed_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_bb - baseline_bb))),
+            1.0e-12,
+        )
+
     def test_bb_and_lensing_targets_run_when_declared(self) -> None:
         """Additional observable targets should run through the graph."""
 
@@ -1159,6 +1310,20 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         theta_b_seed["anchor"] = "start"
         boundary_conditions = contract["perturbations"]["boundary_conditions"]
         boundary_conditions["theta_b_start"] = theta_b_seed
+        spectra = cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            numpy.arange(20, 30, dtype=int),
+            spectra=("TT",),
+        )
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
+
+    def test_initial_conditions_can_resolve_relation_targets(self) -> None:
+        """Initial-condition expressions may depend on solved relations."""
+
+        contract = _speedup_contract(_custom_contract())
+        contract["perturbations"]["initial_conditions"]["theta_b_seed"][
+            "expression"
+        ] = "(k * eta_initial / 6.0) * seed + 0.25 * Phi"
         spectra = cmb.compute_cmb_spectrum_from_dict(
             contract,
             numpy.arange(20, 30, dtype=int),
@@ -1297,12 +1462,46 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         ] = {"signal": "polarization_source"}
         with self.assertRaisesRegex(
             ValueError,
-            "requires one of the source-term roles",
+            "requires the source-term roles",
         ):
             cmb.compute_cmb_spectrum_from_dict(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("EE",),
+            )
+
+    def test_b_mode_projection_requires_odd_parity_source(self) -> None:
+        """BB should fail before runtime on scalar-like B-source plumbing."""
+
+        contract = _speedup_contract(_custom_contract(include_bb=True))
+        contract["perturbations"]["sources"]["polarization_b_source"][
+            "expression"
+        ] = "visibility * theta_gamma2"
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires an odd-parity declared source ancestry",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("BB",),
+            )
+
+    def test_lensing_projection_requires_potential_role(self) -> None:
+        """PP should fail before runtime without a declared potential role."""
+
+        contract = _speedup_contract(_custom_contract(include_lensing=True))
+        contract["perturbations"]["observables"]["lensing_potential"][
+            "source_terms"
+        ] = {"signal": "lensing_potential"}
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires the source-term roles: potential",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("PP",),
             )
 
     def test_nonfinite_expression_results_fail_loudly(self) -> None:

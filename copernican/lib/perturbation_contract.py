@@ -13,7 +13,10 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Mapping, Sequence
 
-from .cmb_projection_contract import validate_declared_projection_source_roles
+from .cmb_projection_contract import (
+    get_declared_projection_spec,
+    validate_declared_projection_source_roles,
+)
 from .engine_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
@@ -547,6 +550,22 @@ def _relation_target_nodes(
             )
         nodes[entry.target] = ("closure", name)
     return nodes
+
+
+def _relation_target_entries(
+    constraints: Mapping[str, PerturbationConstraintData],
+    closures: Mapping[str, PerturbationClosureData],
+) -> dict[str, PerturbationConstraintData | PerturbationClosureData]:
+    """Return algebraic relation entries keyed by target variable name."""
+
+    relation_entries: dict[
+        str, PerturbationConstraintData | PerturbationClosureData
+    ] = {}
+    for entry in constraints.values():
+        relation_entries[entry.target] = entry
+    for entry in closures.values():
+        relation_entries[entry.target] = entry
+    return relation_entries
 
 
 def _topological_evaluation_order(
@@ -1283,6 +1302,72 @@ def compile_perturbation_contract(
             dependencies=dependencies,
         )
 
+    relation_entries = _relation_target_entries(
+        constraint_entries,
+        closure_entries,
+    )
+
+    def _reachable_variable_names(
+        dependencies: Sequence[str],
+        *,
+        seen: set[str] | None = None,
+    ) -> set[str]:
+        """Return transitive variable ancestry for ``dependencies``."""
+
+        if seen is None:
+            seen = set()
+        reachable: set[str] = set()
+        for dependency in dependencies:
+            if dependency in seen:
+                continue
+            seen.add(dependency)
+            if dependency in variable_entries:
+                reachable.add(dependency)
+                continue
+            if dependency in derived_entries:
+                reachable.update(
+                    _reachable_variable_names(
+                        derived_entries[dependency].dependencies,
+                        seen=seen,
+                    )
+                )
+                continue
+            if dependency in relation_entries:
+                reachable.update(
+                    _reachable_variable_names(
+                        relation_entries[dependency].dependencies,
+                        seen=seen,
+                    )
+                )
+        return reachable
+
+    def _supports_odd_parity_projection(
+        variable_name: str,
+    ) -> bool:
+        """Return whether ``variable_name`` can feed a B-like projection."""
+
+        variable_entry = variable_entries[variable_name]
+        explicit_projection_role = (
+            variable_entry.source_role == "polarization_b"
+            or variable_entry.projection_role == "b_mode"
+        )
+        odd_parity = variable_entry.parity == "odd"
+        has_non_scalar_character = (
+            (
+                variable_entry.spin is not None
+                and abs(float(variable_entry.spin)) >= 1.0
+            )
+            or (
+                variable_entry.rank is not None
+                and int(variable_entry.rank) >= 1
+            )
+            or variable_entry.tensor_character
+            in {"vector_like", "tensor_like"}
+        )
+        return explicit_projection_role or (
+            odd_parity and has_non_scalar_character
+        )
+
     observable_entries: dict[str, PerturbationObservableData] = {}
     observable_names: set[str] = set()
     transfer_component_names: set[str] = set()
@@ -1354,11 +1439,42 @@ def compile_perturbation_contract(
                     f"Perturbation observable '{name}' must declare "
                     "projection"
                 )
+            declared_source_roles = {
+                role_name: source_entries[source_name].role
+                for role_name, source_name in source_term_refs.items()
+            }
             validate_declared_projection_source_roles(
                 str(projection),
                 observable_name=name,
-                source_roles=set(source_term_refs),
+                source_roles=declared_source_roles,
             )
+            for role_name, source_role in declared_source_roles.items():
+                if source_role is None:
+                    continue
+                if source_role != role_name:
+                    source_name = source_term_refs[role_name]
+                    raise ValueError(
+                        f"Perturbation observable '{name}' binds source term "
+                        f"role '{role_name}' to source '{source_name}' "
+                        f"with declared role '{source_role}'"
+                    )
+            projection_spec = get_declared_projection_spec(str(projection))
+            if projection_spec.requires_odd_parity_source:
+                source_name = source_term_refs["polarization_b"]
+                reachable_variables = sorted(
+                    _reachable_variable_names(
+                        source_entries[source_name].dependencies
+                    )
+                )
+                if not any(
+                    _supports_odd_parity_projection(variable_name)
+                    for variable_name in reachable_variables
+                ):
+                    raise ValueError(
+                        f"Perturbation observable '{name}' projection "
+                        f"'{projection}' requires an odd-parity declared "
+                        "source ancestry"
+                    )
             transfer_component_names.add(name)
         else:
             if primary is None or secondary is None:
@@ -1608,6 +1724,9 @@ def compile_perturbation_contract(
             equation_orders.get(key, 0),
             entry.lhs.order,
         )
+    evolved_variable_names = {
+        entry.lhs.variable for entry in equation_entries.values()
+    }
     relation_target_names = set(
         _relation_target_nodes(constraint_entries, closure_entries)
     )
@@ -1636,6 +1755,33 @@ def compile_perturbation_contract(
         for equation_entry in equation_entries.values()
         for derivative_order in range(equation_entry.lhs.order)
     }
+    declared_condition_targets = {
+        (
+            condition_entry.target.variable,
+            condition_entry.target.wrt,
+            condition_entry.target.order,
+        )
+        for condition_entry in initial_condition_entries.values()
+    } | {
+        (
+            condition_entry.target.variable,
+            condition_entry.target.wrt,
+            condition_entry.target.order,
+        )
+        for condition_entry in boundary_condition_entries.values()
+    }
+    unsupported_condition_targets = sorted(
+        declared_condition_targets - required_initial_targets
+    )
+    if unsupported_condition_targets:
+        readable = ", ".join(
+            f"{variable} wrt {wrt} order {order}"
+            for variable, wrt, order in unsupported_condition_targets
+        )
+        raise ValueError(
+            "Perturbation conditions may only target declared differential "
+            f"state slots: {readable}"
+        )
     declared_initial_targets = {
         (
             condition_entry.target.variable,
@@ -1678,6 +1824,33 @@ def compile_perturbation_contract(
         raise ValueError(
             "Non-standard perturbations are missing required initial "
             f"conditions: {readable}"
+        )
+
+    solved_variable_names = evolved_variable_names | relation_target_names
+    referenced_unsolved_variables = sorted(
+        {
+            dependency
+            for entry in (
+                list(derived_entries.values())
+                + list(equation_entries.values())
+                + list(constraint_entries.values())
+                + list(closure_entries.values())
+                + list(source_entries.values())
+                + list(initial_condition_entries.values())
+                + list(boundary_condition_entries.values())
+            )
+            for dependency in entry.dependencies
+            if (
+                dependency in variable_entries
+                and dependency not in solved_variable_names
+            )
+        }
+    )
+    if referenced_unsolved_variables:
+        readable = ", ".join(referenced_unsolved_variables)
+        raise ValueError(
+            "Declared graph references variable(s) without evolution or "
+            f"algebraic definitions: {readable}"
         )
 
     evaluation_order = _topological_evaluation_order(

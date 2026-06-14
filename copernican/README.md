@@ -28,9 +28,10 @@ The CMB surface now includes a declared-math graph engine for
 `k` mode, applies algebraic constraints and closures inside that graph,
 and projects the declared observables into transfer functions and
 spectra with bounded `k` sampling and cached Bessel tables. The
-background path also computes a physical recombination history,
-visibility function, and optical-depth grid before the perturbation and
-line-of-sight steps run.
+background path also computes a Peebles-style recombination history, a
+photoionization-balance reionization history, the visibility function,
+and the optical-depth grid before the perturbation and line-of-sight
+steps run.
 
 ## Launch Copernican
 
@@ -229,8 +230,8 @@ the same convention.
   capability is missing. Non-standard contracts now declare one immutable
   graph of variables, equations, constraints, closures, sources, initial
   conditions, observable mappings, and numerical requirements. Unsupported
-  symbols, missing initial conditions, missing observables, and unsupported
-  projections fail fast.
+  symbols, unsolved variables, missing initial conditions, missing
+  observables, and incompatible projection-role bindings fail fast.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same

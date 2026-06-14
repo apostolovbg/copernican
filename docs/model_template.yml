@@ -289,12 +289,16 @@ notes: |
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
     `sound_speed_sq`, `collision_rate`, `free_streaming`,
-    `tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus the
-    safe math functions already exposed by the validator.
+    `tight_coupling_drag`, and `tight_coupling_ratio`, plus the safe math
+    functions already exposed by the validator. The default `seed` is a
+    unit-normalized transfer seed unless the contract overrides it, and
+    relation targets such as `Phi` or `Psi` only become available when the
+    declared equations, constraints, or closures solve them.
   * Transfer components bind named source terms through declared observable
     mappings. Match the source-term roles required by the chosen projection,
-    for example `monopole` for `cmb_temperature_scalar` or `polarization` for
-    `cmb_polarization_e_scalar`.
+    for example `monopole` for `cmb_temperature_scalar`, `polarization` for
+    `cmb_polarization_e_scalar`, `polarization_b` for `spin2_b_mode`, or
+    `potential` for the native lensing-potential projections.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

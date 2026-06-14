@@ -35,15 +35,19 @@ line-of-sight integration instead of routing models through a scalar-only
 compatibility layer. Non-standard contracts now declare variables,
 equations, constraints, closures, sources, initial conditions, observable
 mappings, and numerical requirements in one immutable graph; unsupported
-symbols, missing initial conditions, missing observables, and unsupported
-projections fail loudly. The implementation lives in
+symbols, unsolved variables, missing initial conditions, missing
+observables, and incompatible projection-role bindings fail loudly. The
+implementation lives in
 `copernican/lib/likelihoods/cmb.py` and uses bounded `k` sampling with cached
 mode histories and Bessel projection for the requested line-of-sight window.
-The background helper also computes a physical recombination history,
-visibility function, optical-depth grid, and residual ionization curve
-before the transfer-function projection runs. Declared observables may now
-target TT, TE, EE, BB, lensing-potential, or custom transfer components when
-their required graph quantities and projection roles are present. The
+The background helper also computes a Peebles-style recombination history,
+photoionization-balance reionization, the visibility function,
+optical-depth grid, and residual ionization curve before the
+transfer-function projection runs. Declared observables may now target TT,
+TE, EE, BB, lensing-potential, or custom transfer components when their
+required graph quantities and projection roles are present. `spin2_b_mode`
+requires a declared `polarization_b` source, and lensing projections
+require a declared `potential` source. The
 front-door README mirrors that summary so package readers see the same custom
 CMB surface from the repository root.
 

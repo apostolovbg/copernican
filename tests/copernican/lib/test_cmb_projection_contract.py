@@ -7,6 +7,7 @@ import unittest
 from copernican.lib.cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     DeclaredProjectionSpec,
+    get_declared_projection_spec,
     validate_declared_projection_source_roles,
 )
 
@@ -48,12 +49,25 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "requires one of the source-term roles",
+            "requires the source-term roles",
         ):
             validate_declared_projection_source_roles(
                 projection="cmb_polarization_e_scalar",
                 observable_name="polarization_e",
                 source_roles=set(),
+            )
+
+    def test_unexpected_role_fails(self) -> None:
+        """Validation should reject extra roles for strict projections."""
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "does not accept source-term roles",
+        ):
+            validate_declared_projection_source_roles(
+                projection="cmb_lensing_potential_scalar",
+                observable_name="lensing",
+                source_roles={"potential", "signal"},
             )
 
     def test_unsupported_projection_fails(self) -> None:
@@ -74,12 +88,23 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         spec = DeclaredProjectionSpec(
             name="custom_projection",
-            any_of_roles=("signal", "potential"),
+            required_roles=("potential",),
+            allowed_roles=("potential", "signal"),
         )
 
         self.assertIsInstance(spec, DeclaredProjectionSpec)
         self.assertEqual(spec.name, "custom_projection")
-        self.assertEqual(spec.any_of_roles, ("signal", "potential"))
+        self.assertEqual(spec.required_roles, ("potential",))
+        self.assertEqual(spec.allowed_roles, ("potential", "signal"))
+
+    def test_projection_spec_lookup_returns_native_contract(self) -> None:
+        """Projection lookups should expose the native immutable contracts."""
+
+        spec = get_declared_projection_spec("spin2_b_mode")
+
+        self.assertEqual(spec.name, "spin2_b_mode")
+        self.assertEqual(spec.required_roles, ("polarization_b",))
+        self.assertTrue(spec.requires_odd_parity_source)
 
 
 if __name__ == "__main__":  # pragma: no cover

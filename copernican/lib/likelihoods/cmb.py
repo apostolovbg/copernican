@@ -1576,82 +1576,313 @@ def _build_custom_cmb_background(
         helium_electron_grid[index] = helium_fraction
         x_e_recomb_grid[index] = total_fraction
 
-    reionization_width = 1.0
-    helium_reionization_z = 3.5
-    helium_reionization_width = 0.5
     target_reionization_tau = max(0.0, physical_params.tau_reio)
+    stellar_source_temperature_k = 5.0e4
+    quasar_source_temperature_k = 1.5e5
+    ionized_region_temperature_k = 1.0e4
+    doubly_ionized_helium_temperature_k = 2.0e4
+    collapse_threshold = 1.686
+    hubble0_si = physical_params.H0_km_s_Mpc * 1000.0 / MPC_M
+    stellar_helium_hardness = _safe_exp(
+        -(helium_ionization_energy_j - hydrogen_ground_state_energy_j)
+        / (boltzmann_j_k * stellar_source_temperature_k)
+    )
+    quasar_helium_hardness = _safe_exp(
+        -(helium_double_ionization_energy_j - hydrogen_ground_state_energy_j)
+        / (boltzmann_j_k * quasar_source_temperature_k)
+    )
+    helium_floor_grid = numpy.minimum(
+        helium_electron_grid,
+        helium_number_ratio,
+    )
 
-    def _smooth_transition(
-        z_values: numpy.ndarray, center: float
+    def _helium_recombination_coefficient(temperature_k: float) -> float:
+        """Return an effective case-B He I recombination coefficient."""
+
+        temperature_10k_ratio = max(temperature_k / 1.0e4, 1.0e-4)
+        return 1.54e-19 * temperature_10k_ratio**-0.486
+
+    def _helium_double_recombination_coefficient(
+        temperature_k: float,
+    ) -> float:
+        """Return the hydrogenic case-B coefficient for He III -> He II."""
+
+        return 4.0 * _hydrogen_alpha_coefficient(temperature_k / 4.0)
+
+    def _reionization_source_proxies(a_value: float) -> tuple[float, float]:
+        """Return effective stellar and hard-source emissivity proxies."""
+
+        collapse_proxy = _safe_exp(-collapse_threshold / max(a_value, 1.0e-6))
+        return collapse_proxy, collapse_proxy * collapse_proxy
+
+    def _reionization_state_da(
+        a_value: float,
+        state_vector: numpy.ndarray,
+        *,
+        amplitude: float,
+        a_left: float,
+        a_right: float,
+        floor_h_left: float,
+        floor_h_right: float,
+        floor_he_left: float,
+        floor_he_right: float,
+        x_e_floor_left: float,
+        x_e_floor_right: float,
+        n_h_left: float,
+        n_h_right: float,
+        rate_left: float,
+        rate_right: float,
     ) -> numpy.ndarray:
-        """Return a compact smooth step from one to zero around ``center``."""
+        """Return reionization-state derivatives with respect to ``a``."""
 
-        scaled = numpy.clip(
-            (center - z_values) / reionization_width + 0.5,
+        interval = max(a_right - a_left, 1.0e-30)
+        blend = numpy.clip((a_value - a_left) / interval, 0.0, 1.0)
+        floor_h = float((1.0 - blend) * floor_h_left + blend * floor_h_right)
+        floor_he = float(
+            (1.0 - blend) * floor_he_left + blend * floor_he_right
+        )
+        x_e_floor = float(
+            (1.0 - blend) * x_e_floor_left + blend * x_e_floor_right
+        )
+        n_h_value = float((1.0 - blend) * n_h_left + blend * n_h_right)
+        hubble_rate = float((1.0 - blend) * rate_left + blend * rate_right)
+        delta_h = float(
+            numpy.clip(
+                state_vector[0],
+                0.0,
+                max(1.0 - floor_h, 0.0),
+            )
+        )
+        delta_he_double = float(
+            numpy.clip(
+                state_vector[2],
+                0.0,
+                helium_number_ratio,
+            )
+        )
+        delta_he_single = float(
+            numpy.clip(
+                state_vector[1],
+                0.0,
+                max(helium_number_ratio - delta_he_double, 0.0),
+            )
+        )
+        total_x_e = (
+            x_e_floor + delta_h + delta_he_single + 2.0 * delta_he_double
+        )
+        n_e_value = max(total_x_e * n_h_value, 1.0e-30)
+        neutral_h = max(1.0 - floor_h - delta_h, 0.0)
+        neutral_he = max(
+            helium_number_ratio - floor_he - delta_he_single - delta_he_double,
             0.0,
-            1.0,
         )
-        return scaled * scaled * (3.0 - 2.0 * scaled)
-
-    def _reionization_excess_xe(z_reion_value: float) -> numpy.ndarray:
-        """Return the extra electron fraction from reionization."""
-
-        hydrogen_reionization = _smooth_transition(z_grid, z_reion_value)
-        helium_reionization = numpy.clip(
-            (helium_reionization_z - z_grid) / helium_reionization_width + 0.5,
-            0.0,
-            1.0,
+        stellar_proxy, quasar_proxy = _reionization_source_proxies(a_value)
+        gamma_h = amplitude * hubble0_si * stellar_proxy
+        gamma_he = gamma_h * stellar_helium_hardness
+        gamma_he_double = amplitude * hubble0_si * quasar_proxy
+        gamma_he_double *= quasar_helium_hardness
+        alpha_h = _hydrogen_alpha_coefficient(ionized_region_temperature_k)
+        alpha_he = _helium_recombination_coefficient(
+            ionized_region_temperature_k
         )
-        helium_reionization = (
-            helium_reionization
-            * helium_reionization
-            * (3.0 - 2.0 * helium_reionization)
+        alpha_he_double = _helium_double_recombination_coefficient(
+            doubly_ionized_helium_temperature_k
         )
-        return hydrogen_reionization * (1.0 + helium_number_ratio) + (
-            helium_reionization * helium_number_ratio
+        hydrogen_dt = gamma_h * neutral_h - alpha_h * n_e_value * delta_h
+        helium_single_dt = (
+            gamma_he * neutral_he
+            - alpha_he * n_e_value * delta_he_single
+            - gamma_he_double * delta_he_single
+            + alpha_he_double * n_e_value * delta_he_double
         )
+        helium_double_dt = (
+            gamma_he_double * delta_he_single
+            - alpha_he_double * n_e_value * delta_he_double
+        )
+        return numpy.asarray(
+            (
+                hydrogen_dt,
+                helium_single_dt,
+                helium_double_dt,
+            ),
+            dtype=float,
+        ) / max(a_value * hubble_rate, 1.0e-30)
 
-    def _reionization_tau(z_reion_value: float) -> float:
-        """Return the optical depth contributed by reionization."""
+    def _integrate_reionization_history(
+        log10_amplitude: float | None,
+    ) -> tuple[numpy.ndarray, float, float]:
+        """Return reionization electrons, tau, and midpoint redshift."""
 
-        x_e_reion = _reionization_excess_xe(z_reion_value)
+        if log10_amplitude is None:
+            return (
+                numpy.zeros_like(z_grid, dtype=float),
+                0.0,
+                0.0,
+            )
+        amplitude = float(10.0**log10_amplitude)
+        state = numpy.zeros(3, dtype=float)
+        delta_h_grid = numpy.zeros_like(z_grid, dtype=float)
+        delta_he_single_grid = numpy.zeros_like(z_grid, dtype=float)
+        delta_he_double_grid = numpy.zeros_like(z_grid, dtype=float)
+        for index, a_value in enumerate(a_grid):
+            delta_h_grid[index] = state[0]
+            delta_he_single_grid[index] = state[1]
+            delta_he_double_grid[index] = state[2]
+            if index == a_grid.size - 1:
+                break
+            a_left = float(a_value)
+            a_right = float(a_grid[index + 1])
+            step = a_right - a_left
+            if step <= 0.0:
+                continue
+
+            def _stage_derivative(
+                stage_a: float,
+                stage_state: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Return one RK4 stage for the reionization state."""
+
+                return _reionization_state_da(
+                    stage_a,
+                    stage_state,
+                    amplitude=amplitude,
+                    a_left=a_left,
+                    a_right=a_right,
+                    floor_h_left=float(x_h_grid[index]),
+                    floor_h_right=float(x_h_grid[index + 1]),
+                    floor_he_left=float(helium_floor_grid[index]),
+                    floor_he_right=float(helium_floor_grid[index + 1]),
+                    x_e_floor_left=float(x_e_recomb_grid[index]),
+                    x_e_floor_right=float(x_e_recomb_grid[index + 1]),
+                    n_h_left=float(n_H_grid[index]),
+                    n_h_right=float(n_H_grid[index + 1]),
+                    rate_left=float(hydrogen_rate_grid[index]),
+                    rate_right=float(hydrogen_rate_grid[index + 1]),
+                )
+
+            slope_start = _stage_derivative(a_left, state)
+            midpoint_a = a_left + 0.5 * step
+            slope_mid_a = _stage_derivative(
+                midpoint_a,
+                state + 0.5 * step * slope_start,
+            )
+            slope_mid_b = _stage_derivative(
+                midpoint_a,
+                state + 0.5 * step * slope_mid_a,
+            )
+            slope_end = _stage_derivative(
+                a_right,
+                state + step * slope_mid_b,
+            )
+            candidate_state = state + (step / 6.0) * (
+                slope_start + 2.0 * slope_mid_a + 2.0 * slope_mid_b + slope_end
+            )
+            if not numpy.all(numpy.isfinite(candidate_state)):
+                raise ValueError(
+                    "Physical reionization history produced non-finite "
+                    "state values"
+                )
+            state = numpy.asarray(candidate_state, dtype=float)
+            state[0] = float(
+                numpy.clip(
+                    state[0],
+                    0.0,
+                    max(1.0 - float(x_h_grid[index + 1]), 0.0),
+                )
+            )
+            state[2] = float(
+                numpy.clip(
+                    state[2],
+                    0.0,
+                    helium_number_ratio,
+                )
+            )
+            state[1] = float(
+                numpy.clip(
+                    state[1],
+                    0.0,
+                    max(helium_number_ratio - state[2], 0.0),
+                )
+            )
+
+        reionization_xe_grid = (
+            delta_h_grid + delta_he_single_grid + 2.0 * delta_he_double_grid
+        )
         tau_reion_grid = -cumulative_trapezoid(
-            (a_grid * n_H_grid * x_e_reion * SIGMA_T_M2 * MPC_M)[::-1],
+            (a_grid * n_H_grid * reionization_xe_grid * SIGMA_T_M2 * MPC_M)[
+                ::-1
+            ],
             eta_grid[::-1],
             initial=0.0,
         )[::-1]
-        return float(tau_reion_grid[0])
+        ionization_progress = numpy.maximum.accumulate(reionization_xe_grid)
+        midpoint_electrons = 0.5 * float(ionization_progress[-1])
+        midpoint_z = 0.0
+        if midpoint_electrons > 0.0:
+            midpoint_z = float(
+                numpy.interp(
+                    midpoint_electrons,
+                    ionization_progress,
+                    z_grid,
+                )
+            )
+        return (
+            numpy.asarray(reionization_xe_grid, dtype=float),
+            float(tau_reion_grid[0]),
+            midpoint_z,
+        )
+
+    reionization_history_cache: dict[
+        float | None, tuple[numpy.ndarray, float, float]
+    ] = {}
+
+    def _get_reionization_history(
+        log10_amplitude: float | None,
+    ) -> tuple[numpy.ndarray, float, float]:
+        """Return the cached reionization history for ``log10_amplitude``."""
+
+        if log10_amplitude not in reionization_history_cache:
+            reionization_history_cache[log10_amplitude] = (
+                _integrate_reionization_history(log10_amplitude)
+            )
+        return reionization_history_cache[log10_amplitude]
 
     if target_reionization_tau > 0.0:
-        lower = 0.5
-        upper = 25.0
-        lower_tau = _reionization_tau(lower)
-        upper_tau = _reionization_tau(upper)
+        lower = -24.0
+        upper = 12.0
+        _, lower_tau, _ = _get_reionization_history(lower)
+        _, upper_tau, _ = _get_reionization_history(upper)
+        while upper_tau < target_reionization_tau and upper < 36.0:
+            upper += 4.0
+            _, upper_tau, _ = _get_reionization_history(upper)
         if lower_tau > target_reionization_tau:
-            z_reion = lower
+            chosen_amplitude = lower
         elif upper_tau < target_reionization_tau:
-            z_reion = upper
+            chosen_amplitude = upper
         else:
-            z_reion = float(
+            chosen_amplitude = float(
                 brentq(
-                    lambda value: _reionization_tau(value)
+                    lambda value: _get_reionization_history(value)[1]
                     - target_reionization_tau,
                     lower,
                     upper,
-                    maxiter=128,
+                    maxiter=96,
                 )
             )
-        reionization_xe_grid = _reionization_excess_xe(z_reion)
-        reionization_tau = float(_reionization_tau(z_reion))
+        (
+            reionization_xe_grid,
+            reionization_tau,
+            z_reion,
+        ) = _get_reionization_history(chosen_amplitude)
     else:
-        z_reion = 0.5
+        z_reion = 0.0
         reionization_xe_grid = numpy.zeros_like(z_grid, dtype=float)
         reionization_tau = 0.0
 
     x_e_grid = numpy.clip(
         x_e_recomb_grid + reionization_xe_grid,
         1.0e-8,
-        4.0,
+        1.0 + 2.0 * helium_number_ratio + 1.0e-6,
     )
     n_e_grid = x_e_grid * n_H_grid
     tau_dot_grid = -a_grid * n_e_grid * SIGMA_T_M2 * MPC_M
@@ -1859,12 +2090,22 @@ def _declared_runtime_seed(
     *,
     k_value: float,
     physical_params: _CustomCMBPhysicalParameters,
+    model_parameters: Mapping[str, float],
 ) -> float:
-    """Return the default scale for declared-graph initial conditions."""
+    """Return the declared-graph initial-condition normalization."""
 
     del k_value
     del physical_params
-    return 1.0e-5
+    for parameter_name in ("seed", "primordial_seed", "transfer_seed"):
+        if parameter_name not in model_parameters:
+            continue
+        return _coerce_numeric_scalar(
+            model_parameters[parameter_name],
+            name=parameter_name,
+        )
+    # Keep transfer functions unit-normalized unless the contract declares
+    # an explicit seed for its initial conditions.
+    return 1.0
 
 
 def _build_declared_base_context(
@@ -1889,6 +2130,7 @@ def _build_declared_base_context(
     context["seed"] = _declared_runtime_seed(
         k_value=float(k_value),
         physical_params=physical_params,
+        model_parameters=model_parameters,
     )
     context["a_initial"] = float(background_scalars["a"])
     context["eta_initial"] = float(eta_value)
@@ -2067,6 +2309,13 @@ def _evaluate_declared_initial_state(
     )
     pending = list(condition_entries)
     while pending:
+        context = _resolve_declared_graph_context(
+            context,
+            perturbation_data,
+            allow_partial=True,
+            eta_grid=None,
+            runtime_spec=runtime_spec,
+        )
         progress = False
         next_round: list[Any] = []
         for entry in pending:
@@ -2107,6 +2356,13 @@ def _evaluate_declared_initial_state(
                 f"{pending_names}"
             )
         pending = next_round
+    _resolve_declared_graph_context(
+        context,
+        perturbation_data,
+        allow_partial=True,
+        eta_grid=None,
+        runtime_spec=runtime_spec,
+    )
     return state_vector
 
 
@@ -2190,31 +2446,22 @@ def _declared_graph_projection(
             )
         return float(numpy.trapz(source * e_kernel, eta_grid))
     if projection == "spin2_b_mode":
-        if "polarization_b" in source_histories:
-            source = source_histories["polarization_b"]
-        elif "polarization" in source_histories:
-            source = source_histories["polarization"]
-        elif "signal" in source_histories:
-            source = source_histories["signal"]
-        else:
+        if "polarization_b" not in source_histories:
             raise ValueError(
-                "spin2_b_mode projection requires a 'polarization_b', "
-                "'polarization', or 'signal' source term."
+                "spin2_b_mode projection requires a 'polarization_b' "
+                "source term."
             )
+        source = source_histories["polarization_b"]
         return float(numpy.trapz(source * b_kernel, eta_grid))
     if projection in {
         "cmb_lensing_potential_scalar",
         "scalar_potential",
     }:
-        if "potential" in source_histories:
-            signal = source_histories["potential"]
-        elif "signal" in source_histories:
-            signal = source_histories["signal"]
-        else:
+        if "potential" not in source_histories:
             raise ValueError(
-                f"{projection} requires a 'potential' or 'signal' source "
-                "term."
+                f"{projection} requires a 'potential' source term."
             )
+        signal = source_histories["potential"]
         kernel = j_l / numpy.maximum(x_values * x_values, 1.0e-12)
         return float(numpy.trapz(signal * kernel, eta_grid))
     if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
@@ -2347,10 +2594,6 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.asarray(k_values, dtype=float)
 
     eta0 = background.eta0
-    angular_projection_scale = max(
-        physical_params.H0_km_s_Mpc / 67.4,
-        0.25,
-    )
     source_parameters: dict[str, float] = {}
     for source in (
         contract_or_params.get("param_map", {}) or {},
@@ -2533,6 +2776,7 @@ def _compute_custom_cmb_spectrum_data(
             "seed": _declared_runtime_seed(
                 k_value=float(k_value),
                 physical_params=physical_params,
+                model_parameters=source_parameters,
             ),
             "Omega_b0": numpy.full_like(
                 eta_los_grid,
@@ -2825,7 +3069,7 @@ def _compute_custom_cmb_spectrum_data(
 
     for k_index, k_value in enumerate(k_values):
         _, source_arrays = _evolve_declared_mode(float(k_value))
-        x_values = k_value * (eta0 - eta_los_grid) * angular_projection_scale
+        x_values = k_value * (eta0 - eta_los_grid)
         x_signature = hashlib.sha256(
             numpy.asarray(x_values, dtype=float).tobytes()
         ).hexdigest()

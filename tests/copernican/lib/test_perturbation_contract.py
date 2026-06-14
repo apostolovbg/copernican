@@ -470,7 +470,65 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "requires one of the source-term roles",
+            "requires the source-term roles",
+        ):
+            self._compile(contract)
+
+    def test_lensing_projection_requires_declared_potential_role(self) -> None:
+        """Lensing projections should reject generic signal-role bindings."""
+
+        contract = _base_nonstandard_contract()
+        contract["sources"]["lensing_source"] = {
+            "expression": "phi_aux + psi_aux",
+            "role": "signal",
+        }
+        contract["observables"]["lensing"] = {
+            "kind": "transfer_component",
+            "projection": "cmb_lensing_potential_scalar",
+            "source_terms": {"signal": "lensing_source"},
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires the source-term roles: potential",
+        ):
+            self._compile(contract)
+
+    def test_b_mode_projection_requires_odd_parity_source_ancestry(
+        self,
+    ) -> None:
+        """B-mode projections should reject scalar-like source ancestry."""
+
+        contract = _base_nonstandard_contract()
+        contract["sources"]["polarization_b_source"] = {
+            "expression": "visibility * theta_x",
+            "role": "polarization_b",
+        }
+        contract["observables"]["polarization_b"] = {
+            "kind": "transfer_component",
+            "projection": "spin2_b_mode",
+            "source_terms": {"polarization_b": "polarization_b_source"},
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires an odd-parity declared source ancestry",
+        ):
+            self._compile(contract)
+
+    def test_unsolved_variable_references_fail(self) -> None:
+        """Referenced variables must be evolved or algebraically solved."""
+
+        contract = _base_nonstandard_contract()
+        contract["variables"]["chi_aux"] = {"kind": "custom_auxiliary_mode"}
+        monopole_source = contract["sources"]["monopole_source"]
+        monopole_source["expression"] = (
+            "visibility * (density_drive + chi_aux)"
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "without evolution or algebraic definitions",
         ):
             self._compile(contract)
 
@@ -524,6 +582,25 @@ class PerturbationContractTestCase(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "duplicate targets",
+        ):
+            self._compile(contract)
+
+    def test_conditions_may_only_target_evolved_state_slots(self) -> None:
+        """Initial data may not target purely algebraic relation variables."""
+
+        contract = _base_nonstandard_contract()
+        contract["initial_conditions"]["phi_seed"] = {
+            "target": {
+                "variable": "phi_aux",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "may only target declared differential state slots",
         ):
             self._compile(contract)
 

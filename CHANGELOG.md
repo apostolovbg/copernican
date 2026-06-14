@@ -80,6 +80,36 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-13:
+  Change: Completed Slice 1 CMB hardening by replacing the smooth-step
+    reionization fallback with a physical ionization ODE, removing
+    projection and seed shortcuts, and validating stricter declared-source
+    contracts.
+  Why: Addressed the remaining physics and graph-solvability gaps so
+    `standard: false` runs as a real declared CMB engine instead of relying
+    on permissive adapters or empirical transitions.
+  Impact: Enabled declared TT/TE/EE/BB/lensing graphs to use solved
+    constraints and closures, explicit B-mode and lensing source
+    requirements, and stronger functional validation for Slice 1.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/docs/model_template.yml
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    docs/api_overview.md
+    docs/design_overview.md
+    docs/model_template.yml
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-13:
   Change: Completed Slice 1 declared CMB graph execution by fixing
     recombination validation, start-boundary seeding, projection
     contracts, and declared-source runtime coverage.

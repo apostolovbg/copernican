@@ -98,18 +98,23 @@ Declared equations, constraints, closures, sources, and conditions may
 reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
 `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
 `sound_speed_sq`, `collision_rate`, `free_streaming`,
-`tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus any
-solved or derived graph quantity and the safe math functions already
-exposed by the evaluator. Unsupported symbols, missing initial conditions,
-missing observables, incompatible gauges, or incompatible projection
-source-role bindings raise `ValueError` exceptions before the engine can
-produce a spectrum.
+`tight_coupling_drag`, and `tight_coupling_ratio`, plus any solved or
+derived graph quantity and the safe math functions already exposed by the
+evaluator. The default `seed` is a unit-normalized transfer seed unless
+the contract overrides it, and declared relation targets such as `Phi`
+or `Psi` only become available after equations, constraints, or closures
+solve them. Unsupported symbols, missing initial conditions, missing
+observables, incompatible gauges, or incompatible projection source-role
+bindings raise `ValueError` exceptions before the engine can produce a
+spectrum.
 
 Observable declarations choose the projection kernel and bind the named
 source terms that feed each transfer component or angular spectrum. The
 engine uses that mapping rather than hidden source-channel switches to route
 declared graph quantities into the corresponding line-of-sight source
-term.
+term. `spin2_b_mode` requires a declared `polarization_b` source, while
+the native lensing-potential projections require a declared `potential`
+source.
 
 Unsupported custom sectors fail with explicit `ValueError`s so callers can
 see which physical ingredient is missing. The helper also exposes internal

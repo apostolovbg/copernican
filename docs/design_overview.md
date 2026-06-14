@@ -108,8 +108,9 @@ described throughout this document.
   distance, baryon and photon densities, relativistic neutrino density, the
   baryon-photon sound speed, and the sound horizon.
 * Recombination uses a Peebles-style hydrogen ODE with detailed-balance
-  photoionization, equilibrium helium ionization, and tau-matched
-  reionization. The background tables expose `x_e(z)`, `n_e(z)`,
+  photoionization, equilibrium helium ionization, and a
+  photoionization-balance reionization ODE calibrated to the requested
+  optical depth. The background tables expose `x_e(z)`, `n_e(z)`,
   optical depth `tau(eta)`, `tau_dot`, and the visibility function
   `g(eta) = -tau_dot * exp(-tau)`.
 * Perturbations evolve whichever declared variables expose differential
@@ -119,16 +120,21 @@ described throughout this document.
   reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
   `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
   `sound_speed_sq`, `collision_rate`, `free_streaming`,
-  `tight_coupling_drag`, `tight_coupling_ratio`, `Phi`, and `Psi`, plus any
-  solved or derived graph quantity.
-  variables, and the safe math functions already exposed by the expression
-  evaluator. Unsupported symbols and incompatible gauges fail fast during
+  `tight_coupling_drag`, and `tight_coupling_ratio`, plus any solved or
+  derived graph quantity. The default `seed` is a unit-normalized transfer
+  seed unless the contract overrides it, while declared relation targets
+  such as `Phi` and `Psi` only exist after the graph solves them. The safe
+  math functions exposed by the expression evaluator remain available too.
+  Unsupported symbols and incompatible gauges fail fast during
   validation or step evaluation instead of falling back to a decorative
   metadata path.
 * Line-of-sight transfer functions integrate the visibility-weighted sources
   against spherical Bessel kernels. The source set includes Sachs-Wolfe,
   Doppler, early and late ISW, the visibility-weighted monopole and velocity,
   and the polarization quadrupole projection used for E modes.
+  `spin2_b_mode` requires a declared `polarization_b` source ancestry, and
+  the native lensing-potential projections require a declared `potential`
+  source.
 * The spectra are built from the primordial power law
   `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
   `TE`, `EE`, and any declared `BB`, lensing-potential, or custom transfer
