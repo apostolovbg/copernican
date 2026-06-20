@@ -36,7 +36,7 @@ The purpose of this roadmap remains non-negotiable:
   Python solvers when `standard: false`.
 
 This is the target condition for the full roadmap, not a claim that the
-current branch already solves every well-posed theory. Slice Three through
+current branch already solves every well-posed theory. Slice Five and
 Slice Six must remove the specific current limits named below so complete
 declared theories become executable within the model contract.
 
@@ -92,20 +92,19 @@ source metadata such as rank, spin, parity, projection role, or source role,
 but they must not silently choose a hardcoded theory type.
 
 The remaining work is no longer "start building the engine." The remaining
-work is to harden scientific validation, make universality concrete by
-removing named standard-like assumptions, generalize equation and projection
-semantics, close docs and provenance truth, and only then optimize speed.
+work is to generalize projection semantics, close docs and provenance truth,
+and only then optimize speed.
 
 ## Current Baseline
 
-The current `new` branch baseline is treated as the end of Slice Two.
+The current `new` branch baseline is treated as the end of Slice Four.
 
 Current status:
 
 * [closed] Slice One - Native declared graph foundation.
 * [closed] Slice Two - First physical CMB engine implementation.
-* [open] Slice Three - Scientific validation hardening.
-* [open] Slice Four - Background and equation universality.
+* [closed] Slice Three - Scientific validation hardening.
+* [closed] Slice Four - Background and equation universality.
 * [open] Slice Five - Projection and observable generalization.
 * [open] Slice Six - Closure, audit, docs, and provenance truth.
 * [deferred] Slice Seven - Performance and gate-speed optimization.
@@ -116,19 +115,12 @@ platform work. The next work begins from that platform.
 
 Current limits that open slices must eliminate:
 
-* Native CMB graph runtime currently executes one independent evolution
-  variable.
-* Native runtime boundary support is currently start-anchored.
-* Background and physical inputs still include named CMB quantities such as
-  `H`, `Omega_b0`, `Omega_k0`, `Omega_m0`, `Omega_de0`, `Tcmb`, `YHe`,
-  `Neff`, `As`, and `ns`.
-* CDM absence, dark-energy equation of state, photon density, and neutrino
-  density still have code-default behavior that Slice Four must replace with
-  declared quantities or explicit contract requirements.
 * Projection dispatch is finite and must become declared-kernel driven where
   mathematically safe.
 * Manifest "no CAMB prediction" proof must be tied to the executed route, not
   inferred only from `standard: false`.
+* Public docs, templates, and manifests still need a closure audit against
+  the implemented native runtime.
 
 ## Overview
 
@@ -370,7 +362,7 @@ Done when:
 * [closed] `standard: true` remains intact.
 * [closed] `standard: false` remains CAMB-free in production.
 
-### [open] Slice Three - Scientific validation hardening
+### [closed] Slice Three - Scientific validation hardening
 
 Purpose:
 
@@ -407,54 +399,55 @@ Scope:
 
 Tasks:
 
-* [open] Separate runtime-response tests from scientific-reference tests.
-* [open] Label slow scientific validation clearly.
-* [open] Tighten recombination validation beyond current loose thresholds.
-* [open] Validate recombination history against CAMB or CLASS reference.
-* [open] Validate visibility peak against CAMB or CLASS reference.
-* [open] Validate visibility width against CAMB or CLASS reference.
-* [open] Validate eta0 against CAMB or CLASS reference.
-* [open] Validate sound horizon against CAMB or CLASS reference.
-* [open] Replace weak normalized TT shape-only validation.
-* [open] Validate TT over a meaningful ell range.
-* [open] Validate TE over a meaningful ell range.
-* [open] Validate EE over a meaningful ell range.
-* [open] Validate peak positions.
-* [open] Validate acoustic peak spacing.
-* [open] Validate TE zero crossings.
-* [open] Validate low-ell behavior only where numerically meaningful.
-* [open] Validate tensor BB where declared and reference-supported.
-* [open] Validate lensing-potential behavior where reference-supported.
-* [open] Validate custom source-channel perturbations against reference-backed
-  or analytic observable expectations beyond current synthetic response tests.
-* [open] Validate custom closures against reference-backed or analytic
+* [closed] Separate runtime-response tests from scientific-reference tests.
+* [closed] Label slow scientific validation clearly.
+* [closed] Tighten recombination validation beyond current loose thresholds.
+* [closed] Validate recombination history against CAMB or CLASS reference.
+* [closed] Validate visibility peak against CAMB or CLASS reference.
+* [closed] Validate visibility width against CAMB or CLASS reference.
+* [closed] Validate eta0 against CAMB or CLASS reference.
+* [closed] Validate sound horizon against CAMB or CLASS reference.
+* [closed] Replace weak normalized TT shape-only validation.
+* [closed] Validate TT over a meaningful ell range.
+* [closed] Validate TE over a meaningful ell range.
+* [closed] Validate EE over a meaningful ell range.
+* [closed] Validate peak positions.
+* [closed] Validate acoustic peak spacing.
+* [closed] Validate TE zero crossings.
+* [closed] Validate low-ell behavior only where numerically meaningful.
+* [closed] Validate tensor BB where declared and reference-supported.
+* [closed] Validate lensing-potential behavior where reference-supported.
+* [closed] Validate custom source-channel perturbations against
+  reference-backed or analytic observable expectations beyond current
+  synthetic response tests.
+* [closed] Validate custom closures against reference-backed or analytic
   observable expectations beyond current synthetic response tests.
-* [open] Validate custom equations against reference-backed or analytic
+* [closed] Validate custom equations against reference-backed or analytic
   observable expectations beyond current synthetic response tests.
-* [open] Remove or physically justify remaining empirical numerical scale
+* [closed] Remove or physically justify remaining empirical numerical scale
   factors.
-* [open] Ensure failed reference comparisons report named quantities,
+* [closed] Ensure failed reference comparisons report named quantities,
   tolerances, and measured error.
-* [open] Ensure validation never uses source-code string bans as the main
+* [closed] Ensure validation never uses source-code string bans as the main
   proof of physics.
-* [open] Ensure validation never accepts copied reference spectra as
+* [closed] Ensure validation never accepts copied reference spectra as
   production behavior.
-* [open] Ensure CAMB or CLASS are validation references only.
+* [closed] Ensure CAMB or CLASS are validation references only.
 
 Done when:
 
-* [open] Recombination reference validation is credible.
-* [open] Visibility reference validation is credible.
-* [open] Eta0 and sound-horizon validation are credible.
-* [open] TT, TE, and EE validation are stronger than smoothed shape checks.
-* [open] BB validation exists where declared and reference-supported.
-* [open] Lensing validation exists where declared and reference-supported.
-* [open] Synthetic tests remain but are not used as scientific proof.
-* [open] Tolerances are documented and not loosened to pass.
-* [open] Defects exposed by validation are fixed.
-* [open] Relevant CMB validation tests pass.
+* [closed] Recombination reference validation is credible.
+* [closed] Visibility reference validation is credible.
+* [closed] Eta0 and sound-horizon validation are credible.
+* [closed] TT, TE, and EE validation are stronger than smoothed shape checks.
+* [closed] BB validation exists where declared and reference-supported.
+* [closed] Lensing validation exists where declared and reference-supported.
+* [closed] Synthetic tests remain but are not used as scientific proof.
+* [closed] Tolerances are documented and not loosened to pass.
+* [closed] Defects exposed by validation are fixed.
+* [closed] Relevant CMB validation tests pass.
 
-### [open] Slice Four - Background and equation universality
+### [closed] Slice Four - Background and equation universality
 
 Purpose:
 
@@ -499,61 +492,61 @@ Scope:
 
 Tasks:
 
-* [open] Audit all named physical parameter requirements in native CMB code.
-* [open] Classify each requirement as physically required, derivable, or
+* [closed] Audit all named physical parameter requirements in native CMB code.
+* [closed] Classify each requirement as physically required, derivable, or
   obsolete.
-* [open] Audit current one-independent-variable runtime restriction.
-* [open] Support multiple declared independent variables or a proven declared
+* [closed] Audit current one-independent-variable runtime restriction.
+* [closed] Support multiple declared independent variables or a proven declared
   coordinate transform.
-* [open] Audit current start-anchored-only boundary-condition restriction.
-* [open] Support non-start boundary conditions through a declared boundary
+* [closed] Audit current start-anchored-only boundary-condition restriction.
+* [closed] Support non-start boundary conditions through a declared boundary
   solver.
-* [open] Make declared background equations first-class graph inputs.
-* [open] Allow declared background outputs to provide expansion quantities.
-* [open] Allow declared background outputs to provide density quantities.
-* [open] Allow declared background outputs to provide pressure quantities.
-* [open] Allow declared background outputs to provide equation-of-state
+* [closed] Make declared background equations first-class graph inputs.
+* [closed] Allow declared background outputs to provide expansion quantities.
+* [closed] Allow declared background outputs to provide density quantities.
+* [closed] Allow declared background outputs to provide pressure quantities.
+* [closed] Allow declared background outputs to provide equation-of-state
   quantities.
-* [open] Allow declared background outputs to provide curvature quantities.
-* [open] Fix CDM detection so declared background quantities are considered,
+* [closed] Allow declared background outputs to provide curvature quantities.
+* [closed] Fix CDM detection so declared background quantities are considered,
   not only parameter names.
-* [open] Fix baryon detection so declared background quantities are
+* [closed] Fix baryon detection so declared background quantities are
   considered where possible.
-* [open] Fix radiation detection so declared background quantities are
+* [closed] Fix radiation detection so declared background quantities are
   considered where possible.
-* [open] Fix dark-energy detection so declared background quantities are
+* [closed] Fix dark-energy detection so declared background quantities are
   considered where possible.
-* [open] Remove zero-CDM default when CDM is absent from parameter names.
-* [open] Remove dark-energy `w0=-1` and `wa=0` defaults unless declared.
-* [open] Replace formula-derived photon and neutrino densities with declared
+* [closed] Remove zero-CDM default when CDM is absent from parameter names.
+* [closed] Remove dark-energy `w0=-1` and `wa=0` defaults unless declared.
+* [closed] Replace formula-derived photon and neutrino densities with declared
   quantities or explicit physical requirements.
-* [open] Replace named primordial amplitude and tilt requirements with
+* [closed] Replace named primordial amplitude and tilt requirements with
   declared primordial-power inputs or explicit CMB requirements.
-* [open] Preserve physically required scalars when they cannot be derived.
-* [open] Fail clearly when a required physical quantity is missing.
-* [open] Fail clearly when declared background arrays have invalid shape.
-* [open] Fail clearly when declared background values are non-finite.
-* [open] Fail clearly when declared background domains are invalid.
-* [open] Ensure perturbation graph can consume background graph outputs.
-* [open] Add non-LCDM synthetic background fixtures.
-* [open] Add tests where changing declared background changes CMB outputs.
-* [open] Add tests where incomplete background declarations fail early.
-* [open] Add manifest provenance for declared background quantities.
+* [closed] Preserve physically required scalars when they cannot be derived.
+* [closed] Fail clearly when a required physical quantity is missing.
+* [closed] Fail clearly when declared background arrays have invalid shape.
+* [closed] Fail clearly when declared background values are non-finite.
+* [closed] Fail clearly when declared background domains are invalid.
+* [closed] Ensure perturbation graph can consume background graph outputs.
+* [closed] Add non-LCDM synthetic background fixtures.
+* [closed] Add tests where changing declared background changes CMB outputs.
+* [closed] Add tests where incomplete background declarations fail early.
+* [closed] Add manifest provenance for declared background quantities.
 
 Done when:
 
-* [open] Native CMB background is graph-driven where expressible.
-* [open] Native graph execution is not limited to one evolution variable.
-* [open] Boundary conditions are not limited to start anchors.
-* [open] Hidden LCDM background fallback does not exist.
-* [open] CDM, radiation, dark-energy, and primordial quantities are declared
+* [closed] Native CMB background is graph-driven where expressible.
+* [closed] Native graph execution is not limited to one evolution variable.
+* [closed] Boundary conditions are not limited to start anchors.
+* [closed] Hidden LCDM background fallback does not exist.
+* [closed] CDM, radiation, dark-energy, and primordial quantities are declared
   or explicitly required; none are silently defaulted.
-* [open] Remaining named requirements are physically justified.
-* [open] Declared non-LCDM background fixtures run.
-* [open] Invalid background declarations fail before CMB runtime.
-* [open] Perturbations can consume declared background outputs.
-* [open] Manifest output records background provenance.
-* [open] Relevant background, CMB, schema, and manifest tests pass.
+* [closed] Remaining named requirements are physically justified.
+* [closed] Declared non-LCDM background fixtures run.
+* [closed] Invalid background declarations fail before CMB runtime.
+* [closed] Perturbations can consume declared background outputs.
+* [closed] Manifest output records background provenance.
+* [closed] Relevant background, CMB, schema, and manifest tests pass.
 
 ### [open] Slice Five - Projection and observable generalization
 

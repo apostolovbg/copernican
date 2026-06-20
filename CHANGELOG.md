@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-20:
+  Change: Completed Slice Four background and equation universality by
+    supporting declared background quantity aliases, mixed runtime
+    coordinates, end-boundary shooting, manifest background provenance, and
+    the missing Slice Three/Slice Four plan closure updates.
+  Why: Removed the remaining named-parameter ceiling and start-only or
+    single-coordinate runtime limits from the native declared CMB path while
+    keeping physically required scalar failures explicit.
+  Impact: Declared non-LCDM background fixtures now run through the native
+    solver with fail-loud quantity validation, manifest provenance, updated
+    docs/templates, and closed Slice Three/Slice Four plan bookkeeping.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/model_template.yml
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    copernican/lib/run_manifest.py
+    docs/model_template.yml
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-20:
   Change: Strengthened declared-graph CMB validation by separating slow
     CAMB-backed reference checks from analytic runtime-response tests.
   Why: Replaced the weak smoothed-shape proof with named physical checks and

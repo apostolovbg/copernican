@@ -28,6 +28,26 @@ def _dummy_plugin():
                 "omch2": 0.12,
                 "Neff": 3.044,
             },
+            "model_parameters": {
+                "Tcmb_K": 2.7255,
+            },
+            "background": {
+                "derived": {
+                    "h": "H0 / 100.0",
+                    "baryon_density_fraction": "ombh2 / (h * h)",
+                    "Omega_b0": "baryon_density_fraction",
+                    "photon_fraction_today": (
+                        "2.469e-5 * ((Tcmb_K / 2.7255) ** 4) / (h * h)"
+                    ),
+                    "Omega_gamma0": "photon_fraction_today",
+                    "H": "H0",
+                },
+                "reionization": {
+                    "quantities": {
+                        "hydrogen_ionization_rate": "1.0e-20",
+                    }
+                },
+            },
             "grids": {},
             "values": {},
             "calls": [],
@@ -277,6 +297,22 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["custom_cmb_observable_names"],
                 ["temperature", "TT"],
+            )
+            self.assertIn(
+                "background_derived_names",
+                model_entry["custom_cmb_background_manifest_summary"],
+            )
+            self.assertIn(
+                "Omega_b0",
+                model_entry["custom_cmb_background_manifest_summary"][
+                    "background_derived_names"
+                ],
+            )
+            self.assertIn(
+                "photon_fraction_today",
+                model_entry["custom_cmb_background_manifest_summary"][
+                    "background_quantity_role_names"
+                ]["density"],
             )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]

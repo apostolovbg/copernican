@@ -345,6 +345,14 @@ notes: |
     unit-normalized transfer seed unless the contract overrides it, and
     relation targets such as `Phi` or `Psi` only become available when the
     declared equations, constraints, or closures solve them.
+  * Non-standard perturbation equations may mix `tau`, `eta`, `a`, `z`, or
+    other monotonic declared background coordinates on their typed `lhs`.
+    End boundary conditions are supported when they replace the missing
+    start-state slots for the declared solver.
+  * `cmb.background.derived` may expose expansion, density, pressure,
+    equation-of-state, or curvature quantities directly. The native solver
+    consumes those declared outputs first and only derives the remaining
+    physically required scalars when the contract makes that possible.
   * Transfer components bind named source terms through declared observable
     mappings. Match the source-term roles required by the chosen projection,
     for example `monopole` for `line_of_sight_temperature`,

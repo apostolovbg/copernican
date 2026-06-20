@@ -917,6 +917,54 @@ def _analytic_signal_contract(
     return contract
 
 
+def _generic_background_custom_contract() -> dict[str, object]:
+    """Return a custom CMB fixture with non-LCDM-style parameter names."""
+
+    contract = _base_custom_cmb_contract()
+    contract["model_name"] = "GenericBackgroundCustomCMB"
+    contract["param_map"] = {
+        "H0": 67.4,
+        "tau": 0.054,
+        "primordial_power_amplitude": 2.1e-9,
+        "primordial_power_tilt": 0.965,
+        "baryon_fraction_today": 0.049,
+        "cold_dark_matter_fraction_today": 0.262,
+        "photon_fraction_today": 5.38e-5,
+        "relativistic_neutrino_fraction_today": 3.65e-5,
+        "curvature_density_fraction": -0.01,
+        "dark_fluid_eos_today": -0.85,
+    }
+    contract["model_parameters"] = {
+        "cmb_temperature_K": 2.7255,
+        "helium_mass_fraction": 0.245,
+    }
+    reionization = copy.deepcopy(_declared_background()["reionization"])
+    contract["background"] = {
+        "derived": {
+            "Omega_b0": "baryon_fraction_today",
+            "Omega_c0": "cold_dark_matter_fraction_today",
+            "Omega_gamma0": "photon_fraction_today",
+            "Omega_nu0": "relativistic_neutrino_fraction_today",
+            "Omega_r0": "Omega_gamma0 + Omega_nu0",
+            "Omega_k0": "curvature_density_fraction",
+            "Omega_m0": "Omega_b0 + Omega_c0",
+            "w0": "dark_fluid_eos_today",
+            "Omega_de0": "1.0 - Omega_m0 - Omega_r0 - Omega_k0",
+            "dark_energy_pressure_today": "w0 * Omega_de0",
+            "H": (
+                "H0 * sqrt("
+                "Omega_r0 / (a ** 4) + "
+                "Omega_m0 / (a ** 3) + "
+                "Omega_k0 / (a ** 2) + "
+                "Omega_de0 * (a ** (-3.0 * (1.0 + w0)))"
+                ")"
+            ),
+        },
+        "reionization": reionization,
+    }
+    return contract
+
+
 class _CustomCMBPlugin:
     """Plugin stub that exposes the synthetic declared graph fixture."""
 
@@ -1823,25 +1871,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
-    def test_end_boundary_conditions_fail_loudly(self) -> None:
-        """End-anchored boundary conditions should be rejected clearly."""
+    def test_end_boundary_conditions_can_seed_missing_state(self) -> None:
+        """End-anchored boundary conditions should drive the shooter."""
 
-        contract = _speedup_contract(_custom_contract())
-        boundary_entry = copy.deepcopy(
-            contract["perturbations"]["initial_conditions"]["theta_b_seed"]
+        contract = _analytic_signal_contract(decay_rate=1.0e-4)
+        contract["perturbations"]["initial_conditions"].pop("signal_seed")
+        contract["perturbations"]["boundary_conditions"]["signal_end"] = {
+            "target": {
+                "variable": "signal_mode",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.5",
+            "anchor": "end",
+        }
+        spectra = cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            numpy.arange(20, 30, dtype=int),
+            spectra=("TT",),
         )
-        boundary_entry["anchor"] = "end"
-        boundary_conditions = contract["perturbations"]["boundary_conditions"]
-        boundary_conditions["theta_b_end"] = boundary_entry
-        with self.assertRaisesRegex(
-            ValueError,
-            "only supports start-anchored boundary conditions",
-        ):
-            cmb.compute_cmb_spectrum_from_dict(
-                contract,
-                numpy.arange(20, 30, dtype=int),
-                spectra=("TT",),
-            )
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
     def test_declared_gauge_metadata_is_not_restricted(self) -> None:
         """The native graph solver should accept declared gauge metadata."""
@@ -1892,6 +1941,107 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-12,
         )
 
+    def test_multiple_declared_coordinates_preserve_runtime_response(
+        self,
+    ) -> None:
+        """Mixed `tau`/`a` equations should run through the transform."""
+
+        baseline = _analytic_signal_contract(decay_rate=0.025)
+        transformed = _analytic_signal_contract(decay_rate=0.025)
+        transformed_equation = transformed["perturbations"]["equations"][
+            "evolve_signal_mode"
+        ]
+        transformed_equation["lhs"]["wrt"] = "a"
+        transformed_equation["rhs"] = (
+            f"({transformed_equation['rhs']})"
+            + " * (299792.458 / (a * a * H))"
+        )
+        transformed["perturbations"]["initial_conditions"]["signal_seed"][
+            "target"
+        ]["wrt"] = "a"
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        transformed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                transformed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            transformed_tt,
+            baseline_tt,
+            rtol=1.0e-2,
+            atol=1.0e-10,
+        )
+
+    def test_generic_background_aliases_run_without_lcdm_named_inputs(
+        self,
+    ) -> None:
+        """Generic background aliases should supply the native solver."""
+
+        contract = _speedup_contract(_generic_background_custom_contract())
+        physical = cmb._resolve_custom_cmb_physical_parameters(contract)
+        spectra = cmb.compute_cmb_spectrum_from_dict(
+            contract,
+            numpy.arange(20, 30, dtype=int),
+            spectra=("TT", "TE", "EE"),
+        )
+        self.assertTrue(physical.has_cdm)
+        self.assertIsNone(physical.Neff)
+        self.assertAlmostEqual(physical.Omega_c0, 0.262)
+        self.assertAlmostEqual(physical.primordial_amplitude, 2.1e-9)
+        for values in spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_background_pressure_and_curvature_symbols_change_outputs(
+        self,
+    ) -> None:
+        """Pressure/equation-of-state background outputs should feed math."""
+
+        baseline = _speedup_contract(_generic_background_custom_contract())
+        changed = _speedup_contract(_generic_background_custom_contract())
+        source_adjustment = (
+            " + 0.05 * (dark_energy_pressure_today + Omega_k0) * k * Psi"
+        )
+        baseline_equations = baseline["perturbations"]["equations"]
+        changed_equations = changed["perturbations"]["equations"]
+        baseline_equations["evolve_theta_b"]["rhs"] += source_adjustment
+        changed_equations["evolve_theta_b"]["rhs"] += source_adjustment
+        changed_background = changed["background"]["derived"]
+        changed_background["dark_energy_pressure_today"] = (
+            "1.4 * w0 * Omega_de0"
+        )
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
+            1.0e-12,
+        )
+
     def test_missing_declared_background_h_fails_loudly(self) -> None:
         """Declared native contracts must provide the background H."""
 
@@ -1899,7 +2049,55 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract["background"]["derived"].pop("H", None)
         with self.assertRaisesRegex(
             ValueError,
-            "must provide a derived 'H' expression",
+            "must provide a derived expansion history",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_incomplete_background_declarations_fail_early(self) -> None:
+        """Missing required physical background inputs should fail early."""
+
+        contract = _speedup_contract(_generic_background_custom_contract())
+        contract["background"]["derived"].pop("Omega_b0", None)
+        contract["background"]["derived"].pop("Omega_m0", None)
+        contract["param_map"].pop("baryon_fraction_today", None)
+        derived_background = contract["background"]["derived"]
+        derived_background["matter_total"] = "0.311"
+        derived_background["Omega_c0"] = "matter_total"
+        derived_background["Omega_de0"] = (
+            "1.0 - matter_total - Omega_r0 - Omega_k0"
+        )
+        derived_background["H"] = (
+            "H0 * sqrt("
+            "Omega_r0 / (a ** 4) + "
+            "matter_total / (a ** 3) + "
+            "Omega_k0 / (a ** 2) + "
+            "Omega_de0 * (a ** (-3.0 * (1.0 + w0)))"
+            ")"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires explicit baryon density",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_invalid_background_curvature_override_fails_loudly(self) -> None:
+        """Invalid declared curvature histories should fail before runtime."""
+
+        contract = _speedup_contract(_generic_background_custom_contract())
+        derived_background = contract["background"]["derived"]
+        derived_background["chi"] = "z"
+        derived_background["angular_diameter_distance"] = "-0.5 * z"
+        with self.assertRaisesRegex(
+            ValueError,
+            "curvature histories must stay non-negative",
         ):
             cmb.compute_cmb_spectrum_from_dict(
                 contract,

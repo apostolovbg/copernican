@@ -129,6 +129,13 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         grids = contract.get("grids", {}) or {}
         values = contract.get("values", {}) or {}
         calls = contract.get("calls", []) or []
+        background_manifest_summary = (
+            cmb_module._summarize_declared_background_manifest_summary(
+                contract
+            )
+            if isinstance(contract, dict) and contract.get("background")
+            else {}
+        )
         perturbation_sources = getattr(perturbation_data, "sources", {}) or {}
         numerical_settings = contract.get("numerical", {}) or {}
         numerical_settings = (
@@ -363,6 +370,9 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 ),
                 "custom_cmb_numerical_settings": numerical_settings,
                 "custom_cmb_graph_manifest_summary": manifest_summary_data,
+                "custom_cmb_background_manifest_summary": (
+                    background_manifest_summary
+                ),
                 "custom_cmb_reference_validation_status": (
                     configuration.get("reference_validation_status")
                     if isinstance(configuration, dict)

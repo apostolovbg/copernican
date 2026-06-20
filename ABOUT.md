@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-14
+**Last Updated:** 2026-06-20
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -43,8 +43,13 @@ mode histories and Bessel projection for the requested line-of-sight window.
 The background helper consumes the declared background graph, computes a
 Peebles-style recombination history, integrates the declared reionization
 ODE, and builds the visibility, optical-depth, and residual-ionization
-curves before the transfer-function projection runs. Declared observables may
-now target TT,
+curves before the transfer-function projection runs. Declared background
+outputs now feed native density, pressure, equation-of-state, and curvature
+quantities directly; the perturbation runtime can mix `tau`, `eta`, `a`,
+`z`, or other declared monotonic background coordinates on equation
+left-hand sides; and end-anchored boundary conditions can drive the native
+shooter when they replace the missing start-state slots. Declared
+observables may now target TT,
 TE, EE, BB, lensing-potential, or custom transfer components when their
 required graph quantities and projection roles are present. `spin2_b_mode`
 requires a declared `polarization_b` source, and

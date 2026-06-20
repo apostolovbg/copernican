@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-14
+**Last Updated:** 2026-06-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -31,7 +31,13 @@ spectra with bounded `k` sampling and cached Bessel tables. The
 background path consumes the declared background graph, computes a
 Peebles-style recombination history, integrates the declared
 reionization ODE, and builds the visibility and optical-depth grids
-before the perturbation and line-of-sight steps run.
+before the perturbation and line-of-sight steps run. Declared
+background outputs now feed native density, pressure,
+equation-of-state, and curvature quantities directly; the perturbation
+runtime can mix `tau`, `eta`, `a`, `z`, or other declared monotonic
+background coordinates on equation left-hand sides; and end-anchored
+boundary conditions can drive the native shooter when they replace the
+missing start-state slots.
 
 ## Launch Copernican
 

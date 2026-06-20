@@ -326,6 +326,17 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertIn("seed", dependency_summary.background_references_used)
         self.assertIn("phi_aux", dependency_summary.evaluation_order)
+        self.assertEqual(
+            contract_data.manifest_summary["equation_wrt_by_variable"],
+            {
+                "delta_x": "tau",
+                "theta_x": "tau",
+            },
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["boundary_condition_anchors"],
+            {},
+        )
 
     def test_hybrid_graph_compiles_as_one_graph(self) -> None:
         """Tagged scalar/vector/tensor variables should share one graph."""
@@ -564,6 +575,24 @@ class PerturbationContractTestCase(unittest.TestCase):
         contract_data = self._compile(contract)
 
         self.assertIn("theta_start", contract_data.boundary_conditions)
+
+    def test_end_boundary_conditions_satisfy_missing_initial_data(
+        self,
+    ) -> None:
+        """End boundary conditions may replace missing start-state slots."""
+
+        contract = _base_nonstandard_contract()
+        theta_seed = contract["initial_conditions"].pop("theta_seed")
+        theta_seed["anchor"] = "end"
+        contract["boundary_conditions"]["theta_end"] = theta_seed
+
+        contract_data = self._compile(contract)
+
+        self.assertIn("theta_end", contract_data.boundary_conditions)
+        self.assertEqual(
+            contract_data.manifest_summary["boundary_condition_anchors"],
+            {"theta_end": "end"},
+        )
 
     def test_duplicate_start_boundary_target_fails(self) -> None:
         """Initial and start-boundary conditions may not target one slot."""

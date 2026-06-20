@@ -651,6 +651,8 @@ def _build_manifest_summary(
     numerics: Mapping[str, Any],
     backend_mapping: PerturbationBackendMappingData,
     dependency_summary: PerturbationDependencyGraphSummaryData,
+    equation_wrt_by_variable: Mapping[str, str],
+    boundary_condition_anchors: Mapping[str, str],
 ) -> dict[str, Any]:
     """Return a manifest-friendly summary of the compiled graph."""
 
@@ -687,6 +689,14 @@ def _build_manifest_summary(
             dependency_summary.background_references_used
         ),
         "evaluation_order": dependency_summary.evaluation_order,
+        "equation_wrt_by_variable": {
+            str(name): str(wrt_name)
+            for name, wrt_name in equation_wrt_by_variable.items()
+        },
+        "boundary_condition_anchors": {
+            str(name): str(anchor_name)
+            for name, anchor_name in boundary_condition_anchors.items()
+        },
     }
 
 
@@ -1674,9 +1684,10 @@ def compile_perturbation_contract(
             raise ValueError(
                 "Non-standard perturbations must declare equations"
             )
-        if not initial_condition_entries:
+        if not initial_condition_entries and not boundary_condition_entries:
             raise ValueError(
-                "Non-standard perturbations must declare initial_conditions"
+                "Non-standard perturbations must declare initial_conditions "
+                "or boundary_conditions"
             )
         if not observable_entries:
             raise ValueError(
@@ -1799,6 +1810,14 @@ def compile_perturbation_contract(
         for condition_entry in boundary_condition_entries.values()
         if condition_entry.anchor == "start"
     }
+    declared_boundary_targets = {
+        (
+            condition_entry.target.variable,
+            condition_entry.target.wrt,
+            condition_entry.target.order,
+        )
+        for condition_entry in boundary_condition_entries.values()
+    }
     duplicate_start_targets = sorted(
         declared_initial_targets & declared_start_boundary_targets
     )
@@ -1814,7 +1833,7 @@ def compile_perturbation_contract(
     missing_initial_targets = sorted(
         required_initial_targets
         - declared_initial_targets
-        - declared_start_boundary_targets
+        - declared_boundary_targets
     )
     if missing_initial_targets:
         readable = ", ".join(
@@ -2005,6 +2024,14 @@ def compile_perturbation_contract(
             numerics=numerics_mapping,
             backend_mapping=backend_data,
             dependency_summary=dependency_summary,
+            equation_wrt_by_variable={
+                entry.lhs.variable: entry.lhs.wrt
+                for entry in equation_entries.values()
+            },
+            boundary_condition_anchors={
+                name: entry.anchor
+                for name, entry in boundary_condition_entries.items()
+            },
         )
     )
 

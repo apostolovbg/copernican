@@ -27,7 +27,7 @@ import numpy
 import pandas
 from scipy.integrate import cumulative_trapezoid, solve_ivp
 from scipy.interpolate import PchipInterpolator
-from scipy.optimize import brentq
+from scipy.optimize import brentq, least_squares
 from scipy.special import spherical_jn
 
 from ..cmb_projection_contract import SUPPORTED_DECLARED_TRANSFER_PROJECTIONS
@@ -47,6 +47,161 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
+_LEGACY_DECLARED_EVOLUTION_COORDINATES = {"eta", "tau"}
+_PHYSICAL_QUANTITY_ALIASES = {
+    "H0_km_s_Mpc": (
+        "H0",
+        "hubble_constant",
+        "Hubble constant",
+    ),
+    "Omega_b0": (
+        "Omega_b",
+        "Omega_b0",
+        "baryon_density_fraction",
+        "baryon_fraction_today",
+        "omega_b",
+    ),
+    "ombh2": (
+        "Omega_b_h2",
+        "baryon_density_h2",
+        "ombh2",
+        "omega_b_h2",
+    ),
+    "Omega_c0": (
+        "Omega_c",
+        "Omega_c0",
+        "Omega_cdm",
+        "Omega_cdm0",
+        "cdm_density_fraction",
+        "cold_dark_matter_fraction_today",
+        "omega_c",
+        "omega_cdm",
+    ),
+    "omch2": (
+        "Omega_c_h2",
+        "cdm_density_h2",
+        "cold_dark_matter_density_h2",
+        "omch2",
+        "omega_c_h2",
+    ),
+    "Tcmb_K": (
+        "T_cmb",
+        "Tcmb",
+        "Tcmb_K",
+        "cmb_temperature_K",
+    ),
+    "YHe": (
+        "YHe",
+        "Yp",
+        "helium_fraction",
+        "helium_mass_fraction",
+    ),
+    "Neff": (
+        "N_eff",
+        "Neff",
+        "effective_neutrino_count",
+    ),
+    "Omega_gamma0": (
+        "Omega_gamma",
+        "Omega_gamma0",
+        "omgamma",
+        "omega_gamma",
+        "photon_density_fraction",
+        "photon_fraction_today",
+    ),
+    "Omega_nu0": (
+        "Omega_nu",
+        "Omega_nu0",
+        "omega_nu",
+        "relativistic_neutrino_density_fraction",
+        "relativistic_neutrino_fraction_today",
+    ),
+    "Omega_r0": (
+        "Omega_r",
+        "Omega_r0",
+        "omega_r",
+        "radiation_density_fraction",
+        "radiation_fraction_today",
+    ),
+    "Omega_k0": (
+        "Omega_k",
+        "Omega_k0",
+        "curvature_density_fraction",
+        "omk",
+        "omega_k",
+    ),
+    "Omega_m0": (
+        "Omega_m",
+        "Omega_m0",
+        "matter_density_fraction",
+        "matter_fraction_today",
+        "omega_m",
+    ),
+    "Omega_de0": (
+        "Omega_Lambda",
+        "Omega_de",
+        "Omega_de0",
+        "Omega_lambda",
+        "dark_energy_density_fraction",
+        "dark_energy_fraction_today",
+        "omega_de",
+    ),
+    "w0": (
+        "dark_energy_eos0",
+        "dark_energy_w0",
+        "equation_of_state_today",
+        "w",
+        "w0",
+    ),
+    "wa": (
+        "dark_energy_eos1",
+        "equation_of_state_derivative",
+        "wa",
+    ),
+    "primordial_amplitude": (
+        "A_s",
+        "As",
+        "primordial_amplitude",
+        "primordial_power_amplitude",
+    ),
+    "primordial_spectral_index": (
+        "n_s",
+        "ns",
+        "primordial_power_tilt",
+        "primordial_spectral_index",
+        "primordial_tilt",
+    ),
+    "chi": (
+        "chi",
+        "comoving_distance",
+    ),
+    "angular_diameter_distance": (
+        "D_A",
+        "angular_diameter_distance",
+        "da",
+    ),
+}
+_BACKGROUND_PROVENANCE_ROLE_KEYS = {
+    "expansion": ("H0_km_s_Mpc",),
+    "density": (
+        "Omega_b0",
+        "ombh2",
+        "Omega_c0",
+        "omch2",
+        "Omega_gamma0",
+        "Omega_nu0",
+        "Omega_r0",
+        "Omega_m0",
+        "Omega_de0",
+    ),
+    "pressure": ("w0",),
+    "equation_of_state": ("w0", "wa"),
+    "curvature": ("Omega_k0", "chi", "angular_diameter_distance"),
+    "primordial": (
+        "primordial_amplitude",
+        "primordial_spectral_index",
+    ),
+}
 
 
 def _normalise_value(entry_value: Any) -> Any:
@@ -295,6 +450,95 @@ def _lookup_declared_background_scalar(
     return None
 
 
+def _lookup_declared_background_scalar_with_source(
+    contract: Mapping[str, Any],
+    background_context: Mapping[str, Any],
+    names: Sequence[str],
+) -> tuple[float, str] | None:
+    """Return the first declared scalar among ``names`` and its source."""
+
+    contract_value = _extract_contract_scalar_with_source(contract, names)
+    if contract_value is not None:
+        return contract_value
+    for name in names:
+        if name not in background_context:
+            continue
+        return (
+            _coerce_numeric_scalar(
+                background_context[name],
+                name=f"background.derived.{name}",
+            ),
+            f"background.derived:{name}",
+        )
+    return None
+
+
+def _physical_quantity_names(quantity_key: str) -> tuple[str, ...]:
+    """Return accepted aliases for one physical quantity."""
+
+    return tuple(_PHYSICAL_QUANTITY_ALIASES.get(quantity_key, (quantity_key,)))
+
+
+def _summarize_declared_background_manifest_summary(
+    contract: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return manifest-friendly background provenance for a CMB contract."""
+
+    section = _get_declared_background_section(contract)
+    derived_names = tuple(
+        sorted(str(name) for name in (section.get("derived", {}) or {}))
+    )
+    reionization_names = tuple(
+        sorted(
+            str(name)
+            for name in (
+                ((section.get("reionization", {}) or {}).get("quantities", {}))
+                or {}
+            )
+        )
+    )
+    contract_scalar_names = {
+        str(name)
+        for source_name in ("param_map", "model_parameters")
+        for name in (
+            (contract.get(source_name, {}) or {})
+            if isinstance(contract.get(source_name, {}) or {}, Mapping)
+            else {}
+        )
+    }
+    available_names = set(derived_names) | contract_scalar_names
+    quantity_aliases = {
+        quantity_name: tuple(
+            sorted(
+                alias
+                for alias in _physical_quantity_names(quantity_name)
+                if alias in available_names
+            )
+        )
+        for quantity_name in _PHYSICAL_QUANTITY_ALIASES
+    }
+    quantity_aliases = {
+        key: value for key, value in quantity_aliases.items() if value
+    }
+    role_names = {}
+    for role_name, quantity_names in _BACKGROUND_PROVENANCE_ROLE_KEYS.items():
+        role_aliases = tuple(
+            sorted(
+                alias
+                for quantity_name in quantity_names
+                for alias in quantity_aliases.get(quantity_name, ())
+            )
+        )
+        if role_aliases:
+            role_names[role_name] = role_aliases
+    return {
+        "background_derived_names": derived_names,
+        "background_reionization_quantity_names": reionization_names,
+        "background_quantity_aliases": quantity_aliases,
+        "background_quantity_role_names": role_names,
+    }
+
+
 def _normalise_camb_contract(
     contract_or_params: Mapping[str, Any],
 ) -> Mapping[str, Any]:
@@ -471,19 +715,19 @@ class _CustomCMBPhysicalParameters:
     hubble_ratio: float
     H0_over_c_Mpc_inv: float
     ombh2: float
-    omch2: float
+    omch2: float | None
     Omega_b0: float
-    Omega_c0: float
-    Omega_m0_background: float
+    Omega_c0: float | None
+    Omega_m0_background: float | None
     Omega_gamma0: float
-    Omega_nu0: float
-    Omega_r0: float
-    Omega_k0: float
-    Omega_de0: float
-    dark_energy_eos0: float
-    dark_energy_eos1: float
+    Omega_nu0: float | None
+    Omega_r0: float | None
+    Omega_k0: float | None
+    Omega_de0: float | None
+    dark_energy_eos0: float | None
+    dark_energy_eos1: float | None
     YHe: float
-    Neff: float
+    Neff: float | None
     primordial_amplitude: float
     primordial_spectral_index: float
     z_rec: float
@@ -494,6 +738,7 @@ class _CustomCMBPhysicalParameters:
     rho_b0_kg_m3: float
     has_cdm: bool
     has_dark_energy: bool
+    quantity_provenance: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(slots=True)
@@ -727,6 +972,29 @@ def _extract_contract_scalar(
     return float(default)
 
 
+def _extract_contract_scalar_with_source(
+    contract: Mapping[str, Any],
+    names: Sequence[str],
+) -> tuple[float, str] | None:
+    """Return the first finite scalar with its contract source."""
+
+    for source_name in ("param_map", "model_parameters"):
+        source = contract.get(source_name, {}) or {}
+        if not isinstance(source, Mapping):
+            continue
+        for name in names:
+            if name not in source:
+                continue
+            try:
+                return (
+                    _coerce_numeric_scalar(source[name], name=name),
+                    f"{source_name}:{name}",
+                )
+            except ValueError:
+                continue
+    return None
+
+
 def _resolve_custom_cmb_numerics(
     contract: Mapping[str, Any],
 ) -> _CustomCMBNumerics:
@@ -828,148 +1096,212 @@ def _resolve_custom_cmb_physical_parameters(
         a_values=1.0,
         z_values=0.0,
     )
+    quantity_provenance: dict[str, str] = {}
 
-    def _require_scalar(names: Sequence[str], *, label: str) -> float:
-        """Return a declared scalar or fail with a clear error."""
+    def _record_quantity(
+        quantity_name: str,
+        source: str,
+        *,
+        derived_suffix: str | None = None,
+    ) -> None:
+        """Store one resolved-quantity provenance record."""
 
-        value = _lookup_declared_background_scalar(
+        provenance = source
+        if derived_suffix is not None:
+            provenance = f"derived:{derived_suffix}[{source}]"
+        quantity_provenance[quantity_name] = provenance
+
+    def _lookup_quantity(
+        quantity_name: str,
+    ) -> tuple[float, str] | None:
+        """Return one resolved physical quantity and its source."""
+
+        return _lookup_declared_background_scalar_with_source(
             contract,
             background_scalar_context,
-            names,
+            _physical_quantity_names(quantity_name),
         )
-        if value is not None:
-            return float(value)
-        names_text = ", ".join(names)
+
+    def _require_quantity(
+        quantity_name: str,
+        *,
+        label: str,
+    ) -> tuple[float, str]:
+        """Return a declared scalar quantity or fail clearly."""
+
+        entry = _lookup_quantity(quantity_name)
+        if entry is not None:
+            return entry
+        names_text = ", ".join(_physical_quantity_names(quantity_name))
         raise ValueError(
             "Declared CMB native execution requires explicit "
             f"{label}. Provide one of: {names_text}"
         )
 
-    hubble_km_s_mpc = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("H0", "hubble_constant", "Hubble constant"),
-    )
-    if hubble_km_s_mpc is None:
-        hubble_km_s_mpc = _require_scalar(("H",), label="background H(z)")
+    hubble_entry = _lookup_quantity("H0_km_s_Mpc")
+    if hubble_entry is None:
+        hubble_entry = _lookup_declared_background_scalar_with_source(
+            contract,
+            background_scalar_context,
+            ("H",),
+        )
+        if hubble_entry is None:
+            raise ValueError(
+                "Declared CMB native execution requires explicit background "
+                "H(z) at a=1 or an H0 scalar."
+            )
+        _record_quantity("H0_km_s_Mpc", hubble_entry[1], derived_suffix="H")
+    else:
+        _record_quantity("H0_km_s_Mpc", hubble_entry[1])
+    hubble_km_s_mpc = hubble_entry[0]
     hubble_km_s_mpc = max(float(hubble_km_s_mpc), 1.0e-6)
     hubble_ratio = hubble_km_s_mpc / 100.0
     hubble_over_c = hubble_km_s_mpc / _C_LIGHT_KM_S
 
-    ombh2 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("ombh2", "Omega_b_h2", "omega_b_h2", "baryon_density_h2"),
-    )
-    Omega_b0 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("Omega_b", "Omega_b0", "omega_b"),
-    )
-    if Omega_b0 is None and ombh2 is not None:
-        Omega_b0 = ombh2 / (hubble_ratio * hubble_ratio)
-    if Omega_b0 is None:
+    baryon_entry = _lookup_quantity("Omega_b0")
+    ombh2_entry = _lookup_quantity("ombh2")
+    if baryon_entry is None and ombh2_entry is not None:
+        Omega_b0 = ombh2_entry[0] / (hubble_ratio * hubble_ratio)
+        _record_quantity("Omega_b0", ombh2_entry[1], derived_suffix="ombh2")
+    elif baryon_entry is not None:
+        Omega_b0 = baryon_entry[0]
+        _record_quantity("Omega_b0", baryon_entry[1])
+    else:
         raise ValueError(
             "Declared CMB native execution requires explicit baryon density."
         )
-    if ombh2 is None:
+    if ombh2_entry is None:
         ombh2 = Omega_b0 * hubble_ratio * hubble_ratio
-
-    explicit_cdm = any(
-        key in (contract.get("param_map", {}) or {})
-        for key in (
-            "omch2",
-            "Omega_c",
-            "Omega_c0",
-            "omega_c",
-            "Omega_cdm",
-            "Omega_cdm0",
-            "omega_cdm",
-            "cdm_density_h2",
+        _record_quantity(
+            "ombh2", quantity_provenance["Omega_b0"], derived_suffix="Omega_b0"
         )
-    )
-    omch2 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("omch2", "Omega_c_h2", "omega_c_h2", "cdm_density_h2"),
-    )
-    Omega_c0 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("Omega_c", "Omega_c0", "omega_c", "Omega_cdm", "Omega_cdm0"),
-    )
-    if explicit_cdm:
-        if Omega_c0 is None and omch2 is not None:
-            Omega_c0 = omch2 / (hubble_ratio * hubble_ratio)
-        if Omega_c0 is None:
-            raise ValueError(
-                "Declared CMB native execution requires explicit CDM "
-                "density when CDM parameters are declared."
-            )
-        if omch2 is None:
-            omch2 = Omega_c0 * hubble_ratio * hubble_ratio
     else:
-        Omega_c0 = 0.0
-        omch2 = 0.0
+        ombh2 = ombh2_entry[0]
+        _record_quantity("ombh2", ombh2_entry[1])
 
-    Tcmb_K = _require_scalar(
-        ("Tcmb", "T_cmb", "Tcmb_K"),
+    cdm_entry = _lookup_quantity("Omega_c0")
+    omch2_entry = _lookup_quantity("omch2")
+    Omega_c0: float | None = None
+    omch2: float | None = None
+    if cdm_entry is not None:
+        Omega_c0 = cdm_entry[0]
+        _record_quantity("Omega_c0", cdm_entry[1])
+    elif omch2_entry is not None:
+        Omega_c0 = omch2_entry[0] / (hubble_ratio * hubble_ratio)
+        _record_quantity("Omega_c0", omch2_entry[1], derived_suffix="omch2")
+    if omch2_entry is not None:
+        omch2 = omch2_entry[0]
+        _record_quantity("omch2", omch2_entry[1])
+    elif Omega_c0 is not None:
+        omch2 = Omega_c0 * hubble_ratio * hubble_ratio
+        _record_quantity(
+            "omch2",
+            quantity_provenance["Omega_c0"],
+            derived_suffix="Omega_c0",
+        )
+    has_cdm = Omega_c0 is not None or omch2 is not None
+
+    Tcmb_K, Tcmb_source = _require_quantity(
+        "Tcmb_K",
         label="CMB temperature",
     )
-    YHe = _require_scalar(
-        ("YHe", "Yp", "helium_fraction"),
+    _record_quantity("Tcmb_K", Tcmb_source)
+    YHe, YHe_source = _require_quantity(
+        "YHe",
         label="helium fraction",
     )
-    Neff = _require_scalar(("Neff", "N_eff"), label="effective neutrino count")
+    _record_quantity("YHe", YHe_source)
+    Neff_entry = _lookup_quantity("Neff")
+    Neff = None if Neff_entry is None else Neff_entry[0]
+    if Neff_entry is not None:
+        _record_quantity("Neff", Neff_entry[1])
 
-    Omega_gamma0 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("Omega_gamma", "Omega_gamma0", "omega_gamma", "omgamma"),
-    )
-    if Omega_gamma0 is None:
+    photon_entry = _lookup_quantity("Omega_gamma0")
+    if photon_entry is None:
         omega_gamma_h2 = 2.469e-5 * (Tcmb_K / 2.7255) ** 4
         Omega_gamma0 = omega_gamma_h2 / (hubble_ratio * hubble_ratio)
-    Omega_nu0 = max(0.0, Omega_gamma0) * 0.2271 * max(Neff, 0.0)
-    Omega_r0 = Omega_gamma0 + Omega_nu0
+        _record_quantity(
+            "Omega_gamma0",
+            quantity_provenance["Tcmb_K"],
+            derived_suffix="Tcmb_K_blackbody",
+        )
+    else:
+        Omega_gamma0 = photon_entry[0]
+        _record_quantity("Omega_gamma0", photon_entry[1])
 
-    Omega_k0 = _require_scalar(
-        ("Omega_k", "Omega_k0", "omega_k", "omk"),
-        label="curvature density",
-    )
-    Omega_m0_background = _require_scalar(
-        ("Omega_m0", "Omega_m", "omega_m"),
-        label="matter density",
-    )
+    radiation_entry = _lookup_quantity("Omega_r0")
+    neutrino_entry = _lookup_quantity("Omega_nu0")
+    Omega_nu0: float | None = None
+    Omega_r0: float | None = None
+    if neutrino_entry is not None:
+        Omega_nu0 = neutrino_entry[0]
+        _record_quantity("Omega_nu0", neutrino_entry[1])
+    elif radiation_entry is not None:
+        Omega_nu0 = radiation_entry[0] - Omega_gamma0
+        _record_quantity(
+            "Omega_nu0",
+            f"derived:Omega_r0_minus_Omega_gamma0[{radiation_entry[1]}]",
+        )
+    elif Neff is not None:
+        Omega_nu0 = max(0.0, Omega_gamma0) * 0.2271 * max(Neff, 0.0)
+        _record_quantity(
+            "Omega_nu0",
+            quantity_provenance["Neff"],
+            derived_suffix="Neff_radiation_closure",
+        )
+    if radiation_entry is not None:
+        Omega_r0 = radiation_entry[0]
+        _record_quantity("Omega_r0", radiation_entry[1])
+    elif Omega_nu0 is not None:
+        Omega_r0 = Omega_gamma0 + Omega_nu0
+        _record_quantity(
+            "Omega_r0",
+            quantity_provenance["Omega_gamma0"],
+            derived_suffix="Omega_gamma0_plus_Omega_nu0",
+        )
 
-    Omega_de0 = _require_scalar(
-        ("Omega_de", "Omega_de0", "Omega_Lambda", "Omega_lambda"),
-        label="dark-energy density",
-    )
-    has_dark_energy = abs(float(Omega_de0)) > 1.0e-12
+    Omega_k0_entry = _lookup_quantity("Omega_k0")
+    Omega_k0 = None if Omega_k0_entry is None else Omega_k0_entry[0]
+    if Omega_k0_entry is not None:
+        _record_quantity("Omega_k0", Omega_k0_entry[1])
+    matter_entry = _lookup_quantity("Omega_m0")
+    Omega_m0_background = None if matter_entry is None else matter_entry[0]
+    if matter_entry is not None:
+        _record_quantity("Omega_m0", matter_entry[1])
+    dark_energy_entry = _lookup_quantity("Omega_de0")
+    Omega_de0 = None if dark_energy_entry is None else dark_energy_entry[0]
+    if dark_energy_entry is not None:
+        _record_quantity("Omega_de0", dark_energy_entry[1])
+    has_dark_energy = Omega_de0 is not None and abs(float(Omega_de0)) > 1.0e-12
 
-    dark_energy_eos0 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("w0", "w", "dark_energy_w0"),
+    dark_energy_eos0_entry = _lookup_quantity("w0")
+    dark_energy_eos0 = (
+        None if dark_energy_eos0_entry is None else dark_energy_eos0_entry[0]
     )
-    if dark_energy_eos0 is None:
-        dark_energy_eos0 = -1.0
-    dark_energy_eos1 = _lookup_declared_background_scalar(
-        contract,
-        background_scalar_context,
-        ("wa",),
+    if dark_energy_eos0_entry is not None:
+        _record_quantity("w0", dark_energy_eos0_entry[1])
+    dark_energy_eos1_entry = _lookup_quantity("wa")
+    dark_energy_eos1 = (
+        None if dark_energy_eos1_entry is None else dark_energy_eos1_entry[0]
     )
-    if dark_energy_eos1 is None:
-        dark_energy_eos1 = 0.0
+    if dark_energy_eos1_entry is not None:
+        _record_quantity("wa", dark_energy_eos1_entry[1])
 
-    primordial_amplitude = _require_scalar(
-        ("As", "A_s"),
+    primordial_amplitude, primordial_amplitude_source = _require_quantity(
+        "primordial_amplitude",
         label="primordial amplitude",
     )
-    primordial_spectral_index = _require_scalar(
-        ("ns", "n_s"),
+    _record_quantity(
+        "primordial_amplitude",
+        primordial_amplitude_source,
+    )
+    primordial_spectral_index, primordial_tilt_source = _require_quantity(
+        "primordial_spectral_index",
         label="primordial tilt",
+    )
+    _record_quantity(
+        "primordial_spectral_index",
+        primordial_tilt_source,
     )
     z_rec = _lookup_declared_background_scalar(
         contract,
@@ -1019,8 +1351,9 @@ def _resolve_custom_cmb_physical_parameters(
         n_b0_m3=n_b0_m3,
         n_H0_m3=n_H0_m3,
         rho_b0_kg_m3=rho_b0,
-        has_cdm=explicit_cdm,
+        has_cdm=has_cdm,
         has_dark_energy=has_dark_energy,
+        quantity_provenance=tuple(sorted(quantity_provenance.items())),
     )
 
 
@@ -1085,25 +1418,47 @@ def _build_custom_cmb_background(
         a_values=a_grid,
         z_values=z_grid,
     )
-    if "H" not in background_grid_context:
+
+    def _coerce_background_history(
+        *,
+        names: Sequence[str],
+        label: str,
+    ) -> tuple[numpy.ndarray, str] | None:
+        """Return one declared background history on the LOS grid."""
+
+        for name in names:
+            if name not in background_grid_context:
+                continue
+            history = numpy.asarray(background_grid_context[name], dtype=float)
+            if history.ndim == 0:
+                history = numpy.full_like(z_grid, float(history), dtype=float)
+            if history.shape != z_grid.shape:
+                raise ValueError(
+                    "Declared CMB background quantity produced an invalid "
+                    f"shape for {label}: {name}"
+                )
+            if not numpy.all(numpy.isfinite(history)):
+                raise ValueError(
+                    "Declared CMB background quantity produced non-finite "
+                    f"values for {label}: {name}"
+                )
+            return history, name
+        return None
+
+    hubble_entry = _coerce_background_history(
+        names=("H", "expansion_rate"),
+        label="expansion rate",
+    )
+    if hubble_entry is None:
         raise ValueError(
-            "Declared CMB background must provide a derived 'H' "
-            "expression in km/s/Mpc."
+            "Declared CMB background must provide a derived expansion "
+            "history such as 'H'."
         )
-    H_grid = numpy.asarray(background_grid_context["H"], dtype=float)
-    if H_grid.ndim == 0:
-        H_grid = numpy.full_like(z_grid, float(H_grid), dtype=float)
-    if H_grid.shape != z_grid.shape:
+    if numpy.any(hubble_entry[0] <= 0.0):
         raise ValueError(
-            "Declared CMB background H expression must match the "
-            "requested redshift grid."
+            "Declared CMB background expansion history must stay positive."
         )
-    if not numpy.all(numpy.isfinite(H_grid)):
-        raise ValueError(
-            "Declared CMB background H expression produced non-finite "
-            "values."
-        )
-    H_grid = numpy.maximum(H_grid, 1.0e-12)
+    H_grid = numpy.asarray(hubble_entry[0], dtype=float)
     eta_grid = cumulative_trapezoid(
         _C_LIGHT_KM_S / numpy.maximum(a_grid * a_grid * H_grid, 1.0e-12),
         a_grid,
@@ -1119,20 +1474,53 @@ def _build_custom_cmb_background(
         z_asc,
         initial=0.0,
     )
-    chi_grid = chi_asc[::-1]
-    omega_k = physical_params.Omega_k0
-    if abs(omega_k) > 1.0e-8:
-        sqrt_ok = math.sqrt(abs(omega_k))
-        hubble_distance_mpc = _C_LIGHT_KM_S / physical_params.H0_km_s_Mpc
-        arg = sqrt_ok * chi_grid / max(hubble_distance_mpc, 1.0e-12)
-        if omega_k > 0.0:
-            d_m = hubble_distance_mpc / sqrt_ok * numpy.sinh(arg)
-        else:
-            d_m = hubble_distance_mpc / sqrt_ok * numpy.sin(arg)
+    derived_chi_grid = chi_asc[::-1]
+    chi_entry = _coerce_background_history(
+        names=_physical_quantity_names("chi"),
+        label="comoving distance",
+    )
+    angular_diameter_entry = _coerce_background_history(
+        names=_physical_quantity_names("angular_diameter_distance"),
+        label="angular diameter distance",
+    )
+    if (chi_entry is None) != (angular_diameter_entry is None):
+        raise ValueError(
+            "Declared CMB background curvature override must provide both "
+            "chi and angular_diameter_distance together."
+        )
+    if chi_entry is not None and angular_diameter_entry is not None:
+        chi_grid = numpy.asarray(chi_entry[0], dtype=float)
+        da_grid = numpy.asarray(angular_diameter_entry[0], dtype=float)
+        if numpy.any(chi_grid < 0.0) or numpy.any(da_grid < 0.0):
+            raise ValueError(
+                "Declared CMB background curvature histories must stay "
+                "non-negative."
+            )
     else:
-        d_m = chi_grid
-    da_grid = numpy.divide(d_m, 1.0 + z_grid, dtype=float)
+        chi_grid = derived_chi_grid
+        omega_k = physical_params.Omega_k0
+        if omega_k is None:
+            raise ValueError(
+                "Declared CMB background must declare Omega_k0 when "
+                "curvature distances are not provided explicitly."
+            )
+        if abs(omega_k) > 1.0e-8:
+            sqrt_ok = math.sqrt(abs(omega_k))
+            hubble_distance_mpc = _C_LIGHT_KM_S / physical_params.H0_km_s_Mpc
+            arg = sqrt_ok * chi_grid / max(hubble_distance_mpc, 1.0e-12)
+            if omega_k > 0.0:
+                d_m = hubble_distance_mpc / sqrt_ok * numpy.sinh(arg)
+            else:
+                d_m = hubble_distance_mpc / sqrt_ok * numpy.sin(arg)
+        else:
+            d_m = chi_grid
+        da_grid = numpy.divide(d_m, 1.0 + z_grid, dtype=float)
     n_H_grid = physical_params.n_H0_m3 * numpy.power(1.0 + z_grid, 3.0)
+    if physical_params.Omega_gamma0 <= 0.0:
+        raise ValueError(
+            "Declared CMB native execution requires a positive photon "
+            "density."
+        )
 
     def _safe_exp(log_value: float) -> float:
         """Return ``exp(log_value)`` while avoiding overflow."""
@@ -1977,6 +2365,7 @@ class _DeclaredGraphRuntimeSpec:
     state_index_by_key: FrozenMapping
     equation_by_variable: FrozenMapping
     equation_orders: FrozenMapping
+    equation_wrt_by_variable: FrozenMapping
 
 
 def _prepare_declared_graph_runtime_spec(
@@ -1984,25 +2373,9 @@ def _prepare_declared_graph_runtime_spec(
 ) -> _DeclaredGraphRuntimeSpec:
     """Return state-vector metadata for the declared graph contract."""
 
-    for entry in perturbation_data.boundary_conditions.values():
-        if str(getattr(entry, "anchor", "start")) != "start":
-            raise ValueError(
-                "Declared CMB graph native execution only supports "
-                "start-anchored boundary conditions."
-            )
-
-    wrt_names = {
-        str(entry.lhs.wrt) for entry in perturbation_data.equations.values()
-    }
-    if len(wrt_names) != 1:
-        readable = ", ".join(sorted(wrt_names))
-        raise ValueError(
-            "Declared CMB graph evolution must use one independent "
-            f"variable, got: {readable}"
-        )
-    evolution_variable = next(iter(wrt_names))
     equation_by_variable: dict[str, Any] = {}
     equation_orders: dict[str, int] = {}
+    equation_wrt_by_variable: dict[str, str] = {}
     for equation_name, equation_entry in perturbation_data.equations.items():
         variable_name = str(equation_entry.lhs.variable)
         if variable_name in equation_by_variable:
@@ -2014,30 +2387,33 @@ def _prepare_declared_graph_runtime_spec(
             )
         equation_by_variable[variable_name] = equation_entry
         equation_orders[variable_name] = int(equation_entry.lhs.order)
+        equation_wrt_by_variable[variable_name] = str(equation_entry.lhs.wrt)
 
     state_slots: list[_DeclaredStateSlot] = []
     state_index_by_key: dict[tuple[str, str, int], int] = {}
     for variable_name in sorted(equation_by_variable):
         order = equation_orders[variable_name]
+        variable_wrt = equation_wrt_by_variable[variable_name]
         for derivative_order in range(order):
             index = len(state_slots)
             slot = _DeclaredStateSlot(
                 variable=variable_name,
-                wrt=evolution_variable,
+                wrt=variable_wrt,
                 order=derivative_order,
                 index=index,
             )
             state_slots.append(slot)
             state_index_by_key[
-                (variable_name, evolution_variable, derivative_order)
+                (variable_name, variable_wrt, derivative_order)
             ] = index
 
     return _DeclaredGraphRuntimeSpec(
-        evolution_variable=evolution_variable,
+        evolution_variable="eta",
         state_slots=tuple(state_slots),
         state_index_by_key=FrozenMapping(state_index_by_key),
         equation_by_variable=FrozenMapping(equation_by_variable),
         equation_orders=FrozenMapping(equation_orders),
+        equation_wrt_by_variable=FrozenMapping(equation_wrt_by_variable),
     )
 
 
@@ -2089,14 +2465,29 @@ def _build_declared_base_context(
     )
     context["a_initial"] = float(background_scalars["a"])
     context["eta_initial"] = float(eta_value)
-    context.setdefault("Omega_b0", float(physical_params.Omega_b0))
-    context.setdefault("Omega_c0", float(physical_params.Omega_c0))
-    context.setdefault("Omega_m0", float(physical_params.Omega_m0_background))
-    context.setdefault("Omega_gamma0", float(physical_params.Omega_gamma0))
-    context.setdefault("Omega_nu0", float(physical_params.Omega_nu0))
-    context.setdefault("Omega_r0", float(physical_params.Omega_r0))
-    context.setdefault("Omega_k0", float(physical_params.Omega_k0))
-    context.setdefault("Omega_de0", float(physical_params.Omega_de0))
+    for name, value in (
+        ("Omega_b0", physical_params.Omega_b0),
+        ("ombh2", physical_params.ombh2),
+        ("Omega_c0", physical_params.Omega_c0),
+        ("omch2", physical_params.omch2),
+        ("Omega_m0", physical_params.Omega_m0_background),
+        ("Omega_gamma0", physical_params.Omega_gamma0),
+        ("Omega_nu0", physical_params.Omega_nu0),
+        ("Omega_r0", physical_params.Omega_r0),
+        ("Omega_k0", physical_params.Omega_k0),
+        ("Omega_de0", physical_params.Omega_de0),
+        ("w0", physical_params.dark_energy_eos0),
+        ("wa", physical_params.dark_energy_eos1),
+        ("Neff", physical_params.Neff),
+        ("primordial_amplitude", physical_params.primordial_amplitude),
+        (
+            "primordial_spectral_index",
+            physical_params.primordial_spectral_index,
+        ),
+    ):
+        if value is None:
+            continue
+        context.setdefault(name, float(value))
     context["sound_horizon"] = float(background_scalars["sound_horizon"])
     context["sound_speed_sq"] = float(background_scalars["sound_speed_sq"])
     context["collision_rate"] = float(background_scalars["collision_rate"])
@@ -2178,9 +2569,32 @@ def _resolve_declared_graph_context(
                     continue
                 context[name] = context[slot_name]
             else:
+                coordinate_name = str(
+                    entry.wrt or runtime_spec.evolution_variable
+                )
                 derivative_value = numpy.asarray(target_value, dtype=float)
+                if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+                    coordinate_history = numpy.asarray(eta_grid, dtype=float)
+                else:
+                    if coordinate_name not in context:
+                        continue
+                    coordinate_history = numpy.asarray(
+                        context[coordinate_name],
+                        dtype=float,
+                    )
+                    if coordinate_history.ndim == 0:
+                        coordinate_history = numpy.full_like(
+                            eta_grid,
+                            float(coordinate_history),
+                            dtype=float,
+                        )
+                    if coordinate_history.shape != eta_grid.shape:
+                        raise ValueError(
+                            "Declared coordinate history must match the eta "
+                            f"grid for derivative symbol '{name}'."
+                        )
                 for _ in range(derivative_order):
-                    derivative_value = numpy.asarray(
+                    derivative_eta = numpy.asarray(
                         numpy.gradient(
                             derivative_value,
                             eta_grid,
@@ -2188,6 +2602,31 @@ def _resolve_declared_graph_context(
                         ),
                         dtype=float,
                     )
+                    if (
+                        coordinate_name
+                        in _LEGACY_DECLARED_EVOLUTION_COORDINATES
+                    ):
+                        derivative_value = derivative_eta
+                        continue
+                    coordinate_rate = numpy.asarray(
+                        numpy.gradient(
+                            coordinate_history,
+                            eta_grid,
+                            edge_order=1,
+                        ),
+                        dtype=float,
+                    )
+                    if not numpy.all(numpy.isfinite(coordinate_rate)):
+                        raise ValueError(
+                            "Declared coordinate history produced non-finite "
+                            f"rates for derivative symbol '{name}'."
+                        )
+                    if numpy.any(numpy.abs(coordinate_rate) <= 1.0e-12):
+                        raise ValueError(
+                            "Declared coordinate history is singular for "
+                            f"derivative symbol '{name}'."
+                        )
+                    derivative_value = derivative_eta / coordinate_rate
                 context[name] = derivative_value
             unresolved_derivatives.pop(name)
             progress = True
@@ -2243,10 +2682,11 @@ def _evaluate_declared_initial_state(
     perturbation_data: Any,
     runtime_spec: _DeclaredGraphRuntimeSpec,
     base_context: Mapping[str, Any],
-) -> numpy.ndarray:
+) -> tuple[numpy.ndarray, tuple[tuple[str, str, int], ...]]:
     """Return the initial state vector for one Fourier mode."""
 
     state_vector = numpy.zeros(len(runtime_spec.state_slots), dtype=float)
+    assigned_targets: list[tuple[str, str, int]] = []
     context = dict(base_context)
     condition_entries = sorted(
         tuple(perturbation_data.initial_conditions.values())
@@ -2294,6 +2734,13 @@ def _evaluate_declared_initial_state(
                 )
             ]
             state_vector[state_index] = value
+            assigned_targets.append(
+                (
+                    str(entry.target.variable),
+                    str(entry.target.wrt),
+                    int(entry.target.order),
+                )
+            )
             if int(entry.target.order) == 0:
                 context[str(entry.target.variable)] = value
             else:
@@ -2318,7 +2765,7 @@ def _evaluate_declared_initial_state(
         eta_grid=None,
         runtime_spec=runtime_spec,
     )
-    return state_vector
+    return state_vector, tuple(assigned_targets)
 
 
 def _declared_graph_projection(
@@ -2545,6 +2992,53 @@ def _compute_custom_cmb_spectrum_data(
         a_values=a_los_grid,
         z_values=z_los_grid,
     )
+    declared_background_histories: dict[str, numpy.ndarray] = {}
+    for name, raw_value in declared_background_los.items():
+        if name in {"a", "z"}:
+            continue
+        history = numpy.asarray(raw_value, dtype=float)
+        if history.ndim == 0:
+            history = numpy.full_like(
+                eta_los_grid,
+                float(history),
+                dtype=float,
+            )
+        if history.shape != eta_los_grid.shape:
+            raise ValueError(
+                "Declared background symbol did not match the "
+                f"line-of-sight grid: {name}"
+            )
+        if not numpy.all(numpy.isfinite(history)):
+            raise ValueError(
+                "Declared background symbol produced non-finite values: "
+                f"{name}"
+            )
+        declared_background_histories[name] = history
+    coordinate_histories = {
+        "a": a_los_grid,
+        "z": z_los_grid,
+        "eta": eta_los_grid,
+        "H": H_los_grid,
+        "Hconf": Hconf_los_grid,
+        "tau": tau_los_grid,
+        "tau_dot": tau_dot_los_grid,
+        "visibility": visibility_los_grid,
+        "chi": chi_los_grid,
+        "angular_diameter_distance": angular_diameter_distance_grid,
+        "sound_speed": sound_speed_los_grid,
+    }
+    for name, history in declared_background_histories.items():
+        coordinate_histories.setdefault(name, history)
+    coordinate_rate_histories = {
+        "eta": numpy.ones_like(eta_los_grid, dtype=float)
+    }
+    for name, history in coordinate_histories.items():
+        if name == "eta":
+            continue
+        coordinate_rate_histories[name] = numpy.asarray(
+            numpy.gradient(history, eta_los_grid, edge_order=1),
+            dtype=float,
+        )
 
     eta0_floor = max(background.eta0, 1.0e-6)
     k_min = max(
@@ -2607,92 +3101,150 @@ def _compute_custom_cmb_spectrum_data(
     if numpy.any(los_step_sizes <= 0.0):
         raise ValueError("eta_los_grid must be strictly increasing")
 
+    def _blend_history(
+        history: numpy.ndarray,
+        *,
+        step_index: int,
+        blend: float,
+    ) -> float:
+        """Return one linearly interpolated history value."""
+
+        next_index = min(step_index + 1, eta_los_grid.size - 1)
+        weight_next = float(blend)
+        weight_current = 1.0 - weight_next
+        return float(
+            weight_current * history[step_index]
+            + weight_next * history[next_index]
+        )
+
     def _scalar_background_context(
         step_index: int,
         blend: float,
     ) -> tuple[float, dict[str, float]]:
         """Return one interpolated scalar background context."""
 
-        next_index = min(step_index + 1, eta_los_grid.size - 1)
-        weight_next = float(blend)
-        weight_current = 1.0 - weight_next
-        eta_value = (
-            weight_current * eta_los_grid[step_index]
-            + weight_next * eta_los_grid[next_index]
+        eta_value = _blend_history(
+            eta_los_grid,
+            step_index=step_index,
+            blend=blend,
         )
         scalar_context = {
-            "a": float(
-                weight_current * a_los_grid[step_index]
-                + weight_next * a_los_grid[next_index]
+            "a": _blend_history(
+                a_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "z": float(
-                weight_current * z_los_grid[step_index]
-                + weight_next * z_los_grid[next_index]
+            "z": _blend_history(
+                z_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
             "eta": float(eta_value),
-            "H": float(
-                weight_current * H_los_grid[step_index]
-                + weight_next * H_los_grid[next_index]
+            "H": _blend_history(
+                H_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "Hconf": float(
-                weight_current * Hconf_los_grid[step_index]
-                + weight_next * Hconf_los_grid[next_index]
+            "Hconf": _blend_history(
+                Hconf_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "tau": float(
-                weight_current * tau_los_grid[step_index]
-                + weight_next * tau_los_grid[next_index]
+            "tau": _blend_history(
+                tau_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "tau_dot": float(
-                weight_current * tau_dot_los_grid[step_index]
-                + weight_next * tau_dot_los_grid[next_index]
+            "tau_dot": _blend_history(
+                tau_dot_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "visibility": float(
-                weight_current * visibility_los_grid[step_index]
-                + weight_next * visibility_los_grid[next_index]
+            "visibility": _blend_history(
+                visibility_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "chi": float(
-                weight_current * chi_los_grid[step_index]
-                + weight_next * chi_los_grid[next_index]
+            "chi": _blend_history(
+                chi_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "angular_diameter_distance": float(
-                weight_current * angular_diameter_distance_grid[step_index]
-                + weight_next * angular_diameter_distance_grid[next_index]
+            "angular_diameter_distance": _blend_history(
+                angular_diameter_distance_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "sound_speed": float(
-                weight_current * sound_speed_los_grid[step_index]
-                + weight_next * sound_speed_los_grid[next_index]
+            "sound_speed": _blend_history(
+                sound_speed_los_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "sound_speed_sq": float(
-                weight_current * sound_speed_sq_grid[step_index]
-                + weight_next * sound_speed_sq_grid[next_index]
+            "sound_speed_sq": _blend_history(
+                sound_speed_sq_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "collision_rate": float(
-                weight_current * collision_rate_grid[step_index]
-                + weight_next * collision_rate_grid[next_index]
+            "collision_rate": _blend_history(
+                collision_rate_grid,
+                step_index=step_index,
+                blend=blend,
             ),
-            "free_streaming": float(
-                weight_current * free_streaming_grid[step_index]
-                + weight_next * free_streaming_grid[next_index]
+            "free_streaming": _blend_history(
+                free_streaming_grid,
+                step_index=step_index,
+                blend=blend,
             ),
             "sound_horizon": float(background.sound_horizon_mpc),
         }
-        for name, raw_value in declared_background_los.items():
-            if name in {"a", "z"}:
-                continue
-            value = numpy.asarray(raw_value, dtype=float)
-            if value.ndim == 0:
-                scalar_context[name] = float(value)
-                continue
-            if value.shape != eta_los_grid.shape:
-                raise ValueError(
-                    "Declared background symbol did not match the "
-                    f"line-of-sight grid: {name}"
-                )
-            scalar_context[name] = float(
-                weight_current * value[step_index]
-                + weight_next * value[next_index]
+        for name, history in declared_background_histories.items():
+            scalar_context[name] = _blend_history(
+                history,
+                step_index=step_index,
+                blend=blend,
             )
         return float(eta_value), scalar_context
+
+    def _resolve_coordinate_rate(
+        *,
+        wrt_name: str,
+        scalar_context: Mapping[str, float],
+        step_index: int,
+        blend: float,
+        k_value: float,
+    ) -> float:
+        """Return ``dwrt/deta`` for one declared runtime coordinate."""
+
+        if wrt_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+            return 1.0
+        for legacy_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+            derivative_symbol = f"__d1_{wrt_name}_{legacy_name}"
+            if derivative_symbol not in scalar_context:
+                continue
+            rate = float(scalar_context[derivative_symbol])
+            break
+        else:
+            if wrt_name not in coordinate_rate_histories:
+                raise ValueError(
+                    "Declared CMB coordinate transform does not support "
+                    f"wrt '{wrt_name}'."
+                )
+            rate = _blend_history(
+                coordinate_rate_histories[wrt_name],
+                step_index=step_index,
+                blend=blend,
+            )
+        if not numpy.isfinite(rate) or abs(rate) <= 1.0e-12:
+            eta_value = _blend_history(
+                eta_los_grid,
+                step_index=step_index,
+                blend=blend,
+            )
+            raise ValueError(
+                "Declared CMB coordinate transform is singular for "
+                f"wrt '{wrt_name}' at eta={eta_value}, k={k_value}"
+            )
+        return rate
 
     def _build_scalar_state_context(
         state_vector: numpy.ndarray,
@@ -2766,64 +3318,36 @@ def _compute_custom_cmb_spectrum_data(
                 physical_params=physical_params,
                 model_parameters=source_parameters,
             ),
-            "Omega_b0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_b0),
-                dtype=float,
-            ),
-            "Omega_c0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_c0),
-                dtype=float,
-            ),
-            "Omega_m0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_m0_background),
-                dtype=float,
-            ),
-            "Omega_gamma0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_gamma0),
-                dtype=float,
-            ),
-            "Omega_nu0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_nu0),
-                dtype=float,
-            ),
-            "Omega_r0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_r0),
-                dtype=float,
-            ),
-            "Omega_k0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_k0),
-                dtype=float,
-            ),
-            "Omega_de0": numpy.full_like(
-                eta_los_grid,
-                float(physical_params.Omega_de0),
-                dtype=float,
-            ),
         }
-        for name, raw_value in declared_background_los.items():
-            if name in {"a", "z"}:
+        for name, value in (
+            ("Omega_b0", physical_params.Omega_b0),
+            ("ombh2", physical_params.ombh2),
+            ("Omega_c0", physical_params.Omega_c0),
+            ("omch2", physical_params.omch2),
+            ("Omega_m0", physical_params.Omega_m0_background),
+            ("Omega_gamma0", physical_params.Omega_gamma0),
+            ("Omega_nu0", physical_params.Omega_nu0),
+            ("Omega_r0", physical_params.Omega_r0),
+            ("Omega_k0", physical_params.Omega_k0),
+            ("Omega_de0", physical_params.Omega_de0),
+            ("w0", physical_params.dark_energy_eos0),
+            ("wa", physical_params.dark_energy_eos1),
+            ("Neff", physical_params.Neff),
+            ("primordial_amplitude", physical_params.primordial_amplitude),
+            (
+                "primordial_spectral_index",
+                physical_params.primordial_spectral_index,
+            ),
+        ):
+            if value is None:
                 continue
-            value = numpy.asarray(raw_value, dtype=float)
-            if value.ndim == 0:
-                context[name] = numpy.full_like(
-                    eta_los_grid,
-                    float(value),
-                    dtype=float,
-                )
-                continue
-            if value.shape != eta_los_grid.shape:
-                raise ValueError(
-                    "Declared background symbol did not match the "
-                    f"line-of-sight grid: {name}"
-                )
-            context[name] = value
+            context[name] = numpy.full_like(
+                eta_los_grid,
+                float(value),
+                dtype=float,
+            )
+        for name, history in declared_background_histories.items():
+            context[name] = numpy.asarray(history, dtype=float)
         for name, value in source_parameters.items():
             context[name] = float(value)
         for slot in runtime_spec.state_slots:
@@ -2897,26 +3421,39 @@ def _compute_custom_cmb_spectrum_data(
         )
         derivative = numpy.zeros_like(state_vector, dtype=float)
         for slot in runtime_spec.state_slots:
+            coordinate_rate = _resolve_coordinate_rate(
+                wrt_name=slot.wrt,
+                scalar_context=scalar_context,
+                step_index=step_index,
+                blend=blend,
+                k_value=float(k_value),
+            )
             if slot.order + 1 < runtime_spec.equation_orders[slot.variable]:
-                derivative[slot.index] = float(
-                    state_vector[
-                        runtime_spec.state_index_by_key[
-                            (
-                                slot.variable,
-                                slot.wrt,
-                                slot.order + 1,
-                            )
+                derivative[slot.index] = (
+                    float(
+                        state_vector[
+                            runtime_spec.state_index_by_key[
+                                (
+                                    slot.variable,
+                                    slot.wrt,
+                                    slot.order + 1,
+                                )
+                            ]
                         ]
-                    ]
+                    )
+                    * coordinate_rate
                 )
                 continue
             equation_entry = runtime_spec.equation_by_variable[slot.variable]
-            derivative[slot.index] = _coerce_numeric_scalar(
-                _evaluate_safe_expression(
-                    str(equation_entry.rhs),
-                    scalar_context,
-                ),
-                name=f"equation '{equation_entry.name}'",
+            derivative[slot.index] = (
+                _coerce_numeric_scalar(
+                    _evaluate_safe_expression(
+                        str(equation_entry.rhs),
+                        scalar_context,
+                    ),
+                    name=f"equation '{equation_entry.name}'",
+                )
+                * coordinate_rate
             )
         if not numpy.all(numpy.isfinite(derivative)):
             bad_indices = numpy.flatnonzero(~numpy.isfinite(derivative))
@@ -2932,26 +3469,19 @@ def _compute_custom_cmb_spectrum_data(
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
         """Integrate one Fourier mode through the declared graph."""
 
-        initial_eta, initial_background = _scalar_background_context(0, 0.0)
-        initial_context = _build_declared_base_context(
-            model_parameters=source_parameters,
-            physical_params=physical_params,
-            numerics=numerics,
-            k_value=float(k_value),
-            eta_value=float(initial_eta),
-            background_scalars=initial_background,
+        end_boundary_entries = sorted(
+            (
+                entry
+                for entry in perturbation_data.boundary_conditions.values()
+                if str(getattr(entry, "anchor", "start")) == "end"
+            ),
+            key=lambda entry: (
+                str(entry.target.variable),
+                str(entry.target.wrt),
+                int(entry.target.order),
+                str(entry.name),
+            ),
         )
-        state = _evaluate_declared_initial_state(
-            perturbation_data=perturbation_data,
-            runtime_spec=runtime_spec,
-            base_context=initial_context,
-        )
-        histories = {
-            slot.variable: numpy.empty_like(eta_los_grid, dtype=float)
-            for slot in runtime_spec.state_slots
-            if slot.order == 0
-        }
-        state = numpy.asarray(state, dtype=float)
 
         def _advance_declared_interval(
             state_vector: numpy.ndarray,
@@ -3045,19 +3575,208 @@ def _compute_custom_cmb_spectrum_data(
                 f"at k={k_value}, step_index={step_index}"
             )
 
-        for step_index, eta_value in enumerate(eta_los_grid):
-            for slot in runtime_spec.state_slots:
-                if slot.order != 0:
-                    continue
-                histories[slot.variable][step_index] = state[slot.index]
-            if step_index == eta_los_grid.size - 1:
-                break
-            dt = float(eta_los_grid[step_index + 1] - eta_value)
-            state = _advance_declared_interval(
-                state,
-                step_index=step_index,
-                dt=dt,
+        def _integrate_declared_state_history(
+            initial_state: numpy.ndarray,
+        ) -> tuple[dict[str, numpy.ndarray], numpy.ndarray]:
+            """Return mode histories and the final state vector."""
+
+            histories = {
+                slot.variable: numpy.empty_like(eta_los_grid, dtype=float)
+                for slot in runtime_spec.state_slots
+                if slot.order == 0
+            }
+            state = numpy.asarray(initial_state, dtype=float).copy()
+            for step_index, eta_value in enumerate(eta_los_grid):
+                for slot in runtime_spec.state_slots:
+                    if slot.order != 0:
+                        continue
+                    histories[slot.variable][step_index] = state[slot.index]
+                if step_index == eta_los_grid.size - 1:
+                    break
+                dt = float(eta_los_grid[step_index + 1] - eta_value)
+                state = _advance_declared_interval(
+                    state,
+                    step_index=step_index,
+                    dt=dt,
+                    k_value=float(k_value),
+                )
+            return histories, state
+
+        def _evaluate_end_boundary_residuals(
+            final_state: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Return end-boundary residuals for one integrated mode."""
+
+            if not end_boundary_entries:
+                return numpy.zeros(0, dtype=float)
+            final_eta, final_background = _scalar_background_context(
+                eta_los_grid.size - 1,
+                0.0,
+            )
+            final_context = _build_scalar_state_context(
+                final_state,
                 k_value=float(k_value),
+                eta_value=float(final_eta),
+                background_scalars=final_background,
+            )
+            residuals = []
+            for entry in end_boundary_entries:
+                state_index = runtime_spec.state_index_by_key[
+                    (
+                        str(entry.target.variable),
+                        str(entry.target.wrt),
+                        int(entry.target.order),
+                    )
+                ]
+                expected_value = _coerce_numeric_scalar(
+                    _evaluate_safe_expression(
+                        str(entry.expression),
+                        final_context,
+                    ),
+                    name=f"end boundary '{entry.name}'",
+                )
+                residuals.append(
+                    float(final_state[state_index]) - float(expected_value)
+                )
+            return numpy.asarray(residuals, dtype=float)
+
+        initial_eta, initial_background = _scalar_background_context(0, 0.0)
+        initial_context = _build_declared_base_context(
+            model_parameters=source_parameters,
+            physical_params=physical_params,
+            numerics=numerics,
+            k_value=float(k_value),
+            eta_value=float(initial_eta),
+            background_scalars=initial_background,
+        )
+        initial_state, assigned_targets = _evaluate_declared_initial_state(
+            perturbation_data=perturbation_data,
+            runtime_spec=runtime_spec,
+            base_context=initial_context,
+        )
+        state = numpy.asarray(initial_state, dtype=float)
+        if end_boundary_entries:
+            assigned_target_set = set(assigned_targets)
+            free_target_keys = tuple(
+                sorted(
+                    (
+                        slot.variable,
+                        slot.wrt,
+                        slot.order,
+                    )
+                    for slot in runtime_spec.state_slots
+                    if (
+                        slot.variable,
+                        slot.wrt,
+                        slot.order,
+                    )
+                    not in assigned_target_set
+                )
+            )
+            end_target_keys = tuple(
+                sorted(
+                    (
+                        str(entry.target.variable),
+                        str(entry.target.wrt),
+                        int(entry.target.order),
+                    )
+                    for entry in end_boundary_entries
+                )
+            )
+            if free_target_keys != end_target_keys:
+                raise ValueError(
+                    "Declared end boundary solver requires end anchors to "
+                    "replace exactly the missing start-state slots."
+                )
+            free_indices = numpy.asarray(
+                [
+                    runtime_spec.state_index_by_key[target_key]
+                    for target_key in free_target_keys
+                ],
+                dtype=int,
+            )
+            initial_guess_context = _build_scalar_state_context(
+                state,
+                k_value=float(k_value),
+                eta_value=float(initial_eta),
+                background_scalars=initial_background,
+            )
+            boundary_guess = []
+            for entry in end_boundary_entries:
+                try:
+                    boundary_guess.append(
+                        _coerce_numeric_scalar(
+                            _evaluate_safe_expression(
+                                str(entry.expression),
+                                initial_guess_context,
+                            ),
+                            name=f"end boundary '{entry.name}' guess",
+                        )
+                    )
+                except ValueError:
+                    boundary_guess.append(
+                        float(
+                            state[
+                                runtime_spec.state_index_by_key[
+                                    (
+                                        str(entry.target.variable),
+                                        str(entry.target.wrt),
+                                        int(entry.target.order),
+                                    )
+                                ]
+                            ]
+                        )
+                    )
+
+            def _boundary_objective(
+                unknown_values: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Return end-boundary residuals for one shooting guess."""
+
+                trial_state = numpy.asarray(state, dtype=float).copy()
+                trial_state[free_indices] = numpy.asarray(
+                    unknown_values,
+                    dtype=float,
+                )
+                _, final_state = _integrate_declared_state_history(trial_state)
+                return _evaluate_end_boundary_residuals(final_state)
+
+            boundary_solution = least_squares(
+                _boundary_objective,
+                numpy.asarray(boundary_guess, dtype=float),
+                xtol=1.0e-10,
+                ftol=1.0e-10,
+                gtol=1.0e-10,
+            )
+            residual_scale = max(float(numerics.ode_atol) * 50.0, 1.0e-8)
+            final_residuals = numpy.asarray(
+                boundary_solution.fun,
+                dtype=float,
+            )
+            if (
+                not boundary_solution.success
+                or not numpy.all(numpy.isfinite(boundary_solution.x))
+                or not numpy.all(numpy.isfinite(final_residuals))
+                or numpy.max(numpy.abs(final_residuals), initial=0.0)
+                > residual_scale
+            ):
+                message = str(getattr(boundary_solution, "message", "unknown"))
+                raise ValueError(
+                    "Declared end boundary solver failed to converge: "
+                    f"{message}"
+                )
+            state[free_indices] = numpy.asarray(
+                boundary_solution.x,
+                dtype=float,
+            )
+        histories, final_state = _integrate_declared_state_history(state)
+        final_residuals = _evaluate_end_boundary_residuals(final_state)
+        if final_residuals.size and numpy.max(
+            numpy.abs(final_residuals), initial=0.0
+        ) > max(float(numerics.ode_atol) * 50.0, 1.0e-8):
+            raise ValueError(
+                "Declared end boundary conditions remained unsatisfied "
+                "after integration."
             )
         array_context = _build_array_context(histories, k_value=float(k_value))
         source_arrays = _evaluate_declared_sources(
