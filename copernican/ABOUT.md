@@ -36,7 +36,8 @@ compatibility layer. Non-standard contracts now declare variables,
 equations, constraints, closures, sources, initial conditions, observable
 mappings, and numerical requirements in one immutable graph; unsupported
 symbols, unsolved variables, missing initial conditions, missing
-observables, and incompatible projection-role bindings fail loudly. The
+observables, incompatible projection-role bindings, and unsupported
+projection kernels fail loudly. The
 implementation lives in
 `copernican/lib/likelihoods/cmb.py` and uses bounded `k` sampling with cached
 mode histories and Bessel projection for the requested line-of-sight window.
@@ -51,8 +52,11 @@ left-hand sides; and end-anchored boundary conditions can drive the native
 shooter when they replace the missing start-state slots. Declared
 observables may now target TT,
 TE, EE, BB, lensing-potential, or custom transfer components when their
-required graph quantities and projection roles are present. `spin2_b_mode`
-requires a declared `polarization_b` source, and
+required graph quantities and projection roles are present. Transfer
+components keep named source-term roles separate from reviewed projection
+kernels, and `custom_line_of_sight` can project declared source sums through
+explicit kernels without hiding unsupported BB or lensing inputs.
+`spin2_b_mode` requires a declared `polarization_b` source, and
 `line_of_sight_lensing_potential` requires a declared `potential` source. The
 front-door README mirrors that summary so package readers see the same custom
 CMB surface from the repository root.

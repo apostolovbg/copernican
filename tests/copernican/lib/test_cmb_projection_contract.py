@@ -5,9 +5,13 @@ from __future__ import annotations
 import unittest
 
 from copernican.lib.cmb_projection_contract import (
+    SUPPORTED_DECLARED_TRANSFER_PROJECTION_KERNELS,
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
+    DeclaredProjectionKernelSpec,
     DeclaredProjectionSpec,
+    get_declared_projection_kernel_spec,
     get_declared_projection_spec,
+    resolve_declared_projection_kernel,
     validate_declared_projection_source_roles,
 )
 
@@ -32,6 +36,14 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             "spin2_b_mode",
             SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
         )
+        self.assertIn(
+            "custom_line_of_sight",
+            SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
+        )
+        self.assertIn(
+            "spin2_b_window",
+            SUPPORTED_DECLARED_TRANSFER_PROJECTION_KERNELS,
+        )
 
     def test_required_roles_pass_validation(self) -> None:
         """Validation should accept the declared roles for a projection."""
@@ -41,6 +53,17 @@ class CMBProjectionContractTestCase(unittest.TestCase):
                 projection="line_of_sight_temperature",
                 observable_name="temperature",
                 source_roles={"monopole", "doppler", "isw", "additive"},
+            )
+        )
+
+    def test_custom_projection_accepts_declared_roles(self) -> None:
+        """Generic custom projections should accept explicit role mappings."""
+
+        self.assertIsNone(
+            validate_declared_projection_source_roles(
+                projection="custom_line_of_sight",
+                observable_name="custom_signal",
+                source_roles={"signal", "signal_aux"},
             )
         )
 
@@ -54,6 +77,19 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             validate_declared_projection_source_roles(
                 projection="line_of_sight_polarization_e",
                 observable_name="polarization_e",
+                source_roles=set(),
+            )
+
+    def test_custom_projection_requires_at_least_one_role(self) -> None:
+        """Custom line-of-sight projections should reject empty bindings."""
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires at least one declared source-term role",
+        ):
+            validate_declared_projection_source_roles(
+                projection="custom_line_of_sight",
+                observable_name="custom_signal",
                 source_roles=set(),
             )
 
@@ -97,6 +133,15 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertEqual(spec.required_roles, ("potential",))
         self.assertEqual(spec.allowed_roles, ("potential", "signal"))
 
+    def test_kernel_spec_lookup_returns_native_contract(self) -> None:
+        """Kernel lookups should expose immutable runtime metadata."""
+
+        spec = get_declared_projection_kernel_spec("spin2_e_window")
+
+        self.assertIsInstance(spec, DeclaredProjectionKernelSpec)
+        self.assertEqual(spec.name, "spin2_e_window")
+        self.assertEqual(spec.kind, "spin2_e")
+
     def test_projection_spec_lookup_returns_native_contract(self) -> None:
         """Projection lookups should expose the native immutable contracts."""
 
@@ -104,7 +149,40 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         self.assertEqual(spec.name, "spin2_b_mode")
         self.assertEqual(spec.required_roles, ("polarization_b",))
+        self.assertEqual(spec.default_kernel, "spin2_b_window")
         self.assertTrue(spec.requires_odd_parity_source)
+
+    def test_custom_projection_requires_explicit_kernel(self) -> None:
+        """Custom line-of-sight projections should require a kernel."""
+
+        with self.assertRaisesRegex(ValueError, "must declare kernel"):
+            resolve_declared_projection_kernel(
+                "custom_line_of_sight",
+                observable_name="custom_signal",
+                kernel=None,
+            )
+
+    def test_builtin_projection_rejects_custom_kernel_override(self) -> None:
+        """Builtin projections should keep their reviewed kernel contract."""
+
+        with self.assertRaisesRegex(ValueError, "does not support kernel"):
+            resolve_declared_projection_kernel(
+                "line_of_sight_signal",
+                observable_name="signal_transfer",
+                kernel="spin2_e_window",
+            )
+
+    def test_custom_projection_accepts_supported_kernel(self) -> None:
+        """Custom line-of-sight projections should allow reviewed kernels."""
+
+        self.assertEqual(
+            resolve_declared_projection_kernel(
+                "custom_line_of_sight",
+                observable_name="custom_signal",
+                kernel="lensing_potential_window",
+            ),
+            "lensing_potential_window",
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

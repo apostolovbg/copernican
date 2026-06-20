@@ -237,7 +237,8 @@ the same convention.
   graph of variables, equations, constraints, closures, sources, initial
   conditions, observable mappings, and numerical requirements. Unsupported
   symbols, unsolved variables, missing initial conditions, missing
-  observables, and incompatible projection-role bindings fail fast.
+  observables, incompatible projection-role bindings, and unsupported
+  projection kernels fail fast.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same
@@ -290,7 +291,10 @@ the same convention.
   the compiled declarative CMB engine. Non-standard models declare their
   own equations, closures and observable projections directly, while the
   available background and perturbation symbols stay limited to the
-  documented CMB engine context so unsupported names fail loudly.
+  documented CMB engine context so unsupported names fail loudly. Transfer
+  components keep source-term roles separate from reviewed projection
+  kernels, and `custom_line_of_sight` can project declared source sums
+  through explicit kernels without hiding unsupported BB or lensing inputs.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except

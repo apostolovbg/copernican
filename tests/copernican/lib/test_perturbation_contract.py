@@ -300,6 +300,10 @@ class PerturbationContractTestCase(unittest.TestCase):
             PerturbationObservableData,
         )
         self.assertEqual(
+            contract_data.observables["temperature"].kernel,
+            "temperature_mixed_window",
+        )
+        self.assertEqual(
             contract_data.initial_conditions["delta_seed"].target.order,
             0,
         )
@@ -336,6 +340,27 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             contract_data.manifest_summary["boundary_condition_anchors"],
             {},
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["transfer_component_contracts"][
+                "temperature"
+            ]["kernel"],
+            "temperature_mixed_window",
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["transfer_component_contracts"][
+                "polarization_e"
+            ]["source_term_roles"],
+            ("polarization",),
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["angular_power_spectrum_targets"][
+                "TT"
+            ],
+            {
+                "primary": "temperature",
+                "secondary": "temperature",
+            },
         )
 
     def test_hybrid_graph_compiles_as_one_graph(self) -> None:
@@ -482,6 +507,86 @@ class PerturbationContractTestCase(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "requires the source-term roles",
+        ):
+            self._compile(contract)
+
+    def test_custom_line_of_sight_projection_compiles_with_kernel(
+        self,
+    ) -> None:
+        """Custom transfer components should record kernel provenance."""
+
+        contract = _base_nonstandard_contract()
+        contract["variables"]["tensor_b"] = {
+            "kind": "custom_tensor_polarization_source",
+            "projection_role": "b_mode",
+            "rank": 2,
+            "spin": 2.0,
+            "parity": "odd",
+            "tensor_character": "tensor_like",
+        }
+        contract["equations"]["evolve_tensor_b"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "tensor_b",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-0.1 * tensor_b + theta_x",
+            "role": "odd_parity_polarization",
+        }
+        contract["initial_conditions"]["tensor_b_seed"] = {
+            "target": {
+                "variable": "tensor_b",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+        contract["sources"]["custom_b_source"] = {
+            "expression": "visibility * tensor_b",
+            "role": "polarization_b",
+        }
+        contract["observables"]["custom_b"] = {
+            "kind": "transfer_component",
+            "projection": "custom_line_of_sight",
+            "kernel": "spin2_b_window",
+            "source_terms": {"polarization_b": "custom_b_source"},
+            "required_projection_roles": ["b_mode"],
+        }
+
+        contract_data = self._compile(contract)
+
+        self.assertEqual(
+            contract_data.observables["custom_b"].kernel,
+            "spin2_b_window",
+        )
+        self.assertEqual(
+            contract_data.observables["custom_b"].required_projection_roles,
+            ("b_mode",),
+        )
+
+    def test_custom_line_of_sight_requires_kernel(self) -> None:
+        """Custom transfer components should fail without a kernel."""
+
+        contract = _base_nonstandard_contract()
+        contract["observables"]["temperature"] = {
+            "kind": "transfer_component",
+            "projection": "custom_line_of_sight",
+            "source_terms": {"monopole": "monopole_source"},
+        }
+
+        with self.assertRaisesRegex(ValueError, "must declare kernel"):
+            self._compile(contract)
+
+    def test_angular_power_targets_reject_projection_metadata(self) -> None:
+        """Angular spectra should stay separate from transfer machinery."""
+
+        contract = _base_nonstandard_contract()
+        contract["observables"]["TT"]["projection"] = "line_of_sight_signal"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "must not declare projection or source_terms",
         ):
             self._compile(contract)
 

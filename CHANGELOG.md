@@ -80,6 +80,34 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-20:
+  Change: Completed Slice Five projection generalization by separating
+    transfer-component kernels from source-role mappings, adding
+    `custom_line_of_sight`, recording projection provenance, and closing the
+    Slice Five roadmap tasks.
+  Why: Removed the remaining finite projection-adapter ceiling and the hidden
+    source-substitution path so custom BB and lensing projections stay
+    explicit and fail-loud.
+  Impact: Declared observables can now choose reviewed kernels with manifest
+    provenance, custom BB and PP tests cover the new path, and the roadmap now
+    records Slice Five as closed.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/model_template.yml
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    docs/model_template.yml
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-20:
   Change: Completed Slice Four background and equation universality by
     supporting declared background quantity aliases, mixed runtime
     coordinates, end-boundary shooting, manifest background provenance, and

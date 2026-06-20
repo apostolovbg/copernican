@@ -36,9 +36,9 @@ The purpose of this roadmap remains non-negotiable:
   Python solvers when `standard: false`.
 
 This is the target condition for the full roadmap, not a claim that the
-current branch already solves every well-posed theory. Slice Five and
-Slice Six must remove the specific current limits named below so complete
-declared theories become executable within the model contract.
+current branch already solves every well-posed theory. Slice Six must remove
+the specific current limits named below so complete declared theories become
+executable within the model contract.
 
 This is a forward-only plan. Do not preserve obsolete schema by adding
 compatibility layers. Do not reintroduce scalar-only theory ceilings. Do not
@@ -92,12 +92,11 @@ source metadata such as rank, spin, parity, projection role, or source role,
 but they must not silently choose a hardcoded theory type.
 
 The remaining work is no longer "start building the engine." The remaining
-work is to generalize projection semantics, close docs and provenance truth,
-and only then optimize speed.
+work is to close docs and provenance truth, and only then optimize speed.
 
 ## Current Baseline
 
-The current `new` branch baseline is treated as the end of Slice Four.
+The current `new` branch baseline is treated as the end of Slice Five.
 
 Current status:
 
@@ -105,7 +104,7 @@ Current status:
 * [closed] Slice Two - First physical CMB engine implementation.
 * [closed] Slice Three - Scientific validation hardening.
 * [closed] Slice Four - Background and equation universality.
-* [open] Slice Five - Projection and observable generalization.
+* [closed] Slice Five - Projection and observable generalization.
 * [open] Slice Six - Closure, audit, docs, and provenance truth.
 * [deferred] Slice Seven - Performance and gate-speed optimization.
 
@@ -115,8 +114,6 @@ platform work. The next work begins from that platform.
 
 Current limits that open slices must eliminate:
 
-* Projection dispatch is finite and must become declared-kernel driven where
-  mathematically safe.
 * Manifest "no CAMB prediction" proof must be tied to the executed route, not
   inferred only from `standard: false`.
 * Public docs, templates, and manifests still need a closure audit against
@@ -548,7 +545,7 @@ Done when:
 * [closed] Manifest output records background provenance.
 * [closed] Relevant background, CMB, schema, and manifest tests pass.
 
-### [open] Slice Five - Projection and observable generalization
+### [closed] Slice Five - Projection and observable generalization
 
 Purpose:
 
@@ -592,38 +589,39 @@ Five must extend that baseline instead of restating it as new work.
 
 Tasks:
 
-* [open] Audit current projection vocabulary.
-* [open] Document current projection limits as implementation facts.
-* [open] Distinguish source roles from projection kernels.
-* [open] Distinguish observable targets from projection machinery.
-* [open] Allow observable mappings to declare required source roles.
-* [open] Allow observable mappings to declare required projection roles.
-* [open] Allow observable mappings to declare kernel requirements.
-* [open] Support custom projection kernels where safe and mathematically
+* [closed] Audit current projection vocabulary.
+* [closed] Document current projection limits as implementation facts.
+* [closed] Distinguish source roles from projection kernels.
+* [closed] Distinguish observable targets from projection machinery.
+* [closed] Allow observable mappings to declare required source roles.
+* [closed] Allow observable mappings to declare required projection roles.
+* [closed] Allow observable mappings to declare kernel requirements.
+* [closed] Support custom projection kernels where safe and mathematically
   declared.
-* [open] Keep unsupported projection math fail-loud.
-* [open] Extend BB validation beyond current parity and source-role baseline.
-* [open] Validate BB behavior for custom projection kernels when supported.
-* [open] Validate multi-source BB declarations cannot hide E-only sources.
-* [open] Extend lensing validation beyond current potential-role baseline.
-* [open] Validate lensing behavior for custom kernels when supported.
-* [open] Validate custom observable mappings consume solved graph outputs.
-* [open] Validate custom projection kernels change intended observables.
-* [open] Ensure no hidden source substitutions occur.
-* [open] Ensure no post-hoc amplitude tuning occurs.
-* [open] Ensure projection provenance appears in manifest output.
+* [closed] Keep unsupported projection math fail-loud.
+* [closed] Extend BB validation beyond current parity and source-role
+  baseline.
+* [closed] Validate BB behavior for custom projection kernels when supported.
+* [closed] Validate multi-source BB declarations cannot hide E-only sources.
+* [closed] Extend lensing validation beyond current potential-role baseline.
+* [closed] Validate lensing behavior for custom kernels when supported.
+* [closed] Validate custom observable mappings consume solved graph outputs.
+* [closed] Validate custom projection kernels change intended observables.
+* [closed] Ensure no hidden source substitutions occur.
+* [closed] Ensure no post-hoc amplitude tuning occurs.
+* [closed] Ensure projection provenance appears in manifest output.
 
 Done when:
 
-* [open] Projection contracts are explicit and general where implemented.
-* [open] Unsupported projections fail clearly.
-* [open] BB validation covers current baseline and new custom-kernel cases.
-* [open] Lensing validation covers current baseline and new custom-kernel
+* [closed] Projection contracts are explicit and general where implemented.
+* [closed] Unsupported projections fail clearly.
+* [closed] BB validation covers current baseline and new custom-kernel cases.
+* [closed] Lensing validation covers current baseline and new custom-kernel
   cases.
-* [open] Custom observable projections consume solved graph quantities.
-* [open] Projection provenance is recorded.
-* [open] Docs describe implemented projection behavior honestly.
-* [open] Relevant projection, CMB, schema, and manifest tests pass.
+* [closed] Custom observable projections consume solved graph quantities.
+* [closed] Projection provenance is recorded.
+* [closed] Docs describe implemented projection behavior honestly.
+* [closed] Relevant projection, CMB, schema, and manifest tests pass.
 
 ### [open] Slice Six - Closure, audit, docs, and provenance truth
 

@@ -139,6 +139,23 @@ def _dummy_plugin():
             ),
             manifest_summary={
                 "observable_names": ("temperature", "TT"),
+                "transfer_component_contracts": {
+                    "temperature": {
+                        "projection": "line_of_sight_temperature",
+                        "kernel": "temperature_mixed_window",
+                        "source_term_roles": ("monopole",),
+                        "source_term_names": {
+                            "monopole": "monopole_source",
+                        },
+                        "required_projection_roles": (),
+                    },
+                },
+                "angular_power_spectrum_targets": {
+                    "TT": {
+                        "primary": "temperature",
+                        "secondary": "temperature",
+                    },
+                },
             },
         ),
     )
@@ -316,6 +333,18 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]
+            )
+            self.assertEqual(
+                model_entry["custom_cmb_graph_manifest_summary"][
+                    "transfer_component_contracts"
+                ]["temperature"]["kernel"],
+                "temperature_mixed_window",
+            )
+            self.assertEqual(
+                model_entry["custom_cmb_graph_manifest_summary"][
+                    "angular_power_spectrum_targets"
+                ]["TT"]["primary"],
+                "temperature",
             )
 
     def test_manifest_import_export_cycle(self) -> None:

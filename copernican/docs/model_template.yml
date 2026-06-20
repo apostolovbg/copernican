@@ -358,7 +358,15 @@ notes: |
     for example `monopole` for `line_of_sight_temperature`,
     `polarization` for `line_of_sight_polarization_e`,
     `polarization_b` for `spin2_b_mode`, or `potential` for
-    `line_of_sight_lensing_potential`.
+    `line_of_sight_lensing_potential`. Use `custom_line_of_sight` when the
+    model needs a reviewed kernel such as `spherical_bessel_window`,
+    `spherical_bessel_derivative_window`, `spin2_e_window`,
+    `spin2_b_window`, or `lensing_potential_window`, and declare any needed
+    `required_projection_roles` explicitly.
+  * Angular power-spectrum observables only name their `primary` and
+    `secondary` transfer components. Keep projection, kernel, and source-term
+    declarations on the transfer components themselves so manifest provenance
+    stays honest.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

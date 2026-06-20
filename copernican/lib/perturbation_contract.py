@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 
 from .cmb_projection_contract import (
     get_declared_projection_spec,
+    resolve_declared_projection_kernel,
     validate_declared_projection_source_roles,
 )
 from .engine_adapter import (
@@ -125,10 +126,12 @@ _SUPPORTED_OBSERVABLE_KEYS = {
     "dependencies",
     "description",
     "domain",
+    "kernel",
     "kind",
     "notes",
     "primary",
     "projection",
+    "required_projection_roles",
     "secondary",
     "source_terms",
 }
@@ -281,9 +284,11 @@ class PerturbationObservableData:
     name: str
     kind: str
     projection: str | None = None
+    kernel: str | None = None
     primary: str | None = None
     secondary: str | None = None
     source_terms: FrozenMapping = field(default_factory=FrozenMapping)
+    required_projection_roles: tuple[str, ...] = ()
     description: str | None = None
     notes: str | None = None
     domain: str | None = None
@@ -495,6 +500,23 @@ def _validate_regimes(value: Any) -> tuple[str, ...]:
     return tuple(cleaned)
 
 
+def _validate_optional_string_list(
+    value: Any,
+    *,
+    label: str,
+) -> tuple[str, ...]:
+    """Return ``value`` as a deduplicated string tuple when present."""
+
+    if value is None:
+        return ()
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(f"{label} must be a list")
+    cleaned: list[str] = []
+    for item in value:
+        cleaned.append(_validate_string(item, label=f"{label} entry"))
+    return _dedupe_names(cleaned)
+
+
 def _replace_and_validate_expression(
     expression: Any,
     *,
@@ -653,6 +675,8 @@ def _build_manifest_summary(
     dependency_summary: PerturbationDependencyGraphSummaryData,
     equation_wrt_by_variable: Mapping[str, str],
     boundary_condition_anchors: Mapping[str, str],
+    transfer_component_contracts: Mapping[str, Mapping[str, Any]],
+    angular_power_spectrum_targets: Mapping[str, Mapping[str, str]],
 ) -> dict[str, Any]:
     """Return a manifest-friendly summary of the compiled graph."""
 
@@ -696,6 +720,18 @@ def _build_manifest_summary(
         "boundary_condition_anchors": {
             str(name): str(anchor_name)
             for name, anchor_name in boundary_condition_anchors.items()
+        },
+        "transfer_component_contracts": {
+            str(name): {
+                str(key): value for key, value in contract_data.items()
+            }
+            for name, contract_data in transfer_component_contracts.items()
+        },
+        "angular_power_spectrum_targets": {
+            str(name): {
+                str(key): str(value) for key, value in target_data.items()
+            }
+            for name, target_data in angular_power_spectrum_targets.items()
         },
     }
 
@@ -1378,6 +1414,36 @@ def compile_perturbation_contract(
             odd_parity and has_non_scalar_character
         )
 
+    def _supports_projection_role(
+        variable_name: str,
+        projection_role: str,
+    ) -> bool:
+        """Return whether ``variable_name`` satisfies ``projection_role``."""
+
+        if projection_role == "b_mode":
+            return _supports_odd_parity_projection(variable_name)
+        variable_entry = variable_entries[variable_name]
+        return variable_entry.projection_role == projection_role
+
+    def _source_ancestry_supports_projection_roles(
+        source_name: str,
+        required_roles: Sequence[str],
+    ) -> bool:
+        """Return whether ``source_name`` ancestry satisfies all roles."""
+
+        reachable_variables = sorted(
+            _reachable_variable_names(source_entries[source_name].dependencies)
+        )
+        if not reachable_variables:
+            return False
+        return all(
+            any(
+                _supports_projection_role(variable_name, role_name)
+                for variable_name in reachable_variables
+            )
+            for role_name in required_roles
+        )
+
     observable_entries: dict[str, PerturbationObservableData] = {}
     observable_names: set[str] = set()
     transfer_component_names: set[str] = set()
@@ -1443,11 +1509,29 @@ def compile_perturbation_contract(
                     f"source term '{source_ref}'"
                 )
             source_term_refs[role] = source_ref
+        kernel = _validate_optional_string(
+            observable_def.get("kernel"),
+            label=f"cmb.perturbations.observables.{name}.kernel",
+        )
+        required_projection_roles = _validate_optional_string_list(
+            observable_def.get("required_projection_roles"),
+            label=(
+                f"cmb.perturbations.observables.{name}"
+                ".required_projection_roles"
+            ),
+        )
+        effective_projection_roles = required_projection_roles
         if observable_kind == "transfer_component":
             if projection is None:
                 raise ValueError(
                     f"Perturbation observable '{name}' must declare "
                     "projection"
+                )
+            if primary is not None or secondary is not None:
+                raise ValueError(
+                    f"Perturbation observable '{name}' kind "
+                    "'transfer_component' must not declare primary or "
+                    "secondary"
                 )
             declared_source_roles = {
                 role_name: source_entries[source_name].role
@@ -1469,21 +1553,42 @@ def compile_perturbation_contract(
                         f"with declared role '{source_role}'"
                     )
             projection_spec = get_declared_projection_spec(str(projection))
-            if projection_spec.requires_odd_parity_source:
-                source_name = source_term_refs["polarization_b"]
-                reachable_variables = sorted(
-                    _reachable_variable_names(
-                        source_entries[source_name].dependencies
-                    )
+            kernel = resolve_declared_projection_kernel(
+                str(projection),
+                observable_name=name,
+                kernel=kernel,
+            )
+            effective_projection_roles = _dedupe_names(
+                projection_spec.required_projection_roles
+                + required_projection_roles
+            )
+            if projection_spec.requires_odd_parity_source and (
+                "b_mode" not in effective_projection_roles
+            ):
+                effective_projection_roles = effective_projection_roles + (
+                    "b_mode",
                 )
-                if not any(
-                    _supports_odd_parity_projection(variable_name)
-                    for variable_name in reachable_variables
-                ):
+            if effective_projection_roles:
+                for source_name in source_term_refs.values():
+                    if _source_ancestry_supports_projection_roles(
+                        source_name,
+                        effective_projection_roles,
+                    ):
+                        continue
+                    if (
+                        projection_spec.requires_odd_parity_source
+                        and effective_projection_roles == ("b_mode",)
+                    ):
+                        raise ValueError(
+                            f"Perturbation observable '{name}' projection "
+                            f"'{projection}' requires an odd-parity "
+                            "declared source ancestry"
+                        )
                     raise ValueError(
                         f"Perturbation observable '{name}' projection "
-                        f"'{projection}' requires an odd-parity declared "
-                        "source ancestry"
+                        f"'{projection}' requires source '{source_name}' "
+                        "to provide declared projection roles: "
+                        + ", ".join(effective_projection_roles)
                     )
             transfer_component_names.add(name)
         else:
@@ -1491,6 +1596,18 @@ def compile_perturbation_contract(
                 raise ValueError(
                     f"Perturbation observable '{name}' must declare "
                     "primary and secondary"
+                )
+            if projection is not None or source_term_refs:
+                raise ValueError(
+                    f"Perturbation observable '{name}' kind "
+                    "'angular_power_spectrum' must not declare projection "
+                    "or source_terms"
+                )
+            if kernel is not None or required_projection_roles:
+                raise ValueError(
+                    f"Perturbation observable '{name}' kind "
+                    "'angular_power_spectrum' must not declare kernel or "
+                    "required_projection_roles"
                 )
         dependencies = _dedupe_names(
             tuple(source_term_refs.values())
@@ -1501,9 +1618,11 @@ def compile_perturbation_contract(
             name=name,
             kind=observable_kind,
             projection=projection,
+            kernel=kernel,
             primary=primary,
             secondary=secondary,
             source_terms=FrozenMapping(source_term_refs),
+            required_projection_roles=effective_projection_roles,
             description=_validate_optional_string(
                 observable_def.get("description"),
                 label=f"cmb.perturbations.observables.{name}.description",
@@ -2004,6 +2123,32 @@ def compile_perturbation_contract(
         native_solver_required=backend_contract.get("native_solver_required"),
         implemented=backend_contract.get("implemented"),
     )
+    transfer_component_contracts = {
+        name: {
+            "projection": str(entry.projection or ""),
+            "kernel": (None if entry.kernel is None else str(entry.kernel)),
+            "source_term_roles": tuple(
+                str(role) for role in entry.source_terms
+            ),
+            "source_term_names": {
+                str(role): str(source_name)
+                for role, source_name in entry.source_terms.items()
+            },
+            "required_projection_roles": tuple(
+                str(role) for role in entry.required_projection_roles
+            ),
+        }
+        for name, entry in observable_entries.items()
+        if entry.kind == "transfer_component"
+    }
+    angular_power_spectrum_targets = {
+        name: {
+            "primary": str(entry.primary or ""),
+            "secondary": str(entry.secondary or ""),
+        }
+        for name, entry in observable_entries.items()
+        if entry.kind == "angular_power_spectrum"
+    }
     manifest_summary = FrozenMapping(
         _build_manifest_summary(
             model_name=model_name,
@@ -2032,6 +2177,8 @@ def compile_perturbation_contract(
                 name: entry.anchor
                 for name, entry in boundary_condition_entries.items()
             },
+            transfer_component_contracts=transfer_component_contracts,
+            angular_power_spectrum_targets=angular_power_spectrum_targets,
         )
     )
 

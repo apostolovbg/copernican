@@ -1464,6 +1464,93 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             ),
         )
 
+    def test_custom_projection_kernel_changes_observable(self) -> None:
+        """Custom kernels should change the projected transfer response."""
+
+        spherical = _analytic_signal_contract()
+        derivative = _analytic_signal_contract()
+        spherical_observable = spherical["perturbations"]["observables"][
+            "signal_transfer"
+        ]
+        derivative_observable = derivative["perturbations"]["observables"][
+            "signal_transfer"
+        ]
+        spherical_observable["projection"] = "custom_line_of_sight"
+        spherical_observable["kernel"] = "spherical_bessel_window"
+        derivative_observable["projection"] = "custom_line_of_sight"
+        derivative_observable["kernel"] = "spherical_bessel_derivative_window"
+        ells = numpy.arange(20, 30, dtype=int)
+        spherical_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                spherical,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        derivative_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                derivative,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(derivative_tt - spherical_tt))),
+            1.0e-12,
+        )
+
+    def test_spin2_e_projection_sums_declared_sources(self) -> None:
+        """Spin-2 E projections should not hide one declared source term."""
+
+        baseline = _analytic_signal_contract()
+        changed = _analytic_signal_contract()
+        baseline_observable = baseline["perturbations"]["observables"][
+            "signal_transfer"
+        ]
+        changed_observable = changed["perturbations"]["observables"][
+            "signal_transfer"
+        ]
+        baseline_observable["projection"] = "spin2_e_mode"
+        changed_observable["projection"] = "spin2_e_mode"
+        baseline_observable["source_terms"] = {"signal": "signal_source"}
+        changed["perturbations"]["sources"]["polarization_source"] = {
+            "expression": "0.5 * closure_drive",
+            "role": "polarization",
+        }
+        changed_observable["source_terms"] = {
+            "signal": "signal_source",
+            "polarization": "polarization_source",
+        }
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_tt / baseline_tt,
+            numpy.full_like(baseline_tt, 1.5 * 1.5),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Spin-2 E projections should sum every declared source term "
+                "instead of silently substituting one role for another."
+            ),
+        )
+
     def test_lensing_source_changes_pp(self) -> None:
         """Lensing-source scalings should map to exact quadratic PP power."""
 
@@ -1500,6 +1587,49 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             ),
         )
 
+    def test_custom_lensing_kernel_changes_pp(self) -> None:
+        """Custom lensing kernels should preserve the declared PP response."""
+
+        baseline = _speedup_contract(_custom_contract(include_lensing=True))
+        changed = _speedup_contract(_custom_contract(include_lensing=True))
+        for contract in (baseline, changed):
+            contract["perturbations"]["observables"]["lensing_potential"] = {
+                "kind": "transfer_component",
+                "projection": "custom_line_of_sight",
+                "kernel": "lensing_potential_window",
+                "source_terms": {"potential": "lensing_potential"},
+            }
+        changed["perturbations"]["sources"]["lensing_potential"][
+            "expression"
+        ] = "1.35 * exp(-tau) * (Phi + Psi)"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_pp = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("PP",),
+            ),
+            dtype=float,
+        )
+        changed_pp = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("PP",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_pp / baseline_pp,
+            numpy.full_like(baseline_pp, 1.35 * 1.35),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Custom lensing kernels should preserve the exact quadratic "
+                "PP response to declared source scaling."
+            ),
+        )
+
     def test_b_mode_source_changes_bb(self) -> None:
         """B-mode source scalings should map to exact quadratic BB power."""
 
@@ -1533,6 +1663,50 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             err_msg=(
                 "Declared odd-parity source scaling should produce the "
                 "exact quadratic BB power response."
+            ),
+        )
+
+    def test_custom_b_mode_kernel_changes_bb(self) -> None:
+        """Custom B-mode kernels should preserve the declared BB response."""
+
+        baseline = _speedup_contract(_custom_contract(include_bb=True))
+        changed = _speedup_contract(_custom_contract(include_bb=True))
+        for contract in (baseline, changed):
+            contract["perturbations"]["observables"]["polarization_b"] = {
+                "kind": "transfer_component",
+                "projection": "custom_line_of_sight",
+                "kernel": "spin2_b_window",
+                "source_terms": {"polarization_b": "polarization_b_source"},
+                "required_projection_roles": ["b_mode"],
+            }
+        changed["perturbations"]["sources"]["polarization_b_source"][
+            "expression"
+        ] = "1.25 * visibility * tensor_b"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        changed_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_bb / baseline_bb,
+            numpy.full_like(baseline_bb, 1.25 * 1.25),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Custom B-mode kernels should preserve the exact quadratic "
+                "BB response to declared odd-parity source scaling."
             ),
         )
 
@@ -2193,6 +2367,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError,
             "requires an odd-parity declared source ancestry",
+        ):
+            cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("BB",),
+            )
+
+    def test_custom_b_mode_projection_rejects_scalar_multi_source(
+        self,
+    ) -> None:
+        """Custom B-mode kernels should reject scalar-only extra sources."""
+
+        contract = _speedup_contract(_custom_contract(include_bb=True))
+        contract["perturbations"]["sources"]["polarization_aux_source"] = {
+            "expression": "visibility * theta_gamma2",
+            "role": "polarization_aux",
+        }
+        contract["perturbations"]["observables"]["polarization_b"] = {
+            "kind": "transfer_component",
+            "projection": "custom_line_of_sight",
+            "kernel": "spin2_b_window",
+            "source_terms": {
+                "polarization_b": "polarization_b_source",
+                "polarization_aux": "polarization_aux_source",
+            },
+            "required_projection_roles": ["b_mode"],
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires source 'polarization_aux_source' to provide declared "
+            "projection roles: b_mode",
         ):
             cmb.compute_cmb_spectrum_from_dict(
                 contract,

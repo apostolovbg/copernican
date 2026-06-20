@@ -30,7 +30,10 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq, least_squares
 from scipy.special import spherical_jn
 
-from ..cmb_projection_contract import SUPPORTED_DECLARED_TRANSFER_PROJECTIONS
+from ..cmb_projection_contract import (
+    SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
+    get_declared_projection_kernel_spec,
+)
 from ..engine_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
@@ -2771,6 +2774,7 @@ def _evaluate_declared_initial_state(
 def _declared_graph_projection(
     *,
     projection: str,
+    kernel: str | None,
     ell_value: int,
     x_signature: str,
     x_values: numpy.ndarray,
@@ -2805,6 +2809,43 @@ def _declared_graph_projection(
         # source history.
         b_kernel = prefactor * j_l_derivative * inverse_x
 
+    def _apply_kernel(kernel_name: str) -> numpy.ndarray:
+        """Return the line-of-sight kernel selected by ``kernel_name``."""
+
+        kernel_spec = get_declared_projection_kernel_spec(kernel_name)
+        if kernel_spec.kind == "temperature_mixed":
+            raise ValueError(
+                "Temperature mixed kernels must use the dedicated "
+                "temperature projection dispatch."
+            )
+        if kernel_spec.kind == "spherical_bessel":
+            return j_l
+        if kernel_spec.kind == "spherical_bessel_derivative":
+            return j_l_derivative
+        if kernel_spec.kind == "spin2_e":
+            return e_kernel
+        if kernel_spec.kind == "spin2_b":
+            return b_kernel
+        if kernel_spec.kind == "lensing_potential":
+            geometry = numpy.clip(source_chi - chi_grid, 0.0, None) / (
+                max(float(source_chi), 1.0e-12)
+                * numpy.maximum(chi_grid, 1.0e-12)
+            )
+            return 2.0 * geometry * j_l
+        raise ValueError(
+            "Declared observable requests unsupported kernel "
+            f"'{kernel_name}'"
+        )
+
+    def _sum_projected_sources(kernel_name: str) -> float:
+        """Project every declared source through one shared kernel."""
+
+        kernel_values = _apply_kernel(kernel_name)
+        source = numpy.zeros_like(eta_grid, dtype=float)
+        for history in source_histories.values():
+            source += history
+        return float(numpy.trapz(source * kernel_values, eta_grid))
+
     if projection == "line_of_sight_temperature":
         source = numpy.zeros_like(eta_grid, dtype=float)
         if "monopole" in source_histories:
@@ -2816,67 +2857,22 @@ def _declared_graph_projection(
         if "additive" in source_histories:
             source += source_histories["additive"] * j_l
         return float(numpy.trapz(source, eta_grid))
-    if projection == "line_of_sight_polarization_e":
-        source = source_histories.get("polarization")
-        if source is None:
+    if projection in {
+        "line_of_sight_polarization_e",
+        "line_of_sight_signal",
+        "line_of_sight_signal_derivative",
+        "spin2_e_mode",
+        "spin2_b_mode",
+        "line_of_sight_potential",
+        "line_of_sight_lensing_potential",
+        "custom_line_of_sight",
+    }:
+        if kernel is None:
             raise ValueError(
-                "E-mode projection requires a 'polarization' source term."
+                f"Declared observable projection '{projection}' did not "
+                "resolve a kernel."
             )
-        return float(numpy.trapz(source * e_kernel, eta_grid))
-    if projection == "line_of_sight_signal":
-        if "signal" not in source_histories:
-            raise ValueError(
-                "line_of_sight_signal projection requires a 'signal' "
-                "source term."
-            )
-        return float(numpy.trapz(source_histories["signal"] * j_l, eta_grid))
-    if projection == "line_of_sight_signal_derivative":
-        if "signal" not in source_histories:
-            raise ValueError(
-                "line_of_sight_signal_derivative projection requires a "
-                "'signal' source term."
-            )
-        return float(
-            numpy.trapz(source_histories["signal"] * j_l_derivative, eta_grid)
-        )
-    if projection == "spin2_e_mode":
-        if "signal" in source_histories:
-            source = source_histories["signal"]
-        elif "polarization" in source_histories:
-            source = source_histories["polarization"]
-        else:
-            raise ValueError(
-                f"{projection} projection requires a 'signal' or "
-                "'polarization' source term."
-            )
-        return float(numpy.trapz(source * e_kernel, eta_grid))
-    if projection == "spin2_b_mode":
-        if "polarization_b" not in source_histories:
-            raise ValueError(
-                "spin2_b_mode projection requires a 'polarization_b' "
-                "source term."
-            )
-        source = source_histories["polarization_b"]
-        return float(numpy.trapz(source * b_kernel, eta_grid))
-    if projection == "line_of_sight_potential":
-        if "potential" not in source_histories:
-            raise ValueError(
-                f"{projection} requires a 'potential' source term."
-            )
-        signal = source_histories["potential"]
-        kernel = j_l
-        return float(numpy.trapz(signal * kernel, eta_grid))
-    if projection == "line_of_sight_lensing_potential":
-        if "potential" not in source_histories:
-            raise ValueError(
-                f"{projection} requires a 'potential' source term."
-            )
-        signal = source_histories["potential"]
-        geometry = numpy.clip(source_chi - chi_grid, 0.0, None) / (
-            max(float(source_chi), 1.0e-12) * numpy.maximum(chi_grid, 1.0e-12)
-        )
-        kernel = 2.0 * geometry * j_l
-        return float(numpy.trapz(signal * kernel, eta_grid))
+        return _sum_projected_sources(kernel)
     if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
         raise ValueError(
             "Declared observable projection dispatch is incomplete for "
@@ -3814,6 +3810,11 @@ def _compute_custom_cmb_spectrum_data(
                 transfer_components[component_name][ell_index, k_index] = (
                     _declared_graph_projection(
                         projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
                         ell_value=int(ell_value),
                         x_signature=x_signature,
                         x_values=x_values,
