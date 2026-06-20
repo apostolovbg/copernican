@@ -58,8 +58,15 @@ kernels, and `custom_line_of_sight` can project declared source sums through
 explicit kernels without hiding unsupported BB or lensing inputs.
 `spin2_b_mode` requires a declared `polarization_b` source, and
 `line_of_sight_lensing_potential` requires a declared `potential` source. The
-front-door README mirrors that summary so package readers see the same custom
-CMB surface from the repository root.
+manifest layer records the compiled graph summary, background and
+recombination provenance, and the selected production CMB execution route so
+operators can tell whether a run used backend-standard CAMB perturbations or
+the native declared graph. Synthetic runtime-response checks and
+reference-backed CMB comparisons both stay inside the normal governed test
+suite, while `copernican/validation/` remains the separate
+publication-style LCDM reference runner built on the same manifest executor.
+The front-door README mirrors that summary so package readers see the same
+custom CMB surface from the repository root.
 
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`

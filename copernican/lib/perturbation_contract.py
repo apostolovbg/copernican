@@ -680,6 +680,11 @@ def _build_manifest_summary(
 ) -> dict[str, Any]:
     """Return a manifest-friendly summary of the compiled graph."""
 
+    execution_route = _build_execution_route_summary(
+        backend=backend,
+        standard=standard,
+        backend_mapping=backend_mapping,
+    )
     return {
         "model_name": model_name,
         "backend": backend,
@@ -721,6 +726,7 @@ def _build_manifest_summary(
             str(name): str(anchor_name)
             for name, anchor_name in boundary_condition_anchors.items()
         },
+        "execution_route": execution_route,
         "transfer_component_contracts": {
             str(name): {
                 str(key): value for key, value in contract_data.items()
@@ -733,6 +739,53 @@ def _build_manifest_summary(
             }
             for name, target_data in angular_power_spectrum_targets.items()
         },
+    }
+
+
+def _build_execution_route_summary(
+    *,
+    backend: str,
+    standard: bool,
+    backend_mapping: PerturbationBackendMappingData,
+) -> dict[str, Any]:
+    """Return manifest-friendly execution-route metadata."""
+
+    if standard:
+        route_id = "backend_standard_perturbations"
+        prediction_engine = backend
+        transfer_function_path = f"{backend}.standard"
+        solver = f"{backend}_standard"
+    else:
+        route_id = "native_declared_graph"
+        prediction_engine = "copernican_native_declared_graph"
+        transfer_function_path = "copernican.lib.likelihoods.cmb.custom"
+        solver = "declared_math_graph"
+    uses_camb_prediction = bool(
+        standard and str(backend).strip().lower() == "camb"
+    )
+    return {
+        "route_id": route_id,
+        "prediction_engine": prediction_engine,
+        "transfer_function_path": transfer_function_path,
+        "solver": solver,
+        "route_ready_for_execution": bool(
+            standard
+            or (
+                backend_mapping.native_solver_required is True
+                and backend_mapping.implemented is True
+            )
+        ),
+        "uses_backend_standard_perturbations": bool(standard),
+        "uses_native_declared_graph": bool(not standard),
+        "uses_camb_prediction": uses_camb_prediction,
+        "uses_camb_standard_perturbations": uses_camb_prediction,
+        "backend_mapping_implemented": backend_mapping.implemented,
+        "backend_mapping_native_solver_required": (
+            backend_mapping.native_solver_required
+        ),
+        "backend_mapping_uses_standard_perturbations": (
+            backend_mapping.uses_standard_perturbations
+        ),
     }
 
 

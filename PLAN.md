@@ -36,9 +36,10 @@ The purpose of this roadmap remains non-negotiable:
   Python solvers when `standard: false`.
 
 This is the target condition for the full roadmap, not a claim that the
-current branch already solves every well-posed theory. Slice Six must remove
-the specific current limits named below so complete declared theories become
-executable within the model contract.
+current branch already solves every well-posed theory. Slice Six removed the
+specific closure and provenance limits that previously blocked truthful
+feature closure. The remaining slice now targets measured performance work
+only.
 
 This is a forward-only plan. Do not preserve obsolete schema by adding
 compatibility layers. Do not reintroduce scalar-only theory ceilings. Do not
@@ -92,7 +93,9 @@ source metadata such as rank, spin, parity, projection role, or source role,
 but they must not silently choose a hardcoded theory type.
 
 The remaining work is no longer "start building the engine." The remaining
-work is to close docs and provenance truth, and only then optimize speed.
+work is to optimize the closed feature without weakening integrated code
+validation or confusing it with the separate publication-style validation
+module.
 
 ## Current Baseline
 
@@ -105,8 +108,8 @@ Current status:
 * [closed] Slice Three - Scientific validation hardening.
 * [closed] Slice Four - Background and equation universality.
 * [closed] Slice Five - Projection and observable generalization.
-* [open] Slice Six - Closure, audit, docs, and provenance truth.
-* [deferred] Slice Seven - Performance and gate-speed optimization.
+* [closed] Slice Six - Closure, audit, docs, and provenance truth.
+* [open] Slice Seven - Performance and gate-speed optimization.
 
 This baseline is intentionally not described as "almost complete Slice One."
 The graph foundation and first physical engine pass are real completed
@@ -114,10 +117,10 @@ platform work. The next work begins from that platform.
 
 Current limits that open slices must eliminate:
 
-* Manifest "no CAMB prediction" proof must be tied to the executed route, not
-  inferred only from `standard: false`.
-* Public docs, templates, and manifests still need a closure audit against
-  the implemented native runtime.
+* Native CMB prediction and governed validation are still slower than a
+  comfortable single-slice development loop.
+* Slice Seven must remove measured bottlenecks without splitting the normal
+  governed validation path into separate developer and scientific lanes.
 
 ## Overview
 
@@ -623,7 +626,7 @@ Done when:
 * [closed] Docs describe implemented projection behavior honestly.
 * [closed] Relevant projection, CMB, schema, and manifest tests pass.
 
-### [open] Slice Six - Closure, audit, docs, and provenance truth
+### [closed] Slice Six - Closure, audit, docs, and provenance truth
 
 Purpose:
 
@@ -663,57 +666,58 @@ Scope:
 
 Tasks:
 
-* [open] Audit all closed-slice claims against code.
-* [open] Reopen any closed task that code disproves.
-* [open] Audit docs against implemented behavior.
-* [open] Audit templates as documentation only.
-* [open] Audit examples against current schema.
-* [open] Audit manifest provenance for graph identity.
-* [open] Audit manifest provenance for background quantities.
-* [open] Audit manifest provenance for recombination settings.
-* [open] Audit manifest provenance for projection contracts.
-* [open] Audit manifest provenance for solver/runtime settings.
-* [open] Prove manifest no-CAMB claims from executed route metadata, not only
+* [closed] Audit all closed-slice claims against code.
+* [closed] Reopen any closed task that code disproves.
+* [closed] Audit docs against implemented behavior.
+* [closed] Audit templates as documentation only.
+* [closed] Audit examples against current schema.
+* [closed] Audit manifest provenance for graph identity.
+* [closed] Audit manifest provenance for background quantities.
+* [closed] Audit manifest provenance for recombination settings.
+* [closed] Audit manifest provenance for projection contracts.
+* [closed] Audit manifest provenance for solver/runtime settings.
+* [closed] Prove manifest no-CAMB claims from executed route metadata, not only
   the `standard` flag.
-* [open] Audit `standard: true` behavior.
-* [open] Audit `standard: false` CAMB-free production behavior.
-* [open] Verify one-independent-variable and start-boundary limits are removed
-  before closure.
-* [open] Audit failure messages for missing graph pieces.
-* [open] Audit failure messages for invalid background declarations.
-* [open] Audit failure messages for invalid projection declarations.
-* [open] Remove stale scalar-engine wording.
-* [open] Remove docs that imply hidden CAMB fallback.
-* [open] Remove docs that imply unsupported universal projection behavior.
-* [open] Ensure docs explain what Copernican can solve.
-* [open] Ensure docs explain what Copernican refuses to solve.
-* [open] Ensure docs explain failure diagnostics.
-* [open] Ensure docs explain validation status honestly.
-* [open] Ensure docs explain slow reference validation honestly.
-* [open] Ensure generated artifacts remain generated.
-* [open] Ensure changelog records closure accurately.
-* [open] Ensure the final gate validates the feature truthfully.
+* [closed] Audit `standard: true` behavior.
+* [closed] Audit `standard: false` CAMB-free production behavior.
+* [closed] Verify one-independent-variable and start-boundary limits are
+  removed before closure.
+* [closed] Audit failure messages for missing graph pieces.
+* [closed] Audit failure messages for invalid background declarations.
+* [closed] Audit failure messages for invalid projection declarations.
+* [closed] Remove stale scalar-engine wording.
+* [closed] Remove docs that imply hidden CAMB fallback.
+* [closed] Remove docs that imply unsupported universal projection behavior.
+* [closed] Ensure docs explain what Copernican can solve.
+* [closed] Ensure docs explain what Copernican refuses to solve.
+* [closed] Ensure docs explain failure diagnostics.
+* [closed] Ensure docs explain validation status honestly.
+* [closed] Ensure docs explain slow reference validation honestly.
+* [closed] Ensure generated artifacts remain generated.
+* [closed] Ensure changelog records closure accurately.
+* [closed] Ensure the final gate validates the feature truthfully.
 
 Done when:
 
-* [open] Code, docs, tests, templates, and manifest behavior agree.
-* [open] No stale scalar-only public wording remains.
-* [open] No unsupported behavior is promised.
-* [open] `standard: true` is intact.
-* [open] `standard: false` is native and CAMB-free in production.
-* [open] Complete declared theories are executable within the model contract.
-* [open] Invalid declared theories fail clearly.
-* [open] Scientific validation status is explicit.
-* [open] Manifest provenance is truthful.
-* [open] Full relevant validation passes.
-* [open] DevCovenant gate closes.
+* [closed] Code, docs, tests, templates, and manifest behavior agree.
+* [closed] No stale scalar-only public wording remains.
+* [closed] No unsupported behavior is promised.
+* [closed] `standard: true` is intact.
+* [closed] `standard: false` is native and CAMB-free in production.
+* [closed] Complete declared theories are executable within the model contract.
+* [closed] Invalid declared theories fail clearly.
+* [closed] Scientific validation status is explicit.
+* [closed] Manifest provenance is truthful.
+* [closed] Full relevant validation passes.
+* [closed] DevCovenant gate closes.
 
-### [deferred] Slice Seven - Performance and gate-speed optimization
+### [open] Slice Seven - Performance and gate-speed optimization
 
 Purpose:
 
-Make the now-correct native CMB engine fast enough to use sanely. This slice
-must not start until Slice Six closes.
+Make the now-correct native CMB engine and its governed validation path fast
+enough to use sanely without weakening any validation signal. This slice
+starts only after Slice Six closes.
 
 Depends on:
 
@@ -726,14 +730,14 @@ Probable affected files:
 * validation fixtures
 * test configuration
 * profiling helpers
-* docs describing test tiers
+* docs describing runtime expectations
 * `CHANGELOG.md`
 
 Scope:
 
 * Profile before optimizing.
-* Split quick development validation from full scientific validation.
-* Keep scientific validation strong.
+* Keep the full governed validation path integral.
+* Keep the publication-style validation module separate from slice work.
 * Do not optimize by weakening physics.
 * Do not optimize by deleting validation.
 * Do not optimize by hiding failures.
@@ -741,38 +745,39 @@ Scope:
 
 Tasks:
 
-* [deferred] Profile full CMB validation.
-* [deferred] Profile native CMB prediction runtime.
-* [deferred] Identify recombination bottlenecks.
-* [deferred] Identify background-grid bottlenecks.
-* [deferred] Identify Bessel-grid bottlenecks.
-* [deferred] Identify line-of-sight integration bottlenecks.
-* [deferred] Identify graph-compilation bottlenecks.
-* [deferred] Identify k-mode evolution bottlenecks.
-* [deferred] Split quick gate from full scientific validation.
-* [deferred] Mark slow scientific reference tests explicitly.
-* [deferred] Cache CAMB or CLASS reference products where legitimate.
-* [deferred] Cache recombination products where inputs are identical.
-* [deferred] Cache background products where inputs are identical.
-* [deferred] Cache Bessel grids.
-* [deferred] Cache compiled graph objects.
-* [deferred] Remove duplicate work in CMB tests.
-* [deferred] Vectorize line-of-sight hot paths.
-* [deferred] Parallelize independent k-mode evolution.
-* [deferred] Consider numba, cython, or compiled kernels only after profiling
+* [open] Profile governed CMB-heavy validation runtime.
+* [open] Profile native CMB prediction runtime.
+* [open] Identify recombination bottlenecks.
+* [open] Identify background-grid bottlenecks.
+* [open] Identify Bessel-grid bottlenecks.
+* [open] Identify line-of-sight integration bottlenecks.
+* [open] Identify graph-compilation bottlenecks.
+* [open] Identify k-mode evolution bottlenecks.
+* [open] Mark intentionally slow reference-backed tests honestly.
+* [open] Cache CAMB or CLASS reference products where legitimate.
+* [open] Cache recombination products where inputs are identical.
+* [open] Cache background products where inputs are identical.
+* [open] Cache Bessel grids.
+* [open] Cache compiled graph objects.
+* [open] Remove duplicate work in CMB tests and helpers.
+* [open] Vectorize line-of-sight hot paths.
+* [open] Parallelize independent k-mode evolution.
+* [open] Consider numba, cython, or compiled kernels only after profiling
   proves the target.
-* [deferred] Document test tiers and expected runtime.
-* [deferred] Keep full scientific validation available.
+* [open] Document expected runtime and intentionally slow surfaces.
+* [open] Keep the full governed validation suite as the code-validation path.
+* [open] Keep publication validation workflows available and unchanged.
 
 Done when:
 
-* [deferred] Quick validation is fast enough for normal development.
-* [deferred] Full scientific validation remains strong.
-* [deferred] Runtime bottlenecks are measured, not guessed.
-* [deferred] Optimizations preserve validated physics.
-* [deferred] No validation is weakened for speed.
-* [deferred] Test tiers are documented.
-* [deferred] Performance changes are recorded.
+* [open] Governed validation runtime is fast enough for normal development.
+* [open] Full governed validation remains integral and strong.
+* [open] Publication validation workflows remain available and separate.
+* [open] Runtime bottlenecks are measured, not guessed.
+* [open] Optimizations preserve validated physics.
+* [open] No validation is weakened for speed.
+* [open] Runtime expectations are documented honestly.
+* [open] Performance changes are recorded.
 
 ## Validation Routine
 
@@ -854,4 +859,5 @@ The CMB engine is complete when:
 * `standard: true` remains intact;
 * `standard: false` remains CAMB-free and CLASS-free in production;
 * scientific validation is credible;
-* performance optimization is deferred until after closure.
+* performance optimization follows closure without weakening governed
+  validation.

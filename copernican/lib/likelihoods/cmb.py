@@ -488,16 +488,14 @@ def _summarize_declared_background_manifest_summary(
     """Return manifest-friendly background provenance for a CMB contract."""
 
     section = _get_declared_background_section(contract)
+    reionization = section.get("reionization", {}) or {}
+    calibration = reionization.get("calibration", {}) or {}
     derived_names = tuple(
         sorted(str(name) for name in (section.get("derived", {}) or {}))
     )
     reionization_names = tuple(
         sorted(
-            str(name)
-            for name in (
-                ((section.get("reionization", {}) or {}).get("quantities", {}))
-                or {}
-            )
+            str(name) for name in ((reionization.get("quantities", {})) or {})
         )
     )
     contract_scalar_names = {
@@ -539,6 +537,17 @@ def _summarize_declared_background_manifest_summary(
         "background_reionization_quantity_names": reionization_names,
         "background_quantity_aliases": quantity_aliases,
         "background_quantity_role_names": role_names,
+        "reionization_calibration": {
+            "symbol": calibration.get("symbol"),
+            "target_optical_depth": calibration.get("target_optical_depth"),
+            "lower": calibration.get("lower"),
+            "upper": calibration.get("upper"),
+        },
+        "recombination_runtime": {
+            "hydrogen_model": "peebles_case_b_ode",
+            "helium_electron_contribution": True,
+            "reionization_ode": True,
+        },
     }
 
 

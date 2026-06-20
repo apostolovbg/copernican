@@ -43,9 +43,15 @@ def _dummy_plugin():
                     "H": "H0",
                 },
                 "reionization": {
+                    "calibration": {
+                        "symbol": "reionization_log10_amplitude",
+                        "target_optical_depth": "tau",
+                        "lower": -24.0,
+                        "upper": 32.0,
+                    },
                     "quantities": {
                         "hydrogen_ionization_rate": "1.0e-20",
-                    }
+                    },
                 },
             },
             "grids": {},
@@ -139,6 +145,20 @@ def _dummy_plugin():
             ),
             manifest_summary={
                 "observable_names": ("temperature", "TT"),
+                "execution_route": {
+                    "route_id": "backend_standard_perturbations",
+                    "prediction_engine": "camb",
+                    "transfer_function_path": "camb.standard",
+                    "solver": "camb_standard",
+                    "route_ready_for_execution": True,
+                    "uses_backend_standard_perturbations": True,
+                    "uses_native_declared_graph": False,
+                    "uses_camb_prediction": True,
+                    "uses_camb_standard_perturbations": True,
+                    "backend_mapping_implemented": None,
+                    "backend_mapping_native_solver_required": None,
+                    "backend_mapping_uses_standard_perturbations": True,
+                },
                 "transfer_component_contracts": {
                     "temperature": {
                         "projection": "line_of_sight_temperature",
@@ -159,6 +179,89 @@ def _dummy_plugin():
             },
         ),
     )
+
+
+def _dummy_nonstandard_plugin():
+    """Return a native declared-graph plugin fixture."""
+
+    plugin = _dummy_plugin()
+    plugin.CMB_PERTURBATION_STANDARD = False
+    plugin.CMB_PERTURBATION_CONTRACT["standard"] = False
+    plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"]["camb"] = {
+        "native_solver_required": True,
+        "implemented": True,
+    }
+    plugin.CMB_PERTURBATION_DATA = PerturbationContractData(
+        model_name="DummyModel",
+        backend="camb",
+        contract_version=2,
+        standard=False,
+        gauge="conformal_newtonian",
+        variables={"delta_x": object()},
+        derived={"density_drive": object()},
+        equations={"continuity_x": object()},
+        constraints={"poisson_phi": object()},
+        closures={"psi_equals_phi": object()},
+        sources={"monopole_source": object()},
+        observables={"temperature": object(), "TT": object()},
+        initial_conditions={"delta_seed": object()},
+        boundary_conditions={},
+        numerics={"ode_rtol": 1.0e-5},
+        validity=SimpleNamespace(
+            regimes=("linear",),
+            notes="Uses native declared graph.",
+        ),
+        backend_mapping={
+            "camb": SimpleNamespace(
+                uses_standard_perturbations=None,
+                native_solver_required=True,
+                implemented=True,
+            )
+        },
+        dependency_graph_summary=SimpleNamespace(
+            independent_variables_used=("tau",),
+            model_parameters_used=("p1",),
+            background_references_used=("H0",),
+            evaluation_order=("equation:continuity_x",),
+        ),
+        manifest_summary={
+            "observable_names": ("temperature", "TT"),
+            "execution_route": {
+                "route_id": "native_declared_graph",
+                "prediction_engine": "copernican_native_declared_graph",
+                "transfer_function_path": (
+                    "copernican.lib.likelihoods.cmb.custom"
+                ),
+                "solver": "declared_math_graph",
+                "route_ready_for_execution": True,
+                "uses_backend_standard_perturbations": False,
+                "uses_native_declared_graph": True,
+                "uses_camb_prediction": False,
+                "uses_camb_standard_perturbations": False,
+                "backend_mapping_implemented": True,
+                "backend_mapping_native_solver_required": True,
+                "backend_mapping_uses_standard_perturbations": None,
+            },
+            "transfer_component_contracts": {
+                "temperature": {
+                    "projection": "line_of_sight_temperature",
+                    "kernel": "temperature_mixed_window",
+                    "source_term_roles": ("monopole",),
+                    "source_term_names": {
+                        "monopole": "monopole_source",
+                    },
+                    "required_projection_roles": (),
+                },
+            },
+            "angular_power_spectrum_targets": {
+                "TT": {
+                    "primary": "temperature",
+                    "secondary": "temperature",
+                },
+            },
+        },
+    )
+    return plugin
 
 
 class TestRunManifest(unittest.TestCase):
@@ -293,22 +396,19 @@ class TestRunManifest(unittest.TestCase):
                 model_entry["perturbation_backend_native_solver_required"]
             )
             self.assertEqual(
-                model_entry["custom_cmb_engine"],
-                "camb",
+                model_entry["custom_cmb_execution_route"]["route_id"],
+                "backend_standard_perturbations",
             )
-            self.assertTrue(model_entry["custom_cmb_standard_backend_used"])
             self.assertTrue(
-                model_entry["custom_cmb_uses_camb_standard_perturbations"]
+                model_entry["custom_cmb_execution_route"][
+                    "uses_camb_prediction"
+                ]
             )
-            self.assertFalse(model_entry["custom_cmb_no_camb_prediction_used"])
-            self.assertFalse(
-                model_entry["custom_cmb_no_camb_standard_perturbations_used"]
+            self.assertTrue(
+                model_entry["custom_cmb_execution_route"][
+                    "uses_camb_standard_perturbations"
+                ]
             )
-            self.assertEqual(
-                model_entry["custom_cmb_transfer_function_path"],
-                "camb.standard",
-            )
-            self.assertEqual(model_entry["custom_cmb_solver"], "camb_standard")
             self.assertEqual(model_entry["custom_cmb_constraint_count"], 1)
             self.assertEqual(model_entry["custom_cmb_observable_count"], 2)
             self.assertEqual(
@@ -331,6 +431,18 @@ class TestRunManifest(unittest.TestCase):
                     "background_quantity_role_names"
                 ]["density"],
             )
+            self.assertEqual(
+                model_entry["custom_cmb_background_manifest_summary"][
+                    "reionization_calibration"
+                ]["symbol"],
+                "reionization_log10_amplitude",
+            )
+            self.assertEqual(
+                model_entry["custom_cmb_background_manifest_summary"][
+                    "recombination_runtime"
+                ]["hydrogen_model"],
+                "peebles_case_b_ode",
+            )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]
             )
@@ -346,6 +458,47 @@ class TestRunManifest(unittest.TestCase):
                 ]["TT"]["primary"],
                 "temperature",
             )
+            self.assertEqual(
+                model_entry["custom_cmb_runtime_manifest_summary"][
+                    "execution_route"
+                ]["solver"],
+                "camb_standard",
+            )
+            self.assertIn(
+                "reionization_calibration",
+                model_entry["custom_cmb_runtime_manifest_summary"],
+            )
+
+    def test_manifest_records_native_execution_route(self) -> None:
+        """Native declared runs should record a non-CAMB prediction route."""
+
+        manifest = run_manifest.build_manifest(
+            models=[(_dummy_nonstandard_plugin(), "1.0")],
+            engine_module=SimpleNamespace(
+                __name__="engine", ENGINE_VERSION="0.0"
+            ),
+            datasets=[],
+        )
+
+        model_entry = manifest["camb"]["models"][0]
+        self.assertEqual(
+            model_entry["custom_cmb_execution_route"]["route_id"],
+            "native_declared_graph",
+        )
+        self.assertTrue(
+            model_entry["custom_cmb_execution_route"][
+                "uses_native_declared_graph"
+            ]
+        )
+        self.assertFalse(
+            model_entry["custom_cmb_execution_route"]["uses_camb_prediction"]
+        )
+        self.assertEqual(
+            model_entry["custom_cmb_runtime_manifest_summary"][
+                "execution_route"
+            ]["transfer_function_path"],
+            "copernican.lib.likelihoods.cmb.custom",
+        )
 
     def test_manifest_import_export_cycle(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -44,8 +44,10 @@ when output directories change.
 - CMB adapter metadata summarising the backend contract plus the perturbation
   contract summary, including the contract version, gauge, standard flag,
   declared symbol names, source and observable names, equation,
-  constraint, closure, and source counts, transfer-path summary, and
-  backend mapping details for each CMB-capable model.
+  constraint, closure, and source counts, transfer-path summary, backend
+  mapping details, declared projection contracts, declared background and
+  recombination provenance, and the selected production execution route for
+  each CMB-capable model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
   burn-in, production steps, pool/core hints and nested-sampling parameters
   stay tied to the manifest that produced a run.
@@ -103,6 +105,21 @@ The manifest is intentionally human readable so it can be archived in lab
 notebooks or cited in publications. Recording the suite version makes it clear
 which behaviour and documentation set applied to the run, especially when a
 development branch has diverged from the last tagged release.
+
+For `standard: false` models the manifest now carries three complementary CMB
+truth surfaces under each `camb.models[*]` entry:
+
+- `custom_cmb_graph_manifest_summary` for the declared graph identity and
+  observable contracts.
+- `custom_cmb_background_manifest_summary` for declared background aliases,
+  reionization calibration, and recombination runtime provenance.
+- `custom_cmb_runtime_manifest_summary` for the selected production execution
+  route and numerical settings.
+
+That split keeps graph structure, physical background provenance, and runtime
+route proof separate. The route block is the place to verify whether a run
+used backend-standard CAMB perturbations or the native declared graph; the
+manifest no longer relies on `standard: false` alone to make that claim.
 
 When multiple selections point to the same YAML file the manifest will list
 matching `MODEL_FILENAME` entries. That shared marker indicates the Stage 2

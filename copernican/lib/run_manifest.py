@@ -99,11 +99,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
         perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
         perturbation_data = getattr(plugin, "CMB_PERTURBATION_DATA", None)
-        perturbation_standard = bool(
-            getattr(
-                perturbation_data, "standard", perturbations.get("standard")
-            )
-        )
         dependency_summary = getattr(
             perturbation_data, "dependency_graph_summary", None
         )
@@ -136,6 +131,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
             if isinstance(contract, dict) and contract.get("background")
             else {}
         )
+        execution_route = manifest_summary_data.get("execution_route", {})
         perturbation_sources = getattr(perturbation_data, "sources", {}) or {}
         numerical_settings = contract.get("numerical", {}) or {}
         numerical_settings = (
@@ -318,31 +314,9 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         perturbations.get("backend_mapping", {}) or {}
                     ).items()
                 },
-                "custom_cmb_engine": (
-                    "copernican.lib.likelihoods.cmb"
-                    if not perturbation_standard
-                    else "camb"
-                ),
-                "custom_cmb_standard_backend_used": perturbation_standard,
-                "custom_cmb_uses_camb_standard_perturbations": (
-                    perturbation_standard
-                ),
-                "custom_cmb_no_camb_prediction_used": (
-                    not perturbation_standard
-                ),
-                "custom_cmb_no_camb_standard_perturbations_used": (
-                    not perturbation_standard
-                ),
-                "custom_cmb_transfer_function_path": (
-                    "copernican.lib.likelihoods.cmb.custom"
-                    if not perturbation_standard
-                    else "camb.standard"
-                ),
-                "custom_cmb_solver": (
-                    "declared_math_graph"
-                    if not perturbation_standard
-                    else "camb_standard"
-                ),
+                "custom_cmb_execution_route": {
+                    str(key): value for key, value in execution_route.items()
+                },
                 "custom_cmb_equation_count": len(
                     getattr(perturbation_data, "equations", {}) or {}
                 ),
@@ -373,6 +347,25 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 "custom_cmb_background_manifest_summary": (
                     background_manifest_summary
                 ),
+                "custom_cmb_runtime_manifest_summary": {
+                    "execution_route": {
+                        str(key): value
+                        for key, value in execution_route.items()
+                    },
+                    "numerical_settings": numerical_settings,
+                    "recombination_runtime": (
+                        background_manifest_summary.get(
+                            "recombination_runtime",
+                            {},
+                        )
+                    ),
+                    "reionization_calibration": (
+                        background_manifest_summary.get(
+                            "reionization_calibration",
+                            {},
+                        )
+                    ),
+                },
                 "custom_cmb_reference_validation_status": (
                     configuration.get("reference_validation_status")
                     if isinstance(configuration, dict)

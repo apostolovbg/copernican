@@ -367,6 +367,10 @@ notes: |
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance
     stays honest.
+  * Run manifests record the declared graph summary, background and
+    recombination provenance, and the selected production CMB execution route.
+    Treat those manifest blocks as the execution proof surface; `standard:
+    false` alone is not the whole provenance story.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

@@ -247,6 +247,23 @@ class PerturbationContractTestCase(unittest.TestCase):
                 "camb"
             ].uses_standard_perturbations
         )
+        self.assertEqual(
+            standard_contract_data.manifest_summary["execution_route"],
+            {
+                "route_id": "backend_standard_perturbations",
+                "prediction_engine": "camb",
+                "transfer_function_path": "camb.standard",
+                "solver": "camb_standard",
+                "route_ready_for_execution": True,
+                "uses_backend_standard_perturbations": True,
+                "uses_native_declared_graph": False,
+                "uses_camb_prediction": True,
+                "uses_camb_standard_perturbations": True,
+                "backend_mapping_implemented": None,
+                "backend_mapping_native_solver_required": None,
+                "backend_mapping_uses_standard_perturbations": True,
+            },
+        )
 
     def test_nonstandard_contract_compiles(self) -> None:
         """Non-standard contracts should preserve graph metadata."""
@@ -360,6 +377,25 @@ class PerturbationContractTestCase(unittest.TestCase):
             {
                 "primary": "temperature",
                 "secondary": "temperature",
+            },
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["execution_route"],
+            {
+                "route_id": "native_declared_graph",
+                "prediction_engine": "copernican_native_declared_graph",
+                "transfer_function_path": (
+                    "copernican.lib.likelihoods.cmb.custom"
+                ),
+                "solver": "declared_math_graph",
+                "route_ready_for_execution": True,
+                "uses_backend_standard_perturbations": False,
+                "uses_native_declared_graph": True,
+                "uses_camb_prediction": False,
+                "uses_camb_standard_perturbations": False,
+                "backend_mapping_implemented": True,
+                "backend_mapping_native_solver_required": True,
+                "backend_mapping_uses_standard_perturbations": None,
             },
         )
 

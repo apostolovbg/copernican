@@ -238,7 +238,11 @@ the same convention.
   conditions, observable mappings, and numerical requirements. Unsupported
   symbols, unsolved variables, missing initial conditions, missing
   observables, incompatible projection-role bindings, and unsupported
-  projection kernels fail fast.
+  projection kernels fail fast. Run manifests also record the compiled graph
+  summary, declared background and recombination provenance, and the selected
+  production CMB execution route so native runs prove their CAMB-free
+  prediction path from route metadata rather than from `standard: false`
+  alone.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same
@@ -249,7 +253,11 @@ the same convention.
   CLI helpers.
 - **Validation & documentation:** Fixed Planck 2018 manifests drive the
   validation suite, while `docs/` guides, `README.md`, `CHANGELOG.md` and the
-  AGENTS/DevCovenant policies capture every procedural rule.
+  AGENTS/DevCovenant policies capture every procedural rule. Reference-backed
+  recombination, visibility, and spectrum checks stay in the normal governed
+  test suite, while `copernican/validation/` remains the separate
+  publication-style LCDM reference runner that uses the same manifest
+  infrastructure.
 - **Maintenance helpers:** CLI commands such as run summaries, comparisons,
   validations and dataset revalidation keep operators productive without the
   GUI.
@@ -295,6 +303,10 @@ the same convention.
   components keep source-term roles separate from reviewed projection
   kernels, and `custom_line_of_sight` can project declared source sums
   through explicit kernels without hiding unsupported BB or lensing inputs.
+  Saved manifests carry the graph summary, projection contracts, background
+  and recombination provenance, and the selected execution route so audits can
+  distinguish backend-standard CAMB prediction from native declared-graph
+  prediction.
 - `copernican/datasets/` bundles vetted observations and parsers. The
   loaders validate SHA256 digests, register citations, and tag each manifest
   with the hashes used for the run; the directory remains read-only except

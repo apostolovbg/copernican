@@ -80,6 +80,36 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-20:
+  Change: Completed Slice Six closure by auditing the native CMB feature,
+    recording execution-route and recombination provenance in manifests,
+    updating closure docs and templates, and opening Slice Seven with the
+    corrected performance-only plan.
+  Why: Proved the native declared-graph path, docs, and manifest truth
+    against the implemented runtime while removing the stale plan drift that
+    tried to split governed validation into separate developer and scientific
+    lanes.
+  Impact: Run manifests now expose route-backed CAMB-free proof surfaces,
+    closure docs describe the feature and validation status honestly, Slice
+    Six is closed in the roadmap, and Slice Seven is ready as open measured
+    performance work.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/model_template.yml
+    copernican/docs/run_manifest.md
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/perturbation_contract.py
+    copernican/lib/run_manifest.py
+    docs/model_template.yml
+    docs/run_manifest.md
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-20:
   Change: Completed Slice Five projection generalization by separating
     transfer-component kernels from source-role mappings, adding
     `custom_line_of_sight`, recording projection provenance, and closing the
