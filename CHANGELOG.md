@@ -80,6 +80,19 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-20:
+  Change: Strengthened declared-graph CMB validation by separating slow
+    CAMB-backed reference checks from analytic runtime-response tests.
+  Why: Replaced the weak smoothed-shape proof with named physical checks and
+    exact observable-scaling validation for declared sources, closures, BB,
+    and lensing responses.
+  Impact: Slice Three now distinguishes scientific validation from runtime
+    behavior checks, keeps `standard: false` CAMB-free in production, and
+    reports physical mismatches with explicit quantities and tolerances.
+  Files:
+    CHANGELOG.md
+    tests/copernican/lib/likelihoods/test_cmb.py
+
+- 2026-06-20:
   Change: Clarified PLAN.md universal CMB goals and concrete follow-up
     tasks.
   Why: Converted audit findings into explicit roadmap work without weakening

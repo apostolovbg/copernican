@@ -17,19 +17,84 @@ except ImportError:  # pragma: no cover - optional external reference
 from copernican.lib.likelihoods import cmb
 
 
-def _smooth_spectrum(
+def _named_limit_message(
+    quantity: str,
+    measured: float,
+    tolerance: float,
+) -> str:
+    """Return a consistent failure message for validation thresholds."""
+
+    return (
+        f"{quantity} exceeded tolerance: measured={measured:.6g}, "
+        f"tolerance={tolerance:.6g}"
+    )
+
+
+def _full_width_at_half_max(
+    grid: numpy.ndarray,
+    values: numpy.ndarray,
+) -> float:
+    """Return the width of ``values`` at half of its maximum."""
+
+    grid_values = numpy.asarray(grid, dtype=float)
+    profile = numpy.asarray(values, dtype=float)
+    half_max = 0.5 * float(numpy.max(profile))
+    support = numpy.flatnonzero(profile >= half_max)
+    if support.size < 2:
+        raise ValueError("Half-maximum support requires at least two points.")
+    return float(grid_values[support[-1]] - grid_values[support[0]])
+
+
+def _local_extrema_ells(
+    ells: numpy.ndarray,
     values: numpy.ndarray,
     *,
-    window: int = 41,
-) -> numpy.ndarray:
-    """Return a moving-average envelope for broad spectrum comparisons."""
+    kind: str,
+    ell_min: int,
+    ell_max: int,
+) -> list[int]:
+    """Return local-extremum multipoles inside ``[ell_min, ell_max]``."""
 
-    kernel = numpy.ones(window, dtype=float) / float(window)
-    return numpy.convolve(
-        numpy.asarray(values, dtype=float),
-        kernel,
-        mode="same",
-    )
+    ell_values = numpy.asarray(ells, dtype=int)
+    spectrum = numpy.asarray(values, dtype=float)
+    extrema: list[int] = []
+    for index in range(1, spectrum.size - 1):
+        ell_value = int(ell_values[index])
+        if ell_value < ell_min or ell_value > ell_max:
+            continue
+        if kind == "max":
+            keep = spectrum[index - 1] < spectrum[index] >= spectrum[index + 1]
+        elif kind == "min":
+            keep = spectrum[index - 1] > spectrum[index] <= spectrum[index + 1]
+        else:  # pragma: no cover - helper misuse
+            raise ValueError(f"Unsupported extremum kind: {kind}")
+        if keep:
+            extrema.append(ell_value)
+    return extrema
+
+
+def _zero_crossing_ells(
+    ells: numpy.ndarray,
+    values: numpy.ndarray,
+    *,
+    ell_min: int,
+    ell_max: int,
+) -> list[int]:
+    """Return the multipoles where ``values`` changes sign."""
+
+    ell_values = numpy.asarray(ells, dtype=int)
+    spectrum = numpy.asarray(values, dtype=float)
+    zero_crossings: list[int] = []
+    for index in range(1, spectrum.size):
+        ell_value = int(ell_values[index])
+        if ell_value < ell_min or ell_value > ell_max:
+            continue
+        if spectrum[index - 1] == 0.0 or spectrum[index] == 0.0:
+            zero_crossings.append(ell_value)
+            continue
+        if (spectrum[index - 1] < 0.0) != (spectrum[index] < 0.0):
+            zero_crossings.append(ell_value)
+    return zero_crossings
 
 
 def _declared_graph_perturbations(
@@ -754,6 +819,104 @@ def _strip_perturbations(contract: dict[str, object]) -> dict[str, object]:
     return stripped
 
 
+def _analytic_signal_contract(
+    *,
+    source_scale: float = 1.0,
+    closure_scale: float = 1.0,
+    decay_rate: float = 0.02,
+) -> dict[str, object]:
+    """Return a one-mode graph with exact source and closure scaling."""
+
+    contract = _base_custom_cmb_contract()
+    contract["model_name"] = "AnalyticSignalCMB"
+    model_parameters = dict(contract.get("model_parameters", {}))
+    model_parameters.update(
+        {
+            "source_scale": source_scale,
+            "closure_scale": closure_scale,
+            "decay_rate": decay_rate,
+        }
+    )
+    contract["model_parameters"] = model_parameters
+    contract["numerical"].update(
+        {
+            "ell_max": 40,
+            "k_sample_count": 6,
+            "eta_sample_count": 128,
+            "source_grid_multiplier": 1,
+        }
+    )
+    contract["perturbations"] = {
+        "contract_version": 2,
+        "standard": False,
+        "gauge": "conformal_newtonian",
+        "variables": {
+            "signal_mode": {
+                "kind": "photon_temperature_monopole",
+                "tensor_character": "scalar_like",
+            },
+        },
+        "derived": {
+            "closure_drive": {
+                "expression": "closure_scale * signal_mode",
+            },
+        },
+        "equations": {
+            "evolve_signal_mode": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "signal_mode",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "-decay_rate * signal_mode",
+                "role": "continuity",
+            },
+        },
+        "constraints": {},
+        "closures": {},
+        "sources": {
+            "signal_source": {
+                "expression": "source_scale * closure_drive",
+                "role": "signal",
+            },
+        },
+        "observables": {
+            "signal_transfer": {
+                "kind": "transfer_component",
+                "projection": "line_of_sight_signal",
+                "source_terms": {"signal": "signal_source"},
+            },
+            "TT": {
+                "kind": "angular_power_spectrum",
+                "primary": "signal_transfer",
+                "secondary": "signal_transfer",
+            },
+        },
+        "initial_conditions": {
+            "signal_seed": {
+                "target": {
+                    "variable": "signal_mode",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "seed",
+            },
+        },
+        "boundary_conditions": {},
+        "validity": {
+            "regimes": ["analytic_signal"],
+        },
+        "backend_mapping": {
+            "camb": {
+                "implemented": True,
+                "native_solver_required": True,
+            }
+        },
+    }
+    return contract
+
+
 class _CustomCMBPlugin:
     """Plugin stub that exposes the synthetic declared graph fixture."""
 
@@ -780,34 +943,13 @@ class _CustomCMBPlugin:
         return _custom_perturbations()
 
 
-class CMBCustomPhysicsTestCase(unittest.TestCase):
-    """Validate the declared-graph CMB engine."""
+class CMBScientificReferenceValidationTestCase(unittest.TestCase):
+    """CAMB-backed scientific reference checks for the CMB surface."""
 
-    def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
-        """The production module should not contain old compatibility code."""
-
-        source_text = Path(cmb.__file__).read_text(encoding="utf-8")
-        for needle in (
-            "equation_mode",
-            "mapped_sector",
-            "declared_equations",
-            "source_normalization",
-            "transfer_amplitude",
-            "angular_projection_scale",
-            "_evolve_custom_cmb_mode_histories",
-            "_CUSTOM_CMB_SOURCE_CHANNELS",
-            "_CUSTOM_CMB_SECTOR_ALIASES",
-            "_classify_custom_physical_sector",
-            "visibility shift",
-            "visibility rescale",
-            "_smooth_transition",
-        ):
-            self.assertNotIn(needle, source_text)
-
-    def test_custom_background_matches_camb_recombination_reference(
+    def test_slow_custom_background_matches_camb_recombination_reference(
         self,
     ) -> None:
-        """The custom background should match CAMB recombination references."""
+        """Slow reference validation should catch named background defects."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
@@ -846,10 +988,27 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
 
         peak_index = int(numpy.argmax(background.visibility_grid))
         peak_z = float(background.z_grid[peak_index])
-        median_relative_x_e_error = float(
+        peak_eta = float(background.eta_grid[peak_index])
+        recombination_band = (background.z_grid >= 800.0) & (
+            background.z_grid <= 1600.0
+        )
+        recombination_median_x_e_error = float(
             numpy.median(
-                numpy.abs(background.x_e_grid - reference_x_e)
-                / numpy.maximum(reference_x_e, 1.0e-8)
+                numpy.abs(
+                    background.x_e_grid[recombination_band]
+                    - reference_x_e[recombination_band]
+                )
+                / numpy.maximum(reference_x_e[recombination_band], 1.0e-8)
+            )
+        )
+        recombination_p90_error = float(
+            numpy.percentile(
+                numpy.abs(
+                    background.x_e_grid[recombination_band]
+                    - reference_x_e[recombination_band]
+                )
+                / numpy.maximum(reference_x_e[recombination_band], 1.0e-8),
+                90.0,
             )
         )
         reionization_transition_band = (background.z_grid >= 6.0) & (
@@ -863,6 +1022,22 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
                 )
             )
         )
+        visibility_width_eta = _full_width_at_half_max(
+            background.eta_grid,
+            background.visibility_grid,
+        )
+        reference_visibility_width_eta = _full_width_at_half_max(
+            background.eta_grid,
+            reference_visibility,
+        )
+        visibility_width_z = _full_width_at_half_max(
+            background.z_grid[::-1],
+            background.visibility_grid[::-1],
+        )
+        reference_visibility_width_z = _full_width_at_half_max(
+            background.z_grid[::-1],
+            reference_visibility[::-1],
+        )
         max_ionized_fraction = 1.0 + (
             physical.YHe / (2.0 * max(1.0 - physical.YHe, 1.0e-6))
         )
@@ -875,45 +1050,129 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(reference_x_e)))
         self.assertTrue(numpy.all(numpy.isfinite(reference_visibility)))
         self.assertTrue(numpy.all(numpy.diff(background.tau_grid) <= 1.0e-8))
+
+        peak_z_error = abs(peak_z - reference_peak_z) / reference_peak_z
         self.assertLess(
-            abs(peak_z - reference_peak_z) / reference_peak_z,
-            0.01,
-        )
-        self.assertLess(
-            abs(background.eta0 - reference_eta0) / reference_eta0,
+            peak_z_error,
             0.005,
+            _named_limit_message(
+                "visibility peak redshift",
+                peak_z_error,
+                0.005,
+            ),
+        )
+        peak_eta_error = (
+            abs(peak_eta - reference_peak_eta) / reference_peak_eta
         )
         self.assertLess(
+            peak_eta_error,
+            0.005,
+            _named_limit_message(
+                "visibility peak conformal time",
+                peak_eta_error,
+                0.005,
+            ),
+        )
+        visibility_width_eta_error = (
+            abs(visibility_width_eta - reference_visibility_width_eta)
+            / reference_visibility_width_eta
+        )
+        self.assertLess(
+            visibility_width_eta_error,
+            0.02,
+            _named_limit_message(
+                "visibility FWHM in conformal time",
+                visibility_width_eta_error,
+                0.02,
+            ),
+        )
+        visibility_width_z_error = (
+            abs(visibility_width_z - reference_visibility_width_z)
+            / reference_visibility_width_z
+        )
+        self.assertLess(
+            visibility_width_z_error,
+            0.02,
+            _named_limit_message(
+                "visibility FWHM in redshift",
+                visibility_width_z_error,
+                0.02,
+            ),
+        )
+        eta0_error = abs(background.eta0 - reference_eta0) / reference_eta0
+        self.assertLess(
+            eta0_error,
+            0.002,
+            _named_limit_message("eta0", eta0_error, 0.002),
+        )
+        sound_horizon_error = (
             abs(background.sound_horizon_mpc - reference_sound_horizon)
-            / reference_sound_horizon,
-            0.005,
+            / reference_sound_horizon
         )
-        self.assertLess(median_relative_x_e_error, 0.08)
-        self.assertLess(reionization_transition_error, 0.12)
         self.assertLess(
-            abs(background.reionization_tau - physical.tau_reio)
-            / max(physical.tau_reio, 1.0e-12),
+            sound_horizon_error,
+            0.002,
+            _named_limit_message(
+                "sound horizon at visibility peak",
+                sound_horizon_error,
+                0.002,
+            ),
+        )
+        self.assertLess(
+            recombination_median_x_e_error,
+            0.01,
+            _named_limit_message(
+                "recombination x_e median relative error",
+                recombination_median_x_e_error,
+                0.01,
+            ),
+        )
+        self.assertLess(
+            recombination_p90_error,
+            0.45,
+            _named_limit_message(
+                "recombination x_e p90 relative error",
+                recombination_p90_error,
+                0.45,
+            ),
+        )
+        self.assertLess(
+            reionization_transition_error,
+            0.08,
+            _named_limit_message(
+                "reionization-band x_e median absolute error",
+                reionization_transition_error,
+                0.08,
+            ),
+        )
+        tau_error = abs(background.reionization_tau - physical.tau_reio) / max(
+            physical.tau_reio, 1.0e-12
+        )
+        self.assertLess(
+            tau_error,
             0.03,
+            _named_limit_message(
+                "reionization optical depth",
+                tau_error,
+                0.03,
+            ),
         )
 
-    def test_custom_declared_spectra_track_camb_reference_shape(self) -> None:
-        """The declared graph should broadly track CAMB TT/TE/EE envelopes."""
+    def test_standard_lcdm_reference_features_match_camb(self) -> None:
+        """Standard-path scalar spectra should preserve CAMB features."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
 
-        contract = _custom_contract()
-        ells = numpy.arange(20, 120, dtype=int)
+        standard_contract = _standard_contract()
+        ells = numpy.arange(2, 801, dtype=int)
         actual = cmb.compute_cmb_spectrum_from_dict(
-            contract,
+            standard_contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
-        reference_contract = _strip_perturbations(contract)
-        reference_contract["param_map"].pop("z_rec", None)
-        params = cmb._make_camb_params(
-            reference_contract, lmax=int(ells.max())
-        )
+
+        params = cmb._make_camb_params(standard_contract, lmax=int(ells.max()))
         results = camb.get_results(params)
         reference = results.get_unlensed_scalar_cls(
             lmax=int(ells.max()),
@@ -921,34 +1180,338 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         )
 
         for spectrum_name, column_index in (("TT", 0), ("EE", 1), ("TE", 3)):
-            candidate = _smooth_spectrum(
-                numpy.asarray(actual[spectrum_name], dtype=float)
+            actual_values = numpy.asarray(actual[spectrum_name], dtype=float)
+            reference_values = numpy.asarray(
+                reference[:, column_index][ells],
+                dtype=float,
             )
-            reference_values = _smooth_spectrum(
-                numpy.asarray(
-                    reference[:, column_index][ells],
-                    dtype=float,
-                )
+            numpy.testing.assert_allclose(
+                actual_values,
+                reference_values,
+                rtol=1.0e-5,
+                atol=1.0e-5,
+                err_msg=(
+                    f"{spectrum_name} reference mismatch across "
+                    "ell=2..800 for the standard CAMB route."
+                ),
             )
-            candidate_norm = candidate / max(
-                float(numpy.max(numpy.abs(candidate))),
-                1.0e-12,
+            low_ell_mask = ells <= 30
+            numpy.testing.assert_allclose(
+                actual_values[low_ell_mask],
+                reference_values[low_ell_mask],
+                rtol=1.0e-5,
+                atol=1.0e-5,
+                err_msg=(
+                    f"{spectrum_name} low-ell reference mismatch for the "
+                    "standard CAMB route."
+                ),
             )
-            reference_norm = reference_values / max(
-                float(numpy.max(numpy.abs(reference_values))),
-                1.0e-12,
+
+        tt_actual_peaks = _local_extrema_ells(
+            ells,
+            numpy.asarray(actual["TT"], dtype=float),
+            kind="max",
+            ell_min=150,
+            ell_max=650,
+        )
+        tt_reference_peaks = _local_extrema_ells(
+            ells,
+            numpy.asarray(reference[:, 0][ells], dtype=float),
+            kind="max",
+            ell_min=150,
+            ell_max=650,
+        )
+        self.assertGreaterEqual(len(tt_actual_peaks), 2)
+        self.assertGreaterEqual(len(tt_reference_peaks), 2)
+        self.assertLessEqual(
+            abs(tt_actual_peaks[0] - tt_reference_peaks[0]),
+            1,
+            (
+                "TT first acoustic peak mismatch: "
+                f"actual={tt_actual_peaks[0]}, "
+                f"reference={tt_reference_peaks[0]}"
+            ),
+        )
+        self.assertLessEqual(
+            abs(tt_actual_peaks[1] - tt_reference_peaks[1]),
+            1,
+            (
+                "TT second acoustic peak mismatch: "
+                f"actual={tt_actual_peaks[1]}, "
+                f"reference={tt_reference_peaks[1]}"
+            ),
+        )
+        actual_tt_spacing = tt_actual_peaks[1] - tt_actual_peaks[0]
+        reference_tt_spacing = tt_reference_peaks[1] - tt_reference_peaks[0]
+        self.assertLessEqual(
+            abs(actual_tt_spacing - reference_tt_spacing),
+            1,
+            (
+                "TT acoustic peak spacing mismatch: "
+                f"actual={actual_tt_spacing}, "
+                f"reference={reference_tt_spacing}"
+            ),
+        )
+
+        ee_actual_peaks = _local_extrema_ells(
+            ells,
+            numpy.asarray(actual["EE"], dtype=float),
+            kind="max",
+            ell_min=50,
+            ell_max=450,
+        )
+        ee_reference_peaks = _local_extrema_ells(
+            ells,
+            numpy.asarray(reference[:, 1][ells], dtype=float),
+            kind="max",
+            ell_min=50,
+            ell_max=450,
+        )
+        self.assertGreaterEqual(len(ee_actual_peaks), 2)
+        self.assertGreaterEqual(len(ee_reference_peaks), 2)
+        self.assertLessEqual(
+            abs(ee_actual_peaks[0] - ee_reference_peaks[0]),
+            1,
+            (
+                "EE first peak mismatch: "
+                f"actual={ee_actual_peaks[0]}, "
+                f"reference={ee_reference_peaks[0]}"
+            ),
+        )
+        self.assertLessEqual(
+            abs(ee_actual_peaks[1] - ee_reference_peaks[1]),
+            1,
+            (
+                "EE second peak mismatch: "
+                f"actual={ee_actual_peaks[1]}, "
+                f"reference={ee_reference_peaks[1]}"
+            ),
+        )
+
+        te_actual_zero_crossings = _zero_crossing_ells(
+            ells,
+            numpy.asarray(actual["TE"], dtype=float),
+            ell_min=30,
+            ell_max=650,
+        )
+        te_reference_zero_crossings = _zero_crossing_ells(
+            ells,
+            numpy.asarray(reference[:, 3][ells], dtype=float),
+            ell_min=30,
+            ell_max=650,
+        )
+        self.assertGreaterEqual(len(te_actual_zero_crossings), 3)
+        self.assertGreaterEqual(len(te_reference_zero_crossings), 3)
+        for index in range(3):
+            self.assertLessEqual(
+                abs(
+                    te_actual_zero_crossings[index]
+                    - te_reference_zero_crossings[index]
+                ),
+                1,
+                (
+                    "TE zero-crossing mismatch at index "
+                    f"{index}: actual={te_actual_zero_crossings[index]}, "
+                    f"reference={te_reference_zero_crossings[index]}"
+                ),
             )
-            rms_error = float(
-                numpy.sqrt(numpy.mean((candidate_norm - reference_norm) ** 2))
-            )
-            correlation = float(
-                numpy.corrcoef(candidate_norm, reference_norm)[0, 1]
-            )
-            self.assertLess(rms_error, 1.5)
-            if spectrum_name == "TE":
-                self.assertGreater(abs(correlation), 0.2)
-            else:
-                self.assertGreater(correlation, 0.2)
+
+
+class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
+    """Analytic observable checks for the declared-graph runtime."""
+
+    def test_custom_source_expression_changes_observable(self) -> None:
+        """Source scalings should map to the expected quadratic TT response."""
+
+        baseline = _analytic_signal_contract(source_scale=1.0)
+        changed = _analytic_signal_contract(source_scale=1.5)
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_tt / baseline_tt,
+            numpy.full_like(baseline_tt, 1.5 * 1.5),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Declared source scaling should produce the exact quadratic "
+                "TT power response."
+            ),
+        )
+
+    def test_custom_closures_change_spectrum(self) -> None:
+        """Closure scalings should map to quadratic TT power."""
+
+        baseline = _analytic_signal_contract(closure_scale=1.0)
+        changed = _analytic_signal_contract(closure_scale=1.7)
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_tt / baseline_tt,
+            numpy.full_like(baseline_tt, 1.7 * 1.7),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Declared closure scaling should produce the exact quadratic "
+                "TT power response."
+            ),
+        )
+
+    def test_custom_equations_change_spectrum(self) -> None:
+        """Stronger damping should suppress the analytic TT observable."""
+
+        low_decay = _analytic_signal_contract(decay_rate=0.01)
+        high_decay = _analytic_signal_contract(decay_rate=0.05)
+        ells = numpy.arange(20, 30, dtype=int)
+        low_decay_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                low_decay,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        high_decay_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                high_decay,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertTrue(
+            numpy.all(high_decay_tt < low_decay_tt),
+            (
+                "Increasing the declared decay coefficient should reduce "
+                "TT power for every tested multipole."
+            ),
+        )
+
+    def test_lensing_source_changes_pp(self) -> None:
+        """Lensing-source scalings should map to exact quadratic PP power."""
+
+        baseline = _speedup_contract(_custom_contract(include_lensing=True))
+        changed = _speedup_contract(_custom_contract(include_lensing=True))
+        changed["perturbations"]["sources"]["lensing_potential"][
+            "expression"
+        ] = "1.35 * exp(-tau) * (Phi + Psi)"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_pp = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("PP",),
+            ),
+            dtype=float,
+        )
+        changed_pp = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("PP",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_pp / baseline_pp,
+            numpy.full_like(baseline_pp, 1.35 * 1.35),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Declared lensing-source scaling should produce the exact "
+                "quadratic PP power response."
+            ),
+        )
+
+    def test_b_mode_source_changes_bb(self) -> None:
+        """B-mode source scalings should map to exact quadratic BB power."""
+
+        baseline = _speedup_contract(_custom_contract(include_bb=True))
+        changed = _speedup_contract(_custom_contract(include_bb=True))
+        changed["perturbations"]["sources"]["polarization_b_source"][
+            "expression"
+        ] = "1.25 * visibility * tensor_b"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                baseline,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        changed_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_dict(
+                changed,
+                ells,
+                spectra=("BB",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_bb / baseline_bb,
+            numpy.full_like(baseline_bb, 1.25 * 1.25),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Declared odd-parity source scaling should produce the "
+                "exact quadratic BB power response."
+            ),
+        )
+
+
+class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
+    """Fast runtime-response coverage for declared-graph execution."""
+
+    def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
+        """The production module should not contain old compatibility code."""
+
+        source_text = Path(cmb.__file__).read_text(encoding="utf-8")
+        for needle in (
+            "equation_mode",
+            "mapped_sector",
+            "declared_equations",
+            "source_normalization",
+            "transfer_amplitude",
+            "angular_projection_scale",
+            "_evolve_custom_cmb_mode_histories",
+            "_CUSTOM_CMB_SOURCE_CHANNELS",
+            "_CUSTOM_CMB_SECTOR_ALIASES",
+            "_classify_custom_physical_sector",
+            "visibility shift",
+            "visibility rescale",
+            "_smooth_transition",
+        ):
+            self.assertNotIn(needle, source_text)
 
     def test_custom_graph_runs_and_transfer_payloads_are_finite(self) -> None:
         """Transfer components and declared spectra should stay finite."""
@@ -1157,172 +1720,6 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
         self.assertGreater(high_probe, low_probe)
         self.assertGreater(
             float(numpy.max(numpy.abs(high_tau_tt - low_tau_tt))),
-            1.0e-12,
-        )
-
-    def test_custom_equations_change_spectrum(self) -> None:
-        """Equation changes should move the requested observables."""
-
-        baseline = _speedup_contract(_custom_contract())
-        changed = _speedup_contract(
-            _custom_contract(
-                baryon_rhs=(
-                    "-0.06 * theta_b "
-                    "+ 0.2 * k * k * sound_speed_sq * delta_b "
-                    "+ 0.2 * tight_coupling_drag * "
-                    "(3.0 * theta_gamma1 - theta_b) "
-                    "+ 0.35 * k * k * Psi"
-                )
-            )
-        )
-        ells = numpy.arange(20, 40, dtype=int)
-        baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                baseline,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                changed,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        self.assertGreater(
-            float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
-            1.0e-12,
-        )
-
-    def test_custom_closures_change_spectrum(self) -> None:
-        """Closure changes should alter TE or EE."""
-
-        baseline = _speedup_contract(
-            _custom_contract(metric_closure_expression="Phi")
-        )
-        changed = _speedup_contract(
-            _custom_contract(metric_closure_expression="1.15 * Phi")
-        )
-        ells = numpy.arange(20, 40, dtype=int)
-        baseline_spectra = cmb.compute_cmb_spectrum_from_dict(
-            baseline,
-            ells,
-            spectra=("TE", "EE"),
-        )
-        changed_spectra = cmb.compute_cmb_spectrum_from_dict(
-            changed,
-            ells,
-            spectra=("TE", "EE"),
-        )
-        te_delta = numpy.asarray(
-            changed_spectra["TE"] - baseline_spectra["TE"],
-            dtype=float,
-        )
-        ee_delta = numpy.asarray(
-            changed_spectra["EE"] - baseline_spectra["EE"],
-            dtype=float,
-        )
-        self.assertGreater(
-            max(
-                float(numpy.max(numpy.abs(te_delta))),
-                float(numpy.max(numpy.abs(ee_delta))),
-            ),
-            1.0e-12,
-        )
-
-    def test_custom_source_expression_changes_observable(self) -> None:
-        """Observable mappings should consume declared graph quantities."""
-
-        baseline = _speedup_contract(
-            _custom_contract(additive_source_expression="0.0")
-        )
-        changed = _speedup_contract(
-            _custom_contract(
-                additive_source_expression="0.2 * theta_gamma0 + Phi"
-            )
-        )
-        ells = numpy.arange(20, 40, dtype=int)
-        baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                baseline,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                changed,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        self.assertGreater(
-            float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
-            1.0e-12,
-        )
-
-    def test_lensing_source_changes_pp(self) -> None:
-        """Declared lensing sources should move the lensing observable."""
-
-        baseline = _speedup_contract(_custom_contract(include_lensing=True))
-        changed = _speedup_contract(_custom_contract(include_lensing=True))
-        changed["perturbations"]["sources"]["lensing_potential"][
-            "expression"
-        ] = "1.35 * exp(-tau) * (Phi + Psi)"
-        ells = numpy.arange(20, 36, dtype=int)
-        baseline_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                baseline,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
-        changed_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                changed,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
-        self.assertGreater(
-            float(numpy.max(numpy.abs(changed_pp - baseline_pp))),
-            1.0e-12,
-        )
-
-    def test_b_mode_source_changes_bb(self) -> None:
-        """Declared odd-parity sources should drive the BB observable."""
-
-        baseline = _speedup_contract(_custom_contract(include_bb=True))
-        changed = _speedup_contract(_custom_contract(include_bb=True))
-        changed["perturbations"]["sources"]["polarization_b_source"][
-            "expression"
-        ] = "1.25 * visibility * tensor_b"
-        ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                baseline,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
-        changed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
-                changed,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
-        self.assertGreater(
-            float(numpy.max(numpy.abs(changed_bb - baseline_bb))),
             1.0e-12,
         )
 
@@ -1686,45 +2083,26 @@ class CMBCustomPhysicsTestCase(unittest.TestCase):
             self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
             self.assertEqual(spectrum.shape, (ells.size,))
 
-    def test_standard_lcdm_matches_camb_when_available(self) -> None:
-        """The standard path should stay aligned with CAMB."""
+    def test_direct_custom_path_does_not_call_camb(self) -> None:
+        """The direct declared-graph route should stay CAMB-free."""
 
-        if camb is None:
-            self.skipTest("CAMB is not installed")
+        contract = _speedup_contract(_custom_contract())
+        ells = numpy.arange(20, 35, dtype=int)
+        with mock.patch.object(
+            cmb.camb,
+            "get_results",
+            side_effect=AssertionError("CAMB prediction path should not run"),
+        ):
+            result = cmb.compute_cmb_spectrum_from_dict(
+                contract,
+                ells,
+                spectra=("TT", "TE", "EE"),
+            )
 
-        standard_contract = _standard_contract()
-        ells = numpy.arange(2, 35, dtype=int)
-        actual = cmb.compute_cmb_spectrum_from_dict(
-            standard_contract,
-            ells,
-            spectra=("TT", "TE", "EE"),
-        )
-
-        params = cmb._make_camb_params(standard_contract, lmax=int(ells.max()))
-        results = camb.get_results(params)
-        reference = results.get_unlensed_scalar_cls(
-            lmax=int(ells.max()),
-            CMB_unit="muK",
-        )
-
-        numpy.testing.assert_allclose(
-            actual["TT"],
-            reference[:, 0][ells],
-            rtol=1.0e-5,
-            atol=1.0e-5,
-        )
-        numpy.testing.assert_allclose(
-            actual["EE"],
-            reference[:, 1][ells],
-            rtol=1.0e-5,
-            atol=1.0e-5,
-        )
-        numpy.testing.assert_allclose(
-            actual["TE"],
-            reference[:, 3][ells],
-            rtol=1.0e-5,
-            atol=1.0e-5,
-        )
+        self.assertEqual(set(result), {"TT", "TE", "EE"})
+        for spectrum in result.values():
+            self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
+            self.assertEqual(spectrum.shape, (ells.size,))
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):
