@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-13
+**Last Updated:** 2026-06-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -14,14 +14,19 @@ This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
 <!-- DEVCOV:END -->
 
-Use this plan to turn Copernican's custom CMB path into a universal
-declarative cosmological-theory executor.
+Use this plan to bring Copernican's native CMB engine to fruition.
 
-The purpose of this roadmap is non-negotiable:
+This roadmap replaces the previous two-megaslice structure. The old structure
+was useful while the engine did not exist. It is now too coarse. The current
+`new` branch has already built the declared graph foundation and the first
+physical native CMB engine pass. The plan must now stop treating that work as
+an almost-finished Slice One and instead mark the earned baseline honestly.
+
+The purpose of this roadmap remains non-negotiable:
 
 * `standard: true` remains the standard backend path for CAMB-compatible
   models.
-* `standard: false` becomes Copernican's native path for declared math.
+* `standard: false` is Copernican's native path for declared math.
 * Any mathematically well-posed cosmological theory should be ingestible if
   it is expressible through the model contract.
 * Invalid, incomplete, contradictory, unsupported, or numerically ill-posed
@@ -31,56 +36,78 @@ The purpose of this roadmap is non-negotiable:
   Python solvers when `standard: false`.
 
 This is a forward-only plan. Do not preserve obsolete schema by adding
-compatibility layers. Migrate the current custom CMB contract into the new
-native declaration system.
+compatibility layers. Do not reintroduce scalar-only theory ceilings. Do not
+classify whole theories into solver families. Variables, sources, equations,
+and projections may carry metadata, but the whole theory is one declared
+mathematical system.
 
-This is not a tests-first plan. Slice One is the implementation slice.
-Validation tests must be created as part of that implementation. Slice Two is
-the dedicated verification and validation slice.
-
-Keep slices dependency-ordered, concrete, current, and runtime-focused.
+This is not a tests-first plan. Each slice is an implementation, validation,
+or closure pass with tests created or updated as part of the work. Do not mark
+a slice complete because weak tests pass. Mark it complete only when the code,
+tests, docs, and failure modes match the slice's target.
 
 ## Table of Contents
 
 * [Problem Preamble](#problem-preamble)
+* [Current Baseline](#current-baseline)
 * [Overview](#overview)
 * [How Slices Are Executed](#how-slices-are-executed)
 * [Execution Slices](#execution-slices)
 * [Validation Routine](#validation-routine)
+* [Completion Standard](#completion-standard)
 
 ## Problem Preamble
 
 Copernican already evaluates cosmological models against SNe Ia, BAO, and CMB
-observations. SNe and BAO can already consume broad declared expressions. The
-CMB path must now reach the same philosophical standard.
+observations. SNe and BAO can consume broad declared expressions. The CMB path
+must reach the same philosophical standard.
 
-The current custom CMB implementation is not the final target. It contains a
-native non-standard route, custom background construction, recombination
-history, visibility function, per-k mode evolution, line-of-sight projection,
-TT/TE/EE spectra, source channels, declared perturbation contracts, and
-manifest integration. That is the baseline.
+The current native CMB implementation now contains a declared graph contract,
+declared background handling, ODE-based recombination, visibility construction,
+per-k graph evolution, source evaluation, projection contracts, TT/TE/EE, BB,
+lensing-potential, custom observable targets, manifest integration, and tests.
 
-The target is broader.
+That is real progress. It is not the final target.
 
-Copernican must become able to ingest a complete declared mathematical
-system: background equations, perturbation variables, evolution equations,
-constraints, closures, initial conditions, boundary conditions, source terms,
-observable mappings, priors, validity declarations, numerical requirements,
-and datasets.
+The final target is a native engine that can ingest a complete declared
+mathematical system: background equations, perturbation variables, evolution
+equations, constraints, closures, initial conditions, boundary conditions,
+source terms, observable mappings, priors, validity declarations, numerical
+requirements, and datasets.
 
 The theory itself must not be classified into solver families. A theory may
 contain any mixture of scalar-like, vector-like, tensor-like, spin-weighted,
 ranked, parity-tagged, custom, coupled, or exotic variables. These are
-properties of variables, equations, and observable projections. They are not
+properties of variables, equations, sources, and projections. They are not
 separate theory families and must not become solver selectors.
 
 The native engine must compile the declared mathematics into one internal
-equation graph and solve that graph. Observable adapters may use variable
-metadata such as rank, spin, parity, projection role, or source role, but they
-must not classify the whole theory or silently choose a hardcoded theory type.
+equation graph and solve that graph. Observable adapters may use variable and
+source metadata such as rank, spin, parity, projection role, or source role,
+but they must not silently choose a hardcoded theory type.
 
-The purpose of this roadmap is to remove the scalar-only ceiling and replace
-it with a forward-only universal declaration system for `standard: false`.
+The remaining work is no longer "start building the engine." The remaining
+work is to harden scientific validation, finish universality where named
+standard-like assumptions remain, generalize projection semantics, close docs
+and provenance truth, and only then optimize speed.
+
+## Current Baseline
+
+The current `new` branch baseline is treated as the end of Slice Two.
+
+Current status:
+
+* [closed] Slice One - Native declared graph foundation.
+* [closed] Slice Two - First physical CMB engine implementation.
+* [open] Slice Three - Scientific validation hardening.
+* [open] Slice Four - Background and equation universality.
+* [open] Slice Five - Projection and observable generalization.
+* [open] Slice Six - Closure, audit, docs, and provenance truth.
+* [deferred] Slice Seven - Performance and gate-speed optimization.
+
+This baseline is intentionally not described as "almost complete Slice One."
+The graph foundation and first physical engine pass are real completed
+platform work. The next work begins from that platform.
 
 ## Overview
 
@@ -96,31 +123,32 @@ it with a forward-only universal declaration system for `standard: false`.
 * The native engine must be based on one declared equation graph.
 * Do not introduce `mode_families`.
 * Do not introduce a solver-type selector.
-* Do not introduce a compatibility layer for obsolete scalar-only schema.
-* Current custom scalar fixtures, docs, and tests must be migrated into the
-  new forward-only declaration system.
+* Do not introduce a scalar compatibility layer.
+* Do not introduce hidden LCDM production fallback for `standard: false`.
 * Declared variables may carry metadata needed for physics and projection:
   kind, rank, spin, parity, tensor character, gauge role, source role,
   projection role, domain, units, and notes.
 * Declared equations may be differential, algebraic, constraint, closure, or
   source equations.
 * Declared observables must state what they need from the solved graph.
+* Projection contracts must be explicit and fail loudly when unsupported.
 * The engine must check whether the graph is complete enough to solve.
 * The engine must fail clearly for missing equations, missing initial
-  conditions, missing observable mappings, contradictory definitions,
-  unsupported projections, non-finite evolution, singular systems, or invalid
-  math.
+  conditions, missing background quantities, missing observable mappings,
+  contradictory definitions, unsupported projections, non-finite evolution,
+  singular systems, or invalid math.
 * Documentation, examples, manifests, tests, and DevCovenant governance must
   all describe the implemented behavior.
 
 ## How Slices Are Executed
 
-* Each slice means a complete implementation pass, not a note.
-* Slice One implements the new declared-math engine and creates validation
-  tests as part of implementation.
-* Slice Two verifies, validates, hardens, documents, and audits the result.
-* Do not turn Slice One into a tests-first loop.
-* Do not mark implementation complete merely because weak tests pass.
+* Each slice means a complete implementation or validation pass, not a note.
+* Slices must be executed in dependency order.
+* Closed slices describe the current baseline and must not be reopened unless
+  current-code audit proves a closed claim false.
+* Open slices describe the next work.
+* Deferred slices describe real work that must not be started yet.
+* Do not turn any slice into a tests-first loop.
 * Do not delete, skip, xfail, or loosen validation tests to pass.
 * Do not use source-code bans as the main proof of physics.
 * Do not fake spectra.
@@ -134,6 +162,7 @@ it with a forward-only universal declaration system for `standard: false`.
 * Do not create theory-specific Python solvers.
 * Do not update production theory YAMLs as the implementation vehicle.
 * Use synthetic declared-math fixtures for implementation and validation.
+* Use reference-backed fixtures for scientific validation.
 * Keep `standard: true` behavior intact.
 * Keep generated artifacts generated.
 * Keep repository-specific DevCovenant profile overrides narrow and factual.
@@ -148,284 +177,553 @@ it with a forward-only universal declaration system for `standard: false`.
 any file required to implement the slice correctly. Do not make unrelated
 changes.
 
+Task markers inside slices mean:
+
+* [closed] Implemented and validated enough to be treated as current baseline.
+* [open] Not complete and must be considered active future work.
+* [deferred] Real work, intentionally postponed until its dependency slices
+  close.
+* [blocked] Cannot proceed because a named dependency is missing.
+
 ## Execution Slices
 
-* [open] Slice One - Implement the universal declared-math CMB engine.
+### [closed] Slice One - Native declared graph foundation
 
-  Depends on:
+Purpose:
 
-  * current `new` branch baseline;
-  * current custom CMB route for `standard: false`;
-  * current perturbation contract compiler;
-  * current CMB likelihood tests;
-  * current manifest integration.
+Establish `standard: false` as a native declared-math path, not a scalar custom
+path and not a CAMB or CLASS fallback.
 
-  Probable affected files:
+Depends on:
 
-  * `copernican/lib/likelihoods/cmb.py`
-  * `copernican/lib/perturbation_contract.py`
-  * `copernican/lib/model_coder.py`
-  * `copernican/lib/model_spec_validator.py`
-  * `copernican/lib/engine_adapter.py`
-  * `copernican/lib/run_manifest.py`
-  * `tests/copernican/lib/likelihoods/test_cmb.py`
-  * perturbation contract tests
-  * model schema and model coder tests
-  * manifest tests
-  * docs and model templates
-  * `CHANGELOG.md`
+* current package layout;
+* current native custom CMB route;
+* current safe-expression compiler;
+* current model coder and validator;
+* current CMB likelihood integration;
+* current manifest integration.
 
-  Scope:
+Probable affected files:
 
-  * Replace scalar-only custom CMB execution with one unified declared-math
-    equation graph for `standard: false`.
-  * Remove the assumption that the custom CMB path is a scalar engine.
-  * Do not introduce `mode_families`.
-  * Do not classify theories as scalar, vector, tensor, or anything else.
-  * Represent the theory as one graph containing variables, equations,
-    constraints, closures, sources, initial conditions, boundary conditions,
-    validity declarations, numerical requirements, and observable mappings.
-  * Allow variables to carry metadata such as kind, rank, spin, parity,
-    tensor character, gauge role, source role, projection role, domain, units,
-    and notes.
-  * Allow equations to declare their left-hand side, right-hand side,
-    derivative order, independent variable, equation role, domain, and
-    dependencies.
-  * Allow algebraic constraints and closure equations to participate in graph
-    validation and evolution.
-  * Allow initial and boundary conditions to be declared explicitly.
-  * Allow observable mappings to declare what they consume from the solved
-    graph.
-  * Support scalar-like, vector-like, tensor-like, spin-weighted, ranked,
-    parity-tagged, and custom variables as metadata on graph nodes, not as
-    separate theory families.
-  * Migrate current scalar custom CMB declarations into the new graph format.
-  * Remove obsolete scalar-only schema rather than preserving it through a
-    compatibility layer.
-  * Keep `standard: true` CAMB-compatible behavior intact.
-  * Keep `standard: false` CAMB-free in production prediction.
-  * Use CAMB and CLASS only as references in validation tests.
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/model_spec_validator.py`
+* `copernican/lib/engine_adapter.py`
+* `copernican/lib/run_manifest.py`
+* `copernican/lib/likelihoods/cmb.py`
+* graph and model schema tests
+* perturbation contract tests
+* CMB likelihood tests
+* manifest tests
+* docs and templates
 
-  Implementation details:
+Tasks:
 
-  * Build an internal immutable equation-graph representation.
-  * The graph must include model name, backend name, `standard` flag,
-    variables, derived quantities, differential equations, algebraic
-    equations, constraints, closures, source terms, initial conditions,
-    boundary conditions, observable mappings, validity domains, numerical
-    requirements, dependency graph summary, and manifest summary.
-  * Compile declared expressions through the existing safe-expression system.
-  * Validate all referenced symbols.
-  * Validate all independent variables.
-  * Validate that every evolved variable has enough evolution information.
-  * Validate that required initial or boundary conditions exist.
-  * Validate that observable mappings reference solved or derived quantities.
-  * Detect duplicate definitions where they would make the graph ambiguous.
-  * Detect circular derived dependencies.
-  * Detect unsupported projection requests before runtime.
-  * Detect invalid algebraic equations where possible.
-  * Detect incomplete systems before numerical evolution where possible.
-  * Fail with precise errors naming the missing or invalid graph component.
-  * Keep runtime non-finite checks during evolution.
-  * Fail clearly on non-finite state, non-finite derivative, singular solve,
-    or impossible numerical state.
-  * Replace empirical recombination transition shortcuts with a physical
-    recombination implementation.
-  * Implement hydrogen recombination through an ODE-based physical treatment:
-    case-B recombination coefficient, photoionization from detailed balance,
-    and Peebles C factor or equivalent escape-probability correction.
-  * Keep helium electron contribution physical.
-  * Keep reionization optical depth handling.
-  * Do not hand-set visibility peak shifts.
-  * Do not hand-rescale visibility.
-  * Replace scalar RHS and metric-potential heuristic behavior with graph
-    equations, constraints, and physical defaults where the graph requests
-    the standard scalar CMB observable.
-  * Implement tight-coupling handling where needed for stable early-time
-    photon-baryon evolution.
-  * Build CMB source terms from declared graph quantities and observable
-    mappings.
-  * Remove arbitrary transfer amplitude multipliers and source normalization
-    hacks.
-  * Improve k-grid, quadrature, interpolation, and spherical-Bessel handling
-    as required for stable spectra.
-  * Support TT, TE, EE, BB, lensing-potential, and custom observable targets
-    when their required graph quantities and projections are declared.
-  * If a requested observable is not mathematically declared or not supported
-    by the current projection machinery, fail clearly.
-  * Record graph, solver, observable, and validation provenance in the run
-    manifest.
-  * Update docs and templates so the public model contract matches the
-    implemented forward-only schema.
-  * Update existing synthetic tests and fixtures to use the new graph schema.
+* [closed] Replace scalar-only custom CMB contract with declared graph
+  contract.
+* [closed] Keep `standard: true` on the standard backend path.
+* [closed] Keep `standard: false` CAMB-free in production prediction.
+* [closed] Keep `standard: false` CLASS-free in production prediction.
+* [closed] Remove theory-family classification from the native contract.
+* [closed] Do not introduce `mode_families`.
+* [closed] Do not introduce a solver-type selector.
+* [closed] Represent the theory as one graph.
+* [closed] Support declared variables.
+* [closed] Support declared derived quantities.
+* [closed] Support declared differential equations.
+* [closed] Support declared algebraic equations.
+* [closed] Support declared constraints.
+* [closed] Support declared closures.
+* [closed] Support declared sources.
+* [closed] Support declared observables.
+* [closed] Support declared initial conditions.
+* [closed] Support declared boundary conditions.
+* [closed] Support declared numerics.
+* [closed] Support declared validity domains.
+* [closed] Add variable metadata for rank, spin, parity, tensor character,
+  gauge role, source role, and projection role.
+* [closed] Validate referenced symbols.
+* [closed] Validate derived dependencies.
+* [closed] Validate evolved-variable equations.
+* [closed] Validate initial-condition coverage.
+* [closed] Validate observable mappings.
+* [closed] Detect duplicate ambiguous declarations.
+* [closed] Detect circular derived dependencies.
+* [closed] Fail clearly for incomplete graph declarations.
+* [closed] Add synthetic complete-graph tests.
+* [closed] Add hybrid declared graph tests.
+* [closed] Add coupled-equation graph tests.
+* [closed] Add invalid graph failure tests.
+* [closed] Record graph provenance in manifest output.
 
-  Validation tests to create as part of implementation:
+Done when:
 
-  * A complete synthetic `standard: false` graph compiles and runs.
-  * A hybrid graph containing scalar-like, vector-like, tensor-like, and
-    custom variables compiles as one graph.
-  * Coupled equations across differently tagged variables compile as one
-    graph.
-  * Observable mappings consume graph quantities rather than hidden engine
-    variables.
-  * Missing evolved-variable equations fail clearly.
-  * Missing initial conditions fail clearly.
-  * Missing observable mappings fail clearly.
-  * Unsupported projections fail clearly.
-  * Duplicate incompatible definitions fail clearly.
-  * Circular derived dependencies fail clearly.
-  * Non-finite expression results fail clearly.
-  * Non-finite evolution states fail clearly.
-  * `standard: true` still uses the standard backend path.
-  * `standard: false` does not use CAMB or CLASS as production prediction.
-  * Recombination history is compared against CAMB or CLASS reference.
-  * Visibility peak and width are compared against CAMB or CLASS reference.
-  * Eta0 and sound horizon are compared against CAMB or CLASS reference.
-  * Scalar TT, TE, and EE spectra are compared against CAMB or CLASS for an
-    LCDM-equivalent declared graph.
-  * Tensor BB support is validated where the declared graph and reference
-    data support it.
-  * Lensing-potential behavior is validated where declared and supported.
-  * Custom source-channel perturbations change the intended observables.
-  * Custom closures change the intended observables.
-  * Custom equations change the intended observables.
-  * Manifest output records graph, solver, observable, and validation
-    provenance.
-  * The source file does not contain old fake CMB paths, acoustic templates,
-    hidden amplitude hacks, source rescaling hacks, hand-shifted visibility,
-    hand-rescaled visibility, or copied reference spectra.
+* [closed] `standard: false` compiles one declared equation graph.
+* [closed] No theory-family selector exists.
+* [closed] No `mode_families` schema exists.
+* [closed] No obsolete scalar compatibility layer exists.
+* [closed] Complete declared graph fixtures compile.
+* [closed] Invalid declared graph fixtures fail clearly.
+* [closed] `standard: true` remains intact.
+* [closed] `standard: false` remains CAMB-free in production.
+* [closed] Targeted graph, schema, and manifest tests pass.
 
-  Done when:
+### [closed] Slice Two - First physical CMB engine implementation
 
-  * `standard: false` uses a unified declared-math equation graph.
-  * No theory-family selector exists.
-  * No `mode_families` schema exists.
-  * No obsolete scalar compatibility layer exists.
-  * Current scalar custom CMB behavior is migrated into the new graph system.
-  * Complete declared theories run.
-  * Invalid declared theories fail clearly.
-  * Recombination is physical rather than an empirical transition fit.
-  * CMB observables are built from solved graph quantities.
-  * `standard: true` remains CAMB-compatible.
-  * `standard: false` remains CAMB-free in production prediction.
-  * Implementation validation tests exist.
-  * Docs and templates describe the new declaration system.
-  * Changelog records the implementation.
-  * Targeted tests pass.
-  * DevCovenant verification passes.
+Purpose:
 
-* [open] Slice Two - Verify, validate, harden, and close the universal engine.
+Make the declared graph drive a native CMB prediction path with physical
+background, recombination, source, and projection machinery.
 
-  Depends on:
+Depends on:
 
-  * Slice One.
+* Slice One;
+* current CMB likelihood path;
+* current declared graph compiler;
+* current safe-expression runtime;
+* current model schema handling.
 
-  Probable affected files:
+Probable affected files:
 
-  * tests
-  * validation helpers
-  * CMB likelihood code if validation exposes defects
-  * perturbation contract code if validation exposes defects
-  * model coder and validator code if validation exposes defects
-  * manifest code if validation exposes defects
-  * docs and templates
-  * `CHANGELOG.md`
+* `copernican/lib/likelihoods/cmb.py`
+* `copernican/lib/cmb_projection_contract.py`
+* `copernican/lib/perturbation_contract.py`
+* CMB likelihood tests
+* projection contract tests
+* perturbation contract tests
+* docs and templates
+* manifest tests
+* `CHANGELOG.md`
 
-  Scope:
+Tasks:
 
-  * Audit the Slice One implementation against the roadmap purpose.
-  * Verify that `standard: true` still uses the standard backend path.
-  * Verify that `standard: false` uses only Copernican native production
-    prediction.
-  * Verify that no CAMB or CLASS production fallback exists for
-    `standard: false`.
-  * Verify that no theory-family schema or solver selector was introduced.
-  * Verify that no obsolete scalar compatibility layer remains.
-  * Verify that graph validation is real and fail-loud.
-  * Verify that invalid theories do not silently run.
-  * Verify that complete theories run from declared math.
-  * Verify that observables are built from solved graph quantities.
-  * Verify that docs, examples, templates, tests, and manifests describe the
-    same behavior.
-  * Harden implementation defects found by validation.
-  * Do not broaden scope beyond defects required to make the declared-math
-    engine correct.
+* [closed] Require declared background mapping for native CMB execution.
+* [closed] Fail clearly when native CMB background mapping is missing.
+* [closed] Fail clearly when background declarations are malformed.
+* [closed] Remove loose hidden LCDM background fallback.
+* [closed] Resolve declared `H(a,z)` from background declarations.
+* [closed] Build eta grid from declared background expansion.
+* [closed] Build distance grid from declared background expansion.
+* [closed] Build visibility from recombination and reionization history.
+* [closed] Replace empirical recombination transition shortcut.
+* [closed] Implement hydrogen recombination as an ODE treatment.
+* [closed] Use case-B hydrogen recombination coefficient.
+* [closed] Use detailed-balance photoionization.
+* [closed] Use Peebles-style C factor.
+* [closed] Include physical helium electron contribution.
+* [closed] Preserve reionization optical-depth handling.
+* [closed] Remove hand-shifted visibility peak logic.
+* [closed] Remove hand-rescaled visibility logic.
+* [closed] Evaluate declared perturbation equations during runtime evolution.
+* [closed] Evaluate declared constraints and closures during runtime.
+* [closed] Evaluate declared sources from solved graph context.
+* [closed] Fail clearly on non-finite derivatives.
+* [closed] Fail clearly on non-finite sources.
+* [closed] Fail clearly on non-finite evolved state.
+* [closed] Add explicit projection contracts.
+* [closed] Build TT from declared graph quantities.
+* [closed] Build TE from declared graph quantities.
+* [closed] Build EE from declared graph quantities.
+* [closed] Build BB from declared `polarization_b` source.
+* [closed] Do not map BB to E-mode plumbing.
+* [closed] Build lensing from declared potential source.
+* [closed] Fail clearly for unsupported projections.
+* [closed] Fail clearly for missing projection source roles.
+* [closed] Fail clearly for wrong projection source roles.
+* [closed] Add tests proving equations change intended outputs.
+* [closed] Add tests proving closures change intended outputs.
+* [closed] Add tests proving sources change intended outputs.
+* [closed] Add tests proving BB responds to declared B source.
+* [closed] Add tests proving lensing responds to declared potential source.
 
-  Required validation:
+Done when:
 
-  * Run full CMB tests.
-  * Run perturbation contract tests.
-  * Run model coder and model spec validator tests.
-  * Run manifest tests.
-  * Run relevant CLI, import, and package smoke tests.
-  * Run DevCovenant verification.
-  * Run any available slow CAMB or CLASS reference tests.
-  * Confirm that generated artifacts are generated, not hand-patched.
+* [closed] Native CMB predictions use declared graph runtime.
+* [closed] Native background is declared, not silently inferred from LCDM.
+* [closed] Recombination is physical rather than empirical transition fitting.
+* [closed] TT, TE, EE, BB, and lensing run from declared source contracts.
+* [closed] Unsupported or incomplete projection requests fail clearly.
+* [closed] Synthetic runtime tests demonstrate graph-driven response.
+* [closed] `standard: true` remains intact.
+* [closed] `standard: false` remains CAMB-free in production.
 
-  Scientific validation:
+### [open] Slice Three - Scientific validation hardening
 
-  * Compare custom recombination history to CAMB or CLASS.
-  * Compare visibility peak to CAMB or CLASS.
-  * Compare visibility width to CAMB or CLASS.
-  * Compare eta0 to CAMB or CLASS.
-  * Compare sound horizon to CAMB or CLASS.
-  * Compare scalar TT, TE, and EE spectra to CAMB or CLASS over a meaningful
-    ell range.
-  * Validate peak positions and TE zero crossings.
-  * Validate tensor BB behavior where declared and reference-supported.
-  * Validate lensing-potential behavior where declared and reference-supported.
-  * Validate custom observable mappings with synthetic graphs.
-  * Validate failure modes for invalid graphs.
+Purpose:
 
-  Failure-mode validation:
+Move from proving that the engine runs to proving that its physics is
+credible. This slice must strengthen validation without weakening or deleting
+tests.
 
-  * Missing variable definition fails clearly.
-  * Missing differential equation fails clearly.
-  * Missing algebraic dependency fails clearly.
-  * Missing initial condition fails clearly.
-  * Missing boundary condition fails clearly when required.
-  * Missing observable mapping fails clearly.
-  * Unsupported projection fails clearly.
-  * Contradictory declarations fail clearly when detectable.
-  * Circular derived dependency fails clearly.
-  * Non-finite expression fails clearly.
-  * Non-finite derivative fails clearly.
-  * Non-finite state fails clearly.
-  * Singular solve fails clearly.
-  * Invalid `standard` declaration fails clearly.
-  * `standard: false` with undeclared CMB requirements fails clearly.
+Depends on:
 
-  Documentation validation:
+* Slice One;
+* Slice Two.
 
-  * Docs explain the purpose of `standard: true`.
-  * Docs explain the purpose of `standard: false`.
-  * Docs explain the declared equation graph.
-  * Docs explain variables, equations, constraints, closures, sources,
-    initial conditions, boundary conditions, observables, validity, and
-    numerical requirements.
-  * Docs explain what Copernican can solve.
-  * Docs explain what Copernican refuses to solve.
-  * Docs explain failure diagnostics.
-  * Docs do not describe mode families.
-  * Docs do not describe a scalar compatibility layer.
-  * Docs do not promise hidden CAMB fallback for `standard: false`.
-  * Examples match the implemented schema.
+Probable affected files:
 
-  Done when:
+* `tests/copernican/lib/likelihoods/test_cmb.py`
+* CMB validation helpers
+* CMB reference fixture helpers
+* `copernican/lib/likelihoods/cmb.py`
+* projection contract tests if validation exposes defects
+* docs describing validation status
+* `CHANGELOG.md`
 
-  * Full targeted validation passes.
-  * Scientific reference validation passes within documented tolerances.
-  * Failure-mode validation passes.
-  * Documentation validation passes.
-  * `standard: true` is intact.
-  * `standard: false` is native and CAMB-free in production.
-  * Complete declared theories are edible.
-  * Invalid declared theories fail clearly.
-  * No family classifier exists.
-  * No solver-type selector exists.
-  * No obsolete compatibility layer exists.
-  * Changelog records validation closure.
-  * DevCovenant gate closes.
+Scope:
+
+* Audit existing CMB tests as scientific validation, not just runtime checks.
+* Preserve synthetic runtime tests but stop treating them as physics proof.
+* Add or harden reference-backed validation.
+* Tighten loose tolerances where implementation can support it.
+* Make failures name the physical discrepancy.
+* Fix implementation defects exposed by stronger validation.
+* Do not optimize speed in this slice except to keep validation executable.
+* Do not broaden background universality in this slice unless validation
+  exposes a direct defect in current declared-background behavior.
+
+Tasks:
+
+* [open] Separate runtime-response tests from scientific-reference tests.
+* [open] Label slow scientific validation clearly.
+* [open] Tighten recombination validation beyond current loose thresholds.
+* [open] Validate recombination history against CAMB or CLASS reference.
+* [open] Validate visibility peak against CAMB or CLASS reference.
+* [open] Validate visibility width against CAMB or CLASS reference.
+* [open] Validate eta0 against CAMB or CLASS reference.
+* [open] Validate sound horizon against CAMB or CLASS reference.
+* [open] Replace weak normalized TT shape-only validation.
+* [open] Validate TT over a meaningful ell range.
+* [open] Validate TE over a meaningful ell range.
+* [open] Validate EE over a meaningful ell range.
+* [open] Validate peak positions.
+* [open] Validate acoustic peak spacing.
+* [open] Validate TE zero crossings.
+* [open] Validate low-ell behavior only where numerically meaningful.
+* [open] Validate tensor BB where declared and reference-supported.
+* [open] Validate lensing-potential behavior where reference-supported.
+* [open] Validate custom source-channel perturbations against expected
+  observable changes.
+* [open] Validate custom closures against expected observable changes.
+* [open] Validate custom equations against expected observable changes.
+* [open] Remove or physically justify remaining empirical numerical scale
+  factors.
+* [open] Ensure failed reference comparisons report named quantities,
+  tolerances, and measured error.
+* [open] Ensure validation never uses source-code string bans as the main
+  proof of physics.
+* [open] Ensure validation never accepts copied reference spectra as
+  production behavior.
+* [open] Ensure CAMB or CLASS are validation references only.
+
+Done when:
+
+* [open] Recombination reference validation is credible.
+* [open] Visibility reference validation is credible.
+* [open] Eta0 and sound-horizon validation are credible.
+* [open] TT, TE, and EE validation are stronger than smoothed shape checks.
+* [open] BB validation exists where declared and reference-supported.
+* [open] Lensing validation exists where declared and reference-supported.
+* [open] Synthetic tests remain but are not used as scientific proof.
+* [open] Tolerances are documented and not loosened to pass.
+* [open] Defects exposed by validation are fixed.
+* [open] Relevant CMB validation tests pass.
+
+### [open] Slice Four - Background and equation universality
+
+Purpose:
+
+Remove the remaining standard-like named-parameter ceiling and make declared
+background equations first-class native engine inputs.
+
+Depends on:
+
+* Slice Three.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb.py`
+* `copernican/lib/perturbation_contract.py`
+* model coder and validator code
+* background validation helpers
+* CMB tests
+* model schema tests
+* docs and templates
+* manifest tests
+* `CHANGELOG.md`
+
+Scope:
+
+* Treat declared background math as part of the native equation system.
+* Reduce hard dependency on fixed LCDM-style parameter names.
+* Keep physical requirements explicit where CMB physics needs them.
+* Fail clearly when a declared theory omits quantities required by the CMB
+  engine.
+* Do not create a hidden LCDM fallback.
+* Do not create theory-family selectors.
+* Do not move to performance optimization.
+
+Tasks:
+
+* [open] Audit all named physical parameter requirements in native CMB code.
+* [open] Classify each requirement as physically required, derivable, or
+  obsolete.
+* [open] Make declared background equations first-class graph inputs.
+* [open] Allow declared background outputs to provide expansion quantities.
+* [open] Allow declared background outputs to provide density quantities.
+* [open] Allow declared background outputs to provide pressure quantities.
+* [open] Allow declared background outputs to provide equation-of-state
+  quantities.
+* [open] Allow declared background outputs to provide curvature quantities.
+* [open] Fix CDM detection so declared background quantities are considered,
+  not only parameter names.
+* [open] Fix baryon detection so declared background quantities are
+  considered where possible.
+* [open] Fix radiation detection so declared background quantities are
+  considered where possible.
+* [open] Fix dark-energy detection so declared background quantities are
+  considered where possible.
+* [open] Preserve physically required scalars when they cannot be derived.
+* [open] Fail clearly when a required physical quantity is missing.
+* [open] Fail clearly when declared background arrays have invalid shape.
+* [open] Fail clearly when declared background values are non-finite.
+* [open] Fail clearly when declared background domains are invalid.
+* [open] Ensure perturbation graph can consume background graph outputs.
+* [open] Add non-LCDM synthetic background fixtures.
+* [open] Add tests where changing declared background changes CMB outputs.
+* [open] Add tests where incomplete background declarations fail early.
+* [open] Add manifest provenance for declared background quantities.
+
+Done when:
+
+* [open] Native CMB background is graph-driven where expressible.
+* [open] Hidden LCDM background fallback does not exist.
+* [open] Remaining named requirements are physically justified.
+* [open] Declared non-LCDM background fixtures run.
+* [open] Invalid background declarations fail before CMB runtime.
+* [open] Perturbations can consume declared background outputs.
+* [open] Manifest output records background provenance.
+* [open] Relevant background, CMB, schema, and manifest tests pass.
+
+### [open] Slice Five - Projection and observable generalization
+
+Purpose:
+
+Move from a finite projection adapter toward a more general declared
+observable system while preserving fail-loud behavior for unsupported
+projection math.
+
+Depends on:
+
+* Slice Three;
+* Slice Four.
+
+Probable affected files:
+
+* `copernican/lib/cmb_projection_contract.py`
+* `copernican/lib/likelihoods/cmb.py`
+* `copernican/lib/perturbation_contract.py`
+* projection contract tests
+* CMB observable tests
+* model schema tests
+* docs and templates
+* manifest tests
+* `CHANGELOG.md`
+
+Scope:
+
+* Generalize projection semantics without theory-family selectors.
+* Keep projection requirements explicit.
+* Strengthen BB parity and source validation.
+* Strengthen lensing source and projection validation.
+* Add custom observable projection support where declared math can provide it.
+* Fail clearly when a projection is not supported.
+* Do not fake unsupported observables.
+* Do not tune outputs with post-hoc amplitude hacks.
+* Do not optimize performance in this slice.
+
+Tasks:
+
+* [open] Audit current projection vocabulary.
+* [open] Document current projection limits as implementation facts.
+* [open] Distinguish source roles from projection kernels.
+* [open] Distinguish observable targets from projection machinery.
+* [open] Allow observable mappings to declare required source roles.
+* [open] Allow observable mappings to declare required projection roles.
+* [open] Allow observable mappings to declare kernel requirements.
+* [open] Support custom projection kernels where safe and mathematically
+  declared.
+* [open] Keep unsupported projection math fail-loud.
+* [open] Strengthen BB odd-parity validation.
+* [open] Validate that wrong parity cannot produce BB.
+* [open] Validate that missing `polarization_b` cannot produce BB.
+* [open] Validate that E-mode sources cannot be silently substituted for BB.
+* [open] Strengthen lensing potential validation.
+* [open] Validate that missing potential cannot produce lensing.
+* [open] Validate that wrong source role cannot produce lensing.
+* [open] Validate custom observable mappings consume solved graph outputs.
+* [open] Validate custom projection changes intended observables.
+* [open] Ensure no hidden source substitutions occur.
+* [open] Ensure no post-hoc amplitude tuning occurs.
+* [open] Ensure projection provenance appears in manifest output.
+
+Done when:
+
+* [open] Projection contracts are explicit and general where implemented.
+* [open] Unsupported projections fail clearly.
+* [open] BB cannot be produced from wrong-parity or E-only sources.
+* [open] Lensing cannot be produced without a declared potential source.
+* [open] Custom observable projections consume solved graph quantities.
+* [open] Projection provenance is recorded.
+* [open] Docs describe implemented projection behavior honestly.
+* [open] Relevant projection, CMB, schema, and manifest tests pass.
+
+### [open] Slice Six - Closure, audit, docs, and provenance truth
+
+Purpose:
+
+Close the native CMB engine as a trustworthy feature. This slice is not for
+new physics expansion unless audit exposes a defect that blocks truthful
+closure.
+
+Depends on:
+
+* Slice Three;
+* Slice Four;
+* Slice Five.
+
+Probable affected files:
+
+* CMB implementation files
+* graph contract files
+* projection contract files
+* validation tests
+* docs
+* templates
+* manifests
+* `CHANGELOG.md`
+* DevCovenant profile or governance docs if needed
+
+Scope:
+
+* Audit code against this plan.
+* Audit tests against implementation.
+* Audit docs against implementation.
+* Audit templates as documentation, not benchmarks.
+* Audit manifests against runtime behavior.
+* Remove stale claims.
+* Remove stale scalar wording.
+* Close feature truthfully.
+* Do not optimize performance in this slice.
+
+Tasks:
+
+* [open] Audit all closed-slice claims against code.
+* [open] Reopen any closed task that code disproves.
+* [open] Audit docs against implemented behavior.
+* [open] Audit templates as documentation only.
+* [open] Audit examples against current schema.
+* [open] Audit manifest provenance for graph identity.
+* [open] Audit manifest provenance for background quantities.
+* [open] Audit manifest provenance for recombination settings.
+* [open] Audit manifest provenance for projection contracts.
+* [open] Audit manifest provenance for solver/runtime settings.
+* [open] Audit `standard: true` behavior.
+* [open] Audit `standard: false` CAMB-free production behavior.
+* [open] Audit failure messages for missing graph pieces.
+* [open] Audit failure messages for invalid background declarations.
+* [open] Audit failure messages for invalid projection declarations.
+* [open] Remove stale scalar-engine wording.
+* [open] Remove docs that imply hidden CAMB fallback.
+* [open] Remove docs that imply unsupported universal projection behavior.
+* [open] Ensure docs explain what Copernican can solve.
+* [open] Ensure docs explain what Copernican refuses to solve.
+* [open] Ensure docs explain failure diagnostics.
+* [open] Ensure docs explain validation status honestly.
+* [open] Ensure docs explain slow reference validation honestly.
+* [open] Ensure generated artifacts remain generated.
+* [open] Ensure changelog records closure accurately.
+* [open] Ensure the final gate validates the feature truthfully.
+
+Done when:
+
+* [open] Code, docs, tests, templates, and manifest behavior agree.
+* [open] No stale scalar-only public wording remains.
+* [open] No unsupported behavior is promised.
+* [open] `standard: true` is intact.
+* [open] `standard: false` is native and CAMB-free in production.
+* [open] Complete declared theories are edible within implemented scope.
+* [open] Invalid declared theories fail clearly.
+* [open] Scientific validation status is explicit.
+* [open] Manifest provenance is truthful.
+* [open] Full relevant validation passes.
+* [open] DevCovenant gate closes.
+
+### [deferred] Slice Seven - Performance and gate-speed optimization
+
+Purpose:
+
+Make the now-correct native CMB engine fast enough to use sanely. This slice
+must not start until Slice Six closes.
+
+Depends on:
+
+* Slice Six.
+
+Probable affected files:
+
+* CMB implementation files
+* CMB tests
+* validation fixtures
+* test configuration
+* profiling helpers
+* docs describing test tiers
+* `CHANGELOG.md`
+
+Scope:
+
+* Profile before optimizing.
+* Split quick development validation from full scientific validation.
+* Keep scientific validation strong.
+* Do not optimize by weakening physics.
+* Do not optimize by deleting validation.
+* Do not optimize by hiding failures.
+* Prefer measured bottleneck removal over speculative rewrites.
+
+Tasks:
+
+* [deferred] Profile full CMB validation.
+* [deferred] Profile native CMB prediction runtime.
+* [deferred] Identify recombination bottlenecks.
+* [deferred] Identify background-grid bottlenecks.
+* [deferred] Identify Bessel-grid bottlenecks.
+* [deferred] Identify line-of-sight integration bottlenecks.
+* [deferred] Identify graph-compilation bottlenecks.
+* [deferred] Identify k-mode evolution bottlenecks.
+* [deferred] Split quick gate from full scientific validation.
+* [deferred] Mark slow scientific reference tests explicitly.
+* [deferred] Cache CAMB or CLASS reference products where legitimate.
+* [deferred] Cache recombination products where inputs are identical.
+* [deferred] Cache background products where inputs are identical.
+* [deferred] Cache Bessel grids.
+* [deferred] Cache compiled graph objects.
+* [deferred] Remove duplicate work in CMB tests.
+* [deferred] Vectorize line-of-sight hot paths.
+* [deferred] Parallelize independent k-mode evolution.
+* [deferred] Consider numba, cython, or compiled kernels only after profiling
+  proves the target.
+* [deferred] Document test tiers and expected runtime.
+* [deferred] Keep full scientific validation available.
+
+Done when:
+
+* [deferred] Quick validation is fast enough for normal development.
+* [deferred] Full scientific validation remains strong.
+* [deferred] Runtime bottlenecks are measured, not guessed.
+* [deferred] Optimizations preserve validated physics.
+* [deferred] No validation is weakened for speed.
+* [deferred] Test tiers are documented.
+* [deferred] Performance changes are recorded.
 
 ## Validation Routine
 
@@ -436,7 +734,9 @@ Minimum validation:
 * inspect the working tree;
 * run targeted tests for touched code;
 * run CMB tests when CMB behavior changes;
-* run perturbation contract tests when schema or compiler behavior changes;
+* run perturbation contract tests when graph schema or compiler behavior
+  changes;
+* run projection contract tests when projection behavior changes;
 * run model coder and model validator tests when model schema behavior
   changes;
 * run manifest tests when provenance behavior changes;
@@ -448,6 +748,15 @@ Minimum validation:
 * stage completed slice changes;
 * do not commit or push unless instructed.
 
+Per-slice closure validation:
+
+* closed tasks have code, tests, docs, or manifest evidence;
+* open tasks are not silently skipped;
+* deferred tasks are not started early;
+* tests are not weakened to pass;
+* failures are precise and user-facing;
+* generated artifacts remain generated.
+
 Completion validation:
 
 * `standard: true` remains CAMB-compatible;
@@ -456,15 +765,39 @@ Completion validation:
 * no `mode_families` schema exists;
 * no solver-type selector exists;
 * no obsolete scalar compatibility layer exists;
+* declared background behavior is explicit and fail-loud;
 * recombination reference validation passes;
 * visibility reference validation passes;
 * scalar TT, TE, and EE reference validation passes;
-* tensor, BB, lensing, and custom observable validation pass where declared
-  and supported;
+* BB validation passes where declared and reference-supported;
+* lensing validation passes where declared and reference-supported;
+* custom observable validation passes where declared and supported;
 * invalid theory failure tests pass;
 * source-channel, closure, equation, initial-condition, boundary-condition,
-  constraint, and observable tests pass;
-* manifests record full theory provenance;
-* docs and model templates match the implemented declaration system;
+  constraint, projection, and observable tests pass;
+* manifests record graph, background, recombination, projection, solver, and
+  observable provenance;
+* docs and templates match the implemented declaration system;
 * full relevant test suite passes;
 * DevCovenant gate closes.
+
+## Completion Standard
+
+The CMB engine is not complete merely because it runs.
+
+The CMB engine is complete when:
+
+* the declared graph is the native production path for `standard: false`;
+* the background is declared or explicitly required and never hidden;
+* recombination is physical and reference-validated;
+* observables are built from solved graph quantities;
+* projections are explicit and fail-loud;
+* TT, TE, EE, BB, lensing, and custom observables are validated within their
+  implemented scope;
+* invalid theories fail before fake numerical output;
+* docs do not overpromise;
+* manifests tell the truth;
+* `standard: true` remains intact;
+* `standard: false` remains CAMB-free and CLASS-free in production;
+* scientific validation is credible;
+* performance optimization is deferred until after closure.

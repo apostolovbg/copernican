@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-14
+**Last Updated:** 2026-06-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,17 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-19:
+  Change: Audited the PLAN.md replacement and corrected a wrapped CMB graph
+    sentence.
+  Why: Clarified the native CMB roadmap after DevCovenant synced the
+    replacement plan.
+  Impact: Recorded the plan-review work without changing the implementation
+    roadmap.
+  Files:
+    CHANGELOG.md
+    PLAN.md
 
 - 2026-06-14:
   Change: Completed Slice 1 declared CMB graph delivery by replacing the
