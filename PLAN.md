@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-19
+**Last Updated:** 2026-06-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -34,6 +34,11 @@ The purpose of this roadmap remains non-negotiable:
 * Copernican must not silently fall back to CAMB, CLASS, LCDM assumptions,
   fake spectra, fitted templates, hidden amplitude hacks, or theory-specific
   Python solvers when `standard: false`.
+
+This is the target condition for the full roadmap, not a claim that the
+current branch already solves every well-posed theory. Slice Three through
+Slice Six must remove the specific current limits named below so complete
+declared theories become executable within the model contract.
 
 This is a forward-only plan. Do not preserve obsolete schema by adding
 compatibility layers. Do not reintroduce scalar-only theory ceilings. Do not
@@ -87,9 +92,9 @@ source metadata such as rank, spin, parity, projection role, or source role,
 but they must not silently choose a hardcoded theory type.
 
 The remaining work is no longer "start building the engine." The remaining
-work is to harden scientific validation, finish universality where named
-standard-like assumptions remain, generalize projection semantics, close docs
-and provenance truth, and only then optimize speed.
+work is to harden scientific validation, make universality concrete by
+removing named standard-like assumptions, generalize equation and projection
+semantics, close docs and provenance truth, and only then optimize speed.
 
 ## Current Baseline
 
@@ -109,6 +114,22 @@ This baseline is intentionally not described as "almost complete Slice One."
 The graph foundation and first physical engine pass are real completed
 platform work. The next work begins from that platform.
 
+Current limits that open slices must eliminate:
+
+* Native CMB graph runtime currently executes one independent evolution
+  variable.
+* Native runtime boundary support is currently start-anchored.
+* Background and physical inputs still include named CMB quantities such as
+  `H`, `Omega_b0`, `Omega_k0`, `Omega_m0`, `Omega_de0`, `Tcmb`, `YHe`,
+  `Neff`, `As`, and `ns`.
+* CDM absence, dark-energy equation of state, photon density, and neutrino
+  density still have code-default behavior that Slice Four must replace with
+  declared quantities or explicit contract requirements.
+* Projection dispatch is finite and must become declared-kernel driven where
+  mathematically safe.
+* Manifest "no CAMB prediction" proof must be tied to the executed route, not
+  inferred only from `standard: false`.
+
 ## Overview
 
 * Copernican is a Python toolkit for evaluating cosmological models against
@@ -125,6 +146,8 @@ platform work. The next work begins from that platform.
 * Do not introduce a solver-type selector.
 * Do not introduce a scalar compatibility layer.
 * Do not introduce hidden LCDM production fallback for `standard: false`.
+* Convert every remaining LCDM-like default into declared math or an explicit
+  fail-loud contract requirement.
 * Declared variables may carry metadata needed for physics and projection:
   kind, rank, spin, parity, tensor character, gauge role, source role,
   projection role, domain, units, and notes.
@@ -402,10 +425,12 @@ Tasks:
 * [open] Validate low-ell behavior only where numerically meaningful.
 * [open] Validate tensor BB where declared and reference-supported.
 * [open] Validate lensing-potential behavior where reference-supported.
-* [open] Validate custom source-channel perturbations against expected
-  observable changes.
-* [open] Validate custom closures against expected observable changes.
-* [open] Validate custom equations against expected observable changes.
+* [open] Validate custom source-channel perturbations against reference-backed
+  or analytic observable expectations beyond current synthetic response tests.
+* [open] Validate custom closures against reference-backed or analytic
+  observable expectations beyond current synthetic response tests.
+* [open] Validate custom equations against reference-backed or analytic
+  observable expectations beyond current synthetic response tests.
 * [open] Remove or physically justify remaining empirical numerical scale
   factors.
 * [open] Ensure failed reference comparisons report named quantities,
@@ -435,6 +460,8 @@ Purpose:
 
 Remove the remaining standard-like named-parameter ceiling and make declared
 background equations first-class native engine inputs.
+This slice is where the universal goal stops being aspirational for
+background and equation execution.
 
 Depends on:
 
@@ -459,6 +486,13 @@ Scope:
 * Keep physical requirements explicit where CMB physics needs them.
 * Fail clearly when a declared theory omits quantities required by the CMB
   engine.
+* Remove current one-independent-variable runtime restriction or replace it
+  with a declared coordinate transform that preserves arbitrary declared
+  equations.
+* Remove current start-only boundary-condition restriction or implement a
+  declared boundary solver that supports non-start boundary data.
+* Convert CDM, radiation, dark-energy, and primordial defaults into declared
+  quantities or explicit fail-loud requirements.
 * Do not create a hidden LCDM fallback.
 * Do not create theory-family selectors.
 * Do not move to performance optimization.
@@ -468,6 +502,12 @@ Tasks:
 * [open] Audit all named physical parameter requirements in native CMB code.
 * [open] Classify each requirement as physically required, derivable, or
   obsolete.
+* [open] Audit current one-independent-variable runtime restriction.
+* [open] Support multiple declared independent variables or a proven declared
+  coordinate transform.
+* [open] Audit current start-anchored-only boundary-condition restriction.
+* [open] Support non-start boundary conditions through a declared boundary
+  solver.
 * [open] Make declared background equations first-class graph inputs.
 * [open] Allow declared background outputs to provide expansion quantities.
 * [open] Allow declared background outputs to provide density quantities.
@@ -483,6 +523,12 @@ Tasks:
   considered where possible.
 * [open] Fix dark-energy detection so declared background quantities are
   considered where possible.
+* [open] Remove zero-CDM default when CDM is absent from parameter names.
+* [open] Remove dark-energy `w0=-1` and `wa=0` defaults unless declared.
+* [open] Replace formula-derived photon and neutrino densities with declared
+  quantities or explicit physical requirements.
+* [open] Replace named primordial amplitude and tilt requirements with
+  declared primordial-power inputs or explicit CMB requirements.
 * [open] Preserve physically required scalars when they cannot be derived.
 * [open] Fail clearly when a required physical quantity is missing.
 * [open] Fail clearly when declared background arrays have invalid shape.
@@ -497,7 +543,11 @@ Tasks:
 Done when:
 
 * [open] Native CMB background is graph-driven where expressible.
+* [open] Native graph execution is not limited to one evolution variable.
+* [open] Boundary conditions are not limited to start anchors.
 * [open] Hidden LCDM background fallback does not exist.
+* [open] CDM, radiation, dark-energy, and primordial quantities are declared
+  or explicitly required; none are silently defaulted.
 * [open] Remaining named requirements are physically justified.
 * [open] Declared non-LCDM background fixtures run.
 * [open] Invalid background declarations fail before CMB runtime.
@@ -542,6 +592,11 @@ Scope:
 * Do not tune outputs with post-hoc amplitude hacks.
 * Do not optimize performance in this slice.
 
+Existing Slice Two baseline already proves wrong-parity BB rejection, missing
+`polarization_b` rejection, E-mode source-substitution rejection, missing
+lensing-potential rejection, and wrong lensing source-role rejection. Slice
+Five must extend that baseline instead of restating it as new work.
+
 Tasks:
 
 * [open] Audit current projection vocabulary.
@@ -554,15 +609,13 @@ Tasks:
 * [open] Support custom projection kernels where safe and mathematically
   declared.
 * [open] Keep unsupported projection math fail-loud.
-* [open] Strengthen BB odd-parity validation.
-* [open] Validate that wrong parity cannot produce BB.
-* [open] Validate that missing `polarization_b` cannot produce BB.
-* [open] Validate that E-mode sources cannot be silently substituted for BB.
-* [open] Strengthen lensing potential validation.
-* [open] Validate that missing potential cannot produce lensing.
-* [open] Validate that wrong source role cannot produce lensing.
+* [open] Extend BB validation beyond current parity and source-role baseline.
+* [open] Validate BB behavior for custom projection kernels when supported.
+* [open] Validate multi-source BB declarations cannot hide E-only sources.
+* [open] Extend lensing validation beyond current potential-role baseline.
+* [open] Validate lensing behavior for custom kernels when supported.
 * [open] Validate custom observable mappings consume solved graph outputs.
-* [open] Validate custom projection changes intended observables.
+* [open] Validate custom projection kernels change intended observables.
 * [open] Ensure no hidden source substitutions occur.
 * [open] Ensure no post-hoc amplitude tuning occurs.
 * [open] Ensure projection provenance appears in manifest output.
@@ -571,8 +624,9 @@ Done when:
 
 * [open] Projection contracts are explicit and general where implemented.
 * [open] Unsupported projections fail clearly.
-* [open] BB cannot be produced from wrong-parity or E-only sources.
-* [open] Lensing cannot be produced without a declared potential source.
+* [open] BB validation covers current baseline and new custom-kernel cases.
+* [open] Lensing validation covers current baseline and new custom-kernel
+  cases.
 * [open] Custom observable projections consume solved graph quantities.
 * [open] Projection provenance is recorded.
 * [open] Docs describe implemented projection behavior honestly.
@@ -628,8 +682,12 @@ Tasks:
 * [open] Audit manifest provenance for recombination settings.
 * [open] Audit manifest provenance for projection contracts.
 * [open] Audit manifest provenance for solver/runtime settings.
+* [open] Prove manifest no-CAMB claims from executed route metadata, not only
+  the `standard` flag.
 * [open] Audit `standard: true` behavior.
 * [open] Audit `standard: false` CAMB-free production behavior.
+* [open] Verify one-independent-variable and start-boundary limits are removed
+  before closure.
 * [open] Audit failure messages for missing graph pieces.
 * [open] Audit failure messages for invalid background declarations.
 * [open] Audit failure messages for invalid projection declarations.
@@ -652,7 +710,7 @@ Done when:
 * [open] No unsupported behavior is promised.
 * [open] `standard: true` is intact.
 * [open] `standard: false` is native and CAMB-free in production.
-* [open] Complete declared theories are edible within implemented scope.
+* [open] Complete declared theories are executable within the model contract.
 * [open] Invalid declared theories fail clearly.
 * [open] Scientific validation status is explicit.
 * [open] Manifest provenance is truthful.
@@ -766,6 +824,10 @@ Completion validation:
 * no solver-type selector exists;
 * no obsolete scalar compatibility layer exists;
 * declared background behavior is explicit and fail-loud;
+* multiple declared independent variables, or declared coordinate transforms,
+  pass validation;
+* non-start boundary conditions pass validation;
+* hidden LCDM-like defaults are gone;
 * recombination reference validation passes;
 * visibility reference validation passes;
 * scalar TT, TE, and EE reference validation passes;
@@ -795,7 +857,8 @@ The CMB engine is complete when:
 * TT, TE, EE, BB, lensing, and custom observables are validated within their
   implemented scope;
 * invalid theories fail before fake numerical output;
-* docs do not overpromise;
+* docs distinguish the current baseline, remaining plan, and final achieved
+  scope;
 * manifests tell the truth;
 * `standard: true` remains intact;
 * `standard: false` remains CAMB-free and CLASS-free in production;

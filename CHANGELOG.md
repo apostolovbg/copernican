@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-19
+**Last Updated:** 2026-06-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,17 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-20:
+  Change: Clarified PLAN.md universal CMB goals and concrete follow-up
+    tasks.
+  Why: Converted audit findings into explicit roadmap work without weakening
+    the target of executable declared theories.
+  Impact: Guides future slices to remove remaining standard-like assumptions,
+    runtime limits, duplicate open tasks, and manifest provenance ambiguity.
+  Files:
+    CHANGELOG.md
+    PLAN.md
 
 - 2026-06-19:
   Change: Audited the PLAN.md replacement and corrected a wrapped CMB graph
