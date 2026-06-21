@@ -382,6 +382,81 @@ class TestRobustQuad(unittest.TestCase):
             )
 
 
+class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
+    """Cover the native CMB runtime helper surface."""
+
+    def test_compile_native_cmb_runtime_builds_one_runtime_bundle(self):
+        """Static CMB contracts should compile once into one runtime bundle."""
+
+        compile_result = object()
+        cmb_contract = {
+            "param_map": {"Omega_m0": "Omega_m0"},
+            "grids": {"tau": {"symbol": "tau"}},
+            "values": {"H": "H"},
+            "background": {"density": {"expression": "Omega_m0"}},
+            "numerical": {"ell_max": 64},
+            "perturbations": {
+                "standard": False,
+                "backend": {"implemented": True},
+            },
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ) as compile_contract:
+            runtime = model_coder.compile_native_cmb_runtime(
+                model_name="TemplateModel",
+                backend="camb",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+
+        self.assertIsInstance(runtime, model_coder.NativeCMBRuntime)
+        self.assertIs(runtime.perturbation_data, compile_result)
+        self.assertEqual(
+            model_coder.compile_native_cmb_runtime.__name__,
+            "compile_native_cmb_runtime",
+        )
+        compile_contract.assert_called_once_with(
+            cmb_contract["perturbations"],
+            model_name="TemplateModel",
+            backend="camb",
+            parameter_names=("Omega_m0",),
+            latex_names=(r"\Omega_m",),
+            background_reference_names=("H", "Omega_m0", "tau"),
+        )
+
+    def test_native_cmb_runtime_build_contract_copies_runtime_payload(self):
+        """Bound runtime contracts should copy only mutable parameter data."""
+
+        runtime = model_coder.NativeCMBRuntime(
+            model_name="TemplateModel",
+            backend="camb",
+            perturbation_contract={"standard": False},
+            background={"density": {"expression": "Omega_m0"}},
+            numerical={"ell_max": 64},
+            perturbation_data={"compiled": True},
+        )
+
+        contract = runtime.build_contract(
+            model_parameters={"Omega_m0": 0.3},
+            param_map={"Omega_m0": 0.3},
+        )
+
+        self.assertEqual(contract["model_name"], "TemplateModel")
+        self.assertEqual(contract["backend"], "camb")
+        self.assertEqual(runtime.build_contract.__name__, "build_contract")
+        self.assertEqual(contract["model_parameters"], {"Omega_m0": 0.3})
+        self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
+        self.assertIs(contract["background"], runtime.background)
+        self.assertIs(contract["numerical"], runtime.numerical)
+        self.assertIs(contract["perturbations"], runtime.perturbation_contract)
+        self.assertIs(contract["perturbation_data"], runtime.perturbation_data)
+
+
 class PublicSymbolCoverageTestCase(unittest.TestCase):
     """Expose the model coder API to the coverage policy."""
 

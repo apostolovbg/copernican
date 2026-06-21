@@ -758,7 +758,7 @@ def _build_execution_route_summary(
     else:
         route_id = "native_declared_graph"
         prediction_engine = "copernican_native_declared_graph"
-        transfer_function_path = "copernican.lib.likelihoods.cmb.custom"
+        transfer_function_path = "copernican.lib.likelihoods.cmb.copcmb_solver"
         solver = "declared_math_graph"
     uses_camb_prediction = bool(
         standard and str(backend).strip().lower() == "camb"

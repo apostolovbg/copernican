@@ -16,8 +16,8 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy
 
 from ..model_coder import SoundHorizonComputationError
-from ._protocol import LikelihoodProtocol, LikelihoodState
 from .cmb import compute_camb_background_observables
+from .shared import LikelihoodProtocol, LikelihoodState
 
 
 @dataclass(slots=True)

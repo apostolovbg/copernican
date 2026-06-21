@@ -230,7 +230,7 @@ def _dummy_nonstandard_plugin():
                 "route_id": "native_declared_graph",
                 "prediction_engine": "copernican_native_declared_graph",
                 "transfer_function_path": (
-                    "copernican.lib.likelihoods.cmb.custom"
+                    "copernican.lib.likelihoods.cmb.copcmb_solver"
                 ),
                 "solver": "declared_math_graph",
                 "route_ready_for_execution": True,
@@ -497,7 +497,7 @@ class TestRunManifest(unittest.TestCase):
             model_entry["custom_cmb_runtime_manifest_summary"][
                 "execution_route"
             ]["transfer_function_path"],
-            "copernican.lib.likelihoods.cmb.custom",
+            "copernican.lib.likelihoods.cmb.copcmb_solver",
         )
 
     def test_manifest_import_export_cycle(self) -> None:

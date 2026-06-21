@@ -13,7 +13,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Sequence
 
-from ._protocol import LikelihoodProtocol, LikelihoodState
+from .shared import LikelihoodProtocol, LikelihoodState
 
 
 @dataclass(slots=True)

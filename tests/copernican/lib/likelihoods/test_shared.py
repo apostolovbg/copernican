@@ -1,17 +1,15 @@
-"""Smoke tests for copernican.lib.likelihoods._protocol."""
+"""Smoke tests for copernican.lib.likelihoods.shared."""
 
 import unittest
 
-from copernican.lib.likelihoods import _protocol as module
+from copernican.lib.likelihoods import shared as module
 
 
 class TestImportModule(unittest.TestCase):
     """Exercise the module import path."""
 
     def test_import_module(self) -> None:
-        self.assertEqual(
-            module.__name__, "copernican.lib.likelihoods._protocol"
-        )
+        self.assertEqual(module.__name__, "copernican.lib.likelihoods.shared")
 
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(hasattr(module, "LikelihoodProtocol"))

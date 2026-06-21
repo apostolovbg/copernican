@@ -1,4 +1,4 @@
-r"""Cosmic Microwave Background likelihood helper.
+r"""Native declared-graph CMB solver support.
 
 Provides cache-aware CAMB interfaces shared by the CMB likelihood and the BAO
 background evaluator. The helpers consume structured CAMB contracts so scalar
@@ -30,11 +30,11 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq, least_squares
 from scipy.special import spherical_jn
 
-from ..cmb_projection_contract import (
+from ...cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_kernel_spec,
 )
-from ..engine_adapter import (
+from ...engine_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
     _SUPPORTED_CMB_BACKEND,
@@ -42,8 +42,8 @@ from ..engine_adapter import (
     _evaluate_safe_expression,
     _freeze_for_cache,
 )
-from ..model_coder import validate_native_perturbation_execution
-from ._protocol import LikelihoodProtocol, LikelihoodState
+from ...model_coder import validate_native_perturbation_execution
+from ..shared import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
 _LMAX_PADDING = 300
@@ -651,7 +651,11 @@ def _compile_declared_perturbation_contract(
 ):
     """Return the compiled perturbation contract for generic execution."""
 
-    from ..perturbation_contract import compile_perturbation_contract
+    precompiled = contract.get("perturbation_data")
+    if precompiled is not None:
+        return precompiled
+
+    from ...perturbation_contract import compile_perturbation_contract
 
     model_parameters = contract.get("model_parameters", {})
     if isinstance(model_parameters, Mapping) and model_parameters:
@@ -939,10 +943,24 @@ def _custom_cmb_spectrum_cache_key(
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
     return (
-        _freeze_for_cache(contract_or_params),
+        _freeze_for_cache(_contract_cache_view(contract_or_params)),
         ell_key,
         _custom_cmb_provider_key(background_provider),
     )
+
+
+def _contract_cache_view(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the cache-relevant view of a native-runtime contract."""
+
+    if "perturbation_data" not in contract:
+        return contract
+    return {
+        key: value
+        for key, value in contract.items()
+        if key != "perturbation_data"
+    }
 
 
 def _expression_symbol_name(expression: str) -> str | None:
@@ -1379,7 +1397,7 @@ def _build_custom_cmb_background(
     """Return the interpolated background and recombination solution."""
 
     cache_key = (
-        _freeze_for_cache(contract),
+        _freeze_for_cache(_contract_cache_view(contract)),
         astuple(physical_params),
         astuple(numerics),
         _custom_cmb_provider_key(background_provider),

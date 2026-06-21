@@ -7,13 +7,12 @@ log-likelihoods for individual observational datasets.  Each helper implements
 an introspectable :pyattr:`state` mapping capturing diagnostic values such as
 χ² totals.  Engines combine these helpers to assemble complete likelihoods
 without duplicating validation logic.  Shared interfaces live in
-``copernican.lib.likelihoods._protocol`` so dataset helpers can depend on them
+``copernican.lib.likelihoods.shared`` so dataset helpers can depend on them
 without creating circular imports during test collection.
 """
 
 from __future__ import annotations
 
-from ._protocol import LikelihoodProtocol, LikelihoodState
 from .bao import BAOLike
 from .cmb import (
     CMBLike,
@@ -25,6 +24,7 @@ from .cmb import (
     describe_camb_configuration,
 )
 from .joint import JointLike
+from .shared import LikelihoodProtocol, LikelihoodState
 from .sne import SNeLike
 
 __all__ = [

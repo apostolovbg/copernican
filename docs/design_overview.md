@@ -53,9 +53,11 @@ described throughout this document.
   unavailable the code falls back to a conservative Gelman–Rubin summary while
   logging the downgrade. Standard CMB contracts keep using CAMB, while
   `standard: false` contracts use the declared-math graph engine in
-  `copernican/lib/likelihoods/cmb.py`. Nested sampling and ensemble MCMC both
-  rely on the shared Stage 2 helper so the counter lines and listener events
-  stay consistent regardless of backend.
+  `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public
+  likelihood surface, `camb_solver.py` owns the standard backend route, and
+  `copcmb_solver.py` owns the native declared solver. Nested sampling and
+  ensemble MCMC both rely on the shared Stage 2 helper so the counter lines
+  and listener events stay consistent regardless of backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
   transforms and dataset compatibility. Each file is compiled into a picklable
   :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
@@ -91,7 +93,7 @@ described throughout this document.
 ## Custom CMB Engine
 
 `standard: false` CMB contracts use the declared-math graph engine in
-`copernican/lib/likelihoods/cmb.py`.
+`copernican/lib/likelihoods/cmb/`.
 
 * One immutable graph now carries variables, derived quantities,
   differential equations, algebraic constraints, closures, source terms,

@@ -1,7 +1,7 @@
 """Shared likelihood protocol definitions.
 
 The :mod:`copernican.lib.likelihoods` package exposes multiple dataset
-likelihood helpers that all share a common interface.  To avoid circular
+likelihood helpers that all share a common interface. To avoid circular
 imports each helper depends on the protocol and state container defined here
 instead of importing them via :mod:`copernican.lib.likelihoods.__init__`.
 """

@@ -80,6 +80,55 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-21:
+  Change: Refactored the CMB likelihood into a package, replaced the
+    private `_protocol.py` shim with `shared.py`, and routed native
+    plugins through a precompiled runtime handoff.
+  Why: Removed native hot-path contract rebuilding and clarified runtime
+    ownership between `model_coder.py`, `engine_adapter.py`, and the CMB
+    solver modules before deeper optimization work.
+  Impact: `standard: false` CMB evaluations now reuse compiled
+    perturbation data without CAMB-contract detours, the public import
+    surface stays stable, and focused ownership and route tests cover the
+    new layout.
+  Files:
+    AGENTS.md
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/lib/engine_adapter.py
+    copernican/lib/likelihoods/__init__.py
+    copernican/lib/likelihoods/_protocol.py
+    copernican/lib/likelihoods/bao.py
+    copernican/lib/likelihoods/cmb.py
+    copernican/lib/likelihoods/cmb/__init__.py
+    copernican/lib/likelihoods/cmb/camb_solver.py
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/copcmb_solver.py
+    copernican/lib/likelihoods/joint.py
+    copernican/lib/likelihoods/shared.py
+    copernican/lib/likelihoods/sne.py
+    copernican/lib/model_coder.py
+    copernican/lib/perturbation_contract.py
+    docs/api_overview.md
+    docs/design_overview.md
+    tests/copernican/lib/cli/test_dependencies.py
+    tests/copernican/lib/likelihoods/cmb/test_camb_solver.py
+    tests/copernican/lib/likelihoods/cmb/test_copcmb_solver.py
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/likelihoods/test__protocol.py
+    tests/copernican/lib/likelihoods/test_shared.py
+    tests/copernican/lib/test_engine_adapter.py
+    tests/copernican/lib/test_engine_plugin_validation.py
+    tests/copernican/lib/test_model_coder.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+    tests/engines/test_engine_mcmc.py
+
+- 2026-06-21:
   Change: Replaced the completed seven-slice native CMB closure roadmap
     with a four-slice optimization and refactor plan that front-loads
     runtime wins while preserving green governed slice boundaries.

@@ -82,13 +82,15 @@ directly without using the command-line interface.  The core modules are:
 ## CMB Likelihood Helpers
 
 The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
-non-standard paths separate. Standard CAMB contracts continue to use the
-backend's native perturbation solver. Non-standard contracts flow through the
-declared-math graph engine in the same module, which evolves declared graph
-variables, rebuilds the recombination visibility function, integrates the
-declared reionization history, and projects the declared transfer components
-into spectra such as `TT`, `TE`, `EE`, `BB`, or custom outputs when the
-required observable mappings exist.
+non-standard paths separate. The package-level `cmb.py` entrypoint dispatches
+to `camb_solver.py` for standard CAMB contracts and to `copcmb_solver.py` for
+native declared-graph execution. `engine_adapter.py` now hands the
+precompiled native runtime into that package directly, so non-standard
+contracts avoid rebuilding a CAMB-style contract before the declared solver
+evolves graph variables, rebuilds the recombination visibility function,
+integrates the declared reionization history, and projects the declared
+transfer components into spectra such as `TT`, `TE`, `EE`, `BB`, or custom
+outputs when the required observable mappings exist.
 
 The non-standard contract is now a single graph declaration. It exposes
 variables, derived quantities, equations, constraints, closures, source

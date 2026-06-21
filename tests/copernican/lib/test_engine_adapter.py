@@ -30,6 +30,9 @@ class TestEngineAdapterExports(unittest.TestCase):
             hasattr(engine_adapter.EnginePlugin, "get_camb_contract")
         )
         self.assertTrue(
+            hasattr(engine_adapter.EnginePlugin, "get_cmb_native_runtime")
+        )
+        self.assertTrue(
             hasattr(
                 engine_adapter.EnginePlugin, "get_cmb_perturbation_contract"
             )

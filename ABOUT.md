@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-06-21
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -37,11 +37,14 @@ equations, constraints, closures, sources, initial conditions, observable
 mappings, and numerical requirements in one immutable graph; unsupported
 symbols, unsolved variables, missing initial conditions, missing
 observables, incompatible projection-role bindings, and unsupported
-projection kernels fail loudly. The
-implementation lives in
-`copernican/lib/likelihoods/cmb.py` and uses bounded `k` sampling with cached
-mode histories and Bessel projection for the requested line-of-sight window.
-The background helper consumes the declared background graph, computes a
+projection kernels fail loudly. The implementation now lives in the
+`copernican/lib/likelihoods/cmb/` package, where `cmb.py` owns the public
+likelihood surface, `camb_solver.py` owns the standard backend route, and
+`copcmb_solver.py` owns the native declared solver. `model_coder.py`
+compiles the static native runtime once and `engine_adapter.py` hands that
+runtime to the likelihood package directly, so the native path no longer
+rebuilds a CAMB-style contract before every prediction. The background
+helper consumes the declared background graph, computes a
 Peebles-style recombination history, integrates the declared reionization
 ODE, and builds the visibility, optical-depth, and residual-ionization
 curves before the transfer-function projection runs. Declared background

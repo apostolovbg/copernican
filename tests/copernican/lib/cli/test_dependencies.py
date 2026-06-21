@@ -53,16 +53,16 @@ class DependencyCacheTestCase(unittest.TestCase):
         package_root = Path(self.tmp.name) / "pkg"
         package_root.mkdir(parents=True, exist_ok=True)
         (package_root / "__init__.py").write_text("", encoding="utf-8")
-        (package_root / "_protocol.py").write_text("pass\n", encoding="utf-8")
+        (package_root / "shared.py").write_text("pass\n", encoding="utf-8")
         (package_root / "module.py").write_text(
-            "from . import _protocol\n", encoding="utf-8"
+            "from . import shared\n", encoding="utf-8"
         )
 
         required = dependencies._gather_required_packages(
             search_dirs=[str(package_root)]
         )
 
-        self.assertNotIn("_protocol", required)
+        self.assertNotIn("shared", required)
 
 
 class CheckDependenciesPromptTestCase(unittest.TestCase):

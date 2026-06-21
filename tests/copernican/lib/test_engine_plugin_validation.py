@@ -384,6 +384,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
         )
         self.assertIsInstance(perturbation_data, PerturbationContractData)
         self.assertTrue(perturbation_data.standard)
+        native_runtime = self.plugin.get_cmb_native_runtime(
+            self.plugin.INITIAL_GUESSES
+        )
+        self.assertEqual(native_runtime["model_name"], self.plugin.MODEL_NAME)
+        self.assertEqual(native_runtime["backend"], "camb")
+        self.assertIn("param_map", native_runtime)
+        self.assertIn("model_parameters", native_runtime)
+        self.assertIn("perturbation_data", native_runtime)
+        self.assertIs(native_runtime["perturbation_data"], perturbation_data)
 
     def test_get_camb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
@@ -503,6 +512,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.assertIsInstance(
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
             PerturbationContractData,
+        )
+        native_runtime = plugin.get_cmb_native_runtime(
+            plugin.INITIAL_GUESSES
+        )
+        self.assertFalse(native_runtime["perturbations"]["standard"])
+        self.assertIs(
+            native_runtime["perturbation_data"],
+            plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
         )
 
     def test_standard_false_perturbation_contract_without_math_fails(self):
@@ -710,6 +727,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 self.assertEqual(contract["backend"], "camb")
                 self.assertIsNotNone(
                     plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
+                )
+                self.assertIsNotNone(
+                    plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
                 )
                 if model_name == "model_torg.yml":
                     self.assertTrue(plugin.CMB_PERTURBATION_STANDARD)

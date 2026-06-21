@@ -49,7 +49,7 @@ from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 import numpy
 
 from . import priors as prior_lib
-from .model_coder import CMB_BACKEND_CAPABILITIES
+from .model_coder import CMB_BACKEND_CAPABILITIES, compile_native_cmb_runtime
 from .posterior import PosteriorEvaluator, make_logposterior
 
 LOGGER = logging.getLogger(__name__)
@@ -80,6 +80,7 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "CMB_PERTURBATION_CONTRACT",
     "CMB_PERTURBATION_STANDARD",
     "CMB_PERTURBATION_DATA",
+    "CMB_NATIVE_RUNTIME",
 ]
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
@@ -1061,6 +1062,7 @@ class EnginePlugin:
     CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
     CMB_PERTURBATION_STANDARD: bool
     CMB_PERTURBATION_DATA: Any
+    CMB_NATIVE_RUNTIME: Any
     LIKELIHOOD_CONFIG: Mapping[str, Any]
     MODEL_EQUATIONS_LATEX_SN: tuple[str, ...]
     MODEL_EQUATIONS_LATEX_BAO: tuple[str, ...]
@@ -1179,6 +1181,24 @@ class EnginePlugin:
             raise ValueError("Model does not declare CMB perturbation data")
         return perturbation_data
 
+    def get_cmb_native_runtime(
+        self, values: Sequence[float]
+    ) -> dict[str, Any]:
+        """Return the compiled native CMB runtime bound to ``values``."""
+
+        runtime = getattr(self, "CMB_NATIVE_RUNTIME", None)
+        if runtime is None:
+            raise ValueError("Model does not declare a native CMB runtime")
+        model_parameters = {
+            name: float(value)
+            for name, value in zip(self.PARAMETER_NAMES, values, strict=False)
+        }
+        param_map = self.get_camb_params(values)
+        return runtime.build_contract(
+            model_parameters=model_parameters,
+            param_map=param_map,
+        )
+
 
 def sanitize_equation(equation_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
@@ -1273,30 +1293,18 @@ def build_engine_plugin(
     likelihood_config = model_data.get("likelihood", {}) or {}
     cmb_contract = model_data.get("cmb", {}) or {}
     perturbation_contract = cmb_contract.get("perturbations", {}) or {}
-    background_reference_names = {
-        str(key) for key in (cmb_contract.get("param_map", {}) or {})
-    }
-    for grid_def in (cmb_contract.get("grids", {}) or {}).values():
-        if isinstance(grid_def, Mapping):
-            symbol = grid_def.get("symbol")
-            if isinstance(symbol, str) and symbol.strip():
-                background_reference_names.add(symbol.strip())
-    background_reference_names.update(
-        str(key) for key in (cmb_contract.get("values", {}) or {})
-    )
 
     perturbation_data = None
+    native_cmb_runtime = None
     if model_data.get("valid_for_cmb", True):
-        from .perturbation_contract import compile_perturbation_contract
-
-        perturbation_data = compile_perturbation_contract(
-            perturbation_contract,
+        native_cmb_runtime = compile_native_cmb_runtime(
             model_name=model_data.get("model_name", "GeneratedModel"),
             backend=cmb_contract.get("backend", _SUPPORTED_CMB_BACKEND),
             parameter_names=names,
             latex_names=latex_names,
-            background_reference_names=tuple(background_reference_names),
+            cmb_contract=cmb_contract,
         )
+        perturbation_data = native_cmb_runtime.perturbation_data
 
     extras: MutableMapping[str, Any] = {}
     known_names = set(REQUIRED_FUNCTIONS).union(_OPTIONAL_FUNCTIONS)
@@ -1336,6 +1344,7 @@ def build_engine_plugin(
         CMB_PERTURBATION_CONTRACT=perturbation_contract,
         CMB_PERTURBATION_STANDARD=perturbation_contract.get("standard", False),
         CMB_PERTURBATION_DATA=perturbation_data,
+        CMB_NATIVE_RUNTIME=native_cmb_runtime,
         LIKELIHOOD_CONFIG=likelihood_config,
         MODEL_EQUATIONS_LATEX_SN=sne_eqs,
         MODEL_EQUATIONS_LATEX_BAO=bao_eqs,
@@ -1419,6 +1428,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
             [
                 "get_camb_params",
                 "get_camb_contract",
+                "get_cmb_native_runtime",
                 "get_cmb_perturbation_contract",
                 "get_cmb_perturbation_data",
             ]
@@ -1452,6 +1462,8 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
             errors.append("CMB_PERTURBATION_STANDARD must be boolean")
         if getattr(plugin, "CMB_PERTURBATION_DATA", None) is None:
             errors.append("CMB_PERTURBATION_DATA must be present")
+        if getattr(plugin, "CMB_NATIVE_RUNTIME", None) is None:
+            errors.append("CMB_NATIVE_RUNTIME must be present")
 
     try:
         _validate_plugin_cmb_contract(plugin)

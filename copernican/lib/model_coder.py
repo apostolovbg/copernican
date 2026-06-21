@@ -11,14 +11,16 @@ whenever they are unpickled.
 """
 
 import ast
+import copy
 import itertools
 import logging
 import math
 import re
 import sys
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping, Sequence
 
 import numpy
 import sympy
@@ -114,6 +116,89 @@ def validate_native_perturbation_execution(
             "mapping does not mark a generic declarative implementation "
             "as available. A generic declarative executor is required."
         )
+
+
+@dataclass(frozen=True, slots=True)
+class NativeCMBRuntime:
+    """Immutable native CMB runtime payload carried by engine plugins.
+
+    The native backend needs a compiled perturbation graph together with the
+    static background and numerical declarations from the model contract.
+    Building that payload once in :mod:`model_coder` keeps compilation
+    ownership upstream and lets the runtime hot path bind only the varying
+    parameter values for each likelihood evaluation.
+    """
+
+    model_name: str
+    backend: str
+    perturbation_contract: Mapping[str, Any]
+    background: Mapping[str, Any]
+    numerical: Mapping[str, Any]
+    perturbation_data: Any
+
+    def build_contract(
+        self,
+        *,
+        model_parameters: Mapping[str, float],
+        param_map: Mapping[str, float],
+    ) -> dict[str, Any]:
+        """Return one native-runtime contract bound to evaluated parameters."""
+
+        return {
+            "model_name": self.model_name,
+            "backend": self.backend,
+            "model_parameters": dict(model_parameters),
+            "param_map": dict(param_map),
+            "background": self.background,
+            "numerical": self.numerical,
+            "perturbations": self.perturbation_contract,
+            "perturbation_data": self.perturbation_data,
+        }
+
+
+def compile_native_cmb_runtime(
+    *,
+    model_name: str,
+    backend: str,
+    parameter_names: Sequence[str],
+    latex_names: Sequence[str],
+    cmb_contract: Mapping[str, Any],
+) -> NativeCMBRuntime:
+    """Compile the static native CMB runtime carried by a model plugin."""
+
+    from .perturbation_contract import compile_perturbation_contract
+
+    perturbation_contract = copy.deepcopy(
+        (cmb_contract.get("perturbations", {}) or {})
+    )
+    background_reference_names = {
+        str(key) for key in (cmb_contract.get("param_map", {}) or {})
+    }
+    for grid_def in (cmb_contract.get("grids", {}) or {}).values():
+        if not isinstance(grid_def, Mapping):
+            continue
+        symbol = grid_def.get("symbol")
+        if isinstance(symbol, str) and symbol.strip():
+            background_reference_names.add(symbol.strip())
+    background_reference_names.update(
+        str(key) for key in (cmb_contract.get("values", {}) or {})
+    )
+    perturbation_data = compile_perturbation_contract(
+        perturbation_contract,
+        model_name=model_name,
+        backend=backend,
+        parameter_names=tuple(parameter_names),
+        latex_names=tuple(latex_names),
+        background_reference_names=tuple(sorted(background_reference_names)),
+    )
+    return NativeCMBRuntime(
+        model_name=model_name,
+        backend=backend,
+        perturbation_contract=perturbation_contract,
+        background=copy.deepcopy(cmb_contract.get("background", {}) or {}),
+        numerical=copy.deepcopy(cmb_contract.get("numerical", {}) or {}),
+        perturbation_data=perturbation_data,
+    )
 
 
 _GENERATED_NAME_COUNTER = itertools.count(1)

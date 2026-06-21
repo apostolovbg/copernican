@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-06
+**Last Updated:** 2026-06-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -967,6 +967,11 @@ min_word_count: '120'
 doc_routes:
 - copernican/lib/** => README.md, ABOUT.md
 - copernican/lib/likelihoods/** => README.md, ABOUT.md
+- copernican/lib/likelihoods/**/* => README.md, ABOUT.md
+- copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
+- copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
+- copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
+- copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
 - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
 - copernican/lib/cli/** => README.md, ABOUT.md
 - copernican/rng_minigames/** => README.md, ABOUT.md

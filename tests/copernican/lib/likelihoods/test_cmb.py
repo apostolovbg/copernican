@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - optional external reference
     camb = None
 
 from copernican.lib.likelihoods import cmb
+from copernican.lib.likelihoods.cmb import copcmb_solver as native_cmb_solver
 
 
 def _named_limit_message(
@@ -983,7 +984,12 @@ class _CustomCMBPlugin:
     def get_camb_contract(self, _params):
         """Return the structured CAMB contract used by the helper."""
 
-        return _strip_perturbations(_custom_contract())
+        raise AssertionError("native runtime should bypass get_camb_contract")
+
+    def get_cmb_native_runtime(self, _params):
+        """Return the synthetic native-runtime contract used by the helper."""
+
+        return _custom_contract()
 
     def get_cmb_perturbation_contract(self, _params):
         """Return the synthetic non-standard perturbation graph."""
@@ -2485,6 +2491,39 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for spectrum in result.values():
             self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
             self.assertEqual(spectrum.shape, (ells.size,))
+
+    def test_custom_cached_path_uses_precompiled_native_runtime(self) -> None:
+        """The cached route should reuse precompiled native runtime data."""
+
+        contract = _custom_contract()
+        contract["perturbation_data"] = (
+            native_cmb_solver._compile_declared_perturbation_contract(contract)
+        )
+
+        class _PrecompiledRuntimePlugin(_CustomCMBPlugin):
+            """Plugin stub exposing one precompiled native runtime."""
+
+            def get_cmb_native_runtime(self, _params):
+                return contract
+
+        plugin = _PrecompiledRuntimePlugin()
+        ells = numpy.arange(20, 35, dtype=int)
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            side_effect=AssertionError(
+                "native runtime should reuse precompiled perturbation data"
+            ),
+        ):
+            result = cmb.compute_cmb_spectrum_cached(
+                plugin,
+                plugin.INITIAL_GUESSES,
+                ells,
+                spectra=("TT",),
+            )
+
+        self.assertTrue(numpy.all(numpy.isfinite(result)))
+        self.assertEqual(result.shape, (ells.size,))
 
     def test_direct_custom_path_does_not_call_camb(self) -> None:
         """The direct declared-graph route should stay CAMB-free."""

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-06-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -232,14 +232,18 @@ the same convention.
 - **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
   backend capability flags close to the perturbation compiler so
   `standard: false` models run through the declared-math CMB graph engine in
-  `copernican/lib/likelihoods/cmb.py` or fail clearly when a required
-  capability is missing. Non-standard contracts now declare one immutable
-  graph of variables, equations, constraints, closures, sources, initial
-  conditions, observable mappings, and numerical requirements. Unsupported
-  symbols, unsolved variables, missing initial conditions, missing
-  observables, incompatible projection-role bindings, and unsupported
-  projection kernels fail fast. Run manifests also record the compiled graph
-  summary, declared background and recombination provenance, and the selected
+  `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public entry
+  point, `camb_solver.py` owns the standard backend route, and
+  `copcmb_solver.py` owns the native declared solver. `engine_adapter.py`
+  now hands the precompiled native runtime into that package directly instead
+  of rebuilding a CAMB-style contract in the native hot path. Non-standard
+  contracts now declare one immutable graph of variables, equations,
+  constraints, closures, sources, initial conditions, observable mappings,
+  and numerical requirements. Unsupported symbols, unsolved variables,
+  missing initial conditions, missing observables, incompatible
+  projection-role bindings, and unsupported projection kernels fail fast.
+  Run manifests also record the compiled graph summary, declared background
+  and recombination provenance, and the selected
   production CMB execution route so native runs prove their CAMB-free
   prediction path from route metadata rather than from `standard: false`
   alone.
