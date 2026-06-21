@@ -8,6 +8,7 @@ import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
     PerturbationBackendMappingData,
     PerturbationClosureData,
+    PerturbationCompiledExpressionData,
     PerturbationConditionData,
     PerturbationConditionTargetData,
     PerturbationConstraintData,
@@ -21,6 +22,7 @@ from copernican.lib.perturbation_contract import (
     PerturbationValidityData,
     PerturbationVariableData,
     compile_perturbation_contract,
+    evaluate_compiled_expression,
 )
 
 
@@ -210,6 +212,30 @@ class PerturbationContractTestCase(unittest.TestCase):
             perturbation_contract_module.PerturbationConditionData,
             PerturbationConditionData,
         )
+        self.assertIs(
+            perturbation_contract_module.evaluate_compiled_expression,
+            evaluate_compiled_expression,
+        )
+
+    def test_compiled_expression_evaluator_returns_numeric_result(self):
+        """Compiled expression plans should evaluate without AST reparse."""
+
+        expression_data = PerturbationCompiledExpressionData(
+            expression="delta_x + phi_aux",
+            dependencies=("delta_x", "phi_aux"),
+            program=(
+                ("name", "delta_x"),
+                ("name", "phi_aux"),
+                ("binary", "add"),
+            ),
+        )
+
+        result = evaluate_compiled_expression(
+            expression_data,
+            {"delta_x": 2.0, "phi_aux": 0.5},
+        )
+
+        self.assertEqual(result, 2.5)
 
     def test_standard_contract_compiles(self) -> None:
         """Standard contracts should compile into immutable data."""
@@ -285,12 +311,20 @@ class PerturbationContractTestCase(unittest.TestCase):
             PerturbationDerivedData,
         )
         self.assertIsInstance(
+            contract_data.derived["density_drive"].compiled_expression,
+            PerturbationCompiledExpressionData,
+        )
+        self.assertIsInstance(
             contract_data.equations["evolve_delta_x"].lhs,
             PerturbationDerivativeLhsData,
         )
         self.assertIsInstance(
             contract_data.equations["evolve_delta_x"],
             PerturbationEquationData,
+        )
+        self.assertIsInstance(
+            contract_data.equations["evolve_delta_x"].compiled_rhs,
+            PerturbationCompiledExpressionData,
         )
         self.assertEqual(
             contract_data.constraints["poisson_phi"].target,
@@ -301,12 +335,24 @@ class PerturbationContractTestCase(unittest.TestCase):
             PerturbationConstraintData,
         )
         self.assertIsInstance(
+            contract_data.constraints["poisson_phi"].compiled_expression,
+            PerturbationCompiledExpressionData,
+        )
+        self.assertIsInstance(
             contract_data.closures["psi_equals_phi"],
             PerturbationClosureData,
         )
         self.assertIsInstance(
+            contract_data.closures["psi_equals_phi"].compiled_expression,
+            PerturbationCompiledExpressionData,
+        )
+        self.assertIsInstance(
             contract_data.sources["monopole_source"],
             PerturbationSourceData,
+        )
+        self.assertIsInstance(
+            contract_data.sources["monopole_source"].compiled_expression,
+            PerturbationCompiledExpressionData,
         )
         self.assertEqual(
             contract_data.observables["TT"].primary,
@@ -331,6 +377,10 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(
             contract_data.initial_conditions["delta_seed"],
             PerturbationConditionData,
+        )
+        self.assertIsInstance(
+            contract_data.initial_conditions["delta_seed"].compiled_expression,
+            PerturbationCompiledExpressionData,
         )
         dependency_summary = contract_data.dependency_graph_summary
         self.assertIsInstance(

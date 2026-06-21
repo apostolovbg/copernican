@@ -236,14 +236,18 @@ the same convention.
   point, `camb_solver.py` owns the standard backend route, and
   `copcmb_solver.py` owns the native declared solver. `engine_adapter.py`
   now hands the precompiled native runtime into that package directly instead
-  of rebuilding a CAMB-style contract in the native hot path. Non-standard
-  contracts now declare one immutable graph of variables, equations,
-  constraints, closures, sources, initial conditions, observable mappings,
-  and numerical requirements. Unsupported symbols, unsolved variables,
-  missing initial conditions, missing observables, incompatible
-  projection-role bindings, and unsupported projection kernels fail fast.
-  Run manifests also record the compiled graph summary, declared background
-  and recombination provenance, and the selected
+  of rebuilding a CAMB-style contract in the native hot path. That runtime
+  now carries compiled background and reionization evaluator plans, and the
+  declared perturbation compiler now stores picklable expression programs plus
+  ordered graph metadata so `copcmb_solver.py` can reuse dense slot plans
+  instead of re-parsing expressions and rescanning unresolved mappings inside
+  repeated solver stages. Non-standard contracts now declare one immutable
+  graph of variables, equations, constraints, closures, sources, initial
+  conditions, observable mappings, and numerical requirements. Unsupported
+  symbols, unsolved variables, missing initial conditions, missing
+  observables, incompatible projection-role bindings, and unsupported
+  projection kernels fail fast. Run manifests also record the compiled graph
+  summary, declared background and recombination provenance, and the selected
   production CMB execution route so native runs prove their CAMB-free
   prediction path from route metadata rather than from `standard: false`
   alone.

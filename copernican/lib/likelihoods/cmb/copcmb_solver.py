@@ -13,7 +13,6 @@ this module instead of falling back to CAMB.
 from __future__ import annotations
 
 import ast
-import copy
 import hashlib
 import logging
 import math
@@ -43,6 +42,10 @@ from ...engine_adapter import (
     _freeze_for_cache,
 )
 from ...model_coder import validate_native_perturbation_execution
+from ...perturbation_contract import (
+    _compile_expression_plan,
+    evaluate_compiled_expression,
+)
 from ..shared import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
@@ -312,6 +315,118 @@ def _expression_symbol_names(expression: str) -> set[str]:
     return names
 
 
+@dataclass(frozen=True, slots=True)
+class _DeclaredSymbolPlanEntry:
+    """One ordered declared-background evaluation step."""
+
+    kind: str
+    name: str
+    payload: Any
+
+
+def _compile_declared_symbol_plan(
+    entries: Mapping[str, Any],
+) -> tuple[_DeclaredSymbolPlanEntry, ...]:
+    """Return one ordered declared symbol plan for background helpers."""
+
+    pending = {str(name): value for name, value in entries.items()}
+    local_names = set(pending)
+    resolved_names: set[str] = set()
+    plan: list[_DeclaredSymbolPlanEntry] = []
+    while pending:
+        progress = False
+        for name, raw_value in tuple(sorted(pending.items())):
+            if isinstance(raw_value, bool):
+                raise ValueError(
+                    "Declared background entries must be numeric or "
+                    "string expressions."
+                )
+            if isinstance(
+                raw_value, (int, float, numpy.integer, numpy.floating)
+            ):
+                plan.append(
+                    _DeclaredSymbolPlanEntry(
+                        kind="literal",
+                        name=name,
+                        payload=float(raw_value),
+                    )
+                )
+                resolved_names.add(name)
+                pending.pop(name)
+                progress = True
+                continue
+            if not isinstance(raw_value, str) or not raw_value.strip():
+                raise ValueError(
+                    "Declared background entries must be numeric or "
+                    "string expressions."
+                )
+            expression_plan = _compile_expression_plan(raw_value.strip())
+            unresolved_locals = {
+                dependency
+                for dependency in expression_plan.dependencies
+                if dependency in local_names
+                and dependency not in resolved_names
+            }
+            if unresolved_locals:
+                continue
+            plan.append(
+                _DeclaredSymbolPlanEntry(
+                    kind="expression",
+                    name=name,
+                    payload=expression_plan,
+                )
+            )
+            resolved_names.add(name)
+            pending.pop(name)
+            progress = True
+        if progress:
+            continue
+        unresolved_names = ", ".join(sorted(pending))
+        raise ValueError(
+            "Declared background expressions contain circular or "
+            f"unresolved names: {unresolved_names}"
+        )
+    return tuple(plan)
+
+
+def _evaluate_declared_symbol_plan(
+    plan: Sequence[_DeclaredSymbolPlanEntry],
+    *,
+    base_context: Mapping[str, Any],
+    label: str,
+) -> dict[str, Any]:
+    """Evaluate one ordered declared symbol plan against ``base_context``."""
+
+    resolved: dict[str, Any] = dict(base_context)
+    for entry in plan:
+        if isinstance(entry, _DeclaredSymbolPlanEntry):
+            kind = entry.kind
+            name = entry.name
+            payload = entry.payload
+        else:
+            kind, name, payload = entry
+        if kind == "literal":
+            resolved[name] = float(payload)
+            continue
+        compiled_expression = payload
+        missing_names = sorted(
+            dependency
+            for dependency in compiled_expression.dependencies
+            if dependency not in resolved
+        )
+        if missing_names:
+            missing_text = ", ".join(missing_names)
+            raise ValueError(
+                f"{label}.{name} references unknown symbol(s): "
+                f"{missing_text}"
+            )
+        resolved[name] = evaluate_compiled_expression(
+            compiled_expression,
+            resolved,
+        )
+    return resolved
+
+
 def _resolve_declared_symbol_context(
     entries: Mapping[str, Any],
     *,
@@ -320,60 +435,11 @@ def _resolve_declared_symbol_context(
 ) -> dict[str, Any]:
     """Resolve numeric values and safe expressions from one declaration map."""
 
-    resolved: dict[str, Any] = dict(base_context)
-    pending = {str(name): value for name, value in entries.items()}
-    local_names = set(pending)
-    while pending:
-        progress = False
-        for name, raw_value in tuple(pending.items()):
-            if isinstance(raw_value, bool):
-                raise ValueError(
-                    f"{label}.{name} must be numeric or a string expression."
-                )
-            if isinstance(
-                raw_value, (int, float, numpy.integer, numpy.floating)
-            ):
-                resolved[name] = float(raw_value)
-                del pending[name]
-                progress = True
-                continue
-            if not isinstance(raw_value, str) or not raw_value.strip():
-                raise ValueError(
-                    f"{label}.{name} must be numeric or a string expression."
-                )
-            expression_text = raw_value.strip()
-            dependencies = _expression_symbol_names(expression_text)
-            unresolved_locals = {
-                dependency
-                for dependency in dependencies
-                if dependency in local_names and dependency not in resolved
-            }
-            if unresolved_locals:
-                continue
-            missing_names = sorted(
-                dependency
-                for dependency in dependencies
-                if dependency not in resolved and dependency not in local_names
-            )
-            if missing_names:
-                missing_text = ", ".join(missing_names)
-                raise ValueError(
-                    f"{label}.{name} references unknown symbol(s): "
-                    f"{missing_text}"
-                )
-            resolved[name] = _evaluate_safe_expression(
-                expression_text, resolved
-            )
-            del pending[name]
-            progress = True
-        if progress:
-            continue
-        unresolved_names = ", ".join(sorted(pending))
-        raise ValueError(
-            f"{label} contains circular or unresolved expressions: "
-            f"{unresolved_names}"
-        )
-    return resolved
+    return _evaluate_declared_symbol_plan(
+        _compile_declared_symbol_plan(entries),
+        base_context=base_context,
+        label=label,
+    )
 
 
 def _resolve_declared_background_context(
@@ -401,6 +467,13 @@ def _resolve_declared_background_context(
                 continue
             if isinstance(value, (int, float, numpy.integer, numpy.floating)):
                 env[key] = float(value)
+    background_runtime = contract.get("background_runtime")
+    if background_runtime is not None:
+        return _evaluate_declared_symbol_plan(
+            getattr(background_runtime, "derived_plan", ()),
+            base_context=env,
+            label="background.derived",
+        )
     return _resolve_declared_symbol_context(
         section.get("derived", {}) or {},
         base_context=env,
@@ -425,6 +498,13 @@ def _resolve_declared_reionization_context(
 ) -> dict[str, Any]:
     """Return resolved declared reionization quantities."""
 
+    background_runtime = contract.get("background_runtime")
+    if background_runtime is not None:
+        return _evaluate_declared_symbol_plan(
+            getattr(background_runtime, "reionization_quantity_plan", ()),
+            base_context=base_context,
+            label="background.reionization.quantities",
+        )
     reionization = _get_declared_reionization_section(contract)
     return _resolve_declared_symbol_context(
         reionization.get("quantities", {}) or {},
@@ -868,15 +948,12 @@ class CustomCMBSpectrumData:
         return numpy.asarray(self.spectra.get("EE", []), dtype=float)
 
 
-_CUSTOM_CMB_BACKGROUND_INPUTS: dict[tuple[Any, ...], tuple[Any, ...]] = {}
 _CUSTOM_CMB_BACKGROUND_RESULTS: dict[
     tuple[Any, ...], "_CustomCMBBackgroundData"
 ] = {}
-_CUSTOM_CMB_SPECTRUM_INPUTS: dict[tuple[Any, ...], Mapping[str, Any]] = {}
 _CUSTOM_CMB_SPECTRUM_RESULTS: dict[
     tuple[Any, ...], "CustomCMBSpectrumData"
 ] = {}
-_CUSTOM_CMB_PROVIDER_REGISTRY: dict[int, Any] = {}
 _CUSTOM_CMB_BESSEL_INPUTS: dict[str, numpy.ndarray] = {}
 
 
@@ -1812,6 +1889,7 @@ def _build_custom_cmb_background(
     reionization_section = _get_declared_reionization_section(contract)
     calibration_section = reionization_section.get("calibration", {}) or {}
     reionization_quantities = reionization_section.get("quantities", {}) or {}
+    background_runtime = contract.get("background_runtime")
     hubble0_si = physical_params.H0_km_s_Mpc * 1000.0 / MPC_M
     helium_floor_grid = numpy.minimum(
         helium_electron_grid,
@@ -1822,6 +1900,12 @@ def _build_custom_cmb_background(
         """Return the declared reionization optical-depth target."""
 
         target_entry = calibration_section.get("target_optical_depth")
+        if background_runtime is not None:
+            target_entry = getattr(
+                background_runtime,
+                "reionization_target_tau",
+                target_entry,
+            )
         if target_entry is None:
             return None
         scalar_context = _resolve_declared_background_context(
@@ -1833,6 +1917,14 @@ def _build_custom_cmb_background(
             target_entry, (int, float, numpy.integer, numpy.floating)
         ):
             return float(target_entry)
+        if hasattr(target_entry, "program"):
+            return _coerce_numeric_scalar(
+                evaluate_compiled_expression(target_entry, scalar_context),
+                name=(
+                    "background.reionization.calibration."
+                    "target_optical_depth"
+                ),
+            )
         if not isinstance(target_entry, str) or not target_entry.strip():
             raise ValueError(
                 "background.reionization.calibration.target_optical_depth "
@@ -1843,7 +1935,15 @@ def _build_custom_cmb_background(
             name="background.reionization.calibration.target_optical_depth",
         )
 
-    calibration_symbol = calibration_section.get("symbol")
+    calibration_symbol = (
+        getattr(
+            background_runtime,
+            "reionization_calibration_symbol",
+            calibration_section.get("symbol"),
+        )
+        if background_runtime is not None
+        else calibration_section.get("symbol")
+    )
     if calibration_symbol is not None:
         if (
             not isinstance(calibration_symbol, str)
@@ -2398,6 +2498,55 @@ class _DeclaredGraphRuntimeSpec:
     equation_wrt_by_variable: FrozenMapping
 
 
+@dataclass(frozen=True, slots=True)
+class _DeclaredDerivativeStep:
+    """Prepared derivative-symbol resolution metadata."""
+
+    output_name: str
+    variable: str
+    wrt: str
+    order: int
+    slot_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredValueStep:
+    """Prepared expression or algebraic relation evaluation step."""
+
+    output_name: str
+    compiled_expression: Any
+    dependencies: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredEquationSlotPlan:
+    """Prepared derivative update rule for one state-vector slot."""
+
+    state_index: int
+    wrt: str
+    promote_from_index: int | None
+    compiled_rhs: Any | None
+    equation_name: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredGraphExecutionPlan:
+    """Immutable compiled execution plan for the declared graph solver."""
+
+    runtime_spec: _DeclaredGraphRuntimeSpec
+    derivative_steps: tuple[_DeclaredDerivativeStep, ...]
+    value_steps: tuple[_DeclaredValueStep, ...]
+    source_steps: tuple[_DeclaredValueStep, ...]
+    start_condition_entries: tuple[Any, ...]
+    end_condition_entries: tuple[Any, ...]
+    equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
+
+
+_DECLARED_GRAPH_EXECUTION_PLAN_CACHE: dict[
+    int, _DeclaredGraphExecutionPlan
+] = {}
+
+
 def _prepare_declared_graph_runtime_spec(
     perturbation_data: Any,
 ) -> _DeclaredGraphRuntimeSpec:
@@ -2445,6 +2594,140 @@ def _prepare_declared_graph_runtime_spec(
         equation_orders=FrozenMapping(equation_orders),
         equation_wrt_by_variable=FrozenMapping(equation_wrt_by_variable),
     )
+
+
+def _compile_declared_graph_execution_plan(
+    perturbation_data: Any,
+) -> _DeclaredGraphExecutionPlan:
+    """Return the compiled execution plan for one declared graph."""
+
+    cache_token = object.__hash__(perturbation_data)
+    cached = _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.get(cache_token)
+    if cached is not None:
+        return cached
+
+    runtime_spec = _prepare_declared_graph_runtime_spec(perturbation_data)
+    derivative_steps = tuple(
+        _DeclaredDerivativeStep(
+            output_name=entry.name,
+            variable=str(entry.variable or ""),
+            wrt=str(entry.wrt or ""),
+            order=int(entry.order or 1),
+            slot_name=(
+                f"__d{int(entry.order or 1)}_"
+                f"{entry.variable}_"
+                f"{entry.wrt}"
+            ),
+        )
+        for entry in perturbation_data.derived.values()
+        if entry.expression is None
+    )
+    relation_entries = {
+        entry.target: entry for entry in perturbation_data.constraints.values()
+    }
+    relation_entries.update(
+        {entry.target: entry for entry in perturbation_data.closures.values()}
+    )
+    value_steps: list[_DeclaredValueStep] = []
+    for (
+        node_name
+    ) in perturbation_data.dependency_graph_summary.evaluation_order:
+        derived_entry = perturbation_data.derived.get(node_name)
+        if derived_entry is not None and derived_entry.expression is not None:
+            value_steps.append(
+                _DeclaredValueStep(
+                    output_name=node_name,
+                    compiled_expression=derived_entry.compiled_expression,
+                    dependencies=tuple(derived_entry.dependencies),
+                )
+            )
+            continue
+        relation_entry = relation_entries.get(node_name)
+        if relation_entry is None:
+            continue
+        value_steps.append(
+            _DeclaredValueStep(
+                output_name=node_name,
+                compiled_expression=relation_entry.compiled_expression,
+                dependencies=tuple(relation_entry.dependencies),
+            )
+        )
+    source_steps = tuple(
+        _DeclaredValueStep(
+            output_name=entry.name,
+            compiled_expression=entry.compiled_expression,
+            dependencies=tuple(entry.dependencies),
+        )
+        for entry in perturbation_data.sources.values()
+    )
+    start_condition_entries = tuple(
+        sorted(
+            tuple(perturbation_data.initial_conditions.values())
+            + tuple(
+                entry
+                for entry in perturbation_data.boundary_conditions.values()
+                if str(getattr(entry, "anchor", "start")) == "start"
+            ),
+            key=lambda entry: (
+                str(entry.target.variable),
+                str(entry.target.wrt),
+                int(entry.target.order),
+                str(entry.name),
+            ),
+        )
+    )
+    end_condition_entries = tuple(
+        sorted(
+            (
+                entry
+                for entry in perturbation_data.boundary_conditions.values()
+                if str(getattr(entry, "anchor", "start")) == "end"
+            ),
+            key=lambda entry: (
+                str(entry.target.variable),
+                str(entry.target.wrt),
+                int(entry.target.order),
+                str(entry.name),
+            ),
+        )
+    )
+    equation_slot_plans: list[_DeclaredEquationSlotPlan] = []
+    for slot in runtime_spec.state_slots:
+        promote_from_index = None
+        compiled_rhs = None
+        equation_name = None
+        if slot.order + 1 < runtime_spec.equation_orders[slot.variable]:
+            promote_from_index = runtime_spec.state_index_by_key[
+                (
+                    slot.variable,
+                    slot.wrt,
+                    slot.order + 1,
+                )
+            ]
+        else:
+            equation_entry = runtime_spec.equation_by_variable[slot.variable]
+            compiled_rhs = equation_entry.compiled_rhs
+            equation_name = equation_entry.name
+        equation_slot_plans.append(
+            _DeclaredEquationSlotPlan(
+                state_index=int(slot.index),
+                wrt=str(slot.wrt),
+                promote_from_index=promote_from_index,
+                compiled_rhs=compiled_rhs,
+                equation_name=equation_name,
+            )
+        )
+    compiled_plan = _DeclaredGraphExecutionPlan(
+        runtime_spec=runtime_spec,
+        derivative_steps=derivative_steps,
+        value_steps=tuple(value_steps),
+        source_steps=source_steps,
+        start_condition_entries=start_condition_entries,
+        end_condition_entries=end_condition_entries,
+        equation_slot_plans=tuple(equation_slot_plans),
+    )
+    _DECLARED_GRAPH_EXECUTION_PLAN_CACHE[cache_token] = compiled_plan
+    return compiled_plan
 
 
 def _declared_runtime_seed(
@@ -2554,184 +2837,142 @@ def _resolve_declared_graph_context(
     *,
     allow_partial: bool = False,
     eta_grid: numpy.ndarray | None,
-    runtime_spec: _DeclaredGraphRuntimeSpec | None,
+    execution_plan: _DeclaredGraphExecutionPlan | None,
 ) -> dict[str, Any]:
     """Resolve derivative symbols, derived expressions, and relations."""
 
-    unresolved_derivatives = {
-        name: entry
-        for name, entry in perturbation_data.derived.items()
-        if entry.expression is None
-    }
-    unresolved_expressions = {
-        name: entry
-        for name, entry in perturbation_data.derived.items()
-        if entry.expression is not None
-    }
-    unresolved_relations: dict[str, Any] = {}
-    for entry in perturbation_data.constraints.values():
-        unresolved_relations[entry.target] = entry
-    for entry in perturbation_data.closures.values():
-        unresolved_relations[entry.target] = entry
+    if execution_plan is None:
+        execution_plan = _compile_declared_graph_execution_plan(
+            perturbation_data
+        )
+    runtime_spec = execution_plan.runtime_spec
 
-    while (
-        unresolved_derivatives
-        or unresolved_expressions
-        or unresolved_relations
-    ):
+    pending_derivatives = list(execution_plan.derivative_steps)
+    pending_values = list(execution_plan.value_steps)
+    while pending_derivatives or pending_values:
         progress = False
-        for name, entry in list(unresolved_derivatives.items()):
-            target_name = str(entry.variable or "")
+        next_derivatives: list[_DeclaredDerivativeStep] = []
+        for step in pending_derivatives:
+            target_name = step.variable
             if target_name not in context:
+                next_derivatives.append(step)
                 continue
             target_value = context[target_name]
-            derivative_order = int(entry.order or 1)
+            derivative_order = int(step.order)
             if eta_grid is None:
-                if runtime_spec is None:
-                    continue
                 slot_index = runtime_spec.state_index_by_key.get(
-                    (target_name, str(entry.wrt or ""), derivative_order)
+                    (target_name, step.wrt, derivative_order)
                 )
-                slot_name = (
-                    f"__d{derivative_order}_{target_name}_{entry.wrt or ''}"
-                )
-                if slot_index is None or slot_name not in context:
+                if slot_index is None or step.slot_name not in context:
+                    next_derivatives.append(step)
                     continue
-                context[name] = context[slot_name]
+                context[step.output_name] = context[step.slot_name]
+                progress = True
+                continue
+            coordinate_name = str(step.wrt or runtime_spec.evolution_variable)
+            derivative_value = numpy.asarray(target_value, dtype=float)
+            if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+                coordinate_history = numpy.asarray(eta_grid, dtype=float)
             else:
-                coordinate_name = str(
-                    entry.wrt or runtime_spec.evolution_variable
+                if coordinate_name not in context:
+                    next_derivatives.append(step)
+                    continue
+                coordinate_history = numpy.asarray(
+                    context[coordinate_name],
+                    dtype=float,
                 )
-                derivative_value = numpy.asarray(target_value, dtype=float)
+                if coordinate_history.ndim == 0:
+                    coordinate_history = numpy.full_like(
+                        eta_grid,
+                        float(coordinate_history),
+                        dtype=float,
+                    )
+                if coordinate_history.shape != eta_grid.shape:
+                    raise ValueError(
+                        "Declared coordinate history must match the eta "
+                        f"grid for derivative symbol '{step.output_name}'."
+                    )
+            for _ in range(derivative_order):
+                derivative_eta = numpy.asarray(
+                    numpy.gradient(
+                        derivative_value,
+                        eta_grid,
+                        edge_order=1,
+                    ),
+                    dtype=float,
+                )
                 if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
-                    coordinate_history = numpy.asarray(eta_grid, dtype=float)
-                else:
-                    if coordinate_name not in context:
-                        continue
-                    coordinate_history = numpy.asarray(
-                        context[coordinate_name],
-                        dtype=float,
+                    derivative_value = derivative_eta
+                    continue
+                coordinate_rate = numpy.asarray(
+                    numpy.gradient(
+                        coordinate_history,
+                        eta_grid,
+                        edge_order=1,
+                    ),
+                    dtype=float,
+                )
+                if not numpy.all(numpy.isfinite(coordinate_rate)):
+                    raise ValueError(
+                        "Declared coordinate history produced non-finite "
+                        f"rates for derivative symbol '{step.output_name}'."
                     )
-                    if coordinate_history.ndim == 0:
-                        coordinate_history = numpy.full_like(
-                            eta_grid,
-                            float(coordinate_history),
-                            dtype=float,
-                        )
-                    if coordinate_history.shape != eta_grid.shape:
-                        raise ValueError(
-                            "Declared coordinate history must match the eta "
-                            f"grid for derivative symbol '{name}'."
-                        )
-                for _ in range(derivative_order):
-                    derivative_eta = numpy.asarray(
-                        numpy.gradient(
-                            derivative_value,
-                            eta_grid,
-                            edge_order=1,
-                        ),
-                        dtype=float,
+                if numpy.any(numpy.abs(coordinate_rate) <= 1.0e-12):
+                    raise ValueError(
+                        "Declared coordinate history is singular for "
+                        f"derivative symbol '{step.output_name}'."
                     )
-                    if (
-                        coordinate_name
-                        in _LEGACY_DECLARED_EVOLUTION_COORDINATES
-                    ):
-                        derivative_value = derivative_eta
-                        continue
-                    coordinate_rate = numpy.asarray(
-                        numpy.gradient(
-                            coordinate_history,
-                            eta_grid,
-                            edge_order=1,
-                        ),
-                        dtype=float,
-                    )
-                    if not numpy.all(numpy.isfinite(coordinate_rate)):
-                        raise ValueError(
-                            "Declared coordinate history produced non-finite "
-                            f"rates for derivative symbol '{name}'."
-                        )
-                    if numpy.any(numpy.abs(coordinate_rate) <= 1.0e-12):
-                        raise ValueError(
-                            "Declared coordinate history is singular for "
-                            f"derivative symbol '{name}'."
-                        )
-                    derivative_value = derivative_eta / coordinate_rate
-                context[name] = derivative_value
-            unresolved_derivatives.pop(name)
+                derivative_value = derivative_eta / coordinate_rate
+            context[step.output_name] = derivative_value
             progress = True
 
-        for name, entry in list(unresolved_expressions.items()):
+        next_values: list[_DeclaredValueStep] = []
+        for step in pending_values:
             missing = [
                 dependency
-                for dependency in entry.dependencies
+                for dependency in step.dependencies
                 if dependency not in context
             ]
             if missing:
+                next_values.append(step)
                 continue
-            context[name] = _evaluate_safe_expression(
-                str(entry.expression),
+            context[step.output_name] = evaluate_compiled_expression(
+                step.compiled_expression,
                 context,
             )
-            unresolved_expressions.pop(name)
             progress = True
 
-        for target_name, entry in list(unresolved_relations.items()):
-            missing = [
-                dependency
-                for dependency in entry.dependencies
-                if dependency not in context
-            ]
-            if missing:
-                continue
-            context[target_name] = _evaluate_safe_expression(
-                str(entry.expression),
-                context,
-            )
-            unresolved_relations.pop(target_name)
-            progress = True
-
-        if not progress:
-            if allow_partial:
-                return context
-            pending_names = sorted(
-                list(unresolved_derivatives)
-                + list(unresolved_expressions)
-                + list(unresolved_relations)
-            )
-            pending_str = ", ".join(pending_names)
-            raise ValueError(
-                "Declared CMB graph references unresolved symbol(s): "
-                f"{pending_str}"
-            )
+        if progress:
+            pending_derivatives = next_derivatives
+            pending_values = next_values
+            continue
+        if allow_partial:
+            return context
+        pending_names = sorted(
+            [step.output_name for step in next_derivatives]
+            + [step.output_name for step in next_values]
+        )
+        pending_str = ", ".join(pending_names)
+        raise ValueError(
+            "Declared CMB graph references unresolved symbol(s): "
+            f"{pending_str}"
+        )
     return context
 
 
 def _evaluate_declared_initial_state(
     *,
     perturbation_data: Any,
-    runtime_spec: _DeclaredGraphRuntimeSpec,
+    execution_plan: _DeclaredGraphExecutionPlan,
     base_context: Mapping[str, Any],
 ) -> tuple[numpy.ndarray, tuple[tuple[str, str, int], ...]]:
     """Return the initial state vector for one Fourier mode."""
 
+    runtime_spec = execution_plan.runtime_spec
     state_vector = numpy.zeros(len(runtime_spec.state_slots), dtype=float)
     assigned_targets: list[tuple[str, str, int]] = []
     context = dict(base_context)
-    condition_entries = sorted(
-        tuple(perturbation_data.initial_conditions.values())
-        + tuple(
-            entry
-            for entry in perturbation_data.boundary_conditions.values()
-            if str(getattr(entry, "anchor", "start")) == "start"
-        ),
-        key=lambda entry: (
-            str(entry.target.variable),
-            str(entry.target.wrt),
-            int(entry.target.order),
-            str(entry.name),
-        ),
-    )
+    condition_entries = execution_plan.start_condition_entries
     pending = list(condition_entries)
     while pending:
         context = _resolve_declared_graph_context(
@@ -2739,7 +2980,7 @@ def _evaluate_declared_initial_state(
             perturbation_data,
             allow_partial=True,
             eta_grid=None,
-            runtime_spec=runtime_spec,
+            execution_plan=execution_plan,
         )
         progress = False
         next_round: list[Any] = []
@@ -2753,7 +2994,10 @@ def _evaluate_declared_initial_state(
                 next_round.append(entry)
                 continue
             value = _coerce_numeric_scalar(
-                _evaluate_safe_expression(str(entry.expression), context),
+                evaluate_compiled_expression(
+                    entry.compiled_expression,
+                    context,
+                ),
                 name=f"condition '{entry.name}'",
             )
             state_index = runtime_spec.state_index_by_key[
@@ -2793,7 +3037,7 @@ def _evaluate_declared_initial_state(
         perturbation_data,
         allow_partial=True,
         eta_grid=None,
-        runtime_spec=runtime_spec,
+        execution_plan=execution_plan,
     )
     return state_vector, tuple(assigned_targets)
 
@@ -2927,7 +3171,6 @@ def _compute_custom_cmb_spectrum_data(
     cached_spectrum = _CUSTOM_CMB_SPECTRUM_RESULTS.get(cache_key)
     if cached_spectrum is not None:
         return _get_cached_custom_cmb_spectrum_data(cache_key)
-    _CUSTOM_CMB_SPECTRUM_INPUTS[cache_key] = copy.deepcopy(contract_or_params)
 
     perturbation_data = _compile_declared_perturbation_contract(
         contract_or_params
@@ -2935,7 +3178,8 @@ def _compute_custom_cmb_spectrum_data(
     if perturbation_data.standard:
         raise ValueError("Standard perturbation contracts must use CAMB.")
 
-    runtime_spec = _prepare_declared_graph_runtime_spec(perturbation_data)
+    execution_plan = _compile_declared_graph_execution_plan(perturbation_data)
+    runtime_spec = execution_plan.runtime_spec
     physical_params = _resolve_custom_cmb_physical_parameters(
         contract_or_params,
         background_provider,
@@ -3297,7 +3541,7 @@ def _compute_custom_cmb_spectrum_data(
             perturbation_data,
             allow_partial=True,
             eta_grid=None,
-            runtime_spec=runtime_spec,
+            execution_plan=execution_plan,
         )
 
     def _build_array_context(
@@ -3385,7 +3629,7 @@ def _compute_custom_cmb_spectrum_data(
             perturbation_data,
             allow_partial=False,
             eta_grid=eta_los_grid,
-            runtime_spec=runtime_spec,
+            execution_plan=execution_plan,
         )
 
     def _evaluate_declared_sources(
@@ -3396,10 +3640,10 @@ def _compute_custom_cmb_spectrum_data(
         """Return source arrays keyed by source-term name."""
 
         source_arrays: dict[str, numpy.ndarray] = {}
-        for source_name, source_entry in perturbation_data.sources.items():
+        for source_step in execution_plan.source_steps:
             value = numpy.asarray(
-                _evaluate_safe_expression(
-                    str(source_entry.expression),
+                evaluate_compiled_expression(
+                    source_step.compiled_expression,
                     context,
                 ),
                 dtype=float,
@@ -3412,15 +3656,16 @@ def _compute_custom_cmb_spectrum_data(
                 )
             if value.shape != eta_los_grid.shape:
                 raise ValueError(
-                    f"Source term '{source_name}' did not evaluate to an "
+                    "Source term "
+                    f"'{source_step.output_name}' did not evaluate to an "
                     "eta-grid history."
                 )
             if not numpy.all(numpy.isfinite(value)):
                 raise ValueError(
                     "Declared source term produced non-finite values: "
-                    f"{source_name} at k={k_value}"
+                    f"{source_step.output_name} at k={k_value}"
                 )
-            source_arrays[source_name] = value
+            source_arrays[source_step.output_name] = value
         return source_arrays
 
     def _mode_rhs(
@@ -3443,38 +3688,27 @@ def _compute_custom_cmb_spectrum_data(
             background_scalars=background_scalars,
         )
         derivative = numpy.zeros_like(state_vector, dtype=float)
-        for slot in runtime_spec.state_slots:
+        for slot_plan in execution_plan.equation_slot_plans:
             coordinate_rate = _resolve_coordinate_rate(
-                wrt_name=slot.wrt,
+                wrt_name=slot_plan.wrt,
                 scalar_context=scalar_context,
                 step_index=step_index,
                 blend=blend,
                 k_value=float(k_value),
             )
-            if slot.order + 1 < runtime_spec.equation_orders[slot.variable]:
-                derivative[slot.index] = (
-                    float(
-                        state_vector[
-                            runtime_spec.state_index_by_key[
-                                (
-                                    slot.variable,
-                                    slot.wrt,
-                                    slot.order + 1,
-                                )
-                            ]
-                        ]
-                    )
+            if slot_plan.promote_from_index is not None:
+                derivative[slot_plan.state_index] = (
+                    float(state_vector[slot_plan.promote_from_index])
                     * coordinate_rate
                 )
                 continue
-            equation_entry = runtime_spec.equation_by_variable[slot.variable]
-            derivative[slot.index] = (
+            derivative[slot_plan.state_index] = (
                 _coerce_numeric_scalar(
-                    _evaluate_safe_expression(
-                        str(equation_entry.rhs),
+                    evaluate_compiled_expression(
+                        slot_plan.compiled_rhs,
                         scalar_context,
                     ),
-                    name=f"equation '{equation_entry.name}'",
+                    name=f"equation '{slot_plan.equation_name}'",
                 )
                 * coordinate_rate
             )
@@ -3492,19 +3726,7 @@ def _compute_custom_cmb_spectrum_data(
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
         """Integrate one Fourier mode through the declared graph."""
 
-        end_boundary_entries = sorted(
-            (
-                entry
-                for entry in perturbation_data.boundary_conditions.values()
-                if str(getattr(entry, "anchor", "start")) == "end"
-            ),
-            key=lambda entry: (
-                str(entry.target.variable),
-                str(entry.target.wrt),
-                int(entry.target.order),
-                str(entry.name),
-            ),
-        )
+        end_boundary_entries = execution_plan.end_condition_entries
 
         def _advance_declared_interval(
             state_vector: numpy.ndarray,
@@ -3652,8 +3874,8 @@ def _compute_custom_cmb_spectrum_data(
                     )
                 ]
                 expected_value = _coerce_numeric_scalar(
-                    _evaluate_safe_expression(
-                        str(entry.expression),
+                    evaluate_compiled_expression(
+                        entry.compiled_expression,
                         final_context,
                     ),
                     name=f"end boundary '{entry.name}'",
@@ -3674,7 +3896,7 @@ def _compute_custom_cmb_spectrum_data(
         )
         initial_state, assigned_targets = _evaluate_declared_initial_state(
             perturbation_data=perturbation_data,
-            runtime_spec=runtime_spec,
+            execution_plan=execution_plan,
             base_context=initial_context,
         )
         state = numpy.asarray(initial_state, dtype=float)
@@ -3729,8 +3951,8 @@ def _compute_custom_cmb_spectrum_data(
                 try:
                     boundary_guess.append(
                         _coerce_numeric_scalar(
-                            _evaluate_safe_expression(
-                                str(entry.expression),
+                            evaluate_compiled_expression(
+                                entry.compiled_expression,
                                 initial_guess_context,
                             ),
                             name=f"end boundary '{entry.name}' guess",

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Mapping, Sequence
 
+import numpy
+
 from .cmb_projection_contract import (
     get_declared_projection_spec,
     resolve_declared_projection_kernel,
@@ -29,6 +31,29 @@ from .engine_adapter import (
     _replace_latex_tokens,
     _validate_safe_expression,
 )
+
+_COMPILED_BINARY_OPCODE_NAMES = {
+    ast.Add: "add",
+    ast.Sub: "sub",
+    ast.Mult: "mul",
+    ast.Div: "div",
+    ast.Pow: "pow",
+}
+_COMPILED_UNARY_OPCODE_NAMES = {
+    ast.UAdd: "uadd",
+    ast.USub: "usub",
+}
+_COMPILED_BINARY_OPERATORS = {
+    "add": numpy.add,
+    "sub": numpy.subtract,
+    "mul": numpy.multiply,
+    "div": numpy.divide,
+    "pow": numpy.power,
+}
+_COMPILED_UNARY_OPERATORS = {
+    "uadd": lambda value: value,
+    "usub": numpy.negative,
+}
 
 _RUNTIME_REFERENCE_NAMES = {
     "Omega_b0",
@@ -197,6 +222,15 @@ class PerturbationVariableData:
 
 
 @dataclass(frozen=True, slots=True)
+class PerturbationCompiledExpressionData:
+    """Picklable stack program for one validated declared expression."""
+
+    expression: str
+    dependencies: tuple[str, ...]
+    program: tuple[tuple[str, Any], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class PerturbationDerivedData:
     """Immutable metadata for one declared derived graph symbol."""
 
@@ -210,6 +244,7 @@ class PerturbationDerivedData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +269,7 @@ class PerturbationEquationData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_rhs: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +284,7 @@ class PerturbationClosureData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +299,7 @@ class PerturbationConstraintData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,6 +313,7 @@ class PerturbationSourceData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -316,6 +355,7 @@ class PerturbationConditionData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,6 +447,124 @@ def _collect_expression_names(expr: str) -> tuple[str, ...]:
         seen.add(current.id)
         names.append(current.id)
     return tuple(names)
+
+
+def _compile_expression_program(
+    expr: str,
+) -> tuple[tuple[str, Any], ...]:
+    """Return a picklable stack program for one validated expression."""
+
+    node = _parse_safe_expression(expr)
+    program: list[tuple[str, Any]] = []
+
+    def _visit(current: ast.AST) -> None:
+        """Append stack-machine instructions for ``current``."""
+
+        if isinstance(current, ast.Expression):
+            _visit(current.body)
+            return
+        if isinstance(current, ast.Constant):
+            if not isinstance(current.value, (int, float)):
+                raise ValueError("non-numeric literal")
+            program.append(("const", float(current.value)))
+            return
+        if isinstance(current, ast.Name):
+            program.append(("name", current.id))
+            return
+        if isinstance(current, ast.BinOp):
+            opcode = _COMPILED_BINARY_OPCODE_NAMES.get(type(current.op))
+            if opcode is None:
+                raise ValueError("operator not allowed")
+            _visit(current.left)
+            _visit(current.right)
+            program.append(("binary", opcode))
+            return
+        if isinstance(current, ast.UnaryOp):
+            opcode = _COMPILED_UNARY_OPCODE_NAMES.get(type(current.op))
+            if opcode is None:
+                raise ValueError("operator not allowed")
+            _visit(current.operand)
+            program.append(("unary", opcode))
+            return
+        if isinstance(current, ast.Call):
+            if not isinstance(current.func, ast.Name):
+                raise ValueError("invalid function call")
+            if current.keywords:
+                raise ValueError("keyword arguments not supported")
+            for argument in current.args:
+                _visit(argument)
+            program.append(
+                ("call", (current.func.id, len(tuple(current.args))))
+            )
+            return
+        raise ValueError("expression not allowed")
+
+    _visit(node)
+    return tuple(program)
+
+
+def _compile_expression_plan(
+    expr: str,
+    *,
+    dependencies: tuple[str, ...] | None = None,
+) -> PerturbationCompiledExpressionData:
+    """Return picklable evaluator metadata for one validated expression."""
+
+    dependency_names = (
+        _collect_expression_names(expr)
+        if dependencies is None
+        else tuple(dependencies)
+    )
+    return PerturbationCompiledExpressionData(
+        expression=expr,
+        dependencies=dependency_names,
+        program=_compile_expression_program(expr),
+    )
+
+
+def evaluate_compiled_expression(
+    expression_data: PerturbationCompiledExpressionData,
+    env: Mapping[str, Any],
+) -> Any:
+    """Evaluate one compiled declared expression against ``env``."""
+
+    stack: list[Any] = []
+    with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        for opcode, payload in expression_data.program:
+            if opcode == "const":
+                stack.append(payload)
+                continue
+            if opcode == "name":
+                if payload in env:
+                    stack.append(env[payload])
+                    continue
+                if payload in _ALLOWED_CONSTANTS:
+                    stack.append(_ALLOWED_CONSTANTS[payload])
+                    continue
+                raise ValueError(f"name '{payload}' not allowed")
+            if opcode == "binary":
+                right = stack.pop()
+                left = stack.pop()
+                stack.append(_COMPILED_BINARY_OPERATORS[payload](left, right))
+                continue
+            if opcode == "unary":
+                stack.append(_COMPILED_UNARY_OPERATORS[payload](stack.pop()))
+                continue
+            if opcode == "call":
+                func_name, arg_count = payload
+                func = _ALLOWED_MATH_FUNCS.get(func_name)
+                if func is None:
+                    raise ValueError(f"function '{func_name}' not allowed")
+                args = [stack.pop() for _ in range(int(arg_count))]
+                args.reverse()
+                stack.append(func(*args))
+                continue
+            raise ValueError("expression not allowed")
+    if len(stack) != 1:
+        raise ValueError(
+            "Compiled expression evaluation did not produce one result"
+        )
+    return stack[0]
 
 
 def _validate_entry_keys(
@@ -1144,6 +1302,10 @@ def compile_perturbation_contract(
                 label=f"cmb.perturbations.derived.{name}.domain",
             ),
             dependencies=dependencies,
+            compiled_expression=_compile_expression_plan(
+                clean_expression,
+                dependencies=dependencies,
+            ),
         )
         expression_derived_names.append(name)
 
@@ -1256,6 +1418,10 @@ def compile_perturbation_contract(
                 label=f"cmb.perturbations.equations.{name}.domain",
             ),
             dependencies=dependencies,
+            compiled_rhs=_compile_expression_plan(
+                rhs_expression,
+                dependencies=dependencies,
+            ),
         )
         equation_targets.add(target_key)
 
@@ -1340,6 +1506,10 @@ def compile_perturbation_contract(
                     label=f"{label_prefix}.{name}.domain",
                 ),
                 "dependencies": dependencies,
+                "compiled_expression": _compile_expression_plan(
+                    expression_text,
+                    dependencies=dependencies,
+                ),
             }
             if relation_kind == "constraint":
                 compiled[name] = PerturbationConstraintData(**entry_kwargs)
@@ -1399,6 +1569,10 @@ def compile_perturbation_contract(
                 label=f"cmb.perturbations.sources.{name}.domain",
             ),
             dependencies=dependencies,
+            compiled_expression=_compile_expression_plan(
+                expression_text,
+                dependencies=dependencies,
+            ),
         )
 
     relation_entries = _relation_target_entries(
@@ -1816,6 +1990,10 @@ def compile_perturbation_contract(
                     label=f"{label_prefix}.{name}.domain",
                 ),
                 dependencies=dependencies,
+                compiled_expression=_compile_expression_plan(
+                    expression_text,
+                    dependencies=dependencies,
+                ),
             )
             seen_targets.add(target_key)
         return compiled
@@ -2263,6 +2441,7 @@ def compile_perturbation_contract(
 __all__ = [
     "PerturbationBackendMappingData",
     "PerturbationClosureData",
+    "PerturbationCompiledExpressionData",
     "PerturbationConditionData",
     "PerturbationConditionTargetData",
     "PerturbationConstraintData",
@@ -2276,4 +2455,5 @@ __all__ = [
     "PerturbationValidityData",
     "PerturbationVariableData",
     "compile_perturbation_contract",
+    "evaluate_compiled_expression",
 ]

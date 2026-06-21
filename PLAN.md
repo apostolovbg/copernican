@@ -161,7 +161,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Ownership reset and likelihood package split
+### [closed] Slice One - Ownership reset and likelihood package split
 
 Purpose:
 
@@ -201,46 +201,46 @@ Scope:
 
 Tasks:
 
-* [open] Create a `copernican/lib/likelihoods/cmb/**` package.
-* [open] Create `copernican/lib/likelihoods/cmb/cmb.py` as the public CMB
+* [closed] Create a `copernican/lib/likelihoods/cmb/**` package.
+* [closed] Create `copernican/lib/likelihoods/cmb/cmb.py` as the public CMB
   likelihood entrypoint.
-* [open] Create `copernican/lib/likelihoods/cmb/camb_solver.py` for the
+* [closed] Create `copernican/lib/likelihoods/cmb/camb_solver.py` for the
   standard backend path.
-* [open] Create `copernican/lib/likelihoods/cmb/copcmb_solver.py` for the
+* [closed] Create `copernican/lib/likelihoods/cmb/copcmb_solver.py` for the
   native declared backend path.
-* [open] Move shared helpers into focused support modules instead of one
+* [closed] Move shared helpers into focused support modules instead of one
   giant file.
-* [open] Preserve the public import surface intentionally while the file move
+* [closed] Preserve the public import surface intentionally while the file move
   happens.
-* [open] Move native runtime compilation ownership to `model_coder.py`.
-* [open] Make `engine_adapter.py` carry the compiled native runtime bundle.
-* [open] Add a native-runtime accessor separate from CAMB-contract access.
-* [open] Stop `standard: false` prediction from calling
+* [closed] Move native runtime compilation ownership to `model_coder.py`.
+* [closed] Make `engine_adapter.py` carry the compiled native runtime bundle.
+* [closed] Add a native-runtime accessor separate from CAMB-contract access.
+* [closed] Stop `standard: false` prediction from calling
   `get_camb_contract()` in the hot path.
-* [open] Stop deep-copying native contract payloads per likelihood call.
-* [open] Stop recompiling declared perturbation runtime objects from raw
+* [closed] Stop deep-copying native contract payloads per likelihood call.
+* [closed] Stop recompiling declared perturbation runtime objects from raw
   mappings inside the likelihood.
-* [open] Keep manifest and route provenance truthful after the ownership
+* [closed] Keep manifest and route provenance truthful after the ownership
   move.
-* [open] Keep `standard: true` behavior intact.
-* [open] Add tests proving the native path consumes the compiled runtime
+* [closed] Keep `standard: true` behavior intact.
+* [closed] Add tests proving the native path consumes the compiled runtime
   handoff.
-* [open] Add or update import smoke tests for the new package layout.
+* [closed] Add or update import smoke tests for the new package layout.
 
 Done when:
 
-* [open] `copernican/lib/likelihoods/cmb.py` is replaced by a focused
+* [closed] `copernican/lib/likelihoods/cmb.py` is replaced by a focused
   package layout.
-* [open] Native CMB runtime ownership is no longer split across three layers
+* [closed] Native CMB runtime ownership is no longer split across three layers
   in contradictory ways.
-* [open] `standard: false` no longer materializes a CAMB-style contract in
+* [closed] `standard: false` no longer materializes a CAMB-style contract in
   the prediction hot path.
-* [open] The private `_protocol.py` shim is gone or replaced with a clear
+* [closed] The private `_protocol.py` shim is gone or replaced with a clear
   interface module.
-* [open] The first runtime win is measurable before deeper optimization.
-* [open] Relevant import, CMB, and ownership tests pass.
+* [closed] The first runtime win is measurable before deeper optimization.
+* [closed] Relevant import, CMB, and ownership tests pass.
 
-### [open] Slice Two - Compiled native executor and graph hot-path cleanup
+### [closed] Slice Two - Compiled native executor and graph hot-path cleanup
 
 Purpose:
 
@@ -274,36 +274,36 @@ Scope:
 
 Tasks:
 
-* [open] Compile declared background evaluators once per built runtime.
-* [open] Compile recombination and reionization auxiliary evaluators once per
+* [closed] Compile declared background evaluators once per built runtime.
+* [closed] Compile recombination and reionization auxiliary evaluators once per
   built runtime.
-* [open] Compile perturbation equations, closures, constraints, and sources
+* [closed] Compile perturbation equations, closures, constraints, and sources
   into native execution plans.
-* [open] Precompute dependency order and immutable graph metadata.
-* [open] Replace recursive mapping-heavy graph-context resolution in hot
+* [closed] Precompute dependency order and immutable graph metadata.
+* [closed] Replace recursive mapping-heavy graph-context resolution in hot
   loops with indexed evaluator plans.
-* [open] Replace per-stage symbol dictionaries with dense state slots where
+* [closed] Replace per-stage symbol dictionaries with dense state slots where
   that reduces overhead without hiding diagnostics.
-* [open] Hoist contract-static work out of Runge-Kutta stages.
-* [open] Hoist k-independent work out of per-k evolution where valid.
-* [open] Remove dead native CMB cache or registry plumbing that no longer
+* [closed] Hoist contract-static work out of Runge-Kutta stages.
+* [closed] Hoist k-independent work out of per-k evolution where valid.
+* [closed] Remove dead native CMB cache or registry plumbing that no longer
   earns its keep.
-* [open] Keep missing-quantity and invalid-math failures explicit after the
+* [closed] Keep missing-quantity and invalid-math failures explicit after the
   executor rewrite.
-* [open] Add focused tests proving closures, equations, and source channels
+* [closed] Add focused tests proving closures, equations, and source channels
   still change outputs in the intended ways.
-* [open] Add focused tests proving the compiled executor preserves validated
+* [closed] Add focused tests proving the compiled executor preserves validated
   behavior within current tolerances.
 
 Done when:
 
-* [open] The native hot path no longer reinterprets declared graph structure
+* [closed] The native hot path no longer reinterprets declared graph structure
   through mapping-heavy helpers inside repeated solver stages.
-* [open] Contract-static work is compiled once and reused.
-* [open] Old dead-path registries or no-op caches are removed.
-* [open] Native CMB outputs remain within the validated scope of the current
+* [closed] Contract-static work is compiled once and reused.
+* [closed] Old dead-path registries or no-op caches are removed.
+* [closed] Native CMB outputs remain within the validated scope of the current
   baseline.
-* [open] Relevant CMB and perturbation-contract tests pass.
+* [closed] Relevant CMB and perturbation-contract tests pass.
 
 ### [open] Slice Three - Projection, caching, and governed-suite runtime
 

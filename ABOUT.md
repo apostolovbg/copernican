@@ -43,8 +43,13 @@ likelihood surface, `camb_solver.py` owns the standard backend route, and
 `copcmb_solver.py` owns the native declared solver. `model_coder.py`
 compiles the static native runtime once and `engine_adapter.py` hands that
 runtime to the likelihood package directly, so the native path no longer
-rebuilds a CAMB-style contract before every prediction. The background
-helper consumes the declared background graph, computes a
+rebuilds a CAMB-style contract before every prediction. That runtime now
+carries compiled background and reionization evaluator plans, and the
+declared perturbation compiler now stores picklable expression programs plus
+ordered graph metadata so the native solver can reuse dense slot plans
+instead of re-parsing expressions and rescanning unresolved mappings inside
+repeated solver stages. The background helper consumes the declared
+background graph, computes a
 Peebles-style recombination history, integrates the declared reionization
 ODE, and builds the visibility, optical-depth, and residual-ionization
 curves before the transfer-function projection runs. Declared background

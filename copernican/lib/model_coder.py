@@ -119,6 +119,16 @@ def validate_native_perturbation_execution(
 
 
 @dataclass(frozen=True, slots=True)
+class NativeCMBBackgroundRuntime:
+    """Immutable declared-background plans reused by the native CMB solver."""
+
+    derived_plan: Any
+    reionization_quantity_plan: Any
+    reionization_target_tau: Any
+    reionization_calibration_symbol: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class NativeCMBRuntime:
     """Immutable native CMB runtime payload carried by engine plugins.
 
@@ -135,6 +145,7 @@ class NativeCMBRuntime:
     background: Mapping[str, Any]
     numerical: Mapping[str, Any]
     perturbation_data: Any
+    background_runtime: NativeCMBBackgroundRuntime
 
     def build_contract(
         self,
@@ -150,6 +161,7 @@ class NativeCMBRuntime:
             "model_parameters": dict(model_parameters),
             "param_map": dict(param_map),
             "background": self.background,
+            "background_runtime": self.background_runtime,
             "numerical": self.numerical,
             "perturbations": self.perturbation_contract,
             "perturbation_data": self.perturbation_data,
@@ -166,11 +178,99 @@ def compile_native_cmb_runtime(
 ) -> NativeCMBRuntime:
     """Compile the static native CMB runtime carried by a model plugin."""
 
-    from .perturbation_contract import compile_perturbation_contract
+    from .perturbation_contract import (
+        _compile_expression_plan,
+        compile_perturbation_contract,
+    )
+
+    def _compile_declared_symbol_plan(
+        entries: Mapping[str, Any],
+    ) -> tuple[tuple[str, Any, Any], ...]:
+        """Return one ordered declared-expression plan."""
+
+        if not isinstance(entries, Mapping):
+            return ()
+        pending = {str(name): value for name, value in entries.items()}
+        local_names = set(pending)
+        resolved_names: set[str] = set()
+        plan: list[tuple[str, Any, Any]] = []
+        while pending:
+            progress = False
+            for name, raw_value in tuple(sorted(pending.items())):
+                if isinstance(raw_value, bool):
+                    raise ValueError(
+                        "Declared background entries must be numeric or "
+                        "string expressions."
+                    )
+                if isinstance(
+                    raw_value, (int, float, numpy.integer, numpy.floating)
+                ):
+                    plan.append(("literal", name, float(raw_value)))
+                    resolved_names.add(name)
+                    pending.pop(name)
+                    progress = True
+                    continue
+                if not isinstance(raw_value, str) or not raw_value.strip():
+                    raise ValueError(
+                        "Declared background entries must be numeric or "
+                        "string expressions."
+                    )
+                expression_text = raw_value.strip()
+                compiled_expression = _compile_expression_plan(
+                    expression_text,
+                )
+                unresolved_locals = {
+                    dependency
+                    for dependency in compiled_expression.dependencies
+                    if dependency in local_names
+                    and dependency not in resolved_names
+                }
+                if unresolved_locals:
+                    continue
+                plan.append(("expression", name, compiled_expression))
+                resolved_names.add(name)
+                pending.pop(name)
+                progress = True
+            if progress:
+                continue
+            unresolved_names = ", ".join(sorted(pending))
+            raise ValueError(
+                "Declared background expressions contain circular or "
+                f"unresolved names: {unresolved_names}"
+            )
+        return tuple(plan)
 
     perturbation_contract = copy.deepcopy(
         (cmb_contract.get("perturbations", {}) or {})
     )
+    background_section = cmb_contract.get("background", {}) or {}
+    reionization_section = (
+        background_section.get("reionization", {}) or {}
+        if isinstance(background_section, Mapping)
+        else {}
+    )
+    calibration_section = (
+        reionization_section.get("calibration", {}) or {}
+        if isinstance(reionization_section, Mapping)
+        else {}
+    )
+    target_tau_entry = calibration_section.get("target_optical_depth")
+    if isinstance(target_tau_entry, bool):
+        raise ValueError(
+            "background.reionization.calibration.target_optical_depth must "
+            "be numeric or a string expression"
+        )
+    if isinstance(
+        target_tau_entry,
+        (int, float, numpy.integer, numpy.floating),
+    ):
+        reionization_target_tau = float(target_tau_entry)
+    elif isinstance(target_tau_entry, str) and target_tau_entry.strip():
+        reionization_target_tau = _compile_expression_plan(
+            target_tau_entry.strip()
+        )
+    else:
+        reionization_target_tau = None
     background_reference_names = {
         str(key) for key in (cmb_contract.get("param_map", {}) or {})
     }
@@ -198,6 +298,24 @@ def compile_native_cmb_runtime(
         background=copy.deepcopy(cmb_contract.get("background", {}) or {}),
         numerical=copy.deepcopy(cmb_contract.get("numerical", {}) or {}),
         perturbation_data=perturbation_data,
+        background_runtime=NativeCMBBackgroundRuntime(
+            derived_plan=_compile_declared_symbol_plan(
+                (background_section.get("derived", {}) or {})
+                if isinstance(background_section, Mapping)
+                else {}
+            ),
+            reionization_quantity_plan=_compile_declared_symbol_plan(
+                (reionization_section.get("quantities", {}) or {})
+                if isinstance(reionization_section, Mapping)
+                else {}
+            ),
+            reionization_target_tau=reionization_target_tau,
+            reionization_calibration_symbol=(
+                None
+                if not isinstance(calibration_section, Mapping)
+                else calibration_section.get("symbol")
+            ),
+        ),
     )
 
 

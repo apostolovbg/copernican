@@ -80,6 +80,32 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-21:
+  Change: Refactored native CMB background, reionization, and declared-graph
+    expression handling into reusable runtime metadata and refactored
+    the native solver hot path to consume those plans instead of
+    rescanning expression mappings inside repeated stages.
+  Why: Reduced the Slice Two interpreter overhead in `standard: false`
+    execution by moving contract-static evaluator work into the compiled
+    runtime bundle and by removing dead native cache plumbing.
+  Impact: Enabled native CMB runs to reuse ordered graph metadata,
+    dense slot update plans, and prevalidated expression programs while
+    keeping fail-loud diagnostics and focused executor tests in place
+    for the governed suite.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copcmb_solver.py
+    copernican/lib/model_coder.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_copcmb_solver.py
+    tests/copernican/lib/test_model_coder.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-21:
   Change: Refactored the CMB likelihood into a package, replaced the
     private `_protocol.py` shim with `shared.py`, and routed native
     plugins through a precompiled runtime handoff.

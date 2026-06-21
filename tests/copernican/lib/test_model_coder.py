@@ -393,7 +393,18 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "param_map": {"Omega_m0": "Omega_m0"},
             "grids": {"tau": {"symbol": "tau"}},
             "values": {"H": "H"},
-            "background": {"density": {"expression": "Omega_m0"}},
+            "background": {
+                "derived": {"density": "Omega_m0"},
+                "reionization": {
+                    "calibration": {
+                        "symbol": "z_reio",
+                        "target_optical_depth": "0.05 + 0.01",
+                    },
+                    "quantities": {
+                        "hydrogen_ionization_rate": "density",
+                    },
+                },
+            },
             "numerical": {"ell_max": 64},
             "perturbations": {
                 "standard": False,
@@ -416,6 +427,14 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
 
         self.assertIsInstance(runtime, model_coder.NativeCMBRuntime)
         self.assertIs(runtime.perturbation_data, compile_result)
+        self.assertEqual(len(runtime.background_runtime.derived_plan), 1)
+        self.assertEqual(
+            runtime.background_runtime.reionization_calibration_symbol,
+            "z_reio",
+        )
+        self.assertIsNotNone(
+            runtime.background_runtime.reionization_target_tau
+        )
         self.assertEqual(
             model_coder.compile_native_cmb_runtime.__name__,
             "compile_native_cmb_runtime",
@@ -439,6 +458,12 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             background={"density": {"expression": "Omega_m0"}},
             numerical={"ell_max": 64},
             perturbation_data={"compiled": True},
+            background_runtime=model_coder.NativeCMBBackgroundRuntime(
+                derived_plan=(),
+                reionization_quantity_plan=(),
+                reionization_target_tau=None,
+                reionization_calibration_symbol=None,
+            ),
         )
 
         contract = runtime.build_contract(
@@ -452,6 +477,10 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertEqual(contract["model_parameters"], {"Omega_m0": 0.3})
         self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
         self.assertIs(contract["background"], runtime.background)
+        self.assertIs(
+            contract["background_runtime"],
+            runtime.background_runtime,
+        )
         self.assertIs(contract["numerical"], runtime.numerical)
         self.assertIs(contract["perturbations"], runtime.perturbation_contract)
         self.assertIs(contract["perturbation_data"], runtime.perturbation_data)
@@ -463,6 +492,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(hasattr(model_coder, "QuadPrinter"))
         self.assertTrue(callable(model_coder.robust_quad))
+        self.assertTrue(hasattr(model_coder, "NativeCMBBackgroundRuntime"))
 
     def test_transformed_symbol_is_exposed(self) -> None:
         transformed = model_coder.robust_quad
