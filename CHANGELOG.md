@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-20
+**Last Updated:** 2026-06-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,20 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-21:
+  Change: Replaced the completed seven-slice native CMB closure roadmap
+    with a four-slice optimization and refactor plan that front-loads
+    runtime wins while preserving green governed slice boundaries.
+  Why: Diagnosed the structural bottlenecks in the native CMB stack so the
+    next work can fix ownership, package layout, and hot-path runtime cost
+    without breaking intermediate checkouts.
+  Impact: `PLAN.md` now defines an executable smaller-slice campaign for
+    likelihood package split, compiled runtime handoff, hot-loop cleanup,
+    governed-suite acceleration, and measured optimization closure.
+  Files:
+    CHANGELOG.md
+    PLAN.md
 
 - 2026-06-20:
   Change: Completed Slice Six closure by auditing the native CMB feature,
