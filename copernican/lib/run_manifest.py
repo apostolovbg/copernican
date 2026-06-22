@@ -21,7 +21,9 @@ from copernican import version as version_module
 
 from . import utils
 from .likelihoods import cmb as cmb_module
-from .likelihoods.cmb import copernican_cmb_solver as native_cmb_module
+from .likelihoods.cmb.native_background import (
+    _summarize_declared_background_manifest_summary,
+)
 
 
 def _copernican_version() -> str:
@@ -125,13 +127,12 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         grids = contract.get("grids", {}) or {}
         values = contract.get("values", {}) or {}
         calls = contract.get("calls", []) or []
-        background_manifest_summary = (
-            native_cmb_module._summarize_declared_background_manifest_summary(
-                contract
+        if isinstance(contract, dict) and contract.get("background"):
+            background_manifest_summary = (
+                _summarize_declared_background_manifest_summary(contract)
             )
-            if isinstance(contract, dict) and contract.get("background")
-            else {}
-        )
+        else:
+            background_manifest_summary = {}
         execution_route = manifest_summary_data.get("execution_route", {})
         perturbation_sources = getattr(perturbation_data, "sources", {}) or {}
         numerical_settings = contract.get("numerical", {}) or {}

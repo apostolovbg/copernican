@@ -41,29 +41,32 @@ projection kernels fail loudly. The implementation now lives in the
 `copernican/lib/likelihoods/cmb/` package, where `cmb.py` owns the public
 likelihood surface, `camb_solver.py` owns the standard backend route, and
 `copernican_cmb_solver.py` owns the native internal orchestration layer.
-`model_coder.py`
-compiles the static native runtime once and `engine_adapter.py` hands that
-runtime to the likelihood package directly, so the native path no longer
-rebuilds a CAMB-style contract before every prediction. That runtime now
-carries compiled background and reionization evaluator plans, and the
-declared perturbation compiler now stores picklable expression programs plus
-ordered graph metadata so the native solver can reuse dense slot plans
-instead of re-parsing expressions and rescanning unresolved mappings inside
-repeated solver stages. The native solver now batches projection kernels
-across `ell`, reuses cached background and recombination products when the
-declared background inputs are unchanged, and keeps runtime-response
-behavior tests on lighter helper numerics while the reference-backed
-scientific checks stay unchanged in the same governed suite. The background
-helper consumes the declared
-background graph, computes a
-Peebles-style recombination history, integrates the declared reionization
-ODE, and builds the visibility, optical-depth, and residual-ionization
-curves before the transfer-function projection runs. Declared background
-outputs now feed native density, pressure, equation-of-state, and curvature
-quantities directly; the perturbation runtime can mix `tau`, `eta`, `a`,
-`z`, or other declared monotonic background coordinates on equation
-left-hand sides; and end-anchored boundary conditions can drive the native
-shooter when they replace the missing start-state slots. Declared
+`native_background.py` owns the background, recombination, and
+reionization tables; `native_evolution.py` owns compiled declared-graph
+evolution; `native_projection.py` owns transfer projection and spectrum
+assembly; and `native_cache.py` owns bounded native caches plus reset and
+diagnostics helpers. `model_coder.py` compiles the static native runtime
+once and `engine_adapter.py` hands that runtime to the likelihood package
+directly, so the native path no longer rebuilds a CAMB-style contract
+before every prediction. That runtime now carries compiled background and
+reionization evaluator plans, and the declared perturbation compiler now
+stores picklable expression programs plus ordered graph metadata so the
+native solver can reuse dense slot plans instead of re-parsing expressions
+and rescanning unresolved mappings inside repeated solver stages. The
+native solver now batches projection kernels across `ell`, reuses cached
+background and recombination products when the declared background inputs
+are unchanged, and keeps runtime-response behavior tests on lighter helper
+numerics while the reference-backed scientific checks stay unchanged in the
+same governed suite. The background helper consumes the declared
+background graph, computes a Peebles-style recombination history,
+integrates the declared reionization ODE, and builds the visibility,
+optical-depth, and residual-ionization curves before the transfer-function
+projection runs. Declared background outputs now feed native density,
+pressure, equation-of-state, and curvature quantities directly; the
+perturbation runtime can mix `tau`, `eta`, `a`, `z`, or other declared
+monotonic background coordinates on equation left-hand sides; and
+end-anchored boundary conditions can drive the native shooter when they
+replace the missing start-state slots. Declared
 observables may now target TT,
 TE, EE, BB, lensing-potential, or custom transfer components when their
 required graph quantities and projection roles are present. Transfer

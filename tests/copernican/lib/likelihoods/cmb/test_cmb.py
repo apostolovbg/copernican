@@ -19,6 +19,11 @@ from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.likelihoods.cmb import (
     copernican_cmb_solver as native_cmb_solver,
 )
+from copernican.lib.likelihoods.cmb import (
+    native_background,
+    native_evolution,
+    native_projection,
+)
 
 
 def _named_limit_message(
@@ -1017,11 +1022,11 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             self.skipTest("CAMB is not installed")
 
         contract = _custom_contract()
-        physical = native_cmb_solver._resolve_custom_cmb_physical_parameters(
+        physical = native_background._resolve_custom_cmb_physical_parameters(
             contract
         )
-        numerics = native_cmb_solver._resolve_custom_cmb_numerics(contract)
-        background = native_cmb_solver._build_custom_cmb_background(
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        background = native_background._build_custom_cmb_background(
             contract,
             physical,
             numerics,
@@ -1736,8 +1741,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
         """The production module should not contain old compatibility code."""
 
-        source_text = Path(native_cmb_solver.__file__).read_text(
-            encoding="utf-8"
+        source_text = "\n".join(
+            Path(module.__file__).read_text(encoding="utf-8")
+            for module in (
+                native_cmb_solver,
+                native_background,
+                native_evolution,
+                native_projection,
+            )
         )
         for needle in (
             "equation_mode",
@@ -1761,14 +1772,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = native_cmb_solver._compute_custom_cmb_spectrum_data(
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
 
         self.assertIsInstance(
             spectrum_data,
-            native_cmb_solver.CustomCMBSpectrumData,
+            native_projection.CustomCMBSpectrumData,
         )
         self.assertTrue(numpy.array_equal(spectrum_data.ell_grid, ells))
         self.assertEqual(
@@ -1914,24 +1925,24 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         low_tau_contract["param_map"]["tau"] = 0.03
         high_tau_contract["param_map"]["tau"] = 0.08
         low_physical = (
-            native_cmb_solver._resolve_custom_cmb_physical_parameters(
+            native_background._resolve_custom_cmb_physical_parameters(
                 low_tau_contract
             )
         )
         high_physical = (
-            native_cmb_solver._resolve_custom_cmb_physical_parameters(
+            native_background._resolve_custom_cmb_physical_parameters(
                 high_tau_contract
             )
         )
-        numerics = native_cmb_solver._resolve_custom_cmb_numerics(
+        numerics = native_background._resolve_custom_cmb_numerics(
             low_tau_contract
         )
-        low_background = native_cmb_solver._build_custom_cmb_background(
+        low_background = native_background._build_custom_cmb_background(
             low_tau_contract,
             low_physical,
             numerics,
         )
-        high_background = native_cmb_solver._build_custom_cmb_background(
+        high_background = native_background._build_custom_cmb_background(
             high_tau_contract,
             high_physical,
             numerics,
@@ -2196,7 +2207,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Generic background aliases should supply the native solver."""
 
         contract = _speedup_contract(_generic_background_custom_contract())
-        physical = native_cmb_solver._resolve_custom_cmb_physical_parameters(
+        physical = native_background._resolve_custom_cmb_physical_parameters(
             contract
         )
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -2526,7 +2537,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         contract["perturbation_data"] = (
-            native_cmb_solver._compile_declared_perturbation_contract(contract)
+            native_evolution._compile_declared_perturbation_contract(contract)
         )
 
         class _PrecompiledRuntimePlugin(_CustomCMBPlugin):

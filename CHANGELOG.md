@@ -80,6 +80,40 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-22:
+  Change: Split the native CMB runtime into background, evolution,
+    projection, and cache modules while reducing
+    `copernican_cmb_solver.py` to orchestration-only helpers.
+  Why: Make the declared native CMB path explicit, CAMB-free in its
+    internal modules, and governed by bounded cache lifecycle hooks and
+    direct internal-module tests.
+  Impact: Adds a smaller native ownership boundary,
+    explicit cache reset and diagnostics helpers, and updated docs and
+    plan state for the completed Slice Two baseline.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    ABOUT.md
+    README.md
+    docs/api_overview.md
+    docs/design_overview.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_cache.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/run_manifest.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+    tests/copernican/lib/likelihoods/cmb/test_native_background.py
+    tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+    tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+    tests/copernican/lib/likelihoods/cmb/test_native_projection.py
+
+- 2026-06-22:
   Change: Closed Slice One of the CMB closure roadmap by renaming the
     structured-contract helper, removing duplicate native public wrappers,
     and shrinking the package exports to one public facade.

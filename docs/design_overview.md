@@ -56,9 +56,12 @@ described throughout this document.
   `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public
   likelihood surface, `camb_solver.py` owns the standard backend route, and
   `copernican_cmb_solver.py` owns the native internal orchestration layer.
-  Nested sampling and
-  ensemble MCMC both rely on the shared Stage 2 helper so the counter lines
-  and listener events stay consistent regardless of backend.
+  `native_background.py`, `native_evolution.py`,
+  `native_projection.py`, and `native_cache.py` split the native path
+  into background tables, declared evolution, line-of-sight projection,
+  and bounded cache ownership. Nested sampling and ensemble MCMC both rely
+  on the shared Stage 2 helper so the counter lines and listener events
+  stay consistent regardless of backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
   transforms and dataset compatibility. Each file is compiled into a picklable
   :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
@@ -116,6 +119,12 @@ described throughout this document.
   optical depth. The background tables expose `x_e(z)`, `n_e(z)`,
   optical depth `tau(eta)`, `tau_dot`, and the visibility function
   `g(eta) = -tau_dot * exp(-tau)`.
+* The package split keeps the native boundary explicit:
+  `native_background.py` owns background-state construction,
+  `native_evolution.py` owns compiled graph stepping,
+  `native_projection.py` owns transfer projection and spectrum assembly,
+  and `native_cache.py` owns bounded cache storage plus reset and
+  diagnostics helpers for tests and long-lived sessions.
 * Perturbations evolve whichever declared variables expose differential
   equations. Constraints and closures resolve algebraic targets inside the
   same graph before the declared observables are projected.

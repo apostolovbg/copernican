@@ -42,7 +42,14 @@ equation-of-state, and curvature quantities directly; the perturbation
 runtime can mix `tau`, `eta`, `a`, `z`, or other declared monotonic
 background coordinates on equation left-hand sides; and end-anchored
 boundary conditions can drive the native shooter when they replace the
-missing start-state slots.
+missing start-state slots. Inside
+`copernican/lib/likelihoods/cmb/`, `native_background.py` now owns the
+background, recombination, and reionization tables;
+`native_evolution.py` owns compiled declared-graph evolution;
+`native_projection.py` owns transfer projection and spectrum assembly;
+`native_cache.py` owns bounded native caches plus reset and diagnostics
+helpers; and `copernican_cmb_solver.py` now stays limited to native
+orchestration entry helpers.
 
 ## Launch Copernican
 
@@ -239,25 +246,29 @@ the same convention.
   `standard: false` models run through the declared-math CMB graph engine in
   `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public entry
   point, `camb_solver.py` owns the standard backend route, and
-  `copernican_cmb_solver.py` owns the native internal orchestration layer.
-  `engine_adapter.py`
-  now hands the precompiled native runtime into that package directly instead
-  of rebuilding a CAMB-style contract in the native hot path. That runtime
-  now carries compiled background and reionization evaluator plans, and the
-  declared perturbation compiler now stores picklable expression programs plus
-  ordered graph metadata so `copernican_cmb_solver.py` can reuse dense slot
-  plans
-  instead of re-parsing expressions and rescanning unresolved mappings inside
-  repeated solver stages. Non-standard contracts now declare one immutable
-  graph of variables, equations, constraints, closures, sources, initial
-  conditions, observable mappings, and numerical requirements. Unsupported
-  symbols, unsolved variables, missing initial conditions, missing
-  observables, incompatible projection-role bindings, and unsupported
-  projection kernels fail fast. Run manifests also record the compiled graph
-  summary, declared background and recombination provenance, and the selected
-  production CMB execution route so native runs prove their CAMB-free
-  prediction path from route metadata rather than from `standard: false`
-  alone.
+  `copernican_cmb_solver.py` owns the native orchestration layer.
+  `native_background.py`, `native_evolution.py`, `native_projection.py`,
+  and `native_cache.py` own the split native internals for background
+  tables, declared evolution, line-of-sight projection, and bounded cache
+  lifecycle respectively. `engine_adapter.py` now hands the precompiled
+  native runtime into that package directly instead of rebuilding a
+  CAMB-style contract in the native hot path. That runtime now carries
+  compiled background and reionization evaluator plans, and the declared
+  perturbation compiler now stores picklable expression programs plus
+  ordered graph metadata so the native path can reuse dense slot plans
+  instead of re-parsing expressions and rescanning unresolved mappings
+  inside repeated solver stages. Native cache ownership now includes
+  explicit reset and hit/miss diagnostics helpers for tests and
+  long-lived runs. Non-standard contracts now declare one immutable graph
+  of variables, equations, constraints, closures, sources, initial
+  conditions, observable mappings, and numerical requirements.
+  Unsupported symbols, unsolved variables, missing initial conditions,
+  missing observables, incompatible projection-role bindings, and
+  unsupported projection kernels fail fast. Run manifests also record the
+  compiled graph summary, declared background and recombination
+  provenance, and the selected production CMB execution route so native
+  runs prove their CAMB-free prediction path from route metadata rather
+  than from `standard: false` alone.
 - **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
   Analysis workspace and validation tools at your fingertips while metadata
   dialogs, builder panels, and the package entrypoint preserve the same

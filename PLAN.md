@@ -93,14 +93,15 @@ Current facts:
   `standard: false`.
 * `model_coder.py` already compiles a native runtime bundle and
   `engine_adapter.py` already hands that bundle to execution plugins.
-* `copernican/lib/likelihoods/cmb/**` already exists as a package split, but
-  only the first boundary-closure slice is complete.
+* `copernican/lib/likelihoods/cmb/**` now has a split public/native package
+  layout with explicit cache ownership.
 * `cmb.py` now owns the public CMB facade and structured-contract dispatch.
 * `camb_solver.py` now owns the standard-path CAMB helpers and imports.
-* `copernican_cmb_solver.py` now owns internal native orchestration rather
-  than a duplicate public facade, but it still needs to be split further.
-* Cache use and runtime performance have improved, but cache governance and
-  final benchmark evidence are still open work.
+* `copernican_cmb_solver.py` now owns internal native orchestration only.
+* `native_background.py`, `native_evolution.py`, `native_projection.py`,
+  and `native_cache.py` now own the split native internals.
+* Cache use, cache governance, and runtime diagnostics are explicit, but
+  final benchmark evidence is still open work.
 * Current tests and docs support a truthful feature baseline, not yet a final
   subsystem-closure baseline.
 
@@ -239,7 +240,7 @@ Done when:
 * [closed] Public naming refers to structured contracts, not generic dicts.
 * [closed] Relevant import, CMB, and ownership tests pass.
 
-### [open] Slice Two - Native module split and cache governance
+### [closed] Slice Two - Native module split and cache governance
 
 Purpose:
 
@@ -271,31 +272,31 @@ Scope:
 
 Tasks:
 
-* [open] Create a native background module for declared background,
+* [closed] Create a native background module for declared background,
   recombination, and reionization work.
-* [open] Create a native evolution module for declared perturbation
+* [closed] Create a native evolution module for declared perturbation
   execution.
-* [open] Create a projection module for transfer and line-of-sight work.
-* [open] Create a native cache module for all native cache ownership.
-* [open] Reduce `copernican_cmb_solver.py` to orchestration and native
+* [closed] Create a projection module for transfer and line-of-sight work.
+* [closed] Create a native cache module for all native cache ownership.
+* [closed] Reduce `copernican_cmb_solver.py` to orchestration and native
   entry helpers only.
-* [open] Remove CAMB imports from native modules.
-* [open] Add explicit cache reset helpers for tests and long-lived runs.
-* [open] Add explicit cache stats or diagnostics helpers.
-* [open] Bound every native cache or document why it is intentionally
+* [closed] Remove CAMB imports from native modules.
+* [closed] Add explicit cache reset helpers for tests and long-lived runs.
+* [closed] Add explicit cache stats or diagnostics helpers.
+* [closed] Bound every native cache or document why it is intentionally
   bounded elsewhere.
-* [open] Add tests for cache reuse, cache separation, and cache reset.
-* [open] Add tests proving the native path remains CAMB-free in production
+* [closed] Add tests for cache reuse, cache separation, and cache reset.
+* [closed] Add tests proving the native path remains CAMB-free in production
   execution.
 
 Done when:
 
-* [open] The native solver is no longer one monolithic engine-room file.
-* [open] Cache lifecycle is explicit and testable.
-* [open] Native modules no longer own CAMB imports.
-* [open] Relevant CMB and cache tests pass.
+* [closed] The native solver is no longer one monolithic engine-room file.
+* [closed] Cache lifecycle is explicit and testable.
+* [closed] Native modules no longer own CAMB imports.
+* [closed] Relevant CMB and cache tests pass.
 
-### [blocked] Slice Three - Theory-agnostic native contract closure
+### [open] Slice Three - Theory-agnostic native contract closure
 
 Purpose:
 
@@ -333,37 +334,37 @@ Scope:
 
 Tasks:
 
-* [blocked] Audit the `standard: false` production path for remaining
+* [open] Audit the `standard: false` production path for remaining
   LCDM-like assumptions and remove them.
-* [blocked] Audit the `standard: false` production path for remaining
+* [open] Audit the `standard: false` production path for remaining
   scalar-only compatibility layers and remove them.
-* [blocked] Keep generic background and observable handling role-driven, not
+* [open] Keep generic background and observable handling role-driven, not
   theory-family-driven.
-* [blocked] Refuse `mode_families`, theory-family selectors, and hidden
+* [open] Refuse `mode_families`, theory-family selectors, and hidden
   backend selectors as solution shapes.
-* [blocked] Expand or tighten contract semantics so complete declared theories
+* [open] Expand or tighten contract semantics so complete declared theories
   can compile and execute end-to-end.
-* [blocked] Add one neutral synthetic native fixture that proves the engine
+* [open] Add one neutral synthetic native fixture that proves the engine
   without relying on TORG.
-* [blocked] Add intentionally invalid fixtures for the major declared-contract
+* [open] Add intentionally invalid fixtures for the major declared-contract
   failure classes.
-* [blocked] Add convergence or sensitivity tests for `k`, `eta`, and related
+* [open] Add convergence or sensitivity tests for `k`, `eta`, and related
   native numerics where hard limits or defaults materially affect results.
-* [blocked] Justify, revise, or remove native hard caps that remain from the
+* [open] Justify, revise, or remove native hard caps that remain from the
   optimization campaign.
-* [blocked] Keep `model_template.yml` documented as documentation, not as a
+* [open] Keep `model_template.yml` documented as documentation, not as a
   benchmark or acceptance fixture.
-* [blocked] Document the exact native contract guarantees and failure surface
+* [open] Document the exact native contract guarantees and failure surface
   truthfully.
 
 Done when:
 
-* [blocked] Complete declared theories can execute through the native path
+* [open] Complete declared theories can execute through the native path
   without LCDM-specific production branches.
-* [blocked] No scalar-only compatibility layer remains in the native path.
-* [blocked] No theory-family selector or hidden backend selector exists.
-* [blocked] Native numerics and caps are justified by tests or revised.
-* [blocked] Relevant CMB, projection, perturbation-contract, model-coder, and
+* [open] No scalar-only compatibility layer remains in the native path.
+* [open] No theory-family selector or hidden backend selector exists.
+* [open] Native numerics and caps are justified by tests or revised.
+* [open] Relevant CMB, projection, perturbation-contract, model-coder, and
   engine-adapter tests pass.
 
 ### [blocked] Slice Four - Acceptance closure, benchmarks, and packaging truth
