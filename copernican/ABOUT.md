@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -48,7 +48,12 @@ carries compiled background and reionization evaluator plans, and the
 declared perturbation compiler now stores picklable expression programs plus
 ordered graph metadata so the native solver can reuse dense slot plans
 instead of re-parsing expressions and rescanning unresolved mappings inside
-repeated solver stages. The background helper consumes the declared
+repeated solver stages. The native solver now batches projection kernels
+across `ell`, reuses cached background and recombination products when the
+declared background inputs are unchanged, and keeps runtime-response
+behavior tests on lighter helper numerics while the reference-backed
+scientific checks stay unchanged in the same governed suite. The background
+helper consumes the declared
 background graph, computes a
 Peebles-style recombination history, integrates the declared reionization
 ODE, and builds the visibility, optical-depth, and residual-ionization

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -28,6 +28,11 @@ The CMB surface now includes a declared-math graph engine for
 mode, applies algebraic constraints and closures inside that graph,
 and projects the declared observables into transfer functions and
 spectra with bounded `k` sampling and cached Bessel tables. The
+runtime now batches projection kernels across `ell`, reuses cached
+background and recombination products when the declared background
+inputs are unchanged, and keeps governed runtime-response tests on
+lighter helper numerics while the reference-backed scientific checks
+stay unchanged in the same governed suite. The
 background path consumes the declared background graph, computes a
 Peebles-style recombination history, integrates the declared
 reionization ODE, and builds the visibility and optical-depth grids

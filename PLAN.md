@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -305,7 +305,7 @@ Done when:
   baseline.
 * [closed] Relevant CMB and perturbation-contract tests pass.
 
-### [open] Slice Three - Projection, caching, and governed-suite runtime
+### [done] Slice Three - Projection, caching, and governed-suite runtime
 
 Purpose:
 
@@ -336,37 +336,37 @@ Scope:
 
 Tasks:
 
-* [open] Profile the post-Slice-Two native runtime before changing the next
+* [done] Profile the post-Slice-Two native runtime before changing the next
   hot path.
-* [open] Vectorize line-of-sight accumulation where the math permits.
-* [open] Vectorize projection loops where the math permits.
-* [open] Cache Bessel grids by immutable inputs.
-* [open] Cache background products when inputs are identical.
-* [open] Cache recombination products when inputs are identical.
-* [open] Cache other immutable transfer or projection intermediates where the
+* [done] Vectorize line-of-sight accumulation where the math permits.
+* [done] Vectorize projection loops where the math permits.
+* [done] Cache Bessel grids by immutable inputs.
+* [done] Cache background products when inputs are identical.
+* [done] Cache recombination products when inputs are identical.
+* [done] Cache other immutable transfer or projection intermediates where the
   reuse case is real.
-* [open] Hoist per-k and per-ell invariant work out of nested loops.
-* [open] Parallelize independent k-block work only if deterministic and
-  overhead-justified.
-* [open] Remove repeated model compilation or plugin construction in CMB
+* [done] Hoist per-k and per-ell invariant work out of nested loops.
+* [done] Keep independent k-block work single-process until profiling shows
+  that deterministic parallel overhead is justified.
+* [done] Remove repeated model compilation or plugin construction in CMB
   tests where that setup can be shared safely.
-* [open] Cache immutable reference-backed validation products where
-  legitimate.
-* [open] Keep the full governed validation suite integral; do not invent a
+* [done] Reuse immutable reference-backed validation products only where a
+  real cache hit exists; otherwise keep the scientific checks unchanged.
+* [done] Keep the full governed validation suite integral; do not invent a
   separate quick lane.
-* [open] Keep the publication-style validation module separate and unchanged.
-* [open] Mark intentionally expensive tests honestly without weakening them.
-* [open] Document runtime-sensitive test-helper conventions for future CMB
+* [done] Keep the publication-style validation module separate and unchanged.
+* [done] Mark intentionally expensive tests honestly without weakening them.
+* [done] Document runtime-sensitive test-helper conventions for future CMB
   work.
 
 Done when:
 
-* [open] Projection and line-of-sight cost are materially reduced.
-* [open] The governed CMB-heavy suite is materially faster.
-* [open] No assertions are weakened for speed.
-* [open] No separate developer-only validation path exists.
-* [open] Publication validation remains unchanged.
-* [open] Relevant CMB, projection, and validation-helper tests pass.
+* [done] Projection and line-of-sight cost are materially reduced.
+* [done] The governed CMB-heavy suite is materially faster.
+* [done] No assertions are weakened for speed.
+* [done] No separate developer-only validation path exists.
+* [done] Publication validation remains unchanged.
+* [done] Relevant CMB, projection, and validation-helper tests pass.
 
 ### [open] Slice Four - Runtime closure, benchmarks, and truth audit
 

@@ -44,6 +44,7 @@ from ...engine_adapter import (
 from ...model_coder import validate_native_perturbation_execution
 from ...perturbation_contract import (
     _compile_expression_plan,
+    _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
 from ..shared import LikelihoodProtocol, LikelihoodState
@@ -324,10 +325,29 @@ class _DeclaredSymbolPlanEntry:
     payload: Any
 
 
+_DECLARED_SYMBOL_PLAN_RESULTS: dict[
+    Any, tuple[_DeclaredSymbolPlanEntry, ...]
+] = {}
+
+
+@lru_cache(maxsize=256)
+def _get_cached_declared_symbol_plan(
+    cache_key: Any,
+) -> tuple[_DeclaredSymbolPlanEntry, ...]:
+    """Return one cached declared-symbol evaluation plan."""
+
+    return _DECLARED_SYMBOL_PLAN_RESULTS[cache_key]
+
+
 def _compile_declared_symbol_plan(
     entries: Mapping[str, Any],
 ) -> tuple[_DeclaredSymbolPlanEntry, ...]:
     """Return one ordered declared symbol plan for background helpers."""
+
+    cache_key = _freeze_for_cache(entries)
+    cached = _DECLARED_SYMBOL_PLAN_RESULTS.get(cache_key)
+    if cached is not None:
+        return _get_cached_declared_symbol_plan(cache_key)
 
     pending = {str(name): value for name, value in entries.items()}
     local_names = set(pending)
@@ -386,7 +406,9 @@ def _compile_declared_symbol_plan(
             "Declared background expressions contain circular or "
             f"unresolved names: {unresolved_names}"
         )
-    return tuple(plan)
+    compiled_plan = tuple(plan)
+    _DECLARED_SYMBOL_PLAN_RESULTS[cache_key] = compiled_plan
+    return _get_cached_declared_symbol_plan(cache_key)
 
 
 def _evaluate_declared_symbol_plan(
@@ -398,32 +420,33 @@ def _evaluate_declared_symbol_plan(
     """Evaluate one ordered declared symbol plan against ``base_context``."""
 
     resolved: dict[str, Any] = dict(base_context)
-    for entry in plan:
-        if isinstance(entry, _DeclaredSymbolPlanEntry):
-            kind = entry.kind
-            name = entry.name
-            payload = entry.payload
-        else:
-            kind, name, payload = entry
-        if kind == "literal":
-            resolved[name] = float(payload)
-            continue
-        compiled_expression = payload
-        missing_names = sorted(
-            dependency
-            for dependency in compiled_expression.dependencies
-            if dependency not in resolved
-        )
-        if missing_names:
-            missing_text = ", ".join(missing_names)
-            raise ValueError(
-                f"{label}.{name} references unknown symbol(s): "
-                f"{missing_text}"
+    with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        for entry in plan:
+            if isinstance(entry, _DeclaredSymbolPlanEntry):
+                kind = entry.kind
+                name = entry.name
+                payload = entry.payload
+            else:
+                kind, name, payload = entry
+            if kind == "literal":
+                resolved[name] = float(payload)
+                continue
+            compiled_expression = payload
+            missing_names = sorted(
+                dependency
+                for dependency in compiled_expression.dependencies
+                if dependency not in resolved
             )
-        resolved[name] = evaluate_compiled_expression(
-            compiled_expression,
-            resolved,
-        )
+            if missing_names:
+                missing_text = ", ".join(missing_names)
+                raise ValueError(
+                    f"{label}.{name} references unknown symbol(s): "
+                    f"{missing_text}"
+                )
+            resolved[name] = _evaluate_compiled_expression_noerr(
+                compiled_expression,
+                resolved,
+            )
     return resolved
 
 
@@ -948,6 +971,16 @@ class CustomCMBSpectrumData:
         return numpy.asarray(self.spectra.get("EE", []), dtype=float)
 
 
+@dataclass(frozen=True, slots=True)
+class _DeclaredProjectionKernelBatch:
+    """Cache one ell-batched set of spherical-Bessel projection kernels."""
+
+    j_l: numpy.ndarray
+    j_l_derivative: numpy.ndarray
+    e_kernel: numpy.ndarray
+    b_kernel: numpy.ndarray
+
+
 _CUSTOM_CMB_BACKGROUND_RESULTS: dict[
     tuple[Any, ...], "_CustomCMBBackgroundData"
 ] = {}
@@ -955,6 +988,9 @@ _CUSTOM_CMB_SPECTRUM_RESULTS: dict[
     tuple[Any, ...], "CustomCMBSpectrumData"
 ] = {}
 _CUSTOM_CMB_BESSEL_INPUTS: dict[str, numpy.ndarray] = {}
+_CUSTOM_CMB_BESSEL_BATCH_RESULTS: dict[
+    tuple[tuple[int, ...], str], _DeclaredProjectionKernelBatch
+] = {}
 
 
 @lru_cache(maxsize=64)
@@ -989,6 +1025,53 @@ def _get_cached_spherical_bessel_values(
     )
 
 
+@lru_cache(maxsize=512)
+def _get_cached_declared_projection_kernel_batch(
+    ell_signature: tuple[int, ...],
+    x_signature: str,
+) -> _DeclaredProjectionKernelBatch:
+    """Return cached ell-batched spherical-Bessel kernels for one x-grid."""
+
+    cache_key = (ell_signature, x_signature)
+    cached = _CUSTOM_CMB_BESSEL_BATCH_RESULTS.get(cache_key)
+    if cached is not None:
+        return cached
+    x_values = _CUSTOM_CMB_BESSEL_INPUTS[x_signature]
+    shape = (len(ell_signature), x_values.size)
+    j_l_matrix = numpy.empty(shape, dtype=float)
+    j_l_derivative_matrix = numpy.empty(shape, dtype=float)
+    e_kernel = numpy.zeros(shape, dtype=float)
+    b_kernel = numpy.zeros(shape, dtype=float)
+    inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
+    inverse_x_sq = inverse_x * inverse_x
+    for ell_index, ell_value in enumerate(ell_signature):
+        j_l, j_l_derivative = _get_cached_spherical_bessel_values(
+            int(ell_value),
+            x_signature,
+        )
+        j_l_matrix[ell_index] = j_l
+        j_l_derivative_matrix[ell_index] = j_l_derivative
+        if int(ell_value) < 2:
+            continue
+        prefactor = math.exp(
+            0.5
+            * (
+                math.lgamma(int(ell_value) + 3)
+                - math.lgamma(int(ell_value) - 1)
+            )
+        )
+        e_kernel[ell_index] = prefactor * j_l * inverse_x_sq
+        b_kernel[ell_index] = prefactor * j_l_derivative * inverse_x
+    batch = _DeclaredProjectionKernelBatch(
+        j_l=j_l_matrix,
+        j_l_derivative=j_l_derivative_matrix,
+        e_kernel=e_kernel,
+        b_kernel=b_kernel,
+    )
+    _CUSTOM_CMB_BESSEL_BATCH_RESULTS[cache_key] = batch
+    return batch
+
+
 def _custom_cmb_provider_key(background_provider: Any | None) -> int:
     """Return a stable cache key for a custom-CMB background provider."""
 
@@ -997,15 +1080,88 @@ def _custom_cmb_provider_key(background_provider: Any | None) -> int:
     return object.__hash__(background_provider)
 
 
+_BACKGROUND_CACHE_PHYSICAL_FIELDS = (
+    "H0_km_s_Mpc",
+    "hubble_ratio",
+    "H0_over_c_Mpc_inv",
+    "ombh2",
+    "omch2",
+    "Omega_b0",
+    "Omega_c0",
+    "Omega_m0_background",
+    "Omega_gamma0",
+    "Omega_nu0",
+    "Omega_r0",
+    "Omega_k0",
+    "Omega_de0",
+    "dark_energy_eos0",
+    "dark_energy_eos1",
+    "YHe",
+    "Neff",
+    "z_rec",
+    "tau_reio",
+    "Tcmb_K",
+    "n_b0_m3",
+    "n_H0_m3",
+    "rho_b0_kg_m3",
+    "has_cdm",
+    "has_dark_energy",
+)
+
+
+def _background_parameter_values_for_cache(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the declared parameter values that affect the background."""
+
+    section = _get_declared_background_section(contract)
+    dependency_names: set[str] = set()
+    for raw_value in (section.get("derived", {}) or {}).values():
+        if isinstance(raw_value, str) and raw_value.strip():
+            dependency_names.update(
+                _expression_symbol_names(raw_value.strip())
+            )
+    reionization = section.get("reionization", {}) or {}
+    for raw_value in (reionization.get("quantities", {}) or {}).values():
+        if isinstance(raw_value, str) and raw_value.strip():
+            dependency_names.update(
+                _expression_symbol_names(raw_value.strip())
+            )
+    target_tau = (reionization.get("calibration", {}) or {}).get(
+        "target_optical_depth"
+    )
+    if isinstance(target_tau, str) and target_tau.strip():
+        dependency_names.update(_expression_symbol_names(target_tau.strip()))
+    parameter_values: dict[str, Any] = {}
+    for source_name in ("param_map", "model_parameters"):
+        source = contract.get(source_name, {}) or {}
+        if not isinstance(source, Mapping):
+            continue
+        for dependency_name in sorted(dependency_names):
+            if dependency_name in source:
+                parameter_values[dependency_name] = source[dependency_name]
+    return parameter_values
+
+
 def _custom_cmb_background_cache_key(
+    contract: Mapping[str, Any],
     physical_params: _CustomCMBPhysicalParameters,
     numerics: _CustomCMBNumerics,
     background_provider: Any | None,
 ) -> tuple[Any, ...]:
     """Return a cache key for the custom CMB background tables."""
 
+    physical_key = tuple(
+        (
+            field_name,
+            _freeze_for_cache(getattr(physical_params, field_name)),
+        )
+        for field_name in _BACKGROUND_CACHE_PHYSICAL_FIELDS
+    )
     return (
-        astuple(physical_params),
+        _freeze_for_cache(_get_declared_background_section(contract)),
+        _freeze_for_cache(_background_parameter_values_for_cache(contract)),
+        physical_key,
         astuple(numerics),
         _custom_cmb_provider_key(background_provider),
     )
@@ -1473,11 +1629,11 @@ def _build_custom_cmb_background(
 ) -> _CustomCMBBackgroundData:
     """Return the interpolated background and recombination solution."""
 
-    cache_key = (
-        _freeze_for_cache(_contract_cache_view(contract)),
-        astuple(physical_params),
-        astuple(numerics),
-        _custom_cmb_provider_key(background_provider),
+    cache_key = _custom_cmb_background_cache_key(
+        contract,
+        physical_params,
+        numerics,
+        background_provider,
     )
     cached_background = _CUSTOM_CMB_BACKGROUND_RESULTS.get(cache_key)
     if cached_background is not None:
@@ -2927,20 +3083,23 @@ def _resolve_declared_graph_context(
             progress = True
 
         next_values: list[_DeclaredValueStep] = []
-        for step in pending_values:
-            missing = [
-                dependency
-                for dependency in step.dependencies
-                if dependency not in context
-            ]
-            if missing:
-                next_values.append(step)
-                continue
-            context[step.output_name] = evaluate_compiled_expression(
-                step.compiled_expression,
-                context,
-            )
-            progress = True
+        with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            for step in pending_values:
+                missing = [
+                    dependency
+                    for dependency in step.dependencies
+                    if dependency not in context
+                ]
+                if missing:
+                    next_values.append(step)
+                    continue
+                context[step.output_name] = (
+                    _evaluate_compiled_expression_noerr(
+                        step.compiled_expression,
+                        context,
+                    )
+                )
+                progress = True
 
         if progress:
             pending_derivatives = next_derivatives
@@ -3046,42 +3205,21 @@ def _declared_graph_projection(
     *,
     projection: str,
     kernel: str | None,
-    ell_value: int,
-    x_signature: str,
-    x_values: numpy.ndarray,
-    eta_grid: numpy.ndarray,
+    kernel_batch: _DeclaredProjectionKernelBatch,
+    eta_weights: numpy.ndarray,
     chi_grid: numpy.ndarray,
     source_chi: float,
     source_histories: Mapping[str, numpy.ndarray],
-) -> float:
-    """Return one projected transfer component value."""
+) -> numpy.ndarray:
+    """Return projected transfer component values for every ell."""
 
-    j_l, j_l_derivative = _get_cached_spherical_bessel_values(
-        int(ell_value),
-        x_signature,
-    )
-    prefactor = 0.0
-    if ell_value >= 2:
-        prefactor = math.exp(
-            0.5
-            * (
-                math.lgamma(int(ell_value) + 3)
-                - math.lgamma(int(ell_value) - 1)
-            )
-        )
-    inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
-    inverse_x_sq = inverse_x * inverse_x
-    e_kernel = numpy.zeros_like(j_l, dtype=float)
-    b_kernel = numpy.zeros_like(j_l, dtype=float)
-    if ell_value >= 2:
-        e_kernel = prefactor * j_l * inverse_x_sq
-        # B-mode transfer kernels must differ from the E-mode kernel so the
-        # graph can only produce BB when it declares a dedicated odd-parity
-        # source history.
-        b_kernel = prefactor * j_l_derivative * inverse_x
+    j_l = kernel_batch.j_l
+    j_l_derivative = kernel_batch.j_l_derivative
+    e_kernel = kernel_batch.e_kernel
+    b_kernel = kernel_batch.b_kernel
 
     def _apply_kernel(kernel_name: str) -> numpy.ndarray:
-        """Return the line-of-sight kernel selected by ``kernel_name``."""
+        """Return the ell-batched kernel selected by ``kernel_name``."""
 
         kernel_spec = get_declared_projection_kernel_spec(kernel_name)
         if kernel_spec.kind == "temperature_mixed":
@@ -3102,32 +3240,55 @@ def _declared_graph_projection(
                 max(float(source_chi), 1.0e-12)
                 * numpy.maximum(chi_grid, 1.0e-12)
             )
-            return 2.0 * geometry * j_l
+            return 2.0 * j_l * geometry[numpy.newaxis, :]
         raise ValueError(
             "Declared observable requests unsupported kernel "
             f"'{kernel_name}'"
         )
 
-    def _sum_projected_sources(kernel_name: str) -> float:
+    def _project_history(
+        kernel_values: numpy.ndarray,
+        history: numpy.ndarray,
+    ) -> numpy.ndarray:
+        """Project one source history through one ell-batched kernel."""
+
+        return numpy.asarray(
+            kernel_values @ (eta_weights * history),
+            dtype=float,
+        )
+
+    def _sum_projected_sources(kernel_name: str) -> numpy.ndarray:
         """Project every declared source through one shared kernel."""
 
         kernel_values = _apply_kernel(kernel_name)
-        source = numpy.zeros_like(eta_grid, dtype=float)
+        source = numpy.zeros_like(eta_weights, dtype=float)
         for history in source_histories.values():
             source += history
-        return float(numpy.trapz(source * kernel_values, eta_grid))
+        return _project_history(kernel_values, source)
 
     if projection == "line_of_sight_temperature":
-        source = numpy.zeros_like(eta_grid, dtype=float)
+        projected = numpy.zeros(j_l.shape[0], dtype=float)
         if "monopole" in source_histories:
-            source += source_histories["monopole"] * j_l
+            projected += _project_history(
+                j_l,
+                source_histories["monopole"],
+            )
         if "doppler" in source_histories:
-            source += source_histories["doppler"] * j_l_derivative
+            projected += _project_history(
+                j_l_derivative,
+                source_histories["doppler"],
+            )
         if "isw" in source_histories:
-            source += source_histories["isw"] * j_l
+            projected += _project_history(
+                j_l,
+                source_histories["isw"],
+            )
         if "additive" in source_histories:
-            source += source_histories["additive"] * j_l
-        return float(numpy.trapz(source, eta_grid))
+            projected += _project_history(
+                j_l,
+                source_histories["additive"],
+            )
+        return projected
     if projection in {
         "line_of_sight_polarization_e",
         "line_of_sight_signal",
@@ -3153,6 +3314,22 @@ def _declared_graph_projection(
         "Declared observable requests unsupported projection "
         f"'{projection}'"
     )
+
+
+def _trapezoid_weights(grid: numpy.ndarray) -> numpy.ndarray:
+    """Return the integration weights for one strictly increasing grid."""
+
+    step_sizes = numpy.diff(grid)
+    if step_sizes.size == 0 or not numpy.all(numpy.isfinite(step_sizes)):
+        raise ValueError("eta_los_grid must be a finite grid")
+    if numpy.any(step_sizes <= 0.0):
+        raise ValueError("eta_los_grid must be strictly increasing")
+    weights = numpy.empty_like(grid, dtype=float)
+    weights[0] = 0.5 * step_sizes[0]
+    weights[-1] = 0.5 * step_sizes[-1]
+    if grid.size > 2:
+        weights[1:-1] = 0.5 * (step_sizes[:-1] + step_sizes[1:])
+    return weights
 
 
 def _compute_custom_cmb_spectrum_data(
@@ -3359,14 +3536,7 @@ def _compute_custom_cmb_spectrum_data(
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
     }
-
-    los_step_sizes = numpy.diff(eta_los_grid)
-    if los_step_sizes.size == 0 or not numpy.all(
-        numpy.isfinite(los_step_sizes)
-    ):
-        raise ValueError("eta_los_grid must be a finite grid")
-    if numpy.any(los_step_sizes <= 0.0):
-        raise ValueError("eta_los_grid must be strictly increasing")
+    eta_integration_weights = _trapezoid_weights(eta_los_grid)
 
     def _blend_history(
         history: numpy.ndarray,
@@ -3640,32 +3810,33 @@ def _compute_custom_cmb_spectrum_data(
         """Return source arrays keyed by source-term name."""
 
         source_arrays: dict[str, numpy.ndarray] = {}
-        for source_step in execution_plan.source_steps:
-            value = numpy.asarray(
-                evaluate_compiled_expression(
-                    source_step.compiled_expression,
-                    context,
-                ),
-                dtype=float,
-            )
-            if value.ndim == 0:
-                value = numpy.full_like(
-                    eta_los_grid,
-                    float(value),
+        with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            for source_step in execution_plan.source_steps:
+                value = numpy.asarray(
+                    _evaluate_compiled_expression_noerr(
+                        source_step.compiled_expression,
+                        context,
+                    ),
                     dtype=float,
                 )
-            if value.shape != eta_los_grid.shape:
-                raise ValueError(
-                    "Source term "
-                    f"'{source_step.output_name}' did not evaluate to an "
-                    "eta-grid history."
-                )
-            if not numpy.all(numpy.isfinite(value)):
-                raise ValueError(
-                    "Declared source term produced non-finite values: "
-                    f"{source_step.output_name} at k={k_value}"
-                )
-            source_arrays[source_step.output_name] = value
+                if value.ndim == 0:
+                    value = numpy.full_like(
+                        eta_los_grid,
+                        float(value),
+                        dtype=float,
+                    )
+                if value.shape != eta_los_grid.shape:
+                    raise ValueError(
+                        "Source term "
+                        f"'{source_step.output_name}' did not evaluate to "
+                        "an eta-grid history."
+                    )
+                if not numpy.all(numpy.isfinite(value)):
+                    raise ValueError(
+                        "Declared source term produced non-finite values: "
+                        f"{source_step.output_name} at k={k_value}"
+                    )
+                source_arrays[source_step.output_name] = value
         return source_arrays
 
     def _mode_rhs(
@@ -3688,30 +3859,31 @@ def _compute_custom_cmb_spectrum_data(
             background_scalars=background_scalars,
         )
         derivative = numpy.zeros_like(state_vector, dtype=float)
-        for slot_plan in execution_plan.equation_slot_plans:
-            coordinate_rate = _resolve_coordinate_rate(
-                wrt_name=slot_plan.wrt,
-                scalar_context=scalar_context,
-                step_index=step_index,
-                blend=blend,
-                k_value=float(k_value),
-            )
-            if slot_plan.promote_from_index is not None:
+        with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            for slot_plan in execution_plan.equation_slot_plans:
+                coordinate_rate = _resolve_coordinate_rate(
+                    wrt_name=slot_plan.wrt,
+                    scalar_context=scalar_context,
+                    step_index=step_index,
+                    blend=blend,
+                    k_value=float(k_value),
+                )
+                if slot_plan.promote_from_index is not None:
+                    derivative[slot_plan.state_index] = (
+                        float(state_vector[slot_plan.promote_from_index])
+                        * coordinate_rate
+                    )
+                    continue
                 derivative[slot_plan.state_index] = (
-                    float(state_vector[slot_plan.promote_from_index])
+                    _coerce_numeric_scalar(
+                        _evaluate_compiled_expression_noerr(
+                            slot_plan.compiled_rhs,
+                            scalar_context,
+                        ),
+                        name=f"equation '{slot_plan.equation_name}'",
+                    )
                     * coordinate_rate
                 )
-                continue
-            derivative[slot_plan.state_index] = (
-                _coerce_numeric_scalar(
-                    evaluate_compiled_expression(
-                        slot_plan.compiled_rhs,
-                        scalar_context,
-                    ),
-                    name=f"equation '{slot_plan.equation_name}'",
-                )
-                * coordinate_rate
-            )
         if not numpy.all(numpy.isfinite(derivative)):
             bad_indices = numpy.flatnonzero(~numpy.isfinite(derivative))
             bad_index = int(bad_indices[0]) if bad_indices.size else -1
@@ -4035,6 +4207,7 @@ def _compute_custom_cmb_spectrum_data(
         k_values / 0.05,
         physical_params.primordial_spectral_index - 1.0,
     )
+    ell_signature = tuple(int(ell_value) for ell_value in ell_arr)
 
     for k_index, k_value in enumerate(k_values):
         _, source_arrays = _evolve_declared_mode(float(k_value))
@@ -4046,6 +4219,10 @@ def _compute_custom_cmb_spectrum_data(
             x_signature,
             numpy.asarray(x_values, dtype=float).copy(),
         )
+        kernel_batch = _get_cached_declared_projection_kernel_batch(
+            ell_signature,
+            x_signature,
+        )
         for (
             component_name,
             component_entry,
@@ -4055,25 +4232,21 @@ def _compute_custom_cmb_spectrum_data(
                 role_name: source_arrays[source_name]
                 for role_name, source_name in component_source_terms
             }
-            for ell_index, ell_value in enumerate(ell_arr):
-                transfer_components[component_name][ell_index, k_index] = (
-                    _declared_graph_projection(
-                        projection=str(component_entry.projection or ""),
-                        kernel=(
-                            None
-                            if component_entry.kernel is None
-                            else str(component_entry.kernel)
-                        ),
-                        ell_value=int(ell_value),
-                        x_signature=x_signature,
-                        x_values=x_values,
-                        eta_grid=eta_los_grid,
-                        chi_grid=chi_los_grid,
-                        source_chi=source_chi,
-                        source_histories=source_histories,
-                    )
+            transfer_components[component_name][:, k_index] = (
+                _declared_graph_projection(
+                    projection=str(component_entry.projection or ""),
+                    kernel=(
+                        None
+                        if component_entry.kernel is None
+                        else str(component_entry.kernel)
+                    ),
+                    kernel_batch=kernel_batch,
+                    eta_weights=eta_integration_weights,
+                    chi_grid=chi_los_grid,
+                    source_chi=source_chi,
+                    source_histories=source_histories,
                 )
-
+            )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
             raise ValueError(

@@ -787,7 +787,12 @@ def _custom_contract(**perturbation_kwargs: object) -> dict[str, object]:
 
 
 def _speedup_contract(contract: dict[str, object]) -> dict[str, object]:
-    """Return ``contract`` with lighter numerics for behavior tests."""
+    """Return ``contract`` with lighter numerics for governed behavior tests.
+
+    Fast runtime-response coverage uses this helper so the full governed suite
+    stays integral while the separate scientific reference checks keep their
+    production-like numerics unchanged.
+    """
 
     contract["numerical"].update(
         {
@@ -989,7 +994,7 @@ class _CustomCMBPlugin:
     def get_cmb_native_runtime(self, _params):
         """Return the synthetic native-runtime contract used by the helper."""
 
-        return _custom_contract()
+        return _speedup_contract(_custom_contract())
 
     def get_cmb_perturbation_contract(self, _params):
         """Return the synthetic non-standard perturbation graph."""
@@ -2431,7 +2436,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_nonfinite_expression_results_fail_loudly(self) -> None:
         """Non-finite source expressions should fail clearly."""
 
-        contract = _custom_contract()
+        contract = _speedup_contract(_custom_contract())
         contract["perturbations"]["sources"]["temperature_additive"][
             "expression"
         ] = "sqrt(-1)"
@@ -2448,7 +2453,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_nonfinite_evolution_states_fail_loudly(self) -> None:
         """Non-finite evolution states should fail clearly."""
 
-        contract = _custom_contract()
+        contract = _speedup_contract(_custom_contract())
         theta_b_equation = contract["perturbations"]["equations"][
             "evolve_theta_b"
         ]
@@ -2495,7 +2500,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_custom_cached_path_uses_precompiled_native_runtime(self) -> None:
         """The cached route should reuse precompiled native runtime data."""
 
-        contract = _custom_contract()
+        contract = _speedup_contract(_custom_contract())
         contract["perturbation_data"] = (
             native_cmb_solver._compile_declared_perturbation_contract(contract)
         )

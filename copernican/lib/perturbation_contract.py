@@ -449,6 +449,7 @@ def _collect_expression_names(expr: str) -> tuple[str, ...]:
     return tuple(names)
 
 
+@lru_cache(maxsize=4096)
 def _compile_expression_program(
     expr: str,
 ) -> tuple[tuple[str, Any], ...]:
@@ -503,6 +504,7 @@ def _compile_expression_program(
     return tuple(program)
 
 
+@lru_cache(maxsize=4096)
 def _compile_expression_plan(
     expr: str,
     *,
@@ -522,49 +524,58 @@ def _compile_expression_plan(
     )
 
 
+def _evaluate_compiled_expression_noerr(
+    expression_data: PerturbationCompiledExpressionData,
+    env: Mapping[str, Any],
+) -> Any:
+    """Evaluate one compiled expression against ``env`` without errstate."""
+
+    stack: list[Any] = []
+    for opcode, payload in expression_data.program:
+        if opcode == "const":
+            stack.append(payload)
+            continue
+        if opcode == "name":
+            if payload in env:
+                stack.append(env[payload])
+                continue
+            if payload in _ALLOWED_CONSTANTS:
+                stack.append(_ALLOWED_CONSTANTS[payload])
+                continue
+            raise ValueError(f"name '{payload}' not allowed")
+        if opcode == "binary":
+            right = stack.pop()
+            left = stack.pop()
+            stack.append(_COMPILED_BINARY_OPERATORS[payload](left, right))
+            continue
+        if opcode == "unary":
+            stack.append(_COMPILED_UNARY_OPERATORS[payload](stack.pop()))
+            continue
+        if opcode == "call":
+            func_name, arg_count = payload
+            func = _ALLOWED_MATH_FUNCS.get(func_name)
+            if func is None:
+                raise ValueError(f"function '{func_name}' not allowed")
+            args = [stack.pop() for _ in range(int(arg_count))]
+            args.reverse()
+            stack.append(func(*args))
+            continue
+        raise ValueError("expression not allowed")
+    if len(stack) != 1:
+        raise ValueError(
+            "Compiled expression evaluation did not produce one result"
+        )
+    return stack[0]
+
+
 def evaluate_compiled_expression(
     expression_data: PerturbationCompiledExpressionData,
     env: Mapping[str, Any],
 ) -> Any:
     """Evaluate one compiled declared expression against ``env``."""
 
-    stack: list[Any] = []
     with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
-        for opcode, payload in expression_data.program:
-            if opcode == "const":
-                stack.append(payload)
-                continue
-            if opcode == "name":
-                if payload in env:
-                    stack.append(env[payload])
-                    continue
-                if payload in _ALLOWED_CONSTANTS:
-                    stack.append(_ALLOWED_CONSTANTS[payload])
-                    continue
-                raise ValueError(f"name '{payload}' not allowed")
-            if opcode == "binary":
-                right = stack.pop()
-                left = stack.pop()
-                stack.append(_COMPILED_BINARY_OPERATORS[payload](left, right))
-                continue
-            if opcode == "unary":
-                stack.append(_COMPILED_UNARY_OPERATORS[payload](stack.pop()))
-                continue
-            if opcode == "call":
-                func_name, arg_count = payload
-                func = _ALLOWED_MATH_FUNCS.get(func_name)
-                if func is None:
-                    raise ValueError(f"function '{func_name}' not allowed")
-                args = [stack.pop() for _ in range(int(arg_count))]
-                args.reverse()
-                stack.append(func(*args))
-                continue
-            raise ValueError("expression not allowed")
-    if len(stack) != 1:
-        raise ValueError(
-            "Compiled expression evaluation did not produce one result"
-        )
-    return stack[0]
+        return _evaluate_compiled_expression_noerr(expression_data, env)
 
 
 def _validate_entry_keys(

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,30 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-22:
+  Change: Optimized the native CMB solver to batch declared projection
+    kernels across `ell`, cache background and recombination products on
+    background-relevant inputs, and reuse compiled expression plans in
+    the hot path and runtime-sensitive test helpers.
+  Why: Reduced Slice Three overhead from repeated background recompilation,
+    per-ell projection loops, and heavier-than-needed governed behavior
+    test setup while keeping the single full validation path intact.
+  Impact: Reduced repeated native CMB background work by reusing immutable
+    background products across
+    perturbation-only variants, governed CMB tests stay warning-free on
+    lighter helper numerics, and the scientific reference checks remain
+    unchanged inside the same governed suite.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copcmb_solver.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/test_cmb.py
 
 - 2026-06-21:
   Change: Refactored native CMB background, reionization, and declared-graph
