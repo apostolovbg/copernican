@@ -18,7 +18,7 @@ import copernican.lib.dataset_registry as dataset_registry
 import copernican.lib.engine_adapter as engine_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
-from copernican.lib.likelihoods import cmb
+from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.run_pipeline import extract_cosmological_param_vector
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -188,7 +188,7 @@ class FunctionalTestCase(unittest.TestCase):
                 self.plugin.INITIAL_GUESSES
             )
         )
-        result = engine.compute_cmb_spectrum_from_dict(
+        result = engine.compute_cmb_spectrum_from_contract(
             camb_params, ells, spectra=("TT",)
         )
 
@@ -197,7 +197,10 @@ class FunctionalTestCase(unittest.TestCase):
         # cached spectra.  Calling the internal builder keeps the functional
         # regression aligned with whichever optional neutrino knobs the plugin
         # exposes.
-        params = cmb._make_camb_params(camb_params, lmax=int(numpy.max(ells)))
+        params = camb_solver._make_camb_params(
+            camb_params,
+            lmax=int(numpy.max(ells)),
+        )
         params.InitPower.set_params(
             As=camb_params["param_map"]["As"],
             ns=camb_params["param_map"]["ns"],

@@ -592,6 +592,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def test_get_cmb_perturbation_contract_preserves_structure(self):
         """Perturbation contracts keep the declared YAML shape intact."""
 
+        self.assertTrue(
+            callable(self.plugin.get_cmb_perturbation_contract)
+        )
         contract = self.plugin.get_cmb_perturbation_contract(
             self.plugin.INITIAL_GUESSES
         )

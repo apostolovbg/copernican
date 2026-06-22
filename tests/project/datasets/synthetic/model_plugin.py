@@ -111,7 +111,7 @@ def _cmb_spectrum_from_contract(
 
     structured_contract = dict(camb_params)
     structured_contract["perturbations"] = copy.deepcopy(perturbation_contract)
-    return cmb_likelihood.compute_cmb_spectrum_from_dict(
+    return cmb_likelihood.compute_cmb_spectrum_from_contract(
         structured_contract,
         ell_values,
         spectra=spectra,
@@ -137,7 +137,7 @@ def build_plugin():
         "get_DV_Mpc": _volume_distance,
         "get_sound_horizon_rs_Mpc": _sound_horizon,
         "compute_cmb_spectrum": _cmb_spectrum,
-        "compute_cmb_spectrum_from_dict": _cmb_spectrum,
+        "compute_cmb_spectrum_from_contract": _cmb_spectrum,
     }
     return build_engine_plugin(model_data, functions)
 

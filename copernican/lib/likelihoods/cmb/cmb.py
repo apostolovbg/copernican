@@ -10,30 +10,20 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
-import camb
 import numpy
 import pandas
 
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
 from .camb_solver import (
-    _compute_cmb_spectrum_direct,
-    _make_camb_params,
     compute_camb_background_observables,
     compute_cmb_spectrum_from_camb_contract,
     compute_cmb_spectrum_from_legacy_params_for_tests,
     describe_camb_configuration,
 )
 from .copernican_cmb_solver import (
-    CustomCMBSpectrumData,
-    _build_custom_cmb_background,
     _combine_camb_contracts,
-    _compute_custom_cmb_spectrum_data,
     _compute_declared_perturbation_spectrum,
-    _CustomCMBBackgroundData,
     _is_structured_camb_contract,
-    _resolve_custom_cmb_numerics,
-    _resolve_custom_cmb_physical_parameters,
-    _summarize_declared_background_manifest_summary,
     _validate_camb_perturbation_execution,
 )
 
@@ -93,7 +83,7 @@ def _with_extra_params(
     return updated
 
 
-def compute_cmb_spectrum_from_dict(
+def compute_cmb_spectrum_from_contract(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     *,
@@ -102,9 +92,7 @@ def compute_cmb_spectrum_from_dict(
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
     if not _is_structured_camb_contract(contract_or_params):
-        raise ValueError(
-            "Structured CAMB contracts must include perturbations"
-        )
+        raise ValueError("Structured CMB contracts must include perturbations")
 
     _validate_camb_perturbation_execution(contract_or_params)
     perturbations = contract_or_params.get("perturbations", {}) or {}
@@ -147,7 +135,7 @@ def compute_cmb_spectrum_cached(
             spectra=spectra,
             background_provider=plugin,
         )
-    return compute_cmb_spectrum_from_dict(
+    return compute_cmb_spectrum_from_contract(
         camb_contract,
         ells,
         spectra=spectra,
@@ -160,9 +148,13 @@ def compute_cmb_spectrum(
     *,
     spectra: Sequence[str] = ("TT",),
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
-    r"""Return spectra using a structured CMB contract."""
+    r"""Return spectra using one structured CMB contract."""
 
-    return compute_cmb_spectrum_from_dict(param_dict, ells, spectra=spectra)
+    return compute_cmb_spectrum_from_contract(
+        param_dict,
+        ells,
+        spectra=spectra,
+    )
 
 
 @dataclass(slots=True)
@@ -276,7 +268,7 @@ class CMBLike(LikelihoodProtocol):
                     background_provider=self.plugin,
                 )
             else:
-                theory = compute_cmb_spectrum_from_dict(
+                theory = compute_cmb_spectrum_from_contract(
                     camb_contract,
                     self._ells,
                     spectra=("TT",),
@@ -346,20 +338,10 @@ class CMBLike(LikelihoodProtocol):
 
 __all__ = [
     "CMBLike",
-    "CustomCMBSpectrumData",
-    "_CustomCMBBackgroundData",
-    "_build_custom_cmb_background",
-    "_compute_cmb_spectrum_direct",
-    "_compute_custom_cmb_spectrum_data",
-    "_make_camb_params",
-    "_resolve_custom_cmb_numerics",
-    "_resolve_custom_cmb_physical_parameters",
-    "_summarize_declared_background_manifest_summary",
     "compute_camb_background_observables",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
-    "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_contract",
     "compute_cmb_spectrum_from_legacy_params_for_tests",
-    "camb",
     "describe_camb_configuration",
 ]

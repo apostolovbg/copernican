@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - optional external reference
     camb = None
 
 from copernican.lib.likelihoods import cmb
+from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.likelihoods.cmb import (
     copernican_cmb_solver as native_cmb_solver,
 )
@@ -1016,16 +1017,18 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             self.skipTest("CAMB is not installed")
 
         contract = _custom_contract()
-        physical = cmb._resolve_custom_cmb_physical_parameters(contract)
-        numerics = cmb._resolve_custom_cmb_numerics(contract)
-        background = cmb._build_custom_cmb_background(
+        physical = native_cmb_solver._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        numerics = native_cmb_solver._resolve_custom_cmb_numerics(contract)
+        background = native_cmb_solver._build_custom_cmb_background(
             contract,
             physical,
             numerics,
         )
         reference_contract = _strip_perturbations(contract)
         reference_contract["param_map"].pop("z_rec", None)
-        params = cmb._make_camb_params(reference_contract, lmax=32)
+        params = camb_solver._make_camb_params(reference_contract, lmax=32)
         results = camb.get_results(params)
         reference = results.get_background_time_evolution(
             background.eta_grid,
@@ -1227,13 +1230,16 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
         standard_contract = _standard_contract()
         ells = numpy.arange(2, 801, dtype=int)
-        actual = cmb.compute_cmb_spectrum_from_dict(
+        actual = cmb.compute_cmb_spectrum_from_contract(
             standard_contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
 
-        params = cmb._make_camb_params(standard_contract, lmax=int(ells.max()))
+        params = camb_solver._make_camb_params(
+            standard_contract,
+            lmax=int(ells.max()),
+        )
         results = camb.get_results(params)
         reference = results.get_unlensed_scalar_cls(
             lmax=int(ells.max()),
@@ -1388,7 +1394,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         changed = _analytic_signal_contract(source_scale=1.5)
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -1396,7 +1402,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("TT",),
@@ -1421,7 +1427,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         changed = _analytic_signal_contract(closure_scale=1.7)
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -1429,7 +1435,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("TT",),
@@ -1454,7 +1460,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         high_decay = _analytic_signal_contract(decay_rate=0.05)
         ells = numpy.arange(20, 30, dtype=int)
         low_decay_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 low_decay,
                 ells,
                 spectra=("TT",),
@@ -1462,7 +1468,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         high_decay_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 high_decay,
                 ells,
                 spectra=("TT",),
@@ -1494,7 +1500,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         derivative_observable["kernel"] = "spherical_bessel_derivative_window"
         ells = numpy.arange(20, 30, dtype=int)
         spherical_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 spherical,
                 ells,
                 spectra=("TT",),
@@ -1502,7 +1508,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         derivative_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 derivative,
                 ells,
                 spectra=("TT",),
@@ -1538,7 +1544,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         }
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -1546,7 +1552,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("TT",),
@@ -1574,7 +1580,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
         baseline_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("PP",),
@@ -1582,7 +1588,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("PP",),
@@ -1617,7 +1623,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
         baseline_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("PP",),
@@ -1625,7 +1631,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("PP",),
@@ -1653,7 +1659,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
         baseline_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("BB",),
@@ -1661,7 +1667,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("BB",),
@@ -1697,7 +1703,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
         baseline_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("BB",),
@@ -1705,7 +1711,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("BB",),
@@ -1730,7 +1736,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
         """The production module should not contain old compatibility code."""
 
-        source_text = Path(cmb.__file__).read_text(encoding="utf-8")
+        source_text = Path(native_cmb_solver.__file__).read_text(
+            encoding="utf-8"
+        )
         for needle in (
             "equation_mode",
             "mapped_sector",
@@ -1753,9 +1761,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = cmb._compute_custom_cmb_spectrum_data(contract, ells)
+        spectrum_data = native_cmb_solver._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+        )
 
-        self.assertIsInstance(spectrum_data, cmb.CustomCMBSpectrumData)
+        self.assertIsInstance(
+            spectrum_data,
+            native_cmb_solver.CustomCMBSpectrumData,
+        )
         self.assertTrue(numpy.array_equal(spectrum_data.ell_grid, ells))
         self.assertEqual(
             spectrum_data.transfer_components["temperature"].shape,
@@ -1813,21 +1827,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 90, dtype=int)
-        base = cmb.compute_cmb_spectrum_from_dict(
+        base = cmb.compute_cmb_spectrum_from_contract(
             contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
         hi_as_contract = _speedup_contract(_custom_contract())
         hi_as_contract["param_map"]["As"] = 4.2e-9
-        hi_as = cmb.compute_cmb_spectrum_from_dict(
+        hi_as = cmb.compute_cmb_spectrum_from_contract(
             hi_as_contract,
             ells,
             spectra=("TT",),
         )
         hi_h0_contract = _speedup_contract(_custom_contract())
         hi_h0_contract["param_map"]["H0"] = 74.0
-        hi_h0 = cmb.compute_cmb_spectrum_from_dict(
+        hi_h0 = cmb.compute_cmb_spectrum_from_contract(
             hi_h0_contract,
             ells,
             spectra=("TT",),
@@ -1867,7 +1881,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         low_ns_contract["param_map"]["ns"] = 0.92
         high_ns_contract["param_map"]["ns"] = 1.01
         low_ns_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 low_ns_contract,
                 ells,
                 spectra=("TT",),
@@ -1875,7 +1889,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         high_ns_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 high_ns_contract,
                 ells,
                 spectra=("TT",),
@@ -1899,19 +1913,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         high_tau_contract = _speedup_contract(_custom_contract())
         low_tau_contract["param_map"]["tau"] = 0.03
         high_tau_contract["param_map"]["tau"] = 0.08
-        low_physical = cmb._resolve_custom_cmb_physical_parameters(
+        low_physical = (
+            native_cmb_solver._resolve_custom_cmb_physical_parameters(
+                low_tau_contract
+            )
+        )
+        high_physical = (
+            native_cmb_solver._resolve_custom_cmb_physical_parameters(
+                high_tau_contract
+            )
+        )
+        numerics = native_cmb_solver._resolve_custom_cmb_numerics(
             low_tau_contract
         )
-        high_physical = cmb._resolve_custom_cmb_physical_parameters(
-            high_tau_contract
-        )
-        numerics = cmb._resolve_custom_cmb_numerics(low_tau_contract)
-        low_background = cmb._build_custom_cmb_background(
+        low_background = native_cmb_solver._build_custom_cmb_background(
             low_tau_contract,
             low_physical,
             numerics,
         )
-        high_background = cmb._build_custom_cmb_background(
+        high_background = native_cmb_solver._build_custom_cmb_background(
             high_tau_contract,
             high_physical,
             numerics,
@@ -1929,7 +1949,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.arange(20, 60, dtype=int)
         low_tau_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 low_tau_contract,
                 ells,
                 spectra=("TT",),
@@ -1937,7 +1957,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         high_tau_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 high_tau_contract,
                 ells,
                 spectra=("TT",),
@@ -1965,7 +1985,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _custom_contract(include_bb=True, include_lensing=True)
         )
         ells = numpy.arange(20, 45, dtype=int)
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             ells,
             spectra=("TT", "BB", "PP"),
@@ -1995,7 +2015,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "does not provide requested spectra",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("BB",),
@@ -2011,7 +2031,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         theta_b_seed["anchor"] = "start"
         boundary_conditions = contract["perturbations"]["boundary_conditions"]
         boundary_conditions["theta_b_start"] = theta_b_seed
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2025,7 +2045,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract["perturbations"]["initial_conditions"]["theta_b_seed"][
             "expression"
         ] = "(k * eta_initial / 6.0) * seed + 0.25 * Phi"
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2051,7 +2071,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract["perturbations"]["sources"]["temperature_additive"][
             "expression"
         ] = "0.02 * (Psi_tau - Phi_tau)"
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2072,7 +2092,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "expression": "0.5",
             "anchor": "end",
         }
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2084,7 +2104,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         contract["perturbations"]["gauge"] = "synchronous"
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2108,7 +2128,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         changed_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -2116,7 +2136,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("TT",),
@@ -2148,7 +2168,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         ]["wrt"] = "a"
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -2156,7 +2176,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         transformed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 transformed,
                 ells,
                 spectra=("TT",),
@@ -2176,8 +2196,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Generic background aliases should supply the native solver."""
 
         contract = _speedup_contract(_generic_background_custom_contract())
-        physical = cmb._resolve_custom_cmb_physical_parameters(contract)
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        physical = native_cmb_solver._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT", "TE", "EE"),
@@ -2209,7 +2231,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.arange(20, 30, dtype=int)
         baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 baseline,
                 ells,
                 spectra=("TT",),
@@ -2217,7 +2239,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 changed,
                 ells,
                 spectra=("TT",),
@@ -2238,7 +2260,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "must provide a derived expansion history",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2269,7 +2291,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "requires explicit baryon density",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2286,7 +2308,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "curvature histories must stay non-negative",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2305,7 +2327,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract["perturbations"]["sources"]["temperature_additive"][
             "expression"
         ] = "0.15 * temperature_drive_outer"
-        spectra = cmb.compute_cmb_spectrum_from_dict(
+        spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             numpy.arange(20, 30, dtype=int),
             spectra=("TT",),
@@ -2321,7 +2343,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "missing required initial conditions",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2333,7 +2355,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract())
         contract["perturbations"]["observables"] = {}
         with self.assertRaisesRegex(ValueError, "must declare observables"):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2347,7 +2369,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "projection"
         ] = "bogus_projection"
         with self.assertRaisesRegex(ValueError, "unsupported projection"):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2364,7 +2386,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "requires the source-term roles",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("EE",),
@@ -2381,7 +2403,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "requires an odd-parity declared source ancestry",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("BB",),
@@ -2412,7 +2434,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "requires source 'polarization_aux_source' to provide declared "
             "projection roles: b_mode",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("BB",),
@@ -2429,7 +2451,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "requires the source-term roles: potential",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("PP",),
@@ -2446,7 +2468,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "Declared source term produced non-finite values",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2464,7 +2486,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "must be finite",
         ):
-            cmb.compute_cmb_spectrum_from_dict(
+            cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 numpy.arange(20, 30, dtype=int),
                 spectra=("TT",),
@@ -2476,12 +2498,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         plugin = _CustomCMBPlugin()
         ells = numpy.arange(20, 35, dtype=int)
         with mock.patch.object(
-            cmb,
+            camb_solver,
             "_compute_cmb_spectrum_direct",
             side_effect=AssertionError("standard CAMB path should not run"),
         ):
             with mock.patch.object(
-                cmb.camb,
+                camb_solver.camb,
                 "get_results",
                 side_effect=AssertionError(
                     "CAMB prediction path should not run"
@@ -2538,11 +2560,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 35, dtype=int)
         with mock.patch.object(
-            cmb.camb,
+            camb_solver.camb,
             "get_results",
             side_effect=AssertionError("CAMB prediction path should not run"),
         ):
-            result = cmb.compute_cmb_spectrum_from_dict(
+            result = cmb.compute_cmb_spectrum_from_contract(
                 contract,
                 ells,
                 spectra=("TT", "TE", "EE"),
@@ -2560,16 +2582,31 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
     def test_public_symbols_are_exposed(self) -> None:
         """The module should export the expected public helpers."""
 
+        self.assertEqual(
+            set(cmb.__all__),
+            {
+                "CMBLike",
+                "compute_camb_background_observables",
+                "compute_cmb_spectrum",
+                "compute_cmb_spectrum_cached",
+                "compute_cmb_spectrum_from_contract",
+                "compute_cmb_spectrum_from_legacy_params_for_tests",
+                "describe_camb_configuration",
+            },
+        )
         self.assertTrue(hasattr(cmb, "CMBLike"))
         self.assertTrue(callable(cmb.compute_cmb_spectrum))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
-        self.assertTrue(callable(cmb.compute_cmb_spectrum_from_dict))
+        self.assertTrue(callable(cmb.compute_cmb_spectrum_from_contract))
         self.assertTrue(callable(cmb.compute_camb_background_observables))
         self.assertTrue(
             callable(cmb.compute_cmb_spectrum_from_legacy_params_for_tests)
         )
         self.assertTrue(callable(cmb.describe_camb_configuration))
-        self.assertTrue(callable(cmb._CustomCMBBackgroundData.sample))
+        self.assertFalse(hasattr(cmb, "_CustomCMBBackgroundData"))
+        self.assertFalse(hasattr(cmb, "_make_camb_params"))
+        self.assertFalse(hasattr(cmb, "camb"))
+        self.assertFalse(hasattr(cmb, "compute_cmb_spectrum_from_dict"))
 
     def test_loglike_and_state_symbols_are_exposed(self) -> None:
         """The likelihood protocol symbols should remain available."""

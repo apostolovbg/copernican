@@ -55,8 +55,8 @@ described throughout this document.
   `standard: false` contracts use the declared-math graph engine in
   `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public
   likelihood surface, `camb_solver.py` owns the standard backend route, and
-  `copernican_cmb_solver.py` owns the native declared solver. Nested sampling
-  and
+  `copernican_cmb_solver.py` owns the native internal orchestration layer.
+  Nested sampling and
   ensemble MCMC both rely on the shared Stage 2 helper so the counter lines
   and listener events stay consistent regardless of backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,

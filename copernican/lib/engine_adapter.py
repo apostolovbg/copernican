@@ -85,7 +85,7 @@ REQUIRED_ATTRIBUTES: list[str] = [
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
     "compute_cmb_spectrum",
-    "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_contract",
 )
 
 _ALLOWED_MATH_FUNCS = {
@@ -1075,7 +1075,7 @@ class EnginePlugin:
     get_DV_Mpc: Callable[..., Any] | None
     get_sound_horizon_rs_Mpc: Callable[..., Any] | None
     compute_cmb_spectrum: Callable[..., Any] | None
-    compute_cmb_spectrum_from_dict: Callable[..., Any] | None
+    compute_cmb_spectrum_from_contract: Callable[..., Any] | None
     extras: Mapping[str, Any] = field(default_factory=dict)
     _camb_evaluator: CAMBContractEvaluator | None = field(
         init=False, repr=False
@@ -1361,8 +1361,8 @@ def build_engine_plugin(
         get_DV_Mpc=functions.get("get_DV_Mpc"),
         get_sound_horizon_rs_Mpc=functions.get("get_sound_horizon_rs_Mpc"),
         compute_cmb_spectrum=functions.get("compute_cmb_spectrum"),
-        compute_cmb_spectrum_from_dict=functions.get(
-            "compute_cmb_spectrum_from_dict"
+        compute_cmb_spectrum_from_contract=functions.get(
+            "compute_cmb_spectrum_from_contract"
         ),
         extras=extras,
     )

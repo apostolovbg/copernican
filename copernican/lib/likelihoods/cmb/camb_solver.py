@@ -8,23 +8,80 @@ contracts that intentionally remain on the CAMB route.
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 import camb
 import numpy
 
-from .copernican_cmb_solver import (
-    _C_LIGHT_KM_S,
-    _LENS_POTENTIAL_ACCURACY,
-    _LMAX_PADDING,
-    _MNU_PATTERN,
-    _coerce_numeric_array,
-    _coerce_numeric_scalar,
-    _is_structured_camb_background_contract,
-    _normalise_camb_contract,
-    _restore_dict,
-)
+_C_LIGHT_KM_S = 299_792.458
+_LMAX_PADDING = 300
+_LENS_POTENTIAL_ACCURACY = 0
+_MNU_PATTERN = re.compile(r"^mnu(\d+)$")
+
+
+def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
+    """Rehydrate a mapping created by the cached CAMB helpers."""
+
+    restored: dict[str, Any] = {}
+    for key, restored_value in items:
+        restored[str(key)] = restored_value
+    return restored
+
+
+def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
+    """Return ``value`` as a finite scalar float."""
+
+    array_value = numpy.asarray(value, dtype=float)
+    if array_value.ndim != 0:
+        raise ValueError(f"{name} must evaluate to a scalar")
+    scalar = float(array_value)
+    if not numpy.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    return scalar
+
+
+def _coerce_numeric_array(value: Any, *, name: str) -> numpy.ndarray:
+    """Return ``value`` as a finite one-dimensional array."""
+
+    array_value = numpy.asarray(value, dtype=float)
+    if array_value.ndim != 1:
+        raise ValueError(f"{name} must evaluate to a one-dimensional array")
+    if array_value.size == 0:
+        raise ValueError(f"{name} must not be empty")
+    if not numpy.all(numpy.isfinite(array_value)):
+        raise ValueError(f"{name} must contain only finite values")
+    return array_value
+
+
+def _normalise_camb_contract(
+    contract_or_params: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return a structured CAMB contract from legacy or new inputs."""
+
+    keys = {str(key) for key in contract_or_params.keys()}
+    if {"backend", "param_map", "grids", "values", "calls"}.issubset(keys):
+        return contract_or_params
+    if keys.intersection({"backend", "param_map", "grids", "values", "calls"}):
+        return contract_or_params
+    return {
+        "backend": "camb",
+        "param_map": dict(contract_or_params),
+        "grids": {},
+        "values": {},
+        "calls": [],
+    }
+
+
+def _is_structured_camb_background_contract(
+    contract_or_params: Mapping[str, Any],
+) -> bool:
+    """Return ``True`` when ``contract_or_params`` uses the CAMB adapter."""
+
+    keys = {str(key) for key in contract_or_params.keys()}
+    required = {"backend", "calls", "grids", "param_map", "values"}
+    return required.issubset(keys)
 
 
 def _make_camb_params(
@@ -395,7 +452,7 @@ def compute_cmb_spectrum_from_camb_contract(
         TypeError,
         ValueError,
     ) as exc:
-        logger.error("(compute_cmb_spectrum_from_dict): %s", exc)
+        logger.error("(compute_cmb_spectrum_from_camb_contract): %s", exc)
         raise
 
 

@@ -18,13 +18,13 @@ Use this plan to finish the CMB subsystem as a universal,
 theory-agnostic, truth-audited package.
 
 The previous optimization roadmap improved runtime and closed the first
-native-baseline campaign, but it did not finish the architecture boundary or
-the declared-theory acceptance boundary. The remaining work is to remove the
-duplicate public surfaces, finish the native and standard solver split, make
-cache and runtime ownership explicit, and close the native path around a
-single honest contract: any mathematically well-posed theory that can be
-expressed through Copernican's declared CMB contracts must be executable
-without LCDM-specific branches or solver-family selectors.
+native-baseline campaign, but it did not finish the declared-theory
+acceptance boundary or the native module split. The remaining work is to
+finish the native and standard solver split, make cache and runtime
+ownership explicit, and close the native path around a single honest
+contract: any mathematically well-posed theory that can be expressed
+through Copernican's declared CMB contracts must be executable without
+LCDM-specific branches or solver-family selectors.
 
 The target condition remains non-negotiable:
 
@@ -65,15 +65,9 @@ The native CMB engine now exists, but the subsystem is not finished.
 
 The current baseline still has several concrete problems:
 
-* `cmb.py` is the intended public entrypoint, but
-  `copernican_cmb_solver.py` still exposes duplicate public wrappers and a
-  duplicate likelihood class;
-* `copernican/lib/likelihoods/cmb/__init__.py` still exports private helpers
-  and `camb`, so the package boundary is not truthful;
-* CAMB-only logic is not yet fully confined to `camb_solver.py`;
 * the native solver file is still too large and mixes orchestration,
   background work, declared evolution, projection, cache ownership, and old
-  façade responsibilities;
+  native responsibilities;
 * caches exist, but cache ownership, reset hooks, stats, and bounded-lifecycle
   rules are not yet a first-class subsystem contract;
 * the declared native path still needs an explicit closure pass against hidden
@@ -100,12 +94,11 @@ Current facts:
 * `model_coder.py` already compiles a native runtime bundle and
   `engine_adapter.py` already hands that bundle to execution plugins.
 * `copernican/lib/likelihoods/cmb/**` already exists as a package split, but
-  the final boundary between public, standard, and native modules is not yet
-  closed.
-* The native solver still contains duplicate public entrypoints and duplicate
-  dispatch logic.
-* The package still exports private CMB helpers as if they were public API.
-* The native solver still mixes CAMB-facing and native responsibilities.
+  only the first boundary-closure slice is complete.
+* `cmb.py` now owns the public CMB facade and structured-contract dispatch.
+* `camb_solver.py` now owns the standard-path CAMB helpers and imports.
+* `copernican_cmb_solver.py` now owns internal native orchestration rather
+  than a duplicate public facade, but it still needs to be split further.
 * Cache use and runtime performance have improved, but cache governance and
   final benchmark evidence are still open work.
 * Current tests and docs support a truthful feature baseline, not yet a final
@@ -178,7 +171,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Public boundary closure and solver ownership reset
+### [closed] Slice One - Public boundary closure and solver ownership reset
 
 Purpose:
 
@@ -216,36 +209,37 @@ Scope:
 
 Tasks:
 
-* [open] Make `copernican/lib/likelihoods/cmb/cmb.py` the only public owner
+* [closed] Make `copernican/lib/likelihoods/cmb/cmb.py` the only public owner
   of `CMBLike`, spectrum helpers, and dispatch logic.
-* [open] Remove duplicate public wrappers from
+* [closed] Remove duplicate public wrappers from
   `copernican_cmb_solver.py`.
-* [open] Remove duplicate public likelihood ownership from
+* [closed] Remove duplicate public likelihood ownership from
   `copernican_cmb_solver.py`.
-* [open] Replace the public `compute_cmb_spectrum_from_dict` name with
+* [closed] Replace the public `compute_cmb_spectrum_from_dict` name with
   `compute_cmb_spectrum_from_contract`.
-* [open] Keep any temporary compatibility shim internal to the slice, not as a
-  permanent public contract.
-* [open] Stop exporting underscore-prefixed CMB helpers from package
+* [closed] Keep any temporary compatibility shim internal to the slice,
+  not as a permanent public contract.
+* [closed] Stop exporting underscore-prefixed CMB helpers from package
   `__all__`.
-* [open] Stop exporting `camb` from the package surface.
-* [open] Move every CAMB-only helper that still belongs on the standard path
+* [closed] Stop exporting `camb` from the package surface.
+* [closed] Move every CAMB-only helper that still belongs on the standard path
   into `camb_solver.py`.
-* [open] Keep `model_coder.py` and `engine_adapter.py` aligned with the final
+* [closed] Keep `model_coder.py` and `engine_adapter.py` aligned with the final
   public/native boundary.
-* [open] Rewrite module tests so internals are imported from their real
+* [closed] Rewrite module tests so internals are imported from their real
   internal modules, not through package re-exports.
-* [open] Add API-boundary tests that freeze the intended public surface.
+* [closed] Add API-boundary tests that freeze the intended public surface.
 
 Done when:
 
-* [open] `cmb.py` is the only public CMB façade.
-* [open] `copernican_cmb_solver.py` no longer exports a duplicate public API.
-* [open] Package `__all__` contains only intended public symbols.
-* [open] Public naming refers to structured contracts, not generic dicts.
-* [open] Relevant import, CMB, and ownership tests pass.
+* [closed] `cmb.py` is the only public CMB façade.
+* [closed] `copernican_cmb_solver.py` no longer exports a duplicate public
+  API.
+* [closed] Package `__all__` contains only intended public symbols.
+* [closed] Public naming refers to structured contracts, not generic dicts.
+* [closed] Relevant import, CMB, and ownership tests pass.
 
-### [blocked] Slice Two - Native module split and cache governance
+### [open] Slice Two - Native module split and cache governance
 
 Purpose:
 
@@ -277,29 +271,29 @@ Scope:
 
 Tasks:
 
-* [blocked] Create a native background module for declared background,
+* [open] Create a native background module for declared background,
   recombination, and reionization work.
-* [blocked] Create a native evolution module for declared perturbation
+* [open] Create a native evolution module for declared perturbation
   execution.
-* [blocked] Create a projection module for transfer and line-of-sight work.
-* [blocked] Create a native cache module for all native cache ownership.
-* [blocked] Reduce `copernican_cmb_solver.py` to orchestration and native
+* [open] Create a projection module for transfer and line-of-sight work.
+* [open] Create a native cache module for all native cache ownership.
+* [open] Reduce `copernican_cmb_solver.py` to orchestration and native
   entry helpers only.
-* [blocked] Remove CAMB imports from native modules.
-* [blocked] Add explicit cache reset helpers for tests and long-lived runs.
-* [blocked] Add explicit cache stats or diagnostics helpers.
-* [blocked] Bound every native cache or document why it is intentionally
+* [open] Remove CAMB imports from native modules.
+* [open] Add explicit cache reset helpers for tests and long-lived runs.
+* [open] Add explicit cache stats or diagnostics helpers.
+* [open] Bound every native cache or document why it is intentionally
   bounded elsewhere.
-* [blocked] Add tests for cache reuse, cache separation, and cache reset.
-* [blocked] Add tests proving the native path remains CAMB-free in production
+* [open] Add tests for cache reuse, cache separation, and cache reset.
+* [open] Add tests proving the native path remains CAMB-free in production
   execution.
 
 Done when:
 
-* [blocked] The native solver is no longer one monolithic engine-room file.
-* [blocked] Cache lifecycle is explicit and testable.
-* [blocked] Native modules no longer own CAMB imports.
-* [blocked] Relevant CMB and cache tests pass.
+* [open] The native solver is no longer one monolithic engine-room file.
+* [open] Cache lifecycle is explicit and testable.
+* [open] Native modules no longer own CAMB imports.
+* [open] Relevant CMB and cache tests pass.
 
 ### [blocked] Slice Three - Theory-agnostic native contract closure
 

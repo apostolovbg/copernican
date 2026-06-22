@@ -239,7 +239,7 @@ the same convention.
   `standard: false` models run through the declared-math CMB graph engine in
   `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public entry
   point, `camb_solver.py` owns the standard backend route, and
-  `copernican_cmb_solver.py` owns the native declared solver.
+  `copernican_cmb_solver.py` owns the native internal orchestration layer.
   `engine_adapter.py`
   now hands the precompiled native runtime into that package directly instead
   of rebuilding a CAMB-style contract in the native hot path. That runtime

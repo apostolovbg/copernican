@@ -122,33 +122,27 @@ def _compiled_graph_fixture():
 class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
     """Exercise the native solver helpers directly."""
 
-    def test_public_solver_symbols_are_exposed(self):
-        """The native module should keep its public surface importable."""
+    def test_native_module_keeps_only_internal_helpers(self):
+        """The native module should not expose a second public CMB facade."""
 
-        self.assertTrue(
-            callable(native_cmb_solver.compute_cmb_spectrum_from_dict)
+        self.assertFalse(hasattr(native_cmb_solver, "compute_cmb_spectrum"))
+        self.assertFalse(
+            hasattr(native_cmb_solver, "compute_cmb_spectrum_cached")
         )
-        self.assertTrue(
-            callable(native_cmb_solver.compute_cmb_spectrum_cached)
+        self.assertFalse(
+            hasattr(native_cmb_solver, "compute_cmb_spectrum_from_contract")
         )
-        self.assertTrue(callable(native_cmb_solver.compute_cmb_spectrum))
-        self.assertTrue(
-            callable(native_cmb_solver.compute_camb_background_observables)
+        self.assertFalse(
+            hasattr(native_cmb_solver, "compute_cmb_spectrum_from_dict")
         )
-        self.assertTrue(
-            callable(native_cmb_solver.describe_camb_configuration)
-        )
-        legacy_helper = (
-            native_cmb_solver.compute_cmb_spectrum_from_legacy_params_for_tests
-        )
-        self.assertTrue(callable(legacy_helper))
-        self.assertTrue(hasattr(native_cmb_solver, "CMBLike"))
-        self.assertTrue(hasattr(native_cmb_solver.CMBLike, "loglike"))
-        self.assertTrue(hasattr(native_cmb_solver.CMBLike, "state"))
+        self.assertFalse(hasattr(native_cmb_solver, "CMBLike"))
         self.assertTrue(
             hasattr(native_cmb_solver._CustomCMBBackgroundData, "sample")
         )
         self.assertTrue(hasattr(native_cmb_solver, "CustomCMBSpectrumData"))
+        self.assertTrue(
+            callable(native_cmb_solver._compute_declared_perturbation_spectrum)
+        )
 
     def test_precompiled_perturbation_payload_is_reused(self):
         """Existing compiled perturbation data should bypass recompilation."""

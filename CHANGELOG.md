@@ -80,6 +80,44 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-22:
+  Change: Closed Slice One of the CMB closure roadmap by renaming the
+    structured-contract helper, removing duplicate native public wrappers,
+    and shrinking the package exports to one public facade.
+  Why: Aligned the implemented CMB boundary with one truthful owner while
+    moving CAMB-only helpers onto the standard solver path and pushing
+    internal tests onto their real internal modules.
+  Impact: Preserves `cmb.py` as the only public CMB surface, leaves
+    `copernican_cmb_solver.py` as internal native orchestration, and
+    freezes the narrower boundary in code, docs, and tests.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    ABOUT.md
+    README.md
+    docs/api_overview.md
+    docs/design_overview.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    copernican/engines/engine_mcmc.py
+    copernican/engines/engine_nested.py
+    copernican/lib/engine_adapter.py
+    copernican/lib/likelihoods/__init__.py
+    copernican/lib/likelihoods/cmb/__init__.py
+    copernican/lib/likelihoods/cmb/camb_solver.py
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/run_manifest.py
+    copernican/lib/statistics.py
+    tests/copernican/engines/test_engine_mcmc.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+    tests/copernican/lib/test_engine_adapter.py
+    tests/project/datasets/synthetic/model_plugin.py
+    tests/project/lib/test_core.py
+
+- 2026-06-22:
   Change: Replaced the CMB optimization-only roadmap with a four-slice
     subsystem-closure plan focused on one public API, native module
     ownership, theory-agnostic declared contracts, and final benchmark

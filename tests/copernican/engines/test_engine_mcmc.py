@@ -100,7 +100,7 @@ def _build_short_chain_plugin():
         get_DV_Mpc=_distance_helper,
         get_sound_horizon_rs_Mpc=_distance_helper,
         compute_cmb_spectrum=None,
-        compute_cmb_spectrum_from_dict=None,
+        compute_cmb_spectrum_from_contract=None,
     )
 
 

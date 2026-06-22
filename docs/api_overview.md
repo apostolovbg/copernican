@@ -84,7 +84,8 @@ directly without using the command-line interface.  The core modules are:
 The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
 non-standard paths separate. The package-level `cmb.py` entrypoint dispatches
 to `camb_solver.py` for standard CAMB contracts and to
-`copernican_cmb_solver.py` for native declared-graph execution.
+internal helpers in `copernican_cmb_solver.py` for native declared-graph
+execution.
 `engine_adapter.py` now hands the
 precompiled native runtime into that package directly, so non-standard
 contracts avoid rebuilding a CAMB-style contract before the declared solver

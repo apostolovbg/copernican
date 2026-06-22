@@ -72,7 +72,7 @@ from copernican.lib.statistics import (
     chi_squared_cmb,
     chi_squared_sne,
     compute_cmb_spectrum,
-    compute_cmb_spectrum_from_dict,
+    compute_cmb_spectrum_from_contract,
 )
 from copernican.lib.utils import get_random_seed
 
@@ -1176,7 +1176,7 @@ __all__ = [
     "chi_squared_cmb",
     "chi_squared_sne",
     "compute_cmb_spectrum",
-    "compute_cmb_spectrum_from_dict",
+    "compute_cmb_spectrum_from_contract",
     "fit_cosmology_parameters",
     "fit_sne_parameters",
 ]

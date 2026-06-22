@@ -40,7 +40,8 @@ observables, incompatible projection-role bindings, and unsupported
 projection kernels fail loudly. The implementation now lives in the
 `copernican/lib/likelihoods/cmb/` package, where `cmb.py` owns the public
 likelihood surface, `camb_solver.py` owns the standard backend route, and
-`copernican_cmb_solver.py` owns the native declared solver. `model_coder.py`
+`copernican_cmb_solver.py` owns the native internal orchestration layer.
+`model_coder.py`
 compiles the static native runtime once and `engine_adapter.py` hands that
 runtime to the likelihood package directly, so the native path no longer
 rebuilds a CAMB-style contract before every prediction. That runtime now
