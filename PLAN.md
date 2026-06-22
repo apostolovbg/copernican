@@ -14,31 +14,40 @@ This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
 <!-- DEVCOV:END -->
 
-Use this plan to finish the native CMB optimization and architecture cleanup.
+Use this plan to finish the CMB subsystem as a universal,
+theory-agnostic, truth-audited package.
 
-This roadmap replaces the completed seven-slice closure plan. The native
-declared-graph backend now exists, has a truthful closed-feature baseline,
-and is too slow for sane governed development. The remaining work is not
-"add more physics before anything else." The remaining work is to move
-responsibilities to the correct layers, stop recompiling or rebuilding math in
-the runtime hot path, split the monolithic likelihood file into maintainable
-modules, and reduce governed runtime without weakening validation.
+The previous optimization roadmap improved runtime and closed the first
+native-baseline campaign, but it did not finish the architecture boundary or
+the declared-theory acceptance boundary. The remaining work is to remove the
+duplicate public surfaces, finish the native and standard solver split, make
+cache and runtime ownership explicit, and close the native path around a
+single honest contract: any mathematically well-posed theory that can be
+expressed through Copernican's declared CMB contracts must be executable
+without LCDM-specific branches or solver-family selectors.
 
 The target condition remains non-negotiable:
 
 * `standard: true` stays on the standard backend path.
 * `standard: false` stays native, CAMB-free, and CLASS-free in production.
+* The native path accepts complete declared theories rather than named theory
+  families or hidden backend selectors.
+* No hidden LCDM-like assumptions or scalar-only compatibility layers remain
+  in the `standard: false` production path.
+* The public CMB surface has one truth and one owner.
 * The full governed validation path stays integral.
 * There is no separate "quick development validation" lane.
 * Publication-style validation remains a separate workflow and is not mixed
-  into code-path optimization work.
-* `model_template.yml` remains documentation, not a benchmark model.
-* The end state must be a faster and cleaner Copernican, not a faster lie.
+  into code-path validation or optimization work.
+* `model_template.yml` remains documentation, not a benchmark or acceptance
+  model.
+* The end state must be a faster, cleaner, and more general Copernican, not
+  a faster lie.
 
 This is a forward-only plan. Do not preserve obsolete runtime bridges. Do not
 reintroduce scalar-only compatibility layers. Do not introduce theory-family
 selectors, `mode_families`, or backend selectors for the native path. Do not
-hide LCDM-like assumptions behind the optimization work.
+hide remaining LCDM assumptions behind generic names.
 
 ## Table of Contents
 
@@ -52,60 +61,64 @@ hide LCDM-like assumptions behind the optimization work.
 
 ## Problem Preamble
 
-The native CMB engine is now functionally present but structurally expensive.
-The current cost is not explained by missing physics. It is explained by where
-the existing physics is assembled and executed.
+The native CMB engine now exists, but the subsystem is not finished.
 
-The investigated baseline shows several concrete problems:
+The current baseline still has several concrete problems:
 
-* native `standard: false` prediction still routes through CAMB-style
-  contract materialization that it does not need;
-* `model_coder.py`, `engine_adapter.py`, and the native CMB likelihood share
-  overlapping responsibility for compiling, normalizing, and carrying declared
-  math;
-* `copernican/lib/likelihoods/cmb.py` has become a monolith that mixes
-  interface, compilation, background handling, solver execution, projection,
-  caching, and validation-facing helpers;
-* declared expressions are validated too late and re-interpreted too often
-  inside hot loops;
-* graph-context construction does too much dictionary-heavy work inside
-  repeated solver stages;
-* background, recombination, per-k evolution, and projection all repeat work
-  that should be hoisted or cached;
-* governed tests pay avoidable setup costs on top of the native-runtime cost.
+* `cmb.py` is the intended public entrypoint, but
+  `copernican_cmb_solver.py` still exposes duplicate public wrappers and a
+  duplicate likelihood class;
+* `copernican/lib/likelihoods/cmb/__init__.py` still exports private helpers
+  and `camb`, so the package boundary is not truthful;
+* CAMB-only logic is not yet fully confined to `camb_solver.py`;
+* the native solver file is still too large and mixes orchestration,
+  background work, declared evolution, projection, cache ownership, and old
+  façade responsibilities;
+* caches exist, but cache ownership, reset hooks, stats, and bounded-lifecycle
+  rules are not yet a first-class subsystem contract;
+* the declared native path still needs an explicit closure pass against hidden
+  LCDM-like assumptions and scalar-only residue;
+* docs and tests describe a strong native baseline, but the final acceptance
+  boundary for a universal declared-theory infrastructure is not yet closed;
+* the runtime is better than before, but the final benchmark and truth-audit
+  evidence has not been recorded.
 
-This plan exists to fix those structural problems in a sequence that preserves
-working slice boundaries. Every slice must end on a clean checkout that passes
-the appropriate governed tests. A runtime gain that leaves the repository in a
-broken mid-state is not an acceptable slice outcome.
+This plan exists to close those problems in a sequence that preserves working
+slice boundaries. Every slice must end on a clean checkout that passes the
+appropriate governed tests. A broader or faster design that leaves the
+repository in a broken or half-truth state is not an acceptable outcome.
 
 ## Current Baseline
 
-The previous closure roadmap is considered complete in its own scope. This new
-plan starts from that closed baseline rather than reopening it.
+The previous optimization roadmap is considered complete in its own scope.
+This roadmap starts from that faster baseline rather than reopening it.
 
 Current facts:
 
 * Copernican has a working native declared-graph CMB path for
   `standard: false`.
-* The native path already has meaningful validation and truthful docs for the
-  closed feature baseline.
-* The current bottleneck is architecture and runtime cost, not lack of a
-  native engine.
-* The largest structural overlaps are between `model_coder.py`,
-  `engine_adapter.py`, and the native CMB likelihood runtime.
-* The largest code-organization problem is the size and mixed ownership of
-  `copernican/lib/likelihoods/cmb.py`.
-* The largest workflow problem is that governed CMB-heavy runs are too slow
-  for practical iteration.
+* `model_coder.py` already compiles a native runtime bundle and
+  `engine_adapter.py` already hands that bundle to execution plugins.
+* `copernican/lib/likelihoods/cmb/**` already exists as a package split, but
+  the final boundary between public, standard, and native modules is not yet
+  closed.
+* The native solver still contains duplicate public entrypoints and duplicate
+  dispatch logic.
+* The package still exports private CMB helpers as if they were public API.
+* The native solver still mixes CAMB-facing and native responsibilities.
+* Cache use and runtime performance have improved, but cache governance and
+  final benchmark evidence are still open work.
+* Current tests and docs support a truthful feature baseline, not yet a final
+  subsystem-closure baseline.
 
-This roadmap therefore restarts slice numbering and focuses only on the
-optimization and refactor campaign needed after feature closure.
+This roadmap therefore replaces the optimization-only framing with a smaller
+number of slices that finish architecture, native generalization, and closure
+evidence together.
 
 ## Overview
 
-The optimization campaign must preserve the existing physics and governance
-contracts while moving the native backend toward a cleaner architecture.
+This campaign must preserve the existing physics and governance contracts
+while finishing the subsystem boundary.
 
 Required invariants:
 
@@ -116,20 +129,22 @@ Required invariants:
 * keep failure modes explicit and fail-loud;
 * keep the full governed validation suite integral;
 * keep publication validation separate and unchanged;
-* keep documentation and manifests truthful;
+* keep documentation, manifests, and public names truthful;
 * prefer measured runtime wins over speculative rewrites.
 
 Architecture direction:
 
-* native math compilation belongs upstream, near `model_coder.py`;
-* `engine_adapter.py` should own transfer of compiled native runtime objects
-  into execution plugins;
-* the native likelihood should consume prepared runtime objects rather than
-  rebuilding raw contracts;
-* the standard backend path and the native backend path should live in a
-  split likelihood package with clear module boundaries;
-* hot-loop execution should run compiled evaluator plans instead of repeated
-  mapping-heavy interpretation.
+* `cmb.py` is the only public CMB façade;
+* `camb_solver.py` owns the standard path and all CAMB-only imports;
+* `copernican_cmb_solver.py` becomes native orchestration only;
+* native background, declared evolution, projection, and cache ownership move
+  into focused internal modules under `copernican/lib/likelihoods/cmb/**`;
+* `model_coder.py` owns immutable native-runtime compilation;
+* `engine_adapter.py` owns plugin handoff of that runtime;
+* tests may import internals directly from their internal modules instead of
+  forcing private names through package `__all__`;
+* the native executor must run complete declared contracts, not LCDM-shaped
+  special cases hidden behind generic labels.
 
 ## How Slices Are Executed
 
@@ -146,6 +161,8 @@ Architecture direction:
   `standard: false`.
 * No slice may preserve obsolete scalar-only or theory-family compatibility
   shims.
+* No slice may preserve duplicate public façades when one truthful owner is
+  available.
 * No slice may use theory YAML edits as the main implementation vehicle.
 * Prefer runtime gains early in the sequence, but not at the cost of a broken
   intermediate state.
@@ -161,92 +178,79 @@ Task markers mean:
 
 ## Execution Slices
 
-### [closed] Slice One - Ownership reset and likelihood package split
+### [open] Slice One - Public boundary closure and solver ownership reset
 
 Purpose:
 
-Move native-runtime ownership to the correct layers and split the CMB
-likelihood into maintainable modules while preserving current physics. This
-slice must deliver the first meaningful runtime relief by removing needless
-contract rebuilding before deeper solver optimization begins.
+Finish the public CMB boundary so the package has one truthful API, one
+dispatch path, and one owner for standard-versus-native routing.
 
 Depends on:
 
-* current closed native CMB baseline.
+* current native CMB baseline.
 
 Probable affected files:
 
+* `copernican/lib/likelihoods/__init__.py`
+* `copernican/lib/likelihoods/cmb/__init__.py`
+* `copernican/lib/likelihoods/cmb/cmb.py`
+* `copernican/lib/likelihoods/cmb/camb_solver.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
 * `copernican/lib/model_coder.py`
 * `copernican/lib/engine_adapter.py`
-* `copernican/lib/perturbation_contract.py`
-* `copernican/lib/likelihoods/__init__.py`
-* `copernican/lib/likelihoods/_protocol.py`
-* `copernican/lib/likelihoods/cmb.py`
-* new `copernican/lib/likelihoods/cmb/**` package modules
-* import smoke tests
-* native CMB tests
-* docs describing likelihood layout and native runtime ownership
+* CMB module tests
+* import and packaging smoke tests
+* docs describing the public CMB surface
 * `CHANGELOG.md`
 
 Scope:
 
-* split the monolithic CMB likelihood file into a package;
-* separate standard-backend orchestration from native-backend execution;
-* move native declared-math compilation ownership upstream;
-* make the plugin hand off a compiled native runtime object directly;
-* stop the native hot path from materializing CAMB-style contracts that it
-  does not need;
-* remove or rename the private `_protocol.py` circular-import shim into a
-  clear shared interface module if that abstraction remains necessary.
+* keep `cmb.py` as the only public façade;
+* remove duplicate public wrappers and duplicate likelihood classes from the
+  native module;
+* remove private CMB internals and `camb` from package public exports;
+* keep CAMB-only helpers in `camb_solver.py`;
+* replace the weak public `compute_cmb_spectrum_from_dict` naming with a
+  contract-based public name;
+* keep native-runtime dispatch ownership in one place.
 
 Tasks:
 
-* [closed] Create a `copernican/lib/likelihoods/cmb/**` package.
-* [closed] Create `copernican/lib/likelihoods/cmb/cmb.py` as the public CMB
-  likelihood entrypoint.
-* [closed] Create `copernican/lib/likelihoods/cmb/camb_solver.py` for the
-  standard backend path.
-* [closed] Create `copernican/lib/likelihoods/cmb/copcmb_solver.py` for the
-  native declared backend path.
-* [closed] Move shared helpers into focused support modules instead of one
-  giant file.
-* [closed] Preserve the public import surface intentionally while the file move
-  happens.
-* [closed] Move native runtime compilation ownership to `model_coder.py`.
-* [closed] Make `engine_adapter.py` carry the compiled native runtime bundle.
-* [closed] Add a native-runtime accessor separate from CAMB-contract access.
-* [closed] Stop `standard: false` prediction from calling
-  `get_camb_contract()` in the hot path.
-* [closed] Stop deep-copying native contract payloads per likelihood call.
-* [closed] Stop recompiling declared perturbation runtime objects from raw
-  mappings inside the likelihood.
-* [closed] Keep manifest and route provenance truthful after the ownership
-  move.
-* [closed] Keep `standard: true` behavior intact.
-* [closed] Add tests proving the native path consumes the compiled runtime
-  handoff.
-* [closed] Add or update import smoke tests for the new package layout.
+* [open] Make `copernican/lib/likelihoods/cmb/cmb.py` the only public owner
+  of `CMBLike`, spectrum helpers, and dispatch logic.
+* [open] Remove duplicate public wrappers from
+  `copernican_cmb_solver.py`.
+* [open] Remove duplicate public likelihood ownership from
+  `copernican_cmb_solver.py`.
+* [open] Replace the public `compute_cmb_spectrum_from_dict` name with
+  `compute_cmb_spectrum_from_contract`.
+* [open] Keep any temporary compatibility shim internal to the slice, not as a
+  permanent public contract.
+* [open] Stop exporting underscore-prefixed CMB helpers from package
+  `__all__`.
+* [open] Stop exporting `camb` from the package surface.
+* [open] Move every CAMB-only helper that still belongs on the standard path
+  into `camb_solver.py`.
+* [open] Keep `model_coder.py` and `engine_adapter.py` aligned with the final
+  public/native boundary.
+* [open] Rewrite module tests so internals are imported from their real
+  internal modules, not through package re-exports.
+* [open] Add API-boundary tests that freeze the intended public surface.
 
 Done when:
 
-* [closed] `copernican/lib/likelihoods/cmb.py` is replaced by a focused
-  package layout.
-* [closed] Native CMB runtime ownership is no longer split across three layers
-  in contradictory ways.
-* [closed] `standard: false` no longer materializes a CAMB-style contract in
-  the prediction hot path.
-* [closed] The private `_protocol.py` shim is gone or replaced with a clear
-  interface module.
-* [closed] The first runtime win is measurable before deeper optimization.
-* [closed] Relevant import, CMB, and ownership tests pass.
+* [open] `cmb.py` is the only public CMB façade.
+* [open] `copernican_cmb_solver.py` no longer exports a duplicate public API.
+* [open] Package `__all__` contains only intended public symbols.
+* [open] Public naming refers to structured contracts, not generic dicts.
+* [open] Relevant import, CMB, and ownership tests pass.
 
-### [closed] Slice Two - Compiled native executor and graph hot-path cleanup
+### [blocked] Slice Two - Native module split and cache governance
 
 Purpose:
 
-Replace mapping-heavy interpreted graph execution with compiled evaluator
-plans and dense runtime structures. This slice targets the core native solver
-cost after Slice One removes the worst ownership mistakes.
+Split the native solver into focused internal modules and make cache ownership,
+reset behavior, and diagnostics explicit subsystem contracts.
 
 Depends on:
 
@@ -254,63 +258,56 @@ Depends on:
 
 Probable affected files:
 
-* `copernican/lib/model_coder.py`
-* `copernican/lib/engine_adapter.py`
-* `copernican/lib/perturbation_contract.py`
-* native CMB runtime modules under
-  `copernican/lib/likelihoods/cmb/**`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* new internal native modules under `copernican/lib/likelihoods/cmb/**`
 * native CMB tests
-* perturbation contract tests
-* docs explaining compiled-native runtime behavior
+* docs explaining the native module layout
 * `CHANGELOG.md`
 
 Scope:
 
-* compile executable evaluator plans once;
-* replace repeated dictionary resolution in hot loops;
-* replace state lookups by dense slot-based access where appropriate;
-* hoist contract-static and k-independent work out of repeated solver stages;
-* preserve existing fail-loud diagnostics.
+* keep `copernican_cmb_solver.py` as native orchestration only;
+* move background, recombination, and reionization logic into a focused
+  internal module;
+* move declared perturbation evolution into a focused internal module;
+* move projection and line-of-sight logic into a focused internal module;
+* move cache ownership into a focused internal module;
+* ensure native modules do not import CAMB;
+* make cache clear, stats, and bounded-size behavior explicit.
 
 Tasks:
 
-* [closed] Compile declared background evaluators once per built runtime.
-* [closed] Compile recombination and reionization auxiliary evaluators once per
-  built runtime.
-* [closed] Compile perturbation equations, closures, constraints, and sources
-  into native execution plans.
-* [closed] Precompute dependency order and immutable graph metadata.
-* [closed] Replace recursive mapping-heavy graph-context resolution in hot
-  loops with indexed evaluator plans.
-* [closed] Replace per-stage symbol dictionaries with dense state slots where
-  that reduces overhead without hiding diagnostics.
-* [closed] Hoist contract-static work out of Runge-Kutta stages.
-* [closed] Hoist k-independent work out of per-k evolution where valid.
-* [closed] Remove dead native CMB cache or registry plumbing that no longer
-  earns its keep.
-* [closed] Keep missing-quantity and invalid-math failures explicit after the
-  executor rewrite.
-* [closed] Add focused tests proving closures, equations, and source channels
-  still change outputs in the intended ways.
-* [closed] Add focused tests proving the compiled executor preserves validated
-  behavior within current tolerances.
+* [blocked] Create a native background module for declared background,
+  recombination, and reionization work.
+* [blocked] Create a native evolution module for declared perturbation
+  execution.
+* [blocked] Create a projection module for transfer and line-of-sight work.
+* [blocked] Create a native cache module for all native cache ownership.
+* [blocked] Reduce `copernican_cmb_solver.py` to orchestration and native
+  entry helpers only.
+* [blocked] Remove CAMB imports from native modules.
+* [blocked] Add explicit cache reset helpers for tests and long-lived runs.
+* [blocked] Add explicit cache stats or diagnostics helpers.
+* [blocked] Bound every native cache or document why it is intentionally
+  bounded elsewhere.
+* [blocked] Add tests for cache reuse, cache separation, and cache reset.
+* [blocked] Add tests proving the native path remains CAMB-free in production
+  execution.
 
 Done when:
 
-* [closed] The native hot path no longer reinterprets declared graph structure
-  through mapping-heavy helpers inside repeated solver stages.
-* [closed] Contract-static work is compiled once and reused.
-* [closed] Old dead-path registries or no-op caches are removed.
-* [closed] Native CMB outputs remain within the validated scope of the current
-  baseline.
-* [closed] Relevant CMB and perturbation-contract tests pass.
+* [blocked] The native solver is no longer one monolithic engine-room file.
+* [blocked] Cache lifecycle is explicit and testable.
+* [blocked] Native modules no longer own CAMB imports.
+* [blocked] Relevant CMB and cache tests pass.
 
-### [done] Slice Three - Projection, caching, and governed-suite runtime
+### [blocked] Slice Three - Theory-agnostic native contract closure
 
 Purpose:
 
-Reduce the remaining runtime cost in projection, line-of-sight work, and
-governed test logistics without splitting the validation path.
+Close the native subsystem around the real goal: any mathematically
+well-posed theory that can be expressed through Copernican's declared CMB
+contracts must execute without LCDM-specific production branches.
 
 Depends on:
 
@@ -318,62 +315,69 @@ Depends on:
 
 Probable affected files:
 
-* native CMB runtime modules under
-  `copernican/lib/likelihoods/cmb/**`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/engine_adapter.py`
+* `copernican/lib/perturbation_contract.py`
 * `copernican/lib/cmb_projection_contract.py`
-* native CMB test helpers and fixtures
-* CMB validation helpers
-* docs describing runtime expectations
+* native CMB runtime modules
+* native CMB tests and neutral synthetic fixtures
+* docs describing contract semantics and native guarantees
 * `CHANGELOG.md`
 
 Scope:
 
-* profile the post-Slice-Two runtime to rank the remaining bottlenecks;
-* optimize line-of-sight and projection work;
-* add legitimate caches for immutable inputs;
-* reduce repeated setup work in governed tests;
-* keep the full governed suite as the single code-validation path.
+* audit and remove remaining LCDM-like assumptions from the native production
+  path;
+* audit and remove remaining scalar-only compatibility layers from the native
+  production path;
+* keep the native route driven by declared graph roles and contracts rather
+  than named theory families;
+* broaden the declared contract where required so complete declared theories
+  can execute end-to-end;
+* justify native numerics and hard limits with explicit tests;
+* define one truthful neutral acceptance fixture that is not TORG.
 
 Tasks:
 
-* [done] Profile the post-Slice-Two native runtime before changing the next
-  hot path.
-* [done] Vectorize line-of-sight accumulation where the math permits.
-* [done] Vectorize projection loops where the math permits.
-* [done] Cache Bessel grids by immutable inputs.
-* [done] Cache background products when inputs are identical.
-* [done] Cache recombination products when inputs are identical.
-* [done] Cache other immutable transfer or projection intermediates where the
-  reuse case is real.
-* [done] Hoist per-k and per-ell invariant work out of nested loops.
-* [done] Keep independent k-block work single-process until profiling shows
-  that deterministic parallel overhead is justified.
-* [done] Remove repeated model compilation or plugin construction in CMB
-  tests where that setup can be shared safely.
-* [done] Reuse immutable reference-backed validation products only where a
-  real cache hit exists; otherwise keep the scientific checks unchanged.
-* [done] Keep the full governed validation suite integral; do not invent a
-  separate quick lane.
-* [done] Keep the publication-style validation module separate and unchanged.
-* [done] Mark intentionally expensive tests honestly without weakening them.
-* [done] Document runtime-sensitive test-helper conventions for future CMB
-  work.
+* [blocked] Audit the `standard: false` production path for remaining
+  LCDM-like assumptions and remove them.
+* [blocked] Audit the `standard: false` production path for remaining
+  scalar-only compatibility layers and remove them.
+* [blocked] Keep generic background and observable handling role-driven, not
+  theory-family-driven.
+* [blocked] Refuse `mode_families`, theory-family selectors, and hidden
+  backend selectors as solution shapes.
+* [blocked] Expand or tighten contract semantics so complete declared theories
+  can compile and execute end-to-end.
+* [blocked] Add one neutral synthetic native fixture that proves the engine
+  without relying on TORG.
+* [blocked] Add intentionally invalid fixtures for the major declared-contract
+  failure classes.
+* [blocked] Add convergence or sensitivity tests for `k`, `eta`, and related
+  native numerics where hard limits or defaults materially affect results.
+* [blocked] Justify, revise, or remove native hard caps that remain from the
+  optimization campaign.
+* [blocked] Keep `model_template.yml` documented as documentation, not as a
+  benchmark or acceptance fixture.
+* [blocked] Document the exact native contract guarantees and failure surface
+  truthfully.
 
 Done when:
 
-* [done] Projection and line-of-sight cost are materially reduced.
-* [done] The governed CMB-heavy suite is materially faster.
-* [done] No assertions are weakened for speed.
-* [done] No separate developer-only validation path exists.
-* [done] Publication validation remains unchanged.
-* [done] Relevant CMB, projection, and validation-helper tests pass.
+* [blocked] Complete declared theories can execute through the native path
+  without LCDM-specific production branches.
+* [blocked] No scalar-only compatibility layer remains in the native path.
+* [blocked] No theory-family selector or hidden backend selector exists.
+* [blocked] Native numerics and caps are justified by tests or revised.
+* [blocked] Relevant CMB, projection, perturbation-contract, model-coder, and
+  engine-adapter tests pass.
 
-### [open] Slice Four - Runtime closure, benchmarks, and truth audit
+### [blocked] Slice Four - Acceptance closure, benchmarks, and packaging truth
 
 Purpose:
 
-Close the optimization campaign with measured runtime evidence, truthful docs,
-and a clear architecture boundary.
+Close the CMB subsystem with measured runtime evidence, packaging evidence,
+public-API freeze coverage, and truthful final docs.
 
 Depends on:
 
@@ -383,49 +387,55 @@ Probable affected files:
 
 * native CMB runtime modules
 * benchmark or profiling helpers
+* packaging smoke tests
+* public API freeze tests
 * docs
-* templates
 * manifests if runtime provenance changes
 * `CHANGELOG.md`
 
 Scope:
 
 * measure before-and-after runtime for representative native CMB workloads;
-* audit the optimized architecture for truth and maintainability;
+* measure before-and-after runtime for representative governed CMB validation
+  workloads;
+* prove the installed package still works for the completed CMB surface;
+* freeze the final public API boundary in tests;
+* audit the completed architecture for truth and maintainability;
 * document runtime expectations honestly;
 * close the plan without hidden deferred structural debt.
 
 Tasks:
 
-* [open] Record before-and-after runtime for representative native CMB
+* [blocked] Record before-and-after runtime for representative native CMB
   prediction workloads.
-* [open] Record before-and-after runtime for representative governed CMB test
-  workloads.
-* [open] Audit that `standard: true` remains on the standard backend path.
-* [open] Audit that `standard: false` remains CAMB-free and CLASS-free in
+* [blocked] Record before-and-after runtime for representative governed CMB
+  validation workloads.
+* [blocked] Add or finish benchmark and profiling helpers needed to reproduce
+  those measurements.
+* [blocked] Add installed-package smoke coverage for package import, CLI
+  import path, and representative standard/native CMB calls.
+* [blocked] Add public API freeze tests for the final CMB package surface.
+* [blocked] Audit that `standard: true` remains on the standard backend path.
+* [blocked] Audit that `standard: false` remains CAMB-free and CLASS-free in
   production.
-* [open] Audit that runtime ownership is clear between `model_coder.py`,
+* [blocked] Audit that runtime ownership is clear between `model_coder.py`,
   `engine_adapter.py`, and the native CMB package.
-* [open] Audit that no scalar-only compatibility layer was reintroduced.
-* [open] Audit that no theory-family selector or hidden backend selector was
-  introduced.
-* [open] Keep `model_template.yml` documented as documentation, not as a
-  benchmark model.
-* [open] Keep manifest and diagnostic truth intact after optimization.
-* [open] Remove temporary optimization scaffolding that should not remain.
-* [open] Ensure docs describe the optimized package layout and runtime
-  expectations honestly.
-* [open] Ensure changelog and closure docs record the optimization outcome
+* [blocked] Keep manifest and diagnostic truth intact after the final
+  architecture cleanup.
+* [blocked] Remove temporary scaffolding that should not remain after closure.
+* [blocked] Ensure docs describe the final package layout, contract scope, and
+  runtime expectations honestly.
+* [blocked] Ensure changelog and closure docs record the subsystem outcome
   truthfully.
 
 Done when:
 
-* [open] Runtime improvements are measured rather than guessed.
-* [open] The optimized native backend has a clear ownership boundary.
-* [open] The governed validation path remains integral and green.
-* [open] Runtime expectations are documented honestly.
-* [open] The optimization campaign can close without stale temporary
-  scaffolding.
+* [blocked] Runtime improvements are measured rather than guessed.
+* [blocked] Installed-package CMB smoke coverage is green.
+* [blocked] The final public CMB API is frozen in tests.
+* [blocked] The governed validation path remains integral and green.
+* [blocked] Runtime expectations are documented honestly.
+* [blocked] The subsystem can close without stale temporary scaffolding.
 
 ## Validation Routine
 
@@ -438,8 +448,11 @@ Minimum validation:
 * run full native CMB tests when native CMB behavior changes;
 * run perturbation contract tests when graph-compilation behavior changes;
 * run projection contract tests when projection behavior changes;
-* run model coder and engine adapter tests when runtime ownership changes;
-* run import smoke checks when package layout changes;
+* run model-coder and engine-adapter tests when runtime ownership or contract
+  semantics change;
+* run import and packaging smoke checks when package layout or public API
+  changes;
+* record benchmark evidence in the slices that promise benchmark evidence;
 * run docs checks when public behavior or structure changes;
 * run DevCovenant verification;
 * update `CHANGELOG.md` when behavior, structure, docs, tests, validation, or
@@ -462,35 +475,42 @@ Completion validation:
 
 * `standard: true` remains CAMB-compatible;
 * `standard: false` does not use CAMB or CLASS for production prediction;
+* `cmb.py` is the only public CMB façade;
+* no private CMB internals are exported as public package API;
+* CAMB-only imports live on the standard path;
 * native runtime compilation happens once per built model runtime, not once
   per likelihood call;
-* native prediction no longer materializes CAMB-style contracts in the hot
-  path;
-* the CMB likelihood is split into a maintainable package;
-* no private `_protocol.py` circular-import shim remains unless a clearly
-  named shared interface replaces it;
-* compiled evaluator plans replace repeated mapping-heavy graph resolution in
-  hot loops;
-* projection and line-of-sight costs are materially reduced;
+* native modules have focused ownership boundaries;
+* cache lifecycle is explicit and testable;
+* complete declared theories can execute through the native path without
+  LCDM-specific production branches;
+* no scalar-only compatibility layer remains;
+* no theory-family selector, `mode_families`, or hidden backend selector
+  exists;
+* native numerics and hard limits are justified by tests or revised;
+* benchmark and packaging evidence is recorded;
 * the full governed CMB validation path remains integral;
 * no developer-only validation lane exists;
 * publication validation workflows remain separate and unchanged;
-* docs and templates match the optimized architecture;
+* docs and templates match the completed architecture;
 * full relevant test suites pass;
 * DevCovenant gate closes.
 
 ## Completion Standard
 
-The optimization campaign is not complete merely because the code moved.
+This campaign is not complete merely because the code moved again.
 
-The optimization campaign is complete when:
+The campaign is complete when:
 
 * the native CMB backend is faster in measured practice;
-* the biggest structural bottlenecks have been removed from the hot path;
-* runtime ownership is clear and maintainable;
+* the public boundary is singular and truthful;
+* native and standard ownership are cleanly separated;
+* the native path is truly theory-agnostic within Copernican's declared
+  contract system;
 * `standard: true` and `standard: false` still tell the truth;
 * the full governed validation path remains the only code-validation path;
 * publication validation remains separate;
-* documentation, manifests, and changelog entries remain truthful;
-* Copernican is meaningfully faster to develop on without becoming less
-  rigorous.
+* benchmark, packaging, docs, manifests, and changelog entries remain
+  truthful;
+* Copernican is cleaner to extend and faster to develop on without becoming
+  less rigorous.

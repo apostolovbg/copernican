@@ -80,6 +80,21 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-22:
+  Change: Replaced the CMB optimization-only roadmap with a four-slice
+    subsystem-closure plan focused on one public API, native module
+    ownership, theory-agnostic declared contracts, and final benchmark
+    evidence.
+  Why: Clarified the remaining work after the first native baseline and
+    aligned the roadmap with the real end goal of a universal declared CMB
+    infrastructure rather than a narrower optimization-only closeout.
+  Impact: Gives subsequent execution slices an exact forward-only plan for
+    closing public-surface drift, CAMB/native ownership drift, hidden LCDM
+    assumptions, and missing closure evidence without splitting validation.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+
+- 2026-06-22:
   Change: Refactored the likelihood modules into package-backed paths,
     renamed the native CMB solver module, and reorganized mirrored and
     project-level tests under a root `copernican=>tests/copernican`
