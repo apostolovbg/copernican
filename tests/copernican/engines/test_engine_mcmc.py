@@ -33,7 +33,7 @@ from copernican.lib.utils import set_random_seed
 def _build_model_plugin(yaml_filename: str):
     """Return a validated plugin for ``yaml_filename``."""
 
-    models_dir = Path(__file__).resolve().parents[2] / "copernican" / "models"
+    models_dir = Path(__file__).resolve().parents[3] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
     cache_dir = models_dir / "cache"
     cache_path = model_spec_validator.validate_and_cache_model(

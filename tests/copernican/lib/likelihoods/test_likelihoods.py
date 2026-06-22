@@ -16,6 +16,16 @@ import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 
 
+class TestImportModule(unittest.TestCase):
+    """Exercise the module import path."""
+
+    def test_import_module(self) -> None:
+        self.assertEqual(
+            likelihoods.__name__,
+            "copernican.lib.likelihoods",
+        )
+
+
 class LikelihoodTestCase(unittest.TestCase):
     """Validate the standalone likelihood helpers."""
 
@@ -23,7 +33,7 @@ class LikelihoodTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Load a validated reference plugin for likelihood evaluation."""
 
-        repo_root = Path(__file__).resolve().parents[3]
+        repo_root = Path(__file__).resolve().parents[4]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
 
         models_dir = repo_root / "copernican" / "models"
@@ -492,6 +502,9 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(likelihoods.CMBLike))
         self.assertTrue(callable(likelihoods.SNeLike))
         self.assertTrue(callable(likelihoods.JointLike))
+        self.assertTrue(hasattr(likelihoods, "LikelihoodProtocol"))
+        self.assertTrue(hasattr(likelihoods, "LikelihoodState"))
+        self.assertTrue(hasattr(likelihoods.LikelihoodState, "as_mapping"))
 
 
 if __name__ == "__main__":

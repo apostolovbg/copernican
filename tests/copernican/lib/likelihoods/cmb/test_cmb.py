@@ -15,7 +15,9 @@ except ImportError:  # pragma: no cover - optional external reference
     camb = None
 
 from copernican.lib.likelihoods import cmb
-from copernican.lib.likelihoods.cmb import copcmb_solver as native_cmb_solver
+from copernican.lib.likelihoods.cmb import (
+    copernican_cmb_solver as native_cmb_solver,
+)
 
 
 def _named_limit_message(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 import tempfile
@@ -13,9 +14,8 @@ from unittest import mock
 import pandas
 import yaml
 
-from copernican.lib import dataset_registry
+from copernican.lib import dataset_registry, utils
 from copernican.lib.utils import load_metadata_from_dir
-from copernican.rng_minigames import registry as minigame_registry
 
 
 class ParserDiscoverySecurityTestCase(unittest.TestCase):
@@ -345,12 +345,28 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
             dataset_registry.SNE_PARSER_REGISTRY = prev
 
 
+class CompoundBaoHashRegressionTest(unittest.TestCase):
+    """Verify compound BAO file-hash bookkeeping and logging."""
+
+    def test_compound_bao_file_hash_is_attached_and_logged(self) -> None:
+        importlib.import_module(
+            "copernican.datasets.bao.compound.cosmo_parser_compound"
+        )
+        with self.assertLogs(level="INFO") as log:
+            bao_dataframe = dataset_registry.load_bao_data(
+                dataset_id="compound_bao_set"
+            )
+
+        hashes = bao_dataframe.attrs.get("file_hashes", {})
+        compound_path = Path("copernican/datasets/bao/compound/compound.yml")
+        expected = utils.compute_sha256(str(compound_path))
+
+        self.assertEqual(hashes.get("compound.yml"), expected)
+        self.assertTrue(any(expected in message for message in log.output))
+
+
 class PublicSymbolCoverageTestCase(unittest.TestCase):
     """Expose the dataset registry API to the coverage policy."""
-
-    def test_rng_registry_symbols_are_exposed(self) -> None:
-        self.assertTrue(hasattr(minigame_registry, "MinigameDescriptor"))
-        self.assertTrue(hasattr(minigame_registry, "get_descriptor"))
 
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(callable(dataset_registry.collect_dataset_hashes))

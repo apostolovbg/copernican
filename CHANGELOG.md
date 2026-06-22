@@ -80,6 +80,117 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-22:
+  Change: Refactored the likelihood modules into package-backed paths,
+    renamed the native CMB solver module, and reorganized mirrored and
+    project-level tests under a root `copernican=>tests/copernican`
+    policy.
+  Why: Aligned the source and test layout, merged the shared likelihood
+    contracts into `likelihoods.py`, and moved exact mirror ownership
+    plus vendored exclusions into the profile-owned DevCovenant source.
+  Impact: Preserved stable likelihood imports through package re-exports,
+    routed the native CMB path through the renamed solver module, and
+    enforced exact mirrored tests while keeping broader regressions
+    discoverable under `tests/project/**`.
+  Files:
+    AGENTS.md
+    CHANGELOG.md
+    PLAN.md
+    ABOUT.md
+    README.md
+    docs/api_overview.md
+    docs/design_overview.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/design_overview.md
+    devcovenant/config.yaml
+    devcovenant/custom/profiles/userproject/userproject.yaml
+    devcovenant/registry/registry.yaml
+    copernican/lib/likelihoods/__init__.py
+    copernican/lib/likelihoods/bao.py
+    copernican/lib/likelihoods/bao/__init__.py
+    copernican/lib/likelihoods/bao/bao.py
+    copernican/lib/likelihoods/cmb/camb_solver.py
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/copcmb_solver.py
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/joint.py
+    copernican/lib/likelihoods/likelihoods.py
+    copernican/lib/likelihoods/shared.py
+    copernican/lib/likelihoods/sne.py
+    copernican/lib/likelihoods/sne/__init__.py
+    copernican/lib/likelihoods/sne/sne.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/datasets/synthetic/bao.csv
+    tests/copernican/datasets/synthetic/cmb.csv
+    tests/copernican/datasets/synthetic/cosmo_parser_synthetic.py
+    tests/copernican/datasets/synthetic/metadata_synthetic.yml
+    tests/copernican/datasets/synthetic/model.yml
+    tests/copernican/datasets/synthetic/model_plugin.py
+    tests/copernican/datasets/synthetic/sne.csv
+    tests/copernican/datasets/synthetic/test_synthetic_integration.py
+    tests/copernican/engines/__init__.py
+    tests/copernican/engines/test_engine_mcmc.py
+    tests/copernican/engines/test_engine_nested.py
+    tests/copernican/lib/likelihoods/bao/__init__.py
+    tests/copernican/lib/likelihoods/bao/test_bao.py
+    tests/copernican/lib/likelihoods/cmb/__init__.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_copcmb_solver.py
+    tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+    tests/copernican/lib/likelihoods/sne/__init__.py
+    tests/copernican/lib/likelihoods/sne/test_sne.py
+    tests/copernican/lib/likelihoods/test_bao.py
+    tests/copernican/lib/likelihoods/test_cmb.py
+    tests/copernican/lib/likelihoods/test_joint.py
+    tests/copernican/lib/likelihoods/test_likelihoods.py
+    tests/copernican/lib/likelihoods/test_shared.py
+    tests/copernican/lib/likelihoods/test_sne.py
+    tests/copernican/lib/test_cmb_capabilities.py
+    tests/copernican/lib/test_core.py
+    tests/copernican/lib/test_data_hashes.py
+    tests/copernican/lib/test_dataset_registry.py
+    tests/copernican/lib/test_engine_adapter.py
+    tests/copernican/lib/test_engine_plugin_validation.py
+    tests/copernican/lib/test_likelihoods.py
+    tests/copernican/lib/test_model_priors.py
+    tests/copernican/lib/test_model_template.py
+    tests/copernican/lib/test_orchestration.py
+    tests/copernican/lib/test_orchestration_services.py
+    tests/copernican/lib/test_packaging_configuration.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_plugins.py
+    tests/copernican/lib/test_priors.py
+    tests/copernican/lib/test_progress.py
+    tests/copernican/lib/test_run_manifest.py
+    tests/copernican/rng_minigames/alien_invasion/test_ai_agent.py
+    tests/copernican/rng_minigames/alien_invasion/test_hall_of_fame.py
+    tests/copernican/rng_minigames/test_registry.py
+    tests/copernican/rng_minigames/test_registry_and_ai.py
+    tests/copernican/validation/__init__.py
+    tests/copernican/validation/test_runner.py
+    tests/engines/__init__.py
+    tests/engines/test_engine_mcmc.py
+    tests/engines/test_engine_nested.py
+    tests/project/__init__.py
+    tests/project/datasets/__init__.py
+    tests/project/datasets/synthetic/__init__.py
+    tests/project/datasets/synthetic/bao.csv
+    tests/project/datasets/synthetic/cmb.csv
+    tests/project/datasets/synthetic/cosmo_parser_synthetic.py
+    tests/project/datasets/synthetic/metadata_synthetic.yml
+    tests/project/datasets/synthetic/model.yml
+    tests/project/datasets/synthetic/model_plugin.py
+    tests/project/datasets/synthetic/sne.csv
+    tests/project/datasets/synthetic/test_synthetic_integration.py
+    tests/project/lib/__init__.py
+    tests/project/lib/test_core.py
+    tests/project/lib/test_model_template.py
+    tests/project/lib/test_packaging_configuration.py
+    tests/validation/__init__.py
+    tests/validation/test_runner.py
+
+- 2026-06-22:
   Change: Optimized the native CMB solver to batch declared projection
     kernels across `ell`, cache background and recombination products on
     background-relevant inputs, and reuse compiled expression plans in

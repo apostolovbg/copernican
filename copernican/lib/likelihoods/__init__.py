@@ -1,14 +1,15 @@
 """Likelihood components for Copernican Suite datasets.
 
 The modules in this package expose small, stateful helpers that evaluate
-log-likelihoods for individual observational datasets.  Each helper implements
-:class:`LikelihoodProtocol`, guaranteeing the presence of a
-:meth:`loglike` method returning a floating-point log-likelihood together with
-an introspectable :pyattr:`state` mapping capturing diagnostic values such as
-χ² totals.  Engines combine these helpers to assemble complete likelihoods
-without duplicating validation logic.  Shared interfaces live in
-``copernican.lib.likelihoods.shared`` so dataset helpers can depend on them
-without creating circular imports during test collection.
+log-likelihoods for individual observational datasets. Each helper implements
+:class:`LikelihoodProtocol`, guaranteeing the presence of a :meth:`loglike`
+method returning a floating-point log-likelihood together with an
+introspectable :pyattr:`state` mapping capturing diagnostic values such as χ²
+totals. Engines combine these helpers to assemble complete likelihoods
+without duplicating validation logic. Shared interfaces and the joint
+aggregator live in ``copernican.lib.likelihoods.likelihoods`` so dataset
+helpers can depend on them without creating circular imports during test
+collection.
 """
 
 from __future__ import annotations
@@ -23,8 +24,7 @@ from .cmb import (
     compute_cmb_spectrum_from_legacy_params_for_tests,
     describe_camb_configuration,
 )
-from .joint import JointLike
-from .shared import LikelihoodProtocol, LikelihoodState
+from .likelihoods import JointLike, LikelihoodProtocol, LikelihoodState
 from .sne import SNeLike
 
 __all__ = [

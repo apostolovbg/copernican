@@ -14,7 +14,7 @@ import camb
 import numpy
 import pandas
 
-from ..shared import LikelihoodProtocol, LikelihoodState
+from ..likelihoods import LikelihoodProtocol, LikelihoodState
 from .camb_solver import (
     _compute_cmb_spectrum_direct,
     _make_camb_params,
@@ -23,7 +23,7 @@ from .camb_solver import (
     compute_cmb_spectrum_from_legacy_params_for_tests,
     describe_camb_configuration,
 )
-from .copcmb_solver import (
+from .copernican_cmb_solver import (
     CustomCMBSpectrumData,
     _build_custom_cmb_background,
     _combine_camb_contracts,

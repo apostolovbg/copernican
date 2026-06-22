@@ -13,7 +13,7 @@ import yaml
 
 from copernican.engines import engine_mcmc, engine_nested
 from copernican.lib import dataset_registry, result_writer, run_manifest, utils
-from tests.copernican.datasets.synthetic import model_plugin
+from tests.project.datasets.synthetic import model_plugin
 
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
 setattr(importlib, "util", importlib_util)
@@ -42,7 +42,7 @@ def _load_datasets():
     import importlib
 
     importlib.import_module(
-        "tests.copernican.datasets.synthetic.cosmo_parser_synthetic"
+        "tests.project.datasets.synthetic.cosmo_parser_synthetic"
     )
 
     sne_df = dataset_registry.load_sne_data("synthetic_integration")

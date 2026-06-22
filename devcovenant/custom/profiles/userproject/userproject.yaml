@@ -62,7 +62,8 @@ policy_overlays:
       - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md,
+        ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md,
         ABOUT.md, SUPPORT.md
@@ -273,6 +274,8 @@ policy_overlays:
       - node_modules
       - tests
       - devcovenant
+    exclude_globs:
+      - copernican/lib/vendor/**
     force_include_globs:
       - devcovenant/custom/**/*.py
     watch_dirs:
@@ -280,10 +283,7 @@ policy_overlays:
     tests_watch_dirs:
       - tests
     mirror_roots:
-      - copernican/datasets/bao=>tests/copernican/datasets/bao
-      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-      - copernican/datasets/gw=>tests/copernican/datasets/gw
-      - copernican/datasets/sne=>tests/copernican/datasets/sne
+      - copernican=>tests/copernican
       - devcovenant/custom=>tests/devcovenant/custom
   # Root docs are the source; package docs are synced clones.
   package-doc-sync:

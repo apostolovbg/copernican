@@ -16,7 +16,7 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy
 import pandas
 
-from .shared import LikelihoodProtocol, LikelihoodState
+from ..likelihoods import LikelihoodProtocol, LikelihoodState
 
 
 def compute_sne_intercept_delta(

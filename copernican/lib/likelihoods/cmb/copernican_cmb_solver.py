@@ -47,7 +47,7 @@ from ...perturbation_contract import (
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
-from ..shared import LikelihoodProtocol, LikelihoodState
+from ..likelihoods import LikelihoodProtocol, LikelihoodState
 
 _C_LIGHT_KM_S = 299_792.458
 _LMAX_PADDING = 300

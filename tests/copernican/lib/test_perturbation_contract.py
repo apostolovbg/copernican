@@ -435,7 +435,7 @@ class PerturbationContractTestCase(unittest.TestCase):
                 "route_id": "native_declared_graph",
                 "prediction_engine": "copernican_native_declared_graph",
                 "transfer_function_path": (
-                    "copernican.lib.likelihoods.cmb.copcmb_solver"
+                    "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
                 ),
                 "solver": "declared_math_graph",
                 "route_ready_for_execution": True,

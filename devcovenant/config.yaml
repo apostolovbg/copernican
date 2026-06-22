@@ -980,7 +980,7 @@ autogen_metadata_overlays:
     - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
     - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
     - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+    - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md, ABOUT.md
     - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
     - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
     - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -1156,6 +1156,8 @@ autogen_metadata_overlays:
     required_commands:
     - pre-commit
   modules-need-tests:
+    exclude_globs:
+    - copernican/lib/vendor/**
     exclude_prefixes:
     - build
     - dist
@@ -1168,10 +1170,7 @@ autogen_metadata_overlays:
     - .py
     mirror_roots:
     - devcovenant/custom=>tests/devcovenant/custom
-    - copernican/datasets/bao=>tests/copernican/datasets/bao
-    - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-    - copernican/datasets/gw=>tests/copernican/datasets/gw
-    - copernican/datasets/sne=>tests/copernican/datasets/sne
+    - copernican=>tests/copernican
     mirror_test_name_templates:
     - python=>test_{stem}.py
     test_style_requirements:

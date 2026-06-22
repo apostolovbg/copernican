@@ -14,7 +14,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import camb
 import numpy
 
-from .copcmb_solver import (
+from .copernican_cmb_solver import (
     _C_LIGHT_KM_S,
     _LENS_POTENTIAL_ACCURACY,
     _LMAX_PADDING,

@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: e9588ec7a1a81c04e00b8bce5863a30217e4a855c0812f5af9549d4a9afdf0cf
+  policy_registry_input_hash: 5b36d6b3177c15739e7b09a883b273ea73eb23828c713c3bf88881b336e1f820
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -4424,7 +4424,8 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-          - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md,
+            ABOUT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -4444,7 +4445,8 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-          - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md,
+            ABOUT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -4483,7 +4485,8 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-          - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md,
+            ABOUT.md
           - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
           - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -5014,7 +5017,7 @@ policies:
       - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md, ABOUT.md
       - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
       - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -7441,6 +7444,7 @@ policies:
       - tests
       - devcovenant
       exclude_globs:
+      - copernican/lib/vendor/**
       - build/**
       - dist/**
       - node_modules/**
@@ -7452,10 +7456,7 @@ policies:
       - tests
       mirror_roots:
       - devcovenant/custom=>tests/devcovenant/custom
-      - copernican/datasets/bao=>tests/copernican/datasets/bao
-      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-      - copernican/datasets/gw=>tests/copernican/datasets/gw
-      - copernican/datasets/sne=>tests/copernican/datasets/sne
+      - copernican=>tests/copernican
       mirror_test_name_templates:
       - python=>test_{stem}.py
       test_style_requirements:
@@ -7603,6 +7604,18 @@ policies:
           behavior: base
           replaced_inherited_values:
           - ()
+        profile_overlays:
+          values:
+          - copernican/lib/vendor/**
+          behavior: append
+          replaced_inherited_values:
+          - ()
+        autogen_overlays:
+          values:
+          - copernican/lib/vendor/**
+          behavior: append
+          replaced_inherited_values:
+          - ()
         derived_selectors:
           values:
           - build/**
@@ -7615,6 +7628,7 @@ policies:
           - ()
         effective:
           values:
+          - copernican/lib/vendor/**
           - build/**
           - dist/**
           - node_modules/**
@@ -7674,30 +7688,21 @@ policies:
         profile_overlays:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - copernican/datasets/bao=>tests/copernican/datasets/bao
-          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-          - copernican/datasets/gw=>tests/copernican/datasets/gw
-          - copernican/datasets/sne=>tests/copernican/datasets/sne
+          - copernican=>tests/copernican
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - copernican/datasets/bao=>tests/copernican/datasets/bao
-          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-          - copernican/datasets/gw=>tests/copernican/datasets/gw
-          - copernican/datasets/sne=>tests/copernican/datasets/sne
+          - copernican=>tests/copernican
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - devcovenant/custom=>tests/devcovenant/custom
-          - copernican/datasets/bao=>tests/copernican/datasets/bao
-          - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-          - copernican/datasets/gw=>tests/copernican/datasets/gw
-          - copernican/datasets/sne=>tests/copernican/datasets/sne
+          - copernican=>tests/copernican
       mirror_test_name_templates:
         descriptor:
           values:
@@ -7916,6 +7921,7 @@ policies:
       - tests
       - devcovenant
       exclude_globs: &id057
+      - copernican/lib/vendor/**
       - build/**
       - dist/**
       - node_modules/**
@@ -7927,10 +7933,7 @@ policies:
       - tests
       mirror_roots: &id060
       - devcovenant/custom=>tests/devcovenant/custom
-      - copernican/datasets/bao=>tests/copernican/datasets/bao
-      - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-      - copernican/datasets/gw=>tests/copernican/datasets/gw
-      - copernican/datasets/sne=>tests/copernican/datasets/sne
+      - copernican=>tests/copernican
       mirror_test_name_templates: &id061
       - python=>test_{stem}.py
       test_style_requirements: &id062
@@ -7985,10 +7988,8 @@ policies:
       selector_roles: *id067
     assets:
     - build/**
-    - copernican/datasets/bao=>tests/copernican/datasets/bao
-    - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-    - copernican/datasets/gw=>tests/copernican/datasets/gw
-    - copernican/datasets/sne=>tests/copernican/datasets/sne
+    - copernican/lib/vendor/**
+    - copernican=>tests/copernican
     - devcovenant/**
     - devcovenant/custom/**/*.py
     - devcovenant/custom=>tests/devcovenant/custom
@@ -15298,7 +15299,7 @@ profiles:
         - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
         - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
         - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-        - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
+        - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md, ABOUT.md
         - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
         - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
         - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
@@ -15508,6 +15509,8 @@ profiles:
         - node_modules
         - tests
         - devcovenant
+        exclude_globs:
+        - copernican/lib/vendor/**
         force_include_globs:
         - devcovenant/custom/**/*.py
         watch_dirs:
@@ -15515,10 +15518,7 @@ profiles:
         tests_watch_dirs:
         - tests
         mirror_roots:
-        - copernican/datasets/bao=>tests/copernican/datasets/bao
-        - copernican/datasets/cmb=>tests/copernican/datasets/cmb
-        - copernican/datasets/gw=>tests/copernican/datasets/gw
-        - copernican/datasets/sne=>tests/copernican/datasets/sne
+        - copernican=>tests/copernican
         - devcovenant/custom=>tests/devcovenant/custom
       package-doc-sync:
         sync_pairs:

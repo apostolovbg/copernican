@@ -5,7 +5,9 @@ from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import copcmb_solver
+from copernican.lib.likelihoods.cmb import (
+    copernican_cmb_solver as native_cmb_solver,
+)
 from copernican.lib.perturbation_contract import compile_perturbation_contract
 
 
@@ -117,31 +119,36 @@ def _compiled_graph_fixture():
     )
 
 
-class CopcmbSolverModuleTestCase(unittest.TestCase):
+class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
     """Exercise the native solver helpers directly."""
 
     def test_public_solver_symbols_are_exposed(self):
         """The native module should keep its public surface importable."""
 
-        self.assertTrue(callable(copcmb_solver.compute_cmb_spectrum_from_dict))
-        self.assertTrue(callable(copcmb_solver.compute_cmb_spectrum_cached))
-        self.assertTrue(callable(copcmb_solver.compute_cmb_spectrum))
         self.assertTrue(
-            callable(copcmb_solver.compute_camb_background_observables)
+            callable(native_cmb_solver.compute_cmb_spectrum_from_dict)
         )
-        self.assertTrue(callable(copcmb_solver.describe_camb_configuration))
         self.assertTrue(
-            callable(
-                copcmb_solver.compute_cmb_spectrum_from_legacy_params_for_tests
-            )
+            callable(native_cmb_solver.compute_cmb_spectrum_cached)
         )
-        self.assertTrue(hasattr(copcmb_solver, "CMBLike"))
-        self.assertTrue(hasattr(copcmb_solver.CMBLike, "loglike"))
-        self.assertTrue(hasattr(copcmb_solver.CMBLike, "state"))
+        self.assertTrue(callable(native_cmb_solver.compute_cmb_spectrum))
         self.assertTrue(
-            hasattr(copcmb_solver._CustomCMBBackgroundData, "sample")
+            callable(native_cmb_solver.compute_camb_background_observables)
         )
-        self.assertTrue(hasattr(copcmb_solver, "CustomCMBSpectrumData"))
+        self.assertTrue(
+            callable(native_cmb_solver.describe_camb_configuration)
+        )
+        legacy_helper = (
+            native_cmb_solver.compute_cmb_spectrum_from_legacy_params_for_tests
+        )
+        self.assertTrue(callable(legacy_helper))
+        self.assertTrue(hasattr(native_cmb_solver, "CMBLike"))
+        self.assertTrue(hasattr(native_cmb_solver.CMBLike, "loglike"))
+        self.assertTrue(hasattr(native_cmb_solver.CMBLike, "state"))
+        self.assertTrue(
+            hasattr(native_cmb_solver._CustomCMBBackgroundData, "sample")
+        )
+        self.assertTrue(hasattr(native_cmb_solver, "CustomCMBSpectrumData"))
 
     def test_precompiled_perturbation_payload_is_reused(self):
         """Existing compiled perturbation data should bypass recompilation."""
@@ -154,8 +161,10 @@ class CopcmbSolverModuleTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             side_effect=AssertionError("recompilation should not run"),
         ):
-            compiled = copcmb_solver._compile_declared_perturbation_contract(
-                contract
+            compiled = (
+                native_cmb_solver._compile_declared_perturbation_contract(
+                    contract
+                )
             )
 
         self.assertIs(compiled, payload)
@@ -163,7 +172,7 @@ class CopcmbSolverModuleTestCase(unittest.TestCase):
     def test_custom_spectrum_data_accessors_return_named_payloads(self):
         """Transfer and spectrum accessors should expose stable arrays."""
 
-        spectrum_data = copcmb_solver.CustomCMBSpectrumData(
+        spectrum_data = native_cmb_solver.CustomCMBSpectrumData(
             ell_grid=numpy.array([20.0, 30.0]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -197,17 +206,19 @@ class CopcmbSolverModuleTestCase(unittest.TestCase):
         """Declared graph resolution should avoid AST re-interpretation."""
 
         perturbation_data = _compiled_graph_fixture()
-        execution_plan = copcmb_solver._compile_declared_graph_execution_plan(
-            perturbation_data
+        execution_plan = (
+            native_cmb_solver._compile_declared_graph_execution_plan(
+                perturbation_data
+            )
         )
         context = {"delta_x": 2.0}
 
         with mock.patch.object(
-            copcmb_solver,
+            native_cmb_solver,
             "_evaluate_safe_expression",
             side_effect=AssertionError("compiled graph plan should run"),
         ):
-            resolved = copcmb_solver._resolve_declared_graph_context(
+            resolved = native_cmb_solver._resolve_declared_graph_context(
                 context,
                 perturbation_data,
                 allow_partial=False,

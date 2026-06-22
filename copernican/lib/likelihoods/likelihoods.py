@@ -1,9 +1,8 @@
-"""Joint likelihood helper combining individual dataset components.
+"""Shared likelihood contracts and the joint likelihood helper.
 
-Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing
-:class:`~copernican.lib.likelihoods.LikelihoodProtocol`).  Configuration flags
-control which sub-likelihoods contribute to the total so runtime options can
-skip unavailable datasets without mutating the engine logic.
+This module defines the common protocol and mutable state container used by
+all likelihood helpers together with :class:`JointLike`, the aggregator that
+combines enabled dataset likelihoods into one total log-likelihood.
 """
 
 from __future__ import annotations
@@ -11,9 +10,38 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any, Mapping, MutableMapping, Protocol, Sequence
 
-from .shared import LikelihoodProtocol, LikelihoodState
+
+class LikelihoodProtocol(Protocol):
+    """Runtime contract implemented by all likelihood helpers."""
+
+    enabled: bool
+
+    def loglike(self, params: Sequence[float]) -> float:
+        """Return the natural logarithm of the likelihood for ``params``."""
+
+    @property
+    def state(self) -> Mapping[str, Any]:
+        """Return diagnostic information captured during the last call."""
+
+
+@dataclass(slots=True)
+class LikelihoodState:
+    """Mutable container storing likelihood diagnostics."""
+
+    chi2: float = float("inf")
+    loglike: float = float("-inf")
+    metadata: MutableMapping[str, Any] = field(default_factory=dict)
+
+    def as_mapping(self) -> Mapping[str, Any]:
+        """Return an immutable representation of the stored state."""
+
+        return {
+            "chi2": self.chi2,
+            "loglike": self.loglike,
+            "metadata": dict(self.metadata),
+        }
 
 
 @dataclass(slots=True)
@@ -104,4 +132,4 @@ class JointLike(LikelihoodProtocol):
         return self._state.as_mapping()
 
 
-__all__ = ["JointLike"]
+__all__ = ["JointLike", "LikelihoodProtocol", "LikelihoodState"]

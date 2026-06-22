@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1381,6 +1381,7 @@ exclude_prefixes:
 - tests
 - devcovenant
 exclude_globs:
+- copernican/lib/vendor/**
 - build/**
 - dist/**
 - node_modules/**
@@ -1392,10 +1393,7 @@ tests_watch_dirs:
 - tests
 mirror_roots:
 - devcovenant/custom=>tests/devcovenant/custom
-- copernican/datasets/bao=>tests/copernican/datasets/bao
-- copernican/datasets/cmb=>tests/copernican/datasets/cmb
-- copernican/datasets/gw=>tests/copernican/datasets/gw
-- copernican/datasets/sne=>tests/copernican/datasets/sne
+- copernican=>tests/copernican
 mirror_test_name_templates:
 - python=>test_{stem}.py
 test_style_requirements:
