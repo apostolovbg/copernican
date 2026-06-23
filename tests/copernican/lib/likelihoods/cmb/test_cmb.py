@@ -22,6 +22,7 @@ from copernican.lib.likelihoods.cmb import (
 )
 from copernican.lib.likelihoods.cmb import (
     native_background,
+    native_cache,
     native_evolution,
     native_projection,
 )
@@ -119,6 +120,7 @@ def _declared_graph_perturbations(
     additive_source_expression: str = "0.0",
     include_bb: bool = False,
     include_lensing: bool = False,
+    include_vector: bool = False,
 ) -> dict[str, object]:
     """Return a physically structured declared-math CMB graph."""
 
@@ -629,6 +631,58 @@ def _declared_graph_perturbations(
             "kind": "angular_power_spectrum",
             "primary": "lensing_potential",
             "secondary": "lensing_potential",
+        }
+        perturbations["observables"]["TP"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "lensing_potential",
+        }
+        perturbations["observables"]["EP"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_e",
+            "secondary": "lensing_potential",
+        }
+    if include_vector:
+        perturbations["variables"]["vector_signal"] = {
+            "kind": "custom_vector_mode",
+            "spin": 1.0,
+            "parity": "even",
+            "tensor_character": "vector_like",
+        }
+        perturbations["equations"]["evolve_vector_signal"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "vector_signal",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "0.15 * k * theta_gamma1 - 0.25 * Hconf * vector_signal "
+                "- 0.08 * vector_signal"
+            ),
+            "role": "vector_coupling",
+        }
+        perturbations["initial_conditions"]["vector_signal_seed"] = {
+            "target": {
+                "variable": "vector_signal",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(k * eta_initial) * seed / 90.0",
+        }
+        perturbations["sources"]["vector_source"] = {
+            "expression": "visibility * vector_signal",
+            "role": "signal",
+        }
+        perturbations["observables"]["vector_signal"] = {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_signal",
+            "source_terms": {"signal": "vector_source"},
+        }
+        perturbations["observables"]["VV"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "vector_signal",
+            "secondary": "vector_signal",
         }
     return perturbations
 
@@ -2366,6 +2420,186 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
             0.0,
         )
+
+    def test_lensing_cross_targets_run_when_declared(self) -> None:
+        """Temperature and E-mode lensing cross terms should run natively."""
+
+        contract = _speedup_contract(_custom_contract(include_lensing=True))
+        ells = numpy.arange(20, 45, dtype=int)
+        spectra = cmb.compute_cmb_spectrum_from_contract(
+            contract,
+            ells,
+            spectra=("TP", "EP", "PP"),
+        )
+
+        self.assertEqual(set(spectra), {"TP", "EP", "PP"})
+        for values in spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+        self.assertGreater(
+            float(
+                numpy.max(numpy.abs(numpy.asarray(spectra["TP"], dtype=float)))
+            ),
+            0.0,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(numpy.abs(numpy.asarray(spectra["EP"], dtype=float)))
+            ),
+            0.0,
+        )
+
+    def test_vector_sector_targets_run_when_declared(self) -> None:
+        """Vector-like transfer components should run natively."""
+
+        contract = _speedup_contract(_custom_contract(include_vector=True))
+        ells = numpy.arange(20, 45, dtype=int)
+        spectra = cmb.compute_cmb_spectrum_from_contract(
+            contract,
+            ells,
+            spectra=("VV",),
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(numpy.asarray(spectra, dtype=float)))),
+            0.0,
+        )
+
+    def test_sector_mismatch_cross_spectrum_fails_before_runtime(self) -> None:
+        """Mixed scalar and vector transfer spectra should fail early."""
+
+        contract = _speedup_contract(_custom_contract(include_vector=True))
+        contract["perturbations"]["observables"]["TV"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "vector_signal",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "incompatible sectors",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 30, dtype=int),
+                spectra=("TV",),
+            )
+
+    def test_lensed_spectra_change_with_declared_lensing_strength(
+        self,
+    ) -> None:
+        """Approximate native lensed outputs should respond to PP strength."""
+
+        baseline = _speedup_contract(_custom_contract(include_lensing=True))
+        changed = _speedup_contract(_custom_contract(include_lensing=True))
+        changed["perturbations"]["sources"]["lensing_potential"][
+            "expression"
+        ] = "1.6 * exp(-tau) * (Phi + Psi)"
+        ells = numpy.arange(20, 60, dtype=int)
+        baseline_unlensed = cmb.compute_cmb_spectrum_from_contract(
+            baseline,
+            ells,
+            spectra=("TT", "EE", "TE"),
+        )
+        baseline_lensed = cmb.compute_cmb_spectrum_from_contract(
+            baseline,
+            ells,
+            spectra=("lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"),
+        )
+        changed_lensed = cmb.compute_cmb_spectrum_from_contract(
+            changed,
+            ells,
+            spectra=("lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"),
+        )
+
+        self.assertEqual(
+            set(baseline_lensed),
+            {"lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"},
+        )
+        for values in baseline_lensed.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        numpy.asarray(
+                            baseline_lensed["lensed_BB"], dtype=float
+                        )
+                    )
+                )
+            ),
+            0.0,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        numpy.asarray(
+                            baseline_lensed["lensed_TT"],
+                            dtype=float,
+                        )
+                        - numpy.asarray(baseline_unlensed["TT"], dtype=float)
+                    )
+                )
+            ),
+            0.0,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        numpy.asarray(
+                            changed_lensed["lensed_BB"],
+                            dtype=float,
+                        )
+                    )
+                )
+            ),
+            float(
+                numpy.max(
+                    numpy.abs(
+                        numpy.asarray(
+                            baseline_lensed["lensed_BB"],
+                            dtype=float,
+                        )
+                    )
+                )
+            ),
+        )
+
+    def test_projection_kernel_batches_reuse_across_scalar_rebinds(
+        self,
+    ) -> None:
+        """Projection-kernel caches should survive scalar parameter rebinds."""
+
+        native_cache.clear_native_cmb_caches()
+        baseline = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted["param_map"]["As"] *= 1.1
+        ells = numpy.arange(20, 45, dtype=int)
+        cmb.compute_cmb_spectrum_from_contract(
+            baseline,
+            ells,
+            spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
+        )
+        first_stats = native_cache.native_cmb_cache_stats()[
+            "declared_projection_kernel_batch"
+        ]
+        cmb.compute_cmb_spectrum_from_contract(
+            shifted,
+            ells,
+            spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
+        )
+        second_stats = native_cache.native_cmb_cache_stats()[
+            "declared_projection_kernel_batch"
+        ]
+
+        self.assertEqual(second_stats["entries"], first_stats["entries"])
+        self.assertGreater(second_stats["hits"], first_stats["hits"])
 
     def test_bb_requires_declared_b_mode_transfer_component(self) -> None:
         """BB should fail clearly when no odd-parity transfer is declared."""

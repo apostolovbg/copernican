@@ -83,6 +83,12 @@ kernels, and `custom_line_of_sight` can project declared source sums through
 explicit kernels without hiding unsupported BB or lensing inputs.
 `spin2_b_mode` requires a declared `polarization_b` source, and
 `line_of_sight_lensing_potential` requires a declared `potential` source. The
+compiled observable metadata now carries output-role, sector, parity, and
+spin tags so scalar, vector, and tensor transfer components can share the
+native runtime while mixed-sector cross spectra fail before evolution.
+Declared PP outputs can also drive bounded native `lensed_TT`, `lensed_TE`,
+`lensed_EE`, and `lensed_BB` assembly without sending `standard: false`
+models back through CAMB. The
 manifest layer records the compiled graph summary, background and
 recombination provenance, and the selected production CMB execution route so
 operators can tell whether a run used backend-standard CAMB perturbations or

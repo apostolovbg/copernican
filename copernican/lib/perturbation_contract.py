@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ast
 import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Mapping, Sequence
 
@@ -1078,6 +1078,11 @@ class PerturbationObservableData:
     notes: str | None = None
     domain: str | None = None
     dependencies: tuple[str, ...] = ()
+    output_role: str | None = None
+    sector: str | None = None
+    parity: str | None = None
+    spin: float | None = None
+    tensor_character: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -2427,6 +2432,10 @@ def compile_perturbation_contract(
             raise ValueError(
                 f"cmb.perturbations.{section_name} must be a mapping"
             )
+    projection_typing_entries = _compile_projection_typing_metadata(
+        sections["projection_typing"],
+        sector_names={str(name) for name in sections["sectors"].keys()},
+    )
 
     parameter_name_set = {str(name) for name in parameter_names}
     background_reference_set = {
@@ -3056,6 +3065,244 @@ def compile_perturbation_contract(
             for role_name in required_roles
         )
 
+    def _infer_variable_sector(variable_name: str) -> str:
+        """Return one coarse physical sector label for ``variable_name``."""
+
+        variable_entry = variable_entries[variable_name]
+        if variable_entry.tensor_character == "vector_like":
+            return "vector"
+        if variable_entry.tensor_character == "tensor_like":
+            return "tensor"
+        if variable_entry.tensor_character == "scalar_like":
+            return "scalar"
+        if variable_entry.rank is not None and int(variable_entry.rank) >= 2:
+            return "tensor"
+        if variable_entry.spin is not None:
+            abs_spin = abs(float(variable_entry.spin))
+            if abs_spin >= 2.0:
+                return "tensor"
+            if abs_spin >= 1.0:
+                return "vector"
+        return "scalar"
+
+    def _merge_tensor_character(
+        values: Sequence[str | None],
+    ) -> str | None:
+        """Return the strongest tensor-character label in ``values``."""
+
+        labels = {str(value) for value in values if value is not None}
+        if "tensor_like" in labels:
+            return "tensor_like"
+        if "vector_like" in labels:
+            return "vector_like"
+        if "scalar_like" in labels:
+            return "scalar_like"
+        return None
+
+    def _infer_source_ancestry_metadata(
+        source_name: str,
+    ) -> dict[str, Any]:
+        """Return sector and projection metadata for ``source_name``."""
+
+        reachable_variables = sorted(
+            _reachable_variable_names(source_entries[source_name].dependencies)
+        )
+        sectors = tuple(
+            sorted(
+                {
+                    _infer_variable_sector(variable_name)
+                    for variable_name in reachable_variables
+                }
+            )
+        )
+        tensor_character = _merge_tensor_character(
+            tuple(
+                variable_entries[variable_name].tensor_character
+                for variable_name in reachable_variables
+            )
+        )
+        parities = {
+            str(variable_entries[variable_name].parity)
+            for variable_name in reachable_variables
+            if variable_entries[variable_name].parity is not None
+        }
+        spins = [
+            abs(float(variable_entries[variable_name].spin))
+            for variable_name in reachable_variables
+            if variable_entries[variable_name].spin is not None
+        ]
+        return {
+            "reachable_variables": tuple(reachable_variables),
+            "sectors": sectors,
+            "tensor_character": tensor_character,
+            "parity": next(iter(parities)) if len(parities) == 1 else None,
+            "spin": max(spins) if spins else None,
+        }
+
+    def _projection_output_role(projection: str) -> str:
+        """Return the observable role emitted by ``projection``."""
+
+        if projection == "line_of_sight_temperature":
+            return "temperature"
+        if projection in {
+            "line_of_sight_polarization_e",
+            "spin2_e_mode",
+        }:
+            return "polarization_e"
+        if projection == "spin2_b_mode":
+            return "polarization_b"
+        if projection in {
+            "line_of_sight_lensing_potential",
+            "line_of_sight_potential",
+        }:
+            return "potential"
+        return "signal"
+
+    def _match_projection_typing_entry(
+        *,
+        observable_name: str,
+        observable_kind: str,
+        kernel: str | None,
+        source_roles: Mapping[str, str],
+    ) -> PerturbationProjectionTypingData | None:
+        """Return one matching projection-typing entry when present."""
+
+        explicit_entry = projection_typing_entries.get(observable_name)
+        source_role_names = set(source_roles)
+
+        def _entry_matches(
+            entry: PerturbationProjectionTypingData,
+        ) -> bool:
+            """Return whether ``entry`` matches the observable contract."""
+
+            if (
+                entry.observable_kinds
+                and observable_kind not in entry.observable_kinds
+            ):
+                return False
+            if entry.kernel is not None and entry.kernel != kernel:
+                return False
+            if (
+                entry.source_roles
+                and set(entry.source_roles) != source_role_names
+            ):
+                return False
+            return True
+
+        if explicit_entry is not None:
+            if not _entry_matches(explicit_entry):
+                raise ValueError(
+                    f"Perturbation observable '{observable_name}' "
+                    "projection_typing metadata does not match its "
+                    "kernel or source-term roles"
+                )
+            return explicit_entry
+
+        matches = [
+            entry
+            for entry in projection_typing_entries.values()
+            if _entry_matches(entry)
+        ]
+        if len(matches) > 1:
+            match_names = ", ".join(sorted(entry.name for entry in matches))
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' matches more "
+                "than one projection_typing entry: "
+                f"{match_names}"
+            )
+        if not matches:
+            return None
+        return matches[0]
+
+    def _resolve_transfer_component_metadata(
+        *,
+        observable_name: str,
+        projection: str,
+        observable_kind: str,
+        kernel: str | None,
+        source_term_refs: Mapping[str, str],
+    ) -> tuple[str, str | None, str | None, float | None, str | None]:
+        """Return output-role and sector metadata for one component."""
+
+        source_sector_names: set[str] = set()
+        tensor_character_values: list[str | None] = []
+        parity_values: set[str] = set()
+        spin_values: list[float] = []
+        for source_name in source_term_refs.values():
+            ancestry_metadata = _infer_source_ancestry_metadata(source_name)
+            source_sector_names.update(ancestry_metadata["sectors"])
+            tensor_character_values.append(
+                ancestry_metadata["tensor_character"]
+            )
+            source_parity = ancestry_metadata["parity"]
+            if source_parity is not None:
+                parity_values.add(str(source_parity))
+            source_spin = ancestry_metadata["spin"]
+            if source_spin is not None:
+                spin_values.append(abs(float(source_spin)))
+        if len(source_sector_names) > 1:
+            mixed = ", ".join(sorted(source_sector_names))
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' mixes "
+                f"declared source sectors: {mixed}"
+            )
+        sector = (
+            next(iter(source_sector_names)) if source_sector_names else None
+        )
+        typing_entry = _match_projection_typing_entry(
+            observable_name=observable_name,
+            observable_kind=observable_kind,
+            kernel=kernel,
+            source_roles=source_term_refs,
+        )
+        if (
+            typing_entry is not None
+            and typing_entry.sector is not None
+            and sector is not None
+            and typing_entry.sector != sector
+        ):
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' "
+                "projection_typing sector does not match declared source "
+                f"ancestry: {typing_entry.sector} vs {sector}"
+            )
+        output_role = _projection_output_role(projection)
+        if output_role == "potential" and sector not in {None, "scalar"}:
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' lensing or "
+                "potential projections require scalar source ancestry"
+            )
+        tensor_character = _merge_tensor_character(
+            tuple(tensor_character_values)
+        )
+        if tensor_character is None and sector is not None:
+            tensor_character = f"{sector}_like"
+        parity = None
+        if output_role == "polarization_b":
+            parity = "odd"
+        elif typing_entry is not None and typing_entry.parity is not None:
+            parity = str(typing_entry.parity)
+        elif len(parity_values) == 1:
+            parity = next(iter(parity_values))
+        elif output_role in {"polarization_e", "temperature", "potential"}:
+            parity = "even"
+        spin = None
+        if typing_entry is not None and typing_entry.spin is not None:
+            spin = float(typing_entry.spin)
+        elif output_role in {"polarization_e", "polarization_b"}:
+            spin = 2.0
+        elif output_role in {"temperature", "potential"}:
+            spin = 0.0
+        elif spin_values:
+            spin = max(spin_values)
+        if (
+            typing_entry is not None
+            and typing_entry.sector is not None
+            and sector is None
+        ):
+            sector = str(typing_entry.sector)
+        return output_role, sector, parity, spin, tensor_character
+
     observable_entries: dict[str, PerturbationObservableData] = {}
     observable_names: set[str] = set()
     transfer_component_names: set[str] = set()
@@ -3203,7 +3450,25 @@ def compile_perturbation_contract(
                         + ", ".join(effective_projection_roles)
                     )
             transfer_component_names.add(name)
+            (
+                output_role,
+                sector,
+                parity,
+                spin,
+                tensor_character,
+            ) = _resolve_transfer_component_metadata(
+                observable_name=name,
+                projection=str(projection),
+                observable_kind=observable_kind,
+                kernel=kernel,
+                source_term_refs=source_term_refs,
+            )
         else:
+            output_role = None
+            sector = None
+            parity = None
+            spin = None
+            tensor_character = None
             if primary is None or secondary is None:
                 raise ValueError(
                     f"Perturbation observable '{name}' must declare "
@@ -3248,6 +3513,11 @@ def compile_perturbation_contract(
                 label=f"cmb.perturbations.observables.{name}.domain",
             ),
             dependencies=dependencies,
+            output_role=output_role,
+            sector=sector,
+            parity=parity,
+            spin=spin,
+            tensor_character=tensor_character,
         )
         observable_names.add(name)
     for observable_name, observable_entry in observable_entries.items():
@@ -3263,6 +3533,83 @@ def compile_perturbation_contract(
                 f"Perturbation observable '{observable_name}' references "
                 f"unknown transfer component '{observable_entry.secondary}'"
             )
+        primary_entry = observable_entries[str(observable_entry.primary)]
+        secondary_entry = observable_entries[str(observable_entry.secondary)]
+        primary_sector = primary_entry.sector
+        secondary_sector = secondary_entry.sector
+        if (
+            primary_sector is not None
+            and secondary_sector is not None
+            and primary_sector != secondary_sector
+        ):
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' mixes "
+                "transfer components from incompatible sectors: "
+                f"{primary_sector} vs {secondary_sector}"
+            )
+        primary_role = primary_entry.output_role
+        secondary_role = secondary_entry.output_role
+        role_names = {primary_role, secondary_role}
+        if "potential" in role_names:
+            other_roles = role_names - {"potential"}
+            if other_roles and not other_roles.issubset(
+                {"polarization_e", "signal", "temperature"}
+            ):
+                raise ValueError(
+                    f"Perturbation observable '{observable_name}' uses an "
+                    "unsupported lensing-potential cross spectrum"
+                )
+            if primary_sector not in {
+                None,
+                "scalar",
+            } or secondary_sector not in {None, "scalar"}:
+                raise ValueError(
+                    f"Perturbation observable '{observable_name}' "
+                    "lensing-potential spectra require scalar transfer "
+                    "components"
+                )
+        if "polarization_b" in role_names and role_names != {"polarization_b"}:
+            raise ValueError(
+                f"Perturbation observable '{observable_name}' uses an "
+                "unsupported odd-parity B-mode cross spectrum"
+            )
+        if role_names == {"potential"}:
+            output_role = "potential_power"
+        elif "potential" in role_names:
+            output_role = "temperature_potential_cross"
+        elif role_names.issubset(
+            {"polarization_b", "polarization_e", "temperature"}
+        ):
+            output_role = "temperature_power"
+        else:
+            output_role = "signal_power"
+        observable_entries[observable_name] = replace(
+            observable_entry,
+            output_role=output_role,
+            sector=primary_sector or secondary_sector,
+            parity=(
+                primary_entry.parity
+                if primary_entry.parity == secondary_entry.parity
+                else None
+            ),
+            spin=max(
+                [
+                    abs(float(spin_value))
+                    for spin_value in (
+                        primary_entry.spin,
+                        secondary_entry.spin,
+                    )
+                    if spin_value is not None
+                ],
+                default=None,
+            ),
+            tensor_character=_merge_tensor_character(
+                (
+                    primary_entry.tensor_character,
+                    secondary_entry.tensor_character,
+                )
+            ),
+        )
 
     def _compile_conditions(
         condition_defs: Mapping[str, Any],

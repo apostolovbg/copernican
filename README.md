@@ -341,6 +341,12 @@ the same convention.
   components keep source-term roles separate from reviewed projection
   kernels, and `custom_line_of_sight` can project declared source sums
   through explicit kernels without hiding unsupported BB or lensing inputs.
+  Compiled observable metadata now carries output-role, sector, parity, and
+  spin tags so scalar, vector, and tensor transfer components can share the
+  native runtime while mixed-sector cross spectra fail before evolution.
+  Declared PP outputs can also drive bounded native `lensed_TT`,
+  `lensed_TE`, `lensed_EE`, and `lensed_BB` assembly without routing
+  `standard: false` models back through CAMB.
   Saved manifests carry the graph summary, projection contracts, background
   and recombination provenance, and the selected execution route so audits can
   distinguish backend-standard CAMB prediction from native declared-graph

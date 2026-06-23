@@ -80,6 +80,29 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-23:
+  Change: Added native CMB observable closure with sector-aware
+    transfer metadata, lensing cross-spectrum scaling, and bounded native
+    lensed-spectrum assembly.
+  Why: Closed Slice Three work for native polarization, vector or tensor
+    plumbing, and
+    lensing outputs to stay CAMB-free while mixed-sector observables fail
+    before runtime instead of drifting into invalid execution.
+  Impact: Enabled TP and EP native outputs plus bounded `lensed_TT`,
+    `lensed_TE`, `lensed_EE`, and `lensed_BB` synthesis, rejected
+    incompatible scalar or vector cross spectra at compile time, and covered
+    the new observable contracts in compiler and runtime tests.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-23:
   Change: Implemented Slice One by extending declared CMB contracts with
     hierarchy-capable metadata, moving native contract preparation into
     `model_coder.py`, and requiring precompiled runtime payloads on the

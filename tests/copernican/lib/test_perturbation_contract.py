@@ -1010,6 +1010,87 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_transfer_component_metadata_tracks_lensing_cross_roles(
+        self,
+    ) -> None:
+        """Compiled observables should expose output roles for scaling."""
+
+        contract = _base_nonstandard_contract()
+        contract["sources"]["lensing_source"] = {
+            "expression": "phi_aux + psi_aux",
+            "role": "potential",
+        }
+        contract["observables"]["lensing"] = {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_lensing_potential",
+            "source_terms": {"potential": "lensing_source"},
+        }
+        contract["observables"]["TP"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "lensing",
+        }
+
+        contract_data = self._compile(contract)
+
+        self.assertEqual(
+            contract_data.observables["temperature"].output_role,
+            "temperature",
+        )
+        self.assertEqual(
+            contract_data.observables["lensing"].output_role,
+            "potential",
+        )
+        self.assertEqual(
+            contract_data.observables["TP"].output_role,
+            "temperature_potential_cross",
+        )
+
+    def test_mixed_sector_cross_spectrum_fails(self) -> None:
+        """Angular spectra should reject mixed scalar and vector targets."""
+
+        contract = _base_nonstandard_contract()
+        contract["variables"]["vector_mode"] = {
+            "kind": "custom_vector_mode",
+            "spin": 1.0,
+            "tensor_character": "vector_like",
+        }
+        contract["equations"]["evolve_vector_mode"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "vector_mode",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-0.25 * vector_mode + theta_x",
+            "role": "vector_coupling",
+        }
+        contract["initial_conditions"]["vector_seed"] = {
+            "target": {
+                "variable": "vector_mode",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.01 * seed",
+        }
+        contract["sources"]["vector_source"] = {
+            "expression": "visibility * vector_mode",
+            "role": "signal",
+        }
+        contract["observables"]["vector_signal"] = {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_signal",
+            "source_terms": {"signal": "vector_source"},
+        }
+        contract["observables"]["TV"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "vector_signal",
+        }
+
+        with self.assertRaisesRegex(ValueError, "incompatible sectors"):
+            self._compile(contract)
+
     def test_unsolved_variable_references_fail(self) -> None:
         """Referenced variables must be evolved or algebraically solved."""
 
