@@ -27,7 +27,7 @@ The CMB surface now includes a declared-math graph engine for
 `standard: false` contracts. It evolves one declared graph per `k`
 mode, applies algebraic constraints and closures inside that graph,
 and projects the declared observables into transfer functions and
-spectra with bounded `k` sampling and cached Bessel tables. The
+spectra with declared native sampling controls and cached Bessel tables. The
 runtime now batches projection kernels across `ell`, reuses cached
 background and recombination products when the declared background
 inputs are unchanged, and keeps governed runtime-response tests on
@@ -42,7 +42,11 @@ equation-of-state, and curvature quantities directly; the perturbation
 runtime can mix `tau`, `eta`, `a`, `z`, or other declared monotonic
 background coordinates on equation left-hand sides; and end-anchored
 boundary conditions can drive the native shooter when they replace the
-missing start-state slots. Inside
+missing start-state slots. The background resolver now accepts either
+density fractions or direct physical densities such as
+`rho_b0_kg_m3`, `n_b0_m3`, `n_H0_m3`, and optional `rho_c0_kg_m3`, so
+complete declared theories do not need LCDM-specific naming just to
+reach the native path. Inside
 `copernican/lib/likelihoods/cmb/`, `native_background.py` now owns the
 background, recombination, and reionization tables;
 `native_evolution.py` owns compiled declared-graph evolution;
@@ -325,7 +329,11 @@ the same convention.
   the compiled declarative CMB engine. Non-standard models declare their
   own equations, closures and observable projections directly, while the
   available background and perturbation symbols stay limited to the
-  documented CMB engine context so unsupported names fail loudly. Transfer
+  documented CMB engine context so unsupported names fail loudly. That
+  context now includes direct physical density scalars alongside declared
+  background symbols, and `copernican/docs/model_template.yml` remains a
+  documentation template rather than a benchmark or acceptance fixture.
+  Transfer
   components keep source-term roles separate from reviewed projection
   kernels, and `custom_line_of_sight` can project declared source sums
   through explicit kernels without hiding unsupported BB or lensing inputs.

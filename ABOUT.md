@@ -66,7 +66,11 @@ pressure, equation-of-state, and curvature quantities directly; the
 perturbation runtime can mix `tau`, `eta`, `a`, `z`, or other declared
 monotonic background coordinates on equation left-hand sides; and
 end-anchored boundary conditions can drive the native shooter when they
-replace the missing start-state slots. Declared
+replace the missing start-state slots. The background resolver now accepts
+either density fractions or direct physical densities such as
+`rho_b0_kg_m3`, `n_b0_m3`, `n_H0_m3`, and optional `rho_c0_kg_m3`, so
+complete declared theories do not need LCDM-specific naming just to enter the
+native route. Declared
 observables may now target TT,
 TE, EE, BB, lensing-potential, or custom transfer components when their
 required graph quantities and projection roles are present. Transfer
@@ -84,6 +88,8 @@ suite, while `copernican/validation/` remains the separate
 publication-style LCDM reference runner built on the same manifest executor.
 The front-door README mirrors that summary so package readers see the same
 custom CMB surface from the repository root.
+`copernican/docs/model_template.yml` remains a documentation template rather
+than a benchmark or acceptance model.
 
 The GUI launches directly from the managed `.venv`, and each run keeps
 its own run logs inside the generated `~/copernican_output/copernican-run_*`

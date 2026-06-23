@@ -56,6 +56,8 @@ _COMPILED_UNARY_OPERATORS = {
 }
 
 _RUNTIME_REFERENCE_NAMES = {
+    "H0_km_s_Mpc",
+    "H0_over_c_Mpc_inv",
     "Omega_b0",
     "Omega_c0",
     "Omega_de0",
@@ -64,18 +66,33 @@ _RUNTIME_REFERENCE_NAMES = {
     "Omega_m0",
     "Omega_nu0",
     "Omega_r0",
+    "Neff",
+    "Tcmb_K",
+    "YHe",
     "a_initial",
     "angular_diameter_distance",
     "chi",
     "collision_rate",
     "eta_initial",
     "free_streaming",
+    "hubble_ratio",
+    "n_H0_m3",
+    "n_b0_m3",
+    "ombh2",
+    "omch2",
     "seed",
+    "rho_b0_kg_m3",
+    "rho_c0_kg_m3",
+    "rho_crit0_kg_m3",
     "sound_horizon",
     "sound_speed",
     "sound_speed_sq",
     "tight_coupling_drag",
     "tight_coupling_ratio",
+    "w0",
+    "wa",
+    "primordial_amplitude",
+    "primordial_spectral_index",
 }
 
 _SUPPORTED_PERTURBATION_KEYS = {

@@ -445,7 +445,13 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             backend="camb",
             parameter_names=("Omega_m0",),
             latex_names=(r"\Omega_m",),
-            background_reference_names=("H", "Omega_m0", "tau"),
+            background_reference_names=(
+                "H",
+                "Omega_m0",
+                "density",
+                "hydrogen_ionization_rate",
+                "tau",
+            ),
         )
 
     def test_native_cmb_runtime_build_contract_copies_runtime_payload(self):
@@ -540,6 +546,139 @@ class CMBBackendCapabilityTestCase(unittest.TestCase):
                 implemented=False,
             )
         )
+
+    def test_compile_native_runtime_accepts_declared_background_symbols(
+        self,
+    ) -> None:
+        """Precompiled native runtimes should accept background symbols."""
+
+        cmb_contract = {
+            "param_map": {"expansion_rate_today": 67.4},
+            "grids": {},
+            "values": {},
+            "background": {
+                "derived": {
+                    "matter_budget_today": "0.3",
+                    "H": (
+                        "expansion_rate_today * sqrt("
+                        "matter_budget_today / (a ** 3) + "
+                        "(1.0 - matter_budget_today)"
+                        ")"
+                    ),
+                },
+                "reionization": {"calibration": {}, "quantities": {}},
+            },
+            "numerical": {},
+            "perturbations": {
+                "contract_version": 2,
+                "standard": False,
+                "gauge": "conformal_newtonian",
+                "variables": {
+                    "delta_x": {"kind": "density_contrast"},
+                    "theta_x": {"kind": "velocity_divergence"},
+                    "phi_aux": {"kind": "metric_potential_phi"},
+                    "psi_aux": {"kind": "metric_potential_psi"},
+                },
+                "derived": {
+                    "density_drive": {
+                        "expression": "matter_budget_today * delta_x + phi_aux"
+                    }
+                },
+                "equations": {
+                    "continuity_x": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-theta_x + phi_aux",
+                        "role": "continuity",
+                    },
+                    "euler_x": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "theta_x",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-Hconf * theta_x + k * psi_aux",
+                        "role": "euler",
+                    },
+                },
+                "constraints": {
+                    "poisson_phi": {
+                        "target": "phi_aux",
+                        "expression": "0.25 * delta_x",
+                        "role": "constraint",
+                    }
+                },
+                "closures": {
+                    "psi_equals_phi": {
+                        "target": "psi_aux",
+                        "expression": "phi_aux",
+                        "role": "closure",
+                    }
+                },
+                "sources": {
+                    "monopole_source": {
+                        "expression": "visibility * density_drive",
+                        "role": "monopole",
+                    }
+                },
+                "observables": {
+                    "temperature": {
+                        "kind": "transfer_component",
+                        "projection": "line_of_sight_temperature",
+                        "source_terms": {"monopole": "monopole_source"},
+                    },
+                    "TT": {
+                        "kind": "angular_power_spectrum",
+                        "primary": "temperature",
+                        "secondary": "temperature",
+                    },
+                },
+                "initial_conditions": {
+                    "delta_seed": {
+                        "target": {
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 0,
+                        },
+                        "expression": "seed",
+                    },
+                    "theta_seed": {
+                        "target": {
+                            "variable": "theta_x",
+                            "wrt": "tau",
+                            "order": 0,
+                        },
+                        "expression": "0.1 * seed",
+                    },
+                },
+                "boundary_conditions": {},
+                "validity": {"regimes": ["linear"]},
+                "backend_mapping": {
+                    "camb": {
+                        "native_solver_required": True,
+                        "implemented": True,
+                    }
+                },
+                "numerics": {},
+            },
+        }
+
+        runtime = model_coder.compile_native_cmb_runtime(
+            model_name="TemplateModel",
+            backend="camb",
+            parameter_names=("expansion_rate_today",),
+            latex_names=("H_0",),
+            cmb_contract=cmb_contract,
+        )
+        dependency_summary = runtime.perturbation_data.dependency_graph_summary
+        background_references = dependency_summary.background_references_used
+
+        self.assertIn("matter_budget_today", background_references)
 
 
 if __name__ == "__main__":  # pragma: no cover

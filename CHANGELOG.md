@@ -80,6 +80,35 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-22:
+  Change: Closed Slice Three by expanding the native CMB runtime to accept
+    direct physical density inputs, recognize declared background symbols in
+    precompiled runtimes, and honor governed native sampling controls without
+    hidden caps.
+  Why: Removed the remaining LCDM-shaped entry assumptions from the
+    `standard: false` route, kept theory-family and hidden-backend selectors
+    out of the contract surface, and validated the revised numerics and
+    failure boundaries with targeted compiler and runtime tests.
+  Impact: Complete declared native contracts can now enter through direct
+    physical densities or declared background symbols, Slice Three is marked
+    complete with Slice Four opened, and the docs now describe
+    `model_template.yml` as documentation rather than an acceptance model.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    ABOUT.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/model_coder.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_model_coder.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-22:
   Change: Split the native CMB runtime into background, evolution,
     projection, and cache modules while reducing
     `copernican_cmb_solver.py` to orchestration-only helpers.

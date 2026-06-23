@@ -29,6 +29,7 @@ from .native_background import (
     _DeclaredProjectionKernelBatch,
     _get_cached_custom_cmb_spectrum_data,
     _get_cached_declared_projection_kernel_batch,
+    _physical_runtime_scalars,
     _resolve_custom_cmb_numerics,
     _resolve_custom_cmb_physical_parameters,
     _resolve_declared_background_context,
@@ -227,7 +228,7 @@ def _compute_custom_cmb_spectrum_data(
         background.eta_grid[background.eta_grid >= eta_start],
         dtype=float,
     )
-    eta_los_refinement = max(1, min(numerics.source_grid_multiplier, 2))
+    eta_los_refinement = max(1, int(numerics.source_grid_multiplier))
     for _ in range(eta_los_refinement - 1):
         midpoint_grid = 0.5 * (eta_los_grid[:-1] + eta_los_grid[1:])
         eta_los_grid = numpy.unique(
@@ -343,7 +344,7 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.logspace(
         math.log10(k_min),
         math.log10(k_max),
-        max(16, min(numerics.k_sample_count, 48)),
+        max(16, int(numerics.k_sample_count)),
     )
     k_values = numpy.asarray(k_values, dtype=float)
 
@@ -601,28 +602,7 @@ def _compute_custom_cmb_spectrum_data(
                 model_parameters=source_parameters,
             ),
         }
-        for name, value in (
-            ("Omega_b0", physical_params.Omega_b0),
-            ("ombh2", physical_params.ombh2),
-            ("Omega_c0", physical_params.Omega_c0),
-            ("omch2", physical_params.omch2),
-            ("Omega_m0", physical_params.Omega_m0_background),
-            ("Omega_gamma0", physical_params.Omega_gamma0),
-            ("Omega_nu0", physical_params.Omega_nu0),
-            ("Omega_r0", physical_params.Omega_r0),
-            ("Omega_k0", physical_params.Omega_k0),
-            ("Omega_de0", physical_params.Omega_de0),
-            ("w0", physical_params.dark_energy_eos0),
-            ("wa", physical_params.dark_energy_eos1),
-            ("Neff", physical_params.Neff),
-            ("primordial_amplitude", physical_params.primordial_amplitude),
-            (
-                "primordial_spectral_index",
-                physical_params.primordial_spectral_index,
-            ),
-        ):
-            if value is None:
-                continue
+        for name, value in _physical_runtime_scalars(physical_params).items():
             context[name] = numpy.full_like(
                 eta_los_grid,
                 float(value),

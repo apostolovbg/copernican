@@ -449,6 +449,29 @@ class PerturbationContractTestCase(unittest.TestCase):
             },
         )
 
+    def test_extended_runtime_physical_scalars_compile(self) -> None:
+        """Native graphs may reference the documented physical scalars."""
+
+        contract = _base_nonstandard_contract()
+        contract["derived"]["density_drive"]["expression"] = (
+            "delta_x + phi_aux + "
+            "(rho_b0_kg_m3 / rho_crit0_kg_m3) + "
+            "(1.0e-9 * H0_km_s_Mpc) + "
+            "(1.0e-9 * Tcmb_K) + "
+            "(1.0e-24 * n_H0_m3)"
+        )
+
+        contract_data = self._compile(contract)
+
+        self.assertIn(
+            "rho_b0_kg_m3",
+            contract_data.dependency_graph_summary.background_references_used,
+        )
+        self.assertIn(
+            "H0_km_s_Mpc",
+            contract_data.dependency_graph_summary.background_references_used,
+        )
+
     def test_hybrid_graph_compiles_as_one_graph(self) -> None:
         """Tagged scalar/vector/tensor variables should share one graph."""
 
@@ -558,6 +581,30 @@ class PerturbationContractTestCase(unittest.TestCase):
         contract["derived"]["beta"] = {"expression": "alpha"}
 
         with self.assertRaisesRegex(ValueError, "contains a cycle"):
+            self._compile(contract)
+
+    def test_mode_family_selectors_are_rejected(self) -> None:
+        """Declared graphs should not accept theory-family selectors."""
+
+        contract = _base_nonstandard_contract()
+        contract["mode_families"] = {"scalar": ["delta_x", "theta_x"]}
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unknown perturbation contract key\\(s\\): mode_families",
+        ):
+            self._compile(contract)
+
+    def test_hidden_backend_selectors_are_rejected(self) -> None:
+        """Non-standard backend mappings should stay selector-free."""
+
+        contract = _base_nonstandard_contract()
+        contract["backend_mapping"]["camb"]["theory_selector"] = "lcdm_like"
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Non-standard perturbation mappings may only declare",
+        ):
             self._compile(contract)
 
     def test_unknown_transfer_component_reference_fails(self) -> None:

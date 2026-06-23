@@ -28,12 +28,21 @@ from . import native_cache
 
 _C_LIGHT_KM_S = 299_792.458
 _CACHE_PRECISION = 15
+_G_NEWTON_SI = 6.674_30e-11
+_MPC_M = 3.085_677_581_491_3673e22
+_PROTON_MASS_KG = 1.672_621_923_69e-27
 _LEGACY_DECLARED_EVOLUTION_COORDINATES = {"eta", "tau"}
 _PHYSICAL_QUANTITY_ALIASES = {
     "H0_km_s_Mpc": (
         "H0",
+        "H0_km_s_Mpc",
+        "expansion_rate_today",
         "hubble_constant",
         "Hubble constant",
+    ),
+    "hubble_ratio": (
+        "h",
+        "hubble_ratio",
     ),
     "Omega_b0": (
         "Omega_b",
@@ -47,6 +56,21 @@ _PHYSICAL_QUANTITY_ALIASES = {
         "baryon_density_h2",
         "ombh2",
         "omega_b_h2",
+    ),
+    "rho_b0_kg_m3": (
+        "baryon_mass_density_today_kg_m3",
+        "baryon_rest_mass_density_today",
+        "rho_b0_kg_m3",
+    ),
+    "n_b0_m3": (
+        "baryon_number_density_today",
+        "baryon_number_density_today_m3",
+        "n_b0_m3",
+    ),
+    "n_H0_m3": (
+        "hydrogen_number_density_today",
+        "hydrogen_number_density_today_m3",
+        "n_H0_m3",
     ),
     "Omega_c0": (
         "Omega_c",
@@ -65,11 +89,17 @@ _PHYSICAL_QUANTITY_ALIASES = {
         "omch2",
         "omega_c_h2",
     ),
+    "rho_c0_kg_m3": (
+        "cold_dark_matter_mass_density_today_kg_m3",
+        "cold_dark_matter_rest_mass_density_today",
+        "rho_c0_kg_m3",
+    ),
     "Tcmb_K": (
         "T_cmb",
         "Tcmb",
         "Tcmb_K",
         "cmb_temperature_K",
+        "cmb_temperature_kelvin",
     ),
     "YHe": (
         "YHe",
@@ -107,6 +137,7 @@ _PHYSICAL_QUANTITY_ALIASES = {
     "Omega_k0": (
         "Omega_k",
         "Omega_k0",
+        "curvature_fraction_today",
         "curvature_density_fraction",
         "omk",
         "omega_k",
@@ -129,6 +160,7 @@ _PHYSICAL_QUANTITY_ALIASES = {
     ),
     "w0": (
         "dark_energy_eos0",
+        "dark_component_eos_today",
         "dark_energy_w0",
         "equation_of_state_today",
         "w",
@@ -144,6 +176,7 @@ _PHYSICAL_QUANTITY_ALIASES = {
         "As",
         "primordial_amplitude",
         "primordial_power_amplitude",
+        "scalar_power_amplitude",
     ),
     "primordial_spectral_index": (
         "n_s",
@@ -151,6 +184,8 @@ _PHYSICAL_QUANTITY_ALIASES = {
         "primordial_power_tilt",
         "primordial_spectral_index",
         "primordial_tilt",
+        "scalar_tilt",
+        "scalar_tilt_index",
     ),
     "chi": (
         "chi",
@@ -163,12 +198,16 @@ _PHYSICAL_QUANTITY_ALIASES = {
     ),
 }
 _BACKGROUND_PROVENANCE_ROLE_KEYS = {
-    "expansion": ("H0_km_s_Mpc",),
+    "expansion": ("H0_km_s_Mpc", "hubble_ratio"),
     "density": (
         "Omega_b0",
         "ombh2",
+        "rho_b0_kg_m3",
+        "n_b0_m3",
+        "n_H0_m3",
         "Omega_c0",
         "omch2",
+        "rho_c0_kg_m3",
         "Omega_gamma0",
         "Omega_nu0",
         "Omega_r0",
@@ -648,6 +687,7 @@ class _CustomCMBPhysicalParameters:
     H0_km_s_Mpc: float
     hubble_ratio: float
     H0_over_c_Mpc_inv: float
+    rho_crit0_kg_m3: float
     ombh2: float
     omch2: float | None
     Omega_b0: float
@@ -670,6 +710,7 @@ class _CustomCMBPhysicalParameters:
     n_b0_m3: float
     n_H0_m3: float
     rho_b0_kg_m3: float
+    rho_c0_kg_m3: float | None
     has_cdm: bool
     has_dark_energy: bool
     quantity_provenance: tuple[tuple[str, str], ...] = ()
@@ -738,6 +779,49 @@ class _CustomCMBBackgroundData:
                 self.sound_speed_of_eta(eta_arr), dtype=float
             ),
         }
+
+
+def _physical_runtime_scalars(
+    physical_params: _CustomCMBPhysicalParameters,
+) -> dict[str, float]:
+    """Return the documented physical runtime scalars for graph execution."""
+
+    runtime_scalars = {
+        "H0_km_s_Mpc": float(physical_params.H0_km_s_Mpc),
+        "hubble_ratio": float(physical_params.hubble_ratio),
+        "H0_over_c_Mpc_inv": float(physical_params.H0_over_c_Mpc_inv),
+        "rho_crit0_kg_m3": float(physical_params.rho_crit0_kg_m3),
+        "ombh2": float(physical_params.ombh2),
+        "Omega_b0": float(physical_params.Omega_b0),
+        "Omega_gamma0": float(physical_params.Omega_gamma0),
+        "YHe": float(physical_params.YHe),
+        "primordial_amplitude": float(physical_params.primordial_amplitude),
+        "primordial_spectral_index": float(
+            physical_params.primordial_spectral_index
+        ),
+        "Tcmb_K": float(physical_params.Tcmb_K),
+        "n_b0_m3": float(physical_params.n_b0_m3),
+        "n_H0_m3": float(physical_params.n_H0_m3),
+        "rho_b0_kg_m3": float(physical_params.rho_b0_kg_m3),
+    }
+    optional_scalars = {
+        "omch2": physical_params.omch2,
+        "Omega_c0": physical_params.Omega_c0,
+        "Omega_m0": physical_params.Omega_m0_background,
+        "Omega_nu0": physical_params.Omega_nu0,
+        "Omega_r0": physical_params.Omega_r0,
+        "Omega_k0": physical_params.Omega_k0,
+        "Omega_de0": physical_params.Omega_de0,
+        "w0": physical_params.dark_energy_eos0,
+        "wa": physical_params.dark_energy_eos1,
+        "Neff": physical_params.Neff,
+        "rho_c0_kg_m3": physical_params.rho_c0_kg_m3,
+    }
+    for name, value in optional_scalars.items():
+        if value is None:
+            continue
+        runtime_scalars[name] = float(value)
+    return runtime_scalars
 
 
 @dataclass(slots=True)
@@ -899,6 +983,7 @@ _BACKGROUND_CACHE_PHYSICAL_FIELDS = (
     "H0_km_s_Mpc",
     "hubble_ratio",
     "H0_over_c_Mpc_inv",
+    "rho_crit0_kg_m3",
     "ombh2",
     "omch2",
     "Omega_b0",
@@ -919,6 +1004,7 @@ _BACKGROUND_CACHE_PHYSICAL_FIELDS = (
     "n_b0_m3",
     "n_H0_m3",
     "rho_b0_kg_m3",
+    "rho_c0_kg_m3",
     "has_cdm",
     "has_dark_energy",
 )
@@ -1218,66 +1304,44 @@ def _resolve_custom_cmb_physical_parameters(
 
     hubble_entry = _lookup_quantity("H0_km_s_Mpc")
     if hubble_entry is None:
-        hubble_entry = _lookup_declared_background_scalar_with_source(
-            contract,
-            background_scalar_context,
-            ("H",),
+        hubble_ratio_entry = _lookup_quantity("hubble_ratio")
+        if hubble_ratio_entry is not None:
+            hubble_entry = (
+                100.0 * hubble_ratio_entry[0],
+                hubble_ratio_entry[1],
+            )
+            _record_quantity("hubble_ratio", hubble_ratio_entry[1])
+            _record_quantity(
+                "H0_km_s_Mpc",
+                hubble_ratio_entry[1],
+                derived_suffix="hubble_ratio",
+            )
+        hubble_entry = (
+            _lookup_declared_background_scalar_with_source(
+                contract,
+                background_scalar_context,
+                ("H",),
+            )
+            if hubble_entry is None
+            else hubble_entry
         )
         if hubble_entry is None:
             raise ValueError(
                 "Declared CMB native execution requires explicit background "
                 "H(z) at a=1 or an H0 scalar."
             )
-        _record_quantity("H0_km_s_Mpc", hubble_entry[1], derived_suffix="H")
+        if "H0_km_s_Mpc" not in quantity_provenance:
+            _record_quantity(
+                "H0_km_s_Mpc",
+                hubble_entry[1],
+                derived_suffix="H",
+            )
     else:
         _record_quantity("H0_km_s_Mpc", hubble_entry[1])
     hubble_km_s_mpc = hubble_entry[0]
     hubble_km_s_mpc = max(float(hubble_km_s_mpc), 1.0e-6)
     hubble_ratio = hubble_km_s_mpc / 100.0
     hubble_over_c = hubble_km_s_mpc / _C_LIGHT_KM_S
-
-    baryon_entry = _lookup_quantity("Omega_b0")
-    ombh2_entry = _lookup_quantity("ombh2")
-    if baryon_entry is None and ombh2_entry is not None:
-        Omega_b0 = ombh2_entry[0] / (hubble_ratio * hubble_ratio)
-        _record_quantity("Omega_b0", ombh2_entry[1], derived_suffix="ombh2")
-    elif baryon_entry is not None:
-        Omega_b0 = baryon_entry[0]
-        _record_quantity("Omega_b0", baryon_entry[1])
-    else:
-        raise ValueError(
-            "Declared CMB native execution requires explicit baryon density."
-        )
-    if ombh2_entry is None:
-        ombh2 = Omega_b0 * hubble_ratio * hubble_ratio
-        _record_quantity(
-            "ombh2", quantity_provenance["Omega_b0"], derived_suffix="Omega_b0"
-        )
-    else:
-        ombh2 = ombh2_entry[0]
-        _record_quantity("ombh2", ombh2_entry[1])
-
-    cdm_entry = _lookup_quantity("Omega_c0")
-    omch2_entry = _lookup_quantity("omch2")
-    Omega_c0: float | None = None
-    omch2: float | None = None
-    if cdm_entry is not None:
-        Omega_c0 = cdm_entry[0]
-        _record_quantity("Omega_c0", cdm_entry[1])
-    elif omch2_entry is not None:
-        Omega_c0 = omch2_entry[0] / (hubble_ratio * hubble_ratio)
-        _record_quantity("Omega_c0", omch2_entry[1], derived_suffix="omch2")
-    if omch2_entry is not None:
-        omch2 = omch2_entry[0]
-        _record_quantity("omch2", omch2_entry[1])
-    elif Omega_c0 is not None:
-        omch2 = Omega_c0 * hubble_ratio * hubble_ratio
-        _record_quantity(
-            "omch2",
-            quantity_provenance["Omega_c0"],
-            derived_suffix="Omega_c0",
-        )
-    has_cdm = Omega_c0 is not None or omch2 is not None
 
     Tcmb_K, Tcmb_source = _require_quantity(
         "Tcmb_K",
@@ -1293,6 +1357,155 @@ def _resolve_custom_cmb_physical_parameters(
     Neff = None if Neff_entry is None else Neff_entry[0]
     if Neff_entry is not None:
         _record_quantity("Neff", Neff_entry[1])
+
+    if "hubble_ratio" not in quantity_provenance:
+        _record_quantity(
+            "hubble_ratio",
+            quantity_provenance["H0_km_s_Mpc"],
+            derived_suffix="H0_km_s_Mpc",
+        )
+
+    hubble_si = hubble_km_s_mpc * 1000.0 / _MPC_M
+    rho_crit0 = 3.0 * hubble_si * hubble_si / (8.0 * math.pi * _G_NEWTON_SI)
+    _record_quantity(
+        "rho_crit0_kg_m3",
+        quantity_provenance["H0_km_s_Mpc"],
+        derived_suffix="H0_km_s_Mpc",
+    )
+
+    baryon_entry = _lookup_quantity("Omega_b0")
+    ombh2_entry = _lookup_quantity("ombh2")
+    rho_b_entry = _lookup_quantity("rho_b0_kg_m3")
+    n_b_entry = _lookup_quantity("n_b0_m3")
+    n_H_entry = _lookup_quantity("n_H0_m3")
+    rho_b0: float | None = None
+    if rho_b_entry is not None:
+        rho_b0 = rho_b_entry[0]
+        _record_quantity("rho_b0_kg_m3", rho_b_entry[1])
+    elif n_b_entry is not None:
+        rho_b0 = n_b_entry[0] * _PROTON_MASS_KG
+        _record_quantity("n_b0_m3", n_b_entry[1])
+        _record_quantity(
+            "rho_b0_kg_m3",
+            n_b_entry[1],
+            derived_suffix="n_b0_m3",
+        )
+    elif n_H_entry is not None:
+        hydrogen_fraction = max(1.0 - YHe, 1.0e-12)
+        rho_b0 = n_H_entry[0] * _PROTON_MASS_KG / hydrogen_fraction
+        _record_quantity("n_H0_m3", n_H_entry[1])
+        _record_quantity(
+            "rho_b0_kg_m3",
+            n_H_entry[1],
+            derived_suffix="n_H0_m3",
+        )
+    elif baryon_entry is not None:
+        Omega_b0 = baryon_entry[0]
+        _record_quantity("Omega_b0", baryon_entry[1])
+        rho_b0 = Omega_b0 * rho_crit0
+        _record_quantity(
+            "rho_b0_kg_m3",
+            baryon_entry[1],
+            derived_suffix="Omega_b0",
+        )
+    elif ombh2_entry is not None:
+        Omega_b0 = ombh2_entry[0] / (hubble_ratio * hubble_ratio)
+        _record_quantity("Omega_b0", ombh2_entry[1], derived_suffix="ombh2")
+        rho_b0 = Omega_b0 * rho_crit0
+        _record_quantity(
+            "rho_b0_kg_m3",
+            ombh2_entry[1],
+            derived_suffix="ombh2",
+        )
+    else:
+        baryon_names = (
+            _physical_quantity_names("Omega_b0")
+            + _physical_quantity_names("ombh2")
+            + _physical_quantity_names("rho_b0_kg_m3")
+            + _physical_quantity_names("n_b0_m3")
+            + _physical_quantity_names("n_H0_m3")
+        )
+        raise ValueError(
+            "Declared CMB native execution requires explicit baryon density. "
+            "Provide one of: " + ", ".join(dict.fromkeys(baryon_names))
+        )
+    Omega_b0 = rho_b0 / rho_crit0
+    ombh2 = Omega_b0 * hubble_ratio * hubble_ratio
+    if "Omega_b0" not in quantity_provenance:
+        _record_quantity(
+            "Omega_b0",
+            quantity_provenance["rho_b0_kg_m3"],
+            derived_suffix="rho_b0_kg_m3",
+        )
+    if "ombh2" not in quantity_provenance:
+        _record_quantity(
+            "ombh2",
+            quantity_provenance["Omega_b0"],
+            derived_suffix="Omega_b0",
+        )
+    if "n_b0_m3" not in quantity_provenance:
+        n_b0_m3 = rho_b0 / _PROTON_MASS_KG
+        _record_quantity(
+            "n_b0_m3",
+            quantity_provenance["rho_b0_kg_m3"],
+            derived_suffix="rho_b0_kg_m3",
+        )
+    else:
+        n_b0_m3 = n_b_entry[0]
+    if "n_H0_m3" not in quantity_provenance:
+        n_H0_m3 = n_b0_m3 * max(0.0, 1.0 - YHe)
+        _record_quantity(
+            "n_H0_m3",
+            quantity_provenance["n_b0_m3"],
+            derived_suffix="n_b0_m3",
+        )
+    else:
+        n_H0_m3 = n_H_entry[0]
+
+    cdm_entry = _lookup_quantity("Omega_c0")
+    omch2_entry = _lookup_quantity("omch2")
+    rho_c_entry = _lookup_quantity("rho_c0_kg_m3")
+    rho_c0: float | None = None
+    if rho_c_entry is not None:
+        rho_c0 = rho_c_entry[0]
+        _record_quantity("rho_c0_kg_m3", rho_c_entry[1])
+    elif cdm_entry is not None:
+        rho_c0 = cdm_entry[0] * rho_crit0
+        _record_quantity("Omega_c0", cdm_entry[1])
+        _record_quantity(
+            "rho_c0_kg_m3",
+            cdm_entry[1],
+            derived_suffix="Omega_c0",
+        )
+    elif omch2_entry is not None:
+        rho_c0 = omch2_entry[0] / (hubble_ratio * hubble_ratio) * rho_crit0
+        _record_quantity("Omega_c0", omch2_entry[1], derived_suffix="omch2")
+        _record_quantity(
+            "rho_c0_kg_m3",
+            omch2_entry[1],
+            derived_suffix="omch2",
+        )
+    Omega_c0: float | None = None
+    omch2: float | None = None
+    if rho_c0 is not None:
+        Omega_c0 = rho_c0 / rho_crit0
+        omch2 = Omega_c0 * hubble_ratio * hubble_ratio
+        if "Omega_c0" not in quantity_provenance:
+            _record_quantity(
+                "Omega_c0",
+                quantity_provenance["rho_c0_kg_m3"],
+                derived_suffix="rho_c0_kg_m3",
+            )
+        if omch2_entry is not None:
+            omch2 = omch2_entry[0]
+            _record_quantity("omch2", omch2_entry[1])
+        else:
+            _record_quantity(
+                "omch2",
+                quantity_provenance["Omega_c0"],
+                derived_suffix="Omega_c0",
+            )
+    has_cdm = Omega_c0 is not None or omch2 is not None
 
     photon_entry = _lookup_quantity("Omega_gamma0")
     if photon_entry is None:
@@ -1396,17 +1609,11 @@ def _resolve_custom_cmb_physical_parameters(
     if tau_reio is None:
         tau_reio = 0.0
 
-    G_NEWTON = 6.674_30e-11
-    MPC_M = 3.085_677_581_491_3673e22
-    hubble_si = hubble_km_s_mpc * 1000.0 / MPC_M
-    rho_crit0 = 3.0 * hubble_si * hubble_si / (8.0 * math.pi * G_NEWTON)
-    rho_b0 = Omega_b0 * rho_crit0
-    n_b0_m3 = rho_b0 / 1.672_621_923_69e-27
-    n_H0_m3 = n_b0_m3 * max(0.0, 1.0 - YHe)
     return _CustomCMBPhysicalParameters(
         H0_km_s_Mpc=hubble_km_s_mpc,
         hubble_ratio=hubble_ratio,
         H0_over_c_Mpc_inv=hubble_over_c,
+        rho_crit0_kg_m3=rho_crit0,
         ombh2=ombh2,
         omch2=omch2,
         Omega_b0=Omega_b0,
@@ -1429,6 +1636,7 @@ def _resolve_custom_cmb_physical_parameters(
         n_b0_m3=n_b0_m3,
         n_H0_m3=n_H0_m3,
         rho_b0_kg_m3=rho_b0,
+        rho_c0_kg_m3=rho_c0,
         has_cdm=has_cdm,
         has_dark_energy=has_dark_energy,
         quantity_provenance=tuple(sorted(quantity_provenance.items())),

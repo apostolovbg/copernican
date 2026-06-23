@@ -979,6 +979,96 @@ def _generic_background_custom_contract() -> dict[str, object]:
     return contract
 
 
+def _critical_density_today_kg_m3(hubble_km_s_mpc: float) -> float:
+    """Return the present-day critical density for ``hubble_km_s_mpc``."""
+
+    hubble_si = float(hubble_km_s_mpc) * 1000.0 / 3.085_677_581_491_3673e22
+    return float(3.0 * hubble_si * hubble_si / (8.0 * numpy.pi * 6.674_30e-11))
+
+
+def _physical_density_custom_contract() -> dict[str, object]:
+    """Return a native CMB fixture driven by direct physical densities."""
+
+    contract = _base_custom_cmb_contract()
+    contract["model_name"] = "PhysicalDensityCustomCMB"
+    expansion_rate_today = 67.4
+    baryon_fraction_today = 0.049
+    dark_component_fraction_today = 0.262
+    critical_density_today = _critical_density_today_kg_m3(
+        expansion_rate_today
+    )
+    perturbations = _declared_graph_perturbations()
+    perturbations["derived"]["total_matter_density"]["expression"] = (
+        "dark_component_budget_today * delta_c + "
+        "baryon_budget_today * delta_b"
+    )
+    perturbations["derived"]["total_radiation_density"]["expression"] = (
+        "4.0 * photon_fraction_today * theta_gamma0 + "
+        "relativistic_neutrino_fraction_today * delta_nu"
+    )
+    contract["param_map"] = {
+        "expansion_rate_today": expansion_rate_today,
+        "reionization_depth": 0.054,
+        "scalar_power_amplitude": 2.1e-9,
+        "scalar_tilt_index": 0.965,
+        "critical_mass_density_today_kg_m3": critical_density_today,
+        "baryon_rest_mass_density_today": (
+            baryon_fraction_today * critical_density_today
+        ),
+        "cold_dark_matter_rest_mass_density_today": (
+            dark_component_fraction_today * critical_density_today
+        ),
+        "photon_fraction_today": 5.38e-5,
+        "relativistic_neutrino_fraction_today": 3.65e-5,
+        "curvature_fraction_today": -0.01,
+        "dark_component_eos_today": -0.85,
+    }
+    contract["model_parameters"] = {
+        "cmb_temperature_kelvin": 2.7255,
+        "helium_mass_fraction": 0.245,
+    }
+    contract["background"] = {
+        "derived": {
+            "baryon_budget_today": (
+                "baryon_rest_mass_density_today / "
+                "critical_mass_density_today_kg_m3"
+            ),
+            "dark_component_budget_today": (
+                "cold_dark_matter_rest_mass_density_today / "
+                "critical_mass_density_today_kg_m3"
+            ),
+            "light_budget_today": (
+                "photon_fraction_today + relativistic_neutrino_fraction_today"
+            ),
+            "matter_budget_today": (
+                "baryon_budget_today + dark_component_budget_today"
+            ),
+            "vacuum_budget_today": (
+                "1.0 - matter_budget_today - light_budget_today - "
+                "curvature_fraction_today"
+            ),
+            "dark_energy_pressure_today": (
+                "dark_component_eos_today * vacuum_budget_today"
+            ),
+            "H": (
+                "expansion_rate_today * sqrt("
+                "light_budget_today / (a ** 4) + "
+                "matter_budget_today / (a ** 3) + "
+                "curvature_fraction_today / (a ** 2) + "
+                "vacuum_budget_today * ("
+                "a ** (-3.0 * (1.0 + dark_component_eos_today))"
+                "))"
+            ),
+        },
+        "reionization": copy.deepcopy(_declared_background()["reionization"]),
+    }
+    contract["background"]["reionization"]["calibration"][
+        "target_optical_depth"
+    ] = "reionization_depth"
+    contract["perturbations"] = perturbations
+    return contract
+
+
 class _CustomCMBPlugin:
     """Plugin stub that exposes the synthetic declared graph fixture."""
 
@@ -2221,6 +2311,106 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertAlmostEqual(physical.primordial_amplitude, 2.1e-9)
         for values in spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_physical_density_inputs_run_without_lcdm_density_aliases(
+        self,
+    ) -> None:
+        """Direct physical densities should drive the native solver."""
+
+        contract = _speedup_contract(_physical_density_custom_contract())
+        physical = native_background._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        spectra = cmb.compute_cmb_spectrum_from_contract(
+            contract,
+            numpy.arange(20, 30, dtype=int),
+            spectra=("TT", "TE", "EE"),
+        )
+        self.assertTrue(physical.has_cdm)
+        self.assertAlmostEqual(physical.Omega_b0, 0.049, places=6)
+        self.assertAlmostEqual(physical.Omega_c0, 0.262, places=6)
+        self.assertAlmostEqual(
+            physical.rho_b0_kg_m3,
+            float(contract["param_map"]["baryon_rest_mass_density_today"]),
+            places=20,
+        )
+        self.assertAlmostEqual(
+            physical.rho_c0_kg_m3,
+            float(
+                contract["param_map"][
+                    "cold_dark_matter_rest_mass_density_today"
+                ]
+            ),
+            places=20,
+        )
+        for values in spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_native_source_refinement_above_two_changes_outputs(
+        self,
+    ) -> None:
+        """Source refinement above two should stay active at runtime."""
+
+        baseline = _speedup_contract(_custom_contract())
+        refined = _speedup_contract(_custom_contract())
+        baseline["numerical"]["source_grid_multiplier"] = 3
+        refined["numerical"]["source_grid_multiplier"] = 4
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        refined_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                refined,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(refined_tt - baseline_tt))),
+            1.0e-12,
+        )
+
+    def test_native_eta_sample_count_changes_background_resolution(
+        self,
+    ) -> None:
+        """Declared `eta_sample_count` should affect the native grid."""
+
+        coarse = _speedup_contract(_custom_contract())
+        refined = _speedup_contract(_custom_contract())
+        coarse["numerical"]["eta_sample_count"] = 128
+        refined["numerical"]["eta_sample_count"] = 256
+        coarse_background = native_background._build_custom_cmb_background(
+            coarse,
+            native_background._resolve_custom_cmb_physical_parameters(coarse),
+            native_background._resolve_custom_cmb_numerics(coarse),
+        )
+        refined_background = native_background._build_custom_cmb_background(
+            refined,
+            native_background._resolve_custom_cmb_physical_parameters(refined),
+            native_background._resolve_custom_cmb_numerics(refined),
+        )
+        self.assertGreater(
+            int(refined_background.eta_grid.size),
+            int(coarse_background.eta_grid.size),
+        )
+
+    def test_requested_native_k_sample_count_is_not_capped(self) -> None:
+        """Native `k_sample_count` should honor declared values above 48."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["numerical"]["k_sample_count"] = 64
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+        )
+        self.assertEqual(int(spectrum_data.k_grid.size), 64)
 
     def test_background_pressure_and_curvature_symbols_change_outputs(
         self,

@@ -100,6 +100,10 @@ Current facts:
 * `copernican_cmb_solver.py` now owns internal native orchestration only.
 * `native_background.py`, `native_evolution.py`, `native_projection.py`,
   and `native_cache.py` now own the split native internals.
+* The native background resolver now accepts direct physical density inputs
+  and precompiled runtimes now recognize declared background symbols.
+* Declared native `k_sample_count`, `eta_sample_count`, and
+  `source_grid_multiplier` are now exercised without hidden hard caps.
 * Cache use, cache governance, and runtime diagnostics are explicit, but
   final benchmark evidence is still open work.
 * Current tests and docs support a truthful feature baseline, not yet a final
@@ -296,7 +300,7 @@ Done when:
 * [closed] Native modules no longer own CAMB imports.
 * [closed] Relevant CMB and cache tests pass.
 
-### [open] Slice Three - Theory-agnostic native contract closure
+### [closed] Slice Three - Theory-agnostic native contract closure
 
 Purpose:
 
@@ -334,40 +338,40 @@ Scope:
 
 Tasks:
 
-* [open] Audit the `standard: false` production path for remaining
+* [closed] Audit the `standard: false` production path for remaining
   LCDM-like assumptions and remove them.
-* [open] Audit the `standard: false` production path for remaining
+* [closed] Audit the `standard: false` production path for remaining
   scalar-only compatibility layers and remove them.
-* [open] Keep generic background and observable handling role-driven, not
+* [closed] Keep generic background and observable handling role-driven, not
   theory-family-driven.
-* [open] Refuse `mode_families`, theory-family selectors, and hidden
+* [closed] Refuse `mode_families`, theory-family selectors, and hidden
   backend selectors as solution shapes.
-* [open] Expand or tighten contract semantics so complete declared theories
+* [closed] Expand or tighten contract semantics so complete declared theories
   can compile and execute end-to-end.
-* [open] Add one neutral synthetic native fixture that proves the engine
+* [closed] Add one neutral synthetic native fixture that proves the engine
   without relying on TORG.
-* [open] Add intentionally invalid fixtures for the major declared-contract
+* [closed] Add intentionally invalid fixtures for the major declared-contract
   failure classes.
-* [open] Add convergence or sensitivity tests for `k`, `eta`, and related
+* [closed] Add convergence or sensitivity tests for `k`, `eta`, and related
   native numerics where hard limits or defaults materially affect results.
-* [open] Justify, revise, or remove native hard caps that remain from the
+* [closed] Justify, revise, or remove native hard caps that remain from the
   optimization campaign.
-* [open] Keep `model_template.yml` documented as documentation, not as a
+* [closed] Keep `model_template.yml` documented as documentation, not as a
   benchmark or acceptance fixture.
-* [open] Document the exact native contract guarantees and failure surface
+* [closed] Document the exact native contract guarantees and failure surface
   truthfully.
 
 Done when:
 
-* [open] Complete declared theories can execute through the native path
+* [closed] Complete declared theories can execute through the native path
   without LCDM-specific production branches.
-* [open] No scalar-only compatibility layer remains in the native path.
-* [open] No theory-family selector or hidden backend selector exists.
-* [open] Native numerics and caps are justified by tests or revised.
-* [open] Relevant CMB, projection, perturbation-contract, model-coder, and
+* [closed] No scalar-only compatibility layer remains in the native path.
+* [closed] No theory-family selector or hidden backend selector exists.
+* [closed] Native numerics and caps are justified by tests or revised.
+* [closed] Relevant CMB, projection, perturbation-contract, model-coder, and
   engine-adapter tests pass.
 
-### [blocked] Slice Four - Acceptance closure, benchmarks, and packaging truth
+### [open] Slice Four - Acceptance closure, benchmarks, and packaging truth
 
 Purpose:
 
@@ -401,36 +405,36 @@ Scope:
 
 Tasks:
 
-* [blocked] Record before-and-after runtime for representative native CMB
+* [open] Record before-and-after runtime for representative native CMB
   prediction workloads.
-* [blocked] Record before-and-after runtime for representative governed CMB
+* [open] Record before-and-after runtime for representative governed CMB
   validation workloads.
-* [blocked] Add or finish benchmark and profiling helpers needed to reproduce
+* [open] Add or finish benchmark and profiling helpers needed to reproduce
   those measurements.
-* [blocked] Add installed-package smoke coverage for package import, CLI
+* [open] Add installed-package smoke coverage for package import, CLI
   import path, and representative standard/native CMB calls.
-* [blocked] Add public API freeze tests for the final CMB package surface.
-* [blocked] Audit that `standard: true` remains on the standard backend path.
-* [blocked] Audit that `standard: false` remains CAMB-free and CLASS-free in
+* [open] Add public API freeze tests for the final CMB package surface.
+* [open] Audit that `standard: true` remains on the standard backend path.
+* [open] Audit that `standard: false` remains CAMB-free and CLASS-free in
   production.
-* [blocked] Audit that runtime ownership is clear between `model_coder.py`,
+* [open] Audit that runtime ownership is clear between `model_coder.py`,
   `engine_adapter.py`, and the native CMB package.
-* [blocked] Keep manifest and diagnostic truth intact after the final
+* [open] Keep manifest and diagnostic truth intact after the final
   architecture cleanup.
-* [blocked] Remove temporary scaffolding that should not remain after closure.
-* [blocked] Ensure docs describe the final package layout, contract scope, and
+* [open] Remove temporary scaffolding that should not remain after closure.
+* [open] Ensure docs describe the final package layout, contract scope, and
   runtime expectations honestly.
-* [blocked] Ensure changelog and closure docs record the subsystem outcome
+* [open] Ensure changelog and closure docs record the subsystem outcome
   truthfully.
 
 Done when:
 
-* [blocked] Runtime improvements are measured rather than guessed.
-* [blocked] Installed-package CMB smoke coverage is green.
-* [blocked] The final public CMB API is frozen in tests.
-* [blocked] The governed validation path remains integral and green.
-* [blocked] Runtime expectations are documented honestly.
-* [blocked] The subsystem can close without stale temporary scaffolding.
+* [open] Runtime improvements are measured rather than guessed.
+* [open] Installed-package CMB smoke coverage is green.
+* [open] The final public CMB API is frozen in tests.
+* [open] The governed validation path remains integral and green.
+* [open] Runtime expectations are documented honestly.
+* [open] The subsystem can close without stale temporary scaffolding.
 
 ## Validation Routine
 

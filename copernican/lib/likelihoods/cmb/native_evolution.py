@@ -18,6 +18,7 @@ from .native_background import (
     _coerce_numeric_scalar,
     _CustomCMBNumerics,
     _CustomCMBPhysicalParameters,
+    _physical_runtime_scalars,
 )
 
 
@@ -375,28 +376,7 @@ def _build_declared_base_context(
     )
     context["a_initial"] = float(background_scalars["a"])
     context["eta_initial"] = float(eta_value)
-    for name, value in (
-        ("Omega_b0", physical_params.Omega_b0),
-        ("ombh2", physical_params.ombh2),
-        ("Omega_c0", physical_params.Omega_c0),
-        ("omch2", physical_params.omch2),
-        ("Omega_m0", physical_params.Omega_m0_background),
-        ("Omega_gamma0", physical_params.Omega_gamma0),
-        ("Omega_nu0", physical_params.Omega_nu0),
-        ("Omega_r0", physical_params.Omega_r0),
-        ("Omega_k0", physical_params.Omega_k0),
-        ("Omega_de0", physical_params.Omega_de0),
-        ("w0", physical_params.dark_energy_eos0),
-        ("wa", physical_params.dark_energy_eos1),
-        ("Neff", physical_params.Neff),
-        ("primordial_amplitude", physical_params.primordial_amplitude),
-        (
-            "primordial_spectral_index",
-            physical_params.primordial_spectral_index,
-        ),
-    ):
-        if value is None:
-            continue
+    for name, value in _physical_runtime_scalars(physical_params).items():
         context.setdefault(name, float(value))
     context["sound_horizon"] = float(background_scalars["sound_horizon"])
     context["sound_speed_sq"] = float(background_scalars["sound_speed_sq"])

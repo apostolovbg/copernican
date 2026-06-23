@@ -283,6 +283,18 @@ def compile_native_cmb_runtime(
     background_reference_names.update(
         str(key) for key in (cmb_contract.get("values", {}) or {})
     )
+    if isinstance(background_section, Mapping):
+        background_reference_names.update(
+            str(key) for key in (background_section.get("derived", {}) or {})
+        )
+        background_reference_names.update(
+            str(key)
+            for key in (
+                (reionization_section.get("quantities", {}) or {})
+                if isinstance(reionization_section, Mapping)
+                else {}
+            )
+        )
     perturbation_data = compile_perturbation_contract(
         perturbation_contract,
         model_name=model_name,
