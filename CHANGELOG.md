@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-06-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,21 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-23:
+  Change: Replaced the CMB roadmap with a five-slice universal native
+    Boltzmann-hierarchy plan that folds efficiency and closure evidence into
+    substantive implementation slices instead of a dead final validation
+    pass.
+  Why: The previous native declared-graph campaign is complete in scope, and
+    the remaining work now needs a shorter roadmap that reaches a truthful
+    theory-agnostic solver without reopening solved ownership slices.
+  Impact: Sequenced future CMB work around hierarchy infrastructure, native
+    standard-model parity, observable completeness, and governed performance
+    closure in a sequence whose final slice validates itself.
+  Files:
+    CHANGELOG.md
+    PLAN.md
 
 - 2026-06-22:
   Change: Closed Slice Three by expanding the native CMB runtime to accept
