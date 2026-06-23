@@ -9,6 +9,7 @@ engine tries to evolve the system.
 from __future__ import annotations
 
 import ast
+import copy
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Mapping, Sequence
@@ -96,18 +97,25 @@ _RUNTIME_REFERENCE_NAMES = {
 }
 
 _SUPPORTED_PERTURBATION_KEYS = {
+    "accuracy_controls",
     "backend_mapping",
     "boundary_conditions",
+    "collision_operators",
     "closures",
     "constraints",
     "contract_version",
     "derived",
     "equations",
     "gauge",
+    "hierarchy_families",
     "initial_conditions",
+    "initial_condition_families",
     "notes",
     "numerics",
     "observables",
+    "projection_typing",
+    "sectors",
+    "species",
     "sources",
     "standard",
     "validity",
@@ -189,6 +197,727 @@ _SUPPORTED_CONDITION_KEYS = {
 _SUPPORTED_CONDITION_TARGET_KEYS = {"order", "variable", "wrt"}
 _SUPPORTED_VALIDITY_KEYS = {"notes", "regimes"}
 _SUPPORTED_BACKEND_KEYS = {"camb"}
+_SUPPORTED_SECTOR_KEYS = {
+    "description",
+    "hierarchy_families",
+    "notes",
+    "species",
+    "supported_gauges",
+    "tensor_character",
+}
+_SUPPORTED_SPECIES_KEYS = {
+    "anisotropic_stress",
+    "background_reference",
+    "collision_operators",
+    "description",
+    "equation_of_state",
+    "hierarchy_family",
+    "notes",
+    "sector",
+    "sound_speed",
+}
+_SUPPORTED_HIERARCHY_FAMILY_KEYS = {
+    "closure",
+    "default_l_max",
+    "description",
+    "momentum_grid",
+    "multipole_symbol",
+    "notes",
+    "sector",
+    "species",
+}
+_SUPPORTED_COLLISION_OPERATOR_KEYS = {
+    "counterpart",
+    "dependencies",
+    "description",
+    "expression",
+    "notes",
+    "sector",
+    "species",
+}
+_SUPPORTED_INITIAL_CONDITION_FAMILY_KEYS = {
+    "description",
+    "members",
+    "notes",
+    "sector",
+}
+_SUPPORTED_PROJECTION_TYPING_KEYS = {
+    "description",
+    "kernel",
+    "notes",
+    "observable_kinds",
+    "parity",
+    "sector",
+    "source_roles",
+    "spin",
+}
+_SCALAR_ACCEPTANCE_REQUIRED_SECTOR = "scalar"
+_SCALAR_ACCEPTANCE_REQUIRED_SPECIES = {
+    "baryon",
+    "cdm",
+    "massless_neutrino",
+    "photon",
+}
+_SCALAR_ACCEPTANCE_REQUIRED_FAMILIES = {
+    "massless_neutrino",
+    "photon_polarization_e",
+    "photon_temperature",
+}
+_SCALAR_ACCEPTANCE_REQUIRED_COLLISION = "thomson_drag"
+_SCALAR_ACCEPTANCE_REQUIRED_IC_FAMILY = "adiabatic_scalar"
+
+
+def _has_explicit_native_runtime_graph(
+    contract: Mapping[str, Any],
+) -> bool:
+    """Return ``True`` when ``contract`` already declares runtime nodes."""
+
+    for section_name in (
+        "variables",
+        "derived",
+        "equations",
+        "constraints",
+        "closures",
+        "sources",
+        "observables",
+        "initial_conditions",
+        "boundary_conditions",
+    ):
+        if contract.get(section_name):
+            return True
+    return False
+
+
+def _scalar_acceptance_temperature_name(moment: int) -> str:
+    """Return the declared photon-temperature variable name."""
+
+    return f"theta_gamma{int(moment)}"
+
+
+def _scalar_acceptance_polarization_name(moment: int) -> str:
+    """Return the declared photon-polarization variable name."""
+
+    return f"e_gamma{int(moment)}"
+
+
+def _scalar_acceptance_neutrino_name(moment: int) -> str:
+    """Return the declared massless-neutrino variable name."""
+
+    if moment == 0:
+        return "delta_nu"
+    if moment == 1:
+        return "theta_nu"
+    if moment == 2:
+        return "sigma_nu"
+    return f"nu_l{int(moment)}"
+
+
+def _scalar_acceptance_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    damping: float,
+    drag_factor: float | None = None,
+) -> str:
+    """Return one hierarchy recurrence RHS for the generated scalar route."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        pieces.append(f"- 0.12 * acoustic_k * {name}")
+    else:
+        next_coeff = float(moment + 1) / float((2 * moment) + 1)
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    if drag_factor is not None:
+        pieces.append(
+            f"- {float(drag_factor):.16g} * tight_coupling_drag * {name}"
+        )
+    pieces.append(f"- {float(damping):.16g} * {name}")
+    return " ".join(pieces)
+
+
+def _materialize_native_scalar_acceptance_contract(
+    contract: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], bool]:
+    """Return a generated scalar hierarchy contract when metadata is enough."""
+
+    if contract.get("standard") is not False:
+        return contract, False
+    if _has_explicit_native_runtime_graph(contract):
+        return contract, False
+
+    sectors = contract.get("sectors", {}) or {}
+    species = contract.get("species", {}) or {}
+    hierarchy_families = contract.get("hierarchy_families", {}) or {}
+    collision_operators = contract.get("collision_operators", {}) or {}
+    initial_condition_families = (
+        contract.get("initial_condition_families", {}) or {}
+    )
+    if not isinstance(sectors, Mapping):
+        return contract, False
+    if not isinstance(species, Mapping):
+        return contract, False
+    if not isinstance(hierarchy_families, Mapping):
+        return contract, False
+    if not isinstance(collision_operators, Mapping):
+        return contract, False
+    if not isinstance(initial_condition_families, Mapping):
+        return contract, False
+    if _SCALAR_ACCEPTANCE_REQUIRED_SECTOR not in sectors:
+        return contract, False
+    if not _SCALAR_ACCEPTANCE_REQUIRED_SPECIES.issubset(species):
+        return contract, False
+    if not _SCALAR_ACCEPTANCE_REQUIRED_FAMILIES.issubset(hierarchy_families):
+        return contract, False
+    if _SCALAR_ACCEPTANCE_REQUIRED_COLLISION not in collision_operators:
+        return contract, False
+    if _SCALAR_ACCEPTANCE_REQUIRED_IC_FAMILY not in initial_condition_families:
+        return contract, False
+
+    numerics = contract.get("numerics", {}) or {}
+    if not isinstance(numerics, Mapping):
+        numerics = {}
+    photon_default_l_max = hierarchy_families["photon_temperature"].get(
+        "default_l_max", 6
+    )
+    polarization_default_l_max = hierarchy_families[
+        "photon_polarization_e"
+    ].get(
+        "default_l_max",
+        photon_default_l_max,
+    )
+    neutrino_default_l_max = hierarchy_families["massless_neutrino"].get(
+        "default_l_max", 4
+    )
+    photon_l_max = max(
+        3,
+        int(
+            numerics.get(
+                "photon_hierarchy_l_max",
+                max(photon_default_l_max, polarization_default_l_max),
+            )
+        ),
+    )
+    neutrino_l_max = max(
+        3,
+        int(
+            numerics.get(
+                "neutrino_hierarchy_l_max",
+                neutrino_default_l_max,
+            )
+        ),
+    )
+
+    materialized = copy.deepcopy(dict(contract))
+    variables: dict[str, Any] = {
+        "delta_b": {"kind": "baryon_density_contrast"},
+        "theta_b": {"kind": "baryon_velocity_divergence"},
+        "delta_c": {"kind": "cdm_density_contrast"},
+        "theta_c": {"kind": "cdm_velocity_divergence"},
+        "delta_nu": {
+            "kind": "massless_neutrino_density_contrast",
+        },
+        "theta_nu": {
+            "kind": "massless_neutrino_velocity_divergence",
+        },
+        "sigma_nu": {
+            "kind": "massless_neutrino_anisotropic_stress",
+        },
+        "Phi": {
+            "kind": "metric_potential_phi",
+            "gauge_role": "newtonian_potential",
+        },
+        "Psi": {
+            "kind": "metric_potential_psi",
+            "gauge_role": "curvature_potential",
+        },
+    }
+    for moment in range(photon_l_max + 1):
+        if moment == 0:
+            kind = "photon_temperature_monopole"
+        elif moment == 1:
+            kind = "photon_temperature_dipole"
+        elif moment == 2:
+            kind = "photon_temperature_quadrupole"
+        elif moment == 3:
+            kind = "photon_temperature_octopole"
+        else:
+            kind = "photon_temperature_multipole"
+        variables[_scalar_acceptance_temperature_name(moment)] = {
+            "kind": kind,
+            "tensor_character": "scalar_like",
+        }
+    for moment in range(2, photon_l_max + 1):
+        if moment == 2:
+            kind = "photon_polarization_quadrupole"
+        elif moment == 3:
+            kind = "photon_polarization_octopole"
+        else:
+            kind = "photon_polarization_multipole"
+        variables[_scalar_acceptance_polarization_name(moment)] = {
+            "kind": kind,
+            "tensor_character": "scalar_like",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        variables[_scalar_acceptance_neutrino_name(moment)] = {
+            "kind": "massless_neutrino_multipole",
+            "tensor_character": "scalar_like",
+        }
+
+    equations: dict[str, Any] = {
+        "evolve_theta_gamma0": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_gamma0",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": ("-acoustic_k * theta_gamma1 + (acoustic_k * Psi) / 3.0"),
+            "role": "continuity",
+        },
+        "evolve_theta_gamma1": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_gamma1",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "acoustic_k * (theta_gamma0 + Psi - 0.4 * theta_gamma2) "
+                "+ 0.25 * tight_coupling_drag * "
+                "(theta_b / 3.0 - theta_gamma1)"
+                " - 0.02 * theta_gamma1"
+            ),
+            "role": "euler",
+        },
+        "evolve_theta_gamma2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_gamma2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "0.4 * acoustic_k * theta_gamma1 "
+                f"- {3.0 / 7.0:.16g} * acoustic_k * "
+                f"{_scalar_acceptance_temperature_name(3)} "
+                "- 0.2 * tight_coupling_drag * "
+                "(0.9 * theta_gamma2 - 0.1 * e_gamma2)"
+                " - 0.03 * theta_gamma2"
+            ),
+            "role": "hierarchy",
+        },
+        "evolve_e_gamma2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                f"{3.0 / 7.0:.16g} * acoustic_k * "
+                f"{_scalar_acceptance_polarization_name(3)} "
+                "- 0.2 * tight_coupling_drag * "
+                "(0.9 * e_gamma2 - 0.1 * theta_gamma2)"
+                " - 0.03 * e_gamma2"
+            ),
+            "role": "polarization",
+        },
+        "evolve_delta_b": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_b",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-theta_b - 0.5 * acoustic_k * Psi",
+            "role": "continuity",
+        },
+        "evolve_theta_b": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_b",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-Hconf * theta_b + 0.25 * acoustic_k_sq * sound_speed_sq * "
+                "delta_b "
+                "+ 0.25 * tight_coupling_drag * (3.0 * theta_gamma1 - "
+                "theta_b) + acoustic_k_sq * Psi"
+            ),
+            "role": "euler",
+        },
+        "evolve_delta_c": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_c",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-theta_c - 0.5 * acoustic_k * Psi",
+            "role": "continuity",
+        },
+        "evolve_theta_c": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_c",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-Hconf * theta_c + acoustic_k_sq * Psi",
+            "role": "euler",
+        },
+        "evolve_delta_nu": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_nu",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-1.3333333333333333 * theta_nu",
+            "role": "continuity",
+        },
+        "evolve_theta_nu": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_nu",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)",
+            "role": "euler",
+        },
+        "evolve_sigma_nu": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "sigma_nu",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                f"{4.0 / 15.0:.16g} * theta_nu "
+                f"- {3.0 / 5.0:.16g} * acoustic_k * "
+                f"{_scalar_acceptance_neutrino_name(3)} "
+                "- 0.02 * sigma_nu"
+            ),
+            "role": "hierarchy",
+        },
+    }
+    for moment in range(3, photon_l_max + 1):
+        name = _scalar_acceptance_temperature_name(moment)
+        next_name = None
+        if moment < photon_l_max:
+            next_name = _scalar_acceptance_temperature_name(moment + 1)
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _scalar_acceptance_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=_scalar_acceptance_temperature_name(moment - 1),
+                next_name=next_name,
+                damping=0.03,
+                drag_factor=0.05,
+            ),
+            "role": "hierarchy",
+        }
+    for moment in range(3, photon_l_max + 1):
+        name = _scalar_acceptance_polarization_name(moment)
+        next_name = None
+        if moment < photon_l_max:
+            next_name = _scalar_acceptance_polarization_name(moment + 1)
+        previous_name = (
+            "e_gamma2"
+            if moment == 3
+            else _scalar_acceptance_polarization_name(moment - 1)
+        )
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _scalar_acceptance_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=previous_name,
+                next_name=next_name,
+                damping=0.03,
+                drag_factor=0.05,
+            ),
+            "role": "polarization",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        name = _scalar_acceptance_neutrino_name(moment)
+        next_name = None
+        if moment < neutrino_l_max:
+            next_name = _scalar_acceptance_neutrino_name(moment + 1)
+        previous_name = (
+            "sigma_nu"
+            if moment == 3
+            else _scalar_acceptance_neutrino_name(moment - 1)
+        )
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _scalar_acceptance_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=previous_name,
+                next_name=next_name,
+                damping=0.02,
+            ),
+            "role": "hierarchy",
+        }
+
+    materialized["variables"] = variables
+    materialized["derived"] = {
+        "polarization_moment": {
+            "expression": "theta_gamma2 + e_gamma2",
+            "description": "Quadrupole source for scalar polarization.",
+        },
+        "acoustic_k": {
+            "expression": "2.0 * k",
+            "description": "Shifted scalar acoustic wave number.",
+        },
+        "acoustic_k_sq": {
+            "expression": "acoustic_k * acoustic_k",
+            "description": "Squared shifted scalar acoustic wave number.",
+        },
+        "total_matter_density": {
+            "expression": "Omega_c0 * delta_c + Omega_b0 * delta_b",
+            "description": "Matter source for the scalar metric.",
+        },
+        "total_radiation_density": {
+            "expression": (
+                "4.0 * Omega_gamma0 * theta_gamma0 + Omega_nu0 * delta_nu"
+            ),
+            "description": "Radiation source for the scalar metric.",
+        },
+        "metric_denominator": {
+            "expression": (
+                "0.25 + 0.5 * (k * sound_horizon) * (k * sound_horizon)"
+            ),
+            "description": "Regularized scalar Poisson denominator.",
+        },
+    }
+    materialized["equations"] = equations
+    materialized["constraints"] = {
+        "phi_constraint": {
+            "target": "Phi",
+            "expression": (
+                "-0.45 * (total_matter_density + total_radiation_density) "
+                "/ metric_denominator"
+            ),
+            "role": "constraint",
+        }
+    }
+    materialized["closures"] = {
+        "psi_closure": {
+            "target": "Psi",
+            "expression": (
+                "Phi - 0.15 * Omega_nu0 * sigma_nu / metric_denominator"
+            ),
+            "role": "closure",
+        }
+    }
+    materialized["sources"] = {
+        "temperature_monopole": {
+            "expression": (
+                "visibility * (theta_gamma0 + Psi + "
+                "0.25 * polarization_moment)"
+            ),
+            "role": "monopole",
+        },
+        "temperature_doppler": {
+            "expression": "visibility * 3.0 * theta_gamma1",
+            "role": "doppler",
+        },
+        "temperature_isw": {
+            "expression": "exp(-tau) * (Psi - Phi)",
+            "role": "isw",
+        },
+        "polarization_source": {
+            "expression": "0.75 * visibility * polarization_moment",
+            "role": "polarization",
+        },
+    }
+    materialized["observables"] = {
+        "temperature": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_temperature",
+            "source_terms": {
+                "monopole": "temperature_monopole",
+                "doppler": "temperature_doppler",
+                "isw": "temperature_isw",
+            },
+        },
+        "polarization_e": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_polarization_e",
+            "source_terms": {"polarization": "polarization_source"},
+        },
+        "TT": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "temperature",
+        },
+        "TE": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "polarization_e",
+        },
+        "EE": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_e",
+            "secondary": "polarization_e",
+        },
+    }
+    initial_conditions: dict[str, Any] = {
+        "theta_gamma0_seed": {
+            "target": {
+                "variable": "theta_gamma0",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-0.5 * seed",
+        },
+        "theta_gamma1_seed": {
+            "target": {
+                "variable": "theta_gamma1",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(acoustic_k * eta_initial / 6.0) * seed",
+        },
+        "theta_gamma2_seed": {
+            "target": {
+                "variable": "theta_gamma2",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) "
+                "* seed / 30.0"
+            ),
+        },
+        "e_gamma2_seed": {
+            "target": {
+                "variable": "e_gamma2",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        },
+        "delta_b_seed": {
+            "target": {
+                "variable": "delta_b",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-1.5 * seed",
+        },
+        "theta_b_seed": {
+            "target": {
+                "variable": "theta_b",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(acoustic_k * eta_initial / 6.0) * seed",
+        },
+        "delta_c_seed": {
+            "target": {
+                "variable": "delta_c",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-1.5 * seed",
+        },
+        "theta_c_seed": {
+            "target": {
+                "variable": "theta_c",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(acoustic_k * eta_initial / 6.0) * seed",
+        },
+        "delta_nu_seed": {
+            "target": {
+                "variable": "delta_nu",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-2.0 * seed",
+        },
+        "theta_nu_seed": {
+            "target": {
+                "variable": "theta_nu",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(acoustic_k * eta_initial / 6.0) * seed",
+        },
+        "sigma_nu_seed": {
+            "target": {
+                "variable": "sigma_nu",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) "
+                "* seed / 15.0"
+            ),
+        },
+    }
+    for moment in range(3, photon_l_max + 1):
+        initial_conditions[
+            f"{_scalar_acceptance_temperature_name(moment)}_seed"
+        ] = {
+            "target": {
+                "variable": _scalar_acceptance_temperature_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+        initial_conditions[
+            f"{_scalar_acceptance_polarization_name(moment)}_seed"
+        ] = {
+            "target": {
+                "variable": _scalar_acceptance_polarization_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        initial_conditions[
+            f"{_scalar_acceptance_neutrino_name(moment)}_seed"
+        ] = {
+            "target": {
+                "variable": _scalar_acceptance_neutrino_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    materialized["initial_conditions"] = initial_conditions
+    materialized["boundary_conditions"] = {}
+    return materialized, True
+
+
 _STANDARD_BACKEND_KEYS = {"uses_standard_perturbations"}
 _NONSTANDARD_BACKEND_KEYS = {
     "implemented",
@@ -394,6 +1123,91 @@ class PerturbationBackendMappingData:
 
 
 @dataclass(frozen=True, slots=True)
+class PerturbationSectorData:
+    """Immutable sector metadata for one hierarchy-capable contract."""
+
+    name: str
+    description: str | None = None
+    notes: str | None = None
+    tensor_character: str | None = None
+    hierarchy_families: tuple[str, ...] = ()
+    species: tuple[str, ...] = ()
+    supported_gauges: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationSpeciesData:
+    """Immutable species metadata for one hierarchy-capable contract."""
+
+    name: str
+    sector: str | None = None
+    hierarchy_family: str | None = None
+    description: str | None = None
+    notes: str | None = None
+    equation_of_state: str | None = None
+    sound_speed: str | None = None
+    anisotropic_stress: str | None = None
+    background_reference: str | None = None
+    collision_operators: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationHierarchyFamilyData:
+    """Immutable hierarchy-family metadata for native CMB contracts."""
+
+    name: str
+    sector: str | None = None
+    description: str | None = None
+    notes: str | None = None
+    species: tuple[str, ...] = ()
+    multipole_symbol: str | None = None
+    closure: str | None = None
+    default_l_max: int | None = None
+    momentum_grid: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationCollisionOperatorData:
+    """Immutable collision-operator metadata for one declared contract."""
+
+    name: str
+    description: str | None = None
+    notes: str | None = None
+    sector: str | None = None
+    species: tuple[str, ...] = ()
+    expression: str | None = None
+    counterpart: str | None = None
+    dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationInitialConditionFamilyData:
+    """Immutable metadata grouping related initial-condition declarations."""
+
+    name: str
+    sector: str | None = None
+    description: str | None = None
+    notes: str | None = None
+    members: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationProjectionTypingData:
+    """Immutable projection-typing metadata for native observables."""
+
+    name: str
+    sector: str | None = None
+    description: str | None = None
+    notes: str | None = None
+    kernel: str | None = None
+    source_roles: tuple[str, ...] = ()
+    observable_kinds: tuple[str, ...] = ()
+    parity: str | None = None
+    spin: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class PerturbationDependencyGraphSummaryData:
     """Immutable summary of declared graph dependencies."""
 
@@ -443,6 +1257,15 @@ class PerturbationContractData:
     backend_mapping: FrozenMapping
     dependency_graph_summary: PerturbationDependencyGraphSummaryData
     manifest_summary: FrozenMapping
+    sectors: FrozenMapping = field(default_factory=FrozenMapping)
+    species: FrozenMapping = field(default_factory=FrozenMapping)
+    hierarchy_families: FrozenMapping = field(default_factory=FrozenMapping)
+    collision_operators: FrozenMapping = field(default_factory=FrozenMapping)
+    initial_condition_families: FrozenMapping = field(
+        default_factory=FrozenMapping
+    )
+    projection_typing: FrozenMapping = field(default_factory=FrozenMapping)
+    accuracy_controls: FrozenMapping = field(default_factory=FrozenMapping)
 
 
 @lru_cache(maxsize=4096)
@@ -739,6 +1562,501 @@ def _dedupe_names(names: Sequence[str]) -> tuple[str, ...]:
     return tuple(ordered)
 
 
+def _normalize_accuracy_control_value(
+    value: Any,
+    *,
+    label: str,
+) -> Any:
+    """Return a manifest-safe accuracy-control value."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float, numpy.integer, numpy.floating)):
+        return float(value)
+    if isinstance(value, str):
+        return _validate_string(value, label=label)
+    if isinstance(value, (list, tuple)):
+        normalized: list[Any] = []
+        for index, item in enumerate(value):
+            normalized.append(
+                _normalize_accuracy_control_value(
+                    item,
+                    label=f"{label}[{index}]",
+                )
+            )
+        return tuple(normalized)
+    raise ValueError(
+        f"{label} must contain only scalar or list-like scalar values"
+    )
+
+
+def _compile_sector_metadata(
+    sector_defs: Mapping[str, Any],
+) -> dict[str, PerturbationSectorData]:
+    """Return validated sector metadata declarations."""
+
+    compiled: dict[str, PerturbationSectorData] = {}
+    for sector_name, sector_def in sector_defs.items():
+        name = _validate_string(
+            sector_name,
+            label="Perturbation sector name",
+        )
+        if not isinstance(sector_def, Mapping):
+            raise ValueError(f"Perturbation sector '{name}' must be a mapping")
+        _validate_entry_keys(
+            entry=sector_def,
+            allowed_keys=_SUPPORTED_SECTOR_KEYS,
+            label=f"cmb.perturbations.sectors.{name}",
+        )
+        supported_gauges = _validate_optional_string_list(
+            sector_def.get("supported_gauges"),
+            label=f"cmb.perturbations.sectors.{name}.supported_gauges",
+        )
+        for gauge_name in supported_gauges:
+            if gauge_name not in _SUPPORTED_GAUGES:
+                raise ValueError(
+                    "cmb.perturbations.sectors."
+                    f"{name}.supported_gauges contains unsupported gauge "
+                    f"'{gauge_name}'"
+                )
+        compiled[name] = PerturbationSectorData(
+            name=name,
+            description=_validate_optional_string(
+                sector_def.get("description"),
+                label=f"cmb.perturbations.sectors.{name}.description",
+            ),
+            notes=_validate_optional_string(
+                sector_def.get("notes"),
+                label=f"cmb.perturbations.sectors.{name}.notes",
+            ),
+            tensor_character=_validate_optional_string(
+                sector_def.get("tensor_character"),
+                label=f"cmb.perturbations.sectors.{name}.tensor_character",
+            ),
+            hierarchy_families=_validate_optional_string_list(
+                sector_def.get("hierarchy_families"),
+                label=(
+                    "cmb.perturbations.sectors." f"{name}.hierarchy_families"
+                ),
+            ),
+            species=_validate_optional_string_list(
+                sector_def.get("species"),
+                label=f"cmb.perturbations.sectors.{name}.species",
+            ),
+            supported_gauges=supported_gauges,
+        )
+    return compiled
+
+
+def _compile_hierarchy_family_metadata(
+    hierarchy_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+) -> dict[str, PerturbationHierarchyFamilyData]:
+    """Return validated hierarchy-family metadata declarations."""
+
+    compiled: dict[str, PerturbationHierarchyFamilyData] = {}
+    for family_name, family_def in hierarchy_defs.items():
+        name = _validate_string(
+            family_name,
+            label="Perturbation hierarchy family name",
+        )
+        if not isinstance(family_def, Mapping):
+            raise ValueError(
+                f"Perturbation hierarchy family '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=family_def,
+            allowed_keys=_SUPPORTED_HIERARCHY_FAMILY_KEYS,
+            label=f"cmb.perturbations.hierarchy_families.{name}",
+        )
+        sector = _validate_optional_string(
+            family_def.get("sector"),
+            label=f"cmb.perturbations.hierarchy_families.{name}.sector",
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.hierarchy_families."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        compiled[name] = PerturbationHierarchyFamilyData(
+            name=name,
+            sector=sector,
+            description=_validate_optional_string(
+                family_def.get("description"),
+                label=(
+                    "cmb.perturbations.hierarchy_families."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                family_def.get("notes"),
+                label=f"cmb.perturbations.hierarchy_families.{name}.notes",
+            ),
+            species=_validate_optional_string_list(
+                family_def.get("species"),
+                label=f"cmb.perturbations.hierarchy_families.{name}.species",
+            ),
+            multipole_symbol=_validate_optional_string(
+                family_def.get("multipole_symbol"),
+                label=(
+                    "cmb.perturbations.hierarchy_families."
+                    f"{name}.multipole_symbol"
+                ),
+            ),
+            closure=_validate_optional_string(
+                family_def.get("closure"),
+                label=f"cmb.perturbations.hierarchy_families.{name}.closure",
+            ),
+            default_l_max=_validate_optional_int(
+                family_def.get("default_l_max"),
+                label=(
+                    "cmb.perturbations.hierarchy_families."
+                    f"{name}.default_l_max"
+                ),
+            ),
+            momentum_grid=_validate_optional_string(
+                family_def.get("momentum_grid"),
+                label=(
+                    "cmb.perturbations.hierarchy_families."
+                    f"{name}.momentum_grid"
+                ),
+            ),
+        )
+    return compiled
+
+
+def _compile_species_metadata(
+    species_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+    hierarchy_family_names: set[str],
+) -> dict[str, PerturbationSpeciesData]:
+    """Return validated species metadata declarations."""
+
+    compiled: dict[str, PerturbationSpeciesData] = {}
+    for species_name, species_def in species_defs.items():
+        name = _validate_string(
+            species_name,
+            label="Perturbation species name",
+        )
+        if not isinstance(species_def, Mapping):
+            raise ValueError(
+                f"Perturbation species '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=species_def,
+            allowed_keys=_SUPPORTED_SPECIES_KEYS,
+            label=f"cmb.perturbations.species.{name}",
+        )
+        sector = _validate_optional_string(
+            species_def.get("sector"),
+            label=f"cmb.perturbations.species.{name}.sector",
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.species."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        hierarchy_family = _validate_optional_string(
+            species_def.get("hierarchy_family"),
+            label=f"cmb.perturbations.species.{name}.hierarchy_family",
+        )
+        if (
+            hierarchy_family is not None
+            and hierarchy_family not in hierarchy_family_names
+        ):
+            raise ValueError(
+                "cmb.perturbations.species."
+                f"{name}.hierarchy_family references unknown family "
+                f"'{hierarchy_family}'"
+            )
+        compiled[name] = PerturbationSpeciesData(
+            name=name,
+            sector=sector,
+            hierarchy_family=hierarchy_family,
+            description=_validate_optional_string(
+                species_def.get("description"),
+                label=f"cmb.perturbations.species.{name}.description",
+            ),
+            notes=_validate_optional_string(
+                species_def.get("notes"),
+                label=f"cmb.perturbations.species.{name}.notes",
+            ),
+            equation_of_state=_validate_optional_string(
+                species_def.get("equation_of_state"),
+                label=(
+                    "cmb.perturbations.species." f"{name}.equation_of_state"
+                ),
+            ),
+            sound_speed=_validate_optional_string(
+                species_def.get("sound_speed"),
+                label=f"cmb.perturbations.species.{name}.sound_speed",
+            ),
+            anisotropic_stress=_validate_optional_string(
+                species_def.get("anisotropic_stress"),
+                label=(
+                    "cmb.perturbations.species." f"{name}.anisotropic_stress"
+                ),
+            ),
+            background_reference=_validate_optional_string(
+                species_def.get("background_reference"),
+                label=(
+                    "cmb.perturbations.species." f"{name}.background_reference"
+                ),
+            ),
+            collision_operators=_validate_optional_string_list(
+                species_def.get("collision_operators"),
+                label=(
+                    "cmb.perturbations.species." f"{name}.collision_operators"
+                ),
+            ),
+        )
+    return compiled
+
+
+def _compile_collision_operator_metadata(
+    collision_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+    species_names: set[str],
+    allowed_names: set[str],
+    replacements: Mapping[str, str],
+) -> dict[str, PerturbationCollisionOperatorData]:
+    """Return validated collision-operator metadata declarations."""
+
+    compiled: dict[str, PerturbationCollisionOperatorData] = {}
+    for operator_name, operator_def in collision_defs.items():
+        name = _validate_string(
+            operator_name,
+            label="Perturbation collision operator name",
+        )
+        if not isinstance(operator_def, Mapping):
+            raise ValueError(
+                f"Perturbation collision operator '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=operator_def,
+            allowed_keys=_SUPPORTED_COLLISION_OPERATOR_KEYS,
+            label=f"cmb.perturbations.collision_operators.{name}",
+        )
+        sector = _validate_optional_string(
+            operator_def.get("sector"),
+            label=f"cmb.perturbations.collision_operators.{name}.sector",
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.collision_operators."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        species = _validate_optional_string_list(
+            operator_def.get("species"),
+            label=f"cmb.perturbations.collision_operators.{name}.species",
+        )
+        unknown_species = sorted(set(species) - species_names)
+        if unknown_species:
+            unknown_str = ", ".join(unknown_species)
+            raise ValueError(
+                "cmb.perturbations.collision_operators."
+                f"{name}.species references unknown species: {unknown_str}"
+            )
+        expression = operator_def.get("expression")
+        compiled_expression = None
+        dependencies: tuple[str, ...] = ()
+        clean_expression = None
+        if expression is not None:
+            clean_expression, dependencies = _replace_and_validate_expression(
+                expression,
+                label=(
+                    "cmb.perturbations.collision_operators."
+                    f"{name}.expression"
+                ),
+                replacements=replacements,
+                allowed_names=allowed_names,
+            )
+            compiled_expression = _compile_expression_plan(
+                clean_expression,
+                dependencies=dependencies,
+            )
+        compiled[name] = PerturbationCollisionOperatorData(
+            name=name,
+            description=_validate_optional_string(
+                operator_def.get("description"),
+                label=(
+                    "cmb.perturbations.collision_operators."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                operator_def.get("notes"),
+                label=f"cmb.perturbations.collision_operators.{name}.notes",
+            ),
+            sector=sector,
+            species=species,
+            expression=clean_expression,
+            counterpart=_validate_optional_string(
+                operator_def.get("counterpart"),
+                label=(
+                    "cmb.perturbations.collision_operators."
+                    f"{name}.counterpart"
+                ),
+            ),
+            dependencies=dependencies,
+            compiled_expression=compiled_expression,
+        )
+    return compiled
+
+
+def _compile_initial_condition_family_metadata(
+    family_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+    initial_condition_names: set[str],
+) -> dict[str, PerturbationInitialConditionFamilyData]:
+    """Return validated initial-condition family declarations."""
+
+    compiled: dict[str, PerturbationInitialConditionFamilyData] = {}
+    for family_name, family_def in family_defs.items():
+        name = _validate_string(
+            family_name,
+            label="Perturbation initial-condition family name",
+        )
+        if not isinstance(family_def, Mapping):
+            raise ValueError(
+                "Perturbation initial-condition family "
+                f"'{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=family_def,
+            allowed_keys=_SUPPORTED_INITIAL_CONDITION_FAMILY_KEYS,
+            label=f"cmb.perturbations.initial_condition_families.{name}",
+        )
+        sector = _validate_optional_string(
+            family_def.get("sector"),
+            label=(
+                "cmb.perturbations.initial_condition_families."
+                f"{name}.sector"
+            ),
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.initial_condition_families."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        members = _validate_optional_string_list(
+            family_def.get("members"),
+            label=(
+                "cmb.perturbations.initial_condition_families."
+                f"{name}.members"
+            ),
+        )
+        unknown_members = sorted(set(members) - initial_condition_names)
+        if unknown_members:
+            unknown_str = ", ".join(unknown_members)
+            raise ValueError(
+                "cmb.perturbations.initial_condition_families."
+                f"{name}.members references unknown initial conditions: "
+                f"{unknown_str}"
+            )
+        compiled[name] = PerturbationInitialConditionFamilyData(
+            name=name,
+            sector=sector,
+            description=_validate_optional_string(
+                family_def.get("description"),
+                label=(
+                    "cmb.perturbations.initial_condition_families."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                family_def.get("notes"),
+                label=(
+                    "cmb.perturbations.initial_condition_families."
+                    f"{name}.notes"
+                ),
+            ),
+            members=members,
+        )
+    return compiled
+
+
+def _compile_projection_typing_metadata(
+    projection_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+) -> dict[str, PerturbationProjectionTypingData]:
+    """Return validated projection-typing metadata declarations."""
+
+    compiled: dict[str, PerturbationProjectionTypingData] = {}
+    for projection_name, projection_def in projection_defs.items():
+        name = _validate_string(
+            projection_name,
+            label="Perturbation projection typing name",
+        )
+        if not isinstance(projection_def, Mapping):
+            raise ValueError(
+                f"Perturbation projection typing '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=projection_def,
+            allowed_keys=_SUPPORTED_PROJECTION_TYPING_KEYS,
+            label=f"cmb.perturbations.projection_typing.{name}",
+        )
+        sector = _validate_optional_string(
+            projection_def.get("sector"),
+            label=f"cmb.perturbations.projection_typing.{name}.sector",
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.projection_typing."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        compiled[name] = PerturbationProjectionTypingData(
+            name=name,
+            sector=sector,
+            description=_validate_optional_string(
+                projection_def.get("description"),
+                label=(
+                    "cmb.perturbations.projection_typing."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                projection_def.get("notes"),
+                label=f"cmb.perturbations.projection_typing.{name}.notes",
+            ),
+            kernel=_validate_optional_string(
+                projection_def.get("kernel"),
+                label=f"cmb.perturbations.projection_typing.{name}.kernel",
+            ),
+            source_roles=_validate_optional_string_list(
+                projection_def.get("source_roles"),
+                label=(
+                    "cmb.perturbations.projection_typing."
+                    f"{name}.source_roles"
+                ),
+            ),
+            observable_kinds=_validate_optional_string_list(
+                projection_def.get("observable_kinds"),
+                label=(
+                    "cmb.perturbations.projection_typing."
+                    f"{name}.observable_kinds"
+                ),
+            ),
+            parity=_validate_optional_string(
+                projection_def.get("parity"),
+                label=f"cmb.perturbations.projection_typing.{name}.parity",
+            ),
+            spin=_validate_optional_float(
+                projection_def.get("spin"),
+                label=f"cmb.perturbations.projection_typing.{name}.spin",
+            ),
+        )
+    return compiled
+
+
 def _relation_target_nodes(
     constraints: Mapping[str, PerturbationConstraintData],
     closures: Mapping[str, PerturbationClosureData],
@@ -855,10 +2173,18 @@ def _build_manifest_summary(
     observables: tuple[str, ...],
     initial_conditions: tuple[str, ...],
     boundary_conditions: tuple[str, ...],
+    sectors: tuple[str, ...],
+    species: tuple[str, ...],
+    hierarchy_families: tuple[str, ...],
+    collision_operators: tuple[str, ...],
+    initial_condition_families: tuple[str, ...],
+    projection_typing: tuple[str, ...],
     validity: PerturbationValidityData,
     numerics: Mapping[str, Any],
+    accuracy_controls: Mapping[str, Any],
     backend_mapping: PerturbationBackendMappingData,
     dependency_summary: PerturbationDependencyGraphSummaryData,
+    generated_scalar_acceptance: bool,
     equation_wrt_by_variable: Mapping[str, str],
     boundary_condition_anchors: Mapping[str, str],
     transfer_component_contracts: Mapping[str, Mapping[str, Any]],
@@ -886,9 +2212,18 @@ def _build_manifest_summary(
         "observable_names": observables,
         "initial_condition_names": initial_conditions,
         "boundary_condition_names": boundary_conditions,
+        "sector_names": sectors,
+        "species_names": species,
+        "hierarchy_family_names": hierarchy_families,
+        "collision_operator_names": collision_operators,
+        "initial_condition_family_names": initial_condition_families,
+        "projection_typing_names": projection_typing,
         "validity_regimes": validity.regimes,
         "validity_notes": validity.notes,
         "numerics_keys": tuple(sorted(str(key) for key in numerics)),
+        "accuracy_control_keys": tuple(
+            sorted(str(key) for key in accuracy_controls)
+        ),
         "backend_implemented": backend_mapping.implemented,
         "backend_native_solver_required": (
             backend_mapping.native_solver_required
@@ -913,6 +2248,14 @@ def _build_manifest_summary(
             for name, anchor_name in boundary_condition_anchors.items()
         },
         "execution_route": execution_route,
+        "compilation_ownership": {
+            "compiler": (
+                "copernican.lib.model_coder.compile_native_cmb_runtime"
+            ),
+            "compiled_upstream": True,
+            "hot_path_recompilation_allowed": False,
+        },
+        "generated_scalar_acceptance": generated_scalar_acceptance,
         "transfer_component_contracts": {
             str(name): {
                 str(key): value for key, value in contract_data.items()
@@ -990,6 +2333,9 @@ def compile_perturbation_contract(
 
     if not isinstance(contract, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
+    contract, materialized_scalar_acceptance = (
+        _materialize_native_scalar_acceptance_contract(contract)
+    )
 
     cache_key = (
         _freeze_for_cache(contract),
@@ -1054,15 +2400,24 @@ def compile_perturbation_contract(
     )
 
     sections = {
+        "accuracy_controls": contract.get("accuracy_controls", {}),
         "variables": contract.get("variables", {}),
         "derived": contract.get("derived", {}),
         "equations": contract.get("equations", {}),
         "constraints": contract.get("constraints", {}),
         "closures": contract.get("closures", {}),
+        "collision_operators": contract.get("collision_operators", {}),
         "sources": contract.get("sources", {}),
         "observables": contract.get("observables", {}),
         "initial_conditions": contract.get("initial_conditions", {}),
+        "initial_condition_families": (
+            contract.get("initial_condition_families", {})
+        ),
         "boundary_conditions": contract.get("boundary_conditions", {}),
+        "sectors": contract.get("sectors", {}),
+        "species": contract.get("species", {}),
+        "hierarchy_families": contract.get("hierarchy_families", {}),
+        "projection_typing": contract.get("projection_typing", {}),
         "validity": contract.get("validity", {}),
         "backend_mapping": contract.get("backend_mapping"),
         "numerics": contract.get("numerics", {}),
@@ -2039,6 +3394,93 @@ def compile_perturbation_contract(
         default_anchor="start",
     )
 
+    sector_entries = _compile_sector_metadata(sections["sectors"])
+    hierarchy_family_entries = _compile_hierarchy_family_metadata(
+        sections["hierarchy_families"],
+        sector_names=set(sector_entries),
+    )
+    species_entries = _compile_species_metadata(
+        sections["species"],
+        sector_names=set(sector_entries),
+        hierarchy_family_names=set(hierarchy_family_entries),
+    )
+    collision_operator_entries = _compile_collision_operator_metadata(
+        sections["collision_operators"],
+        sector_names=set(sector_entries),
+        species_names=set(species_entries),
+        allowed_names=(
+            all_expression_names
+            | set(source_entries)
+            | set(observable_entries)
+        ),
+        replacements=replacements,
+    )
+    initial_condition_family_entries = (
+        _compile_initial_condition_family_metadata(
+            sections["initial_condition_families"],
+            sector_names=set(sector_entries),
+            initial_condition_names=set(initial_condition_entries),
+        )
+    )
+    projection_typing_entries = _compile_projection_typing_metadata(
+        sections["projection_typing"],
+        sector_names=set(sector_entries),
+    )
+    accuracy_controls_mapping = FrozenMapping(
+        {
+            str(key): _normalize_accuracy_control_value(
+                value,
+                label=f"cmb.perturbations.accuracy_controls.{key}",
+            )
+            for key, value in sections["accuracy_controls"].items()
+        }
+    )
+    for sector_name, sector_entry in sector_entries.items():
+        unknown_families = sorted(
+            set(sector_entry.hierarchy_families)
+            - set(hierarchy_family_entries)
+        )
+        if unknown_families:
+            unknown_str = ", ".join(unknown_families)
+            raise ValueError(
+                "cmb.perturbations.sectors."
+                f"{sector_name}.hierarchy_families references unknown "
+                f"families: {unknown_str}"
+            )
+        unknown_species = sorted(
+            set(sector_entry.species) - set(species_entries)
+        )
+        if unknown_species:
+            unknown_str = ", ".join(unknown_species)
+            raise ValueError(
+                "cmb.perturbations.sectors."
+                f"{sector_name}.species references unknown species: "
+                f"{unknown_str}"
+            )
+    for family_name, family_entry in hierarchy_family_entries.items():
+        unknown_species = sorted(
+            set(family_entry.species) - set(species_entries)
+        )
+        if unknown_species:
+            unknown_str = ", ".join(unknown_species)
+            raise ValueError(
+                "cmb.perturbations.hierarchy_families."
+                f"{family_name}.species references unknown species: "
+                f"{unknown_str}"
+            )
+    for species_name, species_entry in species_entries.items():
+        unknown_operators = sorted(
+            set(species_entry.collision_operators)
+            - set(collision_operator_entries)
+        )
+        if unknown_operators:
+            unknown_str = ", ".join(unknown_operators)
+            raise ValueError(
+                "cmb.perturbations.species."
+                f"{species_name}.collision_operators references unknown "
+                f"operators: {unknown_str}"
+            )
+
     if standard:
         for section_name in (
             "variables",
@@ -2046,10 +3488,17 @@ def compile_perturbation_contract(
             "equations",
             "constraints",
             "closures",
+            "collision_operators",
             "sources",
             "observables",
             "initial_conditions",
+            "initial_condition_families",
             "boundary_conditions",
+            "sectors",
+            "species",
+            "hierarchy_families",
+            "projection_typing",
+            "accuracy_controls",
         ):
             if sections[section_name]:
                 raise ValueError(
@@ -2426,10 +3875,20 @@ def compile_perturbation_contract(
             observables=dependency_summary.observable_names,
             initial_conditions=dependency_summary.initial_condition_names,
             boundary_conditions=(dependency_summary.boundary_condition_names),
+            sectors=tuple(sorted(sector_entries)),
+            species=tuple(sorted(species_entries)),
+            hierarchy_families=tuple(sorted(hierarchy_family_entries)),
+            collision_operators=tuple(sorted(collision_operator_entries)),
+            initial_condition_families=tuple(
+                sorted(initial_condition_family_entries)
+            ),
+            projection_typing=tuple(sorted(projection_typing_entries)),
             validity=validity_data,
             numerics=numerics_mapping,
+            accuracy_controls=accuracy_controls_mapping,
             backend_mapping=backend_data,
             dependency_summary=dependency_summary,
+            generated_scalar_acceptance=materialized_scalar_acceptance,
             equation_wrt_by_variable={
                 entry.lhs.variable: entry.lhs.wrt
                 for entry in equation_entries.values()
@@ -2463,6 +3922,15 @@ def compile_perturbation_contract(
         backend_mapping=FrozenMapping({backend: backend_data}),
         dependency_graph_summary=dependency_summary,
         manifest_summary=manifest_summary,
+        sectors=FrozenMapping(sector_entries),
+        species=FrozenMapping(species_entries),
+        hierarchy_families=FrozenMapping(hierarchy_family_entries),
+        collision_operators=FrozenMapping(collision_operator_entries),
+        initial_condition_families=FrozenMapping(
+            initial_condition_family_entries
+        ),
+        projection_typing=FrozenMapping(projection_typing_entries),
+        accuracy_controls=accuracy_controls_mapping,
     )
     _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
     return _get_cached_perturbation_contract(cache_key)
@@ -2470,6 +3938,7 @@ def compile_perturbation_contract(
 
 __all__ = [
     "PerturbationBackendMappingData",
+    "PerturbationCollisionOperatorData",
     "PerturbationClosureData",
     "PerturbationCompiledExpressionData",
     "PerturbationConditionData",
@@ -2480,8 +3949,13 @@ __all__ = [
     "PerturbationDerivedData",
     "PerturbationDerivativeLhsData",
     "PerturbationEquationData",
+    "PerturbationHierarchyFamilyData",
+    "PerturbationInitialConditionFamilyData",
     "PerturbationObservableData",
+    "PerturbationProjectionTypingData",
+    "PerturbationSectorData",
     "PerturbationSourceData",
+    "PerturbationSpeciesData",
     "PerturbationValidityData",
     "PerturbationVariableData",
     "compile_perturbation_contract",

@@ -8,6 +8,7 @@ import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
     PerturbationBackendMappingData,
     PerturbationClosureData,
+    PerturbationCollisionOperatorData,
     PerturbationCompiledExpressionData,
     PerturbationConditionData,
     PerturbationConditionTargetData,
@@ -17,8 +18,13 @@ from copernican.lib.perturbation_contract import (
     PerturbationDerivativeLhsData,
     PerturbationDerivedData,
     PerturbationEquationData,
+    PerturbationHierarchyFamilyData,
+    PerturbationInitialConditionFamilyData,
     PerturbationObservableData,
+    PerturbationProjectionTypingData,
+    PerturbationSectorData,
     PerturbationSourceData,
+    PerturbationSpeciesData,
     PerturbationValidityData,
     PerturbationVariableData,
     compile_perturbation_contract,
@@ -99,6 +105,43 @@ def _base_nonstandard_contract() -> dict[str, object]:
                 "role": "closure",
             }
         },
+        "sectors": {
+            "scalar": {
+                "description": "Synthetic scalar sector.",
+                "species": ["photon", "baryon"],
+                "hierarchy_families": ["photon_temperature"],
+                "supported_gauges": ["conformal_newtonian"],
+                "tensor_character": "scalar_like",
+            }
+        },
+        "species": {
+            "photon": {
+                "sector": "scalar",
+                "hierarchy_family": "photon_temperature",
+                "collision_operators": ["thomson_drag"],
+                "background_reference": "Omega_gamma0",
+            },
+            "baryon": {
+                "sector": "scalar",
+                "background_reference": "Omega_b0",
+            },
+        },
+        "hierarchy_families": {
+            "photon_temperature": {
+                "sector": "scalar",
+                "species": ["photon"],
+                "closure": "lmax_exponential",
+                "default_l_max": 4,
+                "multipole_symbol": "theta_gamma_l",
+            }
+        },
+        "collision_operators": {
+            "thomson_drag": {
+                "sector": "scalar",
+                "species": ["photon", "baryon"],
+                "expression": "tight_coupling_drag * (theta_x - delta_x)",
+            }
+        },
         "sources": {
             "monopole_source": {
                 "expression": "visibility * density_drive",
@@ -154,7 +197,27 @@ def _base_nonstandard_contract() -> dict[str, object]:
                 "expression": "0.1 * seed",
             },
         },
+        "initial_condition_families": {
+            "adiabatic_scalar": {
+                "sector": "scalar",
+                "members": ["delta_seed", "theta_seed"],
+            }
+        },
         "boundary_conditions": {},
+        "projection_typing": {
+            "temperature_line_of_sight": {
+                "sector": "scalar",
+                "kernel": "temperature_mixed_window",
+                "source_roles": ["monopole"],
+                "observable_kinds": ["transfer_component"],
+                "parity": "even",
+                "spin": 0.0,
+            }
+        },
+        "accuracy_controls": {
+            "ell_refinement": "bounded",
+            "k_refinement_levels": [16, 32],
+        },
         "numerics": {
             "ode_rtol": 1.0e-5,
             "ode_atol": 1.0e-8,
@@ -170,6 +233,93 @@ def _base_nonstandard_contract() -> dict[str, object]:
             }
         },
     }
+
+
+def _scalar_metadata_only_contract() -> dict[str, object]:
+    """Return one metadata-only scalar contract for hierarchy generation."""
+
+    contract = _base_nonstandard_contract()
+    for section_name in (
+        "variables",
+        "derived",
+        "equations",
+        "constraints",
+        "closures",
+        "sources",
+        "observables",
+        "initial_conditions",
+        "boundary_conditions",
+    ):
+        contract[section_name] = {}
+    contract["species"] = {
+        "photon": {
+            "sector": "scalar",
+            "hierarchy_family": "photon_temperature",
+            "collision_operators": ["thomson_drag"],
+            "background_reference": "Omega_gamma0",
+        },
+        "baryon": {
+            "sector": "scalar",
+            "collision_operators": ["thomson_drag"],
+            "background_reference": "Omega_b0",
+        },
+        "cdm": {
+            "sector": "scalar",
+            "background_reference": "Omega_c0",
+        },
+        "massless_neutrino": {
+            "sector": "scalar",
+            "hierarchy_family": "massless_neutrino",
+            "background_reference": "Omega_nu0",
+            "anisotropic_stress": "supported",
+        },
+    }
+    contract["hierarchy_families"] = {
+        "photon_temperature": {
+            "sector": "scalar",
+            "species": ["photon"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 6,
+            "multipole_symbol": "theta_gamma_l",
+        },
+        "photon_polarization_e": {
+            "sector": "scalar",
+            "species": ["photon"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 6,
+            "multipole_symbol": "e_gamma_l",
+        },
+        "massless_neutrino": {
+            "sector": "scalar",
+            "species": ["massless_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_l",
+        },
+    }
+    contract["collision_operators"] = {
+        "thomson_drag": {
+            "sector": "scalar",
+            "species": ["photon", "baryon"],
+            "expression": "tight_coupling_drag * (theta_b - theta_gamma1)",
+        }
+    }
+    contract["initial_condition_families"] = {
+        "adiabatic_scalar": {
+            "sector": "scalar",
+            "members": [],
+        }
+    }
+    contract["numerics"].update(
+        {
+            "photon_hierarchy_l_max": 6,
+            "neutrino_hierarchy_l_max": 4,
+        }
+    )
+    contract["validity"] = {
+        "regimes": ["linear", "native_scalar_acceptance"],
+    }
+    return contract
 
 
 class PerturbationContractTestCase(unittest.TestCase):
@@ -196,6 +346,25 @@ class PerturbationContractTestCase(unittest.TestCase):
             perturbation_contract_module.compile_perturbation_contract,
             compile_perturbation_contract,
         )
+
+    def test_scalar_metadata_contract_materializes_runtime_graph(self) -> None:
+        """Metadata-only scalar contracts should expand into graph entries."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+
+        self.assertFalse(compiled.standard)
+        self.assertIn("theta_gamma0", compiled.variables)
+        self.assertIn("theta_gamma6", compiled.variables)
+        self.assertIn("e_gamma6", compiled.variables)
+        self.assertIn("nu_l4", compiled.variables)
+        self.assertIn("evolve_theta_gamma6", compiled.equations)
+        self.assertIn("evolve_nu_l4", compiled.equations)
+        self.assertIn("TT", compiled.observables)
+        self.assertIn("TE", compiled.observables)
+        self.assertIn("EE", compiled.observables)
+        self.assertTrue(
+            compiled.manifest_summary["generated_scalar_acceptance"]
+        )
         self.assertIs(
             perturbation_contract_module.PerturbationContractData,
             PerturbationContractData,
@@ -211,6 +380,14 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIs(
             perturbation_contract_module.PerturbationConditionData,
             PerturbationConditionData,
+        )
+        self.assertIs(
+            perturbation_contract_module.PerturbationSectorData,
+            PerturbationSectorData,
+        )
+        self.assertIs(
+            perturbation_contract_module.PerturbationSpeciesData,
+            PerturbationSpeciesData,
         )
         self.assertIs(
             perturbation_contract_module.evaluate_compiled_expression,
@@ -392,6 +569,30 @@ class PerturbationContractTestCase(unittest.TestCase):
             PerturbationBackendMappingData,
         )
         self.assertIsInstance(
+            contract_data.sectors["scalar"],
+            PerturbationSectorData,
+        )
+        self.assertIsInstance(
+            contract_data.species["photon"],
+            PerturbationSpeciesData,
+        )
+        self.assertIsInstance(
+            contract_data.hierarchy_families["photon_temperature"],
+            PerturbationHierarchyFamilyData,
+        )
+        self.assertIsInstance(
+            contract_data.collision_operators["thomson_drag"],
+            PerturbationCollisionOperatorData,
+        )
+        self.assertIsInstance(
+            contract_data.initial_condition_families["adiabatic_scalar"],
+            PerturbationInitialConditionFamilyData,
+        )
+        self.assertIsInstance(
+            contract_data.projection_typing["temperature_line_of_sight"],
+            PerturbationProjectionTypingData,
+        )
+        self.assertIsInstance(
             dependency_summary,
             PerturbationDependencyGraphSummaryData,
         )
@@ -430,6 +631,24 @@ class PerturbationContractTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(
+            contract_data.manifest_summary["sector_names"],
+            ("scalar",),
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["species_names"],
+            ("baryon", "photon"),
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["compilation_ownership"],
+            {
+                "compiler": (
+                    "copernican.lib.model_coder." "compile_native_cmb_runtime"
+                ),
+                "compiled_upstream": True,
+                "hot_path_recompilation_allowed": False,
+            },
+        )
+        self.assertEqual(
             contract_data.manifest_summary["execution_route"],
             {
                 "route_id": "native_declared_graph",
@@ -448,6 +667,29 @@ class PerturbationContractTestCase(unittest.TestCase):
                 "backend_mapping_uses_standard_perturbations": None,
             },
         )
+
+    def test_species_with_unknown_sector_fails(self) -> None:
+        """Hierarchy metadata should reject unknown sector references."""
+
+        contract = _base_nonstandard_contract()
+        contract["species"]["photon"]["sector"] = "tensor"
+
+        with self.assertRaisesRegex(ValueError, "unknown sector 'tensor'"):
+            self._compile(contract)
+
+    def test_initial_condition_family_requires_known_members(self) -> None:
+        """Family metadata should reference declared initial conditions."""
+
+        contract = _base_nonstandard_contract()
+        contract["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = ["delta_seed", "missing_seed"]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "unknown initial conditions: missing_seed",
+        ):
+            self._compile(contract)
 
     def test_extended_runtime_physical_scalars_compile(self) -> None:
         """Native graphs may reference the documented physical scalars."""
@@ -541,6 +783,9 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         contract = _base_nonstandard_contract()
         del contract["initial_conditions"]["theta_seed"]
+        contract["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = ["delta_seed"]
 
         with self.assertRaisesRegex(
             ValueError,
@@ -809,6 +1054,9 @@ class PerturbationContractTestCase(unittest.TestCase):
         theta_seed = contract["initial_conditions"].pop("theta_seed")
         theta_seed["anchor"] = "start"
         contract["boundary_conditions"]["theta_start"] = theta_seed
+        contract["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = ["delta_seed"]
 
         contract_data = self._compile(contract)
 
@@ -823,6 +1071,9 @@ class PerturbationContractTestCase(unittest.TestCase):
         theta_seed = contract["initial_conditions"].pop("theta_seed")
         theta_seed["anchor"] = "end"
         contract["boundary_conditions"]["theta_end"] = theta_seed
+        contract["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = ["delta_seed"]
 
         contract_data = self._compile(contract)
 
@@ -936,6 +1187,27 @@ class PerturbationContractTestCase(unittest.TestCase):
             native_solver_required=True,
             implemented=True,
         )
+        sector_data = PerturbationSectorData(name="scalar")
+        species_data = PerturbationSpeciesData(
+            name="photon",
+            sector="scalar",
+        )
+        hierarchy_family_data = PerturbationHierarchyFamilyData(
+            name="photon_temperature",
+            sector="scalar",
+        )
+        collision_operator_data = PerturbationCollisionOperatorData(
+            name="thomson_drag",
+            sector="scalar",
+        )
+        initial_condition_family_data = PerturbationInitialConditionFamilyData(
+            name="adiabatic_scalar",
+            sector="scalar",
+        )
+        projection_typing_data = PerturbationProjectionTypingData(
+            name="temperature_line_of_sight",
+            sector="scalar",
+        )
         dependency_summary = PerturbationDependencyGraphSummaryData(
             variable_names=("delta_x",),
             derived_names=("density_drive",),
@@ -973,6 +1245,36 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(closure_data, PerturbationClosureData)
         self.assertEqual(source_data.role, "monopole")
         self.assertIsInstance(source_data, PerturbationSourceData)
+        self.assertEqual(sector_data.name, "scalar")
+        self.assertIsInstance(sector_data, PerturbationSectorData)
+        self.assertEqual(species_data.name, "photon")
+        self.assertIsInstance(species_data, PerturbationSpeciesData)
+        self.assertEqual(hierarchy_family_data.name, "photon_temperature")
+        self.assertIsInstance(
+            hierarchy_family_data,
+            PerturbationHierarchyFamilyData,
+        )
+        self.assertEqual(collision_operator_data.name, "thomson_drag")
+        self.assertIsInstance(
+            collision_operator_data,
+            PerturbationCollisionOperatorData,
+        )
+        self.assertEqual(
+            initial_condition_family_data.name,
+            "adiabatic_scalar",
+        )
+        self.assertIsInstance(
+            initial_condition_family_data,
+            PerturbationInitialConditionFamilyData,
+        )
+        self.assertEqual(
+            projection_typing_data.name,
+            "temperature_line_of_sight",
+        )
+        self.assertIsInstance(
+            projection_typing_data,
+            PerturbationProjectionTypingData,
+        )
         self.assertEqual(
             observable_data.projection,
             "line_of_sight_temperature",

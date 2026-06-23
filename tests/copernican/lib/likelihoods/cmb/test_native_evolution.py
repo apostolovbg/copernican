@@ -138,6 +138,15 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
 
         self.assertIs(compiled, payload)
 
+    def test_missing_precompiled_payload_fails_loudly(self):
+        """Native execution should reject raw contracts without payloads."""
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "precompiled perturbation_data",
+        ):
+            native_evolution._compile_declared_perturbation_contract({})
+
     def test_declared_graph_context_uses_compiled_expression_plans(self):
         """Declared graph resolution should avoid AST re-interpretation."""
 

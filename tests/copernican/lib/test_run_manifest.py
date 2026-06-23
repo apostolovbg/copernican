@@ -13,6 +13,22 @@ from copernican.lib.perturbation_contract import PerturbationContractData
 from copernican.version import get_version
 
 
+def _dummy_native_runtime():
+    """Return one native runtime summary fixture for manifest tests."""
+
+    return SimpleNamespace(
+        runtime_signature="native-cmb-runtime:dummy",
+        compile_diagnostics=SimpleNamespace(
+            runtime_signature="native-cmb-runtime:dummy",
+            compiler="copernican.lib.model_coder.compile_native_cmb_runtime",
+            compiled_upstream=True,
+            hot_path_recompilation_allowed=False,
+            parameter_names=("p1",),
+            background_reference_names=("H0",),
+        ),
+    )
+
+
 def _dummy_plugin():
     return SimpleNamespace(
         MODEL_NAME="DummyModel",
@@ -93,6 +109,7 @@ def _dummy_plugin():
             ),
         },
         CMB_PERTURBATION_STANDARD=True,
+        CMB_NATIVE_RUNTIME=_dummy_native_runtime(),
         CMB_PERTURBATION_DATA=PerturbationContractData(
             model_name="DummyModel",
             backend="camb",
@@ -187,6 +204,7 @@ def _dummy_nonstandard_plugin():
     plugin = _dummy_plugin()
     plugin.CMB_PERTURBATION_STANDARD = False
     plugin.CMB_PERTURBATION_CONTRACT["standard"] = False
+    plugin.CMB_NATIVE_RUNTIME = _dummy_native_runtime()
     plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"]["camb"] = {
         "native_solver_required": True,
         "implemented": True,
@@ -464,6 +482,12 @@ class TestRunManifest(unittest.TestCase):
                 ]["solver"],
                 "camb_standard",
             )
+            self.assertEqual(
+                model_entry["custom_cmb_runtime_manifest_summary"][
+                    "runtime_signature"
+                ],
+                "native-cmb-runtime:dummy",
+            )
             self.assertIn(
                 "reionization_calibration",
                 model_entry["custom_cmb_runtime_manifest_summary"],
@@ -498,6 +522,12 @@ class TestRunManifest(unittest.TestCase):
                 "execution_route"
             ]["transfer_function_path"],
             "copernican.lib.likelihoods.cmb.copernican_cmb_solver",
+        )
+        self.assertEqual(
+            model_entry["custom_cmb_runtime_manifest_summary"][
+                "compile_diagnostics"
+            ]["compiler"],
+            "copernican.lib.model_coder.compile_native_cmb_runtime",
         )
 
     def test_manifest_import_export_cycle(self) -> None:

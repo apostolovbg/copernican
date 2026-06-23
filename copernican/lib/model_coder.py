@@ -12,13 +12,14 @@ whenever they are unpickled.
 
 import ast
 import copy
+import hashlib
 import itertools
 import logging
 import math
 import re
 import sys
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -129,6 +130,18 @@ class NativeCMBBackgroundRuntime:
 
 
 @dataclass(frozen=True, slots=True)
+class NativeCMBCompileDiagnostics:
+    """Immutable diagnostics for native-runtime compilation ownership."""
+
+    runtime_signature: str
+    compiler: str
+    compiled_upstream: bool
+    hot_path_recompilation_allowed: bool
+    parameter_names: tuple[str, ...]
+    background_reference_names: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class NativeCMBRuntime:
     """Immutable native CMB runtime payload carried by engine plugins.
 
@@ -146,6 +159,11 @@ class NativeCMBRuntime:
     numerical: Mapping[str, Any]
     perturbation_data: Any
     background_runtime: NativeCMBBackgroundRuntime
+    grids: Mapping[str, Any] = field(default_factory=dict)
+    values: Mapping[str, Any] = field(default_factory=dict)
+    calls: tuple[Mapping[str, Any], ...] = ()
+    runtime_signature: str = ""
+    compile_diagnostics: NativeCMBCompileDiagnostics | None = None
 
     def build_contract(
         self,
@@ -160,12 +178,148 @@ class NativeCMBRuntime:
             "backend": self.backend,
             "model_parameters": dict(model_parameters),
             "param_map": dict(param_map),
-            "background": self.background,
+            "background": copy.deepcopy(self.background),
             "background_runtime": self.background_runtime,
-            "numerical": self.numerical,
-            "perturbations": self.perturbation_contract,
+            "grids": copy.deepcopy(self.grids),
+            "values": copy.deepcopy(self.values),
+            "calls": copy.deepcopy(list(self.calls)),
+            "numerical": copy.deepcopy(self.numerical),
+            "perturbations": copy.deepcopy(self.perturbation_contract),
             "perturbation_data": self.perturbation_data,
+            "runtime_signature": self.runtime_signature,
+            "compile_diagnostics": self.compile_diagnostics,
         }
+
+
+_NativeCMBRuntimeCache = dict[tuple[Any, ...], NativeCMBRuntime]
+
+_COMPILED_NATIVE_CMB_RUNTIME_CACHE: _NativeCMBRuntimeCache = {}
+
+
+def _freeze_native_runtime_input(value: Any) -> Any:
+    """Return a deterministic cache token for native-runtime compilation."""
+
+    from .engine_adapter import _freeze_for_cache
+
+    return _freeze_for_cache(value)
+
+
+def _freeze_native_runtime_structure(
+    cmb_contract: Mapping[str, Any],
+) -> Any:
+    """Return a structural cache token for one native runtime bundle."""
+
+    structural_view = {
+        "background": cmb_contract.get("background", {}) or {},
+        "backend": cmb_contract.get("backend", "camb"),
+        "calls": cmb_contract.get("calls", []) or [],
+        "grids": cmb_contract.get("grids", {}) or {},
+        "model_name": cmb_contract.get("model_name", ""),
+        "model_parameter_names": tuple(
+            sorted(
+                str(name)
+                for name in (cmb_contract.get("model_parameters", {}) or {})
+            )
+        ),
+        "numerical": cmb_contract.get("numerical", {}) or {},
+        "param_names": tuple(
+            sorted(
+                str(name) for name in (cmb_contract.get("param_map", {}) or {})
+            )
+        ),
+        "perturbations": cmb_contract.get("perturbations", {}) or {},
+        "values": cmb_contract.get("values", {}) or {},
+    }
+    return _freeze_native_runtime_input(structural_view)
+
+
+def _native_runtime_signature(cache_key: tuple[Any, ...]) -> str:
+    """Return a stable human-readable signature for one compiled runtime."""
+
+    digest = hashlib.sha256(repr(cache_key).encode("utf-8")).hexdigest()[:16]
+    return f"native-cmb-runtime:{digest}"
+
+
+def _coerce_native_runtime_scalar_mapping(
+    entries: Mapping[str, Any],
+    *,
+    label: str,
+) -> dict[str, float]:
+    """Return a numeric scalar mapping for one bound native runtime."""
+
+    resolved: dict[str, float] = {}
+    for key, value in entries.items():
+        if isinstance(value, bool) or not isinstance(
+            value,
+            (int, float, numpy.integer, numpy.floating),
+        ):
+            raise ValueError(
+                f"{label}.{key} must be a numeric scalar for native runtime "
+                "binding"
+            )
+        resolved[str(key)] = float(value)
+    return resolved
+
+
+def _infer_native_runtime_parameter_names(
+    cmb_contract: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """Return one stable parameter-name list for native-runtime preparation."""
+
+    model_parameters = cmb_contract.get("model_parameters", {}) or {}
+    param_map = cmb_contract.get("param_map", {}) or {}
+    names: list[str] = []
+    seen: set[str] = set()
+    for source in (model_parameters, param_map):
+        if not isinstance(source, Mapping):
+            continue
+        for key in source:
+            name = str(key)
+            if name in seen:
+                continue
+            seen.add(name)
+            names.append(name)
+    return tuple(names)
+
+
+def prepare_native_cmb_execution_contract(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return ``contract`` with compiled native runtime payload attached."""
+
+    if not isinstance(contract, Mapping):
+        raise ValueError("Structured CMB contracts must be mappings")
+    perturbations = contract.get("perturbations", {}) or {}
+    if not isinstance(perturbations, Mapping):
+        raise ValueError("Structured CMB contracts must include perturbations")
+    if perturbations.get("standard") is not False:
+        return contract
+    if (
+        contract.get("perturbation_data") is not None
+        and contract.get("background_runtime") is not None
+    ):
+        return contract
+
+    parameter_names = _infer_native_runtime_parameter_names(contract)
+    runtime = compile_native_cmb_runtime(
+        model_name=str(contract.get("model_name", "PreparedNativeCMB")),
+        backend=str(contract.get("backend", "camb")),
+        parameter_names=parameter_names,
+        latex_names=tuple("" for _ in parameter_names),
+        cmb_contract=contract,
+    )
+    model_parameters = _coerce_native_runtime_scalar_mapping(
+        contract.get("model_parameters", {}) or {},
+        label="model_parameters",
+    )
+    param_map = _coerce_native_runtime_scalar_mapping(
+        contract.get("param_map", {}) or {},
+        label="param_map",
+    )
+    return runtime.build_contract(
+        model_parameters=model_parameters,
+        param_map=param_map,
+    )
 
 
 def compile_native_cmb_runtime(
@@ -177,6 +331,17 @@ def compile_native_cmb_runtime(
     cmb_contract: Mapping[str, Any],
 ) -> NativeCMBRuntime:
     """Compile the static native CMB runtime carried by a model plugin."""
+
+    cache_key = (
+        str(model_name),
+        str(backend),
+        tuple(str(name) for name in parameter_names),
+        tuple(str(name) for name in latex_names),
+        _freeze_native_runtime_structure(cmb_contract),
+    )
+    cached_runtime = _COMPILED_NATIVE_CMB_RUNTIME_CACHE.get(cache_key)
+    if cached_runtime is not None:
+        return cached_runtime
 
     from .perturbation_contract import (
         _compile_expression_plan,
@@ -295,19 +460,25 @@ def compile_native_cmb_runtime(
                 else {}
             )
         )
+    background_reference_names_tuple = tuple(
+        sorted(background_reference_names)
+    )
     perturbation_data = compile_perturbation_contract(
         perturbation_contract,
         model_name=model_name,
         backend=backend,
         parameter_names=tuple(parameter_names),
         latex_names=tuple(latex_names),
-        background_reference_names=tuple(sorted(background_reference_names)),
+        background_reference_names=background_reference_names_tuple,
     )
-    return NativeCMBRuntime(
+    runtime = NativeCMBRuntime(
         model_name=model_name,
         backend=backend,
         perturbation_contract=perturbation_contract,
         background=copy.deepcopy(cmb_contract.get("background", {}) or {}),
+        grids=copy.deepcopy(cmb_contract.get("grids", {}) or {}),
+        values=copy.deepcopy(cmb_contract.get("values", {}) or {}),
+        calls=tuple(copy.deepcopy(cmb_contract.get("calls", []) or [])),
         numerical=copy.deepcopy(cmb_contract.get("numerical", {}) or {}),
         perturbation_data=perturbation_data,
         background_runtime=NativeCMBBackgroundRuntime(
@@ -328,7 +499,18 @@ def compile_native_cmb_runtime(
                 else calibration_section.get("symbol")
             ),
         ),
+        runtime_signature=_native_runtime_signature(cache_key),
+        compile_diagnostics=NativeCMBCompileDiagnostics(
+            runtime_signature=_native_runtime_signature(cache_key),
+            compiler="copernican.lib.model_coder.compile_native_cmb_runtime",
+            compiled_upstream=True,
+            hot_path_recompilation_allowed=False,
+            parameter_names=tuple(str(name) for name in parameter_names),
+            background_reference_names=background_reference_names_tuple,
+        ),
     )
+    _COMPILED_NATIVE_CMB_RUNTIME_CACHE[cache_key] = runtime
+    return runtime
 
 
 _GENERATED_NAME_COUNTER = itertools.count(1)

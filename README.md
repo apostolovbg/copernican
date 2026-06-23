@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-06-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -53,7 +53,11 @@ background, recombination, and reionization tables;
 `native_projection.py` owns transfer projection and spectrum assembly;
 `native_cache.py` owns bounded native caches plus reset and diagnostics
 helpers; and `copernican_cmb_solver.py` now stays limited to native
-orchestration entry helpers.
+orchestration entry helpers. `model_coder.py` now prepares hierarchy-capable
+runtime bundles upstream, including compiled background plans plus declared
+sector, species, hierarchy-family, collision, projection-typing, and
+accuracy-control metadata, while `run_manifest.py` records the resulting
+runtime-signature and compile-ownership diagnostics.
 
 ## Launch Copernican
 

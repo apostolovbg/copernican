@@ -80,6 +80,37 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-23:
+  Change: Implemented Slice One by extending declared CMB contracts with
+    hierarchy-capable metadata, moving native contract preparation into
+    `model_coder.py`, and requiring precompiled runtime payloads on the
+    native execution path.
+  Why: Removed remaining hot-path symbolic compilation from the native CMB
+    likelihood modules, added manifest-visible runtime ownership diagnostics,
+    and established the compile-time substrate needed for later hierarchy
+    and native-parity slices.
+  Impact: Recorded direct native contract binding to precompiled runtime
+    bundles, recorded manifest runtime signatures plus hierarchy metadata,
+    and covered the new sector, species, family, collision, and
+    projection-typing declarations in compiler and runtime tests.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/model_coder.py
+    copernican/lib/perturbation_contract.py
+    copernican/lib/run_manifest.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+    tests/copernican/lib/test_model_coder.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+
+- 2026-06-23:
   Change: Replaced the CMB roadmap with a five-slice universal native
     Boltzmann-hierarchy plan that folds efficiency and closure evidence into
     substantive implementation slices instead of a dead final validation

@@ -3,6 +3,7 @@
 
 """Security tests for ``model_coder`` expression handling."""
 
+import copy
 import math
 import multiprocessing as multiprocessing_module
 import tempfile
@@ -427,6 +428,14 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
 
         self.assertIsInstance(runtime, model_coder.NativeCMBRuntime)
         self.assertIs(runtime.perturbation_data, compile_result)
+        self.assertTrue(
+            runtime.runtime_signature.startswith("native-cmb-runtime:")
+        )
+        self.assertIsNotNone(runtime.compile_diagnostics)
+        self.assertTrue(runtime.compile_diagnostics.compiled_upstream)
+        self.assertFalse(
+            runtime.compile_diagnostics.hot_path_recompilation_allowed
+        )
         self.assertEqual(len(runtime.background_runtime.derived_plan), 1)
         self.assertEqual(
             runtime.background_runtime.reionization_calibration_symbol,
@@ -454,8 +463,150 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             ),
         )
 
+    def test_compile_native_cmb_runtime_reuses_cached_runtime_bundle(self):
+        """Repeated compilation requests should reuse one cached runtime."""
+
+        compile_result = object()
+        cmb_contract = {
+            "param_map": {"Omega_m0": "Omega_m0"},
+            "grids": {},
+            "values": {},
+            "background": {},
+            "numerical": {},
+            "calls": [],
+            "perturbations": {
+                "standard": False,
+                "backend": {"implemented": True},
+            },
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ) as compile_contract:
+            first = model_coder.compile_native_cmb_runtime(
+                model_name="CachedTemplateModel",
+                backend="camb",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+            second = model_coder.compile_native_cmb_runtime(
+                model_name="CachedTemplateModel",
+                backend="camb",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+
+        self.assertIs(first, second)
+        compile_contract.assert_called_once()
+
+    def test_compile_native_cmb_runtime_ignores_bound_parameter_values(self):
+        """Runtime compilation should key on structure, not bound values."""
+
+        compile_result = object()
+        first_contract = {
+            "model_parameters": {"Tcmb_K": 2.7255},
+            "param_map": {"H0": 67.4, "ombh2": 0.02237},
+            "grids": {},
+            "values": {},
+            "background": {
+                "derived": {"Omega_b0": "ombh2 / ((H0 / 100.0) ** 2)"},
+            },
+            "numerical": {"ell_max": 64},
+            "calls": [],
+            "perturbations": {
+                "contract_version": 2,
+                "standard": False,
+                "gauge": "conformal_newtonian",
+                "variables": {
+                    "delta_x": {"kind": "density_contrast"},
+                },
+                "derived": {},
+                "equations": {
+                    "evolve_delta_x": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-0.01 * delta_x",
+                        "role": "continuity",
+                    }
+                },
+                "constraints": {},
+                "closures": {},
+                "sources": {
+                    "signal": {
+                        "expression": "delta_x",
+                        "role": "signal",
+                    }
+                },
+                "observables": {
+                    "transfer": {
+                        "kind": "transfer_component",
+                        "projection": "line_of_sight_signal",
+                        "source_terms": {"signal": "signal"},
+                    },
+                    "TT": {
+                        "kind": "angular_power_spectrum",
+                        "primary": "transfer",
+                        "secondary": "transfer",
+                    },
+                },
+                "initial_conditions": {
+                    "delta_seed": {
+                        "target": {
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 0,
+                        },
+                        "expression": "seed",
+                    }
+                },
+                "boundary_conditions": {},
+                "validity": {"regimes": ["synthetic"]},
+                "backend_mapping": {
+                    "camb": {
+                        "native_solver_required": True,
+                        "implemented": True,
+                    }
+                },
+            },
+        }
+        second_contract = copy.deepcopy(first_contract)
+        second_contract["param_map"]["H0"] = 70.0
+        second_contract["param_map"]["ombh2"] = 0.024
+        second_contract["model_parameters"]["Tcmb_K"] = 2.73
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ) as compile_contract:
+            first = model_coder.compile_native_cmb_runtime(
+                model_name="StructuralCacheModel",
+                backend="camb",
+                parameter_names=("H0", "ombh2", "Tcmb_K"),
+                latex_names=("H_0", "\\omega_b", "T_{cmb}"),
+                cmb_contract=first_contract,
+            )
+            second = model_coder.compile_native_cmb_runtime(
+                model_name="StructuralCacheModel",
+                backend="camb",
+                parameter_names=("H0", "ombh2", "Tcmb_K"),
+                latex_names=("H_0", "\\omega_b", "T_{cmb}"),
+                cmb_contract=second_contract,
+            )
+
+        self.assertIs(first, second)
+        compile_contract.assert_called_once()
+
     def test_native_cmb_runtime_build_contract_copies_runtime_payload(self):
-        """Bound runtime contracts should copy only mutable parameter data."""
+        """Bound runtime contracts should detach mutable runtime mappings."""
 
         runtime = model_coder.NativeCMBRuntime(
             model_name="TemplateModel",
@@ -464,11 +615,23 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             background={"density": {"expression": "Omega_m0"}},
             numerical={"ell_max": 64},
             perturbation_data={"compiled": True},
+            grids={"tau": {"symbol": "tau"}},
+            values={"H": "H0"},
+            calls=({"method": "set_cosmology"},),
             background_runtime=model_coder.NativeCMBBackgroundRuntime(
                 derived_plan=(),
                 reionization_quantity_plan=(),
                 reionization_target_tau=None,
                 reionization_calibration_symbol=None,
+            ),
+            runtime_signature="native-cmb-runtime:test",
+            compile_diagnostics=model_coder.NativeCMBCompileDiagnostics(
+                runtime_signature="native-cmb-runtime:test",
+                compiler="compiler",
+                compiled_upstream=True,
+                hot_path_recompilation_allowed=False,
+                parameter_names=("Omega_m0",),
+                background_reference_names=("Omega_m0",),
             ),
         )
 
@@ -482,14 +645,137 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertEqual(runtime.build_contract.__name__, "build_contract")
         self.assertEqual(contract["model_parameters"], {"Omega_m0": 0.3})
         self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
-        self.assertIs(contract["background"], runtime.background)
+        self.assertIsNot(contract["background"], runtime.background)
         self.assertIs(
             contract["background_runtime"],
             runtime.background_runtime,
         )
-        self.assertIs(contract["numerical"], runtime.numerical)
-        self.assertIs(contract["perturbations"], runtime.perturbation_contract)
+        self.assertIsNot(contract["grids"], runtime.grids)
+        self.assertIsNot(contract["values"], runtime.values)
+        self.assertEqual(contract["calls"], list(runtime.calls))
+        self.assertIsNot(contract["calls"], runtime.calls)
+        self.assertIsNot(contract["numerical"], runtime.numerical)
+        self.assertIsNot(
+            contract["perturbations"],
+            runtime.perturbation_contract,
+        )
         self.assertIs(contract["perturbation_data"], runtime.perturbation_data)
+        self.assertEqual(
+            contract["runtime_signature"],
+            "native-cmb-runtime:test",
+        )
+        self.assertIs(
+            contract["compile_diagnostics"],
+            runtime.compile_diagnostics,
+        )
+        contract["background"]["density"]["expression"] = "Omega_b0"
+        contract["numerical"]["ell_max"] = 128
+        contract["calls"][0]["method"] = "set_classes"
+        contract["perturbations"]["standard"] = True
+        self.assertEqual(
+            runtime.background["density"]["expression"],
+            "Omega_m0",
+        )
+        self.assertEqual(runtime.numerical["ell_max"], 64)
+        self.assertEqual(runtime.calls[0]["method"], "set_cosmology")
+        self.assertFalse(runtime.perturbation_contract["standard"])
+
+    def test_prepare_native_cmb_execution_contract_binds_precompiled_data(
+        self,
+    ) -> None:
+        """Direct native contracts should be prepared before execution."""
+
+        compile_result = object()
+        cmb_contract = {
+            "model_name": "PreparedModel",
+            "backend": "camb",
+            "param_map": {"H0": 67.4, "ombh2": 0.02237},
+            "model_parameters": {"Tcmb_K": 2.7255},
+            "background": {
+                "derived": {"H": "H0"},
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "numerical": {},
+            "perturbations": {
+                "contract_version": 2,
+                "standard": False,
+                "gauge": "conformal_newtonian",
+                "variables": {"delta_x": {"kind": "density_contrast"}},
+                "derived": {},
+                "equations": {
+                    "evolve_delta_x": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-delta_x",
+                        "role": "continuity",
+                    }
+                },
+                "constraints": {},
+                "closures": {},
+                "collision_operators": {},
+                "sources": {
+                    "temperature_source": {
+                        "expression": "visibility * delta_x",
+                        "role": "monopole",
+                    }
+                },
+                "observables": {
+                    "temperature": {
+                        "kind": "transfer_component",
+                        "projection": "line_of_sight_temperature",
+                        "source_terms": {
+                            "monopole": "temperature_source",
+                        },
+                    }
+                },
+                "initial_conditions": {
+                    "delta_seed": {
+                        "target": {
+                            "variable": "delta_x",
+                            "wrt": "tau",
+                            "order": 0,
+                        },
+                        "expression": "1.0",
+                    }
+                },
+                "initial_condition_families": {},
+                "boundary_conditions": {},
+                "sectors": {},
+                "species": {},
+                "hierarchy_families": {},
+                "projection_typing": {},
+                "accuracy_controls": {},
+                "validity": {"regimes": ["synthetic"]},
+                "backend_mapping": {
+                    "camb": {
+                        "native_solver_required": True,
+                        "implemented": True,
+                    }
+                },
+            },
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ):
+            prepared = model_coder.prepare_native_cmb_execution_contract(
+                cmb_contract
+            )
+
+        self.assertIs(prepared["perturbation_data"], compile_result)
+        self.assertIn("background_runtime", prepared)
+        self.assertTrue(
+            prepared["runtime_signature"].startswith("native-cmb-runtime:")
+        )
+        self.assertIsNotNone(prepared["compile_diagnostics"])
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):
@@ -499,6 +785,10 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(hasattr(model_coder, "QuadPrinter"))
         self.assertTrue(callable(model_coder.robust_quad))
         self.assertTrue(hasattr(model_coder, "NativeCMBBackgroundRuntime"))
+        self.assertTrue(hasattr(model_coder, "NativeCMBCompileDiagnostics"))
+        self.assertTrue(
+            callable(model_coder.prepare_native_cmb_execution_contract)
+        )
 
     def test_transformed_symbol_is_exposed(self) -> None:
         transformed = model_coder.robust_quad

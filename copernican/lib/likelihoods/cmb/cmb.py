@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy
 import pandas
 
+from ...model_coder import prepare_native_cmb_execution_contract
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
 from .camb_solver import (
     compute_camb_background_observables,
@@ -91,22 +92,31 @@ def compute_cmb_spectrum_from_contract(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
-    if not _is_structured_camb_contract(contract_or_params):
+    prepared_contract = contract_or_params
+    perturbations = contract_or_params.get("perturbations", {}) or {}
+    if isinstance(perturbations, Mapping) and (
+        perturbations.get("standard") is False
+    ):
+        prepared_contract = prepare_native_cmb_execution_contract(
+            contract_or_params
+        )
+
+    if not _is_structured_camb_contract(prepared_contract):
         raise ValueError("Structured CMB contracts must include perturbations")
 
-    _validate_camb_perturbation_execution(contract_or_params)
-    perturbations = contract_or_params.get("perturbations", {}) or {}
+    _validate_camb_perturbation_execution(prepared_contract)
+    perturbations = prepared_contract.get("perturbations", {}) or {}
     if (
         isinstance(perturbations, Mapping)
         and perturbations.get("standard") is False
     ):
         return _compute_declared_perturbation_spectrum(
-            contract_or_params,
+            prepared_contract,
             ells,
             spectra=spectra,
         )
     return compute_cmb_spectrum_from_camb_contract(
-        contract_or_params,
+        prepared_contract,
         ells,
         spectra=spectra,
     )
@@ -128,6 +138,7 @@ def compute_cmb_spectrum_cached(
     if isinstance(perturbation_contract, Mapping) and (
         perturbation_contract.get("standard") is False
     ):
+        camb_contract = prepare_native_cmb_execution_contract(camb_contract)
         _validate_camb_perturbation_execution(camb_contract)
         return _compute_declared_perturbation_spectrum(
             camb_contract,
@@ -261,6 +272,9 @@ class CMBLike(LikelihoodProtocol):
             if isinstance(perturbation_contract, Mapping) and (
                 perturbation_contract.get("standard") is False
             ):
+                camb_contract = prepare_native_cmb_execution_contract(
+                    camb_contract
+                )
                 theory = _compute_declared_perturbation_spectrum(
                     camb_contract,
                     self._ells,

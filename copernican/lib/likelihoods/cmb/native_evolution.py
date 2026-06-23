@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 import numpy
 
-from ...engine_adapter import _SUPPORTED_CMB_BACKEND, FrozenMapping
+from ...engine_adapter import FrozenMapping
 from ...perturbation_contract import (
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
@@ -25,57 +25,15 @@ from .native_background import (
 def _compile_declared_perturbation_contract(
     contract: Mapping[str, Any],
 ):
-    """Return the compiled perturbation contract for generic execution."""
+    """Return the precompiled perturbation contract for generic execution."""
 
     precompiled = contract.get("perturbation_data")
     if precompiled is not None:
         return precompiled
-
-    from ...perturbation_contract import compile_perturbation_contract
-
-    model_parameters = contract.get("model_parameters", {})
-    if isinstance(model_parameters, Mapping) and model_parameters:
-        parameter_names = tuple(str(key) for key in model_parameters)
-    else:
-        parameter_names = tuple(
-            str(key) for key in (contract.get("param_map", {}) or {})
-        )
-
-    latex_names = tuple("" for _ in parameter_names)
-    background_reference_names = {
-        str(key) for key in (contract.get("param_map", {}) or {})
-    }
-    grid_defs = contract.get("grids", {}) or {}
-    for grid_def in grid_defs.values():
-        if not isinstance(grid_def, Mapping):
-            continue
-        symbol = grid_def.get("symbol")
-        if isinstance(symbol, str) and symbol.strip():
-            background_reference_names.add(symbol.strip())
-    background_reference_names.update(
-        str(key) for key in (contract.get("values", {}) or {})
-    )
-    background_reference_names.update(parameter_names)
-    background_section = contract.get("background")
-    if isinstance(background_section, Mapping):
-        background_reference_names.update(
-            str(key) for key in (background_section.get("derived", {}) or {})
-        )
-
-    perturbations = contract.get("perturbations", {})
-    if isinstance(perturbations, Mapping):
-        perturbations = {
-            key: value
-            for key, value in perturbations.items()
-            if key not in {"backend", "model_name"}
-        }
-    return compile_perturbation_contract(
-        perturbations,
-        model_name=str(contract.get("model_name", "unknown model")),
-        backend=str(contract.get("backend", _SUPPORTED_CMB_BACKEND)),
-        parameter_names=parameter_names,
-        latex_names=latex_names,
-        background_reference_names=tuple(sorted(background_reference_names)),
+    raise ValueError(
+        "Native CMB execution requires precompiled perturbation_data. "
+        "Prepare the runtime through model_coder before likelihood "
+        "evaluation."
     )
 
 

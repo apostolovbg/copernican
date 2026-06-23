@@ -20,7 +20,6 @@ from ...engine_adapter import (
     _freeze_for_cache,
 )
 from ...perturbation_contract import (
-    _compile_expression_plan,
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
@@ -320,105 +319,8 @@ def _expression_symbol_names(expression: str) -> set[str]:
     return names
 
 
-@dataclass(frozen=True, slots=True)
-class _DeclaredSymbolPlanEntry:
-    """One ordered declared-background evaluation step."""
-
-    kind: str
-    name: str
-    payload: Any
-
-
-_DECLARED_SYMBOL_PLAN_RESULTS: dict[
-    Any, tuple[_DeclaredSymbolPlanEntry, ...]
-] = {}
-
-
-def _get_cached_declared_symbol_plan(
-    cache_key: Any,
-) -> tuple[_DeclaredSymbolPlanEntry, ...]:
-    """Return one cached declared-symbol evaluation plan."""
-
-    cached = native_cache.get_declared_symbol_plan(cache_key)
-    if cached is None:  # pragma: no cover - callers guard existence first
-        raise KeyError(cache_key)
-    return cached
-
-
-def _compile_declared_symbol_plan(
-    entries: Mapping[str, Any],
-) -> tuple[_DeclaredSymbolPlanEntry, ...]:
-    """Return one ordered declared symbol plan for background helpers."""
-
-    cache_key = _freeze_for_cache(entries)
-    cached = native_cache.get_declared_symbol_plan(cache_key)
-    if cached is not None:
-        return _get_cached_declared_symbol_plan(cache_key)
-
-    pending = {str(name): value for name, value in entries.items()}
-    local_names = set(pending)
-    resolved_names: set[str] = set()
-    plan: list[_DeclaredSymbolPlanEntry] = []
-    while pending:
-        progress = False
-        for name, raw_value in tuple(sorted(pending.items())):
-            if isinstance(raw_value, bool):
-                raise ValueError(
-                    "Declared background entries must be numeric or "
-                    "string expressions."
-                )
-            if isinstance(
-                raw_value, (int, float, numpy.integer, numpy.floating)
-            ):
-                plan.append(
-                    _DeclaredSymbolPlanEntry(
-                        kind="literal",
-                        name=name,
-                        payload=float(raw_value),
-                    )
-                )
-                resolved_names.add(name)
-                pending.pop(name)
-                progress = True
-                continue
-            if not isinstance(raw_value, str) or not raw_value.strip():
-                raise ValueError(
-                    "Declared background entries must be numeric or "
-                    "string expressions."
-                )
-            expression_plan = _compile_expression_plan(raw_value.strip())
-            unresolved_locals = {
-                dependency
-                for dependency in expression_plan.dependencies
-                if dependency in local_names
-                and dependency not in resolved_names
-            }
-            if unresolved_locals:
-                continue
-            plan.append(
-                _DeclaredSymbolPlanEntry(
-                    kind="expression",
-                    name=name,
-                    payload=expression_plan,
-                )
-            )
-            resolved_names.add(name)
-            pending.pop(name)
-            progress = True
-        if progress:
-            continue
-        unresolved_names = ", ".join(sorted(pending))
-        raise ValueError(
-            "Declared background expressions contain circular or "
-            f"unresolved names: {unresolved_names}"
-        )
-    compiled_plan = tuple(plan)
-    native_cache.set_declared_symbol_plan(cache_key, compiled_plan)
-    return _get_cached_declared_symbol_plan(cache_key)
-
-
 def _evaluate_declared_symbol_plan(
-    plan: Sequence[_DeclaredSymbolPlanEntry],
+    plan: Sequence[tuple[str, Any, Any]],
     *,
     base_context: Mapping[str, Any],
     label: str,
@@ -428,12 +330,7 @@ def _evaluate_declared_symbol_plan(
     resolved: dict[str, Any] = dict(base_context)
     with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
         for entry in plan:
-            if isinstance(entry, _DeclaredSymbolPlanEntry):
-                kind = entry.kind
-                name = entry.name
-                payload = entry.payload
-            else:
-                kind, name, payload = entry
+            kind, name, payload = entry
             if kind == "literal":
                 resolved[name] = float(payload)
                 continue
@@ -456,21 +353,6 @@ def _evaluate_declared_symbol_plan(
     return resolved
 
 
-def _resolve_declared_symbol_context(
-    entries: Mapping[str, Any],
-    *,
-    base_context: Mapping[str, Any],
-    label: str,
-) -> dict[str, Any]:
-    """Resolve numeric values and safe expressions from one declaration map."""
-
-    return _evaluate_declared_symbol_plan(
-        _compile_declared_symbol_plan(entries),
-        base_context=base_context,
-        label=label,
-    )
-
-
 def _resolve_declared_background_context(
     contract: Mapping[str, Any],
     *,
@@ -479,7 +361,6 @@ def _resolve_declared_background_context(
 ) -> dict[str, Any]:
     """Return the resolved declared background graph context."""
 
-    section = _get_declared_background_section(contract)
     env: dict[str, Any] = {
         "a": a_values,
         "z": z_values,
@@ -497,14 +378,14 @@ def _resolve_declared_background_context(
             if isinstance(value, (int, float, numpy.integer, numpy.floating)):
                 env[key] = float(value)
     background_runtime = contract.get("background_runtime")
-    if background_runtime is not None:
-        return _evaluate_declared_symbol_plan(
-            getattr(background_runtime, "derived_plan", ()),
-            base_context=env,
-            label="background.derived",
+    if background_runtime is None:
+        raise ValueError(
+            "Native CMB background execution requires precompiled "
+            "background_runtime. Prepare the runtime through model_coder "
+            "before likelihood evaluation."
         )
-    return _resolve_declared_symbol_context(
-        section.get("derived", {}) or {},
+    return _evaluate_declared_symbol_plan(
+        getattr(background_runtime, "derived_plan", ()),
         base_context=env,
         label="background.derived",
     )
@@ -528,15 +409,14 @@ def _resolve_declared_reionization_context(
     """Return resolved declared reionization quantities."""
 
     background_runtime = contract.get("background_runtime")
-    if background_runtime is not None:
-        return _evaluate_declared_symbol_plan(
-            getattr(background_runtime, "reionization_quantity_plan", ()),
-            base_context=base_context,
-            label="background.reionization.quantities",
+    if background_runtime is None:
+        raise ValueError(
+            "Native CMB reionization execution requires precompiled "
+            "background_runtime. Prepare the runtime through model_coder "
+            "before likelihood evaluation."
         )
-    reionization = _get_declared_reionization_section(contract)
-    return _resolve_declared_symbol_context(
-        reionization.get("quantities", {}) or {},
+    return _evaluate_declared_symbol_plan(
+        getattr(background_runtime, "reionization_quantity_plan", ()),
         base_context=base_context,
         label="background.reionization.quantities",
     )
@@ -1255,8 +1135,22 @@ def _resolve_custom_cmb_physical_parameters(
     """Return physical CMB parameters from the structured contract."""
 
     del background_provider
+    prepared_contract = contract
+    if prepared_contract.get("background_runtime") is None:
+        perturbations = prepared_contract.get("perturbations", {}) or {}
+        if (
+            isinstance(perturbations, Mapping)
+            and perturbations.get("standard") is False
+        ):
+            from ... import model_coder
+
+            prepared_contract = (
+                model_coder.prepare_native_cmb_execution_contract(
+                    prepared_contract
+                )
+            )
     background_scalar_context = _resolve_declared_background_context(
-        contract,
+        prepared_contract,
         a_values=1.0,
         z_values=0.0,
     )

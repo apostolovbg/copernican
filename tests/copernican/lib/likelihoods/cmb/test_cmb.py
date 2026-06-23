@@ -14,6 +14,7 @@ try:
 except ImportError:  # pragma: no cover - optional external reference
     camb = None
 
+from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
 from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.likelihoods.cmb import (
@@ -811,10 +812,181 @@ def _speedup_contract(contract: dict[str, object]) -> dict[str, object]:
     return contract
 
 
+def _prepare_native_contract(
+    contract: dict[str, object],
+) -> dict[str, object]:
+    """Return ``contract`` with its native runtime prepared upstream."""
+
+    return model_coder.prepare_native_cmb_execution_contract(
+        copy.deepcopy(contract)
+    )
+
+
 def _standard_contract() -> dict[str, object]:
     """Return a deep-copied standard CAMB fixture."""
 
     return copy.deepcopy(_base_standard_cmb_contract())
+
+
+def _native_scalar_acceptance_contract() -> dict[str, object]:
+    """Return a metadata-only scalar native acceptance fixture."""
+
+    numerics = {
+        "ell_min": 20,
+        "ell_max": 120,
+        "k_min": 1.0e-4,
+        "k_max": 0.3,
+        "k_sample_count": 18,
+        "eta_sample_count": 192,
+        "ode_rtol": 1.0e-5,
+        "ode_atol": 1.0e-8,
+        "tight_coupling_ratio": 80.0,
+        "a_min": 1.0e-6,
+        "source_grid_multiplier": 1,
+        "initial_redshift": 2.0e4,
+        "photon_hierarchy_l_max": 8,
+        "neutrino_hierarchy_l_max": 5,
+    }
+    return {
+        "model_name": "NativeScalarAcceptance",
+        "backend": "camb",
+        "param_map": {
+            "H0": 67.4,
+            "ombh2": 0.02237,
+            "omch2": 0.12,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.046,
+            "YHe": 0.245,
+        },
+        "model_parameters": {
+            "Tcmb_K": 2.7255,
+        },
+        "background": _declared_background(),
+        "grids": {},
+        "values": {},
+        "calls": [],
+        "numerical": dict(numerics),
+        "perturbations": {
+            "contract_version": 2,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {},
+            "derived": {},
+            "equations": {},
+            "constraints": {},
+            "closures": {},
+            "collision_operators": {
+                "thomson_drag": {
+                    "sector": "scalar",
+                    "species": ["photon", "baryon"],
+                    "expression": (
+                        "tight_coupling_drag * (theta_b - theta_gamma1)"
+                    ),
+                }
+            },
+            "sources": {},
+            "observables": {},
+            "initial_conditions": {},
+            "initial_condition_families": {
+                "adiabatic_scalar": {
+                    "sector": "scalar",
+                    "members": [],
+                }
+            },
+            "boundary_conditions": {},
+            "sectors": {
+                "scalar": {
+                    "description": "Native scalar acceptance sector.",
+                    "species": [
+                        "photon",
+                        "baryon",
+                        "cdm",
+                        "massless_neutrino",
+                    ],
+                    "hierarchy_families": [
+                        "photon_temperature",
+                        "photon_polarization_e",
+                        "massless_neutrino",
+                    ],
+                    "supported_gauges": ["conformal_newtonian"],
+                    "tensor_character": "scalar_like",
+                }
+            },
+            "species": {
+                "photon": {
+                    "sector": "scalar",
+                    "hierarchy_family": "photon_temperature",
+                    "collision_operators": ["thomson_drag"],
+                    "background_reference": "Omega_gamma0",
+                },
+                "baryon": {
+                    "sector": "scalar",
+                    "collision_operators": ["thomson_drag"],
+                    "background_reference": "Omega_b0",
+                },
+                "cdm": {
+                    "sector": "scalar",
+                    "background_reference": "Omega_c0",
+                },
+                "massless_neutrino": {
+                    "sector": "scalar",
+                    "hierarchy_family": "massless_neutrino",
+                    "background_reference": "Omega_nu0",
+                    "anisotropic_stress": "supported",
+                },
+            },
+            "hierarchy_families": {
+                "photon_temperature": {
+                    "sector": "scalar",
+                    "species": ["photon"],
+                    "closure": "free_streaming_scalar",
+                    "default_l_max": 8,
+                    "multipole_symbol": "theta_gamma_l",
+                },
+                "photon_polarization_e": {
+                    "sector": "scalar",
+                    "species": ["photon"],
+                    "closure": "free_streaming_scalar",
+                    "default_l_max": 8,
+                    "multipole_symbol": "e_gamma_l",
+                },
+                "massless_neutrino": {
+                    "sector": "scalar",
+                    "species": ["massless_neutrino"],
+                    "closure": "free_streaming_scalar",
+                    "default_l_max": 5,
+                    "multipole_symbol": "nu_l",
+                },
+            },
+            "projection_typing": {
+                "temperature_line_of_sight": {
+                    "sector": "scalar",
+                    "kernel": "temperature_mixed_window",
+                    "source_roles": ["monopole", "doppler", "isw"],
+                    "observable_kinds": ["transfer_component"],
+                    "parity": "even",
+                    "spin": 0.0,
+                }
+            },
+            "accuracy_controls": {
+                "scalar_reference_ells": [20, 60, 120],
+                "runtime_envelope": "bounded",
+            },
+            "numerics": dict(numerics),
+            "validity": {
+                "regimes": ["linear", "native_scalar_acceptance"],
+                "notes": "Metadata-only native scalar acceptance route.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "implemented": True,
+                }
+            },
+        },
+    }
 
 
 def _custom_perturbations(**perturbation_kwargs: object) -> dict[str, object]:
@@ -1111,7 +1283,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         if camb is None:
             self.skipTest("CAMB is not installed")
 
-        contract = _custom_contract()
+        contract = _prepare_native_contract(_custom_contract())
         physical = native_background._resolve_custom_cmb_physical_parameters(
             contract
         )
@@ -1475,6 +1647,87 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                     "TE zero-crossing mismatch at index "
                     f"{index}: actual={te_actual_zero_crossings[index]}, "
                     f"reference={te_reference_zero_crossings[index]}"
+                ),
+            )
+
+    def test_native_scalar_acceptance_amplitude_response_tracks_camb(
+        self,
+    ) -> None:
+        """Native scalar acceptance should preserve CAMB amplitude response."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        base_contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        shifted_contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        shifted_contract["param_map"]["As"] *= 1.1
+        ells = numpy.asarray((30, 60, 90, 120), dtype=int)
+        base_native = cmb.compute_cmb_spectrum_from_contract(
+            base_contract,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+        shifted_native = cmb.compute_cmb_spectrum_from_contract(
+            shifted_contract,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+
+        base_params = camb_solver._make_camb_params(
+            base_contract,
+            lmax=int(ells.max()),
+        )
+        shifted_params = camb_solver._make_camb_params(
+            shifted_contract,
+            lmax=int(ells.max()),
+        )
+        base_reference = camb.get_results(base_params).get_unlensed_scalar_cls(
+            lmax=int(ells.max()),
+            CMB_unit="muK",
+        )
+        shifted_reference = camb.get_results(
+            shifted_params
+        ).get_unlensed_scalar_cls(
+            lmax=int(ells.max()),
+            CMB_unit="muK",
+        )
+
+        for spectrum_name, column_index in (("TT", 0), ("EE", 1), ("TE", 3)):
+            native_base = numpy.asarray(
+                base_native[spectrum_name], dtype=float
+            )
+            native_shifted = numpy.asarray(
+                shifted_native[spectrum_name],
+                dtype=float,
+            )
+            reference_base = numpy.asarray(
+                base_reference[:, column_index][ells],
+                dtype=float,
+            )
+            reference_shifted = numpy.asarray(
+                shifted_reference[:, column_index][ells],
+                dtype=float,
+            )
+            native_ratio = numpy.divide(
+                numpy.abs(native_shifted),
+                numpy.maximum(numpy.abs(native_base), 1.0e-30),
+            )
+            reference_ratio = numpy.divide(
+                numpy.abs(reference_shifted),
+                numpy.maximum(numpy.abs(reference_base), 1.0e-30),
+            )
+            numpy.testing.assert_allclose(
+                native_ratio,
+                reference_ratio,
+                rtol=5.0e-2,
+                atol=5.0e-2,
+                err_msg=(
+                    f"{spectrum_name} amplitude-response mismatch for the "
+                    "native scalar acceptance route."
                 ),
             )
 
@@ -1860,7 +2113,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_custom_graph_runs_and_transfer_payloads_are_finite(self) -> None:
         """Transfer components and declared spectra should stay finite."""
 
-        contract = _speedup_contract(_custom_contract())
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
         ells = numpy.arange(20, 45, dtype=int)
         spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
             contract,
@@ -2010,8 +2265,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_reionization_tau_changes_background_and_temperature(self) -> None:
         """The physical reionization ODE should feed the spectrum response."""
 
-        low_tau_contract = _speedup_contract(_custom_contract())
-        high_tau_contract = _speedup_contract(_custom_contract())
+        low_tau_contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        high_tau_contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
         low_tau_contract["param_map"]["tau"] = 0.03
         high_tau_contract["param_map"]["tau"] = 0.08
         low_physical = (
@@ -2382,8 +2641,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Declared `eta_sample_count` should affect the native grid."""
 
-        coarse = _speedup_contract(_custom_contract())
-        refined = _speedup_contract(_custom_contract())
+        coarse = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        refined = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
         coarse["numerical"]["eta_sample_count"] = 128
         refined["numerical"]["eta_sample_count"] = 256
         coarse_background = native_background._build_custom_cmb_background(
@@ -2404,7 +2667,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_requested_native_k_sample_count_is_not_capped(self) -> None:
         """Native `k_sample_count` should honor declared values above 48."""
 
-        contract = _speedup_contract(_analytic_signal_contract())
+        contract = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
         contract["numerical"]["k_sample_count"] = 64
         spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
             contract,
@@ -2725,9 +2990,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_custom_cached_path_uses_precompiled_native_runtime(self) -> None:
         """The cached route should reuse precompiled native runtime data."""
 
-        contract = _speedup_contract(_custom_contract())
-        contract["perturbation_data"] = (
-            native_evolution._compile_declared_perturbation_contract(contract)
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
         )
 
         class _PrecompiledRuntimePlugin(_CustomCMBPlugin):
@@ -2754,6 +3018,68 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         self.assertTrue(numpy.all(numpy.isfinite(result)))
         self.assertEqual(result.shape, (ells.size,))
+
+    def test_native_scalar_acceptance_materializes_generated_hierarchy(
+        self,
+    ) -> None:
+        """The metadata-only scalar route should compile hierarchy data."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertTrue(
+            perturbation_data.manifest_summary["generated_scalar_acceptance"]
+        )
+        self.assertIn("theta_gamma8", perturbation_data.variables)
+        self.assertIn("e_gamma8", perturbation_data.variables)
+        self.assertIn("nu_l5", perturbation_data.variables)
+        self.assertIn("TT", perturbation_data.observables)
+        self.assertIn("TE", perturbation_data.observables)
+        self.assertIn("EE", perturbation_data.observables)
+
+    def test_native_scalar_acceptance_reuses_structural_runtime_bundle(
+        self,
+    ) -> None:
+        """Scalar runtime signatures should survive bound-value changes."""
+
+        baseline = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        shifted = _native_scalar_acceptance_contract()
+        shifted["param_map"]["As"] *= 1.1
+        shifted["param_map"]["H0"] = 68.1
+        shifted_prepared = _prepare_native_contract(shifted)
+
+        self.assertEqual(
+            baseline["runtime_signature"],
+            shifted_prepared["runtime_signature"],
+        )
+
+    def test_native_scalar_acceptance_runs_camb_free(self) -> None:
+        """The metadata-only scalar route should stay CAMB-free at runtime."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        ells = numpy.arange(20, 60, dtype=int)
+        with mock.patch.object(
+            camb_solver.camb,
+            "get_results",
+            side_effect=AssertionError(
+                "native scalar acceptance should not call CAMB"
+            ),
+        ):
+            spectra = cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                ells,
+                spectra=("TT", "TE", "EE"),
+            )
+
+        self.assertEqual(set(spectra), {"TT", "TE", "EE"})
+        for values in spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
 
     def test_direct_custom_path_does_not_call_camb(self) -> None:
         """The direct declared-graph route should stay CAMB-free."""

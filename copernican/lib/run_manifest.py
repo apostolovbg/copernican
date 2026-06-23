@@ -141,6 +141,13 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
             if isinstance(numerical_settings, dict)
             else numerical_settings
         )
+        accuracy_controls = (
+            getattr(perturbation_data, "accuracy_controls", {}) or {}
+        )
+        native_runtime = getattr(plugin, "CMB_NATIVE_RUNTIME", None)
+        compile_diagnostics = getattr(
+            native_runtime, "compile_diagnostics", None
+        )
         grid_meta = {
             str(grid_name): {
                 "lower": grid_def.get("lower"),
@@ -256,7 +263,56 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 "perturbation_boundary_condition_count": len(
                     getattr(perturbation_data, "boundary_conditions", {}) or {}
                 ),
+                "perturbation_sector_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "sectors", {}) or {}
+                    )
+                ),
+                "perturbation_species_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "species", {}) or {}
+                    )
+                ),
+                "perturbation_hierarchy_family_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "hierarchy_families", {})
+                        or {}
+                    )
+                ),
+                "perturbation_collision_operator_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "collision_operators", {})
+                        or {}
+                    )
+                ),
+                "perturbation_initial_condition_family_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(
+                            perturbation_data,
+                            "initial_condition_families",
+                            {},
+                        )
+                        or {}
+                    )
+                ),
+                "perturbation_projection_typing_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "projection_typing", {})
+                        or {}
+                    )
+                ),
                 "perturbation_numerical_settings": numerical_settings,
+                "perturbation_accuracy_controls": (
+                    dict(accuracy_controls)
+                    if hasattr(accuracy_controls, "items")
+                    else accuracy_controls
+                ),
                 "perturbation_independent_variables_used": sorted(
                     str(key)
                     for key in getattr(
@@ -355,6 +411,56 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         for key, value in execution_route.items()
                     },
                     "numerical_settings": numerical_settings,
+                    "accuracy_controls": (
+                        dict(accuracy_controls)
+                        if hasattr(accuracy_controls, "items")
+                        else accuracy_controls
+                    ),
+                    "runtime_signature": getattr(
+                        native_runtime,
+                        "runtime_signature",
+                        None,
+                    ),
+                    "compile_diagnostics": (
+                        {
+                            "runtime_signature": getattr(
+                                compile_diagnostics,
+                                "runtime_signature",
+                                None,
+                            ),
+                            "compiler": getattr(
+                                compile_diagnostics,
+                                "compiler",
+                                None,
+                            ),
+                            "compiled_upstream": getattr(
+                                compile_diagnostics,
+                                "compiled_upstream",
+                                None,
+                            ),
+                            "hot_path_recompilation_allowed": getattr(
+                                compile_diagnostics,
+                                "hot_path_recompilation_allowed",
+                                None,
+                            ),
+                            "parameter_names": list(
+                                getattr(
+                                    compile_diagnostics,
+                                    "parameter_names",
+                                    (),
+                                )
+                            ),
+                            "background_reference_names": list(
+                                getattr(
+                                    compile_diagnostics,
+                                    "background_reference_names",
+                                    (),
+                                )
+                            ),
+                        }
+                        if compile_diagnostics is not None
+                        else {}
+                    ),
                     "recombination_runtime": (
                         background_manifest_summary.get(
                             "recombination_runtime",

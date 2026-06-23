@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-06-23
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -53,6 +53,10 @@ reionization evaluator plans, and the declared perturbation compiler now
 stores picklable expression programs plus ordered graph metadata so the
 native solver can reuse dense slot plans instead of re-parsing expressions
 and rescanning unresolved mappings inside repeated solver stages. The
+compiler surface now records declared sectors, species, hierarchy families,
+collision operators, projection typing, and accuracy controls in the
+precompiled runtime and the run manifest, so hot-path execution can bind
+numbers without re-planning symbolic hierarchy metadata. The
 native solver now batches projection kernels across `ell`, reuses cached
 background and recombination products when the declared background inputs
 are unchanged, and keeps runtime-response behavior tests on lighter helper

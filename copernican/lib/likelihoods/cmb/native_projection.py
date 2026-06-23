@@ -367,6 +367,7 @@ def _compute_custom_cmb_spectrum_data(
                 )
             except ValueError:
                 continue
+    physical_runtime_scalars = _physical_runtime_scalars(physical_params)
 
     transfer_component_observables = {
         name: entry
@@ -590,11 +591,7 @@ def _compute_custom_cmb_spectrum_data(
                 k_value=float(k_value),
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
             ),
-            "sound_horizon": numpy.full_like(
-                eta_los_grid,
-                float(background.sound_horizon_mpc),
-                dtype=float,
-            ),
+            "sound_horizon": float(background.sound_horizon_mpc),
             "k": float(k_value),
             "seed": _declared_runtime_seed(
                 k_value=float(k_value),
@@ -602,12 +599,8 @@ def _compute_custom_cmb_spectrum_data(
                 model_parameters=source_parameters,
             ),
         }
-        for name, value in _physical_runtime_scalars(physical_params).items():
-            context[name] = numpy.full_like(
-                eta_los_grid,
-                float(value),
-                dtype=float,
-            )
+        for name, value in physical_runtime_scalars.items():
+            context[name] = float(value)
         for name, history in declared_background_histories.items():
             context[name] = numpy.asarray(history, dtype=float)
         for name, value in source_parameters.items():
