@@ -39,6 +39,7 @@ from .native_evolution import (
     _compile_declared_graph_execution_plan,
     _compile_declared_perturbation_contract,
     _compute_tight_coupling_drag,
+    _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
     _resolve_declared_graph_context,
@@ -540,6 +541,7 @@ def _compute_custom_cmb_spectrum_data(
         """Return the scalar expression environment for one solver stage."""
 
         context = _build_declared_base_context(
+            perturbation_data=perturbation_data,
             model_parameters=source_parameters,
             physical_params=physical_params,
             numerics=numerics,
@@ -605,6 +607,14 @@ def _compute_custom_cmb_spectrum_data(
             context[name] = numpy.asarray(history, dtype=float)
         for name, value in source_parameters.items():
             context[name] = float(value)
+        context.update(
+            _declared_momentum_grid_context(
+                perturbation_data,
+                model_parameters=source_parameters,
+                physical_params=physical_params,
+                scale_factor=a_los_grid,
+            )
+        )
         for slot in runtime_spec.state_slots:
             if slot.order != 0:
                 continue
@@ -877,6 +887,7 @@ def _compute_custom_cmb_spectrum_data(
 
         initial_eta, initial_background = _scalar_background_context(0, 0.0)
         initial_context = _build_declared_base_context(
+            perturbation_data=perturbation_data,
             model_parameters=source_parameters,
             physical_params=physical_params,
             numerics=numerics,

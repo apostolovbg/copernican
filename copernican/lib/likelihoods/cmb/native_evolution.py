@@ -103,6 +103,17 @@ class _DeclaredGraphExecutionPlan:
     equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _DeclaredMomentumGridRuntime:
+    """Prepared quadrature metadata for one declared momentum grid."""
+
+    name: str
+    points: numpy.ndarray
+    weights: numpy.ndarray
+    mass_eV: float
+    family_names: tuple[str, ...]
+
+
 def _prepare_declared_graph_runtime_spec(
     perturbation_data: Any,
 ) -> _DeclaredGraphRuntimeSpec:
@@ -286,6 +297,249 @@ def _compile_declared_graph_execution_plan(
     return compiled_plan
 
 
+def _resolve_declared_momentum_grid_runtimes(
+    perturbation_data: Any,
+    *,
+    model_parameters: Mapping[str, float],
+    physical_params: _CustomCMBPhysicalParameters,
+) -> tuple[_DeclaredMomentumGridRuntime, ...]:
+    """Return cached quadrature metadata for declared momentum grids."""
+
+    numerics_mapping = getattr(perturbation_data, "numerics", {})
+    momentum_grid_defs = numerics_mapping.get("momentum_grids", {})
+    if momentum_grid_defs in (None, {}):
+        momentum_grid_defs = {}
+    if not isinstance(momentum_grid_defs, Mapping):
+        raise ValueError(
+            "cmb.perturbations.numerics.momentum_grids must be a mapping "
+            "when declared momentum-grid families are used."
+        )
+
+    family_groups: dict[str, list[str]] = {}
+    for (
+        family_name,
+        family_entry,
+    ) in perturbation_data.hierarchy_families.items():
+        grid_name = str(family_entry.momentum_grid or "").strip()
+        if not grid_name:
+            continue
+        family_groups.setdefault(grid_name, []).append(str(family_name))
+    if not family_groups:
+        return ()
+
+    relevant_parameter_names = {
+        "num_massive_neutrinos",
+        "sum_mnu",
+        "mnu",
+        "omnuh2",
+    }
+    for grid_name in family_groups:
+        grid_def = momentum_grid_defs.get(grid_name, {})
+        if isinstance(grid_def, Mapping):
+            parameter_name = grid_def.get("mass_parameter")
+            if isinstance(parameter_name, str):
+                relevant_parameter_names.add(parameter_name)
+    cache_key = (
+        tuple(
+            sorted(
+                (
+                    str(name),
+                    repr(momentum_grid_defs.get(name, {})),
+                    tuple(sorted(family_names)),
+                )
+                for name, family_names in family_groups.items()
+            )
+        ),
+        tuple(
+            sorted(
+                (
+                    str(name),
+                    float(model_parameters[name]),
+                )
+                for name in relevant_parameter_names
+                if name in model_parameters
+            )
+        ),
+        float(physical_params.hubble_ratio),
+        float(physical_params.Omega_nu0 or 0.0),
+    )
+    cached = native_cache.get_declared_momentum_grid(cache_key)
+    if cached is not None:
+        return cached
+
+    def _grid_mass_eV(grid_name: str, grid_def: Mapping[str, Any]) -> float:
+        """Resolve one representative massive-neutrino mass in eV."""
+
+        explicit = grid_def.get("mass_eV")
+        if explicit is not None:
+            return max(float(explicit), 0.0)
+        parameter_name = grid_def.get("mass_parameter")
+        if (
+            isinstance(parameter_name, str)
+            and parameter_name in model_parameters
+        ):
+            return max(float(model_parameters[parameter_name]), 0.0)
+        for candidate in ("sum_mnu", "mnu"):
+            if candidate in model_parameters:
+                total_mass = max(float(model_parameters[candidate]), 0.0)
+                count = max(
+                    int(
+                        round(
+                            float(
+                                model_parameters.get(
+                                    "num_massive_neutrinos", 1.0
+                                )
+                            )
+                        )
+                    ),
+                    1,
+                )
+                return total_mass / float(count)
+        if "omnuh2" in model_parameters:
+            total_mass = max(float(model_parameters["omnuh2"]), 0.0) * 93.14
+            count = max(
+                int(
+                    round(
+                        float(
+                            model_parameters.get("num_massive_neutrinos", 1.0)
+                        )
+                    )
+                ),
+                1,
+            )
+            return total_mass / float(count)
+        omega_nu0 = physical_params.Omega_nu0
+        if omega_nu0 is None:
+            return 0.0
+        total_mass = (
+            max(float(omega_nu0), 0.0)
+            * (float(physical_params.hubble_ratio) ** 2)
+            * 93.14
+        )
+        count = max(
+            int(
+                round(
+                    float(model_parameters.get("num_massive_neutrinos", 1.0))
+                )
+            ),
+            1,
+        )
+        return total_mass / float(count)
+
+    runtimes: list[_DeclaredMomentumGridRuntime] = []
+    for grid_name, family_names in sorted(family_groups.items()):
+        grid_def = momentum_grid_defs.get(grid_name, {})
+        if grid_def in (None, {}):
+            grid_def = {}
+        if not isinstance(grid_def, Mapping):
+            raise ValueError(
+                "cmb.perturbations.numerics.momentum_grids."
+                f"{grid_name} must be a mapping"
+            )
+        count = max(int(grid_def.get("count", 8)), 4)
+        q_min = max(float(grid_def.get("q_min", 0.05)), 1.0e-4)
+        q_max = max(float(grid_def.get("q_max", 15.0)), q_min * 1.01)
+        points = numpy.geomspace(q_min, q_max, count, dtype=float)
+        log_points = numpy.log(points)
+        weights = numpy.empty_like(points)
+        if points.size == 1:
+            weights[0] = 1.0
+        else:
+            deltas = numpy.diff(log_points)
+            weights[0] = 0.5 * deltas[0]
+            weights[-1] = 0.5 * deltas[-1]
+            if points.size > 2:
+                weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
+        weights = numpy.asarray(weights, dtype=float)
+        weights /= max(float(numpy.sum(weights)), 1.0e-12)
+        runtimes.append(
+            _DeclaredMomentumGridRuntime(
+                name=str(grid_name),
+                points=points,
+                weights=weights,
+                mass_eV=_grid_mass_eV(str(grid_name), grid_def),
+                family_names=tuple(sorted(str(name) for name in family_names)),
+            )
+        )
+    runtime_tuple = tuple(runtimes)
+    native_cache.set_declared_momentum_grid(cache_key, runtime_tuple)
+    return runtime_tuple
+
+
+def _declared_momentum_grid_context(
+    perturbation_data: Any,
+    *,
+    model_parameters: Mapping[str, float],
+    physical_params: _CustomCMBPhysicalParameters,
+    scale_factor: float | numpy.ndarray,
+) -> dict[str, Any]:
+    """Return momentum-grid quadrature scalars for one runtime context."""
+
+    runtimes = _resolve_declared_momentum_grid_runtimes(
+        perturbation_data,
+        model_parameters=model_parameters,
+        physical_params=physical_params,
+    )
+    if not runtimes:
+        return {}
+
+    a_values = numpy.asarray(scale_factor, dtype=float)
+    context: dict[str, Any] = {}
+    for runtime in runtimes:
+        mass_term = float(runtime.mass_eV) * a_values
+        epsilon = numpy.sqrt(
+            numpy.square(runtime.points) + numpy.square(mass_term[..., None])
+        )
+        velocity_ratio = numpy.sum(
+            runtime.weights * (runtime.points / epsilon),
+            axis=-1,
+        )
+        pressure_ratio = (
+            numpy.sum(
+                runtime.weights * numpy.square(runtime.points / epsilon),
+                axis=-1,
+            )
+            / 3.0
+        )
+        mass_fraction = numpy.sum(
+            runtime.weights * (mass_term[..., None] / epsilon),
+            axis=-1,
+        )
+        prefix = f"momentum_grid_{runtime.name}"
+        context[f"{prefix}_points"] = numpy.asarray(
+            runtime.points, dtype=float
+        )
+        context[f"{prefix}_weights"] = numpy.asarray(
+            runtime.weights,
+            dtype=float,
+        )
+        context[f"{prefix}_mass_eV"] = float(runtime.mass_eV)
+        for name, value in (
+            ("velocity_ratio", velocity_ratio),
+            ("pressure_ratio", pressure_ratio),
+            ("mass_fraction", mass_fraction),
+        ):
+            normalized = numpy.asarray(value, dtype=float)
+            if normalized.ndim == 0:
+                context[f"{prefix}_{name}"] = float(normalized)
+            else:
+                context[f"{prefix}_{name}"] = normalized
+        if any(
+            "massive_neutrino" in family_name
+            for family_name in runtime.family_names
+        ):
+            for name in (
+                "mass_eV",
+                "velocity_ratio",
+                "pressure_ratio",
+                "mass_fraction",
+            ):
+                context[f"massive_neutrino_{name}"] = context[
+                    f"{prefix}_{name}"
+                ]
+    return context
+
+
 def _declared_runtime_seed(
     *,
     k_value: float,
@@ -310,6 +564,7 @@ def _declared_runtime_seed(
 
 def _build_declared_base_context(
     *,
+    perturbation_data: Any,
     model_parameters: Mapping[str, float],
     physical_params: _CustomCMBPhysicalParameters,
     numerics: _CustomCMBNumerics,
@@ -342,6 +597,14 @@ def _build_declared_base_context(
     context["free_streaming"] = float(background_scalars["free_streaming"])
     context["tight_coupling_drag"] = float(tight_coupling_drag)
     context["tight_coupling_ratio"] = float(numerics.tight_coupling_ratio)
+    context.update(
+        _declared_momentum_grid_context(
+            perturbation_data,
+            model_parameters=model_parameters,
+            physical_params=physical_params,
+            scale_factor=float(background_scalars["a"]),
+        )
+    )
     return context
 
 

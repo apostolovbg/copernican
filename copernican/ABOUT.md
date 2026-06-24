@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -98,6 +98,12 @@ suite, while `copernican/validation/` remains the separate
 publication-style LCDM reference runner built on the same manifest executor.
 The front-door README mirrors that summary so package readers see the same
 custom CMB surface from the repository root.
+Slice Four adds declared momentum-grid caches for massive neutrinos,
+synchronous-gauge acceptance, and mode-aware initial-condition generation so
+the native route keeps cache reuse and gauge completeness explicit. Gauge
+metadata stays advisory unless a sector explicitly binds the gauge, and
+auto-generated initial conditions only appear when a family leaves its
+members empty.
 `copernican/docs/model_template.yml` remains a documentation template rather
 than a benchmark or acceptance model.
 

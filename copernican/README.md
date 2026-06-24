@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -58,6 +58,12 @@ runtime bundles upstream, including compiled background plans plus declared
 sector, species, hierarchy-family, collision, projection-typing, and
 accuracy-control metadata, while `run_manifest.py` records the resulting
 runtime-signature and compile-ownership diagnostics.
+Slice Four adds declared momentum-grid caches for massive neutrinos,
+synchronous-gauge acceptance, and mode-aware initial-condition generation so
+cache reuse and gauge completeness stay explicit in governed tests. Gauge
+metadata now stays advisory unless a sector explicitly binds the gauge, and
+auto-generated initial conditions only appear when the family leaves its
+members empty.
 
 ## Launch Copernican
 

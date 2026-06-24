@@ -882,7 +882,13 @@ def _standard_contract() -> dict[str, object]:
     return copy.deepcopy(_base_standard_cmb_contract())
 
 
-def _native_scalar_acceptance_contract() -> dict[str, object]:
+def _native_scalar_acceptance_contract(
+    *,
+    gauge: str = "conformal_newtonian",
+    initial_mode: str = "adiabatic_scalar",
+    include_massive_neutrino: bool = False,
+    sum_mnu: float = 0.06,
+) -> dict[str, object]:
     """Return a metadata-only scalar native acceptance fixture."""
 
     numerics = {
@@ -901,6 +907,96 @@ def _native_scalar_acceptance_contract() -> dict[str, object]:
         "photon_hierarchy_l_max": 8,
         "neutrino_hierarchy_l_max": 5,
     }
+    if include_massive_neutrino:
+        numerics["massive_neutrino_hierarchy_l_max"] = 5
+        numerics["momentum_grids"] = {
+            "massive_neutrino_default": {
+                "count": 8,
+                "q_min": 0.05,
+                "q_max": 18.0,
+                "mass_parameter": "sum_mnu",
+            }
+        }
+    initial_condition_families = {
+        initial_mode: {
+            "sector": "scalar",
+            "members": [],
+        }
+    }
+    scalar_species = [
+        "photon",
+        "baryon",
+        "cdm",
+        "massless_neutrino",
+    ]
+    scalar_hierarchy_families = [
+        "photon_temperature",
+        "photon_polarization_e",
+        "massless_neutrino",
+    ]
+    species = {
+        "photon": {
+            "sector": "scalar",
+            "hierarchy_family": "photon_temperature",
+            "collision_operators": ["thomson_drag"],
+            "background_reference": "Omega_gamma0",
+        },
+        "baryon": {
+            "sector": "scalar",
+            "collision_operators": ["thomson_drag"],
+            "background_reference": "Omega_b0",
+        },
+        "cdm": {
+            "sector": "scalar",
+            "background_reference": "Omega_c0",
+        },
+        "massless_neutrino": {
+            "sector": "scalar",
+            "hierarchy_family": "massless_neutrino",
+            "background_reference": "Omega_nu0",
+            "anisotropic_stress": "supported",
+        },
+    }
+    hierarchy_families = {
+        "photon_temperature": {
+            "sector": "scalar",
+            "species": ["photon"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 8,
+            "multipole_symbol": "theta_gamma_l",
+        },
+        "photon_polarization_e": {
+            "sector": "scalar",
+            "species": ["photon"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 8,
+            "multipole_symbol": "e_gamma_l",
+        },
+        "massless_neutrino": {
+            "sector": "scalar",
+            "species": ["massless_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 5,
+            "multipole_symbol": "nu_l",
+        },
+    }
+    if include_massive_neutrino:
+        scalar_species.append("massive_neutrino")
+        scalar_hierarchy_families.append("massive_neutrino")
+        species["massive_neutrino"] = {
+            "sector": "scalar",
+            "hierarchy_family": "massive_neutrino",
+            "background_reference": "Omega_nu0",
+            "anisotropic_stress": "supported",
+        }
+        hierarchy_families["massive_neutrino"] = {
+            "sector": "scalar",
+            "species": ["massive_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 5,
+            "multipole_symbol": "nu_massive_l",
+            "momentum_grid": "massive_neutrino_default",
+        }
     return {
         "model_name": "NativeScalarAcceptance",
         "backend": "camb",
@@ -913,6 +1009,8 @@ def _native_scalar_acceptance_contract() -> dict[str, object]:
             "ns": 0.965,
             "Neff": 3.046,
             "YHe": 0.245,
+            "sum_mnu": sum_mnu,
+            "num_massive_neutrinos": 3,
         },
         "model_parameters": {
             "Tcmb_K": 2.7255,
@@ -925,7 +1023,7 @@ def _native_scalar_acceptance_contract() -> dict[str, object]:
         "perturbations": {
             "contract_version": 2,
             "standard": False,
-            "gauge": "conformal_newtonian",
+            "gauge": gauge,
             "variables": {},
             "derived": {},
             "equations": {},
@@ -943,77 +1041,22 @@ def _native_scalar_acceptance_contract() -> dict[str, object]:
             "sources": {},
             "observables": {},
             "initial_conditions": {},
-            "initial_condition_families": {
-                "adiabatic_scalar": {
-                    "sector": "scalar",
-                    "members": [],
-                }
-            },
+            "initial_condition_families": initial_condition_families,
             "boundary_conditions": {},
             "sectors": {
                 "scalar": {
                     "description": "Native scalar acceptance sector.",
-                    "species": [
-                        "photon",
-                        "baryon",
-                        "cdm",
-                        "massless_neutrino",
+                    "species": scalar_species,
+                    "hierarchy_families": scalar_hierarchy_families,
+                    "supported_gauges": [
+                        "conformal_newtonian",
+                        "synchronous",
                     ],
-                    "hierarchy_families": [
-                        "photon_temperature",
-                        "photon_polarization_e",
-                        "massless_neutrino",
-                    ],
-                    "supported_gauges": ["conformal_newtonian"],
                     "tensor_character": "scalar_like",
                 }
             },
-            "species": {
-                "photon": {
-                    "sector": "scalar",
-                    "hierarchy_family": "photon_temperature",
-                    "collision_operators": ["thomson_drag"],
-                    "background_reference": "Omega_gamma0",
-                },
-                "baryon": {
-                    "sector": "scalar",
-                    "collision_operators": ["thomson_drag"],
-                    "background_reference": "Omega_b0",
-                },
-                "cdm": {
-                    "sector": "scalar",
-                    "background_reference": "Omega_c0",
-                },
-                "massless_neutrino": {
-                    "sector": "scalar",
-                    "hierarchy_family": "massless_neutrino",
-                    "background_reference": "Omega_nu0",
-                    "anisotropic_stress": "supported",
-                },
-            },
-            "hierarchy_families": {
-                "photon_temperature": {
-                    "sector": "scalar",
-                    "species": ["photon"],
-                    "closure": "free_streaming_scalar",
-                    "default_l_max": 8,
-                    "multipole_symbol": "theta_gamma_l",
-                },
-                "photon_polarization_e": {
-                    "sector": "scalar",
-                    "species": ["photon"],
-                    "closure": "free_streaming_scalar",
-                    "default_l_max": 8,
-                    "multipole_symbol": "e_gamma_l",
-                },
-                "massless_neutrino": {
-                    "sector": "scalar",
-                    "species": ["massless_neutrino"],
-                    "closure": "free_streaming_scalar",
-                    "default_l_max": 5,
-                    "multipole_symbol": "nu_l",
-                },
-            },
+            "species": species,
+            "hierarchy_families": hierarchy_families,
             "projection_typing": {
                 "temperature_line_of_sight": {
                     "sector": "scalar",
@@ -3272,6 +3315,184 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("TT", perturbation_data.observables)
         self.assertIn("TE", perturbation_data.observables)
         self.assertIn("EE", perturbation_data.observables)
+
+    def test_native_scalar_acceptance_materializes_massive_neutrinos(
+        self,
+    ) -> None:
+        """The metadata-only scalar route should compile massive neutrinos."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertIn("delta_nu_massive", perturbation_data.variables)
+        self.assertIn("theta_nu_massive", perturbation_data.variables)
+        self.assertIn("sigma_nu_massive", perturbation_data.variables)
+        self.assertIn("nu_massive_l5", perturbation_data.variables)
+        self.assertEqual(
+            perturbation_data.hierarchy_families[
+                "massive_neutrino"
+            ].momentum_grid,
+            "massive_neutrino_default",
+        )
+
+    def test_native_scalar_acceptance_synchronous_matches_newtonian(
+        self,
+    ) -> None:
+        """Generated synchronous and Newtonian routes should agree."""
+
+        newtonian = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        synchronous = _prepare_native_contract(
+            _native_scalar_acceptance_contract(gauge="synchronous")
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        baseline = cmb.compute_cmb_spectrum_from_contract(
+            newtonian,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+        comparison = cmb.compute_cmb_spectrum_from_contract(
+            synchronous,
+            ells,
+            spectra=("TT", "TE", "EE"),
+        )
+
+        for spectrum_name in ("TT", "TE", "EE"):
+            numpy.testing.assert_allclose(
+                numpy.asarray(comparison[spectrum_name], dtype=float),
+                numpy.asarray(baseline[spectrum_name], dtype=float),
+                rtol=1.0e-10,
+                atol=1.0e-10,
+            )
+
+    def test_native_scalar_acceptance_standard_modes_generate_distinct(
+        self,
+    ) -> None:
+        """Generated standard initial-condition modes should change TT."""
+
+        adiabatic = _prepare_native_contract(
+            _native_scalar_acceptance_contract(initial_mode="adiabatic_scalar")
+        )
+        cdm_mode = _prepare_native_contract(
+            _native_scalar_acceptance_contract(initial_mode="cdm_isocurvature")
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        adiabatic_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                adiabatic,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        cdm_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                cdm_mode,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(adiabatic_tt)))
+        self.assertTrue(numpy.all(numpy.isfinite(cdm_tt)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(adiabatic_tt - cdm_tt))),
+            1.0e-12,
+        )
+        self.assertEqual(
+            cdm_mode["perturbation_data"]
+            .initial_conditions["delta_c_seed"]
+            .expression,
+            "seed",
+        )
+        self.assertEqual(
+            adiabatic["perturbation_data"]
+            .initial_conditions["delta_c_seed"]
+            .expression,
+            "-1.5 * seed",
+        )
+
+    def test_native_scalar_acceptance_massive_neutrino_response(
+        self,
+    ) -> None:
+        """Massive-neutrino momentum grids should affect native spectra."""
+
+        light = _prepare_native_contract(
+            _native_scalar_acceptance_contract(
+                include_massive_neutrino=True,
+                sum_mnu=0.06,
+            )
+        )
+        heavy = _prepare_native_contract(
+            _native_scalar_acceptance_contract(
+                include_massive_neutrino=True,
+                sum_mnu=0.3,
+            )
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        light_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                light,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        heavy_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                heavy,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(light_tt)))
+        self.assertTrue(numpy.all(numpy.isfinite(heavy_tt)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(light_tt - heavy_tt))),
+            1.0e-12,
+        )
+
+    def test_native_scalar_acceptance_momentum_grid_cache_reuses(
+        self,
+    ) -> None:
+        """Momentum-grid quadrature should reuse bounded cache entries."""
+
+        native_cache.clear_native_cmb_caches()
+        baseline = _prepare_native_contract(
+            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+        )
+        shifted = _native_scalar_acceptance_contract(
+            include_massive_neutrino=True
+        )
+        shifted["param_map"]["As"] *= 1.1
+        shifted_contract = _prepare_native_contract(shifted)
+        ells = numpy.asarray((20, 40, 60), dtype=int)
+
+        cmb.compute_cmb_spectrum_from_contract(
+            baseline,
+            ells,
+            spectra=("TT",),
+        )
+        first_stats = native_cache.native_cmb_cache_stats()[
+            "declared_momentum_grid"
+        ]
+        cmb.compute_cmb_spectrum_from_contract(
+            shifted_contract,
+            ells,
+            spectra=("TT",),
+        )
+        second_stats = native_cache.native_cmb_cache_stats()[
+            "declared_momentum_grid"
+        ]
+
+        self.assertEqual(first_stats["entries"], second_stats["entries"])
+        self.assertGreaterEqual(second_stats["hits"], first_stats["hits"] + 1)
 
     def test_native_scalar_acceptance_reuses_structural_runtime_bundle(
         self,

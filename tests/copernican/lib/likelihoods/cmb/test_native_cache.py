@@ -52,6 +52,16 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             {"node": 1},
         )
 
+        self.assertIsNone(native_cache.get_declared_momentum_grid("momentum"))
+        native_cache.set_declared_momentum_grid(
+            "momentum",
+            {"grid": 1},
+        )
+        self.assertEqual(
+            native_cache.get_declared_momentum_grid("momentum"),
+            {"grid": 1},
+        )
+
         self.assertIsNone(native_cache.get_custom_cmb_background("bg"))
         native_cache.set_custom_cmb_background("bg", {"a": 1.0})
         self.assertEqual(
@@ -103,12 +113,20 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             stats["declared_graph_execution_plan"]["entries"],
             1,
         )
+        self.assertEqual(
+            stats["declared_momentum_grid"]["entries"],
+            1,
+        )
 
         native_cache.clear_native_cmb_caches()
         cleared_stats = native_cache.native_cmb_cache_stats()
         self.assertEqual(cleared_stats["declared_symbol_plan"]["entries"], 0)
         self.assertEqual(
             cleared_stats["declared_graph_execution_plan"]["entries"],
+            0,
+        )
+        self.assertEqual(
+            cleared_stats["declared_momentum_grid"]["entries"],
             0,
         )
 

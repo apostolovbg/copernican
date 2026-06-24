@@ -691,6 +691,68 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_standard_initial_condition_family_generates_missing_seeds(
+        self,
+    ) -> None:
+        """Standard modes should auto-generate missing start conditions."""
+
+        contract = _base_nonstandard_contract()
+        contract["initial_conditions"] = {}
+        contract["initial_condition_families"] = {
+            "adiabatic_scalar": {
+                "sector": "scalar",
+                "members": [],
+            }
+        }
+
+        contract_data = self._compile(contract)
+
+        self.assertIn(
+            "adiabatic_scalar_delta_x_tau_0_seed",
+            contract_data.initial_conditions,
+        )
+        self.assertIn(
+            "adiabatic_scalar_theta_x_tau_0_seed",
+            contract_data.initial_conditions,
+        )
+
+    def test_synchronous_gauge_rejects_newtonian_metric_roles(self) -> None:
+        """Gauge-role mixes should fail before runtime."""
+
+        contract = _base_nonstandard_contract()
+        contract["gauge"] = "synchronous"
+        contract["sectors"]["scalar"]["supported_gauges"] = ["synchronous"]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "conflict with gauge 'synchronous'",
+        ):
+            self._compile(contract)
+
+    def test_momentum_grid_family_requires_numerics_entry(self) -> None:
+        """Momentum-grid families should bind to declared numerics entries."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "hierarchy_family": "massive_neutrino",
+            "background_reference": "Omega_nu0",
+        }
+        contract["hierarchy_families"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "species": ["massive_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_massive_l",
+            "momentum_grid": "massive_neutrino_default",
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "momentum_grid references unknown",
+        ):
+            self._compile(contract)
+
     def test_extended_runtime_physical_scalars_compile(self) -> None:
         """Native graphs may reference the documented physical scalars."""
 

@@ -91,6 +91,7 @@ class _BoundedCacheStore(Generic[_CacheValue]):
 
 _DECLARED_SYMBOL_PLAN_CACHE = _BoundedCacheStore(limit=256)
 _DECLARED_GRAPH_EXECUTION_PLAN_CACHE = _BoundedCacheStore(limit=256)
+_DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
 _CUSTOM_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
 _CUSTOM_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
 _CUSTOM_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
@@ -123,6 +124,18 @@ def set_declared_graph_execution_plan(
     """Store one declared-graph execution plan."""
 
     _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.set(cache_key, compiled_plan)
+
+
+def get_declared_momentum_grid(cache_key: Any):
+    """Return one cached momentum-grid runtime bundle when present."""
+
+    return _DECLARED_MOMENTUM_GRID_CACHE.get(cache_key)
+
+
+def set_declared_momentum_grid(cache_key: Any, runtime_bundle: Any) -> None:
+    """Store one prepared momentum-grid runtime bundle."""
+
+    _DECLARED_MOMENTUM_GRID_CACHE.set(cache_key, runtime_bundle)
 
 
 def get_custom_cmb_background(cache_key: Any):
@@ -205,6 +218,7 @@ def clear_native_cmb_caches() -> None:
     for cache in (
         _DECLARED_SYMBOL_PLAN_CACHE,
         _DECLARED_GRAPH_EXECUTION_PLAN_CACHE,
+        _DECLARED_MOMENTUM_GRID_CACHE,
         _CUSTOM_CMB_BACKGROUND_CACHE,
         _CUSTOM_CMB_SPECTRUM_CACHE,
         _CUSTOM_CMB_BESSEL_INPUT_CACHE,
@@ -222,6 +236,7 @@ def native_cmb_cache_stats() -> dict[str, dict[str, int]]:
         "declared_graph_execution_plan": (
             _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.snapshot()
         ),
+        "declared_momentum_grid": (_DECLARED_MOMENTUM_GRID_CACHE.snapshot()),
         "custom_background": _CUSTOM_CMB_BACKGROUND_CACHE.snapshot(),
         "custom_spectrum": _CUSTOM_CMB_SPECTRUM_CACHE.snapshot(),
         "bessel_inputs": _CUSTOM_CMB_BESSEL_INPUT_CACHE.snapshot(),

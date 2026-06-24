@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-23
+**Last Updated:** 2026-06-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,48 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-24:
+  Change: Adjusted native CMB perturbation validation to treat gauge
+    metadata as advisory unless a sector explicitly binds the gauge, and
+    limited auto-generated initial conditions to empty families.
+  Why: Preserved the generic native route permissive for declared gauge
+    metadata while retaining explicit failures for sector-bound gauge
+    mismatches and missing initial data.
+  Impact: Restored the declared-gauge runtime test, preserved the missing
+    initial-condition failure case, and kept the governed docs aligned with
+    the compiler rules.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/perturbation_contract.py
+
+- 2026-06-23:
+  Change: Added Slice Four support for massive-neutrino momentum grids,
+    synchronous-gauge acceptance, and mode-aware initial-condition
+    generation in the native CMB path.
+  Why: Closed Slice Four by keeping gauge roles, seed ownership, and
+    momentum-grid reuse explicit instead of leaving them to ad hoc model
+    inputs.
+  Impact: Enabled cache reuse across parameter rebinding, rejected
+    gauge-incompatible inputs before runtime, and expanded governed tests for
+    massive-neutrino and initial-condition coverage.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/native_cache.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+    tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-06-23:
   Change: Added native CMB observable closure with sector-aware
