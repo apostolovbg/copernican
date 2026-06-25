@@ -44,7 +44,7 @@ class VersionTests(TestCase):
         self.assertEqual(version_module.get_version(), expected)
 
     def test_environment_variable_is_ignored(self) -> None:
-        """The helper ignores COPERNICAN_VERSION and still reads file data."""
+        """The helper ignores COPERNICAN_VERSION and reads file data."""
 
         os.environ["COPERNICAN_VERSION"] = "1.2.3-custom"
         version_path = Path(version_module.__file__).with_name("VERSION")
@@ -52,7 +52,7 @@ class VersionTests(TestCase):
         self.assertEqual(version_module.get_version(), expected)
 
     def test_missing_getter_falls_back_to_unknown(self) -> None:
-        """Consumers still get a stable fallback when the getter is absent."""
+        """Consumers get a stable fallback when the getter is absent."""
 
         if hasattr(version_module, "get_version"):
             delattr(version_module, "get_version")

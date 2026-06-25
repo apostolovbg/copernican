@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-22
+**Last Updated:** 2026-06-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -886,8 +886,7 @@ user_facing_suffixes:
 - .json
 - .toml
 user_facing_files:
-- .pre-commit-config.yaml
-- pyproject.toml
+- ./pyproject.toml
 user_facing_globs:
 - .github/workflows/*.yml
 - .github/workflows/*.yaml
@@ -942,7 +941,6 @@ user_facing_keywords:
 - workflows
 user_visible_files:
 - ./README.md
-- ./ABOUT.md
 - ./SECURITY.md
 - ./SUPPORT.md
 - ./CITATION.cff
@@ -952,7 +950,6 @@ user_visible_files:
 - ./PLAN.md
 doc_quality_files:
 - ./README.md
-- ./ABOUT.md
 - ./SECURITY.md
 - ./SUPPORT.md
 - ./AGENTS.md
@@ -965,23 +962,23 @@ require_toc: 'false'
 min_section_count: '3'
 min_word_count: '120'
 doc_routes:
-- copernican/lib/** => README.md, ABOUT.md
-- copernican/lib/likelihoods/** => README.md, ABOUT.md
-- copernican/lib/likelihoods/**/* => README.md, ABOUT.md
-- copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
-- copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
-- copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-- copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
-- copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
-- copernican/lib/cli/** => README.md, ABOUT.md
-- copernican/rng_minigames/** => README.md, ABOUT.md
-- engines/** => README.md, ABOUT.md
-- pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
-- copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
-- copernican/docs/model_template.yml => README.md, ABOUT.md
-- docs/model_template.yml => README.md, ABOUT.md
-- .github/workflows/ci.yml => README.md, ABOUT.md
-- copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+- copernican/lib/** => README.md
+- copernican/lib/likelihoods/** => README.md
+- copernican/lib/likelihoods/**/* => README.md
+- copernican/lib/likelihoods/cmb/__init__.py => README.md
+- copernican/lib/likelihoods/cmb/camb_solver.py => README.md
+- copernican/lib/likelihoods/cmb/cmb.py => README.md
+- copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+- copernican/lib/gui/** => README.md, SUPPORT.md
+- copernican/lib/cli/** => README.md
+- copernican/rng_minigames/** => README.md
+- engines/** => README.md
+- pyproject.toml => SECURITY.md, CITATION.cff
+- copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
+- copernican/docs/model_template.yml => README.md
+- docs/model_template.yml => README.md
+- .github/workflows/ci.yml => README.md
+- copernican/workflow.py => README.md, SUPPORT.md
 require_mentions: 'true'
 mention_min_length: '3'
 mention_stopwords:
@@ -1012,6 +1009,7 @@ exclude_globs:
 - tests/devcovenant/**
 force_include_globs: []
 user_facing_exclude_globs:
+- .pre-commit-config.yaml
 - .vscode/**
 - .idea/**
 - .venv/**
@@ -1655,11 +1653,10 @@ sync_pairs:
 - docs/gui_guide.md=>copernican/docs/gui_guide.md
 - docs/gui_overview.md=>copernican/docs/gui_overview.md
 - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-- docs/minigames.md=>copernican/docs/minigames.md
+- docs/rng_minigames.md=>copernican/docs/rng_minigames.md
 - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
 - docs/packaging.md=>copernican/docs/packaging.md
 - docs/run_manifest.md=>copernican/docs/run_manifest.md
-- docs/security_changes.md=>copernican/docs/security_changes.md
 omit_block_pairs:
 - <!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->
 rewrite_repo_relative_links: 'false'

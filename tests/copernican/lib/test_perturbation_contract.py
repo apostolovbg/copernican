@@ -1272,7 +1272,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             self._compile(contract)
 
     def test_extensions_and_conservation_rules_compile(self) -> None:
-        """Slice-five extensions should compile into typed metadata."""
+        """Native extension rules should compile into typed metadata."""
 
         contract = _base_nonstandard_contract()
         contract["interactions"]["photon_baryon_slip"] = {

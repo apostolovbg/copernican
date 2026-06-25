@@ -46,7 +46,7 @@
   `rng_minigames/alien_invasion/ai_agent.py`,
   `rng_minigames/alien_invasion/hall_of_fame.py`,
   `rng_minigames/alien_invasion/README.md`, `rng_minigames/README.md`,
-  `docs/minigames.md`, `rng_minigames/alien_invasion/ai_settings.yml`,
+  `docs/rng_minigames.md`, `rng_minigames/alien_invasion/ai_settings.yml`,
   `rng_minigames/alien_invasion/_storage/alien_invasion_ai_state.yml`,
   `rng_minigames/alien_invasion/_storage/alien_invasion_hof.yml`,
   `rng_minigames/CHANGELOG.md`).
@@ -64,7 +64,7 @@
   `rng_minigames/alien_invasion/ai_agent.py`,
   `rng_minigames/alien_invasion/game_config.py`,
   `rng_minigames/alien_invasion/README.md`, `rng_minigames/README.md`,
-  `docs/minigames.md`, `rng_minigames/alien_invasion/game_settings.yml`,
+  `docs/rng_minigames.md`, `rng_minigames/alien_invasion/game_settings.yml`,
   `rng_minigames/alien_invasion/_storage/.gitkeep`,
   `rng_minigames/alien_invasion/ai_settings.yml`).
 - 2025-12-05: Pushed a heavier edge discipline penalty into the autopilot
@@ -139,7 +139,7 @@
   immediately train deeper brains and documented how to supply multi-layer
   lists (`rng_minigames/alien_invasion/ai_config.py`,
   `rng_minigames/alien_invasion/README.md`, `rng_minigames/README.md`,
-  `docs/minigames.md`, `rng_minigames/CHANGELOG.md`).
+  `docs/rng_minigames.md`, `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: Removed stray Finder " 2" copies from the RNG docs and promoted
   the Alien Invasion README duplicate to the canonical filename so the bundle
   only ships one copy of each reference (rng_minigames/ CHANGELOG.md,
@@ -173,7 +173,7 @@
   points for downstream projects (rng_minigames/ alien_invasion/ai_agent.py,
   rng_minigames/alien_invasion/ ai_config.py,
   rng_minigames/alien_invasion/ai_settings.yml, rng_minigames/README.md,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-04: Wired Alien Invasion’s shields, motion limits and the shared
   explosion/debris behaviour to `game_settings.yml`, reintroduced a gentle “car
   on ice” player movement model, added defeat auto-reset timing (with instant
@@ -181,7 +181,7 @@
   `player_explosion`/`debris` knobs so downstream apps can rebalance without
   code edits (rng_minigames/alien_invasion/game.py,
   rng_minigames/alien_invasion/game_settings.yml, rng_minigames/README.md,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-04: Removed the stray rightmost craft from the staggered second row
   in Alien Invasion so the formation stays centered and no ships spawn beyond
   the intended flight lane (rng_minigames/alien_invasion/ game.py,
@@ -218,7 +218,7 @@
 - 2025-12-04: Added the Alien Invasion autopilot toggle, hall-of-fame modal and
   live runtime counter plus refreshed the README/AGENTS/gui guide docs so the
   AI helper, cache files and scoreboard are documented properly
-  (copernican_lib/gui/minigames/alien_invasion/game.py, docs/minigames.md,
+  (copernican_lib/gui/minigames/alien_invasion/game.py, docs/rng_minigames.md,
   README.md, AGENTS.md, docs/gui_guide.md, CHANGELOG.md).
 - 2025-12-04: Introduced regression tests that exercise the Alien Invasion AI
   brain and hall-of-fame persistence so the new mini-game modules stay covered
@@ -238,12 +238,12 @@
 - 2025-12-04: Added a 20-hit player shield with matching status display,
   enabled dart-vs-dart interceptions plus debris-clearing shots, and renamed
   the counter line to highlight Neutron charge stockpiles
-  (copernican_lib/gui/minigames/alien_invasion.py, docs/minigames.md,
+  (copernican_lib/gui/minigames/alien_invasion.py, docs/rng_minigames.md,
   CHANGELOG.md).
 - 2025-12-04: Rebuilt the general’s movement with a horizontal-rail AI so the
   flagship glides from edge to edge, dodges players proactively and never clips
   outside the playfield (copernican_lib/gui/minigames/ alien_invasion.py,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-04: Deferred mini-game imports until players open them so GUI launch
   times stay snappy even as the games grow (copernican_lib/gui/app.py,
   CHANGELOG.md).
@@ -252,7 +252,7 @@
   the pilot shield to 50 HP, biasing revived fleets to the far side, and
   prioritising lieutenant respawns before higher ranks so heavy cruisers return
   only after the fodder is restored
-  (copernican_lib/gui/minigames/alien_invasion.py, docs/minigames.md,
+  (copernican_lib/gui/minigames/alien_invasion.py, docs/rng_minigames.md,
   CHANGELOG.md).
 - 2025-12-04: Fixed the Alien Invasion regression that paused all timers by
   referencing an undefined margin constant when spawning the general
@@ -284,39 +284,39 @@
   animals before confirming the seed (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Added the Constellation and Alien Invasion mini-games, refreshed
   Emoji Meteors to require five selections, added Cancel buttons to every mini-
-  game, and documented the system under docs/minigames.md with README/AGENTS
-  cross-references (copernican_lib/gui/app.py, docs/minigames.md, README.md,
-  AGENTS.md, CHANGELOG.md).
+  game, and documented the system under docs/rng_minigames.md with
+  README/AGENTS cross-references (copernican_lib/gui/app.py,
+  docs/rng_minigames.md, README.md, AGENTS.md, CHANGELOG.md).
 - 2025-12-03: Stacked the seed helper buttons vertically, moved every mini-game
   into `copernican_lib/gui/minigames/` modules and updated the README, GUI
   guide and mini-game documentation so contributors know where the helpers live
   (copernican_lib/gui/app.py, copernican_lib/gui/minigames/__init__.py,
   copernican_lib/gui/minigames/emoji_meteors.py,
   copernican_lib/gui/minigames/constellation_connect.py,
-  copernican_lib/gui/minigames/alien_invasion.py, docs/minigames.md,
+  copernican_lib/gui/minigames/alien_invasion.py, docs/rng_minigames.md,
   docs/gui_guide.md, README.md, AGENTS.md, CHANGELOG.md).
 - 2025-12-03: Added two more invader rows, randomized shooter selection,
   automatic capsule pickup and refreshed instructions for the Alien Invasion
   seed mini-game so charges are easier to collect and attack patterns less
   predictable (copernican_lib/gui/minigames/alien_invasion.py,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-03: Fixed the Alien Invasion timer bug, centered every formation and
   gave the general a dedicated rapid-fire cycle so the flagship peppers players
   with constant shots (copernican_lib/gui/minigames/alien_invasion.py,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-03: Made Alien Invasion’s space charges rarer with guaranteed
   explosions, added falling debris hazards, prevented launching more than one
   charge at a time, and gave the general a 50-hit shield so he only falls once
   the fleet is gone (copernican_lib/gui/minigames/alien_invasion.py,
-  docs/minigames.md, CHANGELOG.md).
+  docs/rng_minigames.md, CHANGELOG.md).
 - 2025-12-03: Improved space-charge launching (supporting trackpad bindings),
   halved the general’s average fire rate while making his barrages and movement
   erratic, reskinned the battlefield with a moonlit gradient sky plus hills,
   shrank all ships, added charge/general counters and heavy-plated bottom-row
   cruisers that take five hits to defeat
-  (copernican_lib/gui/minigames/alien_invasion.py, docs/minigames.md,
+  (copernican_lib/gui/minigames/alien_invasion.py, docs/rng_minigames.md,
   CHANGELOG.md).
 - 2025-12-03: Documented the GUI mini-games in the contributor guide and GUI
   guide so both humans and AI helpers know where Emoji Meteors, Constellation
   and Alien Invasion live and where to extend them (AGENTS.md,
-  docs/gui_guide.md, docs/minigames.md, CHANGELOG.md).
+  docs/gui_guide.md, docs/rng_minigames.md, CHANGELOG.md).

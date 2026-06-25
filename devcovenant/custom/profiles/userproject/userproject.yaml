@@ -6,6 +6,7 @@ ignore_dirs:
   - copernican/models/cache
   - cache
   - .matplotlib-cache
+  - copernican.egg-info
   - vendor
   - third_party
   - node_modules
@@ -14,6 +15,7 @@ gitignore_fragments:
   - validation/output/
   - VALIDATION.md
   - copernican/models/cache/
+  - .matplotlib-cache/
 assets: []
 doc_assets:
   user:
@@ -33,7 +35,6 @@ policy_overlays:
   documentation-growth-tracking:
     doc_quality_files:
       - README.md
-      - ABOUT.md
       - SECURITY.md
       - SUPPORT.md
       - AGENTS.md
@@ -42,7 +43,6 @@ policy_overlays:
       - PLAN.md
     user_visible_files:
       - README.md
-      - ABOUT.md
       - SECURITY.md
       - SUPPORT.md
       - CITATION.cff
@@ -51,28 +51,29 @@ policy_overlays:
       - SPEC.md
       - PLAN.md
     user_facing_exclude_globs:
+      - .pre-commit-config.yaml
       - copernican/models/**
       - copernican/validation/**
       - copernican/validation/manifests/**
       - copernican/datasets/**
     doc_routes:
-      - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
-      - copernican/lib/likelihoods/** => README.md, ABOUT.md
-      - copernican/lib/likelihoods/**/* => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md,
-        ABOUT.md
-      - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+      - copernican/lib/gui/app.py => README.md, SUPPORT.md
+      - copernican/lib/likelihoods/** => README.md
+      - copernican/lib/likelihoods/**/* => README.md
+      - copernican/lib/likelihoods/cmb/__init__.py => README.md
+      - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/cmb.py => README.md
+      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py =>
+        README.md
+      - copernican/workflow.py => README.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md,
-        ABOUT.md, SUPPORT.md
-      - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
-      - copernican/engines/** => README.md, ABOUT.md
-      - copernican/models/** => README.md, ABOUT.md
-      - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
-      - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
-      - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
+        SUPPORT.md
+      - pyproject.toml => SECURITY.md, CITATION.cff
+      - copernican/engines/** => README.md
+      - copernican/models/** => README.md
+      - copernican/validation/** => README.md, SUPPORT.md
+      - copernican/validation/__init__.py => README.md, SUPPORT.md
+      - copernican/validation/runner.py => README.md, SUPPORT.md
   read-only-directories:
     include_prefixes:
       - copernican/datasets
@@ -304,11 +305,10 @@ policy_overlays:
       - docs/gui_guide.md=>copernican/docs/gui_guide.md
       - docs/gui_overview.md=>copernican/docs/gui_overview.md
       - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-      - docs/minigames.md=>copernican/docs/minigames.md
+      - docs/rng_minigames.md=>copernican/docs/rng_minigames.md
       - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
       - docs/packaging.md=>copernican/docs/packaging.md
       - docs/run_manifest.md=>copernican/docs/run_manifest.md
-      - docs/security_changes.md=>copernican/docs/security_changes.md
     omit_block_pairs:
       - "<!-- REPO-ONLY:BEGIN -->=><!-- REPO-ONLY:END -->"
     rewrite_repo_relative_links: false

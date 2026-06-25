@@ -970,25 +970,24 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
-    - ABOUT.md
     - SECURITY.md
     - SUPPORT.md
     doc_routes:
-    - copernican/lib/gui/app.py => README.md, ABOUT.md, SUPPORT.md
-    - copernican/lib/likelihoods/** => README.md, ABOUT.md
-    - copernican/lib/likelihoods/**/* => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md, ABOUT.md
-    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
-    - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
-    - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
-    - copernican/engines/** => README.md, ABOUT.md
-    - copernican/models/** => README.md, ABOUT.md
-    - copernican/validation/** => README.md, ABOUT.md, SUPPORT.md
-    - copernican/validation/__init__.py => README.md, ABOUT.md, SUPPORT.md
-    - copernican/validation/runner.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican/lib/gui/app.py => README.md, SUPPORT.md
+    - copernican/lib/likelihoods/** => README.md
+    - copernican/lib/likelihoods/**/* => README.md
+    - copernican/lib/likelihoods/cmb/__init__.py => README.md
+    - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
+    - copernican/lib/likelihoods/cmb/cmb.py => README.md
+    - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+    - copernican/workflow.py => README.md, SUPPORT.md
+    - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
+    - pyproject.toml => SECURITY.md, CITATION.cff
+    - copernican/engines/** => README.md
+    - copernican/models/** => README.md
+    - copernican/validation/** => README.md, SUPPORT.md
+    - copernican/validation/__init__.py => README.md, SUPPORT.md
+    - copernican/validation/runner.py => README.md, SUPPORT.md
     exclude_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -997,6 +996,7 @@ autogen_metadata_overlays:
     user_facing_exclude_files:
     - devcovenant/config.yaml
     user_facing_exclude_globs:
+    - .pre-commit-config.yaml
     - copernican/models/**
     - copernican/validation/**
     - copernican/validation/manifests/**
@@ -1035,7 +1035,6 @@ autogen_metadata_overlays:
     - AGENTS.md
     - SPEC.md
     - PLAN.md
-    - ABOUT.md
     - SECURITY.md
     - SUPPORT.md
     - CITATION.cff
@@ -1246,11 +1245,10 @@ autogen_metadata_overlays:
     - docs/gui_guide.md=>copernican/docs/gui_guide.md
     - docs/gui_overview.md=>copernican/docs/gui_overview.md
     - docs/latex_syntax.md=>copernican/docs/latex_syntax.md
-    - docs/minigames.md=>copernican/docs/minigames.md
+    - docs/rng_minigames.md=>copernican/docs/rng_minigames.md
     - docs/orchestration_services.md=>copernican/docs/orchestration_services.md
     - docs/packaging.md=>copernican/docs/packaging.md
     - docs/run_manifest.md=>copernican/docs/run_manifest.md
-    - docs/security_changes.md=>copernican/docs/security_changes.md
   read-only-directories:
     exclude_globs:
     - copernican/datasets/**/cosmo_parser_*.py
@@ -1374,7 +1372,6 @@ user_metadata_overrides:
   documentation-growth-tracking:
     doc_quality_files:
     - ./README.md
-    - ./ABOUT.md
     - ./SECURITY.md
     - ./SUPPORT.md
     - ./AGENTS.md
@@ -1383,7 +1380,6 @@ user_metadata_overrides:
     - ./PLAN.md
     user_visible_files:
     - ./README.md
-    - ./ABOUT.md
     - ./SECURITY.md
     - ./SUPPORT.md
     - ./CITATION.cff
@@ -1391,25 +1387,28 @@ user_metadata_overrides:
     - ./CONTRIBUTING.md
     - ./SPEC.md
     - ./PLAN.md
+    user_facing_files:
+    - ./pyproject.toml
     doc_routes:
-    - copernican/lib/** => README.md, ABOUT.md
-    - copernican/lib/likelihoods/** => README.md, ABOUT.md
-    - copernican/lib/likelihoods/**/* => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/__init__.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/camb_solver.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/cmb.py => README.md, ABOUT.md
-    - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md, ABOUT.md
-    - copernican/lib/gui/** => README.md, ABOUT.md, SUPPORT.md
-    - copernican/lib/cli/** => README.md, ABOUT.md
-    - copernican/rng_minigames/** => README.md, ABOUT.md
-    - engines/** => README.md, ABOUT.md
-    - pyproject.toml => ABOUT.md, SECURITY.md, CITATION.cff
-    - copernican/lib/global_settings/defaults.yml => README.md, ABOUT.md, SUPPORT.md
-    - copernican/docs/model_template.yml => README.md, ABOUT.md
-    - docs/model_template.yml => README.md, ABOUT.md
-    - .github/workflows/ci.yml => README.md, ABOUT.md
-    - copernican/workflow.py => README.md, ABOUT.md, SUPPORT.md
+    - copernican/lib/** => README.md
+    - copernican/lib/likelihoods/** => README.md
+    - copernican/lib/likelihoods/**/* => README.md
+    - copernican/lib/likelihoods/cmb/__init__.py => README.md
+    - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
+    - copernican/lib/likelihoods/cmb/cmb.py => README.md
+    - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+    - copernican/lib/gui/** => README.md, SUPPORT.md
+    - copernican/lib/cli/** => README.md
+    - copernican/rng_minigames/** => README.md
+    - engines/** => README.md
+    - pyproject.toml => SECURITY.md, CITATION.cff
+    - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
+    - copernican/docs/model_template.yml => README.md
+    - docs/model_template.yml => README.md
+    - .github/workflows/ci.yml => README.md
+    - copernican/workflow.py => README.md, SUPPORT.md
     user_facing_exclude_globs:
+    - .pre-commit-config.yaml
     - .vscode/**
     - .idea/**
     - .venv/**

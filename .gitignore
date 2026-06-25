@@ -62,6 +62,7 @@ build
 validation/output/
 VALIDATION.md
 copernican/models/cache/
+.matplotlib-cache/
 
 # OS-specific ignores (DevCovenant)
 .DS_Store

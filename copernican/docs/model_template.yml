@@ -12,7 +12,7 @@ description: |
     (`mean`/`sigma`, `lower`/`upper`, `value`). Log-uniform priors
     automatically add the `transform: log` metadata in the cached YAML.
   * Every physics observable that can appear in `H(z)` or the sound-horizon
-    integrand must already be a declared parameter (or a fixed constant).
+    integrand must be a declared parameter or a fixed constant.
   * Model YAMLs are declarative mathematical files, not Python modules.
     Copernican validates the declared math and compiles it into executable
     callables elsewhere in the codebase.
@@ -341,7 +341,7 @@ notes: |
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
     `sound_speed_sq`, `collision_rate`, `free_streaming`,
     `tight_coupling_drag`, and `tight_coupling_ratio`, plus the safe math
-    functions already exposed by the validator. The default `seed` is a
+    functions exposed by the validator. The default `seed` is a
     unit-normalized transfer seed unless the contract overrides it, and
     relation targets such as `Phi` or `Psi` only become available when the
     declared equations, constraints, or closures solve them.
@@ -349,10 +349,20 @@ notes: |
     other monotonic declared background coordinates on their typed `lhs`.
     End boundary conditions are supported when they replace the missing
     start-state slots for the declared solver.
+  * `cmb.perturbations.interactions`, `conservation_rules`, and
+    `projection_extensions` close the remaining theory-extension surface.
+    Use interactions for compiled source/equation helpers, conservation
+    rules for fail-loud residual checks, and projection extensions to name
+    reviewed `custom_line_of_sight` kernels with explicit source-role
+    contracts.
   * `cmb.background.derived` may expose expansion, density, pressure,
     equation-of-state, or curvature quantities directly. The native solver
     consumes those declared outputs first and only derives the remaining
     physically required scalars when the contract makes that possible.
+    `cmb.background.recombination.quantities` may also override the native
+    hydrogen recombination hook, but when present it must define
+    `hydrogen_temperature_K`, `hydrogen_alpha_B`, `beta_continuum`, and
+    `peebles_c`.
   * Transfer components bind named source terms through declared observable
     mappings. Match the source-term roles required by the chosen projection,
     for example `monopole` for `line_of_sight_temperature`,
@@ -363,6 +373,10 @@ notes: |
     `spherical_bessel_derivative_window`, `spin2_e_window`,
     `spin2_b_window`, or `lensing_potential_window`, and declare any needed
     `required_projection_roles` explicitly.
+  * `cmb.perturbations.accuracy_controls` can require minimum `ell`, `k`,
+    `eta`, hierarchy, source-grid, and momentum-grid coverage, and may
+    declare `runtime_envelope.maximum_*_work_units` limits so native runs
+    fail before drifting back into unmanaged workloads.
   * Angular power-spectrum observables only name their `primary` and
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance

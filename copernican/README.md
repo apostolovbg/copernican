@@ -13,73 +13,35 @@
 
 ![Copernican banner](https://raw.githubusercontent.com/apostolovbg/copernican/main/copernican/docs/banner_github.png)
 
-Copernican is a Python toolkit that helps researchers test cosmological
-models against SNe Ia, BAO and CMB observations with a single
-manifest-driven workflow. `python -m copernican` orchestrates everything
-from model loading through sampler execution while the private `.python`
-bootstrap interpreter and managed `.venv` keep the pinned Python 3.11
-environment portable across macOS, Linux and Windows. Developers must
-consult [AGENTS.md](AGENTS.md) and the DevCovenant policies before
-making any edits because the repository enforces its laws through
-pre-commit checks.
+## Overview
+Copernican is a Python toolkit for evaluating cosmological models against
+SNe Ia, BAO, and CMB observations. It gives researchers one manifest-driven
+workflow for selecting data, choosing a model, running the sampler, and
+keeping the results tied to the exact inputs that produced them.
 
-The CMB surface now includes a declared-math graph engine for
-`standard: false` contracts. It evolves one declared graph per `k`
-mode, applies algebraic constraints and closures inside that graph,
-and projects the declared observables into transfer functions and
-spectra with declared native sampling controls and cached Bessel tables. The
-runtime now batches projection kernels across `ell`, reuses cached
-background and recombination products when the declared background
-inputs are unchanged, and keeps governed runtime-response tests on
-lighter helper numerics while the reference-backed scientific checks
-stay unchanged in the same governed suite. The
-background path consumes the declared background graph, computes a
-Peebles-style recombination history, integrates the declared
-reionization ODE, and builds the visibility and optical-depth grids
-before the perturbation and line-of-sight steps run. Declared
-background outputs now feed native density, pressure,
-equation-of-state, and curvature quantities directly; the perturbation
-runtime can mix `tau`, `eta`, `a`, `z`, or other declared monotonic
-background coordinates on equation left-hand sides; and end-anchored
-boundary conditions can drive the native shooter when they replace the
-missing start-state slots. The background resolver now accepts either
-density fractions or direct physical densities such as
-`rho_b0_kg_m3`, `n_b0_m3`, `n_H0_m3`, and optional `rho_c0_kg_m3`, so
-complete declared theories do not need LCDM-specific naming just to
-reach the native path. Inside
-`copernican/lib/likelihoods/cmb/`, `native_background.py` now owns the
-background, recombination, and reionization tables;
-`native_evolution.py` owns compiled declared-graph evolution;
-`native_projection.py` owns transfer projection and spectrum assembly;
-`native_cache.py` owns bounded native caches plus reset and diagnostics
-helpers; and `copernican_cmb_solver.py` now stays limited to native
-orchestration entry helpers. `model_coder.py` now prepares hierarchy-capable
-runtime bundles upstream, including compiled background plans plus declared
-sector, species, hierarchy-family, collision, projection-typing, and
-accuracy-control metadata, while `run_manifest.py` records the resulting
-runtime-signature and compile-ownership diagnostics.
-Slice Four adds declared momentum-grid caches for massive neutrinos,
-synchronous-gauge acceptance, and mode-aware initial-condition generation so
-cache reuse and gauge completeness stay explicit in governed tests. Gauge
-metadata now stays advisory unless a sector explicitly binds the gauge, and
-auto-generated initial conditions only appear when the family leaves its
-members empty. Slice Five closes the native theory-extension surface with
-declared interactions, conservation rules, recombination quantity hooks, and
-projection extensions, while governed accuracy controls now reject
-under-resolved `ell`, `k`, `eta`, hierarchy, and momentum-grid settings and
-cap total native work units through a recorded runtime envelope. Installed
-package smoke and manifest coverage now freeze that production contract.
+The same manifest can drive the command-line interface or the GUI. That keeps
+interactive runs and scripted runs on the same configuration surface, with the
+same seed handling, dataset selection, engine choice, and output layout.
+
+Copernican is built for reproducibility. Every run writes a manifest, logs,
+summary artifacts, plots, and chain outputs into a per-run directory under
+`~/copernican_output/`, so a result can be replayed or audited later without
+guessing which options were used.
+
+The package includes the model library, trusted dataset parsers, sampler
+engines, validation manifests, and supporting analysis tools needed for the
+full workflow. It also supports both standard backend CMB contracts and the
+native declared-graph route for custom theories, so the same application can
+handle conventional and extended cosmology models.
+
+Copernican ships as a managed Python application. The repository keeps the
+bootstrap interpreter, virtual environment, and locked dependencies in view so
+source checkouts and installed copies follow the same launch path.
 
 ## Launch Copernican
 
-Open a terminal anywhere. Then `cd` into the folder that contains the
-Copernican files. Every block below assumes that folder is the current
-working directory.
-
-The first block downloads a private Python 3.11 interpreter into
-`.python`. The second block builds `.venv` from that local interpreter.
-After that, activate `.venv`, install the locked dependencies, then run
-the CLI and GUI.
+Start in the repository root. The commands below bootstrap the managed
+environment, install the locked dependencies, and launch the CLI or GUI.
 
 ### Bootstrap the private interpreter
 
@@ -184,7 +146,7 @@ Windows cmd:
 
 ### Install the locked dependencies
 
-This puts the exact package versions Copernican expects into the
+This installs the exact package versions Copernican expects into the active
 environment.
 
 ```
@@ -193,23 +155,21 @@ python -m pip install -r requirements.lock
 
 ### Run Copernican
 
-Start the command-line interface. This runs Copernican in text mode.
+Start the command-line interface.
 
 ```
 python -m copernican --cli
 ```
 
-Start the graphical interface. This opens the GUI window.
+Start the graphical interface.
 
 ```
 python -m copernican --gui
 ```
 
-The GUI opens directly in the active `.venv` on every supported
-platform.
+The GUI opens directly in the active `.venv` on every supported platform.
 
-If Copernican is already installed in the same `.venv`, use these
-commands instead.
+If Copernican is installed in the same `.venv`, use these commands instead.
 
 ```
 copernican --cli
@@ -225,293 +185,65 @@ packaging notes that sit alongside these commands.
 Each run keeps its own run logs inside the generated
 `~/copernican_output/copernican-run_*` folder.
 
-`copernican/workflow.py` owns the launch flow for both CLI and GUI, and
-`copernican/lib/global_settings/defaults.yml` supplies the GUI-facing
-defaults that shape that flow through `copernican/lib/settings.py`.
+## Repository Layout
+- `copernican/lib/` contains shared runtime helpers, GUI scaffolding,
+  analysis tools, plotting helpers, and the native CMB internals.
+- `copernican/models/` houses the YAML model definitions and their metadata.
+- `copernican/engines/` collects the sampler back ends.
+- `copernican/datasets/` bundles the trusted datasets and parser metadata.
+- `copernican/validation/` holds the validation runner and reference
+  manifests.
+- `docs/` contains the long-form manual set.
+- `ABOUT.md`, `AGENTS.md`, `CHANGELOG.md`, `CITATION.cff`, `PLAN.md`,
+  `SECURITY.md`, and `SUPPORT.md` describe the front-door package contract.
 
-The GitHub Actions governance job now boots the repo-local `.venv`
-before it runs DevCovenant so CI matches the managed-environment
-contract used in local work.
+## Run Builder and GUI
+The GUI keeps the same manifest model as the CLI. The Run Builder walks
+through seed, model, dataset, engine, and plan panels; the Save Manifest page
+stays locked until each step has a selection; and the Start Run action
+renames the workspace to `copernican-run_<timestamp>` before launching the
+worker. The Run Settings panel mirrors the CLI prompts for walkers, burn-in,
+production steps, and pool size so GUI runs and CLI runs use the same run
+metadata.
 
-Union3 compressed SNe data require additive intercept marginalization in the
-SNe likelihood, CSV export and plot residual paths so all residual views use
-the same convention.
+The Run Monitor streams stdout and stderr into a log box, tails the per-run
+log file, and keeps the cancel controls disabled until a run exists. Metadata
+dialogs open with the system default application and use the same launch
+behavior as the rest of the GUI.
 
-## Table of Contents
-
-- [Highlights](#highlights)
-- [Overview](#overview)
-- [Directory layout](#directory-layout)
-- [Run Builder & GUI](#run-builder-gui)
-- [Analysis workspace](#analysis-workspace)
-- [Validation](#validation)
-- [Documentation & policy](#documentation-policy)
-- [Maintenance helpers](#maintenance-helpers)
-- [Law & policy compliance reminder](#law-policy-compliance-reminder)
-
-## Highlights
-- **Manifest-driven orchestration:** `python -m copernican` consumes model,
-  data and engine selections, writes every run into
-  `~/copernican_output/copernican-run_*`, and reuses
-  `copernican/lib/run_pipeline.py` helpers so CLI and GUI paths stay
-  consistent.
-- **Modular library layout:** `copernican/lib/` hosts shared helpers
-  (plotting, analysis, diagnostics, GUI scaffolding and dataset registries)
-  while `copernican/models/`, `copernican/engines/`,
-  `copernican/validation/`, `copernican/datasets/` and `~/copernican_output/`
-  remain the canonical asset roots.
-- **CMB capability checks:** `copernican/lib/model_coder.py` keeps the CMB
-  backend capability flags close to the perturbation compiler so
-  `standard: false` models run through the declared-math CMB graph engine in
-  `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public entry
-  point, `camb_solver.py` owns the standard backend route, and
-  `copernican_cmb_solver.py` owns the native orchestration layer.
-  `native_background.py`, `native_evolution.py`, `native_projection.py`,
-  and `native_cache.py` own the split native internals for background
-  tables, declared evolution, line-of-sight projection, and bounded cache
-  lifecycle respectively. `engine_adapter.py` now hands the precompiled
-  native runtime into that package directly instead of rebuilding a
-  CAMB-style contract in the native hot path. That runtime now carries
-  compiled background and reionization evaluator plans, and the declared
-  perturbation compiler now stores picklable expression programs plus
-  ordered graph metadata so the native path can reuse dense slot plans
-  instead of re-parsing expressions and rescanning unresolved mappings
-  inside repeated solver stages. Native cache ownership now includes
-  explicit reset and hit/miss diagnostics helpers for tests and
-  long-lived runs. Non-standard contracts now declare one immutable graph
-  of variables, equations, constraints, closures, sources, initial
-  conditions, observable mappings, and numerical requirements.
-  Unsupported symbols, unsolved variables, missing initial conditions,
-  missing observables, incompatible projection-role bindings, and
-  unsupported projection kernels fail fast. Run manifests also record the
-  compiled graph summary, declared background and recombination
-  provenance, and the selected production CMB execution route so native
-  runs prove their CAMB-free prediction path from route metadata rather
-  than from `standard: false` alone.
-- **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
-  Analysis workspace and validation tools at your fingertips while metadata
-  dialogs, builder panels, and the package entrypoint preserve the same
-  launch flow.
-- **Analysis workspace:** Run Summary, Posteriors, Diagnostics and Comparisons
-  tabs rely on `copernican.lib.analysis`, `posterior_explorer`, and the shared
-  `PlotViewer` so summaries, comparisons and posterior plots stay in sync with
-  CLI helpers.
-- **Validation & documentation:** Fixed Planck 2018 manifests drive the
-  validation suite, while `docs/` guides, `README.md`, `CHANGELOG.md` and the
-  AGENTS/DevCovenant policies capture every procedural rule. Reference-backed
-  recombination, visibility, and spectrum checks stay in the normal governed
-  test suite, while `copernican/validation/` remains the separate
-  publication-style LCDM reference runner that uses the same manifest
-  infrastructure.
-- **Maintenance helpers:** CLI commands such as run summaries, comparisons,
-  validations and dataset revalidation keep operators productive without the
-  GUI.
-- **Law & policy reminder:** Always obey the DevCovenant laws in `AGENTS.md`
-  and run `pre-commit run --all-files` before finishing work.
-
-## Overview
- - `python -m copernican` acts as a manifest-first orchestrator: it consumes a
-   manifest describing the selected models, datasets, sampler settings and
-   environment hints, reuses `copernican/lib/run_pipeline.py` helpers and
-   writes every run log inside
-   `~/copernican_output/copernican-run_*` with a matching
-   `run_manifest_<timestamp>.yml` for reproducibility. Command-line flags
-   such as `--manifest`, `--output-dir`, `--gui`, `--cli` and `--no-gui`
-   let CI and operators pick the desired entry point while the managed
-   interpreter and dependencies come from `.venv`. The launch flow itself
-   lives in `copernican/workflow.py`, and
-   `copernican/lib/global_settings/defaults.yml` carries the GUI-side
-   defaults that shape the same workflow through `copernican/lib/settings.py`.
- - `copernican/lib/` contains shared utilities (analysis helpers, likelihoods,
-   diagnostics, GUI scaffolding, plotting helpers, dataset registries, etc.) so
-   engines stay lightweight and consistent across backends.
-- `copernican/engines/` collects sampler back ends. The default
-  `copernican.engines.engine_mcmc`
-  couples `emcee` with ArviZ when available; the nested sampler mirrors the
-  same schema while exposing evidences. Both reuse the shared progress
-  renderer and manifest helpers. The MCMC initializer uses a tolerance
-  cutoff for tiny singular values to keep walker startup stable across
-  platforms.
-- `copernican/models/` houses YAML model definitions with priors,
-  transforms and dataset compatibility metadata. Each definition is
-  converted into a picklable engine adapter so manifest generation stays
-  deterministic even under multiprocessing. CMB-valid models declare a
-  backend contract under `cmb` with `backend`, `param_map`, `grids`,
-  `values`, `calls` and a mandatory `perturbations` block; `standard:
-  true` keeps the perturbation sections empty, while `standard: false`
-  requires a supported declared background graph, declared perturbation
-  graph, line-of-sight transfer functions and explicit backend mapping for
-  the compiled declarative CMB engine. Non-standard models declare their
-  own equations, closures and observable projections directly, while the
-  available background and perturbation symbols stay limited to the
-  documented CMB engine context so unsupported names fail loudly. That
-  context now includes direct physical density scalars alongside declared
-  background symbols, declared interactions, conservation rules, projection
-  extensions, and optional recombination quantity hooks. Accuracy controls
-  can now require minimum `ell`, `k`, `eta`, hierarchy, source-grid, and
-  momentum-grid coverage while recording a governed runtime envelope, and
-  `copernican/docs/model_template.yml` remains a documentation template
-  rather than a benchmark or acceptance fixture.
-  Transfer
-  components keep source-term roles separate from reviewed projection
-  kernels, and `custom_line_of_sight` can project declared source sums
-  through explicit kernels without hiding unsupported BB or lensing inputs.
-  Compiled observable metadata now carries output-role, sector, parity, and
-  spin tags so scalar, vector, and tensor transfer components can share the
-  native runtime while mixed-sector cross spectra fail before evolution.
-  Declared PP outputs can also drive bounded native `lensed_TT`,
-  `lensed_TE`, `lensed_EE`, and `lensed_BB` assembly without routing
-  `standard: false` models back through CAMB.
-  Saved manifests carry the graph summary, projection contracts, background
-  and recombination provenance, and the selected execution route so audits can
-  distinguish backend-standard CAMB prediction from native declared-graph
-  prediction.
-- `copernican/datasets/` bundles vetted observations and parsers. The
-  loaders validate SHA256 digests, register citations, and tag each manifest
-  with the hashes used for the run; the directory remains read-only except
-  when a human explicitly edits the datasets.
-- `copernican/validation/` holds the manifest runner and manifests used by
-  the validation suite. The latest summary lives in `~/VALIDATION.md` so
-  package installs do not write validation state into the package tree.
-- `copernican/lib/gui/` provides a Tkinter scaffold with the navigation rail,
-  Run Builder, Run Monitor, Analysis workspace, validation helpers and a Help
-  page that renders Markdown assets inline; the package entrypoint launches
-  the GUI inside the managed environment after logging the environment.
-
-## Directory layout
-- `copernican/models/`: YAML definitions for every supported cosmological
-  model.
-- `copernican/engines/`: Computational backends; the default MCMC engine
-  records diagnostics and writes NetCDF chains.
-- `copernican/datasets/`: Trusted datasets grouped by type (`sne`, `bao`,
-  `cmb`) with parser metadata. Parsers compute SHA256 values and register
-  their digests via `dataset_registry`.
-- `~/copernican_output/`: Per-run folders such as
-  `copernican-run_<timestamp>/` that store manifests, parameter summaries,
-  logs and NetCDF chains.
-- `copernican/validation/`: Reference manifests, runner helpers and summaries
-  used by the validation suite.
-- `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
-  structure, datasets and the DevCovenant policies.
-- `ABOUT.md`, `AGENTS.md`, `CHANGELOG.md`, `CITATION.cff`,
-  `SECURITY.md`, `SUPPORT.md`, `licenses/THIRD_PARTY_LICENSES.md`:
-  Governance, release history, citation, support and security metadata.
-
-## Run Builder & GUI
-The navigation rail keeps quick actions and an always-visible logo square, so
-launching the Run Builder or monitor never steals focus. Run Builder mirrors
-the CLI stages: seed, model, data, engine and plan panels require one selection
-per panel, the Save Manifest page remains locked until every stage reports a
-selection, and saved manifests live under
-`~/copernican_output/copernican_run_NEW_CONFIG/` so Confirm only becomes
-available when a manifest exists. Start Run renames that workspace to
-`copernican-run_<timestamp>` before spawning the CLI worker, while cancel and
-clear remove temporary folders. The Run Settings panel mirrors the CLI
-prompts (walkers, burn-in, production, pool size) so GUI runs and CLI runs
-share the same configuration metadata. Quick actions keep the dataset catalog
-health overview, import manifest flow and output directory helpers within
-reach. The Models step also includes a `Load model...` action that opens a
-file picker for any valid `.yml` or `.yaml` model path, matching the CLI's
-exact-path loading rule.
-Folder-open actions use the operating system's native handlers so the GUI can
-open output locations without changing the launch behavior that operators
-already expect.
-
-The Run Monitor threads CLI stdout/stderr into a log box that tails the
-per-run `copernican-run_<timestamp>.txt` file inside
-`~/copernican_output/copernican-run_<timestamp>/`, mirrors the
-counter-based progress updates from the sampler and keeps the Cancel/
-Hard Stop buttons disabled until a run starts. A “Lock log to latest
-entry” checkbox pins the view so operators can watch batches finish
-without scrolling. Metadata dialogs size themselves to the longest line,
-add an “Open file…” action that launches the OS editor and keep
-horizontal resizing locked while allowing unlimited vertical growth.
-
-## Analysis workspace
-The Analysis tab now hosts Run Summary, Posteriors and Comparisons alongside a
-placeholder Diagnostics panel. Run Summary ingests
-`~/copernican_output/copernican-run_*` folders and loads the manifest,
-parameter summary and log to render dataset counts, R-hat/ESS diagnostics,
-per-model χ² components, BAO `r_s` values and timestamps inside a scrollable
-panel. Its action buttons reload the summary, export structured
-`analysis-summary_<timestamp>.yml`/`.json` files via
-`copernican.lib.analysis.save_run_summary` and copy the JSON payload onto the
-clipboard.
-
-Posteriors uses `copernican.lib.posterior_explorer` to list `posterior-*.nc`
-snapshots and renders a trace/hist overview inside the shared
-`copernican.lib.gui.plot_viewer.PlotViewer`. The tab keeps controls for fitting
-to screen, restoring the original limits, and toggling the drag-enabled pan so
-you can inspect any region without re-creating the plot. The Comparisons tab
-lets you point at two run directories, refresh Δχ²/parameter shifts and
-dataset count deltas, and export or copy the structured comparison summary
-that the new `copernican.lib.analysis.compare_runs` helper produces.
-
-Every run now also writes ArviZ-powered corner plots and parameter
-histograms into the `~/copernican_output/copernican-run_*` folders so the
-Analysis workspace can render them inside the PlotViewer without re-running
-the sampler. Use `python -m copernican --analysis-posterior \
-~/copernican_output/copernican-run_*` to rerun
-`copernican.lib.analysis.plot_posterior`, producing the overview, corner and
-histogram assets from each `posterior-*.nc` snapshot on demand.
+## Analysis Workspace
+The Analysis tab provides Run Summary, Posteriors, and Comparisons tools.
+Run Summary ingests a saved run folder and renders the manifest, parameter
+summary, and log in a scrollable panel. Posteriors lists `posterior-*.nc`
+snapshots and renders trace and histogram views in the shared plot viewer.
+Comparisons loads two run folders and reports parameter shifts, dataset count
+deltas, and χ² differences in a structured view.
 
 ## Validation
-The Validation tab runs `python -m copernican --run-validation`, streams CLI
-output into a log box, and stores the summaries inside
-`copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`
-plus `~/VALIDATION.md`. The fixed Planck 2018 manifest evaluates a reference
-model against Union3 UNITY SNe, BOSS DR12 BAO and Planck 2018 Lite CMB data
-with constant priors, so regression checks stay deterministic. “Cancel
-validation” terminates the worker, “Clear validation” removes the outputs
-and summary, and GUI progress bars mirror the counter-based batches the
-sampler emits. The Validation button stays disabled while a worker runs so
-overlapping validation jobs cannot start.
+The Validation tab runs the reference manifest against the shipped datasets,
+streams the CLI output into the GUI, and stores the resulting summary in
+`~/VALIDATION.md` alongside the per-run output directory. The manifest keeps
+the regression baseline deterministic so validation reports stay repeatable.
 
-## Documentation & policy
-Release notes live in `CHANGELOG.md`, licensing details appear in
-`licenses/THIRD_PARTY_LICENSES.md`, and the package-root doc set now also
-includes `ABOUT.md`, `SECURITY.md`, `SUPPORT.md` and `CITATION.cff`. The GUI
-Help panel renders `README.md` (banner included) plus the CLI/GUI guides from
-`docs/gui_guide.md` and `docs/cli_guide.md`. The Analysis workspace and
-package entrypoint wiring are covered by `docs/gui_overview.md` and
-`docs/gui_guide.md`, while dataset and manifest hygiene appear across
-`docs/data_overview.md`, `docs/run_manifest.md` and the DevCovenant policies.
+## Documentation and Policy
+The package docs mirror the root docs so installed copies and repository
+copies stay aligned. `docs/gui_guide.md` explains the GUI, `docs/cli_guide.md`
+explains the CLI, `docs/run_manifest.md` covers manifest structure, and
+`docs/packaging.md` covers setup and distribution tasks.
 
-The root package docs are the authored copies. `package-doc-sync` mirrors
-them into `copernican/` so the GUI, package metadata and support surfaces can
-open the package-root files directly without duplicating the content model.
+## Maintenance Helpers
+Command-line users can work without the GUI:
 
-Law 11 of `AGENTS.md` codifies the documentation expansion commitment: every
-code change should grow the written record, and DevCovenant tooling
-automatically verifies policy sync before accepting commits.
-
-## Maintenance helpers
-Command-line operators who skip the GUI can still run maintenance helpers:
-
-- `python -m copernican --catalogue-summary` prints the dataset/model/engine
-  inventory health summary.
-- `python -m copernican --revalidate-dataset <dataset_id>` reruns the parser
-  trust check for a specific dataset and reports the digest result.
-- `python -m copernican --list-manifests` lists every timestamped run folder
-  and `--show-manifest <path>` pretty-prints a saved manifest.
-- `python -m copernican --run-validation` executes the lightweight validation
-  suite, prints the reference summary, stores it in `~/VALIDATION.md`, and
-  exits without opening the GUI.
-- `python -m copernican --analysis-summary <run_dir>` loads the
-  manifest/log/parameter summary from the specified run, prints the
-  diagnostics table and (with `--analysis-summary-output <dir>`) writes
-  structured `analysis-summary_<timestamp>.yml/.json` exports just like the
-  GUI’s Run Summary tab.
+- `python -m copernican --catalogue-summary`
+- `python -m copernican --revalidate-dataset <dataset_id>`
+- `python -m copernican --list-manifests`
+- `python -m copernican --show-manifest <path>`
+- `python -m copernican --run-validation`
+- `python -m copernican --analysis-summary <run_dir>`
 - `python -m copernican --analysis-compare <base_run> <alternative_run>`
-  aligns two run directories, prints the Δχ²/parameter summary and (with
-  `--analysis-compare-output <dir>`) saves `analysis-comparison_<timestamp>`
-  JSON/YAML files matching the Analysis Comparisons tab.
-- `python -m copernican --analysis-posterior <run_dir> \
-  --analysis-posterior-output <file.png>` builds a trace/hist overview using
-  `copernican.lib.posterior_explorer` and writes the figure to the requested
-  path so you can reproduce the PlotViewer output without the GUI.
+- `python -m copernican --analysis-posterior <run_dir>`
 
-## Law & policy compliance reminder
-Before beginning work, read every law in `AGENTS.md`, obey the DevCovenant
-policies in `devcovenant`, and finish every change with `pre-commit run --all-
-files`.
+## Repository Policy
+Read `AGENTS.md` before making changes, keep the package docs mirrored, and
+follow the gate workflow so edited files, manifests, and generated artifacts
+stay in sync.

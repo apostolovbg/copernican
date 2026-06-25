@@ -66,7 +66,7 @@ class DependencyCacheTestCase(unittest.TestCase):
 
 
 class CheckDependenciesPromptTestCase(unittest.TestCase):
-    """Validate the dependency guard now that auto-install is removed."""
+    """Validate the dependency guard after auto-install was removed."""
 
     @mock.patch("copernican.lib.cli.dependencies.Path")
     def test_missing_dependencies_exit_with_instruction(

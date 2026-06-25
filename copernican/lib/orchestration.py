@@ -1,12 +1,12 @@
 """Orchestration map and GUI-safe service interfaces.
 
-The Copernican Suite now exposes a concise set of orchestration services that
-are safe for GUI callers. The map below highlights the modules that already
+The Copernican Suite exposes a concise set of orchestration services that
+are safe for GUI callers. The map below highlights the modules that
 coordinate configuration validation, manifest generation and run lifecycle
-reporting so front-ends never have to duplicate logic borrowed from the CLI.
+reporting so front-ends do not have to duplicate logic borrowed from the CLI.
 Protocols describe how GUIs can request runs, pause or resume execution and
-stream live status or log lines while the underlying runner continues to use
-the shared helpers imported here.
+stream live status or log lines while the underlying runner uses the shared
+helpers imported here.
 """
 
 from __future__ import annotations

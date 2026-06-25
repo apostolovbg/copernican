@@ -1,19 +1,16 @@
 # GUI Overview
-
 The Copernican GUI uses a lightweight Tkinter scaffold so it can run
 inside the managed virtual environment without extra framework dependencies.
 The navigation rail stays visible at all times and the Home screen shows recent
 runs, pinned configurations and explicit quick actions for launching the Run
 Builder, the Run Monitor, the output directory or the **Import manifest...**
-workflow that clones an existing manifest for reuse. The navigation rail now
+workflow that clones an existing manifest for reuse. The navigation rail
 reserves 240 px so the padded Copernican logo square above the Home button
 keeps equal spacing to the window chrome from the left border, title bar and
 the main pane divider without introducing extra controls. The icon sits in a 60
 px square so the visual balance is maintained even with the tighter top/left
 padding.
-
 ## Table of Contents
-
 - [Run Builder](#run-builder)
 - [Data](#data)
 - [Run Settings](#run-settings)
@@ -26,10 +23,8 @@ padding.
 - [Settings](#settings)
 - [Help](#help)
 - [Launching the GUI](#launching-the-gui)
-
 ## Run Builder
-
-The Run Builder now mirrors the CLI stages with dedicated panels for the seed,
+The Run Builder mirrors the CLI stages with dedicated panels for the seed,
 model selection, dataset selection, engine choice, plan notes and the final
 confirmation. Models and datasets use single-selection lists so you cannot
 select more than one item at each stage, and every panel draws live entries
@@ -38,14 +33,13 @@ previewing and folder opening remain available inside the builder, and the
 confirm panel lists the new run settings alongside the usual seeds, models and
 datasets before operators hit *Start Run*. Each dataset type renders in its own
 widened listbox with a dedicated scrollbar so even long catalogues stay visible
-without re-introducing multi-select menus. The navigation controls now grey out
+without re-introducing multi-select menus. The navigation controls grey out
 *Previous* on the first step and *Next* on the last so operators always see
 when they can move, and the only way to launch sampling is through the
 confirmation step’s **Start Run from manifest** button. A companion **Insert
 manifest** button stages the generated manifest so you can review metadata or
 export it before launching the worker.
-
-The Save Manifest step now stays locked until every seed/model/dataset/
+The Save Manifest step stays locked until every seed/model/dataset/
 engine panel reports a selection. Saving writes the current manifest to
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, leaves
 the workspace editable and enables the **Save and confirm** controls.
@@ -54,36 +48,29 @@ never leave stray manifests, and the confirmation panel keeps its
 **Start run** button disabled until a manifest exists so the GUI always
 renames the workspace to `copernican-run_<timestamp>` before handing it
 to `copernican.lib.gui.run_worker`.
-
 ## Data
-
 The Data catalogue renders separate scrollable lists for each dataset type so
 you choose at most one SNe, BAO or CMB entry per run. Each row shows badges,
 citations, parser metadata and digests while the *Open folder*, *View metadata*
 and *Revalidate parser* buttons call the same helpers the CLI exposes.
-
 ## Run Settings
-
-The builder now includes a Run Settings panel where you set the number of
+The builder includes a Run Settings panel where you set the number of
 walkers, burn-in steps, production steps and multiprocessing pool size before
 confirming a run. The panel mirrors the CLI prompts verbatim—reminding you
 about minimum walkers, recommended defaults, “quick burn-in” shortcuts and the
 current CPU count—so GUI launches receive the same context as the terminal
 workflow. These values are stored in the run manifest so downstream replays or
 audits capture every execution parameter.
-
 ## Run Execution
-
 Pressing **Start Run** launches the full CLI workflow in a background worker
 process using the current builder configuration. The GUI streams the worker's
 stdout/stderr into the diagnostics panel, mirrors CLI log messages and exposes
 Cancel/Hard Stop buttons that terminate the child process when you need to stop
-early. (Pause/resume is still a CLI-only feature.) GUI workers now set
+early. (Pause/resume is a CLI-only feature.) GUI workers set
 `COPERNICAN_HEADLESS_RUN=1` so the CLI exits cleanly after finishing instead of
 prompting for another run, and the per-run log captures any unexpected
 exceptions even when the run is launched from the GUI.
-
-The Run Monitor now mirrors the CLI progress state with dual progress bars for
+The Run Monitor mirrors the CLI progress state with dual progress bars for
 the current batch/iteration counts and the walker-level reports plus a
 scrollable log console that tails the per-run `copernican-run_<timestamp>.txt`
 file inside `~/copernican_output/copernican-run_<timestamp>/`. The filter
@@ -92,24 +79,21 @@ exact same diagnostics the command line renders while the GUI keeps every
 alert anchored for quick navigation. A new “Lock log to latest entry” checkbox
 beside the filters pins the view to the most recent lines whenever you want to
 watch the ensemble finish without manually scrolling back down. That log
-console now drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200
+console drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200
 steps completed”) so it shows only batch summaries, and the Cancel/Pause/Hard
 Stop buttons stay disabled (greyed out) until a run starts, after which they
-return to their normal, clickable appearance. The monitor refresh loop now
-verifies every progress label, bar and log text widget still exists before
+return to their normal, clickable appearance. The monitor refresh loop
+verifies every progress label, bar and log text widget exists before
 touching it, so switching away from the Run Monitor or Validation tabs no
 longer triggers Tk errors while the background run keeps streaming updates
 uninterrupted.
-
 ## Analysis
-
-The navigation rail now includes an **Analysis** button between Engines and
+The navigation rail includes an **Analysis** button between Engines and
 Validation. Pressing it opens a 4-tab workspace that mirrors the Settings
 screen’s tab bar. Each tab shows a contextual description, a row of three
 action buttons and a dedicated body frame—Diagnostics remains a placeholder
-while Run Summary, Posteriors and Comparisons now present concrete workflows
+while Run Summary, Posteriors and Comparisons present concrete workflows
 powered by the shared `copernican.lib.analysis` helpers.
-
 Run Summary lets you browse to any ``output/copernican-run_*`` folder, load the
 manifest/log/parameter summary-derived diagnostics and render the results
 inside a scrollable text pane. The “Reload summary” button re-parses the
@@ -119,8 +103,7 @@ summary_<timestamp>.yml``/``.json`` copies into the selected directory, and
 The summary lists datasets, row counts, R-hat/ESS diagnostics, model χ²
 components, BAO ``r_s`` values and the run’s timestamps without forcing you to
 re-run the CLI workflow.
-
-The Posteriors tab now hooks directly into ``posterior-*.nc`` outputs via
+The Posteriors tab hooks directly into ``posterior-*.nc`` outputs via
 ``copernican.lib.posterior_explorer`` and renders their trace/hist overview
 inside the shared :class:`copernican.lib.gui.plot_viewer.PlotViewer`. The
 action buttons above the tab refresh the file list, autoscale the plot and
@@ -131,16 +114,14 @@ inspect any region without re-creating the plot. A second control row offers
 “Show corner plot” and “Show histograms” actions that load the latest archived
 PNGs from the run directory so you can quickly compare the derived Surfaces
 without re-opening the sampler output.
-
-The Comparisons tab now lets you load two run directories, view Δχ²/parameter
+The Comparisons tab lets you load two run directories, view Δχ²/parameter
 shifts and dataset-count deltas in a JSON panel, and export or copy the
 structured comparison summary that the new
 `copernican.lib.analysis.compare_runs` helper produces. Refreshing the diff re-
 analyses both folders via `copernican.lib.analysis.analyze_run` so you can
 compare any historical results without re-running the CLI workflow.
-
 ## Validation
-The navigation rail now includes a **Validation** button positioned between
+The navigation rail includes a **Validation** button positioned between
 Engines and Settings. When you press it, the GUI launches `python -m copernican
 --run-validation`, streams the CLI stdout into the Run Monitor–style log box,
 writes the NEW_CONFIG, plots and logs into
@@ -149,7 +130,7 @@ and stores the textual summary in `~/VALIDATION.md` so the panel can reload
 the latest results even when the suite is not rerun. The manifest evaluates the
 fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
 Planck 2018 Lite and declares each parameter using `fixed` priors so the
-sampler still records the canonical point while keeping the values numerically
+sampler records the canonical point while keeping the values numerically
 locked for regression checks. A **Cancel validation** button terminates the
 worker mid-run, **Clear validation** removes every
 `copernican/validation/output/.../validation_run_*` directory plus
@@ -158,32 +139,24 @@ log pinned to the newest lines while the GUI progress bars mirror the CLI
 counter state. The
 validation button stays disabled while the run is active so you cannot stack
 overlapping validations.
-
 ## Metadata dialogs
-
 Metadata, YAML and module viewers automatically size themselves to the longest
 line, enforce the 15/25-line minimum and default window sizes requested by
 design, and include an **Open file…** button that launches the underlying asset
 in the operating system's default editor. The dialogs keep horizontal resizing
 locked while allowing unlimited vertical resizing so short files stay compact
 and long YAMLs remain comfortable to read.
-
 ## Models
-
-Models now appear in a scrollable panel with badge, license and SHA256 details.
+Models appear in a scrollable panel with badge, license and SHA256 details.
 The *Open model folder* and *View YAML* actions link the UI directly to the
 underlying YAML files so you can inspect definitions without leaving the GUI.
-
 ## Engines
-
 Every discovered engine shows its label, version, badges and digest inside its
 own framed row. *Open engine folder* and *View module* buttons call the same
 helpers the CLI uses, ensuring the GUI never feels like a stub even with just a
 handful of engines.
-
 ## Settings
-
-The Settings screen now mirrors the Run Builder navigation: three tabs
+The Settings screen mirrors the Run Builder navigation: three tabs
 list Datasets, GUI and Tools options in the same style as the wizard
 controls above. The Datasets page toggles automatic discovery, hash
 caching and offers a manual digest rebuild so trusted parsers stay
@@ -196,15 +169,11 @@ workspace. Preferences persist through `copernican/lib/settings.py`
 into the user config file at `~/.config/copernican/copernican_settings.yml`
 on Unix or the platform equivalent on Windows. Packaged defaults live
 in `copernican/lib/global_settings/defaults.yml`.
-
 ## Help
-
-The Help panel now renders `README.md` inside a scrollable text widget,
+The Help panel renders `README.md` inside a scrollable text widget,
 complete with the `docs/banner_github.png` image so documentation stays
 available even when operators prefer the GUI to the CLI.
-
 ## Launching the GUI
-
 Create and activate the managed `.venv` first. Then run `python -m
 copernican --gui` from the shell. The exact commands for macOS, Linux
 and Windows live in

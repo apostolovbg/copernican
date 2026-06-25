@@ -1,4 +1,4 @@
-"""Tests for the GUI run worker that now delegates to the manifest CLI."""
+"""Tests for the GUI run worker that delegates to the manifest CLI."""
 
 import json
 import os

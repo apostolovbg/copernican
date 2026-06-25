@@ -80,6 +80,69 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-25:
+  Change: Updated the README, ABOUT, AGENTS, mirrored docs, and profile
+    settings to remove historical wording, rename the RNG mini-games guide,
+    delete the obsolete security changes pages, and align cache ignores.
+  Why: Kept the repo-facing and package-facing documentation in sync after
+    the cleanup pass and removed stale workflow artifacts from the
+    Copernican docs surface.
+  Impact: Added a detailed README and a short About page, aligned the
+    package docs with the root docs, updated AGENTS metadata, and removed
+    `.matplotlib-cache` plus `*.egg-info` from the tracked tree.
+  Files:
+    .matplotlib-cache/fontlist-v330.json
+    ABOUT.md
+    README.md
+    AGENTS.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/api_overview.md
+    copernican/docs/architecture.md
+    copernican/docs/bao_compound_dataset_format.md
+    copernican/docs/cli_guide.md
+    copernican/docs/data_overview.md
+    copernican/docs/dataset_licenses.md
+    copernican/docs/dataset_metadata.md
+    copernican/docs/design_overview.md
+    copernican/docs/gui_guide.md
+    copernican/docs/gui_overview.md
+    copernican/docs/latex_syntax.md
+    copernican/docs/minigames.md
+    copernican/docs/model_template.yml
+    copernican/docs/orchestration_services.md
+    copernican/docs/packaging.md
+    copernican/docs/rng_minigames.md
+    copernican/docs/run_manifest.md
+    copernican/docs/security_changes.md
+    copernican/lib/orchestration.py
+    copernican/lib/perturbation_contract.py
+    copernican/rng_minigames/CHANGELOG.md
+    devcovenant/custom/profiles/python/python.yaml
+    devcovenant/custom/profiles/userproject/userproject.yaml
+    docs/api_overview.md
+    docs/architecture.md
+    docs/bao_compound_dataset_format.md
+    docs/cli_guide.md
+    docs/data_overview.md
+    docs/dataset_licenses.md
+    docs/dataset_metadata.md
+    docs/design_overview.md
+    docs/gui_guide.md
+    docs/gui_overview.md
+    docs/latex_syntax.md
+    docs/minigames.md
+    docs/model_template.yml
+    docs/orchestration_services.md
+    docs/packaging.md
+    docs/rng_minigames.md
+    docs/run_manifest.md
+    docs/security_changes.md
+    tests/copernican/lib/cli/test_dependencies.py
+    tests/copernican/lib/gui/test_run_worker.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/test_version.py
+
+- 2026-06-25:
   Change: Implemented Slice Five native CMB extensions, governed accuracy
     controls, installed-package smoke, and manifest truth for interactions,
     recombination hooks, projection extensions, and runtime envelopes.

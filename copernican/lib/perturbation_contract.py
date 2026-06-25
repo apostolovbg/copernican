@@ -1,9 +1,9 @@
 """Compile declared CMB graph contracts into immutable runtime data.
 
-`standard: false` contracts now describe one declared-math graph rather than
+`standard: false` contracts describe one declared-math graph rather than
 selecting a hard-coded solver family. The compiler validates symbols,
 dependencies, observables, and runtime requirements before the numerical CMB
-engine tries to evolve the system.
+engine evolves the system.
 """
 
 from __future__ import annotations
