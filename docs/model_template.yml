@@ -349,10 +349,20 @@ notes: |
     other monotonic declared background coordinates on their typed `lhs`.
     End boundary conditions are supported when they replace the missing
     start-state slots for the declared solver.
+  * `cmb.perturbations.interactions`, `conservation_rules`, and
+    `projection_extensions` close the remaining theory-extension surface.
+    Use interactions for compiled source/equation helpers, conservation
+    rules for fail-loud residual checks, and projection extensions to name
+    reviewed `custom_line_of_sight` kernels with explicit source-role
+    contracts.
   * `cmb.background.derived` may expose expansion, density, pressure,
     equation-of-state, or curvature quantities directly. The native solver
     consumes those declared outputs first and only derives the remaining
     physically required scalars when the contract makes that possible.
+    `cmb.background.recombination.quantities` may also override the native
+    hydrogen recombination hook, but when present it must define
+    `hydrogen_temperature_K`, `hydrogen_alpha_B`, `beta_continuum`, and
+    `peebles_c`.
   * Transfer components bind named source terms through declared observable
     mappings. Match the source-term roles required by the chosen projection,
     for example `monopole` for `line_of_sight_temperature`,
@@ -363,6 +373,10 @@ notes: |
     `spherical_bessel_derivative_window`, `spin2_e_window`,
     `spin2_b_window`, or `lensing_potential_window`, and declare any needed
     `required_projection_roles` explicitly.
+  * `cmb.perturbations.accuracy_controls` can require minimum `ell`, `k`,
+    `eta`, hierarchy, source-grid, and momentum-grid coverage, and may
+    declare `runtime_envelope.maximum_*_work_units` limits so native runs
+    fail before drifting back into unmanaged workloads.
   * Angular power-spectrum observables only name their `primary` and
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance

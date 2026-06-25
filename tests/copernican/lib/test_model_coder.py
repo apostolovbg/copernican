@@ -396,6 +396,11 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "values": {"H": "H"},
             "background": {
                 "derived": {"density": "Omega_m0"},
+                "recombination": {
+                    "quantities": {
+                        "hydrogen_temperature_K": "3000.0",
+                    },
+                },
                 "reionization": {
                     "calibration": {
                         "symbol": "z_reio",
@@ -438,6 +443,10 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         )
         self.assertEqual(len(runtime.background_runtime.derived_plan), 1)
         self.assertEqual(
+            len(runtime.background_runtime.recombination_quantity_plan),
+            1,
+        )
+        self.assertEqual(
             runtime.background_runtime.reionization_calibration_symbol,
             "z_reio",
         )
@@ -459,6 +468,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
                 "Omega_m0",
                 "density",
                 "hydrogen_ionization_rate",
+                "hydrogen_temperature_K",
                 "tau",
             ),
         )
@@ -620,6 +630,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             calls=({"method": "set_cosmology"},),
             background_runtime=model_coder.NativeCMBBackgroundRuntime(
                 derived_plan=(),
+                recombination_quantity_plan=(),
                 reionization_quantity_plan=(),
                 reionization_target_tau=None,
                 reionization_calibration_symbol=None,

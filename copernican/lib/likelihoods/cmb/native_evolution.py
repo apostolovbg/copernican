@@ -19,6 +19,7 @@ from .native_background import (
     _CustomCMBNumerics,
     _CustomCMBPhysicalParameters,
     _physical_runtime_scalars,
+    _resolve_declared_accuracy_controls,
 )
 
 
@@ -195,6 +196,12 @@ def _compile_declared_graph_execution_plan(
     relation_entries.update(
         {entry.target: entry for entry in perturbation_data.closures.values()}
     )
+    interaction_entries = getattr(perturbation_data, "interactions", {})
+    collision_operator_entries = getattr(
+        perturbation_data,
+        "collision_operators",
+        {},
+    )
     value_steps: list[_DeclaredValueStep] = []
     for (
         node_name
@@ -206,6 +213,34 @@ def _compile_declared_graph_execution_plan(
                     output_name=node_name,
                     compiled_expression=derived_entry.compiled_expression,
                     dependencies=tuple(derived_entry.dependencies),
+                )
+            )
+            continue
+        interaction_entry = interaction_entries.get(node_name)
+        if (
+            interaction_entry is not None
+            and interaction_entry.compiled_expression is not None
+        ):
+            value_steps.append(
+                _DeclaredValueStep(
+                    output_name=node_name,
+                    compiled_expression=(
+                        interaction_entry.compiled_expression
+                    ),
+                    dependencies=tuple(interaction_entry.dependencies),
+                )
+            )
+            continue
+        collision_entry = collision_operator_entries.get(node_name)
+        if (
+            collision_entry is not None
+            and collision_entry.compiled_expression is not None
+        ):
+            value_steps.append(
+                _DeclaredValueStep(
+                    output_name=node_name,
+                    compiled_expression=collision_entry.compiled_expression,
+                    dependencies=tuple(collision_entry.dependencies),
                 )
             )
             continue
@@ -314,6 +349,14 @@ def _resolve_declared_momentum_grid_runtimes(
             "cmb.perturbations.numerics.momentum_grids must be a mapping "
             "when declared momentum-grid families are used."
         )
+    accuracy_controls = _resolve_declared_accuracy_controls(
+        {"perturbation_data": perturbation_data}
+    )
+    minimum_momentum_counts = accuracy_controls.get(
+        "minimum_momentum_grid_count"
+    )
+    if not isinstance(minimum_momentum_counts, Mapping):
+        minimum_momentum_counts = {}
 
     family_groups: dict[str, list[str]] = {}
     for (
@@ -437,6 +480,28 @@ def _resolve_declared_momentum_grid_runtimes(
                 f"{grid_name} must be a mapping"
             )
         count = max(int(grid_def.get("count", 8)), 4)
+        minimum_count = minimum_momentum_counts.get(grid_name)
+        if minimum_count is not None:
+            required_count = int(
+                _coerce_numeric_scalar(
+                    minimum_count,
+                    name=(
+                        "cmb.perturbations.accuracy_controls."
+                        f"minimum_momentum_grid_count.{grid_name}"
+                    ),
+                )
+            )
+            if required_count < 1:
+                raise ValueError(
+                    "Declared accuracy_controls require positive momentum "
+                    f"grid counts for '{grid_name}'"
+                )
+            if count < required_count:
+                raise ValueError(
+                    "Declared accuracy_controls require "
+                    "cmb.perturbations.numerics.momentum_grids."
+                    f"{grid_name}.count >= {required_count}"
+                )
         q_min = max(float(grid_def.get("q_min", 0.05)), 1.0e-4)
         q_max = max(float(grid_def.get("q_max", 15.0)), q_min * 1.01)
         points = numpy.geomspace(q_min, q_max, count, dtype=float)

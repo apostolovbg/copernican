@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,39 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-25:
+  Change: Implemented Slice Five native CMB extensions, governed accuracy
+    controls, installed-package smoke, and manifest truth for interactions,
+    recombination hooks, projection extensions, and runtime envelopes.
+  Why: Closed the remaining declared-theory and runtime-governance gaps so
+    native `standard: false` models can ship complete extension contracts
+    with package, manifest, and documentation proof.
+  Impact: Added fail-loud checks for under-resolved native runs, froze the
+    installed-package native smoke path, and kept repo/package docs aligned
+    with the shipped manifest and contract surface.
+  Files:
+    ABOUT.md
+    CHANGELOG.md
+    README.md
+    copernican/ABOUT.md
+    copernican/README.md
+    copernican/docs/run_manifest.md
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/model_coder.py
+    copernican/lib/perturbation_contract.py
+    copernican/lib/run_manifest.py
+    docs/model_template.yml
+    docs/run_manifest.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_model_coder.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_run_manifest.py
+    tests/project/lib/test_core.py
 
 - 2026-06-24:
   Change: Adjusted native CMB perturbation validation to treat gauge

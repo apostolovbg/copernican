@@ -12,6 +12,7 @@ from copernican.lib.perturbation_contract import (
     PerturbationCompiledExpressionData,
     PerturbationConditionData,
     PerturbationConditionTargetData,
+    PerturbationConservationRuleData,
     PerturbationConstraintData,
     PerturbationContractData,
     PerturbationDependencyGraphSummaryData,
@@ -20,7 +21,9 @@ from copernican.lib.perturbation_contract import (
     PerturbationEquationData,
     PerturbationHierarchyFamilyData,
     PerturbationInitialConditionFamilyData,
+    PerturbationInteractionData,
     PerturbationObservableData,
+    PerturbationProjectionExtensionData,
     PerturbationProjectionTypingData,
     PerturbationSectorData,
     PerturbationSourceData,
@@ -105,6 +108,7 @@ def _base_nonstandard_contract() -> dict[str, object]:
                 "role": "closure",
             }
         },
+        "conservation_rules": {},
         "sectors": {
             "scalar": {
                 "description": "Synthetic scalar sector.",
@@ -142,6 +146,7 @@ def _base_nonstandard_contract() -> dict[str, object]:
                 "expression": "tight_coupling_drag * (theta_x - delta_x)",
             }
         },
+        "interactions": {},
         "sources": {
             "monopole_source": {
                 "expression": "visibility * density_drive",
@@ -214,6 +219,7 @@ def _base_nonstandard_contract() -> dict[str, object]:
                 "spin": 0.0,
             }
         },
+        "projection_extensions": {},
         "accuracy_controls": {
             "ell_refinement": "bounded",
             "k_refinement_levels": [16, 32],
@@ -1265,6 +1271,95 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_extensions_and_conservation_rules_compile(self) -> None:
+        """Slice-five extensions should compile into typed metadata."""
+
+        contract = _base_nonstandard_contract()
+        contract["interactions"]["photon_baryon_slip"] = {
+            "sector": "scalar",
+            "species": ["photon", "baryon"],
+            "expression": "thomson_drag + 0.1 * density_drive",
+        }
+        theta_equation = contract["equations"]["evolve_theta_x"]
+        theta_equation["rhs"] += " + photon_baryon_slip"
+        contract["conservation_rules"]["metric_balance"] = {
+            "expression": "psi_aux - phi_aux",
+            "tolerance": 1.0e-9,
+        }
+        contract["projection_extensions"]["signal_derivative_extension"] = {
+            "base_projection": "line_of_sight_signal_derivative",
+            "kernel": "spherical_bessel_derivative_window",
+            "required_roles": ["signal"],
+            "allowed_roles": ["signal"],
+        }
+        contract["sources"]["signal_source"] = {
+            "expression": "visibility * theta_x",
+            "role": "signal",
+        }
+        contract["observables"]["signal_derivative"] = {
+            "kind": "transfer_component",
+            "projection": "signal_derivative_extension",
+            "source_terms": {"signal": "signal_source"},
+        }
+
+        contract_data = self._compile(contract)
+
+        self.assertIsInstance(
+            contract_data.interactions["photon_baryon_slip"],
+            PerturbationInteractionData,
+        )
+        self.assertIsInstance(
+            contract_data.conservation_rules["metric_balance"],
+            PerturbationConservationRuleData,
+        )
+        self.assertIsInstance(
+            contract_data.projection_extensions["signal_derivative_extension"],
+            PerturbationProjectionExtensionData,
+        )
+        self.assertEqual(
+            contract_data.observables["signal_derivative"].projection,
+            "line_of_sight_signal_derivative",
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["interaction_names"],
+            ("photon_baryon_slip",),
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["projection_extension_names"],
+            ("signal_derivative_extension",),
+        )
+        self.assertEqual(
+            contract_data.manifest_summary["transfer_component_contracts"][
+                "signal_derivative"
+            ]["declared_projection"],
+            "signal_derivative_extension",
+        )
+
+    def test_conservation_rule_requires_positive_tolerance(self) -> None:
+        """Conservation rules should fail when tolerance is non-positive."""
+
+        contract = _base_nonstandard_contract()
+        contract["conservation_rules"]["metric_balance"] = {
+            "expression": "psi_aux - phi_aux",
+            "tolerance": 0.0,
+        }
+
+        with self.assertRaisesRegex(ValueError, "must be a positive float"):
+            self._compile(contract)
+
+    def test_projection_extension_cannot_shadow_builtin_projection(
+        self,
+    ) -> None:
+        """Projection extensions should stay distinct from built-ins."""
+
+        contract = _base_nonstandard_contract()
+        contract["projection_extensions"]["line_of_sight_temperature"] = {
+            "base_projection": "line_of_sight_signal",
+        }
+
+        with self.assertRaisesRegex(ValueError, "collides with a built-in"):
+            self._compile(contract)
+
     def test_perturbation_dataclasses_are_constructible(self) -> None:
         """The typed perturbation objects should be individually usable."""
 
@@ -1343,9 +1438,22 @@ class PerturbationContractTestCase(unittest.TestCase):
             name="thomson_drag",
             sector="scalar",
         )
+        interaction_data = PerturbationInteractionData(
+            name="photon_baryon_slip",
+            sector="scalar",
+        )
+        conservation_rule_data = PerturbationConservationRuleData(
+            name="density_balance",
+            expression="delta_x - delta_x",
+            tolerance=1.0e-9,
+        )
         initial_condition_family_data = PerturbationInitialConditionFamilyData(
             name="adiabatic_scalar",
             sector="scalar",
+        )
+        projection_extension_data = PerturbationProjectionExtensionData(
+            name="temperature_signal_extension",
+            base_projection="line_of_sight_signal",
         )
         projection_typing_data = PerturbationProjectionTypingData(
             name="temperature_line_of_sight",
@@ -1357,6 +1465,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             equation_names=("evolve_delta_x",),
             constraint_names=("poisson_phi",),
             closure_names=("psi_equals_phi",),
+            interaction_names=("photon_baryon_slip",),
+            conservation_rule_names=("density_balance",),
             source_names=("monopole_source",),
             observable_names=("temperature",),
             initial_condition_names=("delta_seed",),
@@ -1368,6 +1478,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             equation_dependencies={},
             constraint_dependencies={},
             closure_dependencies={},
+            interaction_dependencies={},
+            conservation_rule_dependencies={},
             source_dependencies={},
             observable_dependencies={},
             initial_condition_dependencies={},
@@ -1402,6 +1514,16 @@ class PerturbationContractTestCase(unittest.TestCase):
             collision_operator_data,
             PerturbationCollisionOperatorData,
         )
+        self.assertEqual(interaction_data.name, "photon_baryon_slip")
+        self.assertIsInstance(
+            interaction_data,
+            PerturbationInteractionData,
+        )
+        self.assertEqual(conservation_rule_data.name, "density_balance")
+        self.assertIsInstance(
+            conservation_rule_data,
+            PerturbationConservationRuleData,
+        )
         self.assertEqual(
             initial_condition_family_data.name,
             "adiabatic_scalar",
@@ -1409,6 +1531,14 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(
             initial_condition_family_data,
             PerturbationInitialConditionFamilyData,
+        )
+        self.assertEqual(
+            projection_extension_data.base_projection,
+            "line_of_sight_signal",
+        )
+        self.assertIsInstance(
+            projection_extension_data,
+            PerturbationProjectionExtensionData,
         )
         self.assertEqual(
             projection_typing_data.name,

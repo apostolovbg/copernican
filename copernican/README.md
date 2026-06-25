@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -63,7 +63,12 @@ synchronous-gauge acceptance, and mode-aware initial-condition generation so
 cache reuse and gauge completeness stay explicit in governed tests. Gauge
 metadata now stays advisory unless a sector explicitly binds the gauge, and
 auto-generated initial conditions only appear when the family leaves its
-members empty.
+members empty. Slice Five closes the native theory-extension surface with
+declared interactions, conservation rules, recombination quantity hooks, and
+projection extensions, while governed accuracy controls now reject
+under-resolved `ell`, `k`, `eta`, hierarchy, and momentum-grid settings and
+cap total native work units through a recorded runtime envelope. Installed
+package smoke and manifest coverage now freeze that production contract.
 
 ## Launch Copernican
 
@@ -341,8 +346,12 @@ the same convention.
   available background and perturbation symbols stay limited to the
   documented CMB engine context so unsupported names fail loudly. That
   context now includes direct physical density scalars alongside declared
-  background symbols, and `copernican/docs/model_template.yml` remains a
-  documentation template rather than a benchmark or acceptance fixture.
+  background symbols, declared interactions, conservation rules, projection
+  extensions, and optional recombination quantity hooks. Accuracy controls
+  can now require minimum `ell`, `k`, `eta`, hierarchy, source-grid, and
+  momentum-grid coverage while recording a governed runtime envelope, and
+  `copernican/docs/model_template.yml` remains a documentation template
+  rather than a benchmark or acceptance fixture.
   Transfer
   components keep source-term roles separate from reviewed projection
   kernels, and `custom_line_of_sight` can project declared source sums

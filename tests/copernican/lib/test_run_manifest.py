@@ -58,6 +58,14 @@ def _dummy_plugin():
                     "Omega_gamma0": "photon_fraction_today",
                     "H": "H0",
                 },
+                "recombination": {
+                    "quantities": {
+                        "hydrogen_temperature_K": "3000.0",
+                        "hydrogen_alpha_B": "1.0e-19",
+                        "beta_continuum": "1.0e-18",
+                        "peebles_c": "0.8",
+                    },
+                },
                 "reionization": {
                     "calibration": {
                         "symbol": "reionization_log10_amplitude",
@@ -178,6 +186,7 @@ def _dummy_plugin():
                 },
                 "transfer_component_contracts": {
                     "temperature": {
+                        "declared_projection": "line_of_sight_temperature",
                         "projection": "line_of_sight_temperature",
                         "kernel": "temperature_mixed_window",
                         "source_term_roles": ("monopole",),
@@ -236,6 +245,9 @@ def _dummy_nonstandard_plugin():
                 implemented=True,
             )
         },
+        interactions={"photon_baryon_drag": object()},
+        conservation_rules={"density_balance": object()},
+        projection_extensions={"signal_derivative_alias": object()},
         dependency_graph_summary=SimpleNamespace(
             independent_variables_used=("tau",),
             model_parameters_used=("p1",),
@@ -262,6 +274,7 @@ def _dummy_nonstandard_plugin():
             },
             "transfer_component_contracts": {
                 "temperature": {
+                    "declared_projection": "line_of_sight_temperature",
                     "projection": "line_of_sight_temperature",
                     "kernel": "temperature_mixed_window",
                     "source_term_roles": ("monopole",),
@@ -369,6 +382,14 @@ class TestRunManifest(unittest.TestCase):
                 ["psi_equals_phi"],
             )
             self.assertEqual(
+                model_entry["perturbation_interaction_names"],
+                [],
+            )
+            self.assertEqual(
+                model_entry["perturbation_conservation_rule_names"],
+                [],
+            )
+            self.assertEqual(
                 model_entry["perturbation_source_names"],
                 ["monopole_source"],
             )
@@ -379,6 +400,10 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["perturbation_initial_condition_names"],
                 ["delta_seed"],
+            )
+            self.assertEqual(
+                model_entry["perturbation_projection_extension_names"],
+                [],
             )
             self.assertEqual(model_entry["perturbation_equation_count"], 1)
             self.assertEqual(model_entry["perturbation_constraint_count"], 1)
@@ -443,6 +468,17 @@ class TestRunManifest(unittest.TestCase):
                     "background_derived_names"
                 ],
             )
+            self.assertEqual(
+                model_entry["custom_cmb_background_manifest_summary"][
+                    "background_recombination_quantity_names"
+                ],
+                [
+                    "beta_continuum",
+                    "hydrogen_alpha_B",
+                    "hydrogen_temperature_K",
+                    "peebles_c",
+                ],
+            )
             self.assertIn(
                 "photon_fraction_today",
                 model_entry["custom_cmb_background_manifest_summary"][
@@ -458,8 +494,13 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["custom_cmb_background_manifest_summary"][
                     "recombination_runtime"
-                ]["hydrogen_model"],
-                "peebles_case_b_ode",
+                ]["declared_quantity_names"],
+                [
+                    "beta_continuum",
+                    "hydrogen_alpha_B",
+                    "hydrogen_temperature_K",
+                    "peebles_c",
+                ],
             )
             self.assertIn(
                 "camb", model_entry["perturbation_backend_mapping_summary"]
@@ -467,8 +508,8 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["custom_cmb_graph_manifest_summary"][
                     "transfer_component_contracts"
-                ]["temperature"]["kernel"],
-                "temperature_mixed_window",
+                ]["temperature"]["declared_projection"],
+                "line_of_sight_temperature",
             )
             self.assertEqual(
                 model_entry["custom_cmb_graph_manifest_summary"][
@@ -513,6 +554,18 @@ class TestRunManifest(unittest.TestCase):
             model_entry["custom_cmb_execution_route"][
                 "uses_native_declared_graph"
             ]
+        )
+        self.assertEqual(
+            model_entry["perturbation_interaction_names"],
+            ["photon_baryon_drag"],
+        )
+        self.assertEqual(
+            model_entry["perturbation_conservation_rule_names"],
+            ["density_balance"],
+        )
+        self.assertEqual(
+            model_entry["perturbation_projection_extension_names"],
+            ["signal_derivative_alias"],
         )
         self.assertFalse(
             model_entry["custom_cmb_execution_route"]["uses_camb_prediction"]

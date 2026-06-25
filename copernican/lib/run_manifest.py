@@ -210,6 +210,23 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         getattr(perturbation_data, "closures", {}) or {}
                     )
                 ),
+                "perturbation_interaction_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(perturbation_data, "interactions", {}) or {}
+                    )
+                ),
+                "perturbation_conservation_rule_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(
+                            perturbation_data,
+                            "conservation_rules",
+                            {},
+                        )
+                        or {}
+                    )
+                ),
                 "perturbation_source_names": sorted(
                     str(key)
                     for key in (
@@ -286,6 +303,17 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     str(key)
                     for key in (
                         getattr(perturbation_data, "collision_operators", {})
+                        or {}
+                    )
+                ),
+                "perturbation_projection_extension_names": sorted(
+                    str(key)
+                    for key in (
+                        getattr(
+                            perturbation_data,
+                            "projection_extensions",
+                            {},
+                        )
                         or {}
                     )
                 ),

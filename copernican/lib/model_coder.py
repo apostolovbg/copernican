@@ -124,6 +124,7 @@ class NativeCMBBackgroundRuntime:
     """Immutable declared-background plans reused by the native CMB solver."""
 
     derived_plan: Any
+    recombination_quantity_plan: Any
     reionization_quantity_plan: Any
     reionization_target_tau: Any
     reionization_calibration_symbol: str | None
@@ -409,6 +410,11 @@ def compile_native_cmb_runtime(
         (cmb_contract.get("perturbations", {}) or {})
     )
     background_section = cmb_contract.get("background", {}) or {}
+    recombination_section = (
+        background_section.get("recombination", {}) or {}
+        if isinstance(background_section, Mapping)
+        else {}
+    )
     reionization_section = (
         background_section.get("reionization", {}) or {}
         if isinstance(background_section, Mapping)
@@ -455,6 +461,14 @@ def compile_native_cmb_runtime(
         background_reference_names.update(
             str(key)
             for key in (
+                (recombination_section.get("quantities", {}) or {})
+                if isinstance(recombination_section, Mapping)
+                else {}
+            )
+        )
+        background_reference_names.update(
+            str(key)
+            for key in (
                 (reionization_section.get("quantities", {}) or {})
                 if isinstance(reionization_section, Mapping)
                 else {}
@@ -485,6 +499,11 @@ def compile_native_cmb_runtime(
             derived_plan=_compile_declared_symbol_plan(
                 (background_section.get("derived", {}) or {})
                 if isinstance(background_section, Mapping)
+                else {}
+            ),
+            recombination_quantity_plan=_compile_declared_symbol_plan(
+                (recombination_section.get("quantities", {}) or {})
+                if isinstance(recombination_section, Mapping)
                 else {}
             ),
             reionization_quantity_plan=_compile_declared_symbol_plan(

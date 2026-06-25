@@ -152,6 +152,64 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertEqual(spec.default_kernel, "spin2_b_window")
         self.assertTrue(spec.requires_odd_parity_source)
 
+    def test_projection_extension_inherits_and_overrides_kernel(self) -> None:
+        """Declared projection extensions should expose the resolved spec."""
+
+        extensions = {
+            "signal_derivative_alias": {
+                "base_projection": "custom_line_of_sight",
+                "kernel": "spherical_bessel_derivative_window",
+                "required_roles": ["signal"],
+                "allowed_roles": ["signal"],
+            }
+        }
+
+        spec = get_declared_projection_spec(
+            "signal_derivative_alias",
+            extensions=extensions,
+        )
+
+        self.assertEqual(spec.name, "signal_derivative_alias")
+        self.assertEqual(spec.required_roles, ("signal",))
+        self.assertEqual(
+            spec.default_kernel,
+            "spherical_bessel_derivative_window",
+        )
+        self.assertEqual(
+            spec.supported_kernels,
+            ("spherical_bessel_derivative_window",),
+        )
+
+    def test_projection_extension_validates_declared_roles(self) -> None:
+        """Declared projection extensions should reuse role validation."""
+
+        extensions = {
+            "signal_derivative_alias": {
+                "base_projection": "custom_line_of_sight",
+                "kernel": "spherical_bessel_derivative_window",
+                "required_roles": ["signal"],
+                "allowed_roles": ["signal"],
+            }
+        }
+
+        self.assertIsNone(
+            validate_declared_projection_source_roles(
+                projection="signal_derivative_alias",
+                observable_name="signal_transfer",
+                source_roles={"signal"},
+                extensions=extensions,
+            )
+        )
+        self.assertEqual(
+            resolve_declared_projection_kernel(
+                "signal_derivative_alias",
+                observable_name="signal_transfer",
+                kernel=None,
+                extensions=extensions,
+            ),
+            "spherical_bessel_derivative_window",
+        )
+
     def test_custom_projection_requires_explicit_kernel(self) -> None:
         """Custom line-of-sight projections should require a kernel."""
 

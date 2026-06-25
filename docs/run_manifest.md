@@ -43,7 +43,8 @@ when output directories change.
   treated as statistically separate when building the joint posterior.
 - CMB adapter metadata summarising the backend contract plus the perturbation
   contract summary, including the contract version, gauge, standard flag,
-  declared symbol names, source and observable names, equation,
+  declared symbol names, interaction, conservation-rule, and
+  projection-extension names, source and observable names, equation,
   constraint, closure, and source counts, transfer-path summary, backend
   mapping details, declared projection contracts, declared background and
   recombination provenance, and the selected production execution route for
@@ -110,16 +111,21 @@ For `standard: false` models the manifest now carries three complementary CMB
 truth surfaces under each `camb.models[*]` entry:
 
 - `custom_cmb_graph_manifest_summary` for the declared graph identity and
-  observable contracts.
+  observable contracts, including each transfer component's
+  `declared_projection` entry.
 - `custom_cmb_background_manifest_summary` for declared background aliases,
-  reionization calibration, and recombination runtime provenance.
+  reionization calibration, and recombination runtime provenance, including
+  the declared recombination quantity names when custom hooks are present.
 - `custom_cmb_runtime_manifest_summary` for the selected production execution
   route and numerical settings.
 
 That split keeps graph structure, physical background provenance, and runtime
 route proof separate. The route block is the place to verify whether a run
 used backend-standard CAMB perturbations or the native declared graph; the
-manifest no longer relies on `standard: false` alone to make that claim.
+manifest no longer relies on `standard: false` alone to make that claim. The
+per-model `perturbation_*_names` lists now also expose declared interactions,
+conservation rules, and projection extensions so audits can check theory
+extensions without diffing the original model file.
 
 When multiple selections point to the same YAML file the manifest will list
 matching `MODEL_FILENAME` entries. That shared marker indicates the Stage 2

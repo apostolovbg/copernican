@@ -2,7 +2,7 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-06-25
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -103,7 +103,12 @@ synchronous-gauge acceptance, and mode-aware initial-condition generation so
 the native route keeps cache reuse and gauge completeness explicit. Gauge
 metadata stays advisory unless a sector explicitly binds the gauge, and
 auto-generated initial conditions only appear when a family leaves its
-members empty.
+members empty. Slice Five closes the native theory-extension surface with
+declared interactions, conservation rules, recombination quantity hooks, and
+projection extensions, while governed accuracy controls now reject
+under-resolved `ell`, `k`, `eta`, hierarchy, and momentum-grid settings and
+cap total native work units through a recorded runtime envelope. Installed
+package smoke and manifest coverage now freeze that production contract.
 `copernican/docs/model_template.yml` remains a documentation template rather
 than a benchmark or acceptance model.
 

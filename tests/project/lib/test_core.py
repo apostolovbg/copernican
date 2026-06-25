@@ -4,7 +4,11 @@
 """Basic functional tests for the Copernican Suite."""
 
 import importlib
+import json
 import os
+import subprocess  # nosec B404
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -216,6 +220,219 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(engine.ENGINE_KIND, "mcmc")
         self.assertTrue(hasattr(engine, "ENGINE_LABEL"))
         self.assertIn("MCMC", engine.ENGINE_LABEL)
+
+    def test_installed_package_native_cmb_smoke(self):
+        """A target install should run one native declared-graph spectrum."""
+
+        contract = {
+            "model_name": "InstalledSmokeNativeCMB",
+            "backend": "camb",
+            "param_map": {
+                "H0": 67.4,
+                "ombh2": 0.02237,
+                "omch2": 0.12,
+                "tau": 0.054,
+                "As": 2.1e-9,
+                "ns": 0.965,
+                "Neff": 3.046,
+            },
+            "model_parameters": {
+                "Tcmb_K": 2.7255,
+                "YHe": 0.245,
+                "source_scale": 1.0,
+                "closure_scale": 1.0,
+                "decay_rate": 0.02,
+            },
+            "background": {
+                "derived": {
+                    "h": "H0 / 100.0",
+                    "Omega_k0": "0.0",
+                    "Omega_b0": "ombh2 / (h * h)",
+                    "Omega_c0": "omch2 / (h * h)",
+                    "Omega_gamma0": (
+                        "2.469e-5 * ((Tcmb_K / 2.7255) ** 4) / (h * h)"
+                    ),
+                    "Omega_nu0": "0.22710731766 * Neff * Omega_gamma0",
+                    "Omega_r0": "Omega_gamma0 + Omega_nu0",
+                    "Omega_m0": "Omega_b0 + Omega_c0",
+                    "Omega_de0": "1.0 - Omega_m0 - Omega_r0 - Omega_k0",
+                    "H": (
+                        "H0 * sqrt("
+                        "Omega_r0 / (a ** 4) + "
+                        "Omega_m0 / (a ** 3) + "
+                        "Omega_de0"
+                        ")"
+                    ),
+                },
+                "reionization": {
+                    "calibration": {
+                        "symbol": "reionization_log10_amplitude",
+                        "target_optical_depth": "tau",
+                        "lower": -24.0,
+                        "upper": 32.0,
+                    },
+                    "quantities": {
+                        "hydrogen_temperature_K": "1.0e4",
+                        "helium_temperature_K": "1.0e4",
+                        "helium_double_temperature_K": "2.0e4",
+                        "hydrogen_ionization_rate": (
+                            "(10 ** reionization_log10_amplitude) * H_SI"
+                        ),
+                        "helium_ionization_rate": (
+                            "0.5 * hydrogen_ionization_rate"
+                        ),
+                        "helium_double_ionization_rate": (
+                            "0.25 * hydrogen_ionization_rate"
+                        ),
+                    },
+                },
+            },
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "numerical": {
+                "ell_min": 20,
+                "ell_max": 40,
+                "k_min": 1.0e-4,
+                "k_max": 0.08,
+                "k_sample_count": 6,
+                "eta_sample_count": 128,
+                "source_grid_multiplier": 1,
+                "ode_rtol": 1.0e-5,
+                "ode_atol": 1.0e-8,
+                "tight_coupling_ratio": 50.0,
+                "a_min": 1.0e-6,
+                "initial_redshift": 2.0e4,
+            },
+            "perturbations": {
+                "contract_version": 2,
+                "standard": False,
+                "gauge": "conformal_newtonian",
+                "variables": {
+                    "signal_mode": {
+                        "kind": "photon_temperature_monopole",
+                        "tensor_character": "scalar_like",
+                    },
+                },
+                "derived": {
+                    "closure_drive": {
+                        "expression": "closure_scale * signal_mode",
+                    },
+                },
+                "equations": {
+                    "evolve_signal_mode": {
+                        "lhs": {
+                            "kind": "derivative",
+                            "variable": "signal_mode",
+                            "wrt": "tau",
+                            "order": 1,
+                        },
+                        "rhs": "-decay_rate * signal_mode",
+                        "role": "continuity",
+                    },
+                },
+                "constraints": {},
+                "closures": {},
+                "sources": {
+                    "signal_source": {
+                        "expression": "source_scale * closure_drive",
+                        "role": "signal",
+                    },
+                },
+                "observables": {
+                    "signal_transfer": {
+                        "kind": "transfer_component",
+                        "projection": "line_of_sight_signal",
+                        "source_terms": {"signal": "signal_source"},
+                    },
+                    "TT": {
+                        "kind": "angular_power_spectrum",
+                        "primary": "signal_transfer",
+                        "secondary": "signal_transfer",
+                    },
+                },
+                "initial_conditions": {
+                    "signal_seed": {
+                        "target": {
+                            "variable": "signal_mode",
+                            "wrt": "tau",
+                            "order": 0,
+                        },
+                        "expression": "seed",
+                    },
+                },
+                "boundary_conditions": {},
+                "validity": {
+                    "regimes": ["installed_smoke"],
+                },
+                "backend_mapping": {
+                    "camb": {
+                        "implemented": True,
+                        "native_solver_required": True,
+                    }
+                },
+            },
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            target_dir = tmp_path / "site-packages"
+            install_result = subprocess.run(  # nosec B603
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-deps",
+                    "--no-build-isolation",
+                    "--target",
+                    str(target_dir),
+                    str(REPO_ROOT),
+                ],
+                check=False,
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                install_result.returncode,
+                0,
+                install_result.stderr,
+            )
+
+            smoke_script = (
+                "import json\n"
+                "import numpy\n"
+                "from copernican.lib import model_coder\n"
+                "from copernican.lib.likelihoods import cmb\n"
+                f"contract = json.loads({json.dumps(json.dumps(contract))})\n"
+                "prepared = model_coder.prepare_native_cmb_execution_contract("
+                "contract)\n"
+                "ells = numpy.arange(20, 25, dtype=int)\n"
+                "spectra = cmb.compute_cmb_spectrum_from_contract("
+                "prepared, ells, spectra=('TT',))\n"
+                "values = numpy.asarray(spectra, dtype=float)\n"
+                "assert values.shape == (ells.size,)\n"
+                "assert numpy.all(numpy.isfinite(values))\n"
+            )
+            environment = dict(os.environ)
+            existing_pythonpath = environment.get("PYTHONPATH", "")
+            environment["PYTHONPATH"] = os.pathsep.join(
+                part for part in (str(target_dir), existing_pythonpath) if part
+            )
+            smoke_result = subprocess.run(  # nosec B603
+                [sys.executable, "-c", smoke_script],
+                check=False,
+                cwd=tmp_path,
+                env=environment,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(
+                smoke_result.returncode,
+                0,
+                smoke_result.stderr,
+            )
 
 
 class PlotterUtilTestCase(unittest.TestCase):

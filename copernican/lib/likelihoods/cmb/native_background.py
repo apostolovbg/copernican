@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
@@ -280,6 +280,18 @@ def _get_declared_background_section(
     derived = section.get("derived", {})
     if not isinstance(derived, Mapping):
         raise ValueError("background.derived must be a mapping.")
+    recombination = section.get("recombination", {})
+    if recombination is None:
+        recombination = {}
+    if not isinstance(recombination, Mapping):
+        raise ValueError("background.recombination must be a mapping.")
+    recombination_quantities = recombination.get("quantities", {})
+    if recombination_quantities is None:
+        recombination_quantities = {}
+    if not isinstance(recombination_quantities, Mapping):
+        raise ValueError(
+            "background.recombination.quantities must be a mapping."
+        )
     reionization = section.get("reionization", {})
     if reionization is None:
         reionization = {}
@@ -401,6 +413,16 @@ def _get_declared_reionization_section(
     return reionization
 
 
+def _get_declared_recombination_section(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the declared recombination mapping for native CMB execution."""
+
+    section = _get_declared_background_section(contract)
+    recombination = section.get("recombination", {}) or {}
+    return recombination
+
+
 def _resolve_declared_reionization_context(
     contract: Mapping[str, Any],
     *,
@@ -419,6 +441,27 @@ def _resolve_declared_reionization_context(
         getattr(background_runtime, "reionization_quantity_plan", ()),
         base_context=base_context,
         label="background.reionization.quantities",
+    )
+
+
+def _resolve_declared_recombination_context(
+    contract: Mapping[str, Any],
+    *,
+    base_context: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return resolved declared recombination quantities."""
+
+    background_runtime = contract.get("background_runtime")
+    if background_runtime is None:
+        raise ValueError(
+            "Native CMB recombination execution requires precompiled "
+            "background_runtime. Prepare the runtime through model_coder "
+            "before likelihood evaluation."
+        )
+    return _evaluate_declared_symbol_plan(
+        getattr(background_runtime, "recombination_quantity_plan", ()),
+        base_context=base_context,
+        label="background.recombination.quantities",
     )
 
 
@@ -477,10 +520,16 @@ def _summarize_declared_background_manifest_summary(
     """Return manifest-friendly background provenance for a CMB contract."""
 
     section = _get_declared_background_section(contract)
+    recombination = section.get("recombination", {}) or {}
     reionization = section.get("reionization", {}) or {}
     calibration = reionization.get("calibration", {}) or {}
     derived_names = tuple(
         sorted(str(name) for name in (section.get("derived", {}) or {}))
+    )
+    recombination_names = tuple(
+        sorted(
+            str(name) for name in ((recombination.get("quantities", {})) or {})
+        )
     )
     reionization_names = tuple(
         sorted(
@@ -523,6 +572,7 @@ def _summarize_declared_background_manifest_summary(
             role_names[role_name] = role_aliases
     return {
         "background_derived_names": derived_names,
+        "background_recombination_quantity_names": recombination_names,
         "background_reionization_quantity_names": reionization_names,
         "background_quantity_aliases": quantity_aliases,
         "background_quantity_role_names": role_names,
@@ -534,6 +584,7 @@ def _summarize_declared_background_manifest_summary(
         },
         "recombination_runtime": {
             "hydrogen_model": "peebles_case_b_ode",
+            "declared_quantity_names": recombination_names,
             "helium_electron_contribution": True,
             "reionization_ode": True,
         },
@@ -712,6 +763,7 @@ class CustomCMBSpectrumData:
     k_grid: numpy.ndarray
     transfer_components: Mapping[str, numpy.ndarray]
     spectra: Mapping[str, numpy.ndarray]
+    runtime_envelope: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def Delta_l_T(self) -> numpy.ndarray:
@@ -758,6 +810,56 @@ class _DeclaredProjectionKernelBatch:
     j_l_derivative: numpy.ndarray
     e_kernel: numpy.ndarray
     b_kernel: numpy.ndarray
+
+
+def _resolve_declared_accuracy_controls(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the declared perturbation accuracy controls for ``contract``."""
+
+    perturbation_data = contract.get("perturbation_data")
+    if perturbation_data is not None:
+        return getattr(perturbation_data, "accuracy_controls", {}) or {}
+    perturbations = contract.get("perturbations", {}) or {}
+    if isinstance(perturbations, Mapping):
+        return perturbations.get("accuracy_controls", {}) or {}
+    return {}
+
+
+def _accuracy_control_value(
+    controls: Mapping[str, Any],
+    key: str,
+) -> Any:
+    """Return ``key`` from ``controls`` or its runtime envelope mapping."""
+
+    if key in controls:
+        return controls[key]
+    runtime_envelope = controls.get("runtime_envelope")
+    if isinstance(runtime_envelope, Mapping) and key in runtime_envelope:
+        return runtime_envelope[key]
+    return None
+
+
+def _accuracy_control_positive_int(
+    controls: Mapping[str, Any],
+    key: str,
+) -> int | None:
+    """Return one positive integer accuracy-control value when present."""
+
+    value = _accuracy_control_value(controls, key)
+    if value is None:
+        return None
+    numeric = int(
+        _coerce_numeric_scalar(
+            value,
+            name=f"cmb.perturbations.accuracy_controls.{key}",
+        )
+    )
+    if numeric < 1:
+        raise ValueError(
+            f"cmb.perturbations.accuracy_controls.{key} must be positive"
+        )
+    return numeric
 
 
 def _get_cached_custom_cmb_background(
@@ -898,6 +1000,12 @@ def _background_parameter_values_for_cache(
     section = _get_declared_background_section(contract)
     dependency_names: set[str] = set()
     for raw_value in (section.get("derived", {}) or {}).values():
+        if isinstance(raw_value, str) and raw_value.strip():
+            dependency_names.update(
+                _expression_symbol_names(raw_value.strip())
+            )
+    recombination = section.get("recombination", {}) or {}
+    for raw_value in (recombination.get("quantities", {}) or {}).values():
         if isinstance(raw_value, str) and raw_value.strip():
             dependency_names.update(
                 _expression_symbol_names(raw_value.strip())
@@ -1047,6 +1155,7 @@ def _resolve_custom_cmb_numerics(
     raw = contract.get("numerical", {}) or {}
     if not isinstance(raw, Mapping):
         raise ValueError("cmb.numerical must be a mapping when declared")
+    accuracy_controls = _resolve_declared_accuracy_controls(contract)
     defaults = _CustomCMBNumerics()
 
     def _read_int(name: str, default: int) -> int:
@@ -1110,6 +1219,90 @@ def _resolve_custom_cmb_numerics(
         "initial_redshift",
         defaults.initial_redshift,
     )
+    minimum_ell_max = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_ell_max",
+    )
+    if minimum_ell_max is not None and ell_max < minimum_ell_max:
+        raise ValueError(
+            "Declared accuracy_controls require "
+            f"cmb.numerical.ell_max >= {minimum_ell_max}"
+        )
+    scalar_reference_ells = accuracy_controls.get("scalar_reference_ells")
+    if scalar_reference_ells:
+        reference_ells = _coerce_numeric_array(
+            scalar_reference_ells,
+            name="cmb.perturbations.accuracy_controls.scalar_reference_ells",
+        )
+        if ell_max < int(numpy.max(reference_ells)):
+            raise ValueError(
+                "Declared accuracy_controls scalar_reference_ells require "
+                "cmb.numerical.ell_max to cover the reference multipoles"
+            )
+    minimum_k_sample_count = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_k_sample_count",
+    )
+    if (
+        minimum_k_sample_count is not None
+        and k_sample_count < minimum_k_sample_count
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            f"cmb.numerical.k_sample_count >= {minimum_k_sample_count}"
+        )
+    minimum_eta_sample_count = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_eta_sample_count",
+    )
+    if (
+        minimum_eta_sample_count is not None
+        and eta_sample_count < minimum_eta_sample_count
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.eta_sample_count >= "
+            f"{minimum_eta_sample_count}"
+        )
+    minimum_source_grid_multiplier = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_source_grid_multiplier",
+    )
+    if (
+        minimum_source_grid_multiplier is not None
+        and source_grid_multiplier < minimum_source_grid_multiplier
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.source_grid_multiplier >= "
+            f"{minimum_source_grid_multiplier}"
+        )
+    minimum_photon_l_max = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_photon_hierarchy_l_max",
+    )
+    if (
+        minimum_photon_l_max is not None
+        and photon_hierarchy_l_max < minimum_photon_l_max
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.photon_hierarchy_l_max >= "
+            f"{minimum_photon_l_max}"
+        )
+    minimum_neutrino_l_max = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_neutrino_hierarchy_l_max",
+    )
+    if (
+        minimum_neutrino_l_max is not None
+        and neutrino_hierarchy_l_max < minimum_neutrino_l_max
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.neutrino_hierarchy_l_max >= "
+            f"{minimum_neutrino_l_max}"
+        )
     return _CustomCMBNumerics(
         ell_min=ell_min,
         ell_max=ell_max,
@@ -1793,6 +1986,11 @@ def _build_custom_cmb_background(
     lambda_alpha_m = planck_j_s * 299_792_458.0 / lyman_alpha_energy_j
     hydrogen_two_photon_decay_rate = 8.22458
     hydrogen_rate_grid = H_grid * 1000.0 / MPC_M
+    hubble0_si = physical_params.H0_km_s_Mpc * 1000.0 / MPC_M
+    recombination_section = _get_declared_recombination_section(contract)
+    recombination_quantities = (
+        recombination_section.get("quantities", {}) or {}
+    )
 
     def _hydrogen_saha_fraction(
         z_value: float,
@@ -1827,38 +2025,93 @@ def _build_custom_cmb_background(
     ) -> float:
         """Return the Peebles hydrogen derivative with respect to ``a``."""
 
-        temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
-        alpha_b = _hydrogen_alpha_coefficient(temperature_k)
-        beta_n2 = alpha_b * _saha_ratio(
-            temperature_k,
-            hydrogen_n2_binding_energy_j,
-            1.0,
-        )
-        beta_continuum = beta_n2 * math.exp(
-            -lyman_alpha_energy_j / (boltzmann_j_k * temperature_k)
-        )
         total_fraction, _ = _helium_electron_fraction(
             z_value,
             float(numpy.clip(hydrogen_fraction, 1.0e-8, 1.0)),
             n_h_value,
         )
         neutral_fraction = max(1.0 - hydrogen_fraction, 1.0e-12)
-        peebles_k = lambda_alpha_m**3 / (
-            8.0 * math.pi * max(hubble_rate, 1.0e-30)
-        )
-        peebles_c = (
-            1.0
-            + peebles_k
-            * hydrogen_two_photon_decay_rate
-            * n_h_value
-            * neutral_fraction
-        ) / (
-            1.0
-            + peebles_k
-            * (hydrogen_two_photon_decay_rate + beta_n2)
-            * n_h_value
-            * neutral_fraction
-        )
+        if recombination_quantities:
+            background_context = _resolve_declared_background_context(
+                contract,
+                a_values=float(a_value),
+                z_values=float(z_value),
+            )
+            recombination_context = dict(background_context)
+            recombination_context.update(
+                {
+                    "n_H": float(n_h_value),
+                    "x_h": float(hydrogen_fraction),
+                    "x_e": float(total_fraction),
+                    "neutral_h": float(neutral_fraction),
+                    "helium_number_ratio": float(helium_number_ratio),
+                    "H_SI": float(hubble_rate),
+                    "H0_SI": float(hubble0_si),
+                }
+            )
+            declared_quantities = _resolve_declared_recombination_context(
+                contract,
+                base_context=recombination_context,
+            )
+            for required_name in (
+                "hydrogen_temperature_K",
+                "hydrogen_alpha_B",
+                "beta_continuum",
+                "peebles_c",
+            ):
+                if required_name not in declared_quantities:
+                    raise ValueError(
+                        "Declared recombination quantities must define "
+                        f"'{required_name}'."
+                    )
+            temperature_k = _coerce_numeric_scalar(
+                declared_quantities["hydrogen_temperature_K"],
+                name=(
+                    "background.recombination.quantities."
+                    "hydrogen_temperature_K"
+                ),
+            )
+            alpha_b = _coerce_numeric_scalar(
+                declared_quantities["hydrogen_alpha_B"],
+                name=(
+                    "background.recombination.quantities." "hydrogen_alpha_B"
+                ),
+            )
+            beta_continuum = _coerce_numeric_scalar(
+                declared_quantities["beta_continuum"],
+                name=("background.recombination.quantities.beta_continuum"),
+            )
+            peebles_c = _coerce_numeric_scalar(
+                declared_quantities["peebles_c"],
+                name="background.recombination.quantities.peebles_c",
+            )
+        else:
+            temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
+            alpha_b = _hydrogen_alpha_coefficient(temperature_k)
+            beta_n2 = alpha_b * _saha_ratio(
+                temperature_k,
+                hydrogen_n2_binding_energy_j,
+                1.0,
+            )
+            beta_continuum = beta_n2 * math.exp(
+                -lyman_alpha_energy_j / (boltzmann_j_k * temperature_k)
+            )
+            peebles_k = lambda_alpha_m**3 / (
+                8.0 * math.pi * max(hubble_rate, 1.0e-30)
+            )
+            peebles_c = (
+                1.0
+                + peebles_k
+                * hydrogen_two_photon_decay_rate
+                * n_h_value
+                * neutral_fraction
+            ) / (
+                1.0
+                + peebles_k
+                * (hydrogen_two_photon_decay_rate + beta_n2)
+                * n_h_value
+                * neutral_fraction
+            )
         dx_dt = peebles_c * (
             beta_continuum * neutral_fraction
             - n_h_value * alpha_b * total_fraction * hydrogen_fraction
@@ -1963,7 +2216,6 @@ def _build_custom_cmb_background(
     calibration_section = reionization_section.get("calibration", {}) or {}
     reionization_quantities = reionization_section.get("quantities", {}) or {}
     background_runtime = contract.get("background_runtime")
-    hubble0_si = physical_params.H0_km_s_Mpc * 1000.0 / MPC_M
     helium_floor_grid = numpy.minimum(
         helium_electron_grid,
         helium_number_ratio,

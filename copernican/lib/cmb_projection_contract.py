@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,9 +135,88 @@ SUPPORTED_DECLARED_TRANSFER_PROJECTION_KERNELS = frozenset(
 )
 
 
-def get_declared_projection_spec(projection: str) -> DeclaredProjectionSpec:
-    """Return the immutable source-role contract for ``projection``."""
+def _extension_field(
+    extension_entry: Any,
+    field_name: str,
+) -> Any:
+    """Return ``field_name`` from one projection-extension entry."""
 
+    if isinstance(extension_entry, Mapping):
+        return extension_entry.get(field_name)
+    return getattr(extension_entry, field_name, None)
+
+
+def _resolve_projection_spec(
+    projection: str,
+    *,
+    extensions: Mapping[str, Any] | None = None,
+) -> DeclaredProjectionSpec:
+    """Return the built-in or declared extension spec for ``projection``."""
+
+    if extensions and projection in extensions:
+        extension_entry = extensions[projection]
+        base_projection = _extension_field(
+            extension_entry,
+            "base_projection",
+        )
+        if not isinstance(base_projection, str) or not base_projection.strip():
+            raise ValueError(
+                f"Declared observable requests invalid projection "
+                f"extension '{projection}'"
+            )
+        base_spec = _resolve_projection_spec(base_projection.strip())
+        kernel = _extension_field(extension_entry, "kernel")
+        if kernel is not None:
+            kernel = str(kernel)
+        raw_required_roles = _extension_field(
+            extension_entry,
+            "required_roles",
+        )
+        raw_allowed_roles = _extension_field(
+            extension_entry,
+            "allowed_roles",
+        )
+        raw_projection_roles = _extension_field(
+            extension_entry,
+            "required_projection_roles",
+        )
+        raw_odd_parity = _extension_field(
+            extension_entry,
+            "requires_odd_parity_source",
+        )
+        required_roles = (
+            tuple(str(role) for role in raw_required_roles)
+            if raw_required_roles is not None
+            else base_spec.required_roles
+        )
+        allowed_roles = (
+            tuple(str(role) for role in raw_allowed_roles)
+            if raw_allowed_roles is not None
+            else base_spec.allowed_roles
+        )
+        required_projection_roles = (
+            tuple(str(role) for role in raw_projection_roles)
+            if raw_projection_roles is not None
+            else base_spec.required_projection_roles
+        )
+        requires_odd_parity_source = (
+            bool(raw_odd_parity)
+            if raw_odd_parity is not None
+            else base_spec.requires_odd_parity_source
+        )
+        supported_kernels = (
+            (kernel,) if kernel is not None else base_spec.supported_kernels
+        )
+        return DeclaredProjectionSpec(
+            name=projection,
+            required_roles=required_roles,
+            allowed_roles=allowed_roles,
+            default_kernel=kernel or base_spec.default_kernel,
+            supported_kernels=supported_kernels,
+            allows_custom_source_roles=base_spec.allows_custom_source_roles,
+            required_projection_roles=required_projection_roles,
+            requires_odd_parity_source=requires_odd_parity_source,
+        )
     try:
         return _DECLARED_PROJECTION_SPECS[projection]
     except KeyError as exc:
@@ -145,6 +224,16 @@ def get_declared_projection_spec(projection: str) -> DeclaredProjectionSpec:
             f"Declared observable requests unsupported projection "
             f"'{projection}'"
         ) from exc
+
+
+def get_declared_projection_spec(
+    projection: str,
+    *,
+    extensions: Mapping[str, Any] | None = None,
+) -> DeclaredProjectionSpec:
+    """Return the immutable source-role contract for ``projection``."""
+
+    return _resolve_projection_spec(projection, extensions=extensions)
 
 
 def get_declared_projection_kernel_spec(
@@ -165,10 +254,14 @@ def resolve_declared_projection_kernel(
     *,
     observable_name: str,
     kernel: str | None,
+    extensions: Mapping[str, Any] | None = None,
 ) -> str | None:
     """Return the validated kernel name for one observable."""
 
-    spec = get_declared_projection_spec(projection)
+    spec = get_declared_projection_spec(
+        projection,
+        extensions=extensions,
+    )
     if kernel is None:
         if spec.name == "custom_line_of_sight":
             raise ValueError(
@@ -191,6 +284,7 @@ def validate_declared_projection_source_roles(
     *,
     observable_name: str,
     source_roles: set[str] | Mapping[str, str | None],
+    extensions: Mapping[str, Any] | None = None,
 ) -> None:
     """Raise ``ValueError`` when a declared projection contract is invalid."""
 
@@ -199,7 +293,10 @@ def validate_declared_projection_source_roles(
     else:
         role_names = set(source_roles)
     try:
-        spec = get_declared_projection_spec(projection)
+        spec = get_declared_projection_spec(
+            projection,
+            extensions=extensions,
+        )
     except ValueError as exc:
         raise ValueError(
             f"Perturbation observable '{observable_name}' uses unsupported "

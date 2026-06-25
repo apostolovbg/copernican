@@ -17,6 +17,7 @@ from typing import Any, Mapping, Sequence
 import numpy
 
 from .cmb_projection_contract import (
+    SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_spec,
     resolve_declared_projection_kernel,
     validate_declared_projection_source_roles,
@@ -104,6 +105,7 @@ _SUPPORTED_PERTURBATION_KEYS = {
     "accuracy_controls",
     "backend_mapping",
     "boundary_conditions",
+    "conservation_rules",
     "collision_operators",
     "closures",
     "constraints",
@@ -114,9 +116,11 @@ _SUPPORTED_PERTURBATION_KEYS = {
     "hierarchy_families",
     "initial_conditions",
     "initial_condition_families",
+    "interactions",
     "notes",
     "numerics",
     "observables",
+    "projection_extensions",
     "projection_typing",
     "sectors",
     "species",
@@ -239,11 +243,30 @@ _SUPPORTED_COLLISION_OPERATOR_KEYS = {
     "sector",
     "species",
 }
+_SUPPORTED_INTERACTION_KEYS = _SUPPORTED_COLLISION_OPERATOR_KEYS
 _SUPPORTED_INITIAL_CONDITION_FAMILY_KEYS = {
     "description",
     "members",
     "notes",
     "sector",
+}
+_SUPPORTED_CONSERVATION_RULE_KEYS = {
+    "description",
+    "domain",
+    "expression",
+    "kind",
+    "notes",
+    "tolerance",
+}
+_SUPPORTED_PROJECTION_EXTENSION_KEYS = {
+    "allowed_roles",
+    "base_projection",
+    "description",
+    "kernel",
+    "notes",
+    "required_projection_roles",
+    "required_roles",
+    "requires_odd_parity_source",
 }
 _SUPPORTED_PROJECTION_TYPING_KEYS = {
     "description",
@@ -1505,6 +1528,36 @@ class PerturbationCollisionOperatorData:
 
 
 @dataclass(frozen=True, slots=True)
+class PerturbationInteractionData:
+    """Immutable interaction metadata for one declared contract."""
+
+    name: str
+    description: str | None = None
+    notes: str | None = None
+    sector: str | None = None
+    species: tuple[str, ...] = ()
+    expression: str | None = None
+    counterpart: str | None = None
+    dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationConservationRuleData:
+    """Immutable conservation-check metadata for one declared contract."""
+
+    name: str
+    description: str | None = None
+    notes: str | None = None
+    domain: str | None = None
+    kind: str | None = None
+    expression: str | None = None
+    tolerance: float = 0.0
+    dependencies: tuple[str, ...] = ()
+    compiled_expression: PerturbationCompiledExpressionData | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class PerturbationInitialConditionFamilyData:
     """Immutable metadata grouping related initial-condition declarations."""
 
@@ -1531,6 +1584,21 @@ class PerturbationProjectionTypingData:
 
 
 @dataclass(frozen=True, slots=True)
+class PerturbationProjectionExtensionData:
+    """Immutable declared projection-extension metadata."""
+
+    name: str
+    base_projection: str
+    description: str | None = None
+    notes: str | None = None
+    kernel: str | None = None
+    required_roles: tuple[str, ...] = ()
+    allowed_roles: tuple[str, ...] = ()
+    required_projection_roles: tuple[str, ...] = ()
+    requires_odd_parity_source: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class PerturbationDependencyGraphSummaryData:
     """Immutable summary of declared graph dependencies."""
 
@@ -1539,6 +1607,8 @@ class PerturbationDependencyGraphSummaryData:
     equation_names: tuple[str, ...]
     constraint_names: tuple[str, ...]
     closure_names: tuple[str, ...]
+    interaction_names: tuple[str, ...]
+    conservation_rule_names: tuple[str, ...]
     source_names: tuple[str, ...]
     observable_names: tuple[str, ...]
     initial_condition_names: tuple[str, ...]
@@ -1550,6 +1620,8 @@ class PerturbationDependencyGraphSummaryData:
     equation_dependencies: FrozenMapping
     constraint_dependencies: FrozenMapping
     closure_dependencies: FrozenMapping
+    interaction_dependencies: FrozenMapping
+    conservation_rule_dependencies: FrozenMapping
     source_dependencies: FrozenMapping
     observable_dependencies: FrozenMapping
     initial_condition_dependencies: FrozenMapping
@@ -1584,9 +1656,12 @@ class PerturbationContractData:
     species: FrozenMapping = field(default_factory=FrozenMapping)
     hierarchy_families: FrozenMapping = field(default_factory=FrozenMapping)
     collision_operators: FrozenMapping = field(default_factory=FrozenMapping)
+    interactions: FrozenMapping = field(default_factory=FrozenMapping)
+    conservation_rules: FrozenMapping = field(default_factory=FrozenMapping)
     initial_condition_families: FrozenMapping = field(
         default_factory=FrozenMapping
     )
+    projection_extensions: FrozenMapping = field(default_factory=FrozenMapping)
     projection_typing: FrozenMapping = field(default_factory=FrozenMapping)
     accuracy_controls: FrozenMapping = field(default_factory=FrozenMapping)
 
@@ -1910,8 +1985,21 @@ def _normalize_accuracy_control_value(
                 )
             )
         return tuple(normalized)
+    if isinstance(value, Mapping):
+        return FrozenMapping(
+            {
+                _validate_string(
+                    key,
+                    label=f"{label} key",
+                ): _normalize_accuracy_control_value(
+                    item,
+                    label=f"{label}.{key}",
+                )
+                for key, item in value.items()
+            }
+        )
     raise ValueError(
-        f"{label} must contain only scalar or list-like scalar values"
+        f"{label} must contain scalar, mapping, or list-like scalar values"
     )
 
 
@@ -2232,6 +2320,280 @@ def _compile_collision_operator_metadata(
     return compiled
 
 
+def _compile_interaction_metadata(
+    interaction_defs: Mapping[str, Any],
+    *,
+    sector_names: set[str],
+    species_names: set[str],
+    allowed_names: set[str],
+    replacements: Mapping[str, str],
+) -> dict[str, PerturbationInteractionData]:
+    """Return validated interaction metadata declarations."""
+
+    compiled: dict[str, PerturbationInteractionData] = {}
+    for interaction_name, interaction_def in interaction_defs.items():
+        name = _validate_string(
+            interaction_name,
+            label="Perturbation interaction name",
+        )
+        if not isinstance(interaction_def, Mapping):
+            raise ValueError(
+                f"Perturbation interaction '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=interaction_def,
+            allowed_keys=_SUPPORTED_INTERACTION_KEYS,
+            label=f"cmb.perturbations.interactions.{name}",
+        )
+        sector = _validate_optional_string(
+            interaction_def.get("sector"),
+            label=f"cmb.perturbations.interactions.{name}.sector",
+        )
+        if sector is not None and sector not in sector_names:
+            raise ValueError(
+                "cmb.perturbations.interactions."
+                f"{name}.sector references unknown sector '{sector}'"
+            )
+        species = _validate_optional_string_list(
+            interaction_def.get("species"),
+            label=f"cmb.perturbations.interactions.{name}.species",
+        )
+        unknown_species = sorted(set(species) - species_names)
+        if unknown_species:
+            unknown_str = ", ".join(unknown_species)
+            raise ValueError(
+                "cmb.perturbations.interactions."
+                f"{name}.species references unknown species: {unknown_str}"
+            )
+        expression = interaction_def.get("expression")
+        compiled_expression = None
+        dependencies: tuple[str, ...] = ()
+        clean_expression = None
+        if expression is not None:
+            clean_expression, dependencies = _replace_and_validate_expression(
+                expression,
+                label=f"cmb.perturbations.interactions.{name}.expression",
+                replacements=replacements,
+                allowed_names=allowed_names,
+            )
+            compiled_expression = _compile_expression_plan(
+                clean_expression,
+                dependencies=dependencies,
+            )
+        compiled[name] = PerturbationInteractionData(
+            name=name,
+            description=_validate_optional_string(
+                interaction_def.get("description"),
+                label=f"cmb.perturbations.interactions.{name}.description",
+            ),
+            notes=_validate_optional_string(
+                interaction_def.get("notes"),
+                label=f"cmb.perturbations.interactions.{name}.notes",
+            ),
+            sector=sector,
+            species=species,
+            expression=clean_expression,
+            counterpart=_validate_optional_string(
+                interaction_def.get("counterpart"),
+                label=f"cmb.perturbations.interactions.{name}.counterpart",
+            ),
+            dependencies=dependencies,
+            compiled_expression=compiled_expression,
+        )
+    return compiled
+
+
+def _compile_conservation_rule_metadata(
+    rule_defs: Mapping[str, Any],
+    *,
+    allowed_names: set[str],
+    replacements: Mapping[str, str],
+) -> dict[str, PerturbationConservationRuleData]:
+    """Return validated conservation-rule declarations."""
+
+    compiled: dict[str, PerturbationConservationRuleData] = {}
+    for rule_name, rule_def in rule_defs.items():
+        name = _validate_string(
+            rule_name,
+            label="Perturbation conservation rule name",
+        )
+        if not isinstance(rule_def, Mapping):
+            raise ValueError(
+                f"Perturbation conservation rule '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=rule_def,
+            allowed_keys=_SUPPORTED_CONSERVATION_RULE_KEYS,
+            label=f"cmb.perturbations.conservation_rules.{name}",
+        )
+        expression, dependencies = _replace_and_validate_expression(
+            rule_def.get("expression"),
+            label=f"cmb.perturbations.conservation_rules.{name}.expression",
+            replacements=replacements,
+            allowed_names=allowed_names,
+        )
+        tolerance = _validate_optional_float(
+            rule_def.get("tolerance"),
+            label=f"cmb.perturbations.conservation_rules.{name}.tolerance",
+        )
+        if tolerance is None or tolerance <= 0.0:
+            raise ValueError(
+                "cmb.perturbations.conservation_rules."
+                f"{name}.tolerance must be a positive float"
+            )
+        compiled[name] = PerturbationConservationRuleData(
+            name=name,
+            description=_validate_optional_string(
+                rule_def.get("description"),
+                label=(
+                    "cmb.perturbations.conservation_rules."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                rule_def.get("notes"),
+                label=f"cmb.perturbations.conservation_rules.{name}.notes",
+            ),
+            domain=_validate_optional_string(
+                rule_def.get("domain"),
+                label=f"cmb.perturbations.conservation_rules.{name}.domain",
+            ),
+            kind=_validate_optional_string(
+                rule_def.get("kind"),
+                label=f"cmb.perturbations.conservation_rules.{name}.kind",
+            )
+            or "absolute_max",
+            expression=expression,
+            tolerance=float(tolerance),
+            dependencies=dependencies,
+            compiled_expression=_compile_expression_plan(
+                expression,
+                dependencies=dependencies,
+            ),
+        )
+    return compiled
+
+
+def _compile_projection_extension_metadata(
+    extension_defs: Mapping[str, Any],
+) -> dict[str, PerturbationProjectionExtensionData]:
+    """Return validated projection-extension metadata."""
+
+    compiled: dict[str, PerturbationProjectionExtensionData] = {}
+    for extension_name, extension_def in extension_defs.items():
+        name = _validate_string(
+            extension_name,
+            label="Perturbation projection extension name",
+        )
+        if name in compiled:
+            raise ValueError(
+                f"Perturbation projection extension '{name}' is duplicated"
+            )
+        if name in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
+            raise ValueError(
+                "Perturbation projection extension "
+                f"'{name}' collides with a built-in projection"
+            )
+        if not isinstance(extension_def, Mapping):
+            raise ValueError(
+                f"Perturbation projection extension '{name}' must be a mapping"
+            )
+        _validate_entry_keys(
+            entry=extension_def,
+            allowed_keys=_SUPPORTED_PROJECTION_EXTENSION_KEYS,
+            label=f"cmb.perturbations.projection_extensions.{name}",
+        )
+        base_projection = _validate_string(
+            extension_def.get("base_projection"),
+            label=(
+                "cmb.perturbations.projection_extensions."
+                f"{name}.base_projection"
+            ),
+        )
+        base_spec = get_declared_projection_spec(base_projection)
+        kernel = _validate_optional_string(
+            extension_def.get("kernel"),
+            label=f"cmb.perturbations.projection_extensions.{name}.kernel",
+        )
+        if kernel is not None:
+            resolve_declared_projection_kernel(
+                base_projection,
+                observable_name=f"projection extension '{name}'",
+                kernel=kernel,
+            )
+        required_roles = _validate_optional_string_list(
+            extension_def.get("required_roles"),
+            label=(
+                "cmb.perturbations.projection_extensions."
+                f"{name}.required_roles"
+            ),
+        )
+        allowed_roles = _validate_optional_string_list(
+            extension_def.get("allowed_roles"),
+            label=(
+                "cmb.perturbations.projection_extensions."
+                f"{name}.allowed_roles"
+            ),
+        )
+        if (
+            required_roles
+            and allowed_roles
+            and not set(required_roles).issubset(allowed_roles)
+        ):
+            raise ValueError(
+                "cmb.perturbations.projection_extensions."
+                f"{name}.required_roles must be included in allowed_roles"
+            )
+        raw_requires_odd_parity = extension_def.get(
+            "requires_odd_parity_source"
+        )
+        if raw_requires_odd_parity is None:
+            requires_odd_parity_source = base_spec.requires_odd_parity_source
+        elif isinstance(raw_requires_odd_parity, bool):
+            requires_odd_parity_source = raw_requires_odd_parity
+        else:
+            raise ValueError(
+                "cmb.perturbations.projection_extensions."
+                f"{name}.requires_odd_parity_source must be a boolean"
+            )
+        compiled[name] = PerturbationProjectionExtensionData(
+            name=name,
+            base_projection=base_projection,
+            description=_validate_optional_string(
+                extension_def.get("description"),
+                label=(
+                    "cmb.perturbations.projection_extensions."
+                    f"{name}.description"
+                ),
+            ),
+            notes=_validate_optional_string(
+                extension_def.get("notes"),
+                label=f"cmb.perturbations.projection_extensions.{name}.notes",
+            ),
+            kernel=kernel,
+            required_roles=(
+                required_roles
+                if required_roles
+                else tuple(base_spec.required_roles)
+            ),
+            allowed_roles=(
+                allowed_roles
+                if allowed_roles
+                else tuple(base_spec.allowed_roles)
+            ),
+            required_projection_roles=_validate_optional_string_list(
+                extension_def.get("required_projection_roles"),
+                label=(
+                    "cmb.perturbations.projection_extensions."
+                    f"{name}.required_projection_roles"
+                ),
+            )
+            or tuple(base_spec.required_projection_roles),
+            requires_odd_parity_source=requires_odd_parity_source,
+        )
+    return compiled
+
+
 def _compile_initial_condition_family_metadata(
     family_defs: Mapping[str, Any],
     *,
@@ -2422,6 +2784,8 @@ def _topological_evaluation_order(
     derived: Mapping[str, PerturbationDerivedData],
     constraints: Mapping[str, PerturbationConstraintData],
     closures: Mapping[str, PerturbationClosureData],
+    interactions: Mapping[str, PerturbationInteractionData],
+    collision_operators: Mapping[str, PerturbationCollisionOperatorData],
 ) -> tuple[str, ...]:
     """Return a topological order for expression and algebraic nodes."""
 
@@ -2430,8 +2794,39 @@ def _topological_evaluation_order(
     expression_names = {
         name for name, entry in derived.items() if entry.expression is not None
     }
-    node_names = expression_names | set(relation_nodes)
+    interaction_names = {
+        name
+        for name, entry in interactions.items()
+        if entry.expression is not None
+    }
+    collision_names = {
+        name
+        for name, entry in collision_operators.items()
+        if entry.expression is not None
+    }
+    node_names = (
+        expression_names
+        | set(relation_nodes)
+        | interaction_names
+        | collision_names
+    )
     for name, entry in derived.items():
+        if entry.expression is None:
+            continue
+        graph[name] = tuple(
+            dependency
+            for dependency in entry.dependencies
+            if dependency in node_names
+        )
+    for name, entry in interactions.items():
+        if entry.expression is None:
+            continue
+        graph[name] = tuple(
+            dependency
+            for dependency in entry.dependencies
+            if dependency in node_names
+        )
+    for name, entry in collision_operators.items():
         if entry.expression is None:
             continue
         graph[name] = tuple(
@@ -2492,6 +2887,8 @@ def _build_manifest_summary(
     equations: tuple[str, ...],
     constraints: tuple[str, ...],
     closures: tuple[str, ...],
+    interactions: tuple[str, ...],
+    conservation_rules: tuple[str, ...],
     sources: tuple[str, ...],
     observables: tuple[str, ...],
     initial_conditions: tuple[str, ...],
@@ -2501,6 +2898,7 @@ def _build_manifest_summary(
     hierarchy_families: tuple[str, ...],
     collision_operators: tuple[str, ...],
     initial_condition_families: tuple[str, ...],
+    projection_extensions: tuple[str, ...],
     projection_typing: tuple[str, ...],
     validity: PerturbationValidityData,
     numerics: Mapping[str, Any],
@@ -2531,6 +2929,8 @@ def _build_manifest_summary(
         "equation_names": equations,
         "constraint_names": constraints,
         "closure_names": closures,
+        "interaction_names": interactions,
+        "conservation_rule_names": conservation_rules,
         "source_names": sources,
         "observable_names": observables,
         "initial_condition_names": initial_conditions,
@@ -2540,6 +2940,7 @@ def _build_manifest_summary(
         "hierarchy_family_names": hierarchy_families,
         "collision_operator_names": collision_operators,
         "initial_condition_family_names": initial_condition_families,
+        "projection_extension_names": projection_extensions,
         "projection_typing_names": projection_typing,
         "validity_regimes": validity.regimes,
         "validity_notes": validity.notes,
@@ -2729,7 +3130,9 @@ def compile_perturbation_contract(
         "equations": contract.get("equations", {}),
         "constraints": contract.get("constraints", {}),
         "closures": contract.get("closures", {}),
+        "conservation_rules": contract.get("conservation_rules", {}),
         "collision_operators": contract.get("collision_operators", {}),
+        "interactions": contract.get("interactions", {}),
         "sources": contract.get("sources", {}),
         "observables": contract.get("observables", {}),
         "initial_conditions": contract.get("initial_conditions", {}),
@@ -2740,6 +3143,7 @@ def compile_perturbation_contract(
         "sectors": contract.get("sectors", {}),
         "species": contract.get("species", {}),
         "hierarchy_families": contract.get("hierarchy_families", {}),
+        "projection_extensions": contract.get("projection_extensions", {}),
         "projection_typing": contract.get("projection_typing", {}),
         "validity": contract.get("validity", {}),
         "backend_mapping": contract.get("backend_mapping"),
@@ -2750,6 +3154,9 @@ def compile_perturbation_contract(
             raise ValueError(
                 f"cmb.perturbations.{section_name} must be a mapping"
             )
+    projection_extension_entries = _compile_projection_extension_metadata(
+        sections["projection_extensions"],
+    )
     projection_typing_entries = _compile_projection_typing_metadata(
         sections["projection_typing"],
         sector_names={str(name) for name in sections["sectors"].keys()},
@@ -2888,6 +3295,10 @@ def compile_perturbation_contract(
     allowed_name_pool.update(background_reference_set)
     allowed_name_pool.update(_SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES)
     allowed_name_pool.update(variable_entries)
+    allowed_name_pool.update(
+        str(name) for name in sections["collision_operators"]
+    )
+    allowed_name_pool.update(str(name) for name in sections["interactions"])
 
     derived_entries: dict[str, PerturbationDerivedData] = {}
     declared_derived_names = {str(name) for name in sections["derived"]}
@@ -3460,6 +3871,10 @@ def compile_perturbation_contract(
     def _projection_output_role(projection: str) -> str:
         """Return the observable role emitted by ``projection``."""
 
+        if projection in projection_extension_entries:
+            projection = str(
+                projection_extension_entries[projection].base_projection
+            )
         if projection == "line_of_sight_temperature":
             return "temperature"
         if projection in {
@@ -3704,6 +4119,7 @@ def compile_perturbation_contract(
                     f"Perturbation observable '{name}' must declare "
                     "projection"
                 )
+            declared_projection = str(projection)
             if primary is not None or secondary is not None:
                 raise ValueError(
                     f"Perturbation observable '{name}' kind "
@@ -3715,9 +4131,10 @@ def compile_perturbation_contract(
                 for role_name, source_name in source_term_refs.items()
             }
             validate_declared_projection_source_roles(
-                str(projection),
+                declared_projection,
                 observable_name=name,
                 source_roles=declared_source_roles,
+                extensions=projection_extension_entries,
             )
             for role_name, source_role in declared_source_roles.items():
                 if source_role is None:
@@ -3729,11 +4146,24 @@ def compile_perturbation_contract(
                         f"role '{role_name}' to source '{source_name}' "
                         f"with declared role '{source_role}'"
                     )
-            projection_spec = get_declared_projection_spec(str(projection))
+            projection_spec = get_declared_projection_spec(
+                declared_projection,
+                extensions=projection_extension_entries,
+            )
             kernel = resolve_declared_projection_kernel(
-                str(projection),
+                declared_projection,
                 observable_name=name,
                 kernel=kernel,
+                extensions=projection_extension_entries,
+            )
+            runtime_projection = (
+                str(
+                    projection_extension_entries[
+                        declared_projection
+                    ].base_projection
+                )
+                if declared_projection in projection_extension_entries
+                else declared_projection
             )
             effective_projection_roles = _dedupe_names(
                 projection_spec.required_projection_roles
@@ -3758,12 +4188,13 @@ def compile_perturbation_contract(
                     ):
                         raise ValueError(
                             f"Perturbation observable '{name}' projection "
-                            f"'{projection}' requires an odd-parity "
+                            f"'{declared_projection}' requires an odd-parity "
                             "declared source ancestry"
                         )
                     raise ValueError(
                         f"Perturbation observable '{name}' projection "
-                        f"'{projection}' requires source '{source_name}' "
+                        f"'{declared_projection}' requires source "
+                        f"'{source_name}' "
                         "to provide declared projection roles: "
                         + ", ".join(effective_projection_roles)
                     )
@@ -3776,11 +4207,12 @@ def compile_perturbation_contract(
                 tensor_character,
             ) = _resolve_transfer_component_metadata(
                 observable_name=name,
-                projection=str(projection),
+                projection=runtime_projection,
                 observable_kind=observable_kind,
                 kernel=kernel,
                 source_term_refs=source_term_refs,
             )
+            projection = runtime_projection
         else:
             output_role = None
             sector = None
@@ -4172,6 +4604,59 @@ def compile_perturbation_contract(
             all_expression_names
             | set(source_entries)
             | set(observable_entries)
+            | set(sections["interactions"])
+        ),
+        replacements=replacements,
+    )
+    interaction_entries = _compile_interaction_metadata(
+        sections["interactions"],
+        sector_names=set(sector_entries),
+        species_names=set(species_entries),
+        allowed_names=(
+            all_expression_names
+            | set(sections["collision_operators"])
+            | set(sections["interactions"])
+            | set(_relation_target_nodes(constraint_entries, closure_entries))
+        ),
+        replacements=replacements,
+    )
+    conflicting_dynamic_names = sorted(
+        (set(collision_operator_entries) | set(interaction_entries))
+        & (
+            set(variable_entries)
+            | set(derived_entries)
+            | set(
+                _relation_target_nodes(
+                    constraint_entries,
+                    closure_entries,
+                )
+            )
+            | set(source_entries)
+        )
+    )
+    if conflicting_dynamic_names:
+        readable = ", ".join(conflicting_dynamic_names)
+        raise ValueError(
+            "Declared interaction or collision names collide with graph "
+            f"symbols: {readable}"
+        )
+    duplicate_dynamic_names = sorted(
+        set(collision_operator_entries) & set(interaction_entries)
+    )
+    if duplicate_dynamic_names:
+        readable = ", ".join(duplicate_dynamic_names)
+        raise ValueError(
+            "Declared interactions duplicate collision operators: "
+            f"{readable}"
+        )
+    conservation_rule_entries = _compile_conservation_rule_metadata(
+        sections["conservation_rules"],
+        allowed_names=(
+            all_expression_names
+            | set(_relation_target_nodes(constraint_entries, closure_entries))
+            | set(source_entries)
+            | set(collision_operator_entries)
+            | set(interaction_entries)
         ),
         replacements=replacements,
     )
@@ -4315,7 +4800,9 @@ def compile_perturbation_contract(
             "equations",
             "constraints",
             "closures",
+            "conservation_rules",
             "collision_operators",
+            "interactions",
             "sources",
             "observables",
             "initial_conditions",
@@ -4324,6 +4811,7 @@ def compile_perturbation_contract(
             "sectors",
             "species",
             "hierarchy_families",
+            "projection_extensions",
             "projection_typing",
             "accuracy_controls",
         ):
@@ -4510,6 +4998,7 @@ def compile_perturbation_contract(
                 + list(equation_entries.values())
                 + list(constraint_entries.values())
                 + list(closure_entries.values())
+                + list(interaction_entries.values())
                 + list(source_entries.values())
                 + list(initial_condition_entries.values())
                 + list(boundary_condition_entries.values())
@@ -4532,6 +5021,8 @@ def compile_perturbation_contract(
         derived=derived_entries,
         constraints=constraint_entries,
         closures=closure_entries,
+        interactions=interaction_entries,
+        collision_operators=collision_operator_entries,
     )
     dependency_summary = PerturbationDependencyGraphSummaryData(
         variable_names=tuple(sorted(variable_entries)),
@@ -4539,6 +5030,8 @@ def compile_perturbation_contract(
         equation_names=tuple(sorted(equation_entries)),
         constraint_names=tuple(sorted(constraint_entries)),
         closure_names=tuple(sorted(closure_entries)),
+        interaction_names=tuple(sorted(interaction_entries)),
+        conservation_rule_names=tuple(sorted(conservation_rule_entries)),
         source_names=tuple(sorted(source_entries)),
         observable_names=tuple(sorted(observable_entries)),
         initial_condition_names=tuple(sorted(initial_condition_entries)),
@@ -4553,6 +5046,8 @@ def compile_perturbation_contract(
                             + list(equation_entries.values())
                             + list(constraint_entries.values())
                             + list(closure_entries.values())
+                            + list(interaction_entries.values())
+                            + list(conservation_rule_entries.values())
                             + list(source_entries.values())
                             + list(observable_entries.values())
                             + list(initial_condition_entries.values())
@@ -4573,6 +5068,8 @@ def compile_perturbation_contract(
                             + list(equation_entries.values())
                             + list(constraint_entries.values())
                             + list(closure_entries.values())
+                            + list(interaction_entries.values())
+                            + list(conservation_rule_entries.values())
                             + list(source_entries.values())
                             + list(initial_condition_entries.values())
                             + list(boundary_condition_entries.values())
@@ -4592,6 +5089,8 @@ def compile_perturbation_contract(
                             + list(equation_entries.values())
                             + list(constraint_entries.values())
                             + list(closure_entries.values())
+                            + list(interaction_entries.values())
+                            + list(conservation_rule_entries.values())
                             + list(source_entries.values())
                             + list(initial_condition_entries.values())
                             + list(boundary_condition_entries.values())
@@ -4623,6 +5122,18 @@ def compile_perturbation_contract(
             {
                 name: entry.dependencies
                 for name, entry in closure_entries.items()
+            }
+        ),
+        interaction_dependencies=FrozenMapping(
+            {
+                name: entry.dependencies
+                for name, entry in interaction_entries.items()
+            }
+        ),
+        conservation_rule_dependencies=FrozenMapping(
+            {
+                name: entry.dependencies
+                for name, entry in conservation_rule_entries.items()
             }
         ),
         source_dependencies=FrozenMapping(
@@ -4662,6 +5173,15 @@ def compile_perturbation_contract(
     )
     transfer_component_contracts = {
         name: {
+            "declared_projection": str(
+                (
+                    (sections["observables"].get(name, {}) or {}).get(
+                        "projection"
+                    )
+                    or entry.projection
+                    or ""
+                )
+            ),
             "projection": str(entry.projection or ""),
             "kernel": (None if entry.kernel is None else str(entry.kernel)),
             "source_term_roles": tuple(
@@ -4698,6 +5218,8 @@ def compile_perturbation_contract(
             equations=dependency_summary.equation_names,
             constraints=dependency_summary.constraint_names,
             closures=dependency_summary.closure_names,
+            interactions=dependency_summary.interaction_names,
+            conservation_rules=(dependency_summary.conservation_rule_names),
             sources=dependency_summary.source_names,
             observables=dependency_summary.observable_names,
             initial_conditions=dependency_summary.initial_condition_names,
@@ -4709,6 +5231,7 @@ def compile_perturbation_contract(
             initial_condition_families=tuple(
                 sorted(initial_condition_family_entries)
             ),
+            projection_extensions=tuple(sorted(projection_extension_entries)),
             projection_typing=tuple(sorted(projection_typing_entries)),
             validity=validity_data,
             numerics=numerics_mapping,
@@ -4753,9 +5276,12 @@ def compile_perturbation_contract(
         species=FrozenMapping(species_entries),
         hierarchy_families=FrozenMapping(hierarchy_family_entries),
         collision_operators=FrozenMapping(collision_operator_entries),
+        interactions=FrozenMapping(interaction_entries),
+        conservation_rules=FrozenMapping(conservation_rule_entries),
         initial_condition_families=FrozenMapping(
             initial_condition_family_entries
         ),
+        projection_extensions=FrozenMapping(projection_extension_entries),
         projection_typing=FrozenMapping(projection_typing_entries),
         accuracy_controls=accuracy_controls_mapping,
     )
@@ -4768,6 +5294,7 @@ __all__ = [
     "PerturbationCollisionOperatorData",
     "PerturbationClosureData",
     "PerturbationCompiledExpressionData",
+    "PerturbationConservationRuleData",
     "PerturbationConditionData",
     "PerturbationConditionTargetData",
     "PerturbationConstraintData",
@@ -4778,7 +5305,9 @@ __all__ = [
     "PerturbationEquationData",
     "PerturbationHierarchyFamilyData",
     "PerturbationInitialConditionFamilyData",
+    "PerturbationInteractionData",
     "PerturbationObservableData",
+    "PerturbationProjectionExtensionData",
     "PerturbationProjectionTypingData",
     "PerturbationSectorData",
     "PerturbationSourceData",

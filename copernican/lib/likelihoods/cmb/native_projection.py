@@ -23,6 +23,7 @@ from .native_background import (
     _C_LIGHT_KM_S,
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
     CustomCMBSpectrumData,
+    _accuracy_control_value,
     _build_custom_cmb_background,
     _coerce_numeric_scalar,
     _custom_cmb_spectrum_cache_key,
@@ -32,6 +33,7 @@ from .native_background import (
     _physical_runtime_scalars,
     _resolve_custom_cmb_numerics,
     _resolve_custom_cmb_physical_parameters,
+    _resolve_declared_accuracy_controls,
     _resolve_declared_background_context,
 )
 from .native_evolution import (
@@ -43,6 +45,7 @@ from .native_evolution import (
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
     _resolve_declared_graph_context,
+    _resolve_declared_momentum_grid_runtimes,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -179,6 +182,151 @@ def _trapezoid_weights(grid: numpy.ndarray) -> numpy.ndarray:
     return weights
 
 
+def _refine_eta_grid(
+    eta_grid: numpy.ndarray,
+    *,
+    refinement: int,
+) -> numpy.ndarray:
+    """Return ``eta_grid`` refined with midpoint-preserving subdivisions."""
+
+    if refinement <= 1 or eta_grid.size < 2:
+        return numpy.asarray(eta_grid, dtype=float)
+    subdivisions = 2 ** max(refinement - 1, 0)
+    left_edges = eta_grid[:-1, numpy.newaxis]
+    step_sizes = numpy.diff(eta_grid)[:, numpy.newaxis] / float(subdivisions)
+    offsets = numpy.arange(subdivisions, dtype=float)[numpy.newaxis, :]
+    refined = (left_edges + step_sizes * offsets).reshape(-1)
+    return numpy.concatenate(
+        (numpy.asarray(refined, dtype=float), eta_grid[-1:]),
+    )
+
+
+def _validate_runtime_envelope_controls(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the validated runtime-envelope control mapping."""
+
+    accuracy_controls = _resolve_declared_accuracy_controls(contract)
+    runtime_envelope = accuracy_controls.get("runtime_envelope")
+    if runtime_envelope in (None, "bounded"):
+        return {}
+    if not isinstance(runtime_envelope, Mapping):
+        raise ValueError(
+            "cmb.perturbations.accuracy_controls.runtime_envelope must be "
+            "a mapping or the preset 'bounded'"
+        )
+    return runtime_envelope
+
+
+def _enforce_runtime_envelope(
+    contract: Mapping[str, Any],
+    *,
+    ell_count: int,
+    k_count: int,
+    eta_count: int,
+    state_slot_count: int,
+    transfer_component_count: int,
+    momentum_point_count: int,
+) -> dict[str, int]:
+    """Return and validate the declared runtime envelope for one run."""
+
+    evolution_work_units = int(k_count * eta_count * max(state_slot_count, 1))
+    projection_work_units = int(
+        ell_count * k_count * eta_count * max(transfer_component_count, 1)
+    )
+    momentum_work_units = int(max(momentum_point_count, 0) * eta_count)
+    total_work_units = int(
+        evolution_work_units + projection_work_units + momentum_work_units
+    )
+    envelope = {
+        "ell_count": int(ell_count),
+        "k_sample_count": int(k_count),
+        "eta_sample_count": int(eta_count),
+        "state_slot_count": int(state_slot_count),
+        "transfer_component_count": int(transfer_component_count),
+        "momentum_point_count": int(momentum_point_count),
+        "evolution_work_units": evolution_work_units,
+        "projection_work_units": projection_work_units,
+        "momentum_work_units": momentum_work_units,
+        "total_work_units": total_work_units,
+    }
+    runtime_envelope = _validate_runtime_envelope_controls(contract)
+    for limit_name, work_name in (
+        ("maximum_evolution_work_units", "evolution_work_units"),
+        ("maximum_projection_work_units", "projection_work_units"),
+        ("maximum_total_work_units", "total_work_units"),
+    ):
+        raw_limit = runtime_envelope.get(limit_name)
+        if raw_limit is None:
+            raw_limit = _accuracy_control_value(
+                _resolve_declared_accuracy_controls(contract),
+                limit_name,
+            )
+        if raw_limit is None:
+            continue
+        limit_value = int(
+            _coerce_numeric_scalar(
+                raw_limit,
+                name=(
+                    "cmb.perturbations.accuracy_controls.runtime_envelope."
+                    f"{limit_name}"
+                ),
+            )
+        )
+        if limit_value < 1:
+            raise ValueError(
+                "cmb.perturbations.accuracy_controls.runtime_envelope."
+                f"{limit_name} must be positive"
+            )
+        if envelope[work_name] > limit_value:
+            raise ValueError(
+                "Declared runtime_envelope exceeded "
+                f"{limit_name}: {envelope[work_name]} > {limit_value}"
+            )
+    return envelope
+
+
+def _validate_declared_conservation_rules(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    k_value: float,
+) -> None:
+    """Raise when one declared conservation rule exceeds its tolerance."""
+
+    rule_entries = getattr(perturbation_data, "conservation_rules", {}) or {}
+    if not rule_entries:
+        return
+    with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        for rule_name, rule_entry in rule_entries.items():
+            rule_kind = str(rule_entry.kind or "absolute_max")
+            if rule_kind != "absolute_max":
+                raise ValueError(
+                    "Declared conservation rule uses unsupported kind "
+                    f"'{rule_kind}': {rule_name}"
+                )
+            residual = numpy.asarray(
+                _evaluate_compiled_expression_noerr(
+                    rule_entry.compiled_expression,
+                    context,
+                ),
+                dtype=float,
+            )
+            if not numpy.all(numpy.isfinite(residual)):
+                raise ValueError(
+                    "Declared conservation rule produced non-finite values: "
+                    f"{rule_name} at k={k_value}"
+                )
+            max_abs_residual = float(numpy.max(numpy.abs(residual)))
+            tolerance = float(rule_entry.tolerance)
+            if max_abs_residual > tolerance:
+                raise ValueError(
+                    "Declared conservation rule exceeded tolerance: "
+                    f"{rule_name} at k={k_value} "
+                    f"({max_abs_residual} > {tolerance})"
+                )
+
+
 def _compute_custom_cmb_spectrum_data(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -230,11 +378,10 @@ def _compute_custom_cmb_spectrum_data(
         dtype=float,
     )
     eta_los_refinement = max(1, int(numerics.source_grid_multiplier))
-    for _ in range(eta_los_refinement - 1):
-        midpoint_grid = 0.5 * (eta_los_grid[:-1] + eta_los_grid[1:])
-        eta_los_grid = numpy.unique(
-            numpy.concatenate((eta_los_grid, midpoint_grid))
-        )
+    eta_los_grid = _refine_eta_grid(
+        eta_los_grid,
+        refinement=eta_los_refinement,
+    )
     if eta_los_grid.size < 128:
         eta_los_grid = numpy.linspace(
             eta_start,
@@ -380,6 +527,22 @@ def _compute_custom_cmb_spectrum_data(
         for name, entry in perturbation_data.observables.items()
         if entry.kind == "angular_power_spectrum"
     }
+    momentum_runtimes = _resolve_declared_momentum_grid_runtimes(
+        perturbation_data,
+        model_parameters=source_parameters,
+        physical_params=physical_params,
+    )
+    runtime_envelope = _enforce_runtime_envelope(
+        contract_or_params,
+        ell_count=int(ell_arr.size),
+        k_count=int(k_values.size),
+        eta_count=int(eta_los_grid.size),
+        state_slot_count=int(len(runtime_spec.state_slots)),
+        transfer_component_count=int(len(transfer_component_observables)),
+        momentum_point_count=int(
+            sum(runtime.points.size for runtime in momentum_runtimes)
+        ),
+    )
     transfer_components = {
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
@@ -1029,6 +1192,13 @@ def _compute_custom_cmb_spectrum_data(
             array_context,
             k_value=float(k_value),
         )
+        conservation_context = dict(array_context)
+        conservation_context.update(source_arrays)
+        _validate_declared_conservation_rules(
+            perturbation_data=perturbation_data,
+            context=conservation_context,
+            k_value=float(k_value),
+        )
         return histories, source_arrays
 
     log_k_values = numpy.log(k_values)
@@ -1114,6 +1284,7 @@ def _compute_custom_cmb_spectrum_data(
             {name: matrix for name, matrix in transfer_components.items()}
         ),
         spectra=FrozenMapping(spectra_results),
+        runtime_envelope=FrozenMapping(runtime_envelope),
     )
     native_cache.set_custom_cmb_spectrum(cache_key, spectrum_data)
     return _get_cached_custom_cmb_spectrum_data(cache_key)

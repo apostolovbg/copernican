@@ -1928,6 +1928,51 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             ),
         )
 
+    def test_declared_interactions_change_observable(self) -> None:
+        """Interaction terms should feed declared sources before projection."""
+
+        baseline = _analytic_signal_contract()
+        changed = _analytic_signal_contract()
+        for contract, coefficient in (
+            (baseline, 0.5),
+            (changed, 1.0),
+        ):
+            contract["perturbations"]["interactions"] = {
+                "signal_bridge": {
+                    "expression": f"{coefficient:.16g} * signal_mode",
+                }
+            }
+            contract["perturbations"]["sources"]["signal_source"][
+                "expression"
+            ] = "closure_drive + signal_bridge"
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        changed_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                changed,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        numpy.testing.assert_allclose(
+            changed_tt / baseline_tt,
+            numpy.full_like(baseline_tt, (2.0 / 1.5) ** 2),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+            err_msg=(
+                "Declared interactions should contribute to the compiled "
+                "source pipeline before the TT projection."
+            ),
+        )
+
     def test_custom_projection_kernel_changes_observable(self) -> None:
         """Custom kernels should change the projected transfer response."""
 
@@ -1962,6 +2007,44 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         )
         self.assertGreater(
             float(numpy.max(numpy.abs(derivative_tt - spherical_tt))),
+            1.0e-12,
+        )
+
+    def test_projection_extension_alias_changes_observable(self) -> None:
+        """Projection extensions should route through the reviewed alias."""
+
+        baseline = _analytic_signal_contract()
+        extended = _analytic_signal_contract()
+        extended["perturbations"]["projection_extensions"] = {
+            "signal_derivative_alias": {
+                "base_projection": "custom_line_of_sight",
+                "kernel": "spherical_bessel_derivative_window",
+                "required_roles": ["signal"],
+                "allowed_roles": ["signal"],
+            }
+        }
+        extended["perturbations"]["observables"]["signal_transfer"][
+            "projection"
+        ] = "signal_derivative_alias"
+        ells = numpy.arange(20, 30, dtype=int)
+        baseline_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                baseline,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        extended_tt = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                extended,
+                ells,
+                spectra=("TT",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(extended_tt - baseline_tt))),
             1.0e-12,
         )
 
@@ -2953,6 +3036,212 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.arange(20, 25, dtype=int),
         )
         self.assertEqual(int(spectrum_data.k_grid.size), 64)
+
+    def test_accuracy_controls_reject_underresolved_scalar_numerics(
+        self,
+    ) -> None:
+        """Declared minimum controls should reject under-resolved numerics."""
+
+        base_contract = _speedup_contract(_custom_contract())
+        base_contract["numerical"].update(
+            {
+                "ell_max": 40,
+                "photon_hierarchy_l_max": 2,
+                "neutrino_hierarchy_l_max": 2,
+            }
+        )
+        cases = (
+            ("minimum_ell_max", 61, "ell_max"),
+            ("minimum_k_sample_count", 17, "k_sample_count"),
+            ("minimum_eta_sample_count", 129, "eta_sample_count"),
+            ("minimum_source_grid_multiplier", 2, "source_grid_multiplier"),
+            (
+                "minimum_photon_hierarchy_l_max",
+                3,
+                "photon_hierarchy_l_max",
+            ),
+            (
+                "minimum_neutrino_hierarchy_l_max",
+                3,
+                "neutrino_hierarchy_l_max",
+            ),
+        )
+
+        for control_name, minimum_value, message in cases:
+            contract = copy.deepcopy(base_contract)
+            contract["perturbations"]["accuracy_controls"] = {
+                control_name: minimum_value,
+            }
+            with self.subTest(control_name=control_name):
+                with self.assertRaisesRegex(ValueError, message):
+                    native_background._resolve_custom_cmb_numerics(contract)
+
+    def test_runtime_envelope_records_governed_work_units(self) -> None:
+        """Native spectra should carry the governed runtime envelope."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["perturbations"]["accuracy_controls"] = {
+            "runtime_envelope": {
+                "maximum_total_work_units": 200000,
+            }
+        }
+        contract = _prepare_native_contract(contract)
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+        )
+
+        self.assertGreater(
+            int(spectrum_data.runtime_envelope["total_work_units"]),
+            0,
+        )
+        self.assertLessEqual(
+            int(spectrum_data.runtime_envelope["total_work_units"]),
+            200000,
+        )
+        self.assertIn("evolution_work_units", spectrum_data.runtime_envelope)
+        self.assertIn("projection_work_units", spectrum_data.runtime_envelope)
+
+    def test_runtime_envelope_rejects_unbounded_work_units(self) -> None:
+        """Declared runtime envelopes should fail before large runs start."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["perturbations"]["accuracy_controls"] = {
+            "runtime_envelope": {
+                "maximum_total_work_units": 1000,
+            }
+        }
+        contract = _prepare_native_contract(contract)
+        with self.assertRaisesRegex(
+            ValueError,
+            "runtime_envelope exceeded maximum_total_work_units",
+        ):
+            native_projection._compute_custom_cmb_spectrum_data(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+            )
+
+    def test_conservation_rule_violation_fails_loudly(self) -> None:
+        """Conservation residuals should fail once they exceed tolerance."""
+
+        contract = _analytic_signal_contract()
+        contract["perturbations"]["conservation_rules"] = {
+            "signal_balance": {
+                "kind": "absolute_max",
+                "expression": "signal_mode",
+                "tolerance": 1.0e-12,
+            }
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "conservation rule exceeded tolerance",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_declared_recombination_quantities_change_background(
+        self,
+    ) -> None:
+        """Declared recombination hooks should alter the solved background."""
+
+        def _recombination_contract(peebles_c: float) -> dict[str, object]:
+            contract = _speedup_contract(_custom_contract())
+            contract["background"]["recombination"] = {
+                "quantities": {
+                    "hydrogen_temperature_K": "2.7255 * (1.0 + z)",
+                    "hydrogen_alpha_B": (
+                        "1.0e-19 * "
+                        "((hydrogen_temperature_K / 3000.0) ** -0.5)"
+                    ),
+                    "beta_continuum": (
+                        "5.0e-20 * "
+                        "((hydrogen_temperature_K / 3000.0) ** 0.5)"
+                    ),
+                    "peebles_c": f"{peebles_c:.16g}",
+                }
+            }
+            return _prepare_native_contract(contract)
+
+        baseline = _recombination_contract(0.4)
+        changed = _recombination_contract(0.9)
+        baseline_background = native_background._build_custom_cmb_background(
+            baseline,
+            native_background._resolve_custom_cmb_physical_parameters(
+                baseline
+            ),
+            native_background._resolve_custom_cmb_numerics(baseline),
+        )
+        changed_background = native_background._build_custom_cmb_background(
+            changed,
+            native_background._resolve_custom_cmb_physical_parameters(changed),
+            native_background._resolve_custom_cmb_numerics(changed),
+        )
+
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        changed_background.x_e_grid
+                        - baseline_background.x_e_grid
+                    )
+                )
+            ),
+            1.0e-8,
+        )
+
+    def test_declared_recombination_quantities_require_full_hook_set(
+        self,
+    ) -> None:
+        """Partial recombination hooks should fail with a named error."""
+
+        contract = _speedup_contract(_custom_contract())
+        contract["background"]["recombination"] = {
+            "quantities": {
+                "hydrogen_temperature_K": "3000.0",
+            }
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "must define 'hydrogen_alpha_B'",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_momentum_grid_accuracy_control_rejects_short_grid(
+        self,
+    ) -> None:
+        """Massive-neutrino grids should honor declared count floors."""
+
+        contract = _speedup_contract(
+            _native_scalar_acceptance_contract(
+                include_massive_neutrino=True,
+            )
+        )
+        contract["perturbations"]["numerics"]["momentum_grids"] = {
+            "massive_neutrino_default": {
+                "count": 4,
+            }
+        }
+        contract["perturbations"]["accuracy_controls"][
+            "minimum_momentum_grid_count"
+        ] = {
+            "massive_neutrino_default": 5,
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "momentum_grids.massive_neutrino_default.count >= 5",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                _prepare_native_contract(contract),
+                numpy.arange(20, 24, dtype=int),
+                spectra=("TT",),
+            )
 
     def test_background_pressure_and_curvature_symbols_change_outputs(
         self,
