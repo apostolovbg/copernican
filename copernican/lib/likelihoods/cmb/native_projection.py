@@ -382,11 +382,12 @@ def _compute_custom_cmb_spectrum_data(
         eta_los_grid,
         refinement=eta_los_refinement,
     )
-    if eta_los_grid.size < 128:
+    minimum_eta_samples = max(128, 128 * eta_los_refinement)
+    if eta_los_grid.size < minimum_eta_samples:
         eta_los_grid = numpy.linspace(
             eta_start,
             float(background.eta_grid[-1]),
-            128,
+            minimum_eta_samples,
         )
     eta_los_background = background.sample(eta_los_grid)
     a_los_grid = numpy.asarray(eta_los_background["a"], dtype=float)

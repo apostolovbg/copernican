@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy
 
 from ...model_coder import validate_native_perturbation_execution
+from .native_lensing import lensed_cls as _lensed_cls
 from .native_projection import _compute_custom_cmb_spectrum_data
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -19,101 +20,94 @@ _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_e",
     "temperature",
 }
+# The native exact-lensing path is normalized into a stable range before the
+# curved-sky remapper sees the spectra.
+_NATIVE_OUTPUT_SPECTRUM_SCALE = 1.0e8
+_NATIVE_TEMPERATURE_SPECTRUM_SCALE = 1.0e-68
+_NATIVE_LENSING_POTENTIAL_SCALE = 1.0e-268
 
 
-def _gaussian_smooth_spectrum(
-    values: numpy.ndarray,
-    *,
-    sigma: float,
-) -> numpy.ndarray:
-    """Return ``values`` convolved with an index-space Gaussian kernel."""
+def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
+    """Return the CAMB-style lensing potential spectrum scaling."""
 
-    spectrum = numpy.asarray(values, dtype=float)
-    if spectrum.size <= 2 or sigma <= 0.0:
-        return spectrum.copy()
-    radius = max(1, int(math.ceil(3.0 * float(sigma))))
-    offsets = numpy.arange(-radius, radius + 1, dtype=float)
-    kernel = numpy.exp(-0.5 * (offsets / float(sigma)) ** 2)
-    kernel /= max(float(numpy.sum(kernel)), 1.0e-12)
-    padded = numpy.pad(spectrum, radius, mode="edge")
-    smoothed = numpy.convolve(padded, kernel, mode="valid")
-    return numpy.asarray(smoothed, dtype=float)
+    spectrum = numpy.asarray(pp_spectrum, dtype=float)
+    ell_grid = numpy.arange(spectrum.size, dtype=float)
+    ell_factor = ell_grid * (ell_grid + 1.0)
+    clpp = numpy.zeros_like(spectrum, dtype=float)
+    if spectrum.size > 2:
+        clpp[2:] = (
+            ell_factor[2:] * ell_factor[2:] * spectrum[2:] / (2.0 * math.pi)
+        )
+    return clpp
 
 
-def _assemble_approximate_lensed_spectra(
+def _assemble_exact_lensed_spectra(
     scaled_spectra: Mapping[str, numpy.ndarray],
     ell_grid: numpy.ndarray,
 ) -> dict[str, numpy.ndarray]:
-    """Return bounded approximate lensed spectra from unlensed inputs."""
+    """Return exact curved-sky lensed spectra from unlensed inputs."""
 
-    del ell_grid
-    if "PP" not in scaled_spectra:
+    missing = sorted(
+        required
+        for required in ("PP", "TT", "TE", "EE")
+        if required not in scaled_spectra
+    )
+    if missing:
         raise ValueError(
-            "Native lensed spectra require a declared PP spectrum."
+            "Native lensed spectra require declared TT, TE, EE, and PP "
+            f"spectra: {', '.join(missing)}"
         )
-    if "EE" not in scaled_spectra:
-        raise ValueError(
-            "Native lensed spectra require a declared EE spectrum."
-        )
-    if "TT" not in scaled_spectra or "TE" not in scaled_spectra:
-        raise ValueError(
-            "Native lensed spectra require declared TT and TE spectra."
-        )
+    lmax = int(numpy.max(numpy.asarray(ell_grid, dtype=int)))
     tt_spectrum = numpy.asarray(scaled_spectra["TT"], dtype=float)
     te_spectrum = numpy.asarray(scaled_spectra["TE"], dtype=float)
     ee_spectrum = numpy.asarray(scaled_spectra["EE"], dtype=float)
     bb_spectrum = numpy.asarray(
         scaled_spectra.get(
             "BB",
-            numpy.zeros_like(ee_spectrum, dtype=float),
+            numpy.zeros_like(tt_spectrum, dtype=float),
         ),
         dtype=float,
     )
-    pp_spectrum = numpy.asarray(scaled_spectra["PP"], dtype=float)
-    radiative_scale = max(
-        float(numpy.max(numpy.abs(tt_spectrum))),
-        float(numpy.max(numpy.abs(ee_spectrum))),
-        float(numpy.max(numpy.abs(te_spectrum))),
-        1.0,
+    if (
+        min(
+            tt_spectrum.size,
+            te_spectrum.size,
+            ee_spectrum.size,
+            bb_spectrum.size,
+            numpy.asarray(scaled_spectra["PP"], dtype=float).size,
+        )
+        <= lmax
+    ):
+        raise ValueError(
+            "Native lensed spectra require unlensed spectra defined on the "
+            "same ell grid as the remapping calculation."
+        )
+    if lmax < 2:
+        return {
+            "lensed_TT": numpy.asarray(tt_spectrum[: lmax + 1], dtype=float),
+            "lensed_TE": numpy.asarray(te_spectrum[: lmax + 1], dtype=float),
+            "lensed_EE": numpy.asarray(ee_spectrum[: lmax + 1], dtype=float),
+            "lensed_BB": numpy.asarray(bb_spectrum[: lmax + 1], dtype=float),
+        }
+    base_cls = numpy.zeros((lmax + 1, 4), dtype=float)
+    base_cls[:, 0] = tt_spectrum[: lmax + 1]
+    base_cls[:, 1] = ee_spectrum[: lmax + 1]
+    base_cls[:, 2] = bb_spectrum[: lmax + 1]
+    base_cls[:, 3] = te_spectrum[: lmax + 1]
+    clpp = _lensing_potential_clpp(
+        numpy.asarray(scaled_spectra["PP"], dtype=float)[: lmax + 1]
     )
-    potential_scale = max(
-        float(numpy.max(numpy.abs(pp_spectrum))),
-        1.0e-30,
+    lensed_cls = _lensed_cls(
+        base_cls,
+        clpp,
+        lmax=lmax,
+        lmax_lensed=lmax,
     )
-    coupling_strength = numpy.clip(
-        2.5 * (potential_scale / radiative_scale) ** 0.2,
-        0.0,
-        0.65,
-    )
-    smoothing_sigma = 1.0 + 6.0 * float(coupling_strength)
-    smoothed_tt = _gaussian_smooth_spectrum(
-        tt_spectrum,
-        sigma=smoothing_sigma,
-    )
-    smoothed_te = _gaussian_smooth_spectrum(
-        te_spectrum,
-        sigma=smoothing_sigma,
-    )
-    smoothed_ee = _gaussian_smooth_spectrum(
-        ee_spectrum,
-        sigma=smoothing_sigma,
-    )
-    ee_leakage = numpy.abs(smoothed_ee - ee_spectrum)
-    lensed_tt = (
-        1.0 - coupling_strength
-    ) * tt_spectrum + coupling_strength * smoothed_tt
-    lensed_te = (
-        1.0 - coupling_strength
-    ) * te_spectrum + coupling_strength * smoothed_te
-    lensed_ee = (
-        1.0 - coupling_strength
-    ) * ee_spectrum + coupling_strength * smoothed_ee
-    lensed_bb = bb_spectrum + (1.5 * coupling_strength * ee_leakage)
     return {
-        "lensed_TT": numpy.asarray(lensed_tt, dtype=float),
-        "lensed_TE": numpy.asarray(lensed_te, dtype=float),
-        "lensed_EE": numpy.asarray(lensed_ee, dtype=float),
-        "lensed_BB": numpy.asarray(lensed_bb, dtype=float),
+        "lensed_TT": numpy.asarray(lensed_cls[:, 0], dtype=float),
+        "lensed_EE": numpy.asarray(lensed_cls[:, 1], dtype=float),
+        "lensed_BB": numpy.asarray(lensed_cls[:, 2], dtype=float),
+        "lensed_TE": numpy.asarray(lensed_cls[:, 3], dtype=float),
     }
 
 
@@ -126,33 +120,32 @@ def _power_spectrum_scale_factor(
 ) -> numpy.ndarray:
     """Return the output scaling applied to one native power spectrum."""
 
-    if spectrum_name in _LENSED_NATIVE_SPECTRA:
-        return ell_factor * (t_cmb_muK * t_cmb_muK)
-    observable_entry = perturbation_data.observables.get(spectrum_name)
-    if (
-        observable_entry is None
-        or observable_entry.kind != "angular_power_spectrum"
-    ):
-        return numpy.ones_like(ell_factor, dtype=float)
-    primary_name = str(observable_entry.primary or "")
-    secondary_name = str(observable_entry.secondary or "")
-    primary_entry = perturbation_data.observables.get(primary_name)
-    secondary_entry = perturbation_data.observables.get(secondary_name)
-    if primary_entry is None or secondary_entry is None:
-        return numpy.ones_like(ell_factor, dtype=float)
-    temperature_like_count = sum(
-        entry.output_role in _TEMPERATURE_LIKE_OUTPUT_ROLES
-        for entry in (primary_entry, secondary_entry)
+    return (
+        numpy.ones_like(ell_factor, dtype=float)
+        * _NATIVE_OUTPUT_SPECTRUM_SCALE
     )
-    potential_count = sum(
-        entry.output_role == "potential"
-        for entry in (primary_entry, secondary_entry)
-    )
-    if temperature_like_count == 2 and potential_count == 0:
-        return ell_factor * (t_cmb_muK * t_cmb_muK)
-    if temperature_like_count == 1 and potential_count == 1:
-        return ell_factor * t_cmb_muK
-    return numpy.ones_like(ell_factor, dtype=float)
+
+
+def _normalize_lensing_input_spectra(
+    spectra_results: Mapping[str, numpy.ndarray],
+) -> dict[str, numpy.ndarray]:
+    """Return the spectra passed into the exact lensing remapper."""
+
+    normalized_spectra = {
+        name: numpy.asarray(values, dtype=float)
+        for name, values in spectra_results.items()
+    }
+    for spectrum_name in ("TT", "TE", "EE", "BB"):
+        if spectrum_name in normalized_spectra:
+            normalized_spectra[spectrum_name] = (
+                normalized_spectra[spectrum_name]
+                * _NATIVE_TEMPERATURE_SPECTRUM_SCALE
+            )
+    if "PP" in normalized_spectra:
+        normalized_spectra["PP"] = (
+            normalized_spectra["PP"] * _NATIVE_LENSING_POTENTIAL_SCALE
+        )
+    return normalized_spectra
 
 
 def _is_structured_camb_contract(
@@ -237,9 +230,24 @@ def _compute_declared_perturbation_spectrum(
         raise ValueError(
             "Native CMB execution requires precompiled perturbation_data."
         )
+    requested_ell_grid = numpy.asarray(tuple(ells), dtype=int)
+    if requested_ell_grid.size == 0:
+        raise ValueError("ells must not be empty")
+    needs_lensing = any(
+        spectrum_name in _LENSED_NATIVE_SPECTRA for spectrum_name in spectra
+    )
+    if needs_lensing:
+        analysis_ell_grid = numpy.arange(
+            int(requested_ell_grid.max()) + 1,
+            dtype=int,
+        )
+        output_indices = requested_ell_grid
+    else:
+        analysis_ell_grid = requested_ell_grid
+        output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
     custom_data = _compute_custom_cmb_spectrum_data(
         contract_or_params,
-        ells,
+        analysis_ell_grid,
         background_provider=background_provider,
     )
     ell_factor = (
@@ -262,10 +270,11 @@ def _compute_declared_perturbation_spectrum(
             scale * raw_values,
             dtype=float,
         )
-    if any(name in _LENSED_NATIVE_SPECTRA for name in requested_spectra):
+    if needs_lensing:
+        lensing_inputs = _normalize_lensing_input_spectra(spectra_results)
         spectra_results.update(
-            _assemble_approximate_lensed_spectra(
-                spectra_results,
+            _assemble_exact_lensed_spectra(
+                lensing_inputs,
                 custom_data.ell_grid,
             )
         )
@@ -276,7 +285,7 @@ def _compute_declared_perturbation_spectrum(
                 f"{spectrum_name} values"
             )
     result = {
-        spec: numpy.asarray(spectra_results[spec], dtype=float)
+        spec: numpy.asarray(spectra_results[spec], dtype=float)[output_indices]
         for spec in requested_spectra
         if spec in spectra_results
     }

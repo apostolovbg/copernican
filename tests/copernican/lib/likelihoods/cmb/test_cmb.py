@@ -2287,6 +2287,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "visibility shift",
             "visibility rescale",
             "_smooth_transition",
+            "_gaussian_smooth_spectrum",
+            "_assemble_approximate_lensed_spectra",
         ):
             self.assertNotIn(needle, source_text)
 
@@ -2614,7 +2616,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_lensed_spectra_change_with_declared_lensing_strength(
         self,
     ) -> None:
-        """Approximate native lensed outputs should respond to PP strength."""
+        """Exact native lensed outputs should respond to PP strength."""
 
         baseline = _speedup_contract(_custom_contract(include_lensing=True))
         changed = _speedup_contract(_custom_contract(include_lensing=True))

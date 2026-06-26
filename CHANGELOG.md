@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-06-26
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,48 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-26:
+  Change: Updated the native LOS source grid to honor refinement
+    multipliers above two and normalized exact curved-sky lensing inputs
+    before remapping.
+  Why: Preserved the source-refinement regression while keeping exact
+    lensing numerically stable.
+  Impact: Updated native TT outputs to vary with higher source-grid
+    multipliers, preserved exact lensed-spectrum remapping, and verified
+    the regression suite remains green.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_lensing.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+
+- 2026-06-25:
+  Change: Replaced the native lensed-spectrum smoother with exact
+    curved-sky remapping, kept the line-of-sight source refinement active
+    above two samples, and updated the scalar acceptance ISW source to use
+    metric-derivative terms.
+  Why: Aligned the native declared-graph CMB solver with the exact
+    lensing path instead of a test-only approximation path while
+    preserving the requested LOS refinement controls.
+  Impact: Updated lensed TT, TE, EE, and BB spectra now flow through the
+    curved-sky remapper, the LOS source grid keeps the declared multiplier,
+    and the regression suite verifies the retired helper names.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_lensing.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
 
 - 2026-06-25:
   Change: Updated the README, ABOUT, AGENTS, mirrored docs, and profile

@@ -1022,6 +1022,66 @@ def _materialize_native_scalar_acceptance_contract(
             "description": "Regularized scalar Poisson denominator.",
         },
     }
+    if sync_gauge:
+        derived_entries.update(
+            {
+                "h_sync_metric_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "h_sync_metric",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": (
+                        "Time derivative of the synchronous trace metric."
+                    ),
+                },
+                "eta_sync_metric_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "eta_sync_metric",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": (
+                        "Time derivative of the synchronous shear metric."
+                    ),
+                },
+            }
+        )
+        derived_entries.update(
+            {
+                "Phi_tau": {
+                    "kind": "expression",
+                    "expression": "0.5 * h_sync_metric_tau",
+                    "description": "Time derivative of the scalar potential.",
+                },
+                "Psi_tau": {
+                    "kind": "expression",
+                    "expression": "0.5 * eta_sync_metric_tau",
+                    "description": (
+                        "Time derivative of the curvature potential."
+                    ),
+                },
+            }
+        )
+    else:
+        derived_entries.update(
+            {
+                "Phi_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "Phi",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": "Time derivative of the scalar potential.",
+                },
+                "Psi_tau": {
+                    "kind": "derivative_symbol",
+                    "variable": "Psi",
+                    "wrt": "tau",
+                    "order": 1,
+                    "description": (
+                        "Time derivative of the curvature potential."
+                    ),
+                },
+            }
+        )
     if has_massive_neutrino:
         derived_entries.update(
             {
@@ -1108,7 +1168,7 @@ def _materialize_native_scalar_acceptance_contract(
             "role": "doppler",
         },
         "temperature_isw": {
-            "expression": "exp(-tau) * (Psi - Phi)",
+            "expression": "exp(-tau) * (Psi_tau - Phi_tau)",
             "role": "isw",
         },
         "polarization_source": {

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-06-26
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -33,6 +33,9 @@ engines, validation manifests, and supporting analysis tools needed for the
 full workflow. It also supports both standard backend CMB contracts and the
 native declared-graph route for custom theories, so the same application can
 handle conventional and extended cosmology models.
+
+The native declared-graph route now materializes scalar hierarchies and
+uses exact curved-sky lensing remapping for lensed spectra.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
