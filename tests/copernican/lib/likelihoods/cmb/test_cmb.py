@@ -889,7 +889,7 @@ def _native_scalar_acceptance_contract(
     include_massive_neutrino: bool = False,
     sum_mnu: float = 0.06,
 ) -> dict[str, object]:
-    """Return a metadata-only scalar native acceptance fixture."""
+    """Return a scalar native acceptance fixture."""
 
     numerics = {
         "ell_min": 20,
@@ -1034,12 +1034,23 @@ def _native_scalar_acceptance_contract(
                     "sector": "scalar",
                     "species": ["photon", "baryon"],
                     "expression": (
-                        "tight_coupling_drag * (theta_b - theta_gamma1)"
+                        "tight_coupling_drag * "
+                        "(theta_b / 3.0 - theta_gamma1)"
                     ),
+                    "counterpart": "baryon_thomson_drag",
                 }
             },
-            "sources": {},
-            "observables": {},
+            "conservation_rules": {
+                "thomson_drag_balance": {
+                    "kind": "absolute_max",
+                    "expression": (
+                        "photon_baryon_momentum_ratio * thomson_drag + "
+                        "baryon_thomson_drag"
+                    ),
+                    "tolerance": 1.0e-12,
+                    "domain": "scalar",
+                }
+            },
             "initial_conditions": {},
             "initial_condition_families": initial_condition_families,
             "boundary_conditions": {},
@@ -1071,6 +1082,8 @@ def _native_scalar_acceptance_contract(
                 "scalar_reference_ells": [20, 60, 120],
                 "runtime_envelope": "bounded",
             },
+            "sources": {},
+            "observables": {},
             "numerics": dict(numerics),
             "validity": {
                 "regimes": ["linear", "native_scalar_acceptance"],
@@ -1099,6 +1112,29 @@ def _strip_perturbations(contract: dict[str, object]) -> dict[str, object]:
 
     stripped = copy.deepcopy(contract)
     stripped.pop("perturbations", None)
+    return stripped
+
+
+def _strip_native_runtime_sections(
+    contract: dict[str, object],
+) -> dict[str, object]:
+    """Return a metadata-only native scalar acceptance contract."""
+
+    stripped = copy.deepcopy(contract)
+    perturbations = stripped.get("perturbations")
+    if isinstance(perturbations, dict):
+        for section_name in (
+            "variables",
+            "derived",
+            "equations",
+            "constraints",
+            "closures",
+            "sources",
+            "observables",
+            "initial_conditions",
+            "boundary_conditions",
+        ):
+            perturbations.pop(section_name, None)
     return stripped
 
 
@@ -3590,7 +3626,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_scalar_acceptance_materializes_generated_hierarchy(
         self,
     ) -> None:
-        """The metadata-only scalar route should compile hierarchy data."""
+        """The native scalar route should compile hierarchy data."""
 
         contract = _prepare_native_contract(
             _native_scalar_acceptance_contract()
@@ -3606,11 +3642,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("TT", perturbation_data.observables)
         self.assertIn("TE", perturbation_data.observables)
         self.assertIn("EE", perturbation_data.observables)
+        self.assertIn("PP", perturbation_data.observables)
+        self.assertIn("TP", perturbation_data.observables)
+        self.assertIn("EP", perturbation_data.observables)
 
     def test_native_scalar_acceptance_materializes_massive_neutrinos(
         self,
     ) -> None:
-        """The metadata-only scalar route should compile massive neutrinos."""
+        """The native scalar route should compile massive neutrinos."""
 
         contract = _prepare_native_contract(
             _native_scalar_acceptance_contract(include_massive_neutrino=True)
@@ -3628,6 +3667,172 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_default",
         )
 
+    def test_native_scalar_acceptance_materializes_massive_neutrino_q_bins(
+        self,
+    ) -> None:
+        """Massive-neutrino q bins should materialize resolved states."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertIn("delta_nu_massive_q0", perturbation_data.variables)
+        self.assertIn("theta_nu_massive_q0", perturbation_data.variables)
+        self.assertIn("sigma_nu_massive_q0", perturbation_data.variables)
+        self.assertIn("nu_massive_q0_l5", perturbation_data.variables)
+
+    def test_native_scalar_acceptance_materializer_uses_q_weights(
+        self,
+    ) -> None:
+        """Generated q bins should keep the physical momentum weights."""
+
+        contract = _prepare_native_contract(
+            _strip_native_runtime_sections(
+                _native_scalar_acceptance_contract(
+                    include_massive_neutrino=True,
+                )
+            )
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertTrue(
+            perturbation_data.manifest_summary["generated_scalar_acceptance"]
+        )
+        self.assertIn(
+            "massive_neutrino_q0_point / "
+            "massive_neutrino_q0_velocity_ratio",
+            perturbation_data.derived[
+                "massive_neutrino_metric_density_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_point * "
+            "massive_neutrino_q0_velocity_ratio",
+            perturbation_data.derived[
+                "massive_neutrino_metric_shear_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_point * "
+            "massive_neutrino_q0_velocity_ratio * "
+            "theta_nu_massive_q0",
+            perturbation_data.derived[
+                "massive_neutrino_metric_momentum_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_metric_momentum",
+            perturbation_data.derived["total_momentum_density"].expression,
+        )
+        self.assertEqual(
+            perturbation_data.derived["baryon_thomson_drag"].expression,
+            "- photon_baryon_momentum_ratio * thomson_drag",
+        )
+        self.assertIn(
+            "thomson_drag_balance",
+            perturbation_data.conservation_rules,
+        )
+        self.assertEqual(
+            perturbation_data.collision_operators["thomson_drag"].counterpart,
+            "baryon_thomson_drag",
+        )
+        self.assertEqual(
+            perturbation_data.conservation_rules[
+                "thomson_drag_balance"
+            ].expression,
+            "photon_baryon_momentum_ratio * thomson_drag + "
+            "baryon_thomson_drag",
+        )
+        self.assertIn(
+            "Phi_tau",
+            perturbation_data.equations["evolve_delta_b"].rhs,
+        )
+        self.assertIn(
+            "baryon_thomson_drag",
+            perturbation_data.equations["evolve_theta_b"].rhs,
+        )
+        self.assertIn(
+            "theta_gamma3",
+            perturbation_data.equations["evolve_theta_gamma2"].rhs,
+        )
+        self.assertIn(
+            "e_gamma3",
+            perturbation_data.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertNotIn(
+            "massive_neutrino_pressure_ratio",
+            perturbation_data.equations["evolve_delta_nu_massive"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_metric_density",
+            perturbation_data.equations["evolve_theta_nu_massive"].rhs,
+        )
+        self.assertNotIn(
+            "massive_neutrino_velocity_ratio",
+            perturbation_data.equations["evolve_theta_nu_massive"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_metric_momentum",
+            perturbation_data.equations["evolve_sigma_nu_massive"].rhs,
+        )
+        self.assertNotIn(
+            "massive_neutrino_velocity_ratio",
+            perturbation_data.equations["evolve_sigma_nu_massive"].rhs,
+        )
+        self.assertIn(
+            "acoustic_k * eta_initial / 6.0",
+            perturbation_data.initial_conditions[
+                "theta_gamma1_seed"
+            ].expression,
+        )
+        self.assertIn(
+            "acoustic_k_sq * eta_initial / 2.0",
+            perturbation_data.initial_conditions["theta_b_seed"].expression,
+        )
+        self.assertIn(
+            "distribution_log_derivative",
+            perturbation_data.initial_conditions[
+                "delta_nu_massive_q0_seed"
+            ].expression,
+        )
+        self.assertIn(
+            "1.0 / (3.0 * acoustic_k * massive_neutrino_q0_velocity_ratio)",
+            perturbation_data.initial_conditions[
+                "theta_nu_massive_q0_seed"
+            ].expression,
+        )
+
+    def test_native_scalar_spectrum_aliases_round_trip(self) -> None:
+        """Declared phiphi, Tphi, and Ephi aliases should round-trip."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_acceptance_contract()
+        )
+        ells = numpy.asarray((20, 40, 60, 90, 120), dtype=int)
+        spectra = cmb.compute_cmb_spectrum_from_contract(
+            contract,
+            ells,
+            spectra=("PP", "phiphi", "TP", "Tphi", "EP", "Ephi"),
+        )
+
+        self.assertEqual(
+            set(spectra),
+            {"PP", "phiphi", "TP", "Tphi", "EP", "Ephi"},
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["PP"], dtype=float),
+            numpy.asarray(spectra["phiphi"], dtype=float),
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["TP"], dtype=float),
+            numpy.asarray(spectra["Tphi"], dtype=float),
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["EP"], dtype=float),
+            numpy.asarray(spectra["Ephi"], dtype=float),
+        )
+
     def test_native_scalar_acceptance_synchronous_matches_newtonian(
         self,
     ) -> None:
@@ -3640,18 +3845,19 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _native_scalar_acceptance_contract(gauge="synchronous")
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        spectra = ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
         baseline = cmb.compute_cmb_spectrum_from_contract(
             newtonian,
             ells,
-            spectra=("TT", "TE", "EE"),
+            spectra=spectra,
         )
         comparison = cmb.compute_cmb_spectrum_from_contract(
             synchronous,
             ells,
-            spectra=("TT", "TE", "EE"),
+            spectra=spectra,
         )
 
-        for spectrum_name in ("TT", "TE", "EE"):
+        for spectrum_name in spectra:
             numpy.testing.assert_allclose(
                 numpy.asarray(comparison[spectrum_name], dtype=float),
                 numpy.asarray(baseline[spectrum_name], dtype=float),
@@ -3804,7 +4010,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
     def test_native_scalar_acceptance_runs_camb_free(self) -> None:
-        """The metadata-only scalar route should stay CAMB-free at runtime."""
+        """The native scalar route should stay CAMB-free at runtime."""
 
         contract = _prepare_native_contract(
             _native_scalar_acceptance_contract()

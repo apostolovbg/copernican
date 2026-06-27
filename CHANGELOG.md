@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-26
+**Last Updated:** 2026-06-27
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,125 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-27:
+  Change: Stabilized the native declared-graph spectrum pipeline with
+    longdouble accumulation and finite output scaling for exact lensed
+    spectra.
+  Why: Aligned the exact remapper with review-size native amplitudes
+    after the previous outputs still overflowed.
+  Impact: Preserved finite native TT, TE, EE, BB, PP, TP, and EP
+    outputs before the exact curved-sky lensing step, extended the
+    remapper to run in extended precision, and preserved the stored
+    dtype for exact array equality checks.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_lensing.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-26:
+  Change: Replaced the remaining heuristic metric-derivative
+    coefficients with momentum-constraint and anisotropic-stress
+    relations, and corrected the photon and polarization quadrupole
+    transport coefficient to 3/5.
+  Why: Closed the last ad hoc scalar-physics constants that still kept
+    the native hierarchy in review-grade approximation territory.
+  Impact: Native scalar materialization now emits physical quadrupole
+    transport and metric derivative terms, with regression coverage
+    pinned to the corrected expressions.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-26:
+  Change: Completed the native scalar physics slice with q-resolved
+    massive-neutrino momentum sources, Thomson-drag counterpart
+    conservation, and spectrum aliases.
+  Why: Closed the remaining review gaps around q-bin moments,
+    collision-operator generativity, and the `phiphi` / `Tphi` /
+    `Ephi` surface.
+  Impact: Native declared CMB outputs now expose the canonical and
+    alias spectrum family while the regression suite checks the final
+    physics wiring.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-06-26:
+  Change: Stabilized the Thomson drag normalization and line-of-sight
+    source refinement in the native scalar acceptance path.
+  Why: Closed the remaining small-k overflow in the CAMB-free runtime
+    and kept the source-grid regression active.
+  Impact: Native scalar acceptance now preserves finite
+    massive-neutrino and CAMB-free spectra while source-grid
+    multipliers still change the TT output.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-06-26:
+  Change: Replaced the remaining scalar-acceptance shortcuts with
+    exact photon and polarization hierarchy terms, q-resolved
+    massive-neutrino moments, and physical initial-condition seeds.
+  Why: Closed the last acceptance-grade continuity, hierarchy, and
+    seed approximations that the review called out.
+  Impact: Native scalar materialization now uses exact photon and
+    polarization sources, exact q-bin log-derivative seeds, and
+    q-resolved massive-neutrino evolution while preserving the focused
+    regression coverage.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-06-26:
+  Change: Expanded the native scalar acceptance graph to drive
+    collision-operator Thomson drag, q-resolved massive-neutrino states,
+    and derivative-based metric sources.
+  Why: Replaced the last acceptance-grade physics shortcuts with
+    declared momentum-bin evolution and algebraic metric derivatives.
+  Impact: Verified the native scalar acceptance amplitude, gauge,
+    massive-neutrino, source-refinement, and exact-lensing tests pass
+    again.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-06-26:
   Change: Updated the native LOS source grid to honor refinement

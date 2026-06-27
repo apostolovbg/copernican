@@ -364,6 +364,28 @@ def _scalar_acceptance_massive_neutrino_name(moment: int) -> str:
     return f"nu_massive_l{int(moment)}"
 
 
+def _scalar_acceptance_massive_neutrino_q_name(
+    index: int,
+    moment: int,
+) -> str:
+    """Return the q-resolved massive-neutrino variable name."""
+
+    q_index = int(index)
+    if moment == 0:
+        return f"delta_nu_massive_q{q_index}"
+    if moment == 1:
+        return f"theta_nu_massive_q{q_index}"
+    if moment == 2:
+        return f"sigma_nu_massive_q{q_index}"
+    return f"nu_massive_q{q_index}_l{int(moment)}"
+
+
+def _scalar_acceptance_distribution_log_derivative_name(index: int) -> str:
+    """Return the thermal momentum-distribution log-derivative name."""
+
+    return f"massive_neutrino_q{int(index)}_distribution_log_derivative"
+
+
 def _select_standard_initial_mode(
     family_defs: Mapping[str, Any],
 ) -> str | None:
@@ -380,7 +402,10 @@ def _scalar_acceptance_base_seed_expressions(
 ) -> dict[str, str]:
     """Return base seed expressions for one scalar acceptance mode."""
 
-    adiabatic_velocity = "(acoustic_k * eta_initial / 6.0) * seed"
+    adiabatic_brightness_dipole = "(acoustic_k * eta_initial / 6.0) * seed"
+    adiabatic_velocity_divergence = (
+        "(acoustic_k_sq * eta_initial / 2.0) * seed"
+    )
     adiabatic_quadrupole = (
         "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) "
         "* seed / 30.0"
@@ -392,18 +417,20 @@ def _scalar_acceptance_base_seed_expressions(
     by_mode = {
         "adiabatic_scalar": {
             "theta_gamma0": "-0.5 * seed",
-            "theta_gamma1": adiabatic_velocity,
+            "theta_gamma1": adiabatic_brightness_dipole,
             "theta_gamma2": adiabatic_quadrupole,
+            "e_gamma0": "0.0",
+            "e_gamma1": "0.0",
             "e_gamma2": "0.0",
             "delta_b": "-1.5 * seed",
-            "theta_b": adiabatic_velocity,
+            "theta_b": adiabatic_velocity_divergence,
             "delta_c": "-1.5 * seed",
-            "theta_c": adiabatic_velocity,
+            "theta_c": adiabatic_velocity_divergence,
             "delta_nu": "-2.0 * seed",
-            "theta_nu": adiabatic_velocity,
+            "theta_nu": adiabatic_velocity_divergence,
             "sigma_nu": adiabatic_neutrino_quadrupole,
             "delta_nu_massive": "-2.0 * seed",
-            "theta_nu_massive": adiabatic_velocity,
+            "theta_nu_massive": adiabatic_velocity_divergence,
             "sigma_nu_massive": adiabatic_neutrino_quadrupole,
         },
         "baryon_isocurvature": {
@@ -462,23 +489,22 @@ def _scalar_acceptance_recurrence_rhs(
     moment: int,
     previous_name: str,
     next_name: str | None,
-    damping: float,
-    drag_factor: float | None = None,
+    collision_term: str | None = None,
 ) -> str:
     """Return one hierarchy recurrence RHS for the generated scalar route."""
 
     previous_coeff = float(moment) / float((2 * moment) + 1)
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        pieces.append(f"- 0.12 * acoustic_k * {name}")
+        pieces.append(
+            f"- {float(moment + 1):.16g} / {float((2 * moment) + 1):.16g} "
+            f"* acoustic_k * {name}"
+        )
     else:
         next_coeff = float(moment + 1) / float((2 * moment) + 1)
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
-    if drag_factor is not None:
-        pieces.append(
-            f"- {float(drag_factor):.16g} * tight_coupling_drag * {name}"
-        )
-    pieces.append(f"- {float(damping):.16g} * {name}")
+    if collision_term is not None:
+        pieces.append(collision_term)
     return " ".join(pieces)
 
 
@@ -572,7 +598,26 @@ def _materialize_native_scalar_acceptance_contract(
             )
         ),
     )
-
+    massive_neutrino_grid_count = 0
+    if has_massive_neutrino:
+        momentum_grid_name = str(
+            hierarchy_families.get("massive_neutrino", {}).get(
+                "momentum_grid",
+                "",
+            )
+        ).strip()
+        momentum_grid_defs = numerics.get("momentum_grids", {}) or {}
+        if (
+            momentum_grid_name
+            and isinstance(momentum_grid_defs, Mapping)
+            and momentum_grid_name in momentum_grid_defs
+        ):
+            momentum_grid_def = momentum_grid_defs.get(momentum_grid_name, {})
+            if isinstance(momentum_grid_def, Mapping):
+                massive_neutrino_grid_count = max(
+                    1,
+                    int(momentum_grid_def.get("count", 1)),
+                )
     materialized = copy.deepcopy(dict(contract))
     if sync_gauge:
         phi_state_name = "h_sync_metric"
@@ -645,8 +690,12 @@ def _materialize_native_scalar_acceptance_contract(
             "kind": kind,
             "tensor_character": "scalar_like",
         }
-    for moment in range(2, photon_l_max + 1):
-        if moment == 2:
+    for moment in range(photon_l_max + 1):
+        if moment == 0:
+            kind = "photon_polarization_monopole"
+        elif moment == 1:
+            kind = "photon_polarization_dipole"
+        elif moment == 2:
             kind = "photon_polarization_quadrupole"
         elif moment == 3:
             kind = "photon_polarization_octopole"
@@ -656,6 +705,10 @@ def _materialize_native_scalar_acceptance_contract(
             "kind": kind,
             "tensor_character": "scalar_like",
         }
+    variables["polarization_b_mode_seed"] = {
+        "kind": "polarization_b_seed",
+        "projection_role": "b_mode",
+    }
     for moment in range(3, neutrino_l_max + 1):
         variables[_scalar_acceptance_neutrino_name(moment)] = {
             "kind": "massless_neutrino_multipole",
@@ -667,6 +720,28 @@ def _materialize_native_scalar_acceptance_contract(
                 "kind": "massive_neutrino_multipole",
                 "tensor_character": "scalar_like",
             }
+        for q_index in range(massive_neutrino_grid_count):
+            for moment in range(massive_neutrino_l_max + 1):
+                q_name = _scalar_acceptance_massive_neutrino_q_name(
+                    q_index,
+                    moment,
+                )
+                if moment == 0:
+                    kind = "massive_neutrino_momentum_bin_density_contrast"
+                elif moment == 1:
+                    kind = (
+                        "massive_neutrino_momentum_bin_" "velocity_divergence"
+                    )
+                elif moment == 2:
+                    kind = (
+                        "massive_neutrino_momentum_bin_" "anisotropic_stress"
+                    )
+                else:
+                    kind = "massive_neutrino_momentum_bin_multipole"
+                variables[q_name] = {
+                    "kind": kind,
+                    "tensor_character": "scalar_like",
+                }
 
     equations: dict[str, Any] = {
         "evolve_theta_gamma0": {
@@ -676,7 +751,7 @@ def _materialize_native_scalar_acceptance_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": ("-acoustic_k * theta_gamma1 + (acoustic_k * Psi) / 3.0"),
+            "rhs": "-acoustic_k * theta_gamma1 - Phi_tau",
             "role": "continuity",
         },
         "evolve_theta_gamma1": {
@@ -687,10 +762,9 @@ def _materialize_native_scalar_acceptance_contract(
                 "order": 1,
             },
             "rhs": (
-                "acoustic_k * (theta_gamma0 + Psi - 0.4 * theta_gamma2) "
-                "+ 0.25 * tight_coupling_drag * "
-                "(theta_b / 3.0 - theta_gamma1)"
-                " - 0.02 * theta_gamma1"
+                "(acoustic_k / 3.0) * "
+                "(theta_gamma0 - 2.0 * theta_gamma2 + Psi) "
+                "+ thomson_drag"
             ),
             "role": "euler",
         },
@@ -702,14 +776,39 @@ def _materialize_native_scalar_acceptance_contract(
                 "order": 1,
             },
             "rhs": (
-                "0.4 * acoustic_k * theta_gamma1 "
-                f"- {3.0 / 7.0:.16g} * acoustic_k * "
+                f"{2.0 / 5.0:.16g} * acoustic_k * theta_gamma1 "
+                f"- {3.0 / 5.0:.16g} * acoustic_k * "
                 f"{_scalar_acceptance_temperature_name(3)} "
-                "- 0.2 * tight_coupling_drag * "
-                "(0.9 * theta_gamma2 - 0.1 * e_gamma2)"
-                " - 0.03 * theta_gamma2"
+                "- tight_coupling_drag * "
+                "(theta_gamma2 - 0.1 * polarization_moment)"
             ),
             "role": "hierarchy",
+        },
+        "evolve_e_gamma0": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma0",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-acoustic_k * e_gamma1 - tight_coupling_drag * "
+                "(e_gamma0 - 0.5 * polarization_moment)"
+            ),
+            "role": "polarization",
+        },
+        "evolve_e_gamma1": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma1",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "(acoustic_k / 3.0) * (e_gamma0 - 2.0 * e_gamma2) "
+                "- tight_coupling_drag * e_gamma1"
+            ),
+            "role": "polarization",
         },
         "evolve_e_gamma2": {
             "lhs": {
@@ -719,13 +818,22 @@ def _materialize_native_scalar_acceptance_contract(
                 "order": 1,
             },
             "rhs": (
-                f"{3.0 / 7.0:.16g} * acoustic_k * "
+                f"{3.0 / 5.0:.16g} * acoustic_k * "
                 f"{_scalar_acceptance_polarization_name(3)} "
-                "- 0.2 * tight_coupling_drag * "
-                "(0.9 * e_gamma2 - 0.1 * theta_gamma2)"
-                " - 0.03 * e_gamma2"
+                "- tight_coupling_drag * "
+                "(e_gamma2 - 0.1 * polarization_moment)"
             ),
             "role": "polarization",
+        },
+        "evolve_polarization_b_mode_seed": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "polarization_b_mode_seed",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "polarization_b",
         },
         "evolve_delta_b": {
             "lhs": {
@@ -734,7 +842,7 @@ def _materialize_native_scalar_acceptance_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-theta_b - 0.5 * acoustic_k * Psi",
+            "rhs": "-theta_b + 3.0 * Phi_tau",
             "role": "continuity",
         },
         "evolve_theta_b": {
@@ -745,10 +853,10 @@ def _materialize_native_scalar_acceptance_contract(
                 "order": 1,
             },
             "rhs": (
-                "-Hconf * theta_b + 0.25 * acoustic_k_sq * sound_speed_sq * "
+                "-Hconf * theta_b + acoustic_k_sq * sound_speed_sq * "
                 "delta_b "
-                "+ 0.25 * tight_coupling_drag * (3.0 * theta_gamma1 - "
-                "theta_b) + acoustic_k_sq * Psi"
+                "+ baryon_thomson_drag "
+                "+ acoustic_k_sq * Psi"
             ),
             "role": "euler",
         },
@@ -759,7 +867,7 @@ def _materialize_native_scalar_acceptance_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-theta_c - 0.5 * acoustic_k * Psi",
+            "rhs": "-theta_c + 3.0 * Phi_tau",
             "role": "continuity",
         },
         "evolve_theta_c": {
@@ -779,7 +887,7 @@ def _materialize_native_scalar_acceptance_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-1.3333333333333333 * theta_nu",
+            "rhs": "-(4.0 / 3.0) * theta_nu + 4.0 * Phi_tau",
             "role": "continuity",
         },
         "evolve_theta_nu": {
@@ -789,7 +897,7 @@ def _materialize_native_scalar_acceptance_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)",
+            "rhs": ("acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)"),
             "role": "euler",
         },
         "evolve_sigma_nu": {
@@ -802,8 +910,7 @@ def _materialize_native_scalar_acceptance_contract(
             "rhs": (
                 f"{4.0 / 15.0:.16g} * theta_nu "
                 f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                f"{_scalar_acceptance_neutrino_name(3)} "
-                "- 0.02 * sigma_nu"
+                f"{_scalar_acceptance_neutrino_name(3)}"
             ),
             "role": "hierarchy",
         },
@@ -825,8 +932,7 @@ def _materialize_native_scalar_acceptance_contract(
                 moment=moment,
                 previous_name=_scalar_acceptance_temperature_name(moment - 1),
                 next_name=next_name,
-                damping=0.03,
-                drag_factor=0.05,
+                collision_term=f"- tight_coupling_drag * {name}",
             ),
             "role": "hierarchy",
         }
@@ -852,8 +958,7 @@ def _materialize_native_scalar_acceptance_contract(
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
-                damping=0.03,
-                drag_factor=0.05,
+                collision_term=f"- tight_coupling_drag * {name}",
             ),
             "role": "polarization",
         }
@@ -879,11 +984,10 @@ def _materialize_native_scalar_acceptance_contract(
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
-                damping=0.02,
             ),
             "role": "hierarchy",
         }
-    if has_massive_neutrino:
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
         equations.update(
             {
                 "evolve_delta_nu_massive": {
@@ -893,10 +997,7 @@ def _materialize_native_scalar_acceptance_contract(
                         "wrt": "tau",
                         "order": 1,
                     },
-                    "rhs": (
-                        "-(1.0 + 0.2 * massive_neutrino_pressure_ratio) * "
-                        "theta_nu_massive"
-                    ),
+                    "rhs": "-theta_nu_massive + 3.0 * Phi_tau",
                     "role": "continuity",
                 },
                 "evolve_theta_nu_massive": {
@@ -907,12 +1008,9 @@ def _materialize_native_scalar_acceptance_contract(
                         "order": 1,
                     },
                     "rhs": (
-                        "acoustic_k_sq * ("
-                        "0.25 * delta_nu_massive + Psi - "
-                        "(0.5 + 0.5 * massive_neutrino_velocity_ratio) * "
-                        "sigma_nu_massive) "
-                        "- 0.04 * (1.0 - massive_neutrino_velocity_ratio) * "
-                        "theta_nu_massive"
+                        "acoustic_k_sq * (0.25 * "
+                        "massive_neutrino_metric_density + "
+                        "Psi - massive_neutrino_metric_shear)"
                     ),
                     "role": "euler",
                 },
@@ -925,12 +1023,9 @@ def _materialize_native_scalar_acceptance_contract(
                     },
                     "rhs": (
                         f"{4.0 / 15.0:.16g} * "
-                        "massive_neutrino_velocity_ratio * "
-                        "theta_nu_massive "
+                        "massive_neutrino_metric_momentum "
                         f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                        f"{_scalar_acceptance_massive_neutrino_name(3)} "
-                        "- 0.02 * (1.0 + massive_neutrino_mass_fraction) * "
-                        "sigma_nu_massive"
+                        f"{_scalar_acceptance_massive_neutrino_name(3)}"
                     ),
                     "role": "hierarchy",
                 },
@@ -949,10 +1044,13 @@ def _materialize_native_scalar_acceptance_contract(
                 else _scalar_acceptance_massive_neutrino_name(moment - 1)
             )
             previous_coeff = float(moment) / float((2 * moment) + 1)
+            next_coeff = float(moment + 1) / float((2 * moment) + 1)
             if next_name is None:
-                next_term = f"- 0.12 * acoustic_k * {name}"
+                next_term = (
+                    f"- {next_coeff:.16g} * acoustic_k * "
+                    f"massive_neutrino_velocity_ratio * {name}"
+                )
             else:
-                next_coeff = float(moment + 1) / float((2 * moment) + 1)
                 next_term = (
                     f"- {next_coeff:.16g} * acoustic_k * "
                     f"massive_neutrino_velocity_ratio * {next_name}"
@@ -967,12 +1065,120 @@ def _materialize_native_scalar_acceptance_contract(
                 "rhs": (
                     f"{previous_coeff:.16g} * acoustic_k * "
                     f"massive_neutrino_velocity_ratio * {previous_name} "
-                    f"{next_term} "
-                    "- 0.02 * (1.0 + massive_neutrino_mass_fraction) * "
-                    f"{name}"
+                    f"{next_term}"
                 ),
                 "role": "hierarchy",
             }
+        for q_index in range(massive_neutrino_grid_count):
+            q_velocity_name = f"massive_neutrino_q{q_index}_velocity_ratio"
+            q_log_derivative_name = (
+                _scalar_acceptance_distribution_log_derivative_name(q_index)
+            )
+            q_delta_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                0,
+            )
+            q_theta_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                1,
+            )
+            q_sigma_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                2,
+            )
+            q_l3_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                3,
+            )
+            equations[f"evolve_{q_delta_name}"] = {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": q_delta_name,
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    f"-acoustic_k * {q_velocity_name} * {q_theta_name} "
+                    f"- Phi_tau * {q_log_derivative_name}"
+                ),
+                "role": "continuity",
+            }
+            equations[f"evolve_{q_theta_name}"] = {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": q_theta_name,
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    f"(acoustic_k / 3.0) * {q_velocity_name} * "
+                    f"({q_delta_name} - 2.0 * {q_sigma_name}) - "
+                    f"(acoustic_k / 3.0) * "
+                    f"(1.0 / {q_velocity_name}) * Psi * "
+                    f"{q_log_derivative_name}"
+                ),
+                "role": "euler",
+            }
+            equations[f"evolve_{q_sigma_name}"] = {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": q_sigma_name,
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    f"{2.0 / 5.0:.16g} * acoustic_k * "
+                    f"{q_velocity_name} * {q_theta_name} "
+                    f"- {3.0 / 5.0:.16g} * acoustic_k * "
+                    f"{q_velocity_name} * {q_l3_name}"
+                ),
+                "role": "hierarchy",
+            }
+            for moment in range(3, massive_neutrino_l_max + 1):
+                name = _scalar_acceptance_massive_neutrino_q_name(
+                    q_index,
+                    moment,
+                )
+                next_name = None
+                if moment < massive_neutrino_l_max:
+                    next_name = _scalar_acceptance_massive_neutrino_q_name(
+                        q_index,
+                        moment + 1,
+                    )
+                previous_name = (
+                    q_sigma_name
+                    if moment == 3
+                    else _scalar_acceptance_massive_neutrino_q_name(
+                        q_index,
+                        moment - 1,
+                    )
+                )
+                previous_coeff = float(moment) / float((2 * moment) + 1)
+                next_coeff = float(moment + 1) / float((2 * moment) + 1)
+                if next_name is None:
+                    next_term = (
+                        f"- {next_coeff:.16g} * acoustic_k * "
+                        f"{q_velocity_name} * {name}"
+                    )
+                else:
+                    next_term = (
+                        f"- {next_coeff:.16g} * acoustic_k * "
+                        f"{q_velocity_name} * {next_name}"
+                    )
+                equations[f"evolve_{name}"] = {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": name,
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": (
+                        f"{previous_coeff:.16g} * acoustic_k * "
+                        f"{q_velocity_name} * {previous_name} "
+                        f"{next_term}"
+                    ),
+                    "role": "hierarchy",
+                }
 
     materialized["variables"] = variables
     massless_fraction_expression = (
@@ -983,16 +1189,22 @@ def _materialize_native_scalar_acceptance_contract(
         "massless_neutrino_fraction * delta_nu"
     )
     total_neutrino_shear_expression = "massless_neutrino_fraction * sigma_nu"
-    if has_massive_neutrino:
+    total_momentum_expression = (
+        "Omega_b0 * theta_b + Omega_c0 * theta_c + "
+        "4.0 * Omega_gamma0 * theta_gamma1 + "
+        "massless_neutrino_fraction * theta_nu"
+    )
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
         total_radiation_expression += " + massive_neutrino_metric_density"
         total_neutrino_shear_expression += " + massive_neutrino_metric_shear"
+        total_momentum_expression += " + massive_neutrino_metric_momentum"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
-            "expression": "theta_gamma2 + e_gamma2",
-            "description": "Quadrupole source for scalar polarization.",
+            "expression": "theta_gamma2 + e_gamma0 + e_gamma2",
+            "description": "Scalar polarization source moment.",
         },
         "acoustic_k": {
-            "expression": "2.0 * k",
+            "expression": "k",
             "description": "Shifted scalar acoustic wave number.",
         },
         "acoustic_k_sq": {
@@ -1015,74 +1227,114 @@ def _materialize_native_scalar_acceptance_contract(
             "expression": total_neutrino_shear_expression,
             "description": "Neutrino shear source for metric closure.",
         },
+        "total_momentum_density": {
+            "expression": total_momentum_expression,
+            "description": "Momentum source for the scalar metric.",
+        },
         "metric_denominator": {
-            "expression": (
-                "0.25 + 0.5 * (k * sound_horizon) * (k * sound_horizon)"
-            ),
+            "expression": ("1.0 + k * k * sound_horizon * sound_horizon"),
             "description": "Regularized scalar Poisson denominator.",
         },
+        "photon_baryon_momentum_ratio": {
+            "expression": "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
+            "description": "Photon-to-baryon momentum-transfer ratio.",
+        },
+        "baryon_thomson_drag": {
+            "expression": "- photon_baryon_momentum_ratio * thomson_drag",
+            "description": "Baryon-side Thomson drag counterpart.",
+        },
     }
-    if sync_gauge:
-        derived_entries.update(
-            {
-                "h_sync_metric_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "h_sync_metric",
-                    "wrt": "tau",
-                    "order": 1,
-                    "description": (
-                        "Time derivative of the synchronous trace metric."
-                    ),
-                },
-                "eta_sync_metric_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "eta_sync_metric",
-                    "wrt": "tau",
-                    "order": 1,
-                    "description": (
-                        "Time derivative of the synchronous shear metric."
-                    ),
-                },
+    derived_entries.update(
+        {
+            "Phi_tau": {
+                "kind": "metric_potential_time_derivative",
+                "expression": (
+                    "-0.45 * Hconf * Psi + "
+                    "0.15 * total_momentum_density / metric_denominator"
+                ),
+                "description": (
+                    "Momentum-constraint relation for the scalar "
+                    "potential time derivative."
+                ),
+            },
+            "Psi_tau": {
+                "kind": "metric_potential_time_derivative",
+                "expression": (
+                    "-0.30 * Hconf * Psi + "
+                    "0.05 * total_neutrino_shear / metric_denominator"
+                ),
+                "description": (
+                    "Anisotropic-stress relation for the curvature "
+                    "potential time derivative."
+                ),
+            },
+        }
+    )
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
+        q_density_component_names = []
+        q_momentum_component_names = []
+        q_shear_component_names = []
+        for q_index in range(massive_neutrino_grid_count):
+            q_prefix = f"massive_neutrino_q{q_index}"
+            q_density_name = f"massive_neutrino_metric_density_q{q_index}"
+            q_momentum_name = f"massive_neutrino_metric_momentum_q{q_index}"
+            q_shear_name = f"massive_neutrino_metric_shear_q{q_index}"
+            q_log_derivative_name = (
+                _scalar_acceptance_distribution_log_derivative_name(q_index)
+            )
+            q_density_component_names.append(q_density_name)
+            q_momentum_component_names.append(q_momentum_name)
+            q_shear_component_names.append(q_shear_name)
+            derived_entries[q_log_derivative_name] = {
+                "expression": (
+                    f"-{q_prefix}_point / (1.0 + exp(-{q_prefix}_point))"
+                ),
+                "description": (
+                    "Logarithmic derivative of the thermal distribution."
+                ),
             }
-        )
-        derived_entries.update(
-            {
-                "Phi_tau": {
-                    "kind": "expression",
-                    "expression": "0.5 * h_sync_metric_tau",
-                    "description": "Time derivative of the scalar potential.",
-                },
-                "Psi_tau": {
-                    "kind": "expression",
-                    "expression": "0.5 * eta_sync_metric_tau",
-                    "description": (
-                        "Time derivative of the curvature potential."
-                    ),
-                },
+            derived_entries[q_density_name] = {
+                "expression": (
+                    "massive_neutrino_fraction * "
+                    f"{q_prefix}_weight * ({q_prefix}_point / "
+                    f"{q_prefix}_velocity_ratio) * "
+                    f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 0)}"
+                ),
+                "description": (
+                    "Momentum-grid-weighted massive-neutrino density bin."
+                ),
             }
-        )
-    else:
-        derived_entries.update(
-            {
-                "Phi_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "Phi",
-                    "wrt": "tau",
-                    "order": 1,
-                    "description": "Time derivative of the scalar potential.",
-                },
-                "Psi_tau": {
-                    "kind": "derivative_symbol",
-                    "variable": "Psi",
-                    "wrt": "tau",
-                    "order": 1,
-                    "description": (
-                        "Time derivative of the curvature potential."
-                    ),
-                },
+            derived_entries[q_momentum_name] = {
+                "expression": (
+                    "massive_neutrino_fraction * "
+                    f"{q_prefix}_weight * {q_prefix}_point * "
+                    f"{q_prefix}_velocity_ratio * "
+                    f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 1)}"
+                ),
+                "description": (
+                    "Momentum-grid-weighted massive-neutrino momentum bin."
+                ),
             }
-        )
-    if has_massive_neutrino:
+            derived_entries[q_shear_name] = {
+                "expression": (
+                    "massive_neutrino_fraction * "
+                    f"{q_prefix}_weight * {q_prefix}_point * "
+                    f"{q_prefix}_velocity_ratio * "
+                    f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 2)}"
+                ),
+                "description": (
+                    "Momentum-grid-weighted massive-neutrino shear bin."
+                ),
+            }
+        density_sum_expression = " + ".join(q_density_component_names)
+        momentum_sum_expression = " + ".join(q_momentum_component_names)
+        shear_sum_expression = " + ".join(q_shear_component_names)
+        if len(q_density_component_names) > 1:
+            density_sum_expression = f"({density_sum_expression})"
+        if len(q_momentum_component_names) > 1:
+            momentum_sum_expression = f"({momentum_sum_expression})"
+        if len(q_shear_component_names) > 1:
+            shear_sum_expression = f"({shear_sum_expression})"
         derived_entries.update(
             {
                 "massive_neutrino_fraction": {
@@ -1090,21 +1342,19 @@ def _materialize_native_scalar_acceptance_contract(
                     "description": "Massive-neutrino metric weight.",
                 },
                 "massive_neutrino_metric_density": {
-                    "expression": (
-                        "massive_neutrino_fraction * "
-                        "(0.6 + 0.4 * massive_neutrino_mass_fraction) * "
-                        "delta_nu_massive"
-                    ),
+                    "expression": density_sum_expression,
                     "description": (
                         "Momentum-grid-weighted massive-neutrino density."
                     ),
                 },
-                "massive_neutrino_metric_shear": {
-                    "expression": (
-                        "massive_neutrino_fraction * "
-                        "(0.5 + 0.5 * massive_neutrino_velocity_ratio) * "
-                        "sigma_nu_massive"
+                "massive_neutrino_metric_momentum": {
+                    "expression": momentum_sum_expression,
+                    "description": (
+                        "Momentum-grid-weighted massive-neutrino momentum."
                     ),
+                },
+                "massive_neutrino_metric_shear": {
+                    "expression": shear_sum_expression,
                     "description": (
                         "Momentum-grid-weighted massive-neutrino shear."
                     ),
@@ -1127,11 +1377,11 @@ def _materialize_native_scalar_acceptance_contract(
     materialized["derived"] = derived_entries
     materialized["equations"] = equations
     phi_constraint_expression = (
-        "-0.45 * (total_matter_density + total_radiation_density) "
+        "-1.5 * (total_matter_density + total_radiation_density) "
         "/ metric_denominator"
     )
     psi_closure_expression = (
-        "Phi - 0.15 * total_neutrino_shear / metric_denominator"
+        "Phi - 3.0 * total_neutrino_shear / metric_denominator"
     )
     materialized["constraints"] = {
         "phi_constraint": {
@@ -1175,6 +1425,14 @@ def _materialize_native_scalar_acceptance_contract(
             "expression": "0.75 * visibility * polarization_moment",
             "role": "polarization",
         },
+        "polarization_b_source": {
+            "expression": "polarization_b_mode_seed",
+            "role": "polarization_b",
+        },
+        "lensing_potential": {
+            "expression": "exp(-tau) * (Phi + Psi)",
+            "role": "potential",
+        },
     }
     materialized["observables"] = {
         "temperature": {
@@ -1191,6 +1449,20 @@ def _materialize_native_scalar_acceptance_contract(
             "projection": "line_of_sight_polarization_e",
             "source_terms": {"polarization": "polarization_source"},
         },
+        "polarization_b": {
+            "kind": "transfer_component",
+            "projection": "spin2_b_mode",
+            "source_terms": {
+                "polarization_b": "polarization_b_source",
+            },
+        },
+        "lensing_potential": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_lensing_potential",
+            "source_terms": {
+                "potential": "lensing_potential",
+            },
+        },
         "TT": {
             "kind": "angular_power_spectrum",
             "primary": "temperature",
@@ -1205,6 +1477,26 @@ def _materialize_native_scalar_acceptance_contract(
             "kind": "angular_power_spectrum",
             "primary": "polarization_e",
             "secondary": "polarization_e",
+        },
+        "BB": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_b",
+            "secondary": "polarization_b",
+        },
+        "PP": {
+            "kind": "angular_power_spectrum",
+            "primary": "lensing_potential",
+            "secondary": "lensing_potential",
+        },
+        "TP": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "lensing_potential",
+        },
+        "EP": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_e",
+            "secondary": "lensing_potential",
         },
     }
     initial_conditions: dict[str, Any] = {}
@@ -1225,7 +1517,10 @@ def _materialize_native_scalar_acceptance_contract(
         "theta_gamma0",
         "theta_gamma1",
         "theta_gamma2",
+        "e_gamma0",
+        "e_gamma1",
         "e_gamma2",
+        "polarization_b_mode_seed",
         "delta_b",
         "theta_b",
         "delta_c",
@@ -1294,7 +1589,7 @@ def _materialize_native_scalar_acceptance_contract(
             },
             "expression": "0.0",
         }
-    if has_massive_neutrino:
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
         for moment in range(3, massive_neutrino_l_max + 1):
             initial_conditions[
                 f"{_scalar_acceptance_massive_neutrino_name(moment)}_seed"
@@ -1308,6 +1603,74 @@ def _materialize_native_scalar_acceptance_contract(
                 },
                 "expression": "0.0",
             }
+        q_base_seed_expressions = _scalar_acceptance_base_seed_expressions(
+            initial_mode
+        )
+        q_delta_seed = q_base_seed_expressions.get("delta_nu_massive", "0.0")
+        q_theta_seed = q_base_seed_expressions.get("theta_nu_massive", "0.0")
+        q_sigma_seed = q_base_seed_expressions.get("sigma_nu_massive", "0.0")
+        for q_index in range(massive_neutrino_grid_count):
+            q_prefix = f"massive_neutrino_q{q_index}"
+            q_velocity_name = f"{q_prefix}_velocity_ratio"
+            q_log_derivative_name = (
+                _scalar_acceptance_distribution_log_derivative_name(q_index)
+            )
+            q_delta_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                0,
+            )
+            q_theta_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                1,
+            )
+            q_sigma_name = _scalar_acceptance_massive_neutrino_q_name(
+                q_index,
+                2,
+            )
+            initial_conditions[f"{q_delta_name}_seed"] = {
+                "target": {
+                    "variable": q_delta_name,
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": (
+                    f"-0.25 * ({q_delta_seed}) * {q_log_derivative_name}"
+                ),
+            }
+            initial_conditions[f"{q_theta_name}_seed"] = {
+                "target": {
+                    "variable": q_theta_name,
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": (
+                    f"- (1.0 / (3.0 * acoustic_k * {q_velocity_name})) * "
+                    f"({q_theta_seed}) * {q_log_derivative_name}"
+                ),
+            }
+            initial_conditions[f"{q_sigma_name}_seed"] = {
+                "target": {
+                    "variable": q_sigma_name,
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": (
+                    f"-0.5 * ({q_sigma_seed}) * {q_log_derivative_name}"
+                ),
+            }
+            for moment in range(3, massive_neutrino_l_max + 1):
+                q_name = _scalar_acceptance_massive_neutrino_q_name(
+                    q_index,
+                    moment,
+                )
+                initial_conditions[f"{q_name}_seed"] = {
+                    "target": {
+                        "variable": q_name,
+                        "wrt": "tau",
+                        "order": 0,
+                    },
+                    "expression": "0.0",
+                }
     materialized["initial_conditions"] = initial_conditions
     family_entries = copy.deepcopy(dict(initial_condition_families))
     if initial_mode in family_entries:
@@ -3359,6 +3722,30 @@ def compile_perturbation_contract(
         str(name) for name in sections["collision_operators"]
     )
     allowed_name_pool.update(str(name) for name in sections["interactions"])
+    momentum_grid_defs = sections["numerics"].get("momentum_grids", {})
+    if isinstance(momentum_grid_defs, Mapping):
+        for family_name, family_def in sections["hierarchy_families"].items():
+            if not isinstance(family_def, Mapping):
+                continue
+            momentum_grid_name = family_def.get("momentum_grid")
+            if not momentum_grid_name:
+                continue
+            grid_def = momentum_grid_defs.get(str(momentum_grid_name), {})
+            if not isinstance(grid_def, Mapping):
+                continue
+            grid_count = max(0, int(grid_def.get("count", 0)))
+            for index in range(grid_count):
+                for suffix in (
+                    "point",
+                    "weight",
+                    "velocity_ratio",
+                    "pressure_ratio",
+                    "mass_fraction",
+                ):
+                    allowed_name_pool.add(f"{family_name}_q{index}_{suffix}")
+                    allowed_name_pool.add(
+                        f"momentum_grid_{momentum_grid_name}_q{index}_{suffix}"
+                    )
 
     derived_entries: dict[str, PerturbationDerivedData] = {}
     declared_derived_names = {str(name) for name in sections["derived"]}

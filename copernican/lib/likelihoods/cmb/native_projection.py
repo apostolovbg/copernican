@@ -51,6 +51,29 @@ from .native_evolution import (
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 
 
+def _integrate_power_spectrum(
+    primordial_grid: numpy.ndarray,
+    log_k_values: numpy.ndarray,
+    primary: numpy.ndarray,
+    secondary: numpy.ndarray,
+) -> numpy.ndarray:
+    """Return one finite power-spectrum quadrature in extended precision."""
+
+    primordial_ld = numpy.asarray(primordial_grid, dtype=numpy.longdouble)
+    log_k_ld = numpy.asarray(log_k_values, dtype=numpy.longdouble)
+    primary_ld = numpy.asarray(primary, dtype=numpy.longdouble)
+    secondary_ld = numpy.asarray(secondary, dtype=numpy.longdouble)
+    weighted = primordial_ld[numpy.newaxis, :] * (primary_ld * secondary_ld)
+    integrated = (
+        4.0
+        * numpy.longdouble(math.pi)
+        * numpy.trapz(weighted, log_k_ld, axis=1)
+    )
+    # Keep the raw spectrum in extended precision until the public solver
+    # applies its output scaling and final float conversion.
+    return numpy.asarray(integrated, dtype=numpy.longdouble)
+
+
 def _declared_graph_projection(
     *,
     projection: str,
@@ -191,7 +214,7 @@ def _refine_eta_grid(
 
     if refinement <= 1 or eta_grid.size < 2:
         return numpy.asarray(eta_grid, dtype=float)
-    subdivisions = 2 ** max(refinement - 1, 0)
+    subdivisions = max(1, int(refinement))
     left_edges = eta_grid[:-1, numpy.newaxis]
     step_sizes = numpy.diff(eta_grid)[:, numpy.newaxis] / float(subdivisions)
     offsets = numpy.arange(subdivisions, dtype=float)[numpy.newaxis, :]
@@ -1261,21 +1284,17 @@ def _compute_custom_cmb_spectrum_data(
     ) in power_spectrum_observables.items():
         primary = numpy.asarray(
             transfer_components[str(observable_entry.primary)],
-            dtype=float,
+            dtype=numpy.longdouble,
         )
         secondary = numpy.asarray(
             transfer_components[str(observable_entry.secondary)],
-            dtype=float,
+            dtype=numpy.longdouble,
         )
-        weighted = primordial_grid[numpy.newaxis, :] * (primary * secondary)
-        spectra_results[observable_name] = (
-            4.0
-            * math.pi
-            * numpy.trapz(
-                weighted,
-                log_k_values,
-                axis=1,
-            )
+        spectra_results[observable_name] = _integrate_power_spectrum(
+            primordial_grid=primordial_grid,
+            log_k_values=log_k_values,
+            primary=primary,
+            secondary=secondary,
         )
 
     spectrum_data = CustomCMBSpectrumData(

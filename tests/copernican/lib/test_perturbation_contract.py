@@ -759,6 +759,30 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_scalar_acceptance_uses_physical_quadrupole_terms(self) -> None:
+        """Generated photon and metric terms should stay physically shaped."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+
+        self.assertIn(
+            "0.6 * acoustic_k * theta_gamma3",
+            compiled.equations["evolve_theta_gamma2"].rhs,
+        )
+        self.assertIn(
+            "0.6 * acoustic_k * e_gamma3",
+            compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn("Hconf", compiled.derived["Phi_tau"].expression)
+        self.assertIn("Hconf * Psi", compiled.derived["Psi_tau"].expression)
+        self.assertIn(
+            "total_momentum_density / metric_denominator",
+            compiled.derived["Phi_tau"].expression,
+        )
+        self.assertIn(
+            "total_neutrino_shear / metric_denominator",
+            compiled.derived["Psi_tau"].expression,
+        )
+
     def test_extended_runtime_physical_scalars_compile(self) -> None:
         """Native graphs may reference the documented physical scalars."""
 

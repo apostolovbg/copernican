@@ -769,10 +769,7 @@ class CustomCMBSpectrumData:
     def Delta_l_T(self) -> numpy.ndarray:
         """Return the temperature transfer component when present."""
 
-        return numpy.asarray(
-            self.transfer_components.get("temperature", []),
-            dtype=float,
-        )
+        return numpy.asarray(self.transfer_components.get("temperature", []))
 
     @property
     def Delta_l_E(self) -> numpy.ndarray:
@@ -780,26 +777,25 @@ class CustomCMBSpectrumData:
 
         return numpy.asarray(
             self.transfer_components.get("polarization_e", []),
-            dtype=float,
         )
 
     @property
     def C_l_TT(self) -> numpy.ndarray:
         """Return the TT power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("TT", []), dtype=float)
+        return numpy.asarray(self.spectra.get("TT", []))
 
     @property
     def C_l_TE(self) -> numpy.ndarray:
         """Return the TE power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("TE", []), dtype=float)
+        return numpy.asarray(self.spectra.get("TE", []))
 
     @property
     def C_l_EE(self) -> numpy.ndarray:
         """Return the EE power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("EE", []), dtype=float)
+        return numpy.asarray(self.spectra.get("EE", []))
 
 
 @dataclass(frozen=True, slots=True)

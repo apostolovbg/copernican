@@ -555,19 +555,21 @@ def _declared_momentum_grid_context(
         epsilon = numpy.sqrt(
             numpy.square(runtime.points) + numpy.square(mass_term[..., None])
         )
+        q_velocity_ratio = runtime.points / epsilon
+        q_pressure_ratio = numpy.square(q_velocity_ratio) / 3.0
+        q_mass_fraction = mass_term[..., None] / epsilon
         velocity_ratio = numpy.sum(
-            runtime.weights * (runtime.points / epsilon),
+            runtime.weights * q_velocity_ratio,
             axis=-1,
         )
         pressure_ratio = (
             numpy.sum(
-                runtime.weights * numpy.square(runtime.points / epsilon),
-                axis=-1,
+                runtime.weights * numpy.square(q_velocity_ratio), axis=-1
             )
             / 3.0
         )
         mass_fraction = numpy.sum(
-            runtime.weights * (mass_term[..., None] / epsilon),
+            runtime.weights * q_mass_fraction,
             axis=-1,
         )
         prefix = f"momentum_grid_{runtime.name}"
@@ -589,6 +591,36 @@ def _declared_momentum_grid_context(
                 context[f"{prefix}_{name}"] = float(normalized)
             else:
                 context[f"{prefix}_{name}"] = normalized
+        for index, point in enumerate(runtime.points):
+            context[f"{prefix}_q{index}_point"] = float(point)
+            context[f"{prefix}_q{index}_weight"] = float(
+                runtime.weights[index]
+            )
+            q_velocity_value = numpy.asarray(
+                q_velocity_ratio[..., index],
+                dtype=float,
+            )
+            q_pressure_value = numpy.asarray(
+                q_pressure_ratio[..., index],
+                dtype=float,
+            )
+            q_mass_value = numpy.asarray(
+                q_mass_fraction[..., index],
+                dtype=float,
+            )
+            context[f"{prefix}_q{index}_velocity_ratio"] = (
+                float(q_velocity_value)
+                if q_velocity_value.ndim == 0
+                else q_velocity_value
+            )
+            context[f"{prefix}_q{index}_pressure_ratio"] = (
+                float(q_pressure_value)
+                if q_pressure_value.ndim == 0
+                else q_pressure_value
+            )
+            context[f"{prefix}_q{index}_mass_fraction"] = (
+                float(q_mass_value) if q_mass_value.ndim == 0 else q_mass_value
+            )
         if any(
             "massive_neutrino" in family_name
             for family_name in runtime.family_names
@@ -602,6 +634,17 @@ def _declared_momentum_grid_context(
                 context[f"massive_neutrino_{name}"] = context[
                     f"{prefix}_{name}"
                 ]
+            for index in range(runtime.points.size):
+                for name in (
+                    "point",
+                    "weight",
+                    "velocity_ratio",
+                    "pressure_ratio",
+                    "mass_fraction",
+                ):
+                    context[f"massive_neutrino_q{index}_{name}"] = context[
+                        f"{prefix}_q{index}_{name}"
+                    ]
     return context
 
 

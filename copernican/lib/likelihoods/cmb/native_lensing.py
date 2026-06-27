@@ -119,12 +119,14 @@ def lensed_correlations(
 ):
     """Return lensed correlation functions and optionally lensed spectra."""
 
-    cls = numpy.asarray(cls, dtype=float)
-    clpp = numpy.asarray(clpp, dtype=float)
+    # The exact remapper can otherwise overflow on the large declared spectra
+    # produced by the native solver before the final float cast.
+    cls = numpy.asarray(cls, dtype=numpy.longdouble)
+    clpp = numpy.asarray(clpp, dtype=numpy.longdouble)
     xvals = numpy.asarray(tuple(xvals), dtype=float)
     if lmax is None:
         lmax = int(cls.shape[0] - 1)
-    ell_values = numpy.arange(0, int(lmax) + 1, dtype=float)
+    ell_values = numpy.arange(0, int(lmax) + 1, dtype=numpy.longdouble)
     ell_factors = ell_values * (ell_values + 1.0)
     ell_factors_all = ell_factors.copy()
     ell_factors[0] = 1.0
@@ -138,14 +140,22 @@ def lensed_correlations(
         / ell_factors
     )
 
-    temperature_cls = facs * cls[: int(lmax) + 1, 0]
-    electric_plus_magnetic_cls = facs[2:] * (
-        cls[2 : int(lmax) + 1, 1] + cls[2 : int(lmax) + 1, 2]
+    temperature_cls = numpy.asarray(
+        facs * cls[: int(lmax) + 1, 0],
+        dtype=numpy.longdouble,
     )
-    electric_minus_magnetic_cls = facs[2:] * (
-        cls[2 : int(lmax) + 1, 1] - cls[2 : int(lmax) + 1, 2]
+    electric_plus_magnetic_cls = numpy.asarray(
+        facs[2:] * (cls[2 : int(lmax) + 1, 1] + cls[2 : int(lmax) + 1, 2]),
+        dtype=numpy.longdouble,
     )
-    temperature_polarization_cross_cls = facs[2:] * cls[2 : int(lmax) + 1, 3]
+    electric_minus_magnetic_cls = numpy.asarray(
+        facs[2:] * (cls[2 : int(lmax) + 1, 1] - cls[2 : int(lmax) + 1, 2]),
+        dtype=numpy.longdouble,
+    )
+    temperature_polarization_cross_cls = numpy.asarray(
+        facs[2:] * cls[2 : int(lmax) + 1, 3],
+        dtype=numpy.longdouble,
+    )
 
     ell_values = ell_values[2:]
     ell_factors = ell_factors[2:]
@@ -163,7 +173,7 @@ def lensed_correlations(
     )
 
     if weights is not None:
-        lensedcls = numpy.zeros((int(lmax) + 1, 4), dtype=float)
+        lensedcls = numpy.zeros((int(lmax) + 1, 4), dtype=numpy.longdouble)
     delta_diff = 1 if delta else 0
 
     if theta_max is not None:
@@ -172,9 +182,10 @@ def lensed_correlations(
     else:
         imin = 0
 
-    corrs = numpy.zeros((len(xvals[imin:]), 4), dtype=float)
+    corrs = numpy.zeros((len(xvals[imin:]), 4), dtype=numpy.longdouble)
 
     for i, x in enumerate(xvals[imin:]):
+        x = numpy.longdouble(x)
         (
             (pvals, dpvals),
             (d11, dm11),
@@ -191,6 +202,13 @@ def lensed_correlations(
             ell_factors_squared,
             ell_root_factors,
         )
+        pvals = numpy.asarray(pvals, dtype=numpy.longdouble)
+        dpvals = numpy.asarray(dpvals, dtype=numpy.longdouble)
+        d11 = numpy.asarray(d11, dtype=numpy.longdouble)
+        dm11 = numpy.asarray(dm11, dtype=numpy.longdouble)
+        d20 = numpy.asarray(d20, dtype=numpy.longdouble)
+        d22 = numpy.asarray(d22, dtype=numpy.longdouble)
+        d2m2 = numpy.asarray(d2m2, dtype=numpy.longdouble)
         sigma2 = numpy.dot(1.0 - d11, cphil3)
         cg2 = numpy.dot(dm11, cphil3)
 
@@ -289,7 +307,7 @@ def lensed_correlations(
             / 8.0
         )
         if weights is not None:
-            weight = float(weights[i + imin])
+            weight = numpy.longdouble(weights[i + imin])
             if theta_max is not None and i < apodize_point_width * 4:
                 weight *= 1.0 - numpy.exp(
                     -(((i + 1.0) / apodize_point_width) ** 2) / 2.0
@@ -323,8 +341,8 @@ def lensed_cls(
 ):
     """Return lensed power spectra for unlensed ``cls`` and lensing power."""
 
-    cls = numpy.asarray(cls, dtype=float)
-    clpp = numpy.asarray(clpp, dtype=float)
+    cls = numpy.asarray(cls, dtype=numpy.longdouble)
+    clpp = numpy.asarray(clpp, dtype=numpy.longdouble)
     if lmax is None:
         lmax = int(cls.shape[0] - 1)
     npoints = int(sampling_factor * int(lmax)) + 1
@@ -332,12 +350,12 @@ def lensed_cls(
         xvals, weights = _cached_gauss_legendre(npoints, cache=cache)
     else:
         theta = (
-            numpy.arange(1, npoints + 1, dtype=float)
-            * numpy.pi
+            numpy.arange(1, npoints + 1, dtype=numpy.longdouble)
+            * numpy.longdouble(numpy.pi)
             / (npoints + 1.0)
         )
         xvals = numpy.cos(theta[::-1])
-        weights = numpy.pi / npoints * numpy.sin(theta)
+        weights = numpy.longdouble(numpy.pi) / npoints * numpy.sin(theta)
     _, lensedcls = lensed_correlations(
         cls,
         clpp,
