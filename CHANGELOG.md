@@ -80,6 +80,17 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-06-27:
+  Change: Replaced the five-slice roadmap with a two-slice completion
+    plan centered on implementation and verification.
+  Why: Focused the remaining CMB review work on the final source fixes
+    and the green proof run the branch still needs.
+  Impact: Aligned the remaining repository change set with PLAN.md and
+    CHANGELOG.md while preserving the review closure path.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+
+- 2026-06-27:
   Change: Stabilized the native declared-graph spectrum pipeline with
     longdouble accumulation and finite output scaling for exact lensed
     spectra.
