@@ -759,7 +759,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
-    def test_scalar_acceptance_uses_physical_quadrupole_terms(self) -> None:
+    def test_scalar_hierarchy_uses_physical_metric_closure(self) -> None:
         """Generated photon and metric terms should stay physically shaped."""
 
         compiled = self._compile(_scalar_metadata_only_contract())
@@ -772,8 +772,26 @@ class PerturbationContractTestCase(unittest.TestCase):
             "0.6 * acoustic_k * e_gamma3",
             compiled.equations["evolve_e_gamma2"].rhs,
         )
-        self.assertIn("Hconf", compiled.derived["Phi_tau"].expression)
-        self.assertIn("Hconf * Psi", compiled.derived["Psi_tau"].expression)
+        self.assertIn(
+            "k * k + 3.0 * Hconf * Hconf",
+            compiled.derived["metric_denominator"].expression,
+        )
+        self.assertIn(
+            "einstein_gravity_strength",
+            compiled.constraints["phi_constraint"].expression,
+        )
+        self.assertIn(
+            "einstein_gravity_strength",
+            compiled.derived["Phi_tau"].expression,
+        )
+        self.assertIn(
+            "einstein_gravity_strength",
+            compiled.derived["Psi_tau"].expression,
+        )
+        self.assertIn(
+            "einstein_gravity_strength",
+            compiled.closures["psi_closure"].expression,
+        )
         self.assertIn(
             "total_momentum_density / metric_denominator",
             compiled.derived["Phi_tau"].expression,

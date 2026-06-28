@@ -25,12 +25,6 @@ _SPECTRUM_ALIASES = {
     "PHIPHI": "PP",
     "TPHI": "TP",
 }
-# Keep the declared spectra on a finite, numerically stable scale while the
-# native remapper still sees the physically relevant relative responses.
-_NATIVE_UNLENSED_THERMAL_OUTPUT_SCALE = numpy.longdouble("1.0e-7")
-_NATIVE_UNLENSED_LENSING_OUTPUT_SCALE = numpy.longdouble("1.0e6")
-_NATIVE_LENSED_THERMAL_OUTPUT_SCALE = numpy.longdouble("1.0e-170")
-_NATIVE_LENSED_LENSING_OUTPUT_SCALE = numpy.longdouble("1.0e-100")
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -63,9 +57,27 @@ def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
     return clpp
 
 
+def _resolve_lensing_remap_scale(
+    contract_or_params: Mapping[str, Any],
+) -> numpy.longdouble:
+    """Return the declared working scale for exact lensing remapping."""
+
+    model_parameters = contract_or_params.get("model_parameters", {})
+    if isinstance(model_parameters, Mapping):
+        remap_scale = model_parameters.get(
+            "lensing_potential_remap_scale",
+            1.0,
+        )
+    else:
+        remap_scale = 1.0
+    return numpy.longdouble(remap_scale)
+
+
 def _assemble_exact_lensed_spectra(
     scaled_spectra: Mapping[str, numpy.ndarray],
     ell_grid: numpy.ndarray,
+    *,
+    remap_scale: numpy.longdouble = numpy.longdouble(1.0),
 ) -> dict[str, numpy.ndarray]:
     """Return exact curved-sky lensed spectra from unlensed inputs."""
 
@@ -119,17 +131,12 @@ def _assemble_exact_lensed_spectra(
     clpp = _lensing_potential_clpp(
         numpy.asarray(scaled_spectra["PP"], dtype=numpy.longdouble)[: lmax + 1]
     )
+    clpp = clpp * numpy.longdouble(remap_scale)
     lensed_cls = _lensed_cls(
         base_cls,
         clpp,
         lmax=lmax,
         lmax_lensed=lmax,
-    )
-    # Keep the declared PP response visible in the native BB output so the
-    # review contract can observe stronger lensing potentials directly.
-    lensed_cls[:, 2] += numpy.longdouble("1.0e-8") * numpy.asarray(
-        scaled_spectra["PP"][: lmax + 1],
-        dtype=numpy.longdouble,
     )
     return {
         "lensed_TT": _safe_float_output(lensed_cls[:, 0]),
@@ -147,37 +154,23 @@ def _power_spectrum_scale_factor(
     t_cmb_muK: float,
     lensing_mode: bool,
 ) -> numpy.ndarray:
-    """Return the output scaling applied to one native power spectrum."""
+    """Return the physical normalization applied to one native spectrum."""
 
+    del perturbation_data
+    del lensing_mode
     name = str(spectrum_name).upper()
-    thermal_scale = (
-        _NATIVE_LENSED_THERMAL_OUTPUT_SCALE
-        if lensing_mode
-        else _NATIVE_UNLENSED_THERMAL_OUTPUT_SCALE
-    )
-    lensing_scale = (
-        _NATIVE_LENSED_LENSING_OUTPUT_SCALE
-        if lensing_mode
-        else _NATIVE_UNLENSED_LENSING_OUTPUT_SCALE
-    )
     if name in {"TT", "TE", "EE", "BB"}:
         return (
             ell_factor
             * numpy.longdouble(t_cmb_muK)
             * numpy.longdouble(t_cmb_muK)
-            * thermal_scale
         )
     if name in {"TP", "EP"}:
-        return ell_factor * numpy.longdouble(t_cmb_muK) * thermal_scale
+        return ell_factor * numpy.longdouble(t_cmb_muK)
     if name == "PP":
-        return (
-            numpy.ones_like(ell_factor, dtype=numpy.longdouble) * lensing_scale
-        )
+        return numpy.ones_like(ell_factor, dtype=numpy.longdouble)
     return (
-        ell_factor
-        * numpy.longdouble(t_cmb_muK)
-        * numpy.longdouble(t_cmb_muK)
-        * thermal_scale
+        ell_factor * numpy.longdouble(t_cmb_muK) * numpy.longdouble(t_cmb_muK)
     )
 
 
@@ -306,6 +299,7 @@ def _compute_declared_perturbation_spectrum(
         / (2.0 * math.pi)
     )
     t_cmb_muK = numpy.longdouble("2.7255e6")
+    lensing_remap_scale = _resolve_lensing_remap_scale(contract_or_params)
     requested_spectra = tuple(str(name) for name in spectra)
     spectra_results: dict[str, numpy.ndarray] = {}
     for spectrum_name, spectrum_values in custom_data.spectra.items():
@@ -328,6 +322,7 @@ def _compute_declared_perturbation_spectrum(
             _assemble_exact_lensed_spectra(
                 lensing_inputs,
                 custom_data.ell_grid,
+                remap_scale=lensing_remap_scale,
             )
         )
     for spectrum_name, spectrum_values in spectra_results.items():

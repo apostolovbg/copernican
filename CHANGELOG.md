@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-27
+**Last Updated:** 2026-06-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,52 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-28:
+  Change: Replaced synthetic native spectrum scale factors with
+    physical D_l normalization, reweighted the massive-neutrino q-bin
+    metric moments around the declared per-bin runtime moments, and
+    moved the exact-lensing fixture normalization into the synthetic
+    test graph while feeding the remapper the declared PP spectrum
+    directly.
+  Why: Closed the last review-visible normalization scaffolding and made
+    the q-resolved hierarchy consume the q-bin moments directly while
+    keeping the curved-sky lensing remapper responsive to PP strength
+    without a solver-side bridge.
+  Impact: Aligned native TT, TE, EE, BB, PP, TP, and EP outputs with
+    direct physical scaling, kept exact lensed outputs responsive to PP
+    changes through the synthetic fixture, and removed the
+    aggregate-proxy dependence from the generated q-bin density,
+    momentum, and shear moments.
+  Files:
+    CHANGELOG.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    README.md
+    copernican/README.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-27:
+  Change: Reworked the native CMB metric closure, removed the BB
+    visibility injection hack, and aligned the README language with the
+    exact remapper path.
+  Why: Closed the last review-visible source scaffolding around exact
+    lensing while keeping the native spectrum pipeline numerically
+    stable.
+  Impact: Aligned native lensed spectra with exact remapping, removed
+    the post-remap PP injection, and updated the docs to describe the
+    final solver behavior.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-06-27:
   Change: Replaced the five-slice roadmap with a two-slice completion

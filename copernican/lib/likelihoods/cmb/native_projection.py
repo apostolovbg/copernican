@@ -70,7 +70,7 @@ def _integrate_power_spectrum(
         * numpy.trapz(weighted, log_k_ld, axis=1)
     )
     # Keep the raw spectrum in extended precision until the public solver
-    # applies its output scaling and final float conversion.
+    # applies its final float conversion.
     return numpy.asarray(integrated, dtype=numpy.longdouble)
 
 

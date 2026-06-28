@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-27
+**Last Updated:** 2026-06-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -40,9 +40,8 @@ curved-sky lensing remapping for lensed spectra.
 It also keeps the collision-operator Thomson drag, exact photon and
 polarization hierarchy sources, and q-resolved massive-neutrino
 momentum-grid context aligned for native runs. The native transfer and
-spectrum accumulation stay in extended precision until the final output
-scaling step so the exact remapper remains finite on review-grade
-contracts.
+spectrum accumulation stay in extended precision until the public
+solver converts the final values to float64.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

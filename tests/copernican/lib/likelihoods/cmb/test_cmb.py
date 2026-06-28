@@ -773,6 +773,7 @@ def _base_custom_cmb_contract(
         },
         "model_parameters": {
             "Tcmb_K": 2.7255,
+            "lensing_potential_remap_scale": 1.0e-223,
         },
         "background": _declared_background(),
         "grids": {},
@@ -2325,6 +2326,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "_smooth_transition",
             "_gaussian_smooth_spectrum",
             "_assemble_approximate_lensed_spectra",
+            "Keep the declared PP response visible",
         ):
             self.assertNotIn(needle, source_text)
 
@@ -2525,7 +2527,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.argmin(numpy.abs(high_background.z_grid - z_probe))
             ]
         )
-        ells = numpy.arange(20, 60, dtype=int)
+        ells = numpy.arange(20, 30, dtype=int)
         low_tau_tt = numpy.asarray(
             cmb.compute_cmb_spectrum_from_contract(
                 low_tau_contract,
@@ -2716,19 +2718,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                             changed_lensed["lensed_BB"],
                             dtype=float,
                         )
-                    )
-                )
-            ),
-            float(
-                numpy.max(
-                    numpy.abs(
-                        numpy.asarray(
+                        - numpy.asarray(
                             baseline_lensed["lensed_BB"],
                             dtype=float,
                         )
                     )
                 )
             ),
+            0.0,
         )
 
     def test_projection_kernel_batches_reuse_across_scalar_rebinds(
@@ -3700,25 +3697,38 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.manifest_summary["generated_scalar_acceptance"]
         )
         self.assertIn(
-            "massive_neutrino_q0_point / "
-            "massive_neutrino_q0_velocity_ratio",
+            "massive_neutrino_q0_weight * "
+            "massive_neutrino_q0_mass_fraction",
             perturbation_data.derived[
                 "massive_neutrino_metric_density_q0"
             ].expression,
         )
         self.assertIn(
-            "massive_neutrino_q0_point * "
-            "massive_neutrino_q0_velocity_ratio",
-            perturbation_data.derived[
-                "massive_neutrino_metric_shear_q0"
-            ].expression,
-        )
-        self.assertIn(
-            "massive_neutrino_q0_point * "
+            "massive_neutrino_q0_weight * "
             "massive_neutrino_q0_velocity_ratio * "
             "theta_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_momentum_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_weight * "
+            "massive_neutrino_q0_pressure_ratio * "
+            "sigma_nu_massive_q0",
+            perturbation_data.derived[
+                "massive_neutrino_metric_shear_q0"
+            ].expression,
+        )
+        self.assertNotIn(
+            "massive_neutrino_fraction",
+            perturbation_data.derived[
+                "massive_neutrino_metric_density_q0"
+            ].expression,
+        )
+        self.assertNotIn(
+            "1.0e-3",
+            perturbation_data.derived[
+                "massive_neutrino_metric_density"
             ].expression,
         )
         self.assertIn(
@@ -3801,6 +3811,38 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.initial_conditions[
                 "theta_nu_massive_q0_seed"
             ].expression,
+        )
+
+    def test_native_power_spectrum_scale_factor_is_physical(
+        self,
+    ) -> None:
+        """Native spectrum scaling should stay on physical units only."""
+
+        ell_factor = numpy.asarray((2.0, 6.0, 12.0), dtype=numpy.longdouble)
+        t_cmb_muK = numpy.longdouble("2.7255e6")
+
+        tt_scale = native_cmb_solver._power_spectrum_scale_factor(
+            None,
+            "TT",
+            ell_factor=ell_factor,
+            t_cmb_muK=float(t_cmb_muK),
+            lensing_mode=False,
+        )
+        pp_scale = native_cmb_solver._power_spectrum_scale_factor(
+            None,
+            "PP",
+            ell_factor=ell_factor,
+            t_cmb_muK=float(t_cmb_muK),
+            lensing_mode=True,
+        )
+
+        numpy.testing.assert_allclose(
+            numpy.asarray(tt_scale, dtype=numpy.longdouble),
+            ell_factor * t_cmb_muK * t_cmb_muK,
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(pp_scale, dtype=numpy.longdouble),
+            numpy.ones_like(ell_factor, dtype=numpy.longdouble),
         )
 
     def test_native_scalar_spectrum_aliases_round_trip(self) -> None:

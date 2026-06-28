@@ -1232,8 +1232,15 @@ def _materialize_native_scalar_acceptance_contract(
             "description": "Momentum source for the scalar metric.",
         },
         "metric_denominator": {
-            "expression": ("1.0 + k * k * sound_horizon * sound_horizon"),
+            "expression": "k * k + 3.0 * Hconf * Hconf",
             "description": "Regularized scalar Poisson denominator.",
+        },
+        "einstein_gravity_strength": {
+            "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
+            "description": (
+                "Background gravity scale used by the scalar Einstein "
+                "constraints."
+            ),
         },
         "photon_baryon_momentum_ratio": {
             "expression": "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
@@ -1249,8 +1256,9 @@ def _materialize_native_scalar_acceptance_contract(
             "Phi_tau": {
                 "kind": "metric_potential_time_derivative",
                 "expression": (
-                    "-0.45 * Hconf * Psi + "
-                    "0.15 * total_momentum_density / metric_denominator"
+                    "-Hconf * Psi + "
+                    "1.5 * einstein_gravity_strength * "
+                    "total_momentum_density / metric_denominator"
                 ),
                 "description": (
                     "Momentum-constraint relation for the scalar "
@@ -1260,8 +1268,9 @@ def _materialize_native_scalar_acceptance_contract(
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
                 "expression": (
-                    "-0.30 * Hconf * Psi + "
-                    "0.05 * total_neutrino_shear / metric_denominator"
+                    "-Hconf * Psi + "
+                    "1.5 * einstein_gravity_strength * "
+                    "total_neutrino_shear / metric_denominator"
                 ),
                 "description": (
                     "Anisotropic-stress relation for the curvature "
@@ -1295,9 +1304,7 @@ def _materialize_native_scalar_acceptance_contract(
             }
             derived_entries[q_density_name] = {
                 "expression": (
-                    "massive_neutrino_fraction * "
-                    f"{q_prefix}_weight * ({q_prefix}_point / "
-                    f"{q_prefix}_velocity_ratio) * "
+                    f"{q_prefix}_weight * {q_prefix}_mass_fraction * "
                     f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 0)}"
                 ),
                 "description": (
@@ -1306,9 +1313,7 @@ def _materialize_native_scalar_acceptance_contract(
             }
             derived_entries[q_momentum_name] = {
                 "expression": (
-                    "massive_neutrino_fraction * "
-                    f"{q_prefix}_weight * {q_prefix}_point * "
-                    f"{q_prefix}_velocity_ratio * "
+                    f"{q_prefix}_weight * {q_prefix}_velocity_ratio * "
                     f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 1)}"
                 ),
                 "description": (
@@ -1317,9 +1322,7 @@ def _materialize_native_scalar_acceptance_contract(
             }
             derived_entries[q_shear_name] = {
                 "expression": (
-                    "massive_neutrino_fraction * "
-                    f"{q_prefix}_weight * {q_prefix}_point * "
-                    f"{q_prefix}_velocity_ratio * "
+                    f"{q_prefix}_weight * {q_prefix}_pressure_ratio * "
                     f"{_scalar_acceptance_massive_neutrino_q_name(q_index, 2)}"
                 ),
                 "description": (
@@ -1337,10 +1340,6 @@ def _materialize_native_scalar_acceptance_contract(
             shear_sum_expression = f"({shear_sum_expression})"
         derived_entries.update(
             {
-                "massive_neutrino_fraction": {
-                    "expression": "0.5 * Omega_nu0",
-                    "description": "Massive-neutrino metric weight.",
-                },
                 "massive_neutrino_metric_density": {
                     "expression": density_sum_expression,
                     "description": (
@@ -1377,11 +1376,13 @@ def _materialize_native_scalar_acceptance_contract(
     materialized["derived"] = derived_entries
     materialized["equations"] = equations
     phi_constraint_expression = (
-        "-1.5 * (total_matter_density + total_radiation_density) "
+        "-1.5 * einstein_gravity_strength * "
+        "(total_matter_density + total_radiation_density) "
         "/ metric_denominator"
     )
     psi_closure_expression = (
-        "Phi - 3.0 * total_neutrino_shear / metric_denominator"
+        "Phi - 3.0 * einstein_gravity_strength * total_neutrino_shear "
+        "/ metric_denominator"
     )
     materialized["constraints"] = {
         "phi_constraint": {
