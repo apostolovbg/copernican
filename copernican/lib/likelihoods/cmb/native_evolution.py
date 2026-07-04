@@ -558,6 +558,7 @@ def _declared_momentum_grid_context(
         q_velocity_ratio = runtime.points / epsilon
         q_pressure_ratio = numpy.square(q_velocity_ratio) / 3.0
         q_mass_fraction = mass_term[..., None] / epsilon
+        q_streaming_speed = numpy.asarray(q_velocity_ratio, dtype=float)
         velocity_ratio = numpy.sum(
             runtime.weights * q_velocity_ratio,
             axis=-1,
@@ -583,6 +584,7 @@ def _declared_momentum_grid_context(
         context[f"{prefix}_mass_eV"] = float(runtime.mass_eV)
         for name, value in (
             ("velocity_ratio", velocity_ratio),
+            ("streaming_speed", velocity_ratio),
             ("pressure_ratio", pressure_ratio),
             ("mass_fraction", mass_fraction),
         ):
@@ -608,10 +610,19 @@ def _declared_momentum_grid_context(
                 q_mass_fraction[..., index],
                 dtype=float,
             )
+            q_streaming_value = numpy.asarray(
+                q_streaming_speed[..., index],
+                dtype=float,
+            )
             context[f"{prefix}_q{index}_velocity_ratio"] = (
                 float(q_velocity_value)
                 if q_velocity_value.ndim == 0
                 else q_velocity_value
+            )
+            context[f"{prefix}_q{index}_streaming_speed"] = (
+                float(q_streaming_value)
+                if q_streaming_value.ndim == 0
+                else q_streaming_value
             )
             context[f"{prefix}_q{index}_pressure_ratio"] = (
                 float(q_pressure_value)
@@ -628,6 +639,7 @@ def _declared_momentum_grid_context(
             for name in (
                 "mass_eV",
                 "velocity_ratio",
+                "streaming_speed",
                 "pressure_ratio",
                 "mass_fraction",
             ):
@@ -639,6 +651,7 @@ def _declared_momentum_grid_context(
                     "point",
                     "weight",
                     "velocity_ratio",
+                    "streaming_speed",
                     "pressure_ratio",
                     "mass_fraction",
                 ):
@@ -722,7 +735,7 @@ def _compute_tight_coupling_drag(
     k_value: float,
     tight_coupling_ratio: float,
 ) -> float | numpy.ndarray:
-    """Return the capped collision rate used by declared CMB graphs."""
+    """Return the diagnostic tight-coupling rate for native contexts."""
 
     tight_coupling_cap = max(
         float(k_value) * float(tight_coupling_ratio),

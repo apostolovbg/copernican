@@ -57,27 +57,9 @@ def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
     return clpp
 
 
-def _resolve_lensing_remap_scale(
-    contract_or_params: Mapping[str, Any],
-) -> numpy.longdouble:
-    """Return the declared working scale for exact lensing remapping."""
-
-    model_parameters = contract_or_params.get("model_parameters", {})
-    if isinstance(model_parameters, Mapping):
-        remap_scale = model_parameters.get(
-            "lensing_potential_remap_scale",
-            1.0,
-        )
-    else:
-        remap_scale = 1.0
-    return numpy.longdouble(remap_scale)
-
-
 def _assemble_exact_lensed_spectra(
     scaled_spectra: Mapping[str, numpy.ndarray],
     ell_grid: numpy.ndarray,
-    *,
-    remap_scale: numpy.longdouble = numpy.longdouble(1.0),
 ) -> dict[str, numpy.ndarray]:
     """Return exact curved-sky lensed spectra from unlensed inputs."""
 
@@ -108,7 +90,7 @@ def _assemble_exact_lensed_spectra(
             te_spectrum.size,
             ee_spectrum.size,
             bb_spectrum.size,
-            numpy.asarray(scaled_spectra["PP"], dtype=float).size,
+            numpy.asarray(scaled_spectra["PP"]).size,
         )
         <= lmax
     ):
@@ -131,7 +113,6 @@ def _assemble_exact_lensed_spectra(
     clpp = _lensing_potential_clpp(
         numpy.asarray(scaled_spectra["PP"], dtype=numpy.longdouble)[: lmax + 1]
     )
-    clpp = clpp * numpy.longdouble(remap_scale)
     lensed_cls = _lensed_cls(
         base_cls,
         clpp,
@@ -184,6 +165,20 @@ def _normalize_lensing_input_spectra(
         for name, values in spectra_results.items()
     }
     return normalized_spectra
+
+
+def _requested_base_spectra(
+    canonical_requested_spectra: Sequence[str],
+) -> tuple[str, ...]:
+    """Return the non-lensed spectra needed to satisfy one request set."""
+
+    base_spectra: set[str] = set()
+    for spectrum_name in canonical_requested_spectra:
+        if spectrum_name in _LENSED_NATIVE_SPECTRA:
+            base_spectra.update({"TT", "TE", "EE", "PP"})
+            continue
+        base_spectra.add(spectrum_name)
+    return tuple(sorted(base_spectra))
 
 
 def _is_structured_camb_contract(
@@ -288,10 +283,14 @@ def _compute_declared_perturbation_spectrum(
     else:
         analysis_ell_grid = requested_ell_grid
         output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
+    base_requested_spectra = _requested_base_spectra(
+        canonical_requested_spectra
+    )
     custom_data = _compute_custom_cmb_spectrum_data(
         contract_or_params,
         analysis_ell_grid,
         background_provider=background_provider,
+        requested_spectra=base_requested_spectra,
     )
     ell_factor = (
         numpy.asarray(custom_data.ell_grid, dtype=numpy.longdouble)
@@ -299,7 +298,6 @@ def _compute_declared_perturbation_spectrum(
         / (2.0 * math.pi)
     )
     t_cmb_muK = numpy.longdouble("2.7255e6")
-    lensing_remap_scale = _resolve_lensing_remap_scale(contract_or_params)
     requested_spectra = tuple(str(name) for name in spectra)
     spectra_results: dict[str, numpy.ndarray] = {}
     for spectrum_name, spectrum_values in custom_data.spectra.items():
@@ -322,7 +320,6 @@ def _compute_declared_perturbation_spectrum(
             _assemble_exact_lensed_spectra(
                 lensing_inputs,
                 custom_data.ell_grid,
-                remap_scale=lensing_remap_scale,
             )
         )
     for spectrum_name, spectrum_values in spectra_results.items():

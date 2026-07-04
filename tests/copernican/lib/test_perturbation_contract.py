@@ -70,7 +70,11 @@ def _base_nonstandard_contract() -> dict[str, object]:
             "density_drive": {
                 "expression": "delta_x + phi_aux",
                 "description": "Synthetic driving term.",
-            }
+            },
+            "acoustic_k": {
+                "expression": "k",
+                "description": "Synthetic acoustic wave number.",
+            },
         },
         "equations": {
             "evolve_delta_x": {
@@ -307,7 +311,7 @@ def _scalar_metadata_only_contract() -> dict[str, object]:
         "thomson_drag": {
             "sector": "scalar",
             "species": ["photon", "baryon"],
-            "expression": "tight_coupling_drag * (theta_b - theta_gamma1)",
+            "expression": ("collision_rate * (theta_b / 3.0 - theta_gamma1)"),
         }
     }
     contract["initial_condition_families"] = {
@@ -323,7 +327,7 @@ def _scalar_metadata_only_contract() -> dict[str, object]:
         }
     )
     contract["validity"] = {
-        "regimes": ["linear", "native_scalar_acceptance"],
+        "regimes": ["linear", "native_scalar_hierarchy"],
     }
     return contract
 
@@ -369,7 +373,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIn("TE", compiled.observables)
         self.assertIn("EE", compiled.observables)
         self.assertTrue(
-            compiled.manifest_summary["generated_scalar_acceptance"]
+            compiled.manifest_summary["generated_scalar_hierarchy"]
         )
         self.assertIs(
             perturbation_contract_module.PerturbationContractData,
@@ -722,6 +726,117 @@ class PerturbationContractTestCase(unittest.TestCase):
             contract_data.initial_conditions,
         )
 
+    def test_metric_role_initial_conditions_follow_physical_series(
+        self,
+    ) -> None:
+        """Metric-role seeds should use leading-order physical series."""
+
+        newtonian = _base_nonstandard_contract()
+        newtonian["constraints"] = {}
+        newtonian["closures"] = {}
+        newtonian["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = []
+        newtonian["equations"]["evolve_phi_aux"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "phi_aux",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "psi_aux",
+            "role": "closure",
+        }
+        newtonian["equations"]["evolve_psi_aux"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "psi_aux",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "phi_aux",
+            "role": "closure",
+        }
+        newtonian_data = self._compile(newtonian)
+        self.assertEqual(
+            newtonian_data.initial_conditions[
+                "adiabatic_scalar_phi_aux_tau_0_seed"
+            ].compiled_expression.expression,
+            "seed",
+        )
+        self.assertEqual(
+            newtonian_data.initial_conditions[
+                "adiabatic_scalar_psi_aux_tau_0_seed"
+            ].compiled_expression.expression,
+            "seed",
+        )
+
+        synchronous = _base_nonstandard_contract()
+        synchronous["gauge"] = "synchronous"
+        synchronous["sectors"]["scalar"]["supported_gauges"] = [
+            "synchronous",
+        ]
+        synchronous["constraints"] = {}
+        synchronous["closures"] = {}
+        synchronous["derived"]["acoustic_k"] = {
+            "expression": "k",
+            "description": "Synthetic acoustic wave number.",
+        }
+        synchronous["initial_condition_families"]["adiabatic_scalar"][
+            "members"
+        ] = []
+        synchronous["variables"].pop("phi_aux")
+        synchronous["variables"].pop("psi_aux")
+        synchronous["variables"]["h_sync_metric"] = {
+            "kind": "synchronous_metric_trace",
+            "gauge_role": "synchronous_metric_trace",
+        }
+        synchronous["variables"]["eta_sync_metric"] = {
+            "kind": "synchronous_metric_shear",
+            "gauge_role": "synchronous_metric_shear",
+        }
+        synchronous["derived"]["density_drive"] = {
+            "expression": "delta_x + h_sync_metric",
+            "description": "Synthetic driving term.",
+        }
+        evolve_delta_x = synchronous["equations"]["evolve_delta_x"]
+        evolve_theta_x = synchronous["equations"]["evolve_theta_x"]
+        evolve_delta_x["rhs"] = "-theta_x + h_sync_metric"
+        evolve_theta_x["rhs"] = "-Hconf * theta_x + k * eta_sync_metric"
+        synchronous["equations"]["evolve_h_sync_metric"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "h_sync_metric",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "eta_sync_metric",
+            "role": "closure",
+        }
+        synchronous["equations"]["evolve_eta_sync_metric"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "eta_sync_metric",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "h_sync_metric",
+            "role": "closure",
+        }
+        synchronous_data = self._compile(synchronous)
+        self.assertEqual(
+            synchronous_data.initial_conditions[
+                "adiabatic_scalar_h_sync_metric_tau_0_seed"
+            ].compiled_expression.expression,
+            "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) * seed",
+        )
+        self.assertEqual(
+            synchronous_data.initial_conditions[
+                "adiabatic_scalar_eta_sync_metric_tau_0_seed"
+            ].compiled_expression.expression,
+            "2.0 * seed",
+        )
+
     def test_synchronous_gauge_rejects_newtonian_metric_roles(self) -> None:
         """Gauge-role mixes should fail before runtime."""
 
@@ -773,7 +888,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.equations["evolve_e_gamma2"].rhs,
         )
         self.assertIn(
-            "k * k + 3.0 * Hconf * Hconf",
+            "k * k",
             compiled.derived["metric_denominator"].expression,
         )
         self.assertIn(
@@ -799,6 +914,74 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIn(
             "total_neutrino_shear / metric_denominator",
             compiled.derived["Psi_tau"].expression,
+        )
+
+    def test_scalar_hierarchy_materializes_collision_operators(
+        self,
+    ) -> None:
+        """Generated scalar routes should synthesize collision operators."""
+
+        contract = _scalar_metadata_only_contract()
+        contract.pop("collision_operators", None)
+        compiled = self._compile(contract)
+
+        self.assertIn("thomson_drag", compiled.collision_operators)
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"].counterpart,
+            "baryon_thomson_drag",
+        )
+        self.assertIn("thomson_drag_balance", compiled.conservation_rules)
+        self.assertEqual(
+            compiled.conservation_rules["thomson_drag_balance"].expression,
+            "photon_baryon_momentum_ratio * thomson_drag + "
+            "baryon_thomson_drag",
+        )
+        self.assertEqual(
+            compiled.derived["photon_baryon_momentum_ratio"].expression,
+            "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
+        )
+
+    def test_scalar_hierarchy_uses_physical_collision_terms(self) -> None:
+        """Generated scalar photon terms should keep the physical couplings."""
+
+        contract = _scalar_metadata_only_contract()
+        compiled = self._compile(contract)
+
+        self.assertIn(
+            "collision_rate * (theta_gamma2 - 0.1 * " "polarization_moment)",
+            compiled.equations["evolve_theta_gamma2"].rhs,
+        )
+        self.assertEqual(
+            compiled.equations["evolve_e_gamma0"].rhs,
+            "-acoustic_k * e_gamma1",
+        )
+        self.assertEqual(
+            compiled.equations["evolve_e_gamma1"].rhs,
+            "(acoustic_k / 3.0) * (e_gamma0 - 2.0 * e_gamma2)",
+        )
+        self.assertIn(
+            "collision_rate * (e_gamma2 - 0.1 * polarization_moment)",
+            compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
+            "baryon_thomson_drag",
+            compiled.equations["evolve_theta_b"].rhs,
+        )
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"].expression,
+            "collision_rate * (theta_b / 3.0 - theta_gamma1)",
+        )
+        self.assertEqual(
+            compiled.derived["polarization_moment"].expression,
+            "theta_gamma2 + 6.0 * e_gamma2",
+        )
+        self.assertNotIn(
+            "tight_coupling_drag",
+            compiled.equations["evolve_theta_gamma3"].rhs,
+        )
+        self.assertNotIn(
+            "tight_coupling_drag",
+            compiled.equations["evolve_e_gamma3"].rhs,
         )
 
     def test_extended_runtime_physical_scalars_compile(self) -> None:

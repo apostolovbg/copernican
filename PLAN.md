@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-27
+**Last Updated:** 2026-06-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -69,16 +69,16 @@ Current facts:
 * Copernican already has a working native declared-graph CMB path for
   `standard: false`.
 * The exact curved-sky native lensing remapper exists.
-* The current gaps are the scalar acceptance physics, the q-resolved
+* Slice One closes the scalar acceptance physics, the q-resolved
   massive-neutrino route, the last gauge and collision-operator
   closures, and the proof that they are complete.
-* The plan now focuses on one implementation slice and one verification
-  slice, not a longer roadmap.
+* The plan now focuses on one completed implementation slice and one
+  verification slice, not a longer roadmap.
 
 ## Overview
 
 This plan has one job: close the review in source, then prove the closure
-with governed verification. Slice One makes the physics final. Slice Two
+with governed verification. Slice One made the physics final. Slice Two
 runs the checks, clears any source-side truth gaps exposed by those
 checks, and closes the gate only when the branch is clean.
 
@@ -103,7 +103,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Physics completion and source cleanup
+### [closed] Slice One - Physics completion and source cleanup
 
 Purpose:
 
@@ -150,24 +150,24 @@ Scope:
 
 Tasks:
 
-* [open] Replace the remaining scalar acceptance physics with physical
+* [closed] Replace the remaining scalar acceptance physics with physical
   hierarchy and source terms.
-* [open] Remove native lensing scaffolding and derive lensed outputs from
+* [closed] Remove native lensing scaffolding and derive lensed outputs from
   exact remapping only.
-* [open] Add q-resolved massive-neutrino, gauge-equivalence, and
+* [closed] Add q-resolved massive-neutrino, gauge-equivalence, and
   collision-operator regression coverage.
-* [open] Update PLAN-adjacent docs and changelog entries so the repository
+* [closed] Update PLAN-adjacent docs and changelog entries so the repository
   narrative matches the final source.
-* [open] Preserve the review's exact spectrum family expectations in the
+* [closed] Preserve the review's exact spectrum family expectations in the
   public CMB surface.
 
 Done when:
 
-* [open] The native solver is physically complete enough that the review's
+* [closed] The native solver is physically complete enough that the review's
   remaining source concerns are closed in code and tests.
-* [open] Lensed outputs arise from exact remapping without approximation
+* [closed] Lensed outputs arise from exact remapping without approximation
   shortcuts or visibility injections.
-* [open] The updated docs and changelog describe the same final behavior as
+* [closed] The updated docs and changelog describe the same final behavior as
   the source.
 
 ### [open] Slice Two - Verification and gate closure

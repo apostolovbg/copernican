@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-28
+**Last Updated:** 2026-06-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -37,11 +37,26 @@ handle conventional and extended cosmology models.
 The native declared-graph route now materializes scalar hierarchies,
 exposes `PP / phiphi`, `TP / Tphi`, and `EP / Ephi`, and uses exact
 curved-sky lensing remapping for lensed spectra.
-It also keeps the collision-operator Thomson drag, exact photon and
-polarization hierarchy sources, and q-resolved massive-neutrino
-momentum-grid context aligned for native runs. The native transfer and
-spectrum accumulation stay in extended precision until the public
-solver converts the final values to float64.
+The native solver in `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+keeps the exact remapper, collision terms, and source-grid refinement
+visible in regression coverage instead of hiding them behind solver-side
+shortcuts.
+The exact remapper now consumes the declared `PP` spectrum directly,
+without a solver-side lensing bridge or hidden remap scale.
+Its scalar contract now keeps the hierarchy and source terms aligned with
+the physical runtime graph instead of acceptance-only damping scaffolding.
+It also keeps the physical collision-rate Thomson coupling, the CAMB-style
+low-multipole polarization source moment, exact photon and polarization
+hierarchy sources, and q-resolved massive-neutrino q-bin moments
+aligned for native runs. The scalar compiler also seeds
+Newtonian and synchronous metric roles from leading-order physical
+initial-condition series instead of heuristic constants. The q-grid path
+now materializes direct per-bin density, momentum, and shear moments.
+The public `CMBLike` likelihood now also accepts stacked spectrum blocks
+when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
+blocks can be flattened into one covariance surface.
+The native transfer and spectrum accumulation stay in extended
+precision until the public solver converts the final values to float64.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

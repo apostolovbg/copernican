@@ -182,6 +182,11 @@ class CMBLike(LikelihoodProtocol):
     )
     _ells: numpy.ndarray = field(init=False, repr=False)
     _observed: numpy.ndarray = field(init=False, repr=False)
+    _observed_spectra: tuple[str, ...] = field(init=False, repr=False)
+    _observed_spectrum_labels: numpy.ndarray = field(
+        init=False,
+        repr=False,
+    )
     _cov_inv: numpy.ndarray | None = field(init=False, repr=False)
     _residual_buffer: numpy.ndarray = field(init=False, repr=False)
     _extra_params_cached: dict[str, float] | None = field(
@@ -199,12 +204,44 @@ class CMBLike(LikelihoodProtocol):
             self._setup_error = "(cmb_like): CMB data is empty."
             self._ells = numpy.empty(0, dtype=int)
             self._observed = numpy.empty(0, dtype=float)
+            self._observed_spectra = ()
+            self._observed_spectrum_labels = numpy.empty(0, dtype=object)
             self._cov_inv = None
             self._residual_buffer = numpy.empty(0, dtype=float)
             return
 
-        self._ells = cmb_df["ell"].to_numpy(dtype=int, copy=True)
-        self._observed = cmb_df["Dl_obs"].to_numpy(dtype=float, copy=True)
+        if "spectrum" in cmb_df.columns:
+            spectrum_series = cmb_df["spectrum"].astype(str)
+            observed_spectra = tuple(dict.fromkeys(spectrum_series.tolist()))
+            ordered_spectra = pandas.Categorical(
+                spectrum_series,
+                categories=list(observed_spectra),
+                ordered=True,
+            )
+            ordered_df = cmb_df.assign(
+                _spectrum_order=ordered_spectra
+            ).sort_values(
+                ["_spectrum_order", "ell"],
+                kind="stable",
+            )
+            self._observed_spectra = observed_spectra
+            self._ells = ordered_df["ell"].to_numpy(dtype=int, copy=True)
+            self._observed = ordered_df["Dl_obs"].to_numpy(
+                dtype=float,
+                copy=True,
+            )
+            self._observed_spectrum_labels = ordered_df["spectrum"].to_numpy(
+                dtype=object, copy=True
+            )
+        else:
+            self._observed_spectra = ("TT",)
+            self._ells = cmb_df["ell"].to_numpy(dtype=int, copy=True)
+            self._observed = cmb_df["Dl_obs"].to_numpy(dtype=float, copy=True)
+            self._observed_spectrum_labels = numpy.full(
+                self._observed.shape,
+                "TT",
+                dtype=object,
+            )
         if numpy.any(~numpy.isfinite(self._observed)):
             self._setup_error = (
                 "(cmb_like): Observed spectrum contains non-finite values."
@@ -217,6 +254,14 @@ class CMBLike(LikelihoodProtocol):
         if self._cov_inv is None:
             self._setup_error = (
                 "(cmb_like): Missing inverse covariance matrix."
+            )
+        elif self._cov_inv.shape != (
+            self._observed.size,
+            self._observed.size,
+        ):
+            self._setup_error = (
+                "(cmb_like): Inverse covariance matrix has unexpected "
+                "shape."
             )
 
         self._residual_buffer = numpy.empty_like(self._observed, dtype=float)
@@ -268,6 +313,7 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
+        requested_spectra = self._observed_spectra or ("TT",)
         try:
             if isinstance(perturbation_contract, Mapping) and (
                 perturbation_contract.get("standard") is False
@@ -278,14 +324,14 @@ class CMBLike(LikelihoodProtocol):
                 theory = _compute_declared_perturbation_spectrum(
                     camb_contract,
                     self._ells,
-                    spectra=("TT",),
+                    spectra=requested_spectra,
                     background_provider=self.plugin,
                 )
             else:
                 theory = compute_cmb_spectrum_from_contract(
                     camb_contract,
                     self._ells,
-                    spectra=("TT",),
+                    spectra=requested_spectra,
                 )
         except (
             AttributeError,
@@ -298,17 +344,37 @@ class CMBLike(LikelihoodProtocol):
             logger.error("(cmb_like): %s", exc)
             self._state = LikelihoodState()
             return float("-inf")
-        if not isinstance(theory, numpy.ndarray):
-            theory = numpy.asarray(theory, dtype=float)
-        if theory.shape != self._observed.shape or numpy.any(
-            ~numpy.isfinite(theory)
-        ):
+
+        if isinstance(theory, Mapping):
+            theory_blocks = {
+                str(name): numpy.asarray(values, dtype=float)
+                for name, values in theory.items()
+            }
+            theory_vector = numpy.empty_like(self._observed, dtype=float)
+            for index, (spectrum_name, ell_value) in enumerate(
+                zip(self._observed_spectrum_labels, self._ells)
+            ):
+                block = theory_blocks.get(str(spectrum_name))
+                if block is None or int(ell_value) >= block.size:
+                    self._state = LikelihoodState()
+                    return float("-inf")
+                theory_vector[index] = float(block[int(ell_value)])
+        else:
+            theory_vector = numpy.asarray(theory, dtype=float)
+            if len(requested_spectra) > 1:
+                self._state = LikelihoodState()
+                return float("-inf")
+            if theory_vector.shape != self._observed.shape:
+                self._state = LikelihoodState()
+                return float("-inf")
+
+        if numpy.any(~numpy.isfinite(theory_vector)):
             self._state = LikelihoodState()
             return float("-inf")
 
         numpy.subtract(
             self._observed,
-            theory,
+            theory_vector,
             out=self._residual_buffer,
             casting="unsafe",
         )

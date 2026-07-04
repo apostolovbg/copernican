@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 import numpy
+import pandas
 
 try:
     import camb
@@ -26,6 +27,7 @@ from copernican.lib.likelihoods.cmb import (
     native_evolution,
     native_projection,
 )
+from copernican.lib.perturbation_contract import evaluate_compiled_expression
 
 
 def _named_limit_message(
@@ -111,9 +113,9 @@ def _zero_crossing_ells(
 def _declared_graph_perturbations(
     *,
     baryon_rhs: str = (
-        "-0.06 * theta_b + 0.2 * k * k * sound_speed_sq * delta_b "
-        "+ 0.25 * tight_coupling_drag * (3.0 * theta_gamma1 - theta_b) "
-        "+ 0.35 * k * k * Psi"
+        "-Hconf * theta_b + k * k * sound_speed_sq * delta_b "
+        "+ collision_rate * (3.0 * theta_gamma1 - theta_b) "
+        "+ k * k * Psi"
     ),
     photon_monopole_rhs: str = "-k * theta_gamma1 + (k * Psi) / 3.0",
     metric_closure_expression: str = "Phi",
@@ -145,6 +147,14 @@ def _declared_graph_perturbations(
                 "kind": "photon_temperature_octopole",
                 "tensor_character": "scalar_like",
             },
+            "e_gamma0": {
+                "kind": "photon_polarization_monopole",
+                "tensor_character": "scalar_like",
+            },
+            "e_gamma1": {
+                "kind": "photon_polarization_dipole",
+                "tensor_character": "scalar_like",
+            },
             "e_gamma2": {
                 "kind": "photon_polarization_quadrupole",
                 "tensor_character": "scalar_like",
@@ -166,6 +176,10 @@ def _declared_graph_perturbations(
             "sigma_nu": {
                 "kind": "massless_neutrino_anisotropic_stress",
             },
+            "nu_l3": {
+                "kind": "massless_neutrino_multipole",
+                "tensor_character": "scalar_like",
+            },
             "Phi": {
                 "kind": "metric_potential_phi",
                 "gauge_role": "newtonian_potential",
@@ -177,7 +191,7 @@ def _declared_graph_perturbations(
         },
         "derived": {
             "polarization_moment": {
-                "expression": "theta_gamma2 + e_gamma2",
+                "expression": "theta_gamma2 + 6.0 * e_gamma2",
                 "description": "Quadrupole source for polarization.",
             },
             "total_matter_density": {
@@ -190,9 +204,27 @@ def _declared_graph_perturbations(
                 ),
                 "description": "Radiation density source for the metric.",
             },
+            "total_momentum_density": {
+                "expression": (
+                    "Omega_b0 * theta_b + Omega_c0 * theta_c + "
+                    "4.0 * Omega_gamma0 * theta_gamma1 + Omega_nu0 * theta_nu"
+                ),
+                "description": "Momentum source for the metric.",
+            },
+            "total_neutrino_shear": {
+                "expression": "Omega_nu0 * sigma_nu",
+                "description": "Neutrino shear source for the metric.",
+            },
             "metric_denominator": {
-                "expression": ("1.0 + k * k * sound_horizon * sound_horizon"),
+                "expression": "k * k + 3.0 * Hconf * Hconf",
                 "description": "Regularized Poisson denominator.",
+            },
+            "einstein_gravity_strength": {
+                "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
+                "description": (
+                    "Background gravity scale used by the scalar Einstein "
+                    "constraints."
+                ),
             },
         },
         "equations": {
@@ -203,7 +235,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": f"({photon_monopole_rhs}) - 0.015 * theta_gamma0",
+                "rhs": photon_monopole_rhs,
                 "role": "continuity",
             },
             "evolve_theta_gamma1": {
@@ -214,9 +246,8 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.35 * k * (theta_gamma0 + Psi - 0.4 * theta_gamma2) "
-                    "+ 0.25 * tight_coupling_drag * "
-                    "(theta_b / 3.0 - theta_gamma1) - 0.03 * theta_gamma1"
+                    "(k / 3.0) * (theta_gamma0 + Psi - 2.0 * theta_gamma2) "
+                    "+ collision_rate * (theta_b / 3.0 - theta_gamma1)"
                 ),
                 "role": "euler",
             },
@@ -228,11 +259,10 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.2 * k * theta_gamma1 "
-                    "- 0.12 * k * theta_gamma3 "
-                    "- 0.2 * tight_coupling_drag * "
-                    "(0.9 * theta_gamma2 - 0.1 * e_gamma2)"
-                    " - 0.04 * theta_gamma2"
+                    "(2.0 / 5.0) * k * theta_gamma1 "
+                    "- (3.0 / 5.0) * k * theta_gamma3 "
+                    "- collision_rate * "
+                    "(theta_gamma2 - 0.1 * polarization_moment)"
                 ),
                 "role": "hierarchy",
             },
@@ -244,12 +274,30 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.12 * k * theta_gamma2 "
-                    "- 0.1 * k * theta_gamma3 "
-                    "- 0.15 * tight_coupling_drag * theta_gamma3"
-                    " - 0.05 * theta_gamma3"
+                    "(3.0 / 7.0) * k * theta_gamma2 "
+                    "- (4.0 / 7.0) * k * theta_gamma3"
                 ),
                 "role": "hierarchy",
+            },
+            "evolve_e_gamma0": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "e_gamma0",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "-k * e_gamma1",
+                "role": "polarization",
+            },
+            "evolve_e_gamma1": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "e_gamma1",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": "(k / 3.0) * (e_gamma0 - 2.0 * e_gamma2)",
+                "role": "polarization",
             },
             "evolve_e_gamma2": {
                 "lhs": {
@@ -259,10 +307,10 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.2 * k * e_gamma3 "
-                    "- 0.2 * tight_coupling_drag * "
-                    "(0.9 * e_gamma2 - 0.1 * theta_gamma2)"
-                    " - 0.04 * e_gamma2"
+                    "(2.0 / 5.0) * k * e_gamma1 "
+                    "- (3.0 / 5.0) * k * e_gamma3 "
+                    "- collision_rate * "
+                    "(e_gamma2 - 0.1 * polarization_moment)"
                 ),
                 "role": "polarization",
             },
@@ -274,10 +322,8 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.12 * k * e_gamma2 "
-                    "- 0.1 * k * e_gamma3 "
-                    "- 0.15 * tight_coupling_drag * e_gamma3"
-                    " - 0.05 * e_gamma3"
+                    "(3.0 / 7.0) * k * e_gamma2 "
+                    "- (4.0 / 7.0) * k * e_gamma3"
                 ),
                 "role": "polarization",
             },
@@ -288,7 +334,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": "-theta_b - 0.01 * delta_b",
+                "rhs": "-theta_b",
                 "role": "continuity",
             },
             "evolve_theta_b": {
@@ -308,7 +354,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": "-theta_c - 0.01 * delta_c",
+                "rhs": "-theta_c",
                 "role": "continuity",
             },
             "evolve_theta_c": {
@@ -318,7 +364,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": "-0.05 * theta_c + 0.5 * k * k * Psi",
+                "rhs": "-Hconf * theta_c + k * k * Psi",
                 "role": "euler",
             },
             "evolve_delta_nu": {
@@ -328,7 +374,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": "-1.3333333333333333 * theta_nu - 0.01 * delta_nu",
+                "rhs": "-(4.0 / 3.0) * theta_nu",
                 "role": "continuity",
             },
             "evolve_theta_nu": {
@@ -338,10 +384,7 @@ def _declared_graph_perturbations(
                     "wrt": "tau",
                     "order": 1,
                 },
-                "rhs": (
-                    "0.35 * k * k * (0.25 * delta_nu - sigma_nu + Psi) "
-                    "- 0.03 * theta_nu"
-                ),
+                "rhs": ("k * k * (0.25 * delta_nu - sigma_nu + Psi)"),
                 "role": "euler",
             },
             "evolve_sigma_nu": {
@@ -352,8 +395,19 @@ def _declared_graph_perturbations(
                     "order": 1,
                 },
                 "rhs": (
-                    "0.12 * theta_nu - 0.08 * k * sigma_nu "
-                    "- 0.04 * sigma_nu"
+                    "(4.0 / 15.0) * theta_nu " "- (3.0 / 5.0) * k * nu_l3"
+                ),
+                "role": "hierarchy",
+            },
+            "evolve_nu_l3": {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": "nu_l3",
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": (
+                    "(3.0 / 7.0) * k * sigma_nu " "- (4.0 / 7.0) * k * nu_l3"
                 ),
                 "role": "hierarchy",
             },
@@ -362,7 +416,8 @@ def _declared_graph_perturbations(
             "phi_constraint": {
                 "target": "Phi",
                 "expression": (
-                    "-0.05 * (total_matter_density + total_radiation_density) "
+                    "-1.5 * einstein_gravity_strength * "
+                    "(total_matter_density + total_radiation_density) "
                     "/ metric_denominator"
                 ),
                 "role": "constraint",
@@ -374,7 +429,8 @@ def _declared_graph_perturbations(
                 "expression": (
                     "("
                     + metric_closure_expression
-                    + ") - 0.05 * Omega_nu0 * sigma_nu / metric_denominator"
+                    + ") - 3.0 * einstein_gravity_strength * "
+                    "Omega_nu0 * sigma_nu / metric_denominator"
                 ),
                 "role": "closure",
             }
@@ -479,6 +535,22 @@ def _declared_graph_perturbations(
                 },
                 "expression": "0.0",
             },
+            "e_gamma0_seed": {
+                "target": {
+                    "variable": "e_gamma0",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.0",
+            },
+            "e_gamma1_seed": {
+                "target": {
+                    "variable": "e_gamma1",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.0",
+            },
             "e_gamma3_seed": {
                 "target": {
                     "variable": "e_gamma3",
@@ -545,6 +617,14 @@ def _declared_graph_perturbations(
                     "(k * eta_initial) * (k * eta_initial) * seed / 15.0"
                 ),
             },
+            "nu_l3_seed": {
+                "target": {
+                    "variable": "nu_l3",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.0",
+            },
         },
         "boundary_conditions": {},
         "numerics": {
@@ -587,10 +667,7 @@ def _declared_graph_perturbations(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": (
-                "0.2 * k * polarization_moment - 0.4 * Hconf * tensor_b "
-                "- 0.15 * tight_coupling_drag * tensor_b"
-            ),
+            "rhs": ("0.2 * k * polarization_moment - 0.4 * Hconf * tensor_b"),
             "role": "odd_parity_polarization",
         }
         perturbations["initial_conditions"]["tensor_b_seed"] = {
@@ -656,10 +733,7 @@ def _declared_graph_perturbations(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": (
-                "0.15 * k * theta_gamma1 - 0.25 * Hconf * vector_signal "
-                "- 0.08 * vector_signal"
-            ),
+            "rhs": ("0.15 * k * theta_gamma1 - 0.25 * Hconf * vector_signal"),
             "role": "vector_coupling",
         }
         perturbations["initial_conditions"]["vector_signal_seed"] = {
@@ -693,6 +767,7 @@ def _declared_background() -> dict[str, object]:
     return {
         "derived": {
             "h": "H0 / 100.0",
+            "H0_over_c_Mpc_inv": "H0 / 299792.458",
             "Omega_k0": "0.0",
             "Tcmb": "Tcmb_K",
             "Omega_b0": "ombh2 / (h * h)",
@@ -773,7 +848,6 @@ def _base_custom_cmb_contract(
         },
         "model_parameters": {
             "Tcmb_K": 2.7255,
-            "lensing_potential_remap_scale": 1.0e-223,
         },
         "background": _declared_background(),
         "grids": {},
@@ -883,14 +957,15 @@ def _standard_contract() -> dict[str, object]:
     return copy.deepcopy(_base_standard_cmb_contract())
 
 
-def _native_scalar_acceptance_contract(
+def _native_scalar_hierarchy_contract(
     *,
     gauge: str = "conformal_newtonian",
     initial_mode: str = "adiabatic_scalar",
     include_massive_neutrino: bool = False,
+    include_lensing: bool = False,
     sum_mnu: float = 0.06,
 ) -> dict[str, object]:
-    """Return a scalar native acceptance fixture."""
+    """Return a scalar native hierarchy fixture."""
 
     numerics = {
         "ell_min": 20,
@@ -998,8 +1073,16 @@ def _native_scalar_acceptance_contract(
             "multipole_symbol": "nu_massive_l",
             "momentum_grid": "massive_neutrino_default",
         }
+    if include_lensing:
+        hierarchy_families["lensing_potential"] = {
+            "sector": "scalar",
+            "species": ["photon", "massless_neutrino"],
+            "closure": "line_of_sight_lensing",
+            "default_l_max": 8,
+            "multipole_symbol": "phi_l",
+        }
     return {
-        "model_name": "NativeScalarAcceptance",
+        "model_name": "NativeScalarHierarchy",
         "backend": "camb",
         "param_map": {
             "H0": 67.4,
@@ -1035,8 +1118,7 @@ def _native_scalar_acceptance_contract(
                     "sector": "scalar",
                     "species": ["photon", "baryon"],
                     "expression": (
-                        "tight_coupling_drag * "
-                        "(theta_b / 3.0 - theta_gamma1)"
+                        "collision_rate * " "(theta_b / 3.0 - theta_gamma1)"
                     ),
                     "counterpart": "baryon_thomson_drag",
                 }
@@ -1057,7 +1139,7 @@ def _native_scalar_acceptance_contract(
             "boundary_conditions": {},
             "sectors": {
                 "scalar": {
-                    "description": "Native scalar acceptance sector.",
+                    "description": "Native scalar hierarchy sector.",
                     "species": scalar_species,
                     "hierarchy_families": scalar_hierarchy_families,
                     "supported_gauges": [
@@ -1087,8 +1169,8 @@ def _native_scalar_acceptance_contract(
             "observables": {},
             "numerics": dict(numerics),
             "validity": {
-                "regimes": ["linear", "native_scalar_acceptance"],
-                "notes": "Metadata-only native scalar acceptance route.",
+                "regimes": ["linear", "native_scalar_hierarchy"],
+                "notes": "Metadata-only native scalar hierarchy route.",
             },
             "backend_mapping": {
                 "camb": {
@@ -1119,7 +1201,7 @@ def _strip_perturbations(contract: dict[str, object]) -> dict[str, object]:
 def _strip_native_runtime_sections(
     contract: dict[str, object],
 ) -> dict[str, object]:
-    """Return a metadata-only native scalar acceptance contract."""
+    """Return a metadata-only native scalar hierarchy contract."""
 
     stripped = copy.deepcopy(contract)
     perturbations = stripped.get("perturbations")
@@ -1784,19 +1866,19 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 ),
             )
 
-    def test_native_scalar_acceptance_amplitude_response_tracks_camb(
+    def test_native_scalar_hierarchy_amplitude_response_tracks_camb(
         self,
     ) -> None:
-        """Native scalar acceptance should preserve CAMB amplitude response."""
+        """Native scalar hierarchy should preserve CAMB amplitude response."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
 
         base_contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         shifted_contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         shifted_contract["param_map"]["As"] *= 1.1
         ells = numpy.asarray((30, 60, 90, 120), dtype=int)
@@ -1861,7 +1943,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 atol=5.0e-2,
                 err_msg=(
                     f"{spectrum_name} amplitude-response mismatch for the "
-                    "native scalar acceptance route."
+                    "native scalar hierarchy route."
                 ),
             )
 
@@ -2454,8 +2536,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         ells = numpy.arange(20, 90, dtype=int)
         low_ns_contract = _speedup_contract(_custom_contract())
         high_ns_contract = _speedup_contract(_custom_contract())
-        low_ns_contract["param_map"]["ns"] = 0.92
-        high_ns_contract["param_map"]["ns"] = 1.01
+        low_ns_contract["param_map"]["ns"] = 0.85
+        high_ns_contract["param_map"]["ns"] = 1.15
         low_ns_tt = numpy.asarray(
             cmb.compute_cmb_spectrum_from_contract(
                 low_ns_contract,
@@ -2658,9 +2740,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         baseline = _speedup_contract(_custom_contract(include_lensing=True))
         changed = _speedup_contract(_custom_contract(include_lensing=True))
+        baseline["numerical"]["k_sample_count"] = 16
+        changed["numerical"]["k_sample_count"] = 16
+        baseline["perturbations"]["sources"]["lensing_potential"][
+            "expression"
+        ] = "1.0e4 * exp(-tau) * (Phi + Psi)"
         changed["perturbations"]["sources"]["lensing_potential"][
             "expression"
-        ] = "1.6 * exp(-tau) * (Phi + Psi)"
+        ] = "1.6 * 1.0e4 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 60, dtype=int)
         baseline_unlensed = cmb.compute_cmb_spectrum_from_contract(
             baseline,
@@ -2670,17 +2757,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         baseline_lensed = cmb.compute_cmb_spectrum_from_contract(
             baseline,
             ells,
-            spectra=("lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"),
+            spectra=(
+                "PP",
+                "lensed_TT",
+                "lensed_EE",
+                "lensed_TE",
+                "lensed_BB",
+            ),
         )
         changed_lensed = cmb.compute_cmb_spectrum_from_contract(
             changed,
             ells,
-            spectra=("lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"),
+            spectra=(
+                "PP",
+                "lensed_TT",
+                "lensed_EE",
+                "lensed_TE",
+                "lensed_BB",
+            ),
         )
 
         self.assertEqual(
             set(baseline_lensed),
-            {"lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"},
+            {"PP", "lensed_TT", "lensed_EE", "lensed_TE", "lensed_BB"},
         )
         for values in baseline_lensed.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
@@ -2714,14 +2813,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(
                 numpy.max(
                     numpy.abs(
-                        numpy.asarray(
-                            changed_lensed["lensed_BB"],
-                            dtype=float,
-                        )
-                        - numpy.asarray(
-                            baseline_lensed["lensed_BB"],
-                            dtype=float,
-                        )
+                        numpy.asarray(changed_lensed["PP"], dtype=float)
+                        - numpy.asarray(baseline_lensed["PP"], dtype=float)
                     )
                 )
             ),
@@ -2903,6 +2996,69 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-12,
         )
 
+    def test_declared_collision_operator_changes_temperature_response(
+        self,
+    ) -> None:
+        """Collision operators should alter the compiled drag response."""
+
+        baseline = _speedup_contract(_native_scalar_hierarchy_contract())
+        changed = _speedup_contract(_native_scalar_hierarchy_contract())
+        changed["perturbations"]["collision_operators"]["thomson_drag"][
+            "expression"
+        ] = (
+            "collision_rate * "
+            "(theta_b / 3.0 - theta_gamma1) + 0.25 * theta_gamma0"
+        )
+        baseline = _prepare_native_contract(baseline)
+        changed = _prepare_native_contract(changed)
+        baseline_thomson_drag = baseline[
+            "perturbation_data"
+        ].collision_operators["thomson_drag"]
+        changed_thomson_drag = changed[
+            "perturbation_data"
+        ].collision_operators["thomson_drag"]
+        context = {
+            "photon_baryon_momentum_ratio": 1.5,
+            "theta_b": 0.12,
+            "theta_gamma0": 0.31,
+            "theta_gamma1": 0.08,
+            "collision_rate": 0.75,
+        }
+        baseline_drag = evaluate_compiled_expression(
+            baseline_thomson_drag.compiled_expression,
+            context,
+        )
+        changed_drag = evaluate_compiled_expression(
+            changed_thomson_drag.compiled_expression,
+            context,
+        )
+        self.assertGreater(
+            float(numpy.abs(changed_drag - baseline_drag)),
+            1.0e-12,
+        )
+        baseline_baryon_drag = evaluate_compiled_expression(
+            baseline["perturbation_data"]
+            .derived["baryon_thomson_drag"]
+            .compiled_expression,
+            {
+                **context,
+                "thomson_drag": baseline_drag,
+            },
+        )
+        changed_baryon_drag = evaluate_compiled_expression(
+            changed["perturbation_data"]
+            .derived["baryon_thomson_drag"]
+            .compiled_expression,
+            {
+                **context,
+                "thomson_drag": changed_drag,
+            },
+        )
+        self.assertGreater(
+            float(numpy.abs(changed_baryon_drag - baseline_baryon_drag)),
+            1.0e-12,
+        )
+
     def test_multiple_declared_coordinates_preserve_runtime_response(
         self,
     ) -> None:
@@ -3000,35 +3156,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
-    def test_native_source_refinement_above_two_changes_outputs(
+    def test_native_source_refinement_above_two_changes_runtime_grid(
         self,
     ) -> None:
         """Source refinement above two should stay active at runtime."""
 
-        baseline = _speedup_contract(_custom_contract())
-        refined = _speedup_contract(_custom_contract())
+        baseline = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        refined = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
         baseline["numerical"]["source_grid_multiplier"] = 3
         refined["numerical"]["source_grid_multiplier"] = 4
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+        baseline_data = native_projection._compute_custom_cmb_spectrum_data(
+            baseline,
+            ells,
         )
-        refined_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                refined,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+        refined_data = native_projection._compute_custom_cmb_spectrum_data(
+            refined,
+            ells,
         )
         self.assertGreater(
-            float(numpy.max(numpy.abs(refined_tt - baseline_tt))),
-            1.0e-12,
+            int(refined_data.runtime_envelope["eta_sample_count"]),
+            int(baseline_data.runtime_envelope["eta_sample_count"]),
         )
 
     def test_native_eta_sample_count_changes_background_resolution(
@@ -3254,7 +3406,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Massive-neutrino grids should honor declared count floors."""
 
         contract = _speedup_contract(
-            _native_scalar_acceptance_contract(
+            _native_scalar_hierarchy_contract(
                 include_massive_neutrino=True,
             )
         )
@@ -3620,18 +3772,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(result)))
         self.assertEqual(result.shape, (ells.size,))
 
-    def test_native_scalar_acceptance_materializes_generated_hierarchy(
+    def test_native_scalar_hierarchy_materializes_generated_hierarchy(
         self,
     ) -> None:
         """The native scalar route should compile hierarchy data."""
 
         contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
 
         self.assertTrue(
-            perturbation_data.manifest_summary["generated_scalar_acceptance"]
+            perturbation_data.manifest_summary["generated_scalar_hierarchy"]
         )
         self.assertIn("theta_gamma8", perturbation_data.variables)
         self.assertIn("e_gamma8", perturbation_data.variables)
@@ -3642,14 +3794,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("PP", perturbation_data.observables)
         self.assertIn("TP", perturbation_data.observables)
         self.assertIn("EP", perturbation_data.observables)
+        self.assertEqual(
+            perturbation_data.derived["polarization_moment"].expression,
+            "theta_gamma2 + 6.0 * e_gamma2",
+        )
 
-    def test_native_scalar_acceptance_materializes_massive_neutrinos(
+    def test_native_scalar_hierarchy_materializes_massive_neutrinos(
         self,
     ) -> None:
         """The native scalar route should compile massive neutrinos."""
 
         contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -3664,13 +3820,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_default",
         )
 
-    def test_native_scalar_acceptance_materializes_massive_neutrino_q_bins(
+    def test_native_scalar_hierarchy_materializes_massive_neutrino_q_bins(
         self,
     ) -> None:
         """Massive-neutrino q bins should materialize resolved states."""
 
         contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -3679,14 +3835,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("sigma_nu_massive_q0", perturbation_data.variables)
         self.assertIn("nu_massive_q0_l5", perturbation_data.variables)
 
-    def test_native_scalar_acceptance_materializer_uses_q_weights(
+    def test_native_scalar_hierarchy_materializer_uses_q_weights(
         self,
     ) -> None:
         """Generated q bins should keep the physical momentum weights."""
 
         contract = _prepare_native_contract(
             _strip_native_runtime_sections(
-                _native_scalar_acceptance_contract(
+                _native_scalar_hierarchy_contract(
                     include_massive_neutrino=True,
                 )
             )
@@ -3694,42 +3850,63 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         perturbation_data = contract["perturbation_data"]
 
         self.assertTrue(
-            perturbation_data.manifest_summary["generated_scalar_acceptance"]
+            perturbation_data.manifest_summary["generated_scalar_hierarchy"]
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * "
-            "massive_neutrino_q0_mass_fraction",
+            "massive_neutrino_q0_weight * delta_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_density_q0"
             ].expression,
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * "
-            "massive_neutrino_q0_velocity_ratio * "
-            "theta_nu_massive_q0",
+            "massive_neutrino_q0_weight * theta_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_momentum_q0"
             ].expression,
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * "
-            "massive_neutrino_q0_pressure_ratio * "
-            "sigma_nu_massive_q0",
+            "massive_neutrino_q0_weight * sigma_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_shear_q0"
             ].expression,
         )
         self.assertNotIn(
-            "massive_neutrino_fraction",
+            "massive_neutrino_q0_mass_fraction",
             perturbation_data.derived[
                 "massive_neutrino_metric_density_q0"
             ].expression,
         )
         self.assertNotIn(
-            "1.0e-3",
+            "massive_neutrino_q0_velocity_ratio",
             perturbation_data.derived[
-                "massive_neutrino_metric_density"
+                "massive_neutrino_metric_momentum_q0"
             ].expression,
+        )
+        self.assertNotIn(
+            "massive_neutrino_q0_pressure_ratio",
+            perturbation_data.derived[
+                "massive_neutrino_metric_shear_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_streaming_speed",
+            perturbation_data.equations["evolve_delta_nu_massive_q0"].rhs,
+        )
+        self.assertNotIn(
+            "massive_neutrino_q0_velocity_ratio",
+            perturbation_data.equations["evolve_delta_nu_massive_q0"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_streaming_speed",
+            perturbation_data.equations["evolve_theta_nu_massive_q0"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_streaming_speed",
+            perturbation_data.equations["evolve_nu_massive_l3"].rhs,
+        )
+        self.assertNotIn(
+            "massive_neutrino_velocity_ratio",
+            perturbation_data.equations["evolve_nu_massive_l3"].rhs,
         )
         self.assertIn(
             "massive_neutrino_metric_momentum",
@@ -3767,8 +3944,28 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.equations["evolve_theta_gamma2"].rhs,
         )
         self.assertIn(
+            "collision_rate",
+            perturbation_data.equations["evolve_theta_gamma2"].rhs,
+        )
+        self.assertIn(
             "e_gamma3",
             perturbation_data.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
+            "collision_rate",
+            perturbation_data.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertEqual(
+            perturbation_data.equations["evolve_e_gamma0"].rhs,
+            "-acoustic_k * e_gamma1",
+        )
+        self.assertNotIn(
+            "tight_coupling_drag",
+            perturbation_data.equations["evolve_theta_gamma3"].rhs,
+        )
+        self.assertNotIn(
+            "tight_coupling_drag",
+            perturbation_data.equations["evolve_e_gamma3"].rhs,
         )
         self.assertNotIn(
             "massive_neutrino_pressure_ratio",
@@ -3807,7 +4004,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ].expression,
         )
         self.assertIn(
-            "1.0 / (3.0 * acoustic_k * massive_neutrino_q0_velocity_ratio)",
+            "acoustic_k * eta_initial / 6.0",
+            perturbation_data.initial_conditions[
+                "theta_nu_massive_q0_seed"
+            ].expression,
+        )
+        self.assertNotIn(
+            "massive_neutrino_q0_velocity_ratio",
             perturbation_data.initial_conditions[
                 "theta_nu_massive_q0_seed"
             ].expression,
@@ -3849,7 +4052,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Declared phiphi, Tphi, and Ephi aliases should round-trip."""
 
         contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         ells = numpy.asarray((20, 40, 60, 90, 120), dtype=int)
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -3875,19 +4078,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(spectra["Ephi"], dtype=float),
         )
 
-    def test_native_scalar_acceptance_synchronous_matches_newtonian(
+    def test_native_scalar_hierarchy_synchronous_matches_newtonian(
         self,
     ) -> None:
         """Generated synchronous and Newtonian routes should agree."""
 
         newtonian = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         synchronous = _prepare_native_contract(
-            _native_scalar_acceptance_contract(gauge="synchronous")
+            _native_scalar_hierarchy_contract(gauge="synchronous")
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
-        spectra = ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
+        spectra = (
+            "TT",
+            "TE",
+            "EE",
+            "BB",
+            "PP",
+            "TP",
+            "EP",
+            "lensed_TT",
+            "lensed_TE",
+            "lensed_EE",
+            "lensed_BB",
+        )
         baseline = cmb.compute_cmb_spectrum_from_contract(
             newtonian,
             ells,
@@ -3907,16 +4122,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-10,
             )
 
-    def test_native_scalar_acceptance_standard_modes_generate_distinct(
+    def test_native_scalar_hierarchy_standard_modes_generate_distinct(
         self,
     ) -> None:
         """Generated standard initial-condition modes should change TT."""
 
         adiabatic = _prepare_native_contract(
-            _native_scalar_acceptance_contract(initial_mode="adiabatic_scalar")
+            _native_scalar_hierarchy_contract(initial_mode="adiabatic_scalar")
         )
         cdm_mode = _prepare_native_contract(
-            _native_scalar_acceptance_contract(initial_mode="cdm_isocurvature")
+            _native_scalar_hierarchy_contract(initial_mode="cdm_isocurvature")
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         adiabatic_tt = numpy.asarray(
@@ -3955,58 +4170,107 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "-1.5 * seed",
         )
 
-    def test_native_scalar_acceptance_massive_neutrino_response(
+    def test_native_scalar_hierarchy_massive_neutrino_response(
         self,
     ) -> None:
-        """Massive-neutrino momentum grids should affect native spectra."""
+        """Massive-neutrino momentum grids should affect q-bin physics."""
 
         light = _prepare_native_contract(
-            _native_scalar_acceptance_contract(
-                include_massive_neutrino=True,
-                sum_mnu=0.06,
+            _speedup_contract(
+                _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True,
+                    sum_mnu=0.06,
+                )
             )
         )
+        light["numerical"].update(
+            {
+                "eta_sample_count": 32,
+                "k_sample_count": 8,
+            }
+        )
+        light["numerical"]["momentum_grids"]["massive_neutrino_default"][
+            "count"
+        ] = 4
         heavy = _prepare_native_contract(
-            _native_scalar_acceptance_contract(
-                include_massive_neutrino=True,
-                sum_mnu=0.3,
+            _speedup_contract(
+                _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True,
+                    sum_mnu=2.0,
+                )
             )
         )
-        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
-        light_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                light,
-                ells,
-                spectra=("TT",),
-            ),
+        heavy["numerical"].update(
+            {
+                "eta_sample_count": 32,
+                "k_sample_count": 8,
+            }
+        )
+        heavy["numerical"]["momentum_grids"]["massive_neutrino_default"][
+            "count"
+        ] = 4
+        light_physical = (
+            native_background._resolve_custom_cmb_physical_parameters(light)
+        )
+        heavy_physical = (
+            native_background._resolve_custom_cmb_physical_parameters(heavy)
+        )
+        light_q_context = native_evolution._declared_momentum_grid_context(
+            light["perturbation_data"],
+            model_parameters=light["param_map"],
+            physical_params=light_physical,
+            scale_factor=0.5,
+        )
+        heavy_q_context = native_evolution._declared_momentum_grid_context(
+            heavy["perturbation_data"],
+            model_parameters=heavy["param_map"],
+            physical_params=heavy_physical,
+            scale_factor=0.5,
+        )
+        light_streaming_speed = numpy.asarray(
+            light_q_context["massive_neutrino_q0_streaming_speed"],
             dtype=float,
         )
-        heavy_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                heavy,
-                ells,
-                spectra=("TT",),
-            ),
+        heavy_streaming_speed = numpy.asarray(
+            heavy_q_context["massive_neutrino_q0_streaming_speed"],
+            dtype=float,
+        )
+        light_mass_fraction = numpy.asarray(
+            light_q_context["massive_neutrino_q0_mass_fraction"],
+            dtype=float,
+        )
+        heavy_mass_fraction = numpy.asarray(
+            heavy_q_context["massive_neutrino_q0_mass_fraction"],
             dtype=float,
         )
 
-        self.assertTrue(numpy.all(numpy.isfinite(light_tt)))
-        self.assertTrue(numpy.all(numpy.isfinite(heavy_tt)))
+        self.assertTrue(numpy.isfinite(light_streaming_speed))
+        self.assertTrue(numpy.isfinite(heavy_streaming_speed))
         self.assertGreater(
-            float(numpy.max(numpy.abs(light_tt - heavy_tt))),
+            float(
+                numpy.max(
+                    numpy.abs(light_streaming_speed - heavy_streaming_speed)
+                )
+            ),
+            1.0e-12,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(numpy.abs(light_mass_fraction - heavy_mass_fraction))
+            ),
             1.0e-12,
         )
 
-    def test_native_scalar_acceptance_momentum_grid_cache_reuses(
+    def test_native_scalar_hierarchy_momentum_grid_cache_reuses(
         self,
     ) -> None:
         """Momentum-grid quadrature should reuse bounded cache entries."""
 
         native_cache.clear_native_cmb_caches()
         baseline = _prepare_native_contract(
-            _native_scalar_acceptance_contract(include_massive_neutrino=True)
+            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
-        shifted = _native_scalar_acceptance_contract(
+        shifted = _native_scalar_hierarchy_contract(
             include_massive_neutrino=True
         )
         shifted["param_map"]["As"] *= 1.1
@@ -4033,15 +4297,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(first_stats["entries"], second_stats["entries"])
         self.assertGreaterEqual(second_stats["hits"], first_stats["hits"] + 1)
 
-    def test_native_scalar_acceptance_reuses_structural_runtime_bundle(
+    def test_native_scalar_hierarchy_reuses_structural_runtime_bundle(
         self,
     ) -> None:
         """Scalar runtime signatures should survive bound-value changes."""
 
         baseline = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
-        shifted = _native_scalar_acceptance_contract()
+        shifted = _native_scalar_hierarchy_contract()
         shifted["param_map"]["As"] *= 1.1
         shifted["param_map"]["H0"] = 68.1
         shifted_prepared = _prepare_native_contract(shifted)
@@ -4051,18 +4315,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             shifted_prepared["runtime_signature"],
         )
 
-    def test_native_scalar_acceptance_runs_camb_free(self) -> None:
+    def test_native_scalar_hierarchy_runs_camb_free(self) -> None:
         """The native scalar route should stay CAMB-free at runtime."""
 
         contract = _prepare_native_contract(
-            _native_scalar_acceptance_contract()
+            _native_scalar_hierarchy_contract()
         )
         ells = numpy.arange(20, 60, dtype=int)
         with mock.patch.object(
             camb_solver.camb,
             "get_results",
             side_effect=AssertionError(
-                "native scalar acceptance should not call CAMB"
+                "native scalar hierarchy should not call CAMB"
             ),
         ):
             spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -4134,6 +4398,52 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
 
         self.assertTrue(callable(cmb.CMBLike.loglike))
         self.assertTrue(hasattr(cmb.CMBLike.state, "__get__"))
+
+
+class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
+    """Exercise the public CMB likelihood surface on spectrum blocks."""
+
+    def test_loglike_supports_block_spectra(self) -> None:
+        """Block spectra should flatten into one consistent likelihood."""
+
+        class _BlockSpectrumPlugin:
+            """Return a minimal structured CAMB contract for testing."""
+
+            def get_camb_contract(self, _params):
+                return {
+                    "backend": "camb",
+                    "calls": [],
+                    "grids": {},
+                    "param_map": {},
+                    "perturbations": {"standard": True},
+                    "values": {},
+                }
+
+        cmb_data = pandas.DataFrame(
+            {
+                "ell": [2, 3, 2, 3],
+                "spectrum": ["TT", "TT", "TE", "TE"],
+                "Dl_obs": [1.0, 2.0, 0.5, 0.25],
+            }
+        )
+        cmb_data.attrs["covariance_matrix_inv"] = numpy.eye(4, dtype=float)
+        theory = {
+            "TT": numpy.asarray([0.0, 0.0, 1.0, 2.0], dtype=float),
+            "TE": numpy.asarray([0.0, 0.0, 0.5, 0.25], dtype=float),
+        }
+        with mock.patch(
+            (
+                "copernican.lib.likelihoods.cmb.cmb."
+                "compute_cmb_spectrum_from_contract"
+            ),
+            return_value=theory,
+        ):
+            likelihood = cmb.CMBLike(cmb_data, _BlockSpectrumPlugin())
+            loglike = likelihood.loglike(())
+
+        self.assertEqual(likelihood.state["chi2"], 0.0)
+        self.assertEqual(loglike, 0.0)
+        self.assertEqual(likelihood._observed.shape, (4,))
 
 
 if __name__ == "__main__":

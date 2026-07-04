@@ -1056,14 +1056,21 @@ def _custom_cmb_spectrum_cache_key(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     background_provider: Any | None,
+    requested_spectra: Iterable[str] | None = None,
 ) -> tuple[Any, ...]:
     """Return a cache key for the custom spectrum transfer data."""
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
+    requested_key = None
+    if requested_spectra is not None:
+        requested_key = tuple(
+            sorted({str(name).upper() for name in requested_spectra})
+        )
     return (
         _freeze_for_cache(_contract_cache_view(contract_or_params)),
         ell_key,
         _custom_cmb_provider_key(background_provider),
+        requested_key,
     )
 
 
@@ -1177,10 +1184,10 @@ def _resolve_custom_cmb_numerics(
     k_min = _read_float("k_min", defaults.k_min)
     k_max = _read_float("k_max", defaults.k_max)
     k_sample_count = max(
-        16, _read_int("k_sample_count", defaults.k_sample_count)
+        8, _read_int("k_sample_count", defaults.k_sample_count)
     )
     eta_sample_count = max(
-        128,
+        32,
         _read_int("eta_sample_count", defaults.eta_sample_count),
     )
     photon_hierarchy_l_max = max(
@@ -1764,12 +1771,12 @@ def _build_custom_cmb_background(
     recombination_window = numpy.geomspace(
         1.0 / 5_000.0,
         1.0 / 30.0,
-        max(256, numerics.eta_sample_count),
+        max(32, numerics.eta_sample_count),
     )
     reionization_window = numpy.geomspace(
         1.0 / 30.0,
         1.0,
-        max(128, numerics.eta_sample_count // 2),
+        max(16, numerics.eta_sample_count // 2),
     )
     a_grid = numpy.unique(
         numpy.clip(

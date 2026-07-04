@@ -355,13 +355,20 @@ def _compute_custom_cmb_spectrum_data(
     ells: Iterable[int],
     *,
     background_provider: Any | None = None,
+    requested_spectra: Iterable[str] | None = None,
 ) -> CustomCMBSpectrumData:
     """Return transfer functions and spectra for a declared CMB graph."""
 
+    requested_spectrum_names = None
+    if requested_spectra is not None:
+        requested_spectrum_names = {
+            str(name).upper() for name in requested_spectra
+        }
     cache_key = _custom_cmb_spectrum_cache_key(
         contract_or_params,
         ells,
         background_provider,
+        requested_spectra=requested_spectrum_names,
     )
     cached_spectrum = native_cache.get_custom_cmb_spectrum(cache_key)
     if cached_spectrum is not None:
@@ -405,7 +412,10 @@ def _compute_custom_cmb_spectrum_data(
         eta_los_grid,
         refinement=eta_los_refinement,
     )
-    minimum_eta_samples = max(128, 128 * eta_los_refinement)
+    minimum_eta_samples = max(
+        16,
+        int(numerics.eta_sample_count) * eta_los_refinement,
+    )
     if eta_los_grid.size < minimum_eta_samples:
         eta_los_grid = numpy.linspace(
             eta_start,
@@ -516,7 +526,7 @@ def _compute_custom_cmb_spectrum_data(
     k_values = numpy.logspace(
         math.log10(k_min),
         math.log10(k_max),
-        max(16, int(numerics.k_sample_count)),
+        max(8, int(numerics.k_sample_count)),
     )
     k_values = numpy.asarray(k_values, dtype=float)
 
@@ -541,15 +551,43 @@ def _compute_custom_cmb_spectrum_data(
                 continue
     physical_runtime_scalars = _physical_runtime_scalars(physical_params)
 
+    all_power_spectrum_observables = {
+        name: entry
+        for name, entry in perturbation_data.observables.items()
+        if entry.kind == "angular_power_spectrum"
+    }
+    if requested_spectrum_names is None:
+        power_spectrum_observables = all_power_spectrum_observables
+        required_transfer_components = {
+            str(observable.primary)
+            for observable in power_spectrum_observables.values()
+        }
+        required_transfer_components.update(
+            str(observable.secondary)
+            for observable in power_spectrum_observables.values()
+        )
+    else:
+        power_spectrum_observables = {
+            name: entry
+            for name, entry in all_power_spectrum_observables.items()
+            if name in requested_spectrum_names
+        }
+        required_transfer_components = {
+            str(observable.primary)
+            for observable in power_spectrum_observables.values()
+        }
+        required_transfer_components.update(
+            str(observable.secondary)
+            for observable in power_spectrum_observables.values()
+        )
     transfer_component_observables = {
         name: entry
         for name, entry in perturbation_data.observables.items()
         if entry.kind == "transfer_component"
-    }
-    power_spectrum_observables = {
-        name: entry
-        for name, entry in perturbation_data.observables.items()
-        if entry.kind == "angular_power_spectrum"
+        and (
+            requested_spectrum_names is None
+            or name in required_transfer_components
+        )
     }
     momentum_runtimes = _resolve_declared_momentum_grid_runtimes(
         perturbation_data,
@@ -657,8 +695,8 @@ def _compute_custom_cmb_spectrum_data(
                 step_index=step_index,
                 blend=blend,
             ),
-            "collision_rate": _blend_history(
-                collision_rate_grid,
+            "baryon_loading": _blend_history(
+                baryon_loading_grid,
                 step_index=step_index,
                 blend=blend,
             ),
@@ -669,6 +707,18 @@ def _compute_custom_cmb_spectrum_data(
             ),
             "sound_horizon": float(background.sound_horizon_mpc),
         }
+        collision_rate = _blend_history(
+            collision_rate_grid,
+            step_index=step_index,
+            blend=blend,
+        )
+        tight_coupling_drag = _compute_tight_coupling_drag(
+            collision_rate=collision_rate,
+            k_value=float(k_value),
+            tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+        )
+        scalar_context["collision_rate"] = float(collision_rate)
+        scalar_context["tight_coupling_drag"] = float(tight_coupling_drag)
         for name, history in declared_background_histories.items():
             scalar_context[name] = _blend_history(
                 history,
@@ -860,6 +910,7 @@ def _compute_custom_cmb_spectrum_data(
         step_index: int,
         blend: float,
         k_value: float,
+        include_collision_terms: bool = True,
     ) -> numpy.ndarray:
         """Return the state derivative for one RK stage."""
 
@@ -867,6 +918,10 @@ def _compute_custom_cmb_spectrum_data(
             step_index,
             blend,
         )
+        if not include_collision_terms:
+            background_scalars = dict(background_scalars)
+            background_scalars["collision_rate"] = 0.0
+            background_scalars["tight_coupling_drag"] = 0.0
         scalar_context = _build_scalar_state_context(
             state_vector,
             k_value=float(k_value),
@@ -914,6 +969,93 @@ def _compute_custom_cmb_spectrum_data(
         """Integrate one Fourier mode through the declared graph."""
 
         end_boundary_entries = execution_plan.end_condition_entries
+        state_index_by_key = runtime_spec.state_index_by_key
+        theta_gamma1_index = state_index_by_key.get(("theta_gamma1", "tau", 0))
+        theta_b_index = state_index_by_key.get(("theta_b", "tau", 0))
+        theta_gamma2_index = state_index_by_key.get(("theta_gamma2", "tau", 0))
+        e_gamma2_index = state_index_by_key.get(("e_gamma2", "tau", 0))
+
+        def _describe_nonfinite_state(
+            state_vector: numpy.ndarray,
+        ) -> str:
+            """Return the names of the first few non-finite state slots."""
+
+            bad_indices = numpy.flatnonzero(~numpy.isfinite(state_vector))
+            if bad_indices.size == 0:
+                return ""
+            bad_names = [
+                runtime_spec.state_slots[int(index)].variable
+                for index in bad_indices[:5]
+            ]
+            return ", ".join(bad_names)
+
+        # Solve the stiff Thomson sub-block exactly so the explicit part
+        # only carries the free-streaming and metric evolution terms.
+        def _apply_exact_thomson_relaxation(
+            state_vector: numpy.ndarray,
+            *,
+            step_index: int,
+            blend: float,
+            dt: float,
+            k_value: float,
+        ) -> numpy.ndarray:
+            """Return one state vector after the exact Thomson sub-step."""
+
+            if dt == 0.0:
+                return numpy.asarray(state_vector, dtype=float)
+            if (
+                theta_gamma1_index is None
+                or theta_b_index is None
+                or theta_gamma2_index is None
+                or e_gamma2_index is None
+            ):
+                return numpy.asarray(state_vector, dtype=float)
+            _, background_scalars = _scalar_background_context(
+                step_index,
+                blend,
+            )
+            collision_rate = float(background_scalars["collision_rate"])
+            if not numpy.isfinite(collision_rate) or collision_rate <= 0.0:
+                return numpy.asarray(state_vector, dtype=float)
+            baryon_loading = max(
+                float(background_scalars["baryon_loading"]),
+                1.0e-12,
+            )
+            photon_baryon_ratio = 1.0 / baryon_loading
+            collision_strength = collision_rate * float(dt)
+            relaxed = numpy.asarray(state_vector, dtype=float).copy()
+
+            theta_gamma1 = float(relaxed[theta_gamma1_index])
+            theta_b = float(relaxed[theta_b_index])
+            dipole_mode = theta_gamma1 - theta_b / 3.0
+            momentum_mode = theta_b + photon_baryon_ratio * theta_gamma1
+            dipole_decay = math.exp(
+                -collision_strength * (1.0 + photon_baryon_ratio / 3.0)
+            )
+            relaxed_theta_gamma1 = (
+                momentum_mode + 3.0 * dipole_mode * dipole_decay
+            ) / (3.0 + photon_baryon_ratio)
+            relaxed_theta_b = momentum_mode - (
+                photon_baryon_ratio * relaxed_theta_gamma1
+            )
+            relaxed[theta_gamma1_index] = relaxed_theta_gamma1
+            relaxed[theta_b_index] = relaxed_theta_b
+
+            theta_gamma2 = float(relaxed[theta_gamma2_index])
+            e_gamma2 = float(relaxed[e_gamma2_index])
+            fast_mode = theta_gamma2 - e_gamma2
+            slow_mode = theta_gamma2 + 6.0 * e_gamma2
+            fast_decay = math.exp(-collision_strength)
+            slow_decay = math.exp(-0.3 * collision_strength)
+            relaxed_theta_gamma2 = (
+                slow_mode * slow_decay + 6.0 * fast_mode * fast_decay
+            ) / 7.0
+            relaxed_e_gamma2 = (
+                slow_mode * slow_decay - fast_mode * fast_decay
+            ) / 7.0
+            relaxed[theta_gamma2_index] = relaxed_theta_gamma2
+            relaxed[e_gamma2_index] = relaxed_e_gamma2
+            return relaxed
 
         def _advance_declared_interval(
             state_vector: numpy.ndarray,
@@ -922,29 +1064,13 @@ def _compute_custom_cmb_spectrum_data(
             dt: float,
             k_value: float,
         ) -> numpy.ndarray:
-            """Advance one LOS interval with adaptive RK4 sub-stepping."""
+            """Advance one LOS interval with split streaming and collisions."""
 
-            _, start_scalars = _scalar_background_context(step_index, 0.0)
-            _, end_scalars = _scalar_background_context(step_index, 1.0)
-            start_drag = _compute_tight_coupling_drag(
-                collision_rate=float(start_scalars["collision_rate"]),
-                k_value=float(k_value),
-                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
-            )
-            end_drag = _compute_tight_coupling_drag(
-                collision_rate=float(end_scalars["collision_rate"]),
-                k_value=float(k_value),
-                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
-            )
             stiffness_scale = max(
                 abs(float(k_value)),
-                abs(float(start_scalars["Hconf"])),
-                abs(float(end_scalars["Hconf"])),
-                abs(float(start_drag)),
-                abs(float(end_drag)),
                 1.0e-12,
             )
-            target_stage_scale = 0.25
+            target_stage_scale = 8.0
             required_substeps = max(
                 1,
                 int(
@@ -956,7 +1082,8 @@ def _compute_custom_cmb_spectrum_data(
             substep_count = 1
             while substep_count < required_substeps:
                 substep_count *= 2
-            max_substep_count = 512
+            max_substep_count = 65536
+            failure_detail = "unspecified"
             while substep_count <= max_substep_count:
                 trial_state = numpy.asarray(state_vector, dtype=float).copy()
                 sub_dt = dt / float(substep_count)
@@ -965,29 +1092,47 @@ def _compute_custom_cmb_spectrum_data(
                     blend_start = substep_index / substep_count
                     blend_mid = (substep_index + 0.5) / substep_count
                     blend_end = (substep_index + 1.0) / substep_count
+                    trial_state = _apply_exact_thomson_relaxation(
+                        trial_state,
+                        step_index=step_index,
+                        blend=blend_start,
+                        dt=0.5 * sub_dt,
+                        k_value=float(k_value),
+                    )
+                    if not numpy.all(numpy.isfinite(trial_state)):
+                        failure_detail = (
+                            "exact collision sub-step start: "
+                            f"{_describe_nonfinite_state(trial_state)}"
+                        )
+                        failed = True
+                        break
                     stage_rhs_initial = _mode_rhs(
                         trial_state,
                         step_index=step_index,
                         blend=blend_start,
                         k_value=float(k_value),
+                        include_collision_terms=False,
                     )
                     stage_rhs_mid_a = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_initial,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
+                        include_collision_terms=False,
                     )
                     stage_rhs_mid_b = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_mid_a,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
+                        include_collision_terms=False,
                     )
                     stage_rhs_final = _mode_rhs(
                         trial_state + sub_dt * stage_rhs_mid_b,
                         step_index=step_index,
                         blend=blend_end,
                         k_value=float(k_value),
+                        include_collision_terms=False,
                     )
                     candidate_state = trial_state + (sub_dt / 6.0) * (
                         stage_rhs_initial
@@ -996,6 +1141,24 @@ def _compute_custom_cmb_spectrum_data(
                         + stage_rhs_final
                     )
                     if not numpy.all(numpy.isfinite(candidate_state)):
+                        failure_detail = (
+                            "explicit sub-step: "
+                            f"{_describe_nonfinite_state(candidate_state)}"
+                        )
+                        failed = True
+                        break
+                    candidate_state = _apply_exact_thomson_relaxation(
+                        candidate_state,
+                        step_index=step_index,
+                        blend=blend_end,
+                        dt=0.5 * sub_dt,
+                        k_value=float(k_value),
+                    )
+                    if not numpy.all(numpy.isfinite(candidate_state)):
+                        failure_detail = (
+                            "exact collision sub-step end: "
+                            f"{_describe_nonfinite_state(candidate_state)}"
+                        )
                         failed = True
                         break
                     trial_state = candidate_state
@@ -1004,7 +1167,11 @@ def _compute_custom_cmb_spectrum_data(
                 substep_count *= 2
             raise ValueError(
                 "Declared CMB evolution produced non-finite state values "
-                f"at k={k_value}, step_index={step_index}"
+                f"at k={k_value}, step_index={step_index}: "
+                f"{failure_detail} "
+                f"(required_substeps={required_substeps}, "
+                f"last_substep_count={substep_count}, dt={dt}, "
+                f"stiffness_scale={stiffness_scale})"
             )
 
         def _integrate_declared_state_history(

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-28
+**Last Updated:** 2026-06-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,255 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-06-29:
+  Change: Updated native spectrum requests to compute only the minimal
+    base spectra, lowered the hard runtime grid floors to the declared
+    sample counts, and retuned the massive-neutrino regression to check
+    q-bin sensitivity directly.
+  Why: Reduced the remaining solver-side stabilization scaffolding so
+    the declared native runtime honors the configured grid sizes and
+    the massive-neutrino hierarchy stays observable without oversized
+    fallback grids.
+  Impact: Enabled TT-only native runs to stop computing unused
+    spectra, adjusted the background and projection grids to honor the
+    requested numerics, and verified the massive-neutrino runtime test
+    now checks q-dependent state response instead of waiting on an
+    insensitive primary-spectrum delta.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-29:
+  Change: Split the native Thomson sub-block into an exact collision
+    relaxation step, removed the leftover `collision_rate_raw`
+    scaffolding, and updated the scalar hierarchy test fixture to
+    expect the physical collision operator.
+  Why: Keep the declared native solver stable without capping the
+    physical collision rate so the stiff photon-baryon and polarization
+    terms evolve through the physical operator rather than a runtime
+    shortcut.
+  Impact: The native projection loop now handles the Thomson blocks
+    with exact relaxation, and the perturbation-contract test fixture
+    tracks the physical collision expression end to end.
+  Files:
+    CHANGELOG.md
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-29:
+  Change: Replaced the polarization source moment with the CAMB-style
+    low-multipole quadrupole combination, promoted the Thomson terms to
+    the physical collision rate, and removed the leftover drag from the
+    auxiliary `e_gamma0` and `e_gamma1` equations.
+  Why: Align the generated scalar hierarchy with the physical photon
+    polarization source and stop carrying acceptance-only collision
+    damping in the auxiliary polarization states and photon collision
+    terms.
+  Impact: Update the native scalar contract, runtime regression
+    fixture, and public READMEs so low-multipole polarization now
+    free-streams and only the physical quadrupole source and collision
+    rate drive the collision terms.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/perturbation_contract.py
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-29:
+  Change: Removed the artificial tight-coupling damping from higher
+    photon and polarization multipoles in the native scalar hierarchy.
+  Why: Align the high-moment recurrence with the physical photon
+    Boltzmann hierarchy so the low multipoles keep the collision terms
+    and the free-streaming tail no longer carries acceptance-only
+    damping.
+  Impact: Update the generated scalar photon and E-mode recurrences to
+    free-stream above l=2, and check the regression suite keeps the
+    high-moment equations collision-free.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-29:
+  Change: Corrected the source-refinement regression to read the native
+    eta sample count from the runtime envelope.
+  Why: The native projection layer now reports `eta_sample_count`
+    instead of the retired `eta_count` key.
+  Impact: The refinement guard now validates the active LOS grid size
+    against the current envelope contract.
+  Files:
+    CHANGELOG.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-06-29:
+  Change: Renamed the native scalar CMB hierarchy fixtures, corrected
+    the baryon Thomson-drag normalization, synchronized the solver-
+    facing docs, adjusted the native ODE substepping budget, and
+    updated the test metadata away from acceptance-era labels.
+  Why: Align the active CMB review surface with the final hierarchy
+    implementation while covering the current solver, physics,
+    stability, and package documentation changes.
+  Impact: Update the native scalar compiler, solver summary docs, and
+    regression tests to use hierarchy terminology consistently while
+    preserving the same underlying physics behavior and runtime
+    stability.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Added a physical-collision-term regression in
+    perturbation-contract coverage, reworked the collision-operator
+    runtime assertion to evaluate the compiled drag chain directly,
+    reframed the source-refinement guard around the runtime eta-grid,
+    extended the gauge regression to cover lensed outputs, and removed
+    the warning-triggering PP size cast in the exact-lensing guard.
+  Why: Kept the current CMB review coverage aligned with the actual
+    compiled native behavior and eliminated a spurious overflow warning
+    in the lensing path.
+  Impact: Collision-operator, source-grid, gauge, and lensing checks now
+    exercise the native runtime surfaces directly, while the exact-
+    lensing solver no longer emits the PP-size cast warning and the
+    package README stays synchronized with the root solver summary.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Replaced the q-bin massive-neutrino proxy speed terms with
+    direct q-point streaming-speed expressions, normalized the scalar
+    metric denominator, synthesized Thomson-drag collision defaults and
+    conservation checks, and extended the public CMB likelihood to
+    flatten stacked spectrum blocks.
+  Why: Closed the remaining q-hierarchy, collision-operator, metric,
+    and public-likelihood gaps while keeping the native scalar route
+    generated from declared physics.
+  Impact: Updated massive-neutrino q bins to evolve from direct
+    q-point streaming physics, auto-materialized drag metadata when
+    missing, and extended `CMBLike` to accept stacked TT/TE/EE/BB/PP/
+    TP/EP observations.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    PLAN.md
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Replaced the q-bin massive-neutrino proxy moments with direct
+    q-state density, momentum, and shear moments, seeded the q-grid
+    from physical series, aligned the synthetic metric closure with the
+    production Einstein-Boltzmann form, and closed Slice One in the
+    roadmap.
+  Why: Closed the last q-resolved massive-neutrino gap, stopped the
+    synthetic runtime fixture from seeding the native solver with an
+    acceptance-only potential closure, and synchronized PLAN.md with
+    the completed slice.
+  Impact: Updated the native q-grid moment path to per-bin states,
+    stabilized the runtime CMB fixture, expanded the q-bin regression
+    coverage, and marked the plan as closed for the implementation
+    slice.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/perturbation_contract.py
+    PLAN.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Replaced the remaining metric-role seed fallbacks with
+    physical Newtonian and synchronous initial-condition series and
+    added regression coverage for the generated metric seeds.
+  Why: Closed the last heuristic initial-condition gap in the native
+    scalar compiler so metric roles no longer seed from
+    acceptance-only constants.
+  Impact: Kept Newtonian metric roles on `seed`, kept synchronous
+    metric trace quadratic in `k eta`, preserved the physical initial
+    condition path, and updated the READMEs to match.
+  Files:
+    CHANGELOG.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Removed the last acceptance-only damping terms from the
+    synthetic declared-graph CMB fixture, added the missing polarization
+    and neutrino hierarchy states, and renamed the manifest summary
+    flag to `generated_scalar_hierarchy`.
+  Why: Closed the remaining source-side gap between the review fixture
+    and the physical hierarchy semantics while keeping the regression
+    surface linear and stable.
+  Impact: Aligned the review fixture with the native hierarchy
+    vocabulary, kept the spectrum and q-bin tests responsive, and
+    documented the cleanup in both READMEs.
+  Files:
+    CHANGELOG.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/perturbation_contract.py
+    copernican/README.md
+    README.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-06-28:
+  Change: Removed the solver-side exact-lensing remap knob, tightened the
+    synthetic lensing fixture to carry its own source normalization, and
+    kept the exact remapper on the declared PP spectrum directly.
+  Why: Closed the last production-facing lensing bridge while preserving
+    finite PP ratio checks and an exact-remap regression path inside the
+    test fixture.
+  Impact: Aligned the exact curved-sky lensing path with direct
+    declared-PP consumption, kept the PP and lensed-BB tests numerically
+    stable, and updated the READMEs to describe the final remapper path.
+  Files:
+    CHANGELOG.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    README.md
+    copernican/README.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-06-28:
   Change: Replaced synthetic native spectrum scale factors with
