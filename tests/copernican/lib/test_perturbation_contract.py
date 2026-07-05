@@ -837,6 +837,112 @@ class PerturbationContractTestCase(unittest.TestCase):
             "2.0 * seed",
         )
 
+    def test_vector_and_tensor_sector_metadata_are_inferred(self) -> None:
+        """Vector and tensor source ancestries should classify cleanly."""
+
+        vector_contract = _base_nonstandard_contract()
+        vector_contract["sectors"]["vector"] = {
+            "description": "Synthetic vector sector.",
+            "tensor_character": "vector_like",
+        }
+        vector_contract["variables"]["vector_signal"] = {
+            "kind": "custom_vector_mode",
+            "spin": 1.0,
+            "parity": "even",
+            "tensor_character": "vector_like",
+        }
+        vector_contract["equations"]["evolve_vector_signal"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "vector_signal",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.15 * k * theta_x - 0.25 * Hconf * vector_signal",
+            "role": "vector_coupling",
+        }
+        vector_contract["sources"]["vector_source"] = {
+            "expression": "visibility * vector_signal",
+            "role": "signal",
+        }
+        vector_contract["observables"]["vector_signal"] = {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_signal",
+            "source_terms": {"signal": "vector_source"},
+        }
+        vector_contract["observables"]["VV"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "vector_signal",
+            "secondary": "vector_signal",
+        }
+        vector_contract["initial_conditions"]["vector_signal_seed"] = {
+            "target": {
+                "variable": "vector_signal",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(k * eta_initial) * seed / 90.0",
+        }
+        vector_data = self._compile(vector_contract)
+        self.assertEqual(vector_data.observables["VV"].sector, "vector")
+        self.assertEqual(
+            vector_data.observables["VV"].tensor_character,
+            "vector_like",
+        )
+        self.assertIn("vector", vector_data.manifest_summary["sector_names"])
+
+        tensor_contract = _base_nonstandard_contract()
+        tensor_contract["sectors"]["tensor"] = {
+            "description": "Synthetic tensor sector.",
+            "tensor_character": "tensor_like",
+        }
+        tensor_contract["variables"]["tensor_b"] = {
+            "kind": "custom_tensor_polarization_source",
+            "rank": 2,
+            "spin": 2.0,
+            "parity": "odd",
+            "tensor_character": "tensor_like",
+        }
+        tensor_contract["equations"]["evolve_tensor_b"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "tensor_b",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.2 * k * density_drive - 0.4 * Hconf * tensor_b",
+            "role": "odd_parity_polarization",
+        }
+        tensor_contract["sources"]["polarization_b_source"] = {
+            "expression": "visibility * tensor_b",
+            "role": "polarization_b",
+        }
+        tensor_contract["observables"]["polarization_b"] = {
+            "kind": "transfer_component",
+            "projection": "spin2_b_mode",
+            "source_terms": {"polarization_b": "polarization_b_source"},
+        }
+        tensor_contract["observables"]["BB"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_b",
+            "secondary": "polarization_b",
+        }
+        tensor_contract["initial_conditions"]["tensor_b_seed"] = {
+            "target": {
+                "variable": "tensor_b",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "(k * eta_initial) * seed / 120.0",
+        }
+        tensor_data = self._compile(tensor_contract)
+        self.assertEqual(tensor_data.observables["BB"].sector, "tensor")
+        self.assertEqual(
+            tensor_data.observables["BB"].tensor_character,
+            "tensor_like",
+        )
+        self.assertIn("tensor", tensor_data.manifest_summary["sector_names"])
+
     def test_synchronous_gauge_rejects_newtonian_metric_roles(self) -> None:
         """Gauge-role mixes should fail before runtime."""
 

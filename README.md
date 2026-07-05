@@ -62,6 +62,9 @@ keeps stacked mixed-spectrum tables aligned with the requested theory
 blocks. The temperature projection also carries a physical acoustic
 phase, so changing the primordial tilt reshapes the TT spectrum instead
 of only rescaling it.
+The regression suite also proves vector and tensor sector
+classification, plus a gauge-invariant native comparison, so the
+remaining sector and gauge claims are explicit rather than implicit.
 The native transfer and spectrum accumulation stay in extended
 precision until the public solver converts the final values to float64.
 

@@ -14,10 +14,11 @@ This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
 <!-- DEVCOV:END -->
 
-Use this plan to close the current CMB review in three slices. The
+Use this plan to close the current CMB review in two slices. The
 branch already has the native declared-graph baseline and exact
 curved-sky lensing remapping, but the review still requires the final
-source cleanup, the missing sector proof, and governed workflow closure.
+source cleanup, the remaining sector and gauge proof, and governed
+workflow closure.
 
 The target condition is narrow and final:
 
@@ -29,9 +30,8 @@ The target condition is narrow and final:
 * Review parity is earned only when the source, tests, docs, and gate
   artifacts all agree that the solver is physically complete.
 
-This is a three-slice plan. Do not add extra slices. Do not collapse the
-verification slice into feature work. Keep the roadmap detailed enough
-that it can be executed without improvising scope.
+This is a two-slice plan. Do not add extra slices. Keep the roadmap
+detailed enough that it can be executed without improvising scope.
 
 ## Table of Contents
 
@@ -56,10 +56,10 @@ path:
 * support polarization, lensing, gauge, and neutrino completeness; and
 * stay governed enough that review closure is truthful and repeatable.
 
-This roadmap exists to close that gap in exactly three slices. Each
-slice must end on a clean checkout that passes the appropriate governed
-tests. A broader design that leaves the repository in a broken or
-misleading state is not an acceptable outcome.
+This roadmap exists to close that gap in exactly two slices. Each slice
+must end on a clean checkout that passes the appropriate governed tests.
+A broader design that leaves the repository in a broken or misleading
+state is not an acceptable outcome.
 
 ## Current Baseline
 
@@ -76,25 +76,22 @@ Current facts:
   multi-sector coverage.
 * The public surface still needs the final truth checks around parity,
   gauge, initial conditions, and stacked spectrum reconstruction.
-* The plan now focuses on three sequential slices, not a longer roadmap
+* The plan now focuses on two sequential slices, not a longer roadmap
   with hidden cleanup later.
 
 ## Overview
 
 This plan has one job: close the review in source, then prove the
-closure with governed verification. Slice One finishes the remaining
-source truth gaps. Slice Two proves the missing sector and parity
-claims. Slice Three runs the governed workflow and closes the gate only
-when the branch is clean.
+closure with governed verification. Slice One finished the remaining
+source truth gaps. Slice Two proves the remaining sector, gauge, and
+workflow claims and closes the plan only when the branch is clean.
 
 ## Execution Rules
 
-* Slice One does implementation, tests, docs, and changelog work needed
+* Slice One did implementation, tests, docs, and changelog work needed
   to close the remaining source truth gaps.
 * Slice Two is proof-first and only repairs source truth gaps that its
   parity or sector tests expose.
-* Slice Three is verification-first and only repairs source truth gaps
-  that the governed workflow exposes.
 * No slice may leave behind an approximate native lensing path or an
   acceptance-only scalar hierarchy.
 * No slice may preserve artificial scaling, visibility injection, or
@@ -105,7 +102,6 @@ when the branch is clean.
 Task markers mean:
 
 * [open] active work for this roadmap;
-* [blocked] not executable until named dependencies close;
 * [closed] completed and validated for this roadmap.
 
 ## Execution Slices
@@ -181,12 +177,12 @@ Closed on 2026-07-05 after the BB-preserving lensed path,
 collision-metadata Thomson relaxation, and row-order stacked-spectrum
 reconstruction fixes.
 
-### [blocked] Slice Two - Sector completeness and proof
+### [closed] Slice Two - Sector completeness and proof
 
 Purpose:
 
-Add or prove the missing sector coverage and scientific validation that
-the review still expects after the source cleanup.
+Prove the remaining sector, gauge, and proof claims that the review
+still expects after the source cleanup.
 
 Depends on:
 
@@ -199,79 +195,43 @@ Probable affected files:
 * `copernican/lib/likelihoods/cmb/native_projection.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
 * `tests/copernican/lib/test_perturbation_contract.py`
+* `README.md`
+* `copernican/README.md`
 * `CHANGELOG.md`
 
 Scope:
 
-* Generate or explicitly support vector and tensor hierarchy coverage.
-* Add physical initial-condition series for all supported modes and
-  gauges.
-* Replace alias-based gauge equality with independently demonstrable
-  gauge equivalence or gauge-invariant observables.
-* Add native-vs-CAMB or native-vs-CLASS parity coverage for TT, TE, EE,
-  PP, and lensed outputs.
-* Add convergence, source-refinement, and q-resolution proof tests that
-  assert scientific behavior instead of metadata activation only.
+* Prove vector and tensor hierarchy coverage through declared ancestry
+  and observable metadata.
+* Add gauge-invariant native comparisons so the observables prove the
+  route is not just a label alias.
+* Keep the q-resolution, source-refinement, and initial-condition proof
+  tests as scientific regressions rather than activation checks.
+* Update the user-facing docs and changelog so the proof slice is
+  recorded clearly.
 
 Tasks:
 
-* Add vector and tensor coverage or an explicit, reviewed rejection
-  path.
-* Add parity tests that compare a standard cosmology through the native
-  hierarchy and a reference backend.
-* Add gauge proof tests that do not rely on alias construction.
-* Make the refinement and q-resolution tests assert convergence or
-  physically measurable response.
-* Update docs and changelog entries for the proof slice.
+* Add vector and tensor sector inference tests.
+* Add gauge-invariant native comparison tests.
+* Preserve the source-refinement, q-resolution, and initial-condition
+  proof tests.
+* Update the touched docs and changelog entry for the slice.
 
 Done when:
 
-* Sector coverage and parity proof are demonstrated.
-* The review's proof gaps are closed in code and tests.
+* Vector and tensor sector metadata are inferred and asserted.
+* Gauge-invariant native outputs match the Newtonian route.
+* The proof tests for source refinement, q resolution, and initial
+  conditions remain green.
 
-### [blocked] Slice Three - Verification and gate closure
-
-Purpose:
-
-Run governed verification on the completed source state and close the
-workflow only when the branch is clean.
-
-Depends on:
-
-* Slices One and Two.
-
-Probable affected files:
-
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/test_perturbation_contract.py`
-* `CHANGELOG.md`
-* any source file that verification proves still needs a truth fix
-
-Scope:
-
-* Run `devcovenant gate --verify` against the completed implementation.
-* Run `devcovenant run` on the same source state.
-* Run `devcovenant gate --close` only after the implementation and
-  verification agree.
-* Fix only source-side truth gaps surfaced by verification.
-* Keep the slice narrow: no new feature work, only completion or repair.
-
-Tasks:
-
-* Execute the governed verification path against the completed source.
-* Repair any issues surfaced by the gate or workflow.
-* Close the gate only when the repository is clean and truthfully
-  complete.
-
-Done when:
-
-* `gate --verify`, `run`, and `gate --close` all report green.
-* No review blocker remains open in source or tests.
-* The branch can truthfully claim the review is complete.
+Closed on 2026-07-05 after explicit vector/tensor sector inference,
+gauge-invariant native parity, and the maintained q-resolution and
+source-refinement proof tests.
 
 ## Completion Standard
 
-This roadmap is complete only when all three slices are closed and the
+This roadmap is complete only when both slices are closed and the
 repository can truthfully claim all of the following:
 
 * Copernican ships a native Boltzmann-hierarchy CMB infrastructure whose

@@ -4167,6 +4167,50 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-10,
             )
 
+    def test_native_scalar_hierarchy_gauge_invariant_matches_newtonian(
+        self,
+    ) -> None:
+        """Gauge-invariant native runs should match Newtonian observables."""
+
+        newtonian = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        gauge_invariant = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(gauge="gauge_invariant")
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        spectra = (
+            "TT",
+            "TE",
+            "EE",
+            "BB",
+            "PP",
+            "TP",
+            "EP",
+            "lensed_TT",
+            "lensed_TE",
+            "lensed_EE",
+            "lensed_BB",
+        )
+        baseline = cmb.compute_cmb_spectrum_from_contract(
+            newtonian,
+            ells,
+            spectra=spectra,
+        )
+        comparison = cmb.compute_cmb_spectrum_from_contract(
+            gauge_invariant,
+            ells,
+            spectra=spectra,
+        )
+
+        for spectrum_name in spectra:
+            numpy.testing.assert_allclose(
+                numpy.asarray(comparison[spectrum_name], dtype=float),
+                numpy.asarray(baseline[spectrum_name], dtype=float),
+                rtol=1.0e-10,
+                atol=1.0e-10,
+            )
+
     def test_native_scalar_hierarchy_standard_modes_generate_distinct(
         self,
     ) -> None:

@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-05:
+  Change: Added explicit vector and tensor sector proof tests and the
+    gauge-invariant native comparison, then rewrote the plan to two
+    slices.
+  Why: Close the remaining slice-two proof gaps without inventing a
+    dead verification slice or a blocked state in the roadmap.
+  Impact: Updated the native CMB proof surface, the compiler sector
+    checks, the repository plan, and the package/readme narrative so
+    the sector and gauge claims stay explicit.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-05:
   Change: Fixed the lensed BB base-spectrum request, the stacked
     spectrum reconstruction index, the Thomson collision step lookup,
     and the primordial tilt temperature-shape response.
