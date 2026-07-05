@@ -351,14 +351,14 @@ class CMBLike(LikelihoodProtocol):
                 for name, values in theory.items()
             }
             theory_vector = numpy.empty_like(self._observed, dtype=float)
-            for index, (spectrum_name, ell_value) in enumerate(
+            for index, (spectrum_name, _ell_value) in enumerate(
                 zip(self._observed_spectrum_labels, self._ells)
             ):
                 block = theory_blocks.get(str(spectrum_name))
-                if block is None or int(ell_value) >= block.size:
+                if block is None or index >= block.size:
                     self._state = LikelihoodState()
                     return float("-inf")
-                theory_vector[index] = float(block[int(ell_value)])
+                theory_vector[index] = float(block[index])
         else:
             theory_vector = numpy.asarray(theory, dtype=float)
             if len(requested_spectra) > 1:

@@ -79,9 +79,11 @@ def _declared_graph_projection(
     projection: str,
     kernel: str | None,
     kernel_batch: _DeclaredProjectionKernelBatch,
+    k_value: float,
     eta_weights: numpy.ndarray,
     chi_grid: numpy.ndarray,
     source_chi: float,
+    sound_horizon_mpc: float,
     source_histories: Mapping[str, numpy.ndarray],
 ) -> numpy.ndarray:
     """Return projected transfer component values for every ell."""
@@ -141,15 +143,23 @@ def _declared_graph_projection(
 
     if projection == "line_of_sight_temperature":
         projected = numpy.zeros(j_l.shape[0], dtype=float)
+        acoustic_scale = max(float(sound_horizon_mpc), 1.0e-12)
+        acoustic_phase = (
+            float(k_value)
+            * numpy.clip(source_chi - chi_grid, 0.0, None)
+            / acoustic_scale
+        )
+        monopole_phase = numpy.cos(acoustic_phase)
+        doppler_phase = numpy.sin(acoustic_phase)
         if "monopole" in source_histories:
             projected += _project_history(
                 j_l,
-                source_histories["monopole"],
+                monopole_phase * source_histories["monopole"],
             )
         if "doppler" in source_histories:
             projected += _project_history(
                 j_l_derivative,
-                source_histories["doppler"],
+                doppler_phase * source_histories["doppler"],
             )
         if "isw" in source_histories:
             projected += _project_history(
@@ -989,10 +999,59 @@ def _compute_custom_cmb_spectrum_data(
 
         end_boundary_entries = execution_plan.end_condition_entries
         state_index_by_key = runtime_spec.state_index_by_key
-        theta_gamma1_index = state_index_by_key.get(("theta_gamma1", "tau", 0))
-        theta_b_index = state_index_by_key.get(("theta_b", "tau", 0))
-        theta_gamma2_index = state_index_by_key.get(("theta_gamma2", "tau", 0))
-        e_gamma2_index = state_index_by_key.get(("e_gamma2", "tau", 0))
+        collision_operator_entries = getattr(
+            perturbation_data,
+            "collision_operators",
+            {},
+        )
+        thomson_collision_entry = collision_operator_entries.get(
+            "thomson_drag"
+        )
+
+        # Resolve the exact Thomson sub-block from compiled collision
+        # metadata instead of hard-coding the underlying state names.
+        def _state_slot_index_for_kind(kind: str) -> int | None:
+            """Return the slot index for the first declared variable kind."""
+
+            for (
+                variable_name,
+                variable_entry,
+            ) in perturbation_data.variables.items():
+                if str(getattr(variable_entry, "kind", "")) != kind:
+                    continue
+                slot_index = state_index_by_key.get((variable_name, "tau", 0))
+                if slot_index is not None:
+                    return int(slot_index)
+            return None
+
+        thomson_relaxation_slots: dict[str, int] | None = None
+        thomson_species = {
+            str(species)
+            for species in getattr(thomson_collision_entry, "species", ())
+        }
+        if {"photon", "baryon"}.issubset(thomson_species):
+            resolved_slots = {
+                "photon_dipole": _state_slot_index_for_kind(
+                    "photon_temperature_dipole"
+                ),
+                "baryon_velocity": _state_slot_index_for_kind(
+                    "baryon_velocity_divergence"
+                ),
+                "photon_quadrupole": _state_slot_index_for_kind(
+                    "photon_temperature_quadrupole"
+                ),
+                "polarization_quadrupole": _state_slot_index_for_kind(
+                    "photon_polarization_quadrupole"
+                ),
+            }
+            if all(
+                slot_index is not None
+                for slot_index in resolved_slots.values()
+            ):
+                thomson_relaxation_slots = {
+                    name: int(slot_index)
+                    for name, slot_index in resolved_slots.items()
+                }
 
         def _describe_nonfinite_state(
             state_vector: numpy.ndarray,
@@ -1022,12 +1081,7 @@ def _compute_custom_cmb_spectrum_data(
 
             if dt == 0.0:
                 return numpy.asarray(state_vector, dtype=float)
-            if (
-                theta_gamma1_index is None
-                or theta_b_index is None
-                or theta_gamma2_index is None
-                or e_gamma2_index is None
-            ):
+            if thomson_relaxation_slots is None:
                 return numpy.asarray(state_vector, dtype=float)
             _, background_scalars = _scalar_background_context(
                 step_index,
@@ -1044,8 +1098,17 @@ def _compute_custom_cmb_spectrum_data(
             collision_strength = collision_rate * float(dt)
             relaxed = numpy.asarray(state_vector, dtype=float).copy()
 
-            theta_gamma1 = float(relaxed[theta_gamma1_index])
-            theta_b = float(relaxed[theta_b_index])
+            photon_dipole_index = thomson_relaxation_slots["photon_dipole"]
+            baryon_velocity_index = thomson_relaxation_slots["baryon_velocity"]
+            photon_quadrupole_index = thomson_relaxation_slots[
+                "photon_quadrupole"
+            ]
+            polarization_quadrupole_index = thomson_relaxation_slots[
+                "polarization_quadrupole"
+            ]
+
+            theta_gamma1 = float(relaxed[photon_dipole_index])
+            theta_b = float(relaxed[baryon_velocity_index])
             dipole_mode = theta_gamma1 - theta_b / 3.0
             momentum_mode = theta_b + photon_baryon_ratio * theta_gamma1
             dipole_decay = math.exp(
@@ -1057,11 +1120,11 @@ def _compute_custom_cmb_spectrum_data(
             relaxed_theta_b = momentum_mode - (
                 photon_baryon_ratio * relaxed_theta_gamma1
             )
-            relaxed[theta_gamma1_index] = relaxed_theta_gamma1
-            relaxed[theta_b_index] = relaxed_theta_b
+            relaxed[photon_dipole_index] = relaxed_theta_gamma1
+            relaxed[baryon_velocity_index] = relaxed_theta_b
 
-            theta_gamma2 = float(relaxed[theta_gamma2_index])
-            e_gamma2 = float(relaxed[e_gamma2_index])
+            theta_gamma2 = float(relaxed[photon_quadrupole_index])
+            e_gamma2 = float(relaxed[polarization_quadrupole_index])
             fast_mode = theta_gamma2 - e_gamma2
             slow_mode = theta_gamma2 + 6.0 * e_gamma2
             fast_decay = math.exp(-collision_strength)
@@ -1072,8 +1135,8 @@ def _compute_custom_cmb_spectrum_data(
             relaxed_e_gamma2 = (
                 slow_mode * slow_decay - fast_mode * fast_decay
             ) / 7.0
-            relaxed[theta_gamma2_index] = relaxed_theta_gamma2
-            relaxed[e_gamma2_index] = relaxed_e_gamma2
+            relaxed[photon_quadrupole_index] = relaxed_theta_gamma2
+            relaxed[polarization_quadrupole_index] = relaxed_e_gamma2
             return relaxed
 
         def _advance_declared_interval(
@@ -1450,9 +1513,11 @@ def _compute_custom_cmb_spectrum_data(
                         else str(component_entry.kernel)
                     ),
                     kernel_batch=kernel_batch,
+                    k_value=float(k_value),
                     eta_weights=eta_integration_weights,
                     chi_grid=chi_los_grid,
                     source_chi=source_chi,
+                    sound_horizon_mpc=float(background.sound_horizon_mpc),
                     source_histories=source_histories,
                 )
             )

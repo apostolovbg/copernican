@@ -2341,6 +2341,42 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             ),
         )
 
+    def test_lensed_b_mode_source_changes_lensed_bb(self) -> None:
+        """Declared BB sources should survive the exact lensed remapper."""
+
+        baseline = _speedup_contract(
+            _custom_contract(include_bb=True, include_lensing=True)
+        )
+        changed = _speedup_contract(
+            _custom_contract(include_bb=True, include_lensing=True)
+        )
+        changed["perturbations"]["sources"]["polarization_b_source"][
+            "expression"
+        ] = "1.25 * visibility * tensor_b"
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_lensed_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                baseline,
+                ells,
+                spectra=("lensed_BB",),
+            ),
+            dtype=float,
+        )
+        changed_lensed_bb = numpy.asarray(
+            cmb.compute_cmb_spectrum_from_contract(
+                changed,
+                ells,
+                spectra=("lensed_BB",),
+            ),
+            dtype=float,
+        )
+        self.assertGreater(
+            float(
+                numpy.max(numpy.abs(changed_lensed_bb - baseline_lensed_bb))
+            ),
+            0.0,
+        )
+
     def test_custom_b_mode_kernel_changes_bb(self) -> None:
         """Custom B-mode kernels should preserve the declared BB response."""
 
@@ -4428,15 +4464,15 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
 
         cmb_data = pandas.DataFrame(
             {
-                "ell": [2, 3, 2, 3],
+                "ell": [20, 30, 20, 30],
                 "spectrum": ["TT", "TT", "TE", "TE"],
-                "Dl_obs": [1.0, 2.0, 0.5, 0.25],
+                "Dl_obs": [1.0, 2.0, 0.125, 0.0625],
             }
         )
         cmb_data.attrs["covariance_matrix_inv"] = numpy.eye(4, dtype=float)
         theory = {
-            "TT": numpy.asarray([0.0, 0.0, 1.0, 2.0], dtype=float),
-            "TE": numpy.asarray([0.0, 0.0, 0.5, 0.25], dtype=float),
+            "TT": numpy.asarray([1.0, 2.0, 3.0, 4.0], dtype=float),
+            "TE": numpy.asarray([0.5, 0.25, 0.125, 0.0625], dtype=float),
         }
         with mock.patch(
             (

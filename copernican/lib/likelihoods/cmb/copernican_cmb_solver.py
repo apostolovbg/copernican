@@ -175,7 +175,7 @@ def _requested_base_spectra(
     base_spectra: set[str] = set()
     for spectrum_name in canonical_requested_spectra:
         if spectrum_name in _LENSED_NATIVE_SPECTRA:
-            base_spectra.update({"TT", "TE", "EE", "PP"})
+            base_spectra.update({"TT", "TE", "EE", "BB", "PP"})
             continue
         base_spectra.add(spectrum_name)
     return tuple(sorted(base_spectra))

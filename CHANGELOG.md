@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-04
+**Last Updated:** 2026-07-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,28 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-05:
+  Change: Fixed the lensed BB base-spectrum request, the stacked
+    spectrum reconstruction index, the Thomson collision step lookup,
+    and the primordial tilt temperature-shape response.
+  Why: Close slice one with the remaining source-truth gaps that kept
+    the public solver from preserving primordial B modes, flattening
+    mixed-spectrum likelihood rows correctly, resolving the exact
+    collision substep from compiled metadata, and keeping tilt-driven
+    TT shape changes visible.
+  Impact: Updated the native CMB solver, public likelihood surface,
+    regression tests, slice plan, and repo docs to keep the completed
+    slice auditable and tilt-sensitive.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/cmb.py
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-07-04:
   Change: Replaced the two-slice roadmap with a detailed three-slice

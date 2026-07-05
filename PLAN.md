@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-04
+**Last Updated:** 2026-07-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -110,7 +110,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Physics completion and source truth
+### [closed] Slice One - Physics completion and source truth
 
 Purpose:
 
@@ -176,6 +176,10 @@ Done when:
 * Declared `BB` survives into the lensed outputs when it is physically
   present.
 * The public spectrum reconstruction handles stacked outputs correctly.
+
+Closed on 2026-07-05 after the BB-preserving lensed path,
+collision-metadata Thomson relaxation, and row-order stacked-spectrum
+reconstruction fixes.
 
 ### [blocked] Slice Two - Sector completeness and proof
 

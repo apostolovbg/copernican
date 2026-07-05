@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-04
+**Last Updated:** 2026-07-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -52,9 +52,16 @@ aligned for native runs. The scalar compiler also seeds
 Newtonian and synchronous metric roles from leading-order physical
 initial-condition series instead of heuristic constants. The q-grid path
 now materializes direct per-bin density, momentum, and shear moments.
+The native collision substep now resolves exact Thomson relaxation from
+compiled collision metadata instead of hard-coded state names, and
+`lensed_BB` keeps declared primordial B-mode sources visible.
 The public `CMBLike` likelihood now also accepts stacked spectrum blocks
 when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
-blocks can be flattened into one covariance surface.
+blocks can be flattened into one covariance surface. Row-order indexing
+keeps stacked mixed-spectrum tables aligned with the requested theory
+blocks. The temperature projection also carries a physical acoustic
+phase, so changing the primordial tilt reshapes the TT spectrum instead
+of only rescaling it.
 The native transfer and spectrum accumulation stay in extended
 precision until the public solver converts the final values to float64.
 
