@@ -448,7 +448,10 @@ def _scalar_hierarchy_base_seed_expressions(
             "delta_b": "seed",
         },
         "cdm_isocurvature": {
+            "theta_gamma0": "0.25 * seed",
+            "delta_b": "-0.5 * seed",
             "delta_c": "seed",
+            "delta_nu": "-0.5 * seed",
         },
         "neutrino_density_isocurvature": {
             "delta_nu": "seed",
@@ -495,7 +498,11 @@ def _auto_initial_condition_expression(
     # the older physical-series constants so Newtonian and synchronous gauge
     # seeds stay physically shaped.
     if variable_entry.gauge_role in _NEWTONIAN_GAUGE_ROLES:
-        return "seed" if mode == "adiabatic_scalar" else "0.0"
+        if mode == "adiabatic_scalar":
+            return "seed"
+        if mode == "cdm_isocurvature":
+            return "0.25 * seed"
+        return "0.0"
     if variable_entry.gauge_role in _SYNCHRONOUS_GAUGE_ROLES:
         if mode != "adiabatic_scalar":
             return "0.0"

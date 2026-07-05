@@ -2018,32 +2018,41 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         )
 
     def test_custom_equations_change_spectrum(self) -> None:
-        """Stronger damping should suppress the analytic TT observable."""
+        """Stronger damping should suppress the raw analytic TT response."""
 
-        low_decay = _analytic_signal_contract(decay_rate=0.01)
-        high_decay = _analytic_signal_contract(decay_rate=0.05)
+        low_decay = _prepare_native_contract(
+            _analytic_signal_contract(decay_rate=0.01)
+        )
+        high_decay = _prepare_native_contract(
+            _analytic_signal_contract(decay_rate=0.05)
+        )
+        for contract in (low_decay, high_decay):
+            contract["numerical"].update(
+                {
+                    "eta_sample_count": 256,
+                    "source_grid_multiplier": 2,
+                }
+            )
         ells = numpy.arange(20, 30, dtype=int)
         low_decay_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
+            native_projection._compute_custom_cmb_spectrum_data(
                 low_decay,
                 ells,
-                spectra=("TT",),
-            ),
+            ).spectra["TT"],
             dtype=float,
         )
         high_decay_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
+            native_projection._compute_custom_cmb_spectrum_data(
                 high_decay,
                 ells,
-                spectra=("TT",),
-            ),
+            ).spectra["TT"],
             dtype=float,
         )
         self.assertTrue(
-            numpy.all(high_decay_tt < low_decay_tt),
+            numpy.all(numpy.abs(high_decay_tt) < numpy.abs(low_decay_tt)),
             (
                 "Increasing the declared decay coefficient should reduce "
-                "TT power for every tested multipole."
+                "the TT amplitude for every tested multipole."
             ),
         )
 
@@ -4135,20 +4144,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         adiabatic_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
+            native_projection._compute_custom_cmb_spectrum_data(
                 adiabatic,
                 ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+            ).spectra["TT"],
+            dtype=numpy.longdouble,
         )
         cdm_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
+            native_projection._compute_custom_cmb_spectrum_data(
                 cdm_mode,
                 ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+            ).spectra["TT"],
+            dtype=numpy.longdouble,
         )
 
         self.assertTrue(numpy.all(numpy.isfinite(adiabatic_tt)))

@@ -511,6 +511,14 @@ def _compute_custom_cmb_spectrum_data(
             numpy.gradient(history, eta_los_grid, edge_order=1),
             dtype=float,
         )
+    coordinate_rate_histories["a"] = numpy.asarray(
+        a_los_grid * Hconf_los_grid,
+        dtype=float,
+    )
+    coordinate_rate_histories["z"] = numpy.asarray(
+        -(1.0 + z_los_grid) * Hconf_los_grid,
+        dtype=float,
+    )
 
     eta0_floor = max(background.eta0, 1.0e-6)
     k_min = max(
@@ -739,6 +747,14 @@ def _compute_custom_cmb_spectrum_data(
 
         if wrt_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
             return 1.0
+        if wrt_name == "a":
+            rate = float(scalar_context["a"]) * float(scalar_context["Hconf"])
+        elif wrt_name == "z":
+            rate = -(1.0 + float(scalar_context["z"])) * float(
+                scalar_context["Hconf"]
+            )
+        else:
+            rate = None
         for legacy_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
             derivative_symbol = f"__d1_{wrt_name}_{legacy_name}"
             if derivative_symbol not in scalar_context:
@@ -746,16 +762,19 @@ def _compute_custom_cmb_spectrum_data(
             rate = float(scalar_context[derivative_symbol])
             break
         else:
-            if wrt_name not in coordinate_rate_histories:
+            if rate is not None:
+                pass
+            elif wrt_name not in coordinate_rate_histories:
                 raise ValueError(
                     "Declared CMB coordinate transform does not support "
                     f"wrt '{wrt_name}'."
                 )
-            rate = _blend_history(
-                coordinate_rate_histories[wrt_name],
-                step_index=step_index,
-                blend=blend,
-            )
+            else:
+                rate = _blend_history(
+                    coordinate_rate_histories[wrt_name],
+                    step_index=step_index,
+                    blend=blend,
+                )
         if not numpy.isfinite(rate) or abs(rate) <= 1.0e-12:
             eta_value = _blend_history(
                 eta_los_grid,

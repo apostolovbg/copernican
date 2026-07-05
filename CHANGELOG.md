@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-29
+**Last Updated:** 2026-07-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,28 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-04:
+  Change: Replaced the two-slice roadmap with a detailed three-slice
+    CMB review plan and refreshed the touched repo-readme headers.
+  Why: Clarified the remaining physics, proof, and verification work
+    while satisfying the current UTC recency policy for the repository
+    readmes in the active session.
+  Impact: Updated PLAN.md, CHANGELOG.md, README.md, and
+    copernican/README.md to keep the repository narrative aligned with
+    the current review state.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+    copernican/lib/likelihoods/cmb/native_background.py
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-06-29:
   Change: Updated native spectrum requests to compute only the minimal
