@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-05
+**Last Updated:** 2026-07-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,16 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-06:
+  Change: Rewrote PLAN.md into a three-slice roadmap for the current
+    CMB review closure work.
+  Why: Align the active roadmap with this session's review scope so
+    the gated plan matches the current repository policy fingerprint.
+  Impact: Preserve a detailed, current, and auditable plan while the
+    remaining review closure work proceeds under one explicit roadmap.
+  Files:
+    PLAN.md
 
 - 2026-07-05:
   Change: Added explicit vector and tensor sector proof tests and the
