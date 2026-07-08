@@ -14,26 +14,36 @@ This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
 <!-- DEVCOV:END -->
 
-Use this plan to close the current CMB review in three slices. The
-branch already has the native declared-graph baseline, exact curved-sky
-lensing remapping, q-resolved massive-neutrino support, and proof tests
-for the existing sector plumbing, but the review still requires the
-final scalar normalization, generic collision handling, sector and
-gauge completeness, and native validation closure.
+Use this plan to complete the native CMB solver.
 
-The target condition is narrow and final:
+The previous roadmap grouped several independent implementation sessions
+inside broad slices. That structure allowed individual plumbing or proof
+changes to be presented as closure while major physical work remained.
+
+This replacement plan uses real sequential slices.
+
+Each slice must be independently implementable, testable, documentable,
+and closable in one work session. If a slice cannot be completed in one
+session, the plan must be divided into additional slices before coding
+continues. Do not create hidden sub-slices, work packages, phases, or
+follow-up cleanup inside a slice.
+
+The target condition is final:
 
 * `standard: true` stays on the standard backend path.
-* `standard: false` stays native, CAMB-free, and CLASS-free in
-  production.
-* The native path keeps exact curved-sky lensing, conventioned scalar
-  equations, and physically governed sector execution instead of
-  acceptance-only scaffolding.
-* Review parity is earned only when the source, tests, docs, and gate
-  artifacts all agree that the solver is physically complete.
-
-This is a three-slice plan. Do not add extra slices. Keep the roadmap
-detailed enough that it can be executed without improvising scope.
+* `standard: false` stays native, CAMB-free, and CLASS-free in production.
+* The native path implements physical scalar, vector, and tensor
+  Einstein-Boltzmann sectors.
+* Massive neutrinos use one authoritative q-resolved hierarchy with
+  physical momentum integration.
+* Gauge support uses explicit transformations or gauge-invariant
+  variables rather than aliases that force identical output.
+* Collision handling is compiled from declared operator metadata.
+* All standard CMB spectra are produced when the declared theory supplies
+  the required physical sources.
+* Completion is demonstrated through native absolute reference parity and
+  spectrum convergence.
+* TORG remains untouched during this roadmap.
 
 ## Table of Contents
 
@@ -46,146 +56,216 @@ detailed enough that it can be executed without improvising scope.
 
 ## Problem Preamble
 
-Copernican already has a real native declared-graph CMB engine and exact
-native curved-sky lensing remapping, but it does not yet have a
-review-complete universal Boltzmann-hierarchy solver.
+Copernican already has a substantial native declared-graph CMB engine.
 
-The remaining gap is the physics, sector, and proof work that lets the
-native path:
+The current branch includes:
 
-* express final hierarchy physics instead of acceptance-only
-  scaffolding;
-* reproduce the full review target through native execution;
-* support scalar normalization, polarization, lensing, gauge, neutrino,
-  vector, and tensor completeness; and
-* stay governed enough that review closure is truthful and repeatable.
+* native upstream perturbation compilation;
+* native background, evolution, projection, and caching;
+* exact curved-sky lensing remapping;
+* q-resolved massive-neutrino states;
+* requested-spectrum filtering;
+* full scalar spectrum-family plumbing;
+* primordial `BB` preservation through lensing;
+* multi-spectrum likelihood support;
+* sector, parity, source-role, and conservation validation;
+* generic execution of declared vector-like and tensor-like variables.
 
-This roadmap exists to close that gap in exactly three slices. Each
-slice must end on a clean checkout that passes the appropriate governed
-tests. A broader design that leaves the repository in a broken or
-misleading state is not an acceptable outcome.
+Those capabilities are the baseline. They are not proof that the native
+solver is physically complete.
+
+The remaining gaps are:
+
+* scalar Einstein equations and metric-source normalization;
+* physical photon, polarization, matter, and neutrino hierarchy closure;
+* physical recombination, reionization, and tight coupling;
+* physical q integration for massive neutrinos;
+* generic collision-operator integration;
+* regular scalar initial-condition modes;
+* genuine synchronous and gauge-invariant support;
+* physical vector Boltzmann hierarchies;
+* physical tensor Boltzmann hierarchies;
+* absolute native comparison with CAMB or CLASS;
+* demonstrated numerical convergence.
+
+This roadmap closes those gaps sequentially. No slice may be closed by
+adding metadata, finite-array checks, source-string assertions, or
+response-only tests while its physical target remains absent.
 
 ## Current Baseline
 
-The previous CMB campaign is complete in its scope and becomes the
-baseline for this roadmap.
+The following items are already closed and must not be added back to the
+roadmap as unfinished work:
 
-Current facts:
+* The native solver route is selected for `standard: false`.
+* The native route does not use CAMB or CLASS in production.
+* The exact curved-sky lensing remapper exists.
+* Gaussian lensing smoothing is removed.
+* Artificial native spectrum scale constants are removed.
+* Direct `PP` injection into lensed `BB` is removed.
+* Declared primordial `BB` is included when calculating `lensed_BB`.
+* Requested-spectrum dependencies are resolved before native projection.
+* Requested spectra are included in native cache identity.
+* Multi-spectrum likelihood results use returned spectrum positions
+  rather than ell values as array indices.
+* Photon-baryon Thomson momentum conservation is declared.
+* The scalar materializer creates photon, baryon, CDM, polarization,
+  massless-neutrino, and massive-neutrino states.
+* Massive-neutrino q-bin states are generated and evolved.
+* `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, `EP`, and lensed outputs can be
+  represented when declared.
+* Generic vector-like and tensor-like graph variables can execute.
+* Sector-incompatible cross spectra fail before execution.
 
-* Copernican already has a working native declared-graph CMB path for
-  `standard: false`.
-* The exact curved-sky native lensing remapper exists.
-* The native scalar route is already q-resolved and collision-aware, but
-  the review still asks for stronger physical normalization, proof, and
-  multi-sector coverage.
-* The public surface still needs final truth checks around parity,
-  gauge, initial conditions, stacked spectrum reconstruction, and
-  convergence.
-* The plan now focuses on three sequential slices, not a longer roadmap
-  with hidden cleanup later.
+The following remain open:
+
+* physical scalar normalization;
+* physical massive-neutrino quadrature;
+* generic collision integration;
+* physical gauge equivalence;
+* complete initial modes;
+* physical vector and tensor sectors;
+* native absolute scientific parity;
+* numerical convergence.
 
 ## Overview
 
-This plan has one job: close the review in source, then prove the
-closure with governed verification. Slice One closes the scalar physics
-and collision truth gaps. Slice Two closes the remaining sector and
-gauge claims. Slice Three proves the native parity and convergence
-claims and closes the plan only when the branch is clean.
+The remaining work is divided into ten slices.
+
+Slice One locks the physical convention.
+
+Slice Two completes scalar Einstein equations.
+
+Slice Three completes the photon, baryon, polarization, and thermodynamic
+system.
+
+Slice Four completes the scalar neutrino hierarchy and physical
+massive-neutrino integration.
+
+Slice Five replaces special-case collision handling with compiled generic
+collision blocks.
+
+Slice Six completes scalar initial modes and gauge support.
+
+Slice Seven implements the physical vector sector.
+
+Slice Eight implements the physical tensor sector.
+
+Slice Nine establishes native absolute reference parity.
+
+Slice Ten establishes convergence and closes the repository truth.
+
+Each slice includes its own implementation, tests, documentation, and
+changelog entry. There is no later cleanup slice.
 
 ## Execution Rules
 
-* Slice One does implementation, tests, docs, and changelog work needed
-  to close the remaining scalar truth gaps.
-* Slice Two is proof-first and only repairs source truth gaps that its
-  sector or gauge tests expose.
-* Slice Three is validation-first and only repairs source truth gaps
-  that its native parity or convergence tests expose.
-* No slice may leave behind an approximate native lensing path, an
-  acceptance-only scalar hierarchy, hardcoded collision handling, or
-  alias-only gauge claims.
-* Stage completed slice changes before moving on.
+* Execute slices strictly in order.
+* Do not begin a later slice while an earlier slice is open.
+* Each slice represents one complete work session.
+* If a slice requires another work session, divide it into new numbered
+  slices before implementation continues.
+* Do not hide additional sessions under tasks, work packages, follow-ups,
+  polish, or cleanup.
+* Do not add optional or deferred physics.
+* Do not modify TORG during this roadmap.
+* Use a neutral native standard cosmology for acceptance testing.
+* CAMB or CLASS may be used only as independent test references.
+* Production native code must not import or call CAMB or CLASS.
+* Do not alter `standard: true` behavior except where shared output
+  consistency requires it.
+* Do not add empirical output scales, direct spectrum injections, hidden
+  damping, or test-only physical terms.
+* Missing spectra must remain unavailable with a reason.
+* Do not replace unavailable spectra with zeros.
+* Physically zero and unavailable must remain distinct states.
+* A test name must describe what its assertions actually prove.
+* Grid-size activation tests do not count as convergence tests.
+* Parameter-response tests do not count as absolute parity tests.
+* Gauge labels do not count as independent gauge implementations.
+* Tagged vector or tensor variables do not count as physical sectors.
+* Every slice must update its touched documentation and `CHANGELOG.md`.
+* Stage completed slice changes before beginning the next slice.
 * Do not commit or push unless explicitly instructed.
 
 Task markers mean:
 
-* [open] active work for this roadmap;
-* [closed] completed and validated for this roadmap.
+* `[open]` active work for this roadmap;
+* `[closed]` completed and validated for this roadmap.
 
 ## Execution Slices
 
-### [open] Slice One - Scalar physics closure
+### [open] Slice One - Canonical CMB physical convention
 
 Purpose:
 
-Replace the remaining scalar review-era scaffolding with convention-
-complete native physics and record the closure in tests, docs, and
-changelog entries.
+Define one authoritative physical convention for every native CMB state,
+equation, source, projection, and spectrum before further equations are
+changed.
 
 Depends on:
 
-* Current native declared-graph baseline.
-* Existing exact curved-sky native lensing remapper.
-* Existing q-grid and collision metadata support.
+* Current native CMB baseline.
 
 Probable affected files:
 
+* `copernican/docs/cmb_solver.md`
+* `copernican/docs/model_template.yml`
 * `copernican/lib/perturbation_contract.py`
-* `copernican/lib/model_coder.py`
-* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/lib/cmb_projection_contract.py`
 * `tests/copernican/lib/test_perturbation_contract.py`
 * `README.md`
+* `copernican/README.md`
 * `CHANGELOG.md`
+* `PLAN.md`
 
 Scope:
 
-* Replace the remaining scalar acceptance equations with explicit
-  Einstein-Boltzmann content for photons, baryons, CDM, massless
-  neutrinos, metric closure, and tight coupling.
-* Make the scalar metric constraints use conventioned background
-  weights so the equations are physically readable rather than proxy
-  driven.
-* Make massive-neutrino evolution q-resolved and keep any aggregate
-  moments algebraically consistent with the q-bin hierarchy.
-* Remove hardcoded collision-step assumptions and compile the Thomson
-  relaxation from collision metadata.
-* Keep exact curved-sky remapping as the only native lensed-spectrum
-  path and preserve declared primordial `BB` through `lensed_BB`.
-* Fix stacked multi-spectrum reconstruction so the public CMB surface
-  can index requested spectra correctly.
-* Update the user-facing docs, changelog, and tests so they describe and
-  guard the completed scalar physics truth.
+* Use conformal time and comoving `k` in inverse Mpc.
+* Select one named scalar convention as canonical.
+* Define photon temperature multipoles.
+* Define photon E- and B-polarization multipoles.
+* Define baryon and CDM density and velocity variables.
+* Define massless-neutrino variables and multipoles.
+* Define massive-neutrino q-bin perturbations.
+* Define scalar metric potentials and their signs.
+* Define vector metric variables.
+* Define tensor metric variables.
+* Define velocity-divergence and anisotropic-stress signs.
+* Define optical-depth and visibility conventions.
+* Define line-of-sight temperature, E, B, and lensing sources.
+* Define `C_ell` and `D_ell` output conventions.
+* Define temperature, polarization, potential, and cross-spectrum units.
+* Define the exact `PP`, `TP`, and `EP` normalization.
+* Define the conventions passed into the lensing remapper.
+* Define gauge transformations between the supported scalar gauges.
+* Cite the physical equations used by the generated standard hierarchy.
 
 Tasks:
 
-* Rewrite the scalar source and constraint expressions with explicit
-  background weighting and documented variable conventions.
-* Make the q-bin density, momentum, shear, and higher moments integrate
-  with the correct physical weights.
-* Move collision-step selection and coefficients to compiled operator
-  metadata.
-* Add tests for normalization, q weights, collision terms, and scalar-
-  response changes.
-* Update the touched docs and changelog entry for the slice.
+* Add `copernican/docs/cmb_solver.md`.
+* Record every native state with its mathematical definition and unit.
+* Record every standard hierarchy equation intended for implementation.
+* Record all source and spectrum normalization rules.
+* Record the gauge transformations used in Slice Six.
+* Add compile-time role and unit metadata where practical.
+* Remove contradictory or undocumented convention claims.
+* Add contract tests for required physical metadata.
+* Update the readmes and changelog.
 
 Done when:
 
-* The scalar hierarchy can be read as a physical Boltzmann system
-  rather than a proxy-driven graph.
-* q-resolved states and aggregate moments are consistent by construction.
-* Collision terms are metadata-driven and no longer depend on hardcoded
-  variable names.
-* Tests prove the scalar physics changes observable outputs.
+* Every later slice can implement equations without inventing conventions.
+* Every generated state has one documented meaning.
+* Every standard spectrum has one documented normalization.
+* No undocumented mixture of conventions remains.
 
-### [open] Slice Two - Sector and gauge closure
+### [open] Slice Two - Scalar Einstein equations and metric sources
 
 Purpose:
 
-Implement real vector and tensor Boltzmann sectors and prove gauge
-equivalence.
+Replace the remaining proxy scalar metric system with the complete scalar
+Einstein system in the convention fixed by Slice One.
 
 Depends on:
 
@@ -194,115 +274,650 @@ Depends on:
 Probable affected files:
 
 * `copernican/lib/perturbation_contract.py`
-* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
 * `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
 * `tests/copernican/lib/test_perturbation_contract.py`
-* `README.md`
-* `copernican/README.md`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
 * `CHANGELOG.md`
+* `PLAN.md`
 
 Scope:
 
-* Generate physical vector and tensor hierarchies, not just tagged
-  synthetic sources.
-* Add tensor and vector initial conditions, metric content, and
-  sector-specific observables.
-* Make Newtonian, synchronous, and gauge-invariant routes prove the
-  same observables for the same physical model.
-* Keep the sector and gauge proof tests explicit so labels do not
-  masquerade as independent physics.
+* Replace present-day `Omega_i0` proxy sources with time-dependent
+  background energy-density and pressure weights.
+* Use the correct scale-factor dependence for matter and radiation.
+* Implement the scalar energy constraint.
+* Implement the scalar momentum constraint.
+* Implement the anisotropic-stress relation.
+* Implement the metric time-evolution relations required by the selected
+  convention.
+* Include photon, baryon, CDM, massless-neutrino, and massive-neutrino
+  contributions through clearly defined source moments.
+* Remove metric denominators and regularizers that are not part of the
+  documented equations.
+* Keep numerical low-k handling separate from the physical equation.
+* Add runtime Einstein-residual diagnostics.
+* Fail when declared physical constraints exceed their tolerance.
 
 Tasks:
 
-* Add vector and tensor hierarchy compilation from declared sector
-  metadata.
-* Add physical vector/tensor observable tests and sector mismatch
-  guards.
-* Add gauge-equivalence tests that compare the observables across routes
-  for the same model.
-* Preserve the existing q-resolution, source-refinement, and
-  initial-condition proof tests.
-* Update the touched docs and changelog entry for the slice.
+* Rewrite generated scalar metric derived expressions.
+* Rewrite scalar constraints and closures.
+* Add time-dependent background source scalars.
+* Add dimensional and sign checks.
+* Add Einstein energy, momentum, and shear residual tests.
+* Add parameter-response tests for matter and radiation source changes.
+* Update the solver documentation and changelog.
 
 Done when:
 
-* Vector and tensor observables come from real sector content rather
-  than one-off synthetic fixtures.
-* Gauge-invariant and synchronous outputs match the Newtonian route for
-  the same physical model.
-* The proof tests for q resolution, source refinement, and initial
-  conditions remain green.
+* Scalar metric equations match the documented convention.
+* Background source weights have the correct time dependence.
+* Metric residuals remain below their declared tolerances.
+* No proxy Poisson system remains in the generated standard hierarchy.
 
-### [open] Slice Three - Native validation and convergence closure
+### [open] Slice Three - Photon-baryon hierarchy and thermodynamics
 
 Purpose:
 
-Validate the native solver against external reference data and
-convergence thresholds.
+Complete the physical photon, polarization, baryon, recombination,
+reionization, tight-coupling, and scalar line-of-sight system.
 
 Depends on:
 
-* Slices One and Two.
+* Slice Two.
 
 Probable affected files:
 
-* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
 * `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Complete the scalar photon-temperature hierarchy.
+* Complete the scalar E-polarization hierarchy.
+* Use physical Thomson collision terms.
+* Complete baryon continuity and Euler equations.
+* Complete CDM continuity and Euler equations.
+* Implement physical hierarchy truncation.
+* Implement a governed tight-coupling approximation.
+* Implement explicit tight-coupling entry and exit conditions.
+* Ensure a stable transition to the full photon hierarchy.
+* Complete native recombination.
+* Complete native reionization.
+* Produce physical optical-depth and visibility histories.
+* Build the physical temperature monopole source.
+* Build the physical Doppler source.
+* Build the physical polarization source.
+* Build the physical metric time-derivative ISW source.
+* Remove non-derivative ISW placeholders.
+* Preserve the exact native lensing remapper.
+
+Tasks:
+
+* Rewrite photon and polarization equations as needed.
+* Replace terminal hierarchy damping with a physical closure.
+* Implement and test the tight-coupling transition.
+* Improve recombination and reionization accuracy.
+* Rewrite scalar temperature and polarization source expressions.
+* Add photon-baryon momentum-conservation tests.
+* Add visibility-peak and visibility-width tests.
+* Add tight-coupling/full-hierarchy agreement tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* The photon-baryon system is physically documented and implemented.
+* Recombination and reionization meet the declared background thresholds.
+* Tight coupling transitions without discontinuous physical output.
+* Temperature and E sources match the documented line-of-sight equations.
+
+### [open] Slice Four - Neutrino hierarchy and physical q integration
+
+Purpose:
+
+Complete massless- and massive-neutrino physics using one authoritative
+q-resolved massive-neutrino hierarchy.
+
+Depends on:
+
+* Slice Three.
+
+Probable affected files:
+
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Complete the massless-neutrino hierarchy.
+* Use a physical high-multipole closure.
+* Keep one authoritative massive-neutrino q hierarchy.
+* Remove independently evolved aggregate massive-neutrino states.
+* Alternatively, convert aggregate names into strict algebraic aliases.
+* Use the thermal background distribution.
+* Include the correct q and epsilon factors.
+* Use distinct physical weights for density, pressure, momentum, and
+  anisotropic stress.
+* Normalize perturbation moments against the matching background moments.
+* Compute massive-neutrino background density and pressure from the same
+  q grid.
+* Preserve relativistic and nonrelativistic limits.
+* Make q range and q count governed accuracy controls.
+* Make the metric consume only the physical q-integrated moments.
+
+Tasks:
+
+* Replace normalized common q weights with physical quadrature.
+* Add background-distribution factors.
+* Add epsilon-dependent moment weights.
+* Remove duplicate aggregate evolution.
+* Add massless-limit tests.
+* Add nonrelativistic-limit tests.
+* Add q-integrated moment-consistency tests.
+* Add evolved spectrum-response tests for different neutrino masses.
+* Add q-grid convergence tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Massive-neutrino density, pressure, momentum, and shear are physical q
+  integrals.
+* Aggregate quantities cannot drift from the q-bin hierarchy.
+* Changing neutrino mass changes evolved and projected spectra.
+* q-grid refinement produces convergent physical observables.
+
+### [open] Slice Five - Generic compiled collision integration
+
+Purpose:
+
+Replace the remaining special-case Thomson integration path with generic
+compiled collision blocks.
+
+Depends on:
+
+* Slice Four.
+
+Probable affected files:
+
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Compile every collision operator into resolved state slots.
+* Compile the operator rate.
+* Compile its coefficients or matrix.
+* Compile its counterpart terms.
+* Compile its conservation rule.
+* Compile its integration strategy.
+* Support explicit operators.
+* Support exact operators with a declared exact form.
+* Support implicit operators with a declared linear block.
+* Preserve unhandled explicit collision terms in the ordinary RHS.
+* Remove global suppression of shared collision symbols.
+* Keep standard Thomson relaxation as one built-in compiled operator.
+* Allow several collision operators in the same evolution interval.
+* Fail before evolution for unsupported exact or implicit declarations.
+
+Tasks:
+
+* Extend collision-operator compiled data.
+* Replace fixed Thomson coefficients in the integrator.
+* Apply splitting only to selected compiled operators.
+* Stop globally setting `collision_rate` to zero.
+* Add multi-operator execution tests.
+* Add renamed-state tests.
+* Add changed-coefficient tests.
+* Add custom explicit-operator tests.
+* Add unsupported-strategy failure tests.
+* Add conservation-residual tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Collision evolution follows compiled theory metadata.
+* Multiple interactions cannot disable one another.
+* No generic runtime path assumes standard variable names.
+* No declared interaction is silently removed.
+
+### [open] Slice Six - Scalar initial modes and genuine gauge support
+
+Purpose:
+
+Implement complete regular scalar initial modes and explicit gauge
+transformations.
+
+Depends on:
+
+* Slice Five.
+
+Probable affected files:
+
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Implement the regular adiabatic scalar mode.
+* Implement baryon isocurvature.
+* Implement CDM isocurvature.
+* Implement neutrino-density isocurvature.
+* Implement neutrino-velocity isocurvature.
+* Include leading super-horizon series for all affected states.
+* Satisfy the Einstein constraints at the starting time.
+* Use the canonical gauge-invariant basis for observable construction.
+* Implement conformal-Newtonian input mapping.
+* Implement independent synchronous-gauge variables and equations.
+* Implement explicit synchronous-to-invariant transformations.
+* Implement a real gauge-invariant compilation route.
+* Remove synchronous aliases that merely rescale Newtonian potentials.
+* Remove gauge-invariant routing that simply executes the Newtonian branch.
+* Permit declared custom gauge transformations where the standard
+  transformation does not apply.
+
+Tasks:
+
+* Replace sparse mode seeds with complete series.
+* Add starting-time constraint checks.
+* Add synchronous scalar equations.
+* Add compiled gauge transformations.
+* Add gauge-invariant source construction.
+* Add mode-leading-power tests.
+* Add internal-history gauge tests.
+* Add transformed-history agreement tests.
+* Add observable-spectrum gauge-equivalence tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Different gauges have genuinely different internal variables.
+* Transformed gauge-invariant quantities agree.
+* Final observables agree within the declared tolerance.
+* Every supported scalar mode is regular and constraint-consistent.
+
+### [open] Slice Seven - Physical vector Boltzmann sector
+
+Purpose:
+
+Replace synthetic vector-tagged execution as the only vector proof with a
+physical vector Einstein-Boltzmann sector.
+
+Depends on:
+
+* Slice Six.
+
+Probable affected files:
+
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/cmb_projection_contract.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Add vector metric variables and Einstein relations.
+* Add baryon and matter vorticity where physically supported.
+* Add vector photon-temperature multipoles.
+* Add vector photon E-polarization multipoles.
+* Add vector photon B-polarization multipoles.
+* Add vector massless-neutrino multipoles.
+* Add vector massive-neutrino q multipoles where required.
+* Add vector Thomson collision terms.
+* Add regular vector initial conditions.
+* Add vector temperature sources.
+* Add vector E and B sources.
+* Add vector `TT`, `TE`, `EE`, and `BB`.
+* Preserve vector primordial `BB` through lensing.
+* Keep sector-incompatible cross spectra rejected.
+
+Tasks:
+
+* Add vector hierarchy materialization.
+* Add vector initial-mode materialization.
+* Add vector source materialization.
+* Add vector transfer and spectrum tests.
+* Add analytic free-streaming-limit tests.
+* Add vector collision-limit tests.
+* Add vector sector-component output tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Vector output comes from a physical hierarchy.
+* The proof does not rely on a single custom vector variable.
+* Vector temperature and polarization observables are finite and physical.
+* Vector analytic limits pass their declared residual tolerances.
+
+### [open] Slice Eight - Physical tensor Boltzmann sector
+
+Purpose:
+
+Replace synthetic tensor-tagged B-mode execution as the only tensor proof
+with a physical tensor Einstein-Boltzmann sector.
+
+Depends on:
+
+* Slice Seven.
+
+Probable affected files:
+
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/cmb_projection_contract.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Add tensor metric-wave evolution.
+* Add tensor photon-temperature multipoles.
+* Add tensor photon E-polarization multipoles.
+* Add tensor photon B-polarization multipoles.
+* Add tensor massless-neutrino anisotropic stress.
+* Add tensor massive-neutrino q multipoles where required.
+* Add tensor Thomson collision terms.
+* Add regular primordial tensor initial conditions.
+* Add tensor temperature sources.
+* Add tensor E and B sources.
+* Add tensor `TT`, `TE`, `EE`, and `BB`.
+* Add tensor amplitude and tensor tilt.
+* Preserve primordial tensor `BB` through lensing.
+* Expose scalar, vector, tensor, and total spectrum components.
+
+Tasks:
+
+* Add tensor hierarchy materialization.
+* Add tensor metric evolution.
+* Add tensor initial-mode materialization.
+* Add tensor source materialization.
+* Add tensor amplitude-response tests.
+* Add tensor tilt-shape tests.
+* Add tensor neutrino-stress tests.
+* Add tensor unlensed and lensed spectrum tests.
+* Add sector-total consistency tests.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Tensor output comes from tensor metric and Boltzmann hierarchies.
+* The proof does not rely on a single synthetic `tensor_b` variable.
+* Tensor `TT`, `TE`, `EE`, and `BB` respond physically to tensor inputs.
+* Primordial tensor `BB` survives exact lensing remapping.
+
+### [open] Slice Nine - Native absolute scientific parity
+
+Purpose:
+
+Demonstrate that the completed native solver reproduces an independent
+Boltzmann reference in absolute physical output.
+
+Depends on:
+
+* Slice Eight.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `README.md`
+* `copernican/README.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Create one neutral `standard: false` native acceptance cosmology.
+* Run it through the production native solver.
+* Generate reference results through CAMB or CLASS only inside tests.
+* Compare native background quantities.
+* Compare recombination and visibility quantities.
+* Compare native scalar `TT`, `TE`, and `EE`.
+* Compare native `PP`, `TP`, and `EP`.
+* Compare all four native lensed spectra.
+* Compare native massive-neutrino responses.
+* Compare native tensor outputs.
+* Compare physical acoustic features.
+* Do not use the standard adapter as the tested output.
+* Do not accept amplitude response as absolute parity.
+
+Required background thresholds:
+
+* conformal age relative error at or below `0.2%`;
+* sound horizon relative error at or below `0.2%`;
+* visibility-peak redshift relative error at or below `0.5%`;
+* visibility-width relative error at or below `3%`;
+* recombination median relative error at or below `2%`;
+* recombination 90th-percentile relative error at or below `5%`;
+* reionization optical-depth relative error at or below `1%`.
+
+Required scalar-spectrum thresholds:
+
+* compare `TT`, `TE`, and `EE` over ell `2..2000`;
+* compare `PP` over ell `10..1500`;
+* compare lensed spectra over ell `2..2000`;
+* `TT` median fractional error at or below `5%`;
+* `TT` 90th-percentile fractional error at or below `10%`;
+* `EE` median fractional error at or below `5%`;
+* `EE` 90th-percentile fractional error at or below `10%`;
+* normalized `TE` RMS error at or below `5%`;
+* first three `TT` peaks within three ell;
+* first three `EE` peaks within three ell;
+* first three `TE` zero crossings within three ell;
+* `PP` median fractional error at or below `10%`;
+* `PP` 90th-percentile fractional error at or below `20%`;
+* lensed `BB` median fractional error at or below `15%`.
+
+Required non-scalar and neutrino thresholds:
+
+* tensor `TT`, `EE`, and `BB` median fractional error at or below `10%`;
+* massive-neutrino spectrum changes agree with the reference to `10%`;
+* gauge-equivalent scalar spectra agree to `0.1%`;
+* vector analytic-limit residuals meet their declared tolerances.
+
+Tasks:
+
+* Add native absolute background-reference tests.
+* Add native absolute scalar-spectrum tests.
+* Add native lensing-reference tests.
+* Add native massive-neutrino response-reference tests.
+* Add native tensor-reference tests.
+* Fix physical source defects exposed by those comparisons.
+* Record the accepted reference cosmology and tolerance table.
+* Update the solver documentation and changelog.
+
+Done when:
+
+* Production native results meet all declared reference thresholds.
+* The comparison is against an independent code path.
+* No standard-backend result is presented as native validation.
+* No response-only test is presented as absolute parity.
+
+### [open] Slice Ten - Numerical convergence and final closure
+
+Purpose:
+
+Prove that the completed native solver converges numerically and close the
+repository only after all implementation and scientific claims agree.
+
+Depends on:
+
+* Slice Nine.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `copernican/lib/likelihoods/cmb/cmb.py`
+* `copernican/lib/plotter.py`
+* `copernican/lib/gui/plot_viewer.py`
+* `copernican/docs/cmb_solver.md`
+* `copernican/docs/model_template.yml`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
 * `README.md`
 * `copernican/README.md`
 * `CHANGELOG.md`
+* `PLAN.md`
 
 Scope:
 
-* Add absolute native TT/TE/EE/PP/lensed parity checks against CAMB or
-  CLASS using the native route, not the standard adapter.
-* Add convergence tests for source refinement, k-grid resolution, and
-  q-grid resolution so numerical settings prove accuracy rather than
-  mere activation.
-* Keep exact curved-sky lensing, the full spectrum family, and the
-  multi-spectrum likelihood surface intact.
-* Record the remaining runtime and validation claims clearly in docs
-  and changelog.
+* Demonstrate convergence of background sampling.
+* Demonstrate convergence of eta sampling.
+* Demonstrate convergence of k sampling.
+* Demonstrate convergence of photon hierarchy depth.
+* Demonstrate convergence of massless-neutrino hierarchy depth.
+* Demonstrate convergence of massive-neutrino hierarchy depth.
+* Demonstrate convergence of the q grid.
+* Demonstrate convergence of source refinement.
+* Demonstrate convergence of lensing quadrature.
+* Fail when a requested accuracy tier is under-resolved.
+* Record the active numerical envelope in validation output.
+* Keep output availability explicit.
+* Keep default plotting limited to `TT`, `TE`, and `EE`.
+* Keep unlensed, lensed, lensing, sector, and diagnostic views separate.
+* Replace weak tests whose names overstate their assertions.
+* Remove obsolete acceptance-only tests.
+* Update all user-facing claims.
+* Run the complete local repository gate.
+* Mark every slice closed only after the final gate succeeds.
+
+Required convergence thresholds:
+
+* final refinement changes `TT` by less than `1%`;
+* final refinement changes `EE` by less than `1%`;
+* final refinement changes normalized `TE` by less than `2%`;
+* final refinement changes `PP` by less than `3%`;
+* final refinement changes lensed `BB` by less than `5%`;
+* final q-grid refinement changes accepted massive-neutrino spectra by
+  less than `2%`;
+* final hierarchy-depth refinement changes accepted spectra by less than
+  `1%`;
+* gauge-equivalent outputs remain inside their tolerance at every accepted
+  accuracy tier.
+
+Required regression checks:
+
+* Changing `PP` changes the lensed spectra themselves.
+* Primordial `BB` survives lensing.
+* Missing spectra remain unavailable rather than fabricated.
+* Multi-spectrum likelihood rows work for repeated and noncontiguous ell.
+* Cache keys include structure, bound parameters, grids, requested
+  spectra, and accuracy controls.
+* Native production modules do not import or call CAMB or CLASS.
+* Approximate lensing, direct spectrum injection, and empirical output
+  scaling remain absent.
+* Scalar, vector, tensor, and total components remain internally
+  consistent.
 
 Tasks:
 
-* Add native-vs-reference spectrum parity tests across the full output
-  family.
-* Add convergence tests that show refinement moves spectra toward stable
-  results.
-* Add regression tests that keep stacked-spectrum reconstruction and
-  declared BB-preserving lensing correct.
-* Update the touched docs and changelog entry for the slice.
+* Add actual spectrum-convergence tests.
+* Remove grid-size-only convergence claims.
+* Add under-resolution failure tests.
+* Add final cache-identity tests.
+* Complete spectrum-availability metadata.
+* Complete grouped plotting behavior.
+* Update the model template.
+* Update all CMB documentation.
+* Update the final changelog entry.
+* Run the complete local repository gate.
+* Change every slice marker to `[closed]` only after success.
 
 Done when:
 
-* Native outputs match the reference data at meaningful tolerances.
-* Refinement settings demonstrate convergence on the actual spectra, not
-  only grid size changes.
-* The branch can truthfully claim full review closure without hidden
-  validation gaps.
+* Every numerical control demonstrates convergence of physical output.
+* Every source claim is supported by a scientific or structural test.
+* Source, tests, documentation, public API, and changelog agree.
+* The full local repository gate passes from a clean checkout.
+* No item from this roadmap remains open or deferred.
 
 ## Completion Standard
 
-This roadmap is complete only when all three slices are closed and the
-repository can truthfully claim all of the following:
+This roadmap is complete only when all ten slices are `[closed]`.
 
-* Copernican ships a native Boltzmann-hierarchy CMB infrastructure whose
-  `standard: false` route compiles complete declared theories upstream
-  and executes them natively with no CAMB or CLASS production fallback.
-* Standard-model native acceptance covers scalar normalization,
-  polarization, lensing, gauge, q-resolved massive-neutrino, and
-  required non-scalar sector behavior with documented reference
-  tolerances.
-* Nonstandard declared theories can define sectors, species,
-  interactions, gauges, initial conditions, and projections through
-  structured contracts rather than hidden solver branches.
-* Runtime is governed by bounded caches, explicit convergence controls,
-  and benchmark thresholds that keep the subsystem from drifting back
-  into unmanaged snail-slow behavior.
-* Docs, manifests, packaging smoke, tests, and the public API all tell
-  the same truth.
+The repository must then truthfully satisfy all of the following:
+
+* Copernican ships a native, universal, theory-agnostic
+  Boltzmann-hierarchy CMB solver.
+* `standard: false` runs without a CAMB or CLASS production fallback.
+* The standard native acceptance model contains physical scalar, vector,
+  and tensor Einstein-Boltzmann sectors.
+* Photon temperature, E polarization, B polarization, baryon, CDM,
+  massless-neutrino, and massive-neutrino physics use one documented
+  convention.
+* Scalar metric sources use physical time-dependent background weights.
+* Massive-neutrino metric moments are physical q integrals.
+* No independent aggregate massive-neutrino state can drift from the
+  q-resolved hierarchy.
+* Collision integration is compiled from declared theory metadata.
+* Multiple collision operators can run without silently disabling one
+  another.
+* Newtonian, synchronous, and gauge-invariant routes are connected by
+  explicit transformations or invariant variables.
+* Regular adiabatic, isocurvature, vector, and tensor initial modes are
+  implemented.
+* Every standard CMB spectrum is produced when the declared theory
+  supplies the required physics.
+* Unavailable, physically zero, and unrequested spectra remain distinct.
+* Exact curved-sky lensing preserves primordial `BB`.
+* Native scalar, tensor, lensing, and massive-neutrino outputs meet the
+  independent-reference thresholds.
+* Background, k, eta, hierarchy, q-grid, source, and lensing refinements
+  demonstrate convergence.
+* No empirical scales, source injections, hidden fallbacks, or
+  acceptance-only physical equations remain.
+* TORG remains unchanged.
+* The complete repository gate passes from a clean checkout.
+* Documentation and changelog statements match the measured code state.
+
+No slice may be marked `[closed]` because a later slice is expected to fix
+it. If any completion statement is false, the responsible slice remains
+`[open]`.
