@@ -151,6 +151,7 @@ _SUPPORTED_DERIVED_KEYS = {
     "kind",
     "notes",
     "order",
+    "units",
     "variable",
     "wrt",
 }
@@ -180,6 +181,7 @@ _SUPPORTED_SOURCE_KEYS = {
     "expression",
     "notes",
     "role",
+    "units",
 }
 _SUPPORTED_OBSERVABLE_KEYS = {
     "dependencies",
@@ -193,6 +195,7 @@ _SUPPORTED_OBSERVABLE_KEYS = {
     "required_projection_roles",
     "secondary",
     "source_terms",
+    "units",
 }
 _SUPPORTED_CONDITION_KEYS = {
     "anchor",
@@ -306,6 +309,10 @@ _NEWTONIAN_GAUGE_ROLES = frozenset(
 _SYNCHRONOUS_GAUGE_ROLES = frozenset(
     {"synchronous_metric_shear", "synchronous_metric_trace"}
 )
+_DIMENSIONLESS_UNITS = "dimensionless"
+_INVERSE_MPC_UNITS = "1/Mpc"
+_INVERSE_MPC_SQUARED_UNITS = "1/Mpc^2"
+_LINE_OF_SIGHT_SOURCE_UNITS = "1/Mpc"
 
 
 def _has_explicit_native_runtime_graph(
@@ -395,6 +402,25 @@ def _scalar_massive_neutrino_q_streaming_speed_name(
     """Return the q-bin streaming-speed name for massive neutrinos."""
 
     return f"massive_neutrino_q{int(index)}_streaming_speed"
+
+
+def _metadata_entry(
+    kind: str,
+    description: str,
+    *,
+    units: str | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Return one metadata-rich declared entry."""
+
+    entry: dict[str, Any] = {
+        "kind": kind,
+        "description": description,
+    }
+    if units is not None:
+        entry["units"] = units
+    entry.update(extra)
+    return entry
 
 
 def _select_standard_initial_mode(
@@ -653,56 +679,92 @@ def _materialize_native_scalar_hierarchy_contract(
         phi_state_name = "h_sync_metric"
         psi_state_name = "eta_sync_metric"
         metric_variables = {
-            phi_state_name: {
-                "kind": "synchronous_metric_trace",
-                "gauge_role": "synchronous_metric_trace",
-            },
-            psi_state_name: {
-                "kind": "synchronous_metric_shear",
-                "gauge_role": "synchronous_metric_shear",
-            },
+            phi_state_name: _metadata_entry(
+                "synchronous_metric_trace",
+                "Synchronous-gauge trace metric perturbation h.",
+                units=_DIMENSIONLESS_UNITS,
+                gauge_role="synchronous_metric_trace",
+            ),
+            psi_state_name: _metadata_entry(
+                "synchronous_metric_shear",
+                "Synchronous-gauge shear metric perturbation eta.",
+                units=_DIMENSIONLESS_UNITS,
+                gauge_role="synchronous_metric_shear",
+            ),
         }
     else:
         phi_state_name = "Phi"
         psi_state_name = "Psi"
         metric_variables = {
-            phi_state_name: {
-                "kind": "metric_potential_phi",
-                "gauge_role": "newtonian_potential",
-            },
-            psi_state_name: {
-                "kind": "metric_potential_psi",
-                "gauge_role": "curvature_potential",
-            },
+            phi_state_name: _metadata_entry(
+                "metric_potential_phi",
+                "Conformal-Newtonian spatial-curvature potential Phi.",
+                units=_DIMENSIONLESS_UNITS,
+                gauge_role="curvature_potential",
+            ),
+            psi_state_name: _metadata_entry(
+                "metric_potential_psi",
+                "Conformal-Newtonian lapse potential Psi.",
+                units=_DIMENSIONLESS_UNITS,
+                gauge_role="newtonian_potential",
+            ),
         }
     variables: dict[str, Any] = {
-        "delta_b": {"kind": "baryon_density_contrast"},
-        "theta_b": {"kind": "baryon_velocity_divergence"},
-        "delta_c": {"kind": "cdm_density_contrast"},
-        "theta_c": {"kind": "cdm_velocity_divergence"},
-        "delta_nu": {
-            "kind": "massless_neutrino_density_contrast",
-        },
-        "theta_nu": {
-            "kind": "massless_neutrino_velocity_divergence",
-        },
-        "sigma_nu": {
-            "kind": "massless_neutrino_anisotropic_stress",
-        },
+        "delta_b": _metadata_entry(
+            "baryon_density_contrast",
+            "Baryon density contrast delta_b.",
+            units=_DIMENSIONLESS_UNITS,
+        ),
+        "theta_b": _metadata_entry(
+            "baryon_velocity_divergence",
+            "Baryon velocity divergence theta_b.",
+            units=_INVERSE_MPC_UNITS,
+        ),
+        "delta_c": _metadata_entry(
+            "cdm_density_contrast",
+            "Cold-dark-matter density contrast delta_c.",
+            units=_DIMENSIONLESS_UNITS,
+        ),
+        "theta_c": _metadata_entry(
+            "cdm_velocity_divergence",
+            "Cold-dark-matter velocity divergence theta_c.",
+            units=_INVERSE_MPC_UNITS,
+        ),
+        "delta_nu": _metadata_entry(
+            "massless_neutrino_density_contrast",
+            "Massless-neutrino density contrast delta_nu.",
+            units=_DIMENSIONLESS_UNITS,
+        ),
+        "theta_nu": _metadata_entry(
+            "massless_neutrino_velocity_divergence",
+            "Massless-neutrino velocity divergence theta_nu.",
+            units=_INVERSE_MPC_UNITS,
+        ),
+        "sigma_nu": _metadata_entry(
+            "massless_neutrino_anisotropic_stress",
+            "Massless-neutrino anisotropic stress sigma_nu.",
+            units=_DIMENSIONLESS_UNITS,
+        ),
         **metric_variables,
     }
     if has_massive_neutrino:
         variables.update(
             {
-                "delta_nu_massive": {
-                    "kind": "massive_neutrino_density_contrast",
-                },
-                "theta_nu_massive": {
-                    "kind": "massive_neutrino_velocity_divergence",
-                },
-                "sigma_nu_massive": {
-                    "kind": "massive_neutrino_anisotropic_stress",
-                },
+                "delta_nu_massive": _metadata_entry(
+                    "massive_neutrino_density_contrast",
+                    "Q-integrated massive-neutrino density contrast.",
+                    units=_DIMENSIONLESS_UNITS,
+                ),
+                "theta_nu_massive": _metadata_entry(
+                    "massive_neutrino_velocity_divergence",
+                    "Q-integrated massive-neutrino velocity divergence.",
+                    units=_INVERSE_MPC_UNITS,
+                ),
+                "sigma_nu_massive": _metadata_entry(
+                    "massive_neutrino_anisotropic_stress",
+                    "Q-integrated massive-neutrino anisotropic stress.",
+                    units=_DIMENSIONLESS_UNITS,
+                ),
             }
         )
     for moment in range(photon_l_max + 1):
@@ -716,10 +778,12 @@ def _materialize_native_scalar_hierarchy_contract(
             kind = "photon_temperature_octopole"
         else:
             kind = "photon_temperature_multipole"
-        variables[_scalar_temperature_name(moment)] = {
-            "kind": kind,
-            "tensor_character": "scalar_like",
-        }
+        variables[_scalar_temperature_name(moment)] = _metadata_entry(
+            kind,
+            f"Photon temperature multipole Theta_gamma,{int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="scalar_like",
+        )
     for moment in range(photon_l_max + 1):
         if moment == 0:
             kind = "photon_polarization_monopole"
@@ -731,25 +795,36 @@ def _materialize_native_scalar_hierarchy_contract(
             kind = "photon_polarization_octopole"
         else:
             kind = "photon_polarization_multipole"
-        variables[_scalar_polarization_name(moment)] = {
-            "kind": kind,
-            "tensor_character": "scalar_like",
-        }
-    variables["polarization_b_mode_seed"] = {
-        "kind": "polarization_b_seed",
-        "projection_role": "b_mode",
-    }
+        variables[_scalar_polarization_name(moment)] = _metadata_entry(
+            kind,
+            f"Photon E-polarization multipole E_gamma,{int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="scalar_like",
+        )
+    variables["polarization_b_mode_seed"] = _metadata_entry(
+        "polarization_b_seed",
+        "Declared primordial or sourced B-mode transfer seed.",
+        units=_DIMENSIONLESS_UNITS,
+        projection_role="b_mode",
+        parity="odd",
+        spin=2.0,
+    )
     for moment in range(3, neutrino_l_max + 1):
-        variables[_scalar_neutrino_name(moment)] = {
-            "kind": "massless_neutrino_multipole",
-            "tensor_character": "scalar_like",
-        }
+        variables[_scalar_neutrino_name(moment)] = _metadata_entry(
+            "massless_neutrino_multipole",
+            f"Massless-neutrino multipole F_nu,{int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="scalar_like",
+        )
     if has_massive_neutrino:
         for moment in range(3, massive_neutrino_l_max + 1):
-            variables[_scalar_massive_neutrino_name(moment)] = {
-                "kind": "massive_neutrino_multipole",
-                "tensor_character": "scalar_like",
-            }
+            variables[_scalar_massive_neutrino_name(moment)] = _metadata_entry(
+                "massive_neutrino_multipole",
+                "Q-integrated massive-neutrino multipole "
+                f"F_nu_m,{int(moment)}.",
+                units=_DIMENSIONLESS_UNITS,
+                tensor_character="scalar_like",
+            )
         for q_index in range(massive_neutrino_grid_count):
             for moment in range(massive_neutrino_l_max + 1):
                 q_name = _scalar_massive_neutrino_q_name(
@@ -768,10 +843,13 @@ def _materialize_native_scalar_hierarchy_contract(
                     )
                 else:
                     kind = "massive_neutrino_momentum_bin_multipole"
-                variables[q_name] = {
-                    "kind": kind,
-                    "tensor_character": "scalar_like",
-                }
+                variables[q_name] = _metadata_entry(
+                    kind,
+                    "Massive-neutrino momentum-bin perturbation for q index "
+                    f"{int(q_index)} and multipole {int(moment)}.",
+                    units=_DIMENSIONLESS_UNITS,
+                    tensor_character="scalar_like",
+                )
 
     equations: dict[str, Any] = {
         "evolve_theta_gamma0": {
@@ -1222,38 +1300,47 @@ def _materialize_native_scalar_hierarchy_contract(
         "polarization_moment": {
             "expression": "theta_gamma2 + 6.0 * e_gamma2",
             "description": "Scalar polarization source moment.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "acoustic_k": {
             "expression": "k",
             "description": "Shifted scalar acoustic wave number.",
+            "units": _INVERSE_MPC_UNITS,
         },
         "acoustic_k_sq": {
             "expression": "acoustic_k * acoustic_k",
             "description": "Squared shifted scalar acoustic wave number.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
         },
         "total_matter_density": {
             "expression": "Omega_c0 * delta_c + Omega_b0 * delta_b",
             "description": "Matter source for the scalar metric.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "massless_neutrino_fraction": {
             "expression": massless_fraction_expression,
             "description": "Effective relativistic-neutrino metric weight.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "total_radiation_density": {
             "expression": total_radiation_expression,
             "description": "Radiation source for the scalar metric.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "total_neutrino_shear": {
             "expression": total_neutrino_shear_expression,
             "description": "Neutrino shear source for metric closure.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "total_momentum_density": {
             "expression": total_momentum_expression,
             "description": "Momentum source for the scalar metric.",
+            "units": _INVERSE_MPC_UNITS,
         },
         "metric_denominator": {
             "expression": "k * k",
             "description": "Scalar Poisson denominator for the metric.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
         },
         "einstein_gravity_strength": {
             "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
@@ -1261,10 +1348,12 @@ def _materialize_native_scalar_hierarchy_contract(
                 "Background gravity scale used by the scalar Einstein "
                 "constraints."
             ),
+            "units": _INVERSE_MPC_SQUARED_UNITS,
         },
         "photon_baryon_momentum_ratio": {
             "expression": "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
             "description": "Photon-to-baryon momentum-transfer ratio.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "baryon_thomson_drag": {
             "expression": "- photon_baryon_momentum_ratio * thomson_drag",
@@ -1284,6 +1373,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "Momentum-constraint relation for the scalar "
                     "potential time derivative."
                 ),
+                "units": _INVERSE_MPC_UNITS,
             },
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
@@ -1296,6 +1386,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "Anisotropic-stress relation for the curvature "
                     "potential time derivative."
                 ),
+                "units": _INVERSE_MPC_UNITS,
             },
         }
     )
@@ -1326,6 +1417,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "description": (
                     "Logarithmic derivative of the thermal distribution."
                 ),
+                "units": _DIMENSIONLESS_UNITS,
             }
             derived_entries[q_streaming_speed_name] = {
                 "expression": (
@@ -1337,6 +1429,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "description": (
                     "Streaming speed for one massive-neutrino momentum bin."
                 ),
+                "units": _DIMENSIONLESS_UNITS,
             }
             derived_entries[q_density_name] = {
                 "expression": (
@@ -1346,6 +1439,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "description": (
                     "Momentum-grid-weighted q-bin density moment."
                 ),
+                "units": _DIMENSIONLESS_UNITS,
             }
             derived_entries[q_momentum_name] = {
                 "expression": (
@@ -1355,6 +1449,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "description": (
                     "Momentum-grid-weighted q-bin momentum moment."
                 ),
+                "units": _INVERSE_MPC_UNITS,
             }
             derived_entries[q_shear_name] = {
                 "expression": (
@@ -1362,6 +1457,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     f"{_scalar_massive_neutrino_q_name(q_index, 2)}"
                 ),
                 "description": ("Momentum-grid-weighted q-bin shear moment."),
+                "units": _DIMENSIONLESS_UNITS,
             }
         density_sum_expression = " + ".join(q_density_component_names)
         momentum_sum_expression = " + ".join(q_momentum_component_names)
@@ -1379,18 +1475,21 @@ def _materialize_native_scalar_hierarchy_contract(
                     "description": (
                         "Momentum-grid-weighted massive-neutrino density."
                     ),
+                    "units": _DIMENSIONLESS_UNITS,
                 },
                 "massive_neutrino_metric_momentum": {
                     "expression": momentum_sum_expression,
                     "description": (
                         "Momentum-grid-weighted massive-neutrino momentum."
                     ),
+                    "units": _INVERSE_MPC_UNITS,
                 },
                 "massive_neutrino_metric_shear": {
                     "expression": shear_sum_expression,
                     "description": (
                         "Momentum-grid-weighted massive-neutrino shear."
                     ),
+                    "units": _DIMENSIONLESS_UNITS,
                 },
             }
         )
@@ -1399,11 +1498,13 @@ def _materialize_native_scalar_hierarchy_contract(
             {
                 "Phi": {
                     "expression": f"0.5 * {phi_state_name}",
-                    "description": "Gauge-stable metric-potential alias.",
+                    "description": "Gauge-stable curvature-potential alias.",
+                    "units": _DIMENSIONLESS_UNITS,
                 },
                 "Psi": {
                     "expression": f"0.5 * {psi_state_name}",
-                    "description": "Gauge-stable metric-curvature alias.",
+                    "description": "Gauge-stable Newtonian-potential alias.",
+                    "units": _DIMENSIONLESS_UNITS,
                 },
             }
         )
@@ -1478,26 +1579,46 @@ def _materialize_native_scalar_hierarchy_contract(
                 "0.25 * polarization_moment)"
             ),
             "role": "monopole",
+            "description": "Visibility-weighted temperature monopole source.",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+            "notes": (
+                "Uses Theta_gamma,0 + Psi + Pi/4 with "
+                "Pi = theta_gamma2 + 6 E_gamma,2."
+            ),
         },
         "temperature_doppler": {
             "expression": "visibility * 3.0 * theta_gamma1",
             "role": "doppler",
+            "description": "Visibility-weighted Doppler source.",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+            "notes": "Projected through the derivative temperature kernel.",
         },
         "temperature_isw": {
             "expression": "exp(-tau) * (Psi_tau - Phi_tau)",
             "role": "isw",
+            "description": "Integrated Sachs-Wolfe temperature source.",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_source": {
             "expression": "0.75 * visibility * polarization_moment",
             "role": "polarization",
+            "description": "Visibility-weighted E-polarization source.",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_b_source": {
             "expression": "polarization_b_mode_seed",
             "role": "polarization_b",
+            "description": "Declared odd-parity B-polarization source seed.",
+            "units": _DIMENSIONLESS_UNITS,
         },
         "lensing_potential": {
             "expression": "exp(-tau) * (Phi + Psi)",
             "role": "potential",
+            "description": "Scalar Weyl-potential source for CMB lensing.",
+            "units": _DIMENSIONLESS_UNITS,
+            "notes": (
+                "Feeds the native clpp normalization consumed by lensing."
+            ),
         },
     }
     materialized["observables"] = {
@@ -1509,11 +1630,13 @@ def _materialize_native_scalar_hierarchy_contract(
                 "doppler": "temperature_doppler",
                 "isw": "temperature_isw",
             },
+            "description": "Temperature transfer function Delta_ell^T(k).",
         },
         "polarization_e": {
             "kind": "transfer_component",
             "projection": "line_of_sight_polarization_e",
             "source_terms": {"polarization": "polarization_source"},
+            "description": "E-polarization transfer function Delta_ell^E(k).",
         },
         "polarization_b": {
             "kind": "transfer_component",
@@ -1521,6 +1644,7 @@ def _materialize_native_scalar_hierarchy_contract(
             "source_terms": {
                 "polarization_b": "polarization_b_source",
             },
+            "description": "B-polarization transfer function Delta_ell^B(k).",
         },
         "lensing_potential": {
             "kind": "transfer_component",
@@ -1528,41 +1652,67 @@ def _materialize_native_scalar_hierarchy_contract(
             "source_terms": {
                 "potential": "lensing_potential",
             },
+            "description": (
+                "Lensing-potential transfer function Delta_ell^phi(k)."
+            ),
         },
         "TT": {
             "kind": "angular_power_spectrum",
             "primary": "temperature",
             "secondary": "temperature",
+            "description": "Temperature auto spectrum.",
+            "notes": "Public solver returns D_ell^TT in muK^2.",
         },
         "TE": {
             "kind": "angular_power_spectrum",
             "primary": "temperature",
             "secondary": "polarization_e",
+            "description": "Temperature and E-polarization cross spectrum.",
+            "notes": "Public solver returns D_ell^TE in muK^2.",
         },
         "EE": {
             "kind": "angular_power_spectrum",
             "primary": "polarization_e",
             "secondary": "polarization_e",
+            "description": "E-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^EE in muK^2.",
         },
         "BB": {
             "kind": "angular_power_spectrum",
             "primary": "polarization_b",
             "secondary": "polarization_b",
+            "description": "B-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^BB in muK^2.",
         },
         "PP": {
             "kind": "angular_power_spectrum",
             "primary": "lensing_potential",
             "secondary": "lensing_potential",
+            "description": "Lensing-potential auto spectrum.",
+            "notes": (
+                "Public solver returns clpp = [ell(ell+1)]^2 "
+                "C_ell^{phiphi} / (2*pi)."
+            ),
         },
         "TP": {
             "kind": "angular_power_spectrum",
             "primary": "temperature",
             "secondary": "lensing_potential",
+            "description": "Temperature and lensing-potential cross spectrum.",
+            "notes": (
+                "Public solver returns ell(ell+1) C_ell^{Tphi} Tcmb / (2*pi)."
+            ),
         },
         "EP": {
             "kind": "angular_power_spectrum",
             "primary": "polarization_e",
             "secondary": "lensing_potential",
+            "description": (
+                "E-polarization and lensing-potential cross spectrum."
+            ),
+            "notes": (
+                "Public solver returns ell(ell+1) C_ell^{Ephi} Tcmb / (2*pi)."
+            ),
         },
     }
     initial_conditions: dict[str, Any] = {}
@@ -1805,6 +1955,7 @@ class PerturbationDerivedData:
     description: str | None = None
     notes: str | None = None
     domain: str | None = None
+    units: str | None = None
     dependencies: tuple[str, ...] = ()
     compiled_expression: PerturbationCompiledExpressionData | None = None
 
@@ -1874,6 +2025,7 @@ class PerturbationSourceData:
     description: str | None = None
     notes: str | None = None
     domain: str | None = None
+    units: str | None = None
     dependencies: tuple[str, ...] = ()
     compiled_expression: PerturbationCompiledExpressionData | None = None
 
@@ -1893,6 +2045,7 @@ class PerturbationObservableData:
     description: str | None = None
     notes: str | None = None
     domain: str | None = None
+    units: str | None = None
     dependencies: tuple[str, ...] = ()
     output_role: str | None = None
     sector: str | None = None
@@ -3887,6 +4040,10 @@ def compile_perturbation_contract(
                     derived_def.get("domain"),
                     label=f"cmb.perturbations.derived.{name}.domain",
                 ),
+                units=_validate_optional_string(
+                    derived_def.get("units"),
+                    label=f"cmb.perturbations.derived.{name}.units",
+                ),
                 dependencies=(variable_name,),
             )
             continue
@@ -3922,6 +4079,10 @@ def compile_perturbation_contract(
             domain=_validate_optional_string(
                 derived_def.get("domain"),
                 label=f"cmb.perturbations.derived.{name}.domain",
+            ),
+            units=_validate_optional_string(
+                derived_def.get("units"),
+                label=f"cmb.perturbations.derived.{name}.units",
             ),
             dependencies=dependencies,
             compiled_expression=_compile_expression_plan(
@@ -4190,6 +4351,10 @@ def compile_perturbation_contract(
                 source_def.get("domain"),
                 label=f"cmb.perturbations.sources.{name}.domain",
             ),
+            units=_validate_optional_string(
+                source_def.get("units"),
+                label=f"cmb.perturbations.sources.{name}.units",
+            ),
             dependencies=dependencies,
             compiled_expression=_compile_expression_plan(
                 expression_text,
@@ -4370,25 +4535,37 @@ def compile_perturbation_contract(
     def _projection_output_role(projection: str) -> str:
         """Return the observable role emitted by ``projection``."""
 
-        if projection in projection_extension_entries:
-            projection = str(
-                projection_extension_entries[projection].base_projection
-            )
-        if projection == "line_of_sight_temperature":
-            return "temperature"
-        if projection in {
-            "line_of_sight_polarization_e",
-            "spin2_e_mode",
-        }:
-            return "polarization_e"
-        if projection == "spin2_b_mode":
-            return "polarization_b"
-        if projection in {
-            "line_of_sight_lensing_potential",
-            "line_of_sight_potential",
-        }:
-            return "potential"
-        return "signal"
+        return str(
+            get_declared_projection_spec(
+                projection,
+                extensions=projection_extension_entries,
+            ).output_role
+        )
+
+    def _projection_transfer_units(projection: str) -> str | None:
+        """Return the canonical transfer-component units for ``projection``."""
+
+        return get_declared_projection_spec(
+            projection,
+            extensions=projection_extension_entries,
+        ).transfer_units
+
+    def _power_spectrum_units(
+        primary_role: str | None,
+        secondary_role: str | None,
+    ) -> str | None:
+        """Return the default public units for one spectrum pair."""
+
+        role_names = {primary_role, secondary_role}
+        if role_names == {"potential"}:
+            return "dimensionless"
+        if "potential" in role_names:
+            return "muK"
+        if role_names.issubset(
+            {"polarization_b", "polarization_e", "temperature"}
+        ):
+            return "muK^2"
+        return None
 
     def _match_projection_typing_entry(
         *,
@@ -4604,6 +4781,10 @@ def compile_perturbation_contract(
             observable_def.get("kernel"),
             label=f"cmb.perturbations.observables.{name}.kernel",
         )
+        observable_units = _validate_optional_string(
+            observable_def.get("units"),
+            label=f"cmb.perturbations.observables.{name}.units",
+        )
         required_projection_roles = _validate_optional_string_list(
             observable_def.get("required_projection_roles"),
             label=(
@@ -4711,6 +4892,10 @@ def compile_perturbation_contract(
                 kernel=kernel,
                 source_term_refs=source_term_refs,
             )
+            if observable_units is None:
+                observable_units = _projection_transfer_units(
+                    declared_projection
+                )
             projection = runtime_projection
         else:
             output_role = None
@@ -4767,6 +4952,7 @@ def compile_perturbation_contract(
             parity=parity,
             spin=spin,
             tensor_character=tensor_character,
+            units=observable_units,
         )
         observable_names.add(name)
     for observable_name, observable_entry in observable_entries.items():
@@ -4857,6 +5043,11 @@ def compile_perturbation_contract(
                     primary_entry.tensor_character,
                     secondary_entry.tensor_character,
                 )
+            ),
+            units=(
+                observable_entry.units
+                if observable_entry.units is not None
+                else _power_spectrum_units(primary_role, secondary_role)
             ),
         )
 
@@ -5693,6 +5884,10 @@ def compile_perturbation_contract(
             "required_projection_roles": tuple(
                 str(role) for role in entry.required_projection_roles
             ),
+            "output_role": (
+                None if entry.output_role is None else str(entry.output_role)
+            ),
+            "units": (None if entry.units is None else str(entry.units)),
         }
         for name, entry in observable_entries.items()
         if entry.kind == "transfer_component"
@@ -5701,6 +5896,8 @@ def compile_perturbation_contract(
         name: {
             "primary": str(entry.primary or ""),
             "secondary": str(entry.secondary or ""),
+            "output_role": str(entry.output_role or ""),
+            "units": str(entry.units or ""),
         }
         for name, entry in observable_entries.items()
         if entry.kind == "angular_power_spectrum"

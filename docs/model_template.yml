@@ -222,27 +222,32 @@ cmb:
       delta_x:
         kind: density_contrast
         description: Template evolved density perturbation.
+        units: dimensionless
         tensor_character: scalar_like
         rank: 0
         spin: 0.0
       theta_x:
         kind: velocity_divergence
         description: Template evolved velocity perturbation.
+        units: 1/Mpc
         tensor_character: scalar_like
         rank: 0
         spin: 0.0
       phi_aux:
         kind: metric_potential_phi
-        description: Template Newtonian potential target.
-        gauge_role: newtonian_potential
+        description: Template curvature potential target.
+        units: dimensionless
+        gauge_role: curvature_potential
       psi_aux:
         kind: metric_potential_psi
-        description: Template curvature potential target.
-        gauge_role: curvature_potential
+        description: Template Newtonian potential target.
+        units: dimensionless
+        gauge_role: newtonian_potential
     derived:
       density_drive:
         expression: delta_x + phi_aux
         description: Template effective source combination.
+        units: dimensionless
     equations:
       continuity_x:
         lhs:
@@ -274,28 +279,34 @@ cmb:
       monopole_x:
         expression: visibility * density_drive
         role: monopole
+        units: 1/Mpc
       polarization_x:
         expression: visibility * theta_x
         role: polarization
+        units: 1/Mpc
     observables:
       temperature:
         kind: transfer_component
         projection: line_of_sight_temperature
+        units: dimensionless
         source_terms:
           monopole: monopole_x
       polarization_e:
         kind: transfer_component
         projection: line_of_sight_polarization_e
+        units: dimensionless
         source_terms:
           polarization: polarization_x
       TT:
         kind: angular_power_spectrum
         primary: temperature
         secondary: temperature
+        units: muK^2
       TE:
         kind: angular_power_spectrum
         primary: temperature
         secondary: polarization_e
+        units: muK^2
     initial_conditions:
       delta_x_seed:
         target:
@@ -336,6 +347,10 @@ notes: |
   * The `Hz_expression` and `rs_expression` examples show how to reference
     every parameter you defined. If you need a new parameter, add it to the
     `parameters` list first and give it the same metadata everywhere else.
+  * Use `units` on declared variables, derived symbols, source terms, and
+    observables whenever the convention is fixed. The canonical native CMB
+    sign, gauge, source, and spectrum conventions live in
+    `copernican/docs/cmb_solver.md`.
   * Non-standard perturbation expressions can use the declared variables, the
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,

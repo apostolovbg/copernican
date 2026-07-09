@@ -59,11 +59,11 @@ def _base_nonstandard_contract() -> dict[str, object]:
             },
             "phi_aux": {
                 "kind": "metric_potential_phi",
-                "gauge_role": "newtonian_potential",
+                "gauge_role": "curvature_potential",
             },
             "psi_aux": {
                 "kind": "metric_potential_psi",
-                "gauge_role": "curvature_potential",
+                "gauge_role": "newtonian_potential",
             },
         },
         "derived": {
@@ -404,6 +404,64 @@ class PerturbationContractTestCase(unittest.TestCase):
             evaluate_compiled_expression,
         )
 
+    def test_scalar_metadata_contract_tracks_canonical_units_and_roles(
+        self,
+    ) -> None:
+        """Generated scalar metadata should expose units and roles."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+
+        self.assertEqual(
+            compiled.variables["Phi"].gauge_role,
+            "curvature_potential",
+        )
+        self.assertEqual(
+            compiled.variables["Psi"].gauge_role,
+            "newtonian_potential",
+        )
+        self.assertEqual(
+            compiled.variables["theta_b"].units,
+            "1/Mpc",
+        )
+        self.assertEqual(
+            compiled.variables["theta_gamma2"].units,
+            "dimensionless",
+        )
+        self.assertEqual(
+            compiled.derived["acoustic_k"].units,
+            "1/Mpc",
+        )
+        self.assertEqual(
+            compiled.sources["temperature_monopole"].units,
+            "1/Mpc",
+        )
+        self.assertEqual(
+            compiled.observables["temperature"].units,
+            "dimensionless",
+        )
+        self.assertEqual(compiled.observables["TT"].units, "muK^2")
+        self.assertEqual(compiled.observables["TP"].units, "muK")
+        self.assertEqual(
+            compiled.observables["PP"].units,
+            "dimensionless",
+        )
+        self.assertIn(
+            "clpp = [ell(ell+1)]^2 C_ell^{phiphi} / (2*pi).",
+            compiled.observables["PP"].notes,
+        )
+        self.assertEqual(
+            compiled.manifest_summary["transfer_component_contracts"][
+                "temperature"
+            ]["units"],
+            "dimensionless",
+        )
+        self.assertEqual(
+            compiled.manifest_summary["angular_power_spectrum_targets"]["PP"][
+                "output_role"
+            ],
+            "potential_power",
+        )
+
     def test_compiled_expression_evaluator_returns_numeric_result(self):
         """Compiled expression plans should evaluate without AST reparse."""
 
@@ -638,6 +696,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             {
                 "primary": "temperature",
                 "secondary": "temperature",
+                "output_role": "temperature_power",
+                "units": "muK^2",
             },
         )
         self.assertEqual(

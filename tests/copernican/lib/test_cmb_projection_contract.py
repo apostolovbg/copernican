@@ -141,6 +141,10 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertIsInstance(spec, DeclaredProjectionKernelSpec)
         self.assertEqual(spec.name, "spin2_e_window")
         self.assertEqual(spec.kind, "spin2_e")
+        self.assertEqual(
+            spec.description,
+            "Spin-2 even-parity polarization kernel.",
+        )
 
     def test_projection_spec_lookup_returns_native_contract(self) -> None:
         """Projection lookups should expose the native immutable contracts."""
@@ -149,6 +153,8 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         self.assertEqual(spec.name, "spin2_b_mode")
         self.assertEqual(spec.required_roles, ("polarization_b",))
+        self.assertEqual(spec.output_role, "polarization_b")
+        self.assertEqual(spec.transfer_units, "dimensionless")
         self.assertEqual(spec.default_kernel, "spin2_b_window")
         self.assertTrue(spec.requires_odd_parity_source)
 
@@ -171,6 +177,8 @@ class CMBProjectionContractTestCase(unittest.TestCase):
 
         self.assertEqual(spec.name, "signal_derivative_alias")
         self.assertEqual(spec.required_roles, ("signal",))
+        self.assertEqual(spec.output_role, "signal")
+        self.assertEqual(spec.transfer_units, "dimensionless")
         self.assertEqual(
             spec.default_kernel,
             "spherical_bessel_derivative_window",

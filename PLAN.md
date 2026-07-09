@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-06
+**Last Updated:** 2026-07-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -195,7 +195,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Canonical CMB physical convention
+### [closed] Slice One - Canonical CMB physical convention
 
 Purpose:
 

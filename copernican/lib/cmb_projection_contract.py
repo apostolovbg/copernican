@@ -12,6 +12,7 @@ class DeclaredProjectionKernelSpec:
 
     name: str
     kind: str
+    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +22,9 @@ class DeclaredProjectionSpec:
     name: str
     required_roles: tuple[str, ...]
     allowed_roles: tuple[str, ...]
+    description: str | None = None
+    output_role: str = "signal"
+    transfer_units: str | None = None
     default_kernel: str | None = None
     supported_kernels: tuple[str, ...] = ()
     allows_custom_source_roles: bool = False
@@ -32,26 +36,32 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
     "temperature_mixed_window": DeclaredProjectionKernelSpec(
         name="temperature_mixed_window",
         kind="temperature_mixed",
+        description="Mixed scalar temperature line-of-sight kernel.",
     ),
     "spherical_bessel_window": DeclaredProjectionKernelSpec(
         name="spherical_bessel_window",
         kind="spherical_bessel",
+        description="Ordinary spherical-Bessel line-of-sight kernel.",
     ),
     "spherical_bessel_derivative_window": DeclaredProjectionKernelSpec(
         name="spherical_bessel_derivative_window",
         kind="spherical_bessel_derivative",
+        description="Derivative spherical-Bessel line-of-sight kernel.",
     ),
     "spin2_e_window": DeclaredProjectionKernelSpec(
         name="spin2_e_window",
         kind="spin2_e",
+        description="Spin-2 even-parity polarization kernel.",
     ),
     "spin2_b_window": DeclaredProjectionKernelSpec(
         name="spin2_b_window",
         kind="spin2_b",
+        description="Spin-2 odd-parity polarization kernel.",
     ),
     "lensing_potential_window": DeclaredProjectionKernelSpec(
         name="lensing_potential_window",
         kind="lensing_potential",
+        description="Scalar lensing-potential projection kernel.",
     ),
 }
 _CUSTOM_LINE_OF_SIGHT_KERNELS = (
@@ -66,6 +76,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_lensing_potential",
         required_roles=("potential",),
         allowed_roles=("potential",),
+        description="Scalar lensing-potential transfer component.",
+        output_role="potential",
+        transfer_units="dimensionless",
         default_kernel="lensing_potential_window",
         supported_kernels=("lensing_potential_window",),
     ),
@@ -73,6 +86,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_polarization_e",
         required_roles=("polarization",),
         allowed_roles=("polarization",),
+        description="Spin-2 even-parity polarization transfer component.",
+        output_role="polarization_e",
+        transfer_units="dimensionless",
         default_kernel="spin2_e_window",
         supported_kernels=("spin2_e_window",),
     ),
@@ -80,6 +96,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_temperature",
         required_roles=(),
         allowed_roles=("additive", "doppler", "isw", "monopole"),
+        description="Temperature line-of-sight transfer component.",
+        output_role="temperature",
+        transfer_units="dimensionless",
         default_kernel="temperature_mixed_window",
         supported_kernels=("temperature_mixed_window",),
     ),
@@ -87,6 +106,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_signal",
         required_roles=("signal",),
         allowed_roles=("signal",),
+        description="Generic scalar or sector-tagged signal component.",
+        output_role="signal",
+        transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
     ),
@@ -94,6 +116,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_signal_derivative",
         required_roles=("signal",),
         allowed_roles=("signal",),
+        description="Derivative generic signal component.",
+        output_role="signal",
+        transfer_units="dimensionless",
         default_kernel="spherical_bessel_derivative_window",
         supported_kernels=("spherical_bessel_derivative_window",),
     ),
@@ -101,6 +126,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="line_of_sight_potential",
         required_roles=("potential",),
         allowed_roles=("potential",),
+        description="Scalar potential transfer component.",
+        output_role="potential",
+        transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
     ),
@@ -108,6 +136,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="spin2_b_mode",
         required_roles=("polarization_b",),
         allowed_roles=("polarization_b",),
+        description="Spin-2 odd-parity polarization transfer component.",
+        output_role="polarization_b",
+        transfer_units="dimensionless",
         default_kernel="spin2_b_window",
         supported_kernels=("spin2_b_window",),
         required_projection_roles=("b_mode",),
@@ -117,6 +148,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="spin2_e_mode",
         required_roles=(),
         allowed_roles=("polarization", "signal"),
+        description="Spin-2 even-parity generic transfer component.",
+        output_role="polarization_e",
+        transfer_units="dimensionless",
         default_kernel="spin2_e_window",
         supported_kernels=("spin2_e_window",),
     ),
@@ -124,6 +158,9 @@ _DECLARED_PROJECTION_SPECS = {
         name="custom_line_of_sight",
         required_roles=(),
         allowed_roles=(),
+        description="Reviewed custom line-of-sight transfer component.",
+        output_role="signal",
+        transfer_units="dimensionless",
         supported_kernels=_CUSTOM_LINE_OF_SIGHT_KERNELS,
         allows_custom_source_roles=True,
     ),
@@ -211,6 +248,9 @@ def _resolve_projection_spec(
             name=projection,
             required_roles=required_roles,
             allowed_roles=allowed_roles,
+            description=base_spec.description,
+            output_role=base_spec.output_role,
+            transfer_units=base_spec.transfer_units,
             default_kernel=kernel or base_spec.default_kernel,
             supported_kernels=supported_kernels,
             allows_custom_source_roles=base_spec.allows_custom_source_roles,

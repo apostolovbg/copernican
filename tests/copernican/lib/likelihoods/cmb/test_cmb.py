@@ -182,11 +182,11 @@ def _declared_graph_perturbations(
             },
             "Phi": {
                 "kind": "metric_potential_phi",
-                "gauge_role": "newtonian_potential",
+                "gauge_role": "curvature_potential",
             },
             "Psi": {
                 "kind": "metric_potential_psi",
-                "gauge_role": "curvature_potential",
+                "gauge_role": "newtonian_potential",
             },
         },
         "derived": {

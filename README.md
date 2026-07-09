@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-05
+**Last Updated:** 2026-07-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -41,6 +41,10 @@ The native solver in `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
 keeps the exact remapper, collision terms, and source-grid refinement
 visible in regression coverage instead of hiding them behind solver-side
 shortcuts.
+The canonical native CMB sign, gauge, source, projection, and spectrum
+conventions now live in `copernican/docs/cmb_solver.md`, so later solver
+slices change equations against one explicit physical contract rather than
+redefining state meaning in code.
 The exact remapper now consumes the declared `PP` spectrum directly,
 without a solver-side lensing bridge or hidden remap scale.
 Its scalar contract now keeps the hierarchy and source terms aligned with

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-06
+**Last Updated:** 2026-07-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,30 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-09:
+  Change: Added the canonical native CMB convention document, corrected
+    scalar metric gauge-role metadata, and annotated generated contract
+    units and public spectrum normalization rules.
+  Why: Define one authoritative physical contract for Slice One so later
+    native-solver slices stop inventing state meanings, gauge labels,
+    and spectrum conventions in code.
+  Impact: Documented the native CMB convention, tightened compile-time
+    metadata, updated the model template and readmes, and closed Slice
+    One with matching contract tests.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    docs/model_template.yml
+    copernican/docs/model_template.yml
+    copernican/docs/cmb_solver.md
+    copernican/lib/cmb_projection_contract.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_cmb_projection_contract.py
+    tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-06:
   Change: Rewrote PLAN.md into a three-slice roadmap for the current
