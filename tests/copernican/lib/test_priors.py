@@ -20,11 +20,12 @@ class PriorParsingTestCase(unittest.TestCase):
         base = Path(__file__).resolve().parents[3]
         models_dir = base / "copernican" / "models"
         yaml_path = models_dir / "model_lcdm.yml"
-        cache_dir = models_dir / "cache"
-        cache_path = model_spec_validator.validate_and_cache_model(
-            yaml_path, cache_dir
-        )
-        funcs, parsed = model_coder.generate_callables(cache_path)
+        with tempfile.TemporaryDirectory() as cache_dir:
+            cache_path = model_spec_validator.validate_and_cache_model(
+                yaml_path,
+                cache_dir,
+            )
+            funcs, parsed = model_coder.generate_callables(cache_path)
         self.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
 
     def test_priors_exposed(self):

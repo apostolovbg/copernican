@@ -312,6 +312,7 @@ _SYNCHRONOUS_GAUGE_ROLES = frozenset(
 _DIMENSIONLESS_UNITS = "dimensionless"
 _INVERSE_MPC_UNITS = "1/Mpc"
 _INVERSE_MPC_SQUARED_UNITS = "1/Mpc^2"
+_INVERSE_MPC_CUBED_UNITS = "1/Mpc^3"
 _LINE_OF_SIGHT_SOURCE_UNITS = "1/Mpc"
 
 
@@ -1282,20 +1283,26 @@ def _materialize_native_scalar_hierarchy_contract(
 
     materialized["variables"] = variables
     massless_fraction_expression = "Omega_nu0"
-    total_radiation_expression = (
-        "4.0 * Omega_gamma0 * theta_gamma0 + "
-        "massless_neutrino_fraction * delta_nu"
+    matter_density_source_expression = (
+        "(Omega_c0 * delta_c + Omega_b0 * delta_b) / a"
     )
-    total_neutrino_shear_expression = "massless_neutrino_fraction * sigma_nu"
-    total_momentum_expression = (
-        "Omega_b0 * theta_b + Omega_c0 * theta_c + "
-        "4.0 * Omega_gamma0 * theta_gamma1 + "
-        "massless_neutrino_fraction * theta_nu"
+    radiation_density_source_expression = (
+        "(4.0 * Omega_gamma0 * theta_gamma0 + "
+        "massless_neutrino_fraction * delta_nu) / (a * a)"
     )
-    if has_massive_neutrino and massive_neutrino_grid_count > 0:
-        total_radiation_expression += " + massive_neutrino_metric_density"
-        total_neutrino_shear_expression += " + massive_neutrino_metric_shear"
-        total_momentum_expression += " + massive_neutrino_metric_momentum"
+    total_density_source_expression = (
+        "matter_density_source + radiation_density_source"
+    )
+    total_momentum_source_expression = (
+        "(Omega_b0 * theta_b + Omega_c0 * theta_c) / a + "
+        "("
+        "4.0 * Omega_gamma0 * photon_velocity_divergence + "
+        "(4.0 / 3.0) * massless_neutrino_fraction * theta_nu"
+        ") / (a * a)"
+    )
+    total_shear_source_expression = (
+        "((4.0 / 3.0) * massless_neutrino_fraction * sigma_nu) / (a * a)"
+    )
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
             "expression": "theta_gamma2 + 6.0 * e_gamma2",
@@ -1304,43 +1311,60 @@ def _materialize_native_scalar_hierarchy_contract(
         },
         "acoustic_k": {
             "expression": "k",
-            "description": "Shifted scalar acoustic wave number.",
+            "description": "Scalar acoustic wave number.",
             "units": _INVERSE_MPC_UNITS,
         },
         "acoustic_k_sq": {
             "expression": "acoustic_k * acoustic_k",
-            "description": "Squared shifted scalar acoustic wave number.",
+            "description": "Squared scalar acoustic wave number.",
             "units": _INVERSE_MPC_SQUARED_UNITS,
         },
-        "total_matter_density": {
-            "expression": "Omega_c0 * delta_c + Omega_b0 * delta_b",
-            "description": "Matter source for the scalar metric.",
+        "photon_velocity_divergence": {
+            "expression": "3.0 * acoustic_k * theta_gamma1",
+            "description": "Photon velocity divergence theta_gamma.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "matter_density_source": {
+            "expression": matter_density_source_expression,
+            "description": (
+                "Time-dependent matter density source for the "
+                "scalar Einstein energy constraint."
+            ),
             "units": _DIMENSIONLESS_UNITS,
         },
         "massless_neutrino_fraction": {
             "expression": massless_fraction_expression,
-            "description": "Effective relativistic-neutrino metric weight.",
+            "description": "Present-day massless-neutrino density fraction.",
             "units": _DIMENSIONLESS_UNITS,
         },
-        "total_radiation_density": {
-            "expression": total_radiation_expression,
-            "description": "Radiation source for the scalar metric.",
+        "radiation_density_source": {
+            "expression": radiation_density_source_expression,
+            "description": (
+                "Time-dependent radiation density source for the "
+                "scalar Einstein energy constraint."
+            ),
             "units": _DIMENSIONLESS_UNITS,
         },
-        "total_neutrino_shear": {
-            "expression": total_neutrino_shear_expression,
-            "description": "Neutrino shear source for metric closure.",
+        "total_density_source": {
+            "expression": total_density_source_expression,
+            "description": (
+                "Total density source for the scalar Einstein system."
+            ),
             "units": _DIMENSIONLESS_UNITS,
         },
-        "total_momentum_density": {
-            "expression": total_momentum_expression,
-            "description": "Momentum source for the scalar metric.",
+        "total_shear_source": {
+            "expression": total_shear_source_expression,
+            "description": (
+                "Total shear source for the scalar Einstein system."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "total_momentum_source": {
+            "expression": total_momentum_source_expression,
+            "description": (
+                "Total momentum source for the scalar Einstein system."
+            ),
             "units": _INVERSE_MPC_UNITS,
-        },
-        "metric_denominator": {
-            "expression": "k * k",
-            "description": "Scalar Poisson denominator for the metric.",
-            "units": _INVERSE_MPC_SQUARED_UNITS,
         },
         "einstein_gravity_strength": {
             "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
@@ -1349,6 +1373,30 @@ def _materialize_native_scalar_hierarchy_contract(
                 "constraints."
             ),
             "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "metric_constraint_scale": {
+            "expression": "acoustic_k_sq + 3.0 * Hconf * Hconf",
+            "description": (
+                "Scalar Einstein low-k bridge scale used by the "
+                "generated hierarchy."
+            ),
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "metric_momentum_source_drive": {
+            "expression": (
+                "1.5 * einstein_gravity_strength * total_momentum_source "
+                "/ acoustic_k_sq"
+            ),
+            "description": ("Source-side scalar momentum-constraint drive."),
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "metric_shear_correction": {
+            "expression": (
+                "4.5 * einstein_gravity_strength * total_shear_source "
+                "/ metric_constraint_scale"
+            ),
+            "description": ("Scalar anisotropic-stress correction Phi - Psi."),
+            "units": _DIMENSIONLESS_UNITS,
         },
         "photon_baryon_momentum_ratio": {
             "expression": "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
@@ -1360,33 +1408,132 @@ def _materialize_native_scalar_hierarchy_contract(
             "description": "Baryon-side Thomson drag counterpart.",
         },
     }
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
+        derived_entries.update(
+            {
+                "massive_neutrino_density_source": {
+                    "expression": "massive_neutrino_metric_density",
+                    "description": (
+                        "Current massive-neutrino density source moment "
+                        "for the scalar Einstein system."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "massive_neutrino_momentum_source": {
+                    "expression": "massive_neutrino_metric_momentum",
+                    "description": (
+                        "Current massive-neutrino momentum source moment "
+                        "for the scalar Einstein system."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+                "massive_neutrino_shear_source": {
+                    "expression": "massive_neutrino_metric_shear",
+                    "description": (
+                        "Current massive-neutrino shear source moment for "
+                        "the scalar Einstein system."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+            }
+        )
+        derived_entries["total_density_source"] = {
+            "expression": (
+                "matter_density_source + radiation_density_source + "
+                "massive_neutrino_density_source"
+            ),
+            "description": (
+                "Total density source for the scalar Einstein system."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        }
+        derived_entries["total_momentum_source"] = {
+            "expression": (
+                total_momentum_source_expression
+                + " + massive_neutrino_momentum_source"
+            ),
+            "description": (
+                "Total momentum source for the scalar Einstein system."
+            ),
+            "units": _INVERSE_MPC_UNITS,
+        }
+        derived_entries["total_shear_source"] = {
+            "expression": (
+                total_shear_source_expression
+                + " + massive_neutrino_shear_source"
+            ),
+            "description": (
+                "Total shear source for the scalar Einstein system."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        }
     derived_entries.update(
         {
             "Phi_tau": {
                 "kind": "metric_potential_time_derivative",
-                "expression": (
-                    "-Hconf * Psi + "
-                    "1.5 * einstein_gravity_strength * "
-                    "total_momentum_density / metric_denominator"
-                ),
+                "expression": "metric_momentum_source_drive - Hconf * Psi",
                 "description": (
-                    "Momentum-constraint relation for the scalar "
+                    "Scalar Einstein-system relation for the curvature "
                     "potential time derivative."
+                ),
+                "units": _INVERSE_MPC_UNITS,
+            },
+            "metric_momentum_constraint": {
+                "expression": "Phi_tau + Hconf * Psi",
+                "description": (
+                    "Scalar momentum-constraint combination "
+                    "Phi_tau + Hconf Psi."
                 ),
                 "units": _INVERSE_MPC_UNITS,
             },
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
-                "expression": (
-                    "-Hconf * Psi + "
-                    "1.5 * einstein_gravity_strength * "
-                    "total_neutrino_shear / metric_denominator"
+                **(
+                    {
+                        "variable": "Psi",
+                        "wrt": "tau",
+                        "order": 1,
+                    }
+                    if not sync_gauge
+                    else {
+                        "expression": (
+                            "metric_momentum_source_drive - Hconf * Psi"
+                        )
+                    }
                 ),
                 "description": (
-                    "Anisotropic-stress relation for the curvature "
-                    "potential time derivative."
+                    "History-derived lapse-potential time derivative."
                 ),
                 "units": _INVERSE_MPC_UNITS,
+            },
+            "einstein_energy_residual": {
+                "expression": (
+                    "acoustic_k_sq * Phi + "
+                    "3.0 * Hconf * metric_momentum_constraint + "
+                    "1.5 * einstein_gravity_strength * total_density_source"
+                ),
+                "description": ("Scalar Einstein energy-constraint residual."),
+                "units": _INVERSE_MPC_SQUARED_UNITS,
+            },
+            "einstein_momentum_residual": {
+                "expression": (
+                    "acoustic_k_sq * (Phi_tau + Hconf * Psi) - "
+                    "1.5 * einstein_gravity_strength * total_momentum_source"
+                ),
+                "description": (
+                    "Scalar Einstein momentum-constraint residual."
+                ),
+                "units": _INVERSE_MPC_CUBED_UNITS,
+            },
+            "einstein_shear_residual": {
+                "expression": (
+                    "acoustic_k_sq * (Phi - Psi) - "
+                    "4.5 * einstein_gravity_strength * total_shear_source"
+                ),
+                "description": (
+                    "Scalar Einstein anisotropic-stress residual."
+                ),
+                "units": _INVERSE_MPC_SQUARED_UNITS,
             },
         }
     )
@@ -1541,14 +1688,12 @@ def _materialize_native_scalar_hierarchy_contract(
         },
     )
     materialized["conservation_rules"] = conservation_rule_entries
+    psi_closure_expression = "Phi - metric_shear_correction"
     phi_constraint_expression = (
-        "-1.5 * einstein_gravity_strength * "
-        "(total_matter_density + total_radiation_density) "
-        "/ metric_denominator"
-    )
-    psi_closure_expression = (
-        "Phi - 3.0 * einstein_gravity_strength * total_neutrino_shear "
-        "/ metric_denominator"
+        "-("
+        "1.5 * einstein_gravity_strength * total_density_source + "
+        "3.0 * Hconf * metric_momentum_source_drive"
+        ") / metric_constraint_scale"
     )
     materialized["constraints"] = {
         "phi_constraint": {

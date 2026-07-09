@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
+from copernican.lib import file_io
+
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REGISTRY_FILE = PACKAGE_ROOT / "registry.json"
 
@@ -30,7 +32,7 @@ def _hash_file(path: Path) -> str:
     """Return the SHA256 digest for a metadata or module file."""
 
     digest = hashlib.sha256()
-    digest.update(path.read_bytes())
+    digest.update(file_io.read_bytes(path))
     return digest.hexdigest()
 
 
@@ -51,7 +53,7 @@ def _module_path(module: str) -> Path:
 def _load_metadata(path: Path) -> Dict[str, Any]:
     """Load metadata JSON from the provided path."""
 
-    return json.loads(path.read_text())
+    return file_io.read_json(path)
 
 
 def _build_registry() -> List[Dict[str, Any]]:
@@ -81,7 +83,7 @@ def refresh_registry() -> List[MinigameDescriptor]:
     """Rebuild the registry file after rehashing all metadata."""
 
     entries = _build_registry()
-    REGISTRY_FILE.write_text(json.dumps(entries, indent=2) + "\n")
+    file_io.write_json(REGISTRY_FILE, entries)
     return [_descriptor_from_entry(entry) for entry in entries]
 
 
@@ -91,7 +93,7 @@ def load_registry() -> List[MinigameDescriptor]:
     if not REGISTRY_FILE.exists():
         return refresh_registry()
     try:
-        entries = json.loads(REGISTRY_FILE.read_text())
+        entries = file_io.read_json(REGISTRY_FILE)
     except (json.JSONDecodeError, OSError, TypeError, ValueError):
         return refresh_registry()
     return [_descriptor_from_entry(entry) for entry in entries]

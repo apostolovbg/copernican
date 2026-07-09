@@ -12,6 +12,7 @@ import yaml
 
 from copernican.lib.engine_adapter import build_engine_plugin
 from copernican.lib.likelihoods import cmb as cmb_likelihood
+from tests.project import filesystem_helpers
 
 _DATA_DIR = Path(__file__).parent
 _MODEL_PATH = _DATA_DIR / "model.yml"
@@ -119,8 +120,7 @@ def _cmb_spectrum_from_contract(
 
 
 def build_plugin():
-    with _MODEL_PATH.open("r", encoding="utf-8") as handle:
-        model_data = yaml.safe_load(handle)
+    model_data = yaml.safe_load(filesystem_helpers.read_text(_MODEL_PATH))
     model_data["filename"] = os.fspath(_MODEL_PATH)
     cmb_perturbations = model_data["cmb"]["perturbations"]
     _cmb_spectrum = partial(

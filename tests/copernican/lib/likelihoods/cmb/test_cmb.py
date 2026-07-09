@@ -951,6 +951,87 @@ def _prepare_native_contract(
     )
 
 
+def _resolved_native_scalar_context(
+    contract: dict[str, object],
+    *,
+    a_value: float = 0.5,
+    state_updates: dict[str, float] | None = None,
+) -> dict[str, object]:
+    """Return one resolved scalar runtime context for a prepared contract."""
+
+    perturbation_data = contract["perturbation_data"]
+    physical_params = (
+        native_background._resolve_custom_cmb_physical_parameters(contract)
+    )
+    context = native_background._physical_runtime_scalars(physical_params)
+    for source_name in ("param_map", "model_parameters"):
+        source = contract.get(source_name, {}) or {}
+        for name, value in source.items():
+            if isinstance(value, (int, float, numpy.integer, numpy.floating)):
+                context[str(name)] = float(value)
+    context.update(
+        {
+            "a": float(a_value),
+            "z": (1.0 / float(a_value)) - 1.0,
+            "eta": 1.0,
+            "H": 120.0,
+            "Hconf": 0.02,
+            "tau": 0.4,
+            "tau_dot": -0.08,
+            "visibility": 0.03,
+            "chi": 13_800.0,
+            "angular_diameter_distance": 13_100.0,
+            "sound_speed": 3.0**-0.5,
+            "sound_speed_sq": 1.0 / 3.0,
+            "collision_rate": 0.12,
+            "free_streaming": 1.0,
+            "tight_coupling_drag": 0.08,
+            "sound_horizon": 145.0,
+            "k": 0.1,
+            "seed": 1.0,
+            "delta_b": 0.3,
+            "theta_b": 0.04,
+            "delta_c": 0.25,
+            "theta_c": 0.03,
+            "theta_gamma0": 0.2,
+            "theta_gamma1": 0.015,
+            "theta_gamma2": 0.01,
+            "theta_gamma3": 0.005,
+            "e_gamma0": 0.0,
+            "e_gamma1": 0.0,
+            "e_gamma2": 0.002,
+            "e_gamma3": 0.001,
+            "delta_nu": 0.18,
+            "theta_nu": 0.035,
+            "sigma_nu": 0.01,
+            "nu_l3": 0.004,
+            "Phi": 0.02,
+            "Psi": 0.018,
+        }
+    )
+    if state_updates:
+        context.update(
+            {str(name): float(value) for name, value in state_updates.items()}
+        )
+    context.update(
+        native_evolution._declared_momentum_grid_context(
+            perturbation_data,
+            model_parameters=contract["param_map"],
+            physical_params=physical_params,
+            scale_factor=float(a_value),
+        )
+    )
+    return native_evolution._resolve_declared_graph_context(
+        context,
+        perturbation_data,
+        allow_partial=True,
+        eta_grid=None,
+        execution_plan=native_evolution._compile_declared_graph_execution_plan(
+            perturbation_data
+        ),
+    )
+
+
 def _standard_contract() -> dict[str, object]:
     """Return a deep-copied standard CAMB fixture."""
 
@@ -3954,8 +4035,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.equations["evolve_nu_massive_l3"].rhs,
         )
         self.assertIn(
-            "massive_neutrino_metric_momentum",
-            perturbation_data.derived["total_momentum_density"].expression,
+            "massive_neutrino_momentum_source",
+            perturbation_data.derived["total_momentum_source"].expression,
         )
         self.assertEqual(
             perturbation_data.derived["baryon_thomson_drag"].expression,
@@ -3976,9 +4057,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "photon_baryon_momentum_ratio * thomson_drag + "
             "baryon_thomson_drag",
         )
+        self.assertIn("einstein_energy_residual", perturbation_data.derived)
+        self.assertIn("einstein_momentum_residual", perturbation_data.derived)
+        self.assertIn("einstein_shear_residual", perturbation_data.derived)
         self.assertIn(
             "Phi_tau",
             perturbation_data.equations["evolve_delta_b"].rhs,
+        )
+        self.assertEqual(
+            perturbation_data.derived["Psi_tau"].variable,
+            "Psi",
+        )
+        self.assertIsNone(perturbation_data.derived["Psi_tau"].expression)
+        self.assertIn(
+            "metric_constraint_scale",
+            perturbation_data.constraints["phi_constraint"].expression,
+        )
+        self.assertEqual(
+            perturbation_data.closures["psi_closure"].expression,
+            "Phi - metric_shear_correction",
+        )
+        self.assertIn(
+            "photon_velocity_divergence",
+            perturbation_data.derived["total_momentum_source"].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_density_source",
+            perturbation_data.derived["total_density_source"].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_shear_source",
+            perturbation_data.derived["total_shear_source"].expression,
         )
         self.assertIn(
             "baryon_thomson_drag",
@@ -4060,6 +4169,61 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "theta_nu_massive_q0_seed"
             ].expression,
         )
+
+    def test_native_scalar_hierarchy_metric_sources_respond_to_inputs(
+        self,
+    ) -> None:
+        """Matter and radiation inputs should alter Einstein source weights."""
+
+        baseline = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        heavier_baryons = _native_scalar_hierarchy_contract()
+        heavier_baryons["param_map"]["ombh2"] = 0.03
+        heavier_baryons = _prepare_native_contract(heavier_baryons)
+        hotter_radiation = _native_scalar_hierarchy_contract()
+        hotter_radiation["model_parameters"]["Tcmb_K"] = 3.0
+        hotter_radiation = _prepare_native_contract(hotter_radiation)
+
+        baseline_context = _resolved_native_scalar_context(baseline)
+        matter_context = _resolved_native_scalar_context(heavier_baryons)
+        radiation_context = _resolved_native_scalar_context(hotter_radiation)
+
+        self.assertGreater(
+            float(matter_context["matter_density_source"]),
+            float(baseline_context["matter_density_source"]),
+        )
+        self.assertGreater(
+            float(radiation_context["radiation_density_source"]),
+            float(baseline_context["radiation_density_source"]),
+        )
+        self.assertGreater(
+            float(matter_context["total_momentum_source"]),
+            float(baseline_context["total_momentum_source"]),
+        )
+
+    def test_native_scalar_hierarchy_rejects_broken_einstein_residuals(
+        self,
+    ) -> None:
+        """Runtime Einstein residual diagnostics should fail bad contracts."""
+
+        contract = _speedup_contract(_native_scalar_hierarchy_contract())
+        contract["perturbations"]["conservation_rules"] = {
+            "broken_einstein_probe": {
+                "kind": "absolute_max",
+                "expression": "einstein_energy_residual + 0.1",
+                "tolerance": 5.0e-2,
+            }
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "conservation rule exceeded tolerance",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
 
     def test_native_power_spectrum_scale_factor_is_physical(
         self,
@@ -4362,20 +4526,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         shifted["param_map"]["As"] *= 1.1
         shifted_contract = _prepare_native_contract(shifted)
-        ells = numpy.asarray((20, 40, 60), dtype=int)
-
-        cmb.compute_cmb_spectrum_from_contract(
-            baseline,
-            ells,
-            spectra=("TT",),
+        baseline_physical = (
+            native_background._resolve_custom_cmb_physical_parameters(
+                baseline,
+            )
+        )
+        shifted_physical = (
+            native_background._resolve_custom_cmb_physical_parameters(
+                shifted_contract
+            )
+        )
+        native_evolution._declared_momentum_grid_context(
+            baseline["perturbation_data"],
+            model_parameters=baseline["param_map"],
+            physical_params=baseline_physical,
+            scale_factor=0.5,
         )
         first_stats = native_cache.native_cmb_cache_stats()[
             "declared_momentum_grid"
         ]
-        cmb.compute_cmb_spectrum_from_contract(
-            shifted_contract,
-            ells,
-            spectra=("TT",),
+        native_evolution._declared_momentum_grid_context(
+            shifted_contract["perturbation_data"],
+            model_parameters=shifted_contract["param_map"],
+            physical_params=shifted_physical,
+            scale_factor=0.5,
         )
         second_stats = native_cache.native_cmb_cache_stats()[
             "declared_momentum_grid"

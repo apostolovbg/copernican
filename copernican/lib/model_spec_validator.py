@@ -24,7 +24,7 @@ from pathlib import Path
 import yaml
 from jsonschema import ValidationError, validate
 
-from . import error_handler, latex_utils, priors
+from . import error_handler, file_io, latex_utils, priors
 from .camb_contract import _validate_camb_contract_definition
 
 
@@ -120,8 +120,7 @@ def validate_and_cache_model(path, cache_dir):
     """
     path = Path(path)
     try:
-        with path.open("r") as f:
-            model_spec = yaml.safe_load(f)
+        model_spec = file_io.read_yaml(path)
     except (OSError, yaml.YAMLError) as e:
         error_handler.report_error(f"Failed to read model YAML '{path}': {e}")
         raise
@@ -260,6 +259,10 @@ def validate_and_cache_model(path, cache_dir):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
-    with cache_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(model_spec, f, sort_keys=False, allow_unicode=True)
+    file_io.write_yaml(
+        cache_path,
+        model_spec,
+        sort_keys=False,
+        allow_unicode=True,
+    )
     return str(cache_path)

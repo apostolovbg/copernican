@@ -47,15 +47,27 @@ slices change equations against one explicit physical contract rather than
 redefining state meaning in code.
 The exact remapper now consumes the declared `PP` spectrum directly,
 without a solver-side lensing bridge or hidden remap scale.
-Its scalar contract now keeps the hierarchy and source terms aligned with
-the physical runtime graph instead of acceptance-only damping scaffolding.
-It also keeps the physical collision-rate Thomson coupling, the CAMB-style
-low-multipole polarization source moment, exact photon and polarization
-hierarchy sources, and q-resolved massive-neutrino q-bin moments
-aligned for native runs. The scalar compiler also seeds
+Its generated scalar contract now keeps the hierarchy and metric-source
+terms aligned with the physical runtime graph instead of acceptance-only
+damping scaffolding.
+In `copernican/lib/perturbation_contract.py`, the generated Einstein
+surface now materializes time-dependent `matter_density_source`,
+`radiation_density_source`, `total_momentum_source`, and
+`total_shear_source` terms, plus opt-in `einstein_energy_residual`,
+`einstein_momentum_residual`, and `einstein_shear_residual`
+diagnostics.
+The native low-k bridge stays explicit as
+`metric_constraint_scale = k^2 + 3 Hconf^2`, so the documented Einstein
+equations remain separate from the current stabilization layer while
+Slice Four finishes the final massive-neutrino weighting.
+It also keeps the physical collision-rate Thomson coupling, the
+CAMB-style low-multipole polarization source moment, exact photon and
+polarization hierarchy sources, and q-resolved massive-neutrino source
+moments aligned for native runs. The scalar compiler also seeds
 Newtonian and synchronous metric roles from leading-order physical
 initial-condition series instead of heuristic constants. The q-grid path
-now materializes direct per-bin density, momentum, and shear moments.
+now exposes direct per-bin density, momentum, and shear source moments
+for the later physical q integration work.
 The native collision substep now resolves exact Thomson relaxation from
 compiled collision metadata instead of hard-coded state names, and
 `lensed_BB` keeps declared primordial B-mode sources visible.

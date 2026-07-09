@@ -4,13 +4,15 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from tests.project import filesystem_helpers
+
 
 class TestPackagingConfiguration(unittest.TestCase):
     """Exercise the setuptools package-discovery guard."""
 
     def test_pyproject_limits_package_discovery(self) -> None:
         config_path = Path("pyproject.toml")
-        config_text = config_path.read_text(encoding="utf-8")
+        config_text = filesystem_helpers.read_text(config_path)
         config = tomllib.loads(config_text)
         finder = config["tool"]["setuptools"]["packages"]["find"]
 
@@ -28,7 +30,7 @@ class TestPackagingConfiguration(unittest.TestCase):
 
     def test_console_script_targets_cli_main(self) -> None:
         config_path = Path("pyproject.toml")
-        config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        config = tomllib.loads(filesystem_helpers.read_text(config_path))
         scripts = config["project"]["scripts"]
         package_data = config["tool"]["setuptools"]["package-data"]
 

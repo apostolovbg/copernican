@@ -80,6 +80,60 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-09:
+  Change: Hardened transient local file I/O handling, moved test model
+    caches out of the repo tree, and staged install-smoke sources in a
+    temporary snapshot.
+  Why: Prevent sync-managed Documents timeouts from breaking model
+    validation, registry refreshes, packaging checks, and installed
+    native CMB smoke coverage during full workflow runs.
+  Impact: Added retrying atomic file helpers, rewired the affected code
+    and tests to use them, and removed the remaining repo-cache writes
+    from the failing workflow surfaces.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/docs/cmb_solver.md
+    copernican/lib/file_io.py
+    copernican/lib/model_spec_validator.py
+    copernican/lib/perturbation_contract.py
+    copernican/rng_minigames/registry.py
+    tests/copernican/datasets/bao/bossdr12/test_cosmo_parser_bossdr12.py
+    tests/copernican/engines/test_engine_mcmc.py
+    tests/copernican/engines/test_engine_nested.py
+    tests/copernican/lib/likelihoods/test_likelihoods.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_engine_adapter.py
+    tests/copernican/lib/test_file_io.py
+    tests/copernican/lib/test_perturbation_contract.py
+    tests/copernican/lib/test_priors.py
+    tests/project/datasets/synthetic/model_plugin.py
+    tests/project/filesystem_helpers.py
+    tests/project/lib/test_core.py
+    tests/project/lib/test_packaging_configuration.py
+
+- 2026-07-09:
+  Change: Implemented the Slice Two scalar Einstein source surface,
+    documented the generated metric-source diagnostics, and closed the
+    roadmap slice.
+  Why: Replace the remaining proxy scalar metric terms with
+    time-dependent Einstein inputs while keeping the low-k bridge and
+    residual checks explicit in one documented contract.
+  Impact: Updated `copernican/lib/perturbation_contract.py`, expanded
+    Einstein-source regression coverage, refreshed the solver docs and
+    readmes, and marked Slice Two closed for the native CMB roadmap.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/docs/cmb_solver.md
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-09:
   Change: Added the canonical native CMB convention document, corrected
     scalar metric gauge-role metadata, and annotated generated contract
     units and public spectrum normalization rules.

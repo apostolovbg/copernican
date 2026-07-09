@@ -260,7 +260,7 @@ Done when:
 * Every standard spectrum has one documented normalization.
 * No undocumented mixture of conventions remains.
 
-### [open] Slice Two - Scalar Einstein equations and metric sources
+### [closed] Slice Two - Scalar Einstein equations and metric sources
 
 Purpose:
 

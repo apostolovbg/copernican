@@ -33,11 +33,12 @@ def _build_model_plugin(yaml_filename: str):
 
     models_dir = Path(__file__).resolve().parents[3] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
-    cache_dir = models_dir / "cache"
-    cache_path = model_spec_validator.validate_and_cache_model(
-        yaml_path, cache_dir
-    )
-    func_dict, parsed = model_coder.generate_callables(cache_path)
+    with tempfile.TemporaryDirectory() as cache_dir:
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path,
+            cache_dir,
+        )
+        func_dict, parsed = model_coder.generate_callables(cache_path)
     return engine_plugin_validation.build_plugin(parsed, func_dict)
 
 

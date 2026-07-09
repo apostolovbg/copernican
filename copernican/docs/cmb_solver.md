@@ -200,6 +200,41 @@ k^2 (Phi - Psi)
   = 12 pi G a^2 (rho + p) sigma
 ```
 
+### Generated Einstein Inputs
+`copernican/lib/perturbation_contract.py` materializes the scalar
+Einstein inputs as named derived quantities so runtime checks and later
+slices reuse one source surface:
+
+- `matter_density_source = (Omega_c0 delta_c + Omega_b0 delta_b) / a`
+- `radiation_density_source = (4 Omega_gamma0 Theta_gamma,0
+  + f_nu delta_nu) / a^2`
+- `total_density_source` is the sum of the matter and radiation pieces
+  plus `massive_neutrino_density_source` when the massive hierarchy is
+  active.
+- `photon_velocity_divergence = 3 k Theta_gamma,1`
+- `total_momentum_source` combines CDM and baryon velocities with
+  photon and neutrino inertial terms using the same `/a` and `/a^2`
+  scaling.
+- `total_shear_source` carries the massless and massive neutrino shear
+  terms.
+- `einstein_energy_residual`, `einstein_momentum_residual`, and
+  `einstein_shear_residual` are the runtime diagnostics for the three
+  Einstein equations above.
+
+When the massive hierarchy is active, the generated scalar graph feeds
+the metric system through `massive_neutrino_density_source`,
+`massive_neutrino_momentum_source`, and
+`massive_neutrino_shear_source`. Slice Four will replace their current
+intermediate mapping with the final physical `q` integration without
+renaming those source slots.
+
+Low-k stabilization must stay separate from the physical equations. The
+current generated hierarchy therefore keeps
+`metric_constraint_scale = k^2 + 3 Hconf^2` as an explicit algebraic
+bridge used by `phi_constraint` and the matching `psi_closure`, rather
+than folding that bridge back into the canonical Einstein equations
+themselves.
+
 ### Photon Temperature Hierarchy
 
 ```text

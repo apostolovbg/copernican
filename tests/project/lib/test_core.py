@@ -24,6 +24,7 @@ import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.run_pipeline import extract_cosmological_param_vector
+from tests.project import filesystem_helpers
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
@@ -44,11 +45,11 @@ class FunctionalTestCase(unittest.TestCase):
         base = Path(__file__).resolve().parents[3]
         models_dir = base / "copernican" / "models"
         yaml_path = models_dir / "model_lcdm.yml"
-        cache_dir = models_dir / "cache"
-        cache_path = model_spec_validator.validate_and_cache_model(
-            yaml_path, cache_dir
-        )
-        funcs, parsed = model_coder.generate_callables(cache_path)
+        with tempfile.TemporaryDirectory() as cache_dir:
+            cache_path = model_spec_validator.validate_and_cache_model(
+                yaml_path, cache_dir
+            )
+            funcs, parsed = model_coder.generate_callables(cache_path)
         cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
         engine_plugin_validation.validate_plugin(cls.plugin)
 
@@ -376,6 +377,10 @@ class FunctionalTestCase(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
+            source_root = filesystem_helpers.stage_repo_snapshot(
+                REPO_ROOT,
+                tmp_path,
+            )
             target_dir = tmp_path / "site-packages"
             install_result = subprocess.run(  # nosec B603
                 [
@@ -387,10 +392,10 @@ class FunctionalTestCase(unittest.TestCase):
                     "--no-build-isolation",
                     "--target",
                     str(target_dir),
-                    str(REPO_ROOT),
+                    str(source_root),
                 ],
                 check=False,
-                cwd=REPO_ROOT,
+                cwd=source_root,
                 capture_output=True,
                 text=True,
             )

@@ -432,6 +432,10 @@ class PerturbationContractTestCase(unittest.TestCase):
             "1/Mpc",
         )
         self.assertEqual(
+            compiled.derived["einstein_momentum_residual"].units,
+            "1/Mpc^3",
+        )
+        self.assertEqual(
             compiled.sources["temperature_monopole"].units,
             "1/Mpc",
         )
@@ -1040,8 +1044,10 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
-    def test_scalar_hierarchy_uses_physical_metric_closure(self) -> None:
-        """Generated photon and metric terms should stay physically shaped."""
+    def test_scalar_hierarchy_uses_time_dependent_einstein_sources(
+        self,
+    ) -> None:
+        """Generated scalar routes should use physical Einstein sources."""
 
         compiled = self._compile(_scalar_metadata_only_contract())
 
@@ -1053,33 +1059,103 @@ class PerturbationContractTestCase(unittest.TestCase):
             "0.6 * acoustic_k * e_gamma3",
             compiled.equations["evolve_e_gamma2"].rhs,
         )
+        self.assertIn("matter_density_source", compiled.derived)
+        self.assertIn("radiation_density_source", compiled.derived)
         self.assertIn(
-            "k * k",
-            compiled.derived["metric_denominator"].expression,
+            "/ a",
+            compiled.derived["matter_density_source"].expression,
         )
         self.assertIn(
-            "einstein_gravity_strength",
+            "/ (a * a)",
+            compiled.derived["radiation_density_source"].expression,
+        )
+        self.assertIn(
+            "photon_velocity_divergence",
+            compiled.derived["total_momentum_source"].expression,
+        )
+        self.assertIn(
+            "total_density_source",
             compiled.constraints["phi_constraint"].expression,
         )
         self.assertIn(
-            "einstein_gravity_strength",
-            compiled.derived["Phi_tau"].expression,
+            "metric_constraint_scale",
+            compiled.constraints["phi_constraint"].expression,
         )
-        self.assertIn(
-            "einstein_gravity_strength",
-            compiled.derived["Psi_tau"].expression,
-        )
-        self.assertIn(
-            "einstein_gravity_strength",
+        self.assertEqual(
             compiled.closures["psi_closure"].expression,
+            "Phi - metric_shear_correction",
         )
         self.assertIn(
-            "total_momentum_density / metric_denominator",
+            "metric_momentum_source_drive",
             compiled.derived["Phi_tau"].expression,
         )
-        self.assertIn(
-            "total_neutrino_shear / metric_denominator",
-            compiled.derived["Psi_tau"].expression,
+        self.assertIsNone(compiled.derived["Psi_tau"].expression)
+        self.assertEqual(compiled.derived["Psi_tau"].variable, "Psi")
+        self.assertEqual(compiled.derived["Psi_tau"].wrt, "tau")
+        self.assertEqual(compiled.derived["Psi_tau"].order, 1)
+        self.assertIn("einstein_energy_residual", compiled.derived)
+        self.assertIn("einstein_momentum_residual", compiled.derived)
+        self.assertIn("einstein_shear_residual", compiled.derived)
+        context = {
+            "a": 0.5,
+            "Omega_b0": 0.05,
+            "Omega_c0": 0.25,
+            "Omega_gamma0": 1.0e-4,
+            "Omega_nu0": 5.0e-5,
+            "delta_b": 1.2,
+            "delta_c": 0.8,
+            "theta_gamma0": 0.4,
+            "delta_nu": 1.1,
+            "theta_b": 0.03,
+            "theta_c": 0.01,
+            "theta_gamma1": 0.02,
+            "theta_nu": 0.04,
+            "sigma_nu": 0.05,
+            "acoustic_k": 0.1,
+            "massless_neutrino_fraction": 5.0e-5,
+        }
+        context["photon_velocity_divergence"] = (
+            3.0 * context["acoustic_k"] * context["theta_gamma1"]
+        )
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.derived[
+                        "matter_density_source"
+                    ].compiled_expression,
+                    context,
+                )
+            ),
+            (0.25 * 0.8 + 0.05 * 1.2) / 0.5,
+        )
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.derived[
+                        "radiation_density_source"
+                    ].compiled_expression,
+                    context,
+                )
+            ),
+            (4.0 * 1.0e-4 * 0.4 + 5.0e-5 * 1.1) / (0.5 * 0.5),
+        )
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.derived[
+                        "total_momentum_source"
+                    ].compiled_expression,
+                    context,
+                )
+            ),
+            (
+                (0.05 * 0.03 + 0.25 * 0.01) / 0.5
+                + (
+                    4.0 * 1.0e-4 * context["photon_velocity_divergence"]
+                    + (4.0 / 3.0) * 5.0e-5 * 0.04
+                )
+                / (0.5 * 0.5)
+            ),
         )
 
     def test_scalar_hierarchy_materializes_collision_operators(

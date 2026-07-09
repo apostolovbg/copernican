@@ -6,6 +6,7 @@
 import copy
 import math
 import multiprocessing as multiprocessing_module
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -927,7 +928,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
-        cache_dir = models_dir / "cache"
         model_names = [
             "model_lcdm.yml",
             "model_lcdm_mnu.yml",
@@ -943,10 +943,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
         for model_name in model_names:
             with self.subTest(model_name=model_name):
                 yaml_path = models_dir / model_name
-                cache_path = model_spec_validator.validate_and_cache_model(
-                    yaml_path, cache_dir
-                )
-                funcs, parsed = model_coder.generate_callables(cache_path)
+                with tempfile.TemporaryDirectory() as cache_dir:
+                    cache_path = (
+                        model_spec_validator.validate_and_cache_model(
+                            yaml_path,
+                            cache_dir,
+                        )
+                    )
+                    funcs, parsed = model_coder.generate_callables(cache_path)
                 plugin = engine_plugin_validation.build_plugin(parsed, funcs)
                 validate_plugin = engine_plugin_validation.validate_plugin
                 self.assertTrue(validate_plugin(plugin))
