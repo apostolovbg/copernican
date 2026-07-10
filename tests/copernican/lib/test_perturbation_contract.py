@@ -1056,8 +1056,24 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.equations["evolve_theta_gamma2"].rhs,
         )
         self.assertIn(
+            "0.4 * acoustic_k * e_gamma1",
+            compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
             "0.6 * acoustic_k * e_gamma3",
             compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertEqual(
+            compiled.equations["evolve_theta_gamma6"].rhs,
+            "acoustic_k * theta_gamma5 - acoustic_k * 7 * theta_gamma6 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7) "
+            "- collision_rate * theta_gamma6",
+        )
+        self.assertEqual(
+            compiled.equations["evolve_e_gamma6"].rhs,
+            "acoustic_k * e_gamma5 - acoustic_k * 7 * e_gamma6 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7) "
+            "- collision_rate * e_gamma6",
         )
         self.assertIn("matter_density_source", compiled.derived)
         self.assertIn("radiation_density_source", compiled.derived)
@@ -1206,6 +1222,10 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.equations["evolve_e_gamma2"].rhs,
         )
         self.assertIn(
+            "e_gamma1",
+            compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
             "baryon_thomson_drag",
             compiled.equations["evolve_theta_b"].rhs,
         )
@@ -1217,12 +1237,24 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.derived["polarization_moment"].expression,
             "theta_gamma2 + 6.0 * e_gamma2",
         )
+        self.assertEqual(
+            compiled.sources["temperature_doppler"].expression,
+            "visibility * theta_b / acoustic_k",
+        )
         self.assertNotIn(
             "tight_coupling_drag",
             compiled.equations["evolve_theta_gamma3"].rhs,
         )
         self.assertNotIn(
             "tight_coupling_drag",
+            compiled.equations["evolve_e_gamma3"].rhs,
+        )
+        self.assertIn(
+            "- collision_rate * theta_gamma3",
+            compiled.equations["evolve_theta_gamma3"].rhs,
+        )
+        self.assertIn(
+            "- collision_rate * e_gamma3",
             compiled.equations["evolve_e_gamma3"].rhs,
         )
 

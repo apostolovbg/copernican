@@ -737,9 +737,9 @@ def _compute_tight_coupling_drag(
 ) -> float | numpy.ndarray:
     """Return the diagnostic tight-coupling rate for native contexts."""
 
-    tight_coupling_cap = max(
-        float(k_value) * float(tight_coupling_ratio),
-        1.0e-12,
+    tight_coupling_cap = _tight_coupling_entry_rate(
+        k_value=float(k_value),
+        tight_coupling_ratio=float(tight_coupling_ratio),
     )
     collision_rate_array = numpy.asarray(collision_rate, dtype=float)
     drag = collision_rate_array / (
@@ -748,6 +748,99 @@ def _compute_tight_coupling_drag(
     if drag.ndim == 0:
         return float(drag)
     return drag
+
+
+def _tight_coupling_entry_rate(
+    *,
+    k_value: float,
+    tight_coupling_ratio: float,
+) -> float:
+    """Return the collision rate that activates tight coupling."""
+
+    return max(
+        float(k_value) * float(tight_coupling_ratio),
+        1.0e-12,
+    )
+
+
+def _tight_coupling_exit_rate(
+    *,
+    k_value: float,
+    tight_coupling_ratio: float,
+) -> float:
+    """Return the collision rate below which tight coupling is disabled."""
+
+    return 0.1 * _tight_coupling_entry_rate(
+        k_value=k_value,
+        tight_coupling_ratio=tight_coupling_ratio,
+    )
+
+
+def _tight_coupling_is_active(
+    *,
+    active: bool,
+    collision_rate: float,
+    k_value: float,
+    tight_coupling_ratio: float,
+) -> bool:
+    """Return the updated tight-coupling regime with hysteresis."""
+
+    if not numpy.isfinite(collision_rate) or collision_rate <= 0.0:
+        return False
+    if active:
+        return collision_rate > _tight_coupling_exit_rate(
+            k_value=k_value,
+            tight_coupling_ratio=tight_coupling_ratio,
+        )
+    return collision_rate >= _tight_coupling_entry_rate(
+        k_value=k_value,
+        tight_coupling_ratio=tight_coupling_ratio,
+    )
+
+
+def _exact_thomson_relaxation_step(
+    *,
+    theta_gamma1: float,
+    theta_b: float,
+    theta_gamma2: float,
+    e_gamma2: float,
+    collision_rate: float,
+    baryon_loading: float,
+    dt: float,
+) -> tuple[float, float, float, float]:
+    """Return the exact collision-only Thomson update for one sub-step."""
+
+    if dt == 0.0 or collision_rate <= 0.0:
+        return theta_gamma1, theta_b, theta_gamma2, e_gamma2
+    photon_baryon_ratio = 1.0 / max(float(baryon_loading), 1.0e-12)
+    collision_strength = float(collision_rate) * float(dt)
+
+    dipole_mode = float(theta_gamma1) - float(theta_b) / 3.0
+    momentum_mode = float(theta_b) + photon_baryon_ratio * float(theta_gamma1)
+    dipole_decay = numpy.exp(
+        -collision_strength * (1.0 + photon_baryon_ratio / 3.0)
+    )
+    relaxed_theta_gamma1 = (
+        momentum_mode + 3.0 * dipole_mode * dipole_decay
+    ) / (3.0 + photon_baryon_ratio)
+    relaxed_theta_b = momentum_mode - (
+        photon_baryon_ratio * relaxed_theta_gamma1
+    )
+
+    fast_mode = float(theta_gamma2) - float(e_gamma2)
+    slow_mode = float(theta_gamma2) + 6.0 * float(e_gamma2)
+    fast_decay = numpy.exp(-collision_strength)
+    slow_decay = numpy.exp(-0.3 * collision_strength)
+    relaxed_theta_gamma2 = (
+        slow_mode * slow_decay + 6.0 * fast_mode * fast_decay
+    ) / 7.0
+    relaxed_e_gamma2 = (slow_mode * slow_decay - fast_mode * fast_decay) / 7.0
+    return (
+        float(relaxed_theta_gamma1),
+        float(relaxed_theta_b),
+        float(relaxed_theta_gamma2),
+        float(relaxed_e_gamma2),
+    )
 
 
 def _resolve_declared_graph_context(

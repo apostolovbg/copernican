@@ -2506,6 +2506,130 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Fast runtime-response coverage for declared-graph execution."""
 
+    def test_temperature_projection_uses_declared_histories_directly(
+        self,
+    ) -> None:
+        """Temperature LOS projection should not add acoustic phase weights."""
+
+        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+            j_l=numpy.asarray(((1.0, 0.5, 0.25), (0.0, 1.0, 0.5))),
+            j_l_derivative=numpy.asarray(((0.2, 0.1, 0.0), (0.0, 0.3, 0.4))),
+            e_kernel=numpy.zeros((2, 3), dtype=float),
+            b_kernel=numpy.zeros((2, 3), dtype=float),
+        )
+        eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
+        source_histories = {
+            "monopole": numpy.asarray((1.0, 2.0, 3.0), dtype=float),
+            "doppler": numpy.asarray((0.5, 1.0, 1.5), dtype=float),
+            "isw": numpy.asarray((2.0, 1.0, 0.0), dtype=float),
+            "additive": numpy.asarray((1.0, 1.0, 1.0), dtype=float),
+        }
+
+        projected = native_projection._declared_graph_projection(
+            projection="line_of_sight_temperature",
+            kernel=None,
+            kernel_batch=kernel_batch,
+            k_value=0.2,
+            eta_weights=eta_weights,
+            chi_grid=numpy.asarray((1.0, 2.0, 4.0), dtype=float),
+            source_chi=8.0,
+            source_histories=source_histories,
+        )
+
+        expected = kernel_batch.j_l @ (
+            eta_weights
+            * (
+                source_histories["monopole"]
+                + source_histories["isw"]
+                + source_histories["additive"]
+            )
+        ) + kernel_batch.j_l_derivative @ (
+            eta_weights * source_histories["doppler"]
+        )
+        numpy.testing.assert_allclose(
+            projected,
+            expected,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
+    def test_tight_coupling_regime_has_explicit_hysteresis(self) -> None:
+        """Tight coupling should enter and exit through named thresholds."""
+
+        entry_rate = native_evolution._tight_coupling_entry_rate(
+            k_value=0.2,
+            tight_coupling_ratio=50.0,
+        )
+        exit_rate = native_evolution._tight_coupling_exit_rate(
+            k_value=0.2,
+            tight_coupling_ratio=50.0,
+        )
+
+        self.assertGreater(entry_rate, exit_rate)
+        self.assertTrue(
+            native_evolution._tight_coupling_is_active(
+                active=False,
+                collision_rate=1.01 * entry_rate,
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+            )
+        )
+        self.assertTrue(
+            native_evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.5 * (entry_rate + exit_rate),
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+            )
+        )
+        self.assertFalse(
+            native_evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.99 * exit_rate,
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+            )
+        )
+
+    def test_exact_thomson_relaxation_matches_collision_subblock(
+        self,
+    ) -> None:
+        """Exact Thomson stepping should match the full collision subblock."""
+
+        from scipy.linalg import expm
+
+        collision_rate = 250.0
+        baryon_loading = 0.8
+        dt = 0.015
+        photon_baryon_ratio = 1.0 / baryon_loading
+        initial_state = numpy.asarray((0.03, 0.09, 0.01, 0.004), dtype=float)
+        collision_matrix = collision_rate * numpy.asarray(
+            (
+                (-1.0, 1.0 / 3.0, 0.0, 0.0),
+                (photon_baryon_ratio, -photon_baryon_ratio / 3.0, 0.0, 0.0),
+                (0.0, 0.0, -0.9, 0.6),
+                (0.0, 0.0, 0.1, -0.4),
+            ),
+            dtype=float,
+        )
+        expected_state = expm(collision_matrix * dt) @ initial_state
+
+        actual_state = native_evolution._exact_thomson_relaxation_step(
+            theta_gamma1=float(initial_state[0]),
+            theta_b=float(initial_state[1]),
+            theta_gamma2=float(initial_state[2]),
+            e_gamma2=float(initial_state[3]),
+            collision_rate=collision_rate,
+            baryon_loading=baryon_loading,
+            dt=dt,
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(actual_state, dtype=float),
+            expected_state,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
     def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
         """The production module should not contain old compatibility code."""
 
@@ -4093,6 +4217,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "baryon_thomson_drag",
             perturbation_data.equations["evolve_theta_b"].rhs,
         )
+        self.assertEqual(
+            perturbation_data.sources["temperature_doppler"].expression,
+            "visibility * theta_b / acoustic_k",
+        )
         self.assertIn(
             "theta_gamma3",
             perturbation_data.equations["evolve_theta_gamma2"].rhs,
@@ -4102,12 +4230,24 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.equations["evolve_theta_gamma2"].rhs,
         )
         self.assertIn(
+            "e_gamma1",
+            perturbation_data.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
             "e_gamma3",
             perturbation_data.equations["evolve_e_gamma2"].rhs,
         )
         self.assertIn(
+            "- collision_rate * theta_gamma3",
+            perturbation_data.equations["evolve_theta_gamma3"].rhs,
+        )
+        self.assertIn(
             "collision_rate",
             perturbation_data.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
+            "- collision_rate * e_gamma3",
+            perturbation_data.equations["evolve_e_gamma3"].rhs,
         )
         self.assertEqual(
             perturbation_data.equations["evolve_e_gamma0"].rhs,
@@ -4120,6 +4260,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertNotIn(
             "tight_coupling_drag",
             perturbation_data.equations["evolve_e_gamma3"].rhs,
+        )
+        self.assertEqual(
+            perturbation_data.equations["evolve_theta_gamma8"].rhs,
+            "acoustic_k * theta_gamma7 - acoustic_k * 9 * theta_gamma8 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9) "
+            "- collision_rate * theta_gamma8",
+        )
+        self.assertEqual(
+            perturbation_data.equations["evolve_e_gamma8"].rhs,
+            "acoustic_k * e_gamma7 - acoustic_k * 9 * e_gamma8 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9) "
+            "- collision_rate * e_gamma8",
         )
         self.assertNotIn(
             "massive_neutrino_pressure_ratio",

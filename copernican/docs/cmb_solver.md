@@ -6,9 +6,9 @@
 This document is the canonical physical convention for Copernican's native
 CMB solver path when `cmb.perturbations.standard: false`.
 
-Later roadmap slices may replace incomplete equations, closures, or numerical
-approximations, but they must not redefine the meaning of states, source
-terms, gauge labels, or public spectra. This page fixes that contract first.
+Later roadmap slices may extend this contract to vector and tensor sectors,
+but they must not redefine the meaning of states, source terms, gauge labels,
+or public spectra.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -247,22 +247,61 @@ Theta_gamma,2' = 2 k Theta_gamma,1 / 5
 ```
 
 Higher photon multipoles use the standard free-streaming recurrence with a
-physical high-l closure chosen later by Slice Three.
+physical terminal closure and the Thomson damping that survives above the
+quadrupole:
+
+```text
+Theta_gamma,l' = k [l Theta_gamma,l-1 - (l + 1) Theta_gamma,l+1] / (2 l + 1)
+                 - tau_dot Theta_gamma,l
+for 3 <= l < l_max
+
+Theta_gamma,l_max' = k Theta_gamma,l_max-1
+                     - k (l_max + 1) Theta_gamma,l_max
+                       / sqrt[(k eta)^2 + (l_max + 1)^2]
+                     - tau_dot Theta_gamma,l_max
+```
+
+That terminal form approaches `k Theta_gamma,l_max-1 - k Theta_gamma,l_max`
+outside the horizon and the standard `-(l_max + 1) Theta_gamma,l_max / eta`
+free-streaming limit once `k eta` is large.
 
 ### Polarization Hierarchy
 
 ```text
-E_gamma,2' = 3 k E_gamma,3 / 5 - tau_dot (E_gamma,2 - Pi / 10)
+E_gamma,2' = 2 k E_gamma,1 / 5
+             - 3 k E_gamma,3 / 5
+             - tau_dot (E_gamma,2 - Pi / 10)
 ```
 
-Higher `E` multipoles use the matching spin-2 free-streaming recurrence with
-the same closure family as the temperature hierarchy.
+Higher `E` multipoles use the same generated free-streaming recurrence family
+and the same horizon-aware terminal closure as the temperature hierarchy,
+with the corresponding `- tau_dot E_gamma,l` damping kept on every
+generated `l >= 3` multipole.
 
 ### Matter And Neutrinos
 The baryon, CDM, massless-neutrino, and massive-neutrino continuity, Euler,
 and hierarchy equations follow the same Ma-Bertschinger sign convention.
 Massive-neutrino metric moments are fixed to physical q integrals with the
 appropriate `q`, `epsilon`, density, pressure, momentum, and shear weights.
+
+### Tight Coupling
+The native scalar integrator treats the Thomson dipole and quadrupole
+sub-block as stiff only while
+
+```text
+collision_rate >= k * tight_coupling_ratio
+```
+
+and exits that regime once
+
+```text
+collision_rate <= 0.1 * k * tight_coupling_ratio
+```
+
+Within the active regime, the Thomson sub-block is advanced analytically and
+the remaining free-streaming, metric, and source terms stay on the explicit
+declared graph. The same exact split also damps the generated `l >= 3`
+temperature and polarization multipoles while that regime stays active.
 
 ## Line-Of-Sight Source Convention
 The canonical scalar source decomposition is:
@@ -278,6 +317,11 @@ S_B = 0 for scalar modes
 
 S_phi = exp(-tau) (Phi + Psi)
 ```
+
+The generated scalar Doppler source uses the baryon velocity
+`v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
+Bessel kernel. That derivative-kernel form is the implemented equivalent of
+the canonical `d/d eta [g v_b / k]` contribution above.
 
 Later vector and tensor slices must use the same sign and parity convention:
 temperature sources are even, `E` is even, `B` is odd, and lensing uses the

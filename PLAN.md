@@ -317,7 +317,7 @@ Done when:
 * Metric residuals remain below their declared tolerances.
 * No proxy Poisson system remains in the generated standard hierarchy.
 
-### [open] Slice Three - Photon-baryon hierarchy and thermodynamics
+### [closed] Slice Three - Photon-baryon hierarchy and thermodynamics
 
 Purpose:
 

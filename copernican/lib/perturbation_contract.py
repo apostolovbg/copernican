@@ -549,16 +549,28 @@ def _scalar_hierarchy_recurrence_rhs(
     previous_name: str,
     next_name: str | None,
     collision_term: str | None = None,
+    use_physical_terminal_closure: bool = False,
 ) -> str:
     """Return one hierarchy recurrence RHS for the generated scalar route."""
 
     previous_coeff = float(moment) / float((2 * moment) + 1)
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        pieces.append(
-            f"- {float(moment + 1):.16g} / {float((2 * moment) + 1):.16g} "
-            f"* acoustic_k * {name}"
-        )
+        if use_physical_terminal_closure:
+            closure_scale = (
+                "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
+                f"{float(moment + 1):.16g} * {float(moment + 1):.16g})"
+            )
+            pieces[0] = f"acoustic_k * {previous_name}"
+            pieces.append(
+                f"- acoustic_k * {float(moment + 1):.16g} * {name} / "
+                f"{closure_scale}"
+            )
+        else:
+            pieces.append(
+                f"- {float(moment + 1):.16g} / {float((2 * moment) + 1):.16g} "
+                f"* acoustic_k * {name}"
+            )
     else:
         next_coeff = float(moment + 1) / float((2 * moment) + 1)
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
@@ -921,7 +933,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                f"{3.0 / 5.0:.16g} * acoustic_k * "
+                f"{2.0 / 5.0:.16g} * acoustic_k * e_gamma1 "
+                f"- {3.0 / 5.0:.16g} * acoustic_k * "
                 f"{_scalar_polarization_name(3)} "
                 "- collision_rate * "
                 "(e_gamma2 - 0.1 * polarization_moment)"
@@ -1035,6 +1048,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=_scalar_temperature_name(moment - 1),
                 next_name=next_name,
+                collision_term=f"- collision_rate * {name}",
+                use_physical_terminal_closure=True,
             ),
             "role": "hierarchy",
         }
@@ -1060,6 +1075,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
+                collision_term=f"- collision_rate * {name}",
+                use_physical_terminal_closure=True,
             ),
             "role": "polarization",
         }
@@ -1488,19 +1505,9 @@ def _materialize_native_scalar_hierarchy_contract(
             },
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
-                **(
-                    {
-                        "variable": "Psi",
-                        "wrt": "tau",
-                        "order": 1,
-                    }
-                    if not sync_gauge
-                    else {
-                        "expression": (
-                            "metric_momentum_source_drive - Hconf * Psi"
-                        )
-                    }
-                ),
+                "variable": ("Psi" if not sync_gauge else psi_state_name),
+                "wrt": "tau",
+                "order": 1,
                 "description": (
                     "History-derived lapse-potential time derivative."
                 ),
@@ -1732,14 +1739,21 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
         "temperature_doppler": {
-            "expression": "visibility * 3.0 * theta_gamma1",
+            "expression": "visibility * theta_b / acoustic_k",
             "role": "doppler",
             "description": "Visibility-weighted Doppler source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
-            "notes": "Projected through the derivative temperature kernel.",
+            "notes": (
+                "Uses the baryon velocity v_b = theta_b / k and projects "
+                "through the derivative temperature kernel."
+            ),
         },
         "temperature_isw": {
-            "expression": "exp(-tau) * (Psi_tau - Phi_tau)",
+            "expression": (
+                "exp(-tau) * (Psi_tau - Phi_tau)"
+                if not sync_gauge
+                else "exp(-tau) * (0.5 * Psi_tau - Phi_tau)"
+            ),
             "role": "isw",
             "description": "Integrated Sachs-Wolfe temperature source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
@@ -4141,6 +4155,7 @@ def compile_perturbation_contract(
             if (
                 variable_name not in variable_entries
                 and variable_name not in background_reference_set
+                and variable_name not in declared_derived_names
             ):
                 raise ValueError(
                     f"Derivative symbol '{name}' references unknown "

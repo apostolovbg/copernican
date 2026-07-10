@@ -44,8 +44,10 @@ from .native_evolution import (
     _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
+    _exact_thomson_relaxation_step,
     _resolve_declared_graph_context,
     _resolve_declared_momentum_grid_runtimes,
+    _tight_coupling_is_active,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -83,7 +85,6 @@ def _declared_graph_projection(
     eta_weights: numpy.ndarray,
     chi_grid: numpy.ndarray,
     source_chi: float,
-    sound_horizon_mpc: float,
     source_histories: Mapping[str, numpy.ndarray],
 ) -> numpy.ndarray:
     """Return projected transfer component values for every ell."""
@@ -143,23 +144,15 @@ def _declared_graph_projection(
 
     if projection == "line_of_sight_temperature":
         projected = numpy.zeros(j_l.shape[0], dtype=float)
-        acoustic_scale = max(float(sound_horizon_mpc), 1.0e-12)
-        acoustic_phase = (
-            float(k_value)
-            * numpy.clip(source_chi - chi_grid, 0.0, None)
-            / acoustic_scale
-        )
-        monopole_phase = numpy.cos(acoustic_phase)
-        doppler_phase = numpy.sin(acoustic_phase)
         if "monopole" in source_histories:
             projected += _project_history(
                 j_l,
-                monopole_phase * source_histories["monopole"],
+                source_histories["monopole"],
             )
         if "doppler" in source_histories:
             projected += _project_history(
                 j_l_derivative,
-                doppler_phase * source_histories["doppler"],
+                source_histories["doppler"],
             )
         if "isw" in source_histories:
             projected += _project_history(
@@ -1029,6 +1022,7 @@ def _compute_custom_cmb_spectrum_data(
             str(species)
             for species in getattr(thomson_collision_entry, "species", ())
         }
+        thomson_damped_slots: tuple[int, ...] = ()
         if {"photon", "baryon"}.issubset(thomson_species):
             resolved_slots = {
                 "photon_dipole": _state_slot_index_for_kind(
@@ -1052,6 +1046,24 @@ def _compute_custom_cmb_spectrum_data(
                     name: int(slot_index)
                     for name, slot_index in resolved_slots.items()
                 }
+            thomson_damped_slots = tuple(
+                slot.index
+                for slot in runtime_spec.state_slots
+                if slot.order == 0
+                and str(
+                    getattr(
+                        perturbation_data.variables.get(slot.variable),
+                        "kind",
+                        "",
+                    )
+                )
+                in {
+                    "photon_temperature_octopole",
+                    "photon_temperature_multipole",
+                    "photon_polarization_octopole",
+                    "photon_polarization_multipole",
+                }
+            )
 
         def _describe_nonfinite_state(
             state_vector: numpy.ndarray,
@@ -1076,12 +1088,15 @@ def _compute_custom_cmb_spectrum_data(
             blend: float,
             dt: float,
             k_value: float,
+            tight_coupling_active: bool,
         ) -> numpy.ndarray:
             """Return one state vector after the exact Thomson sub-step."""
 
             if dt == 0.0:
                 return numpy.asarray(state_vector, dtype=float)
             if thomson_relaxation_slots is None:
+                return numpy.asarray(state_vector, dtype=float)
+            if not tight_coupling_active:
                 return numpy.asarray(state_vector, dtype=float)
             _, background_scalars = _scalar_background_context(
                 step_index,
@@ -1094,8 +1109,6 @@ def _compute_custom_cmb_spectrum_data(
                 float(background_scalars["baryon_loading"]),
                 1.0e-12,
             )
-            photon_baryon_ratio = 1.0 / baryon_loading
-            collision_strength = collision_rate * float(dt)
             relaxed = numpy.asarray(state_vector, dtype=float).copy()
 
             photon_dipole_index = thomson_relaxation_slots["photon_dipole"]
@@ -1109,34 +1122,30 @@ def _compute_custom_cmb_spectrum_data(
 
             theta_gamma1 = float(relaxed[photon_dipole_index])
             theta_b = float(relaxed[baryon_velocity_index])
-            dipole_mode = theta_gamma1 - theta_b / 3.0
-            momentum_mode = theta_b + photon_baryon_ratio * theta_gamma1
-            dipole_decay = math.exp(
-                -collision_strength * (1.0 + photon_baryon_ratio / 3.0)
-            )
-            relaxed_theta_gamma1 = (
-                momentum_mode + 3.0 * dipole_mode * dipole_decay
-            ) / (3.0 + photon_baryon_ratio)
-            relaxed_theta_b = momentum_mode - (
-                photon_baryon_ratio * relaxed_theta_gamma1
+            theta_gamma2 = float(relaxed[photon_quadrupole_index])
+            e_gamma2 = float(relaxed[polarization_quadrupole_index])
+            (
+                relaxed_theta_gamma1,
+                relaxed_theta_b,
+                relaxed_theta_gamma2,
+                relaxed_e_gamma2,
+            ) = _exact_thomson_relaxation_step(
+                theta_gamma1=theta_gamma1,
+                theta_b=theta_b,
+                theta_gamma2=theta_gamma2,
+                e_gamma2=e_gamma2,
+                collision_rate=collision_rate,
+                baryon_loading=baryon_loading,
+                dt=float(dt),
             )
             relaxed[photon_dipole_index] = relaxed_theta_gamma1
             relaxed[baryon_velocity_index] = relaxed_theta_b
-
-            theta_gamma2 = float(relaxed[photon_quadrupole_index])
-            e_gamma2 = float(relaxed[polarization_quadrupole_index])
-            fast_mode = theta_gamma2 - e_gamma2
-            slow_mode = theta_gamma2 + 6.0 * e_gamma2
-            fast_decay = math.exp(-collision_strength)
-            slow_decay = math.exp(-0.3 * collision_strength)
-            relaxed_theta_gamma2 = (
-                slow_mode * slow_decay + 6.0 * fast_mode * fast_decay
-            ) / 7.0
-            relaxed_e_gamma2 = (
-                slow_mode * slow_decay - fast_mode * fast_decay
-            ) / 7.0
             relaxed[photon_quadrupole_index] = relaxed_theta_gamma2
             relaxed[polarization_quadrupole_index] = relaxed_e_gamma2
+            if thomson_damped_slots:
+                damping = math.exp(-collision_rate * float(dt))
+                for slot_index in thomson_damped_slots:
+                    relaxed[slot_index] *= damping
             return relaxed
 
         def _advance_declared_interval(
@@ -1145,6 +1154,7 @@ def _compute_custom_cmb_spectrum_data(
             step_index: int,
             dt: float,
             k_value: float,
+            tight_coupling_active: bool,
         ) -> numpy.ndarray:
             """Advance one LOS interval with split streaming and collisions."""
 
@@ -1152,7 +1162,7 @@ def _compute_custom_cmb_spectrum_data(
                 abs(float(k_value)),
                 1.0e-12,
             )
-            target_stage_scale = 8.0
+            target_stage_scale = 4.0
             required_substeps = max(
                 1,
                 int(
@@ -1180,6 +1190,7 @@ def _compute_custom_cmb_spectrum_data(
                         blend=blend_start,
                         dt=0.5 * sub_dt,
                         k_value=float(k_value),
+                        tight_coupling_active=tight_coupling_active,
                     )
                     if not numpy.all(numpy.isfinite(trial_state)):
                         failure_detail = (
@@ -1193,28 +1204,28 @@ def _compute_custom_cmb_spectrum_data(
                         step_index=step_index,
                         blend=blend_start,
                         k_value=float(k_value),
-                        include_collision_terms=False,
+                        include_collision_terms=not tight_coupling_active,
                     )
                     stage_rhs_mid_a = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_initial,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
-                        include_collision_terms=False,
+                        include_collision_terms=not tight_coupling_active,
                     )
                     stage_rhs_mid_b = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_mid_a,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
-                        include_collision_terms=False,
+                        include_collision_terms=not tight_coupling_active,
                     )
                     stage_rhs_final = _mode_rhs(
                         trial_state + sub_dt * stage_rhs_mid_b,
                         step_index=step_index,
                         blend=blend_end,
                         k_value=float(k_value),
-                        include_collision_terms=False,
+                        include_collision_terms=not tight_coupling_active,
                     )
                     candidate_state = trial_state + (sub_dt / 6.0) * (
                         stage_rhs_initial
@@ -1235,6 +1246,7 @@ def _compute_custom_cmb_spectrum_data(
                         blend=blend_end,
                         dt=0.5 * sub_dt,
                         k_value=float(k_value),
+                        tight_coupling_active=tight_coupling_active,
                     )
                     if not numpy.all(numpy.isfinite(candidate_state)):
                         failure_detail = (
@@ -1267,6 +1279,13 @@ def _compute_custom_cmb_spectrum_data(
                 if slot.order == 0
             }
             state = numpy.asarray(initial_state, dtype=float).copy()
+            initial_collision_rate = float(collision_rate_grid[0])
+            tight_coupling_active = _tight_coupling_is_active(
+                active=False,
+                collision_rate=initial_collision_rate,
+                k_value=float(k_value),
+                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+            )
             for step_index, eta_value in enumerate(eta_los_grid):
                 for slot in runtime_spec.state_slots:
                     if slot.order != 0:
@@ -1280,6 +1299,14 @@ def _compute_custom_cmb_spectrum_data(
                     step_index=step_index,
                     dt=dt,
                     k_value=float(k_value),
+                    tight_coupling_active=tight_coupling_active,
+                )
+                end_collision_rate = float(collision_rate_grid[step_index + 1])
+                tight_coupling_active = _tight_coupling_is_active(
+                    active=tight_coupling_active,
+                    collision_rate=end_collision_rate,
+                    k_value=float(k_value),
+                    tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                 )
             return histories, state
 
@@ -1517,7 +1544,6 @@ def _compute_custom_cmb_spectrum_data(
                     eta_weights=eta_integration_weights,
                     chi_grid=chi_los_grid,
                     source_chi=source_chi,
-                    sound_horizon_mpc=float(background.sound_horizon_mpc),
                     source_histories=source_histories,
                 )
             )

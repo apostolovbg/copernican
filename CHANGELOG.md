@@ -80,6 +80,50 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-09:
+  Change: Fixed generated scalar photon-polarization transport,
+    synchronized the synchronous-gauge ISW derivative path, and tightened
+    the declared LOS stage budget in the native CMB runtime.
+  Why: Prevented high-k Thomson-hierarchy growth from saturating the
+    generated scalar spectra and restored the intended synchronous and
+    gauge-invariant agreement checks.
+  Impact: Stabilized the Slice Three native CMB hierarchy so the
+    primordial-tilt and generated-gauge runtime tests now hold under the
+    governed solver path.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/docs/cmb_solver.md
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-09:
+  Change: Closed Slice Three by implementing physical terminal
+    photon-polarization closure, baryon-velocity Doppler sourcing, and
+    governed Thomson tight-coupling transitions in the native CMB path.
+  Why: Replaced the remaining terminal damping and phase-weighted
+    source shortcuts so the generated scalar hierarchy and LOS runtime
+    follow the documented photon-baryon thermodynamics.
+  Impact: Added closure and Thomson-regime coverage, documented the
+    physical transition rules, and marked the roadmap slice closed with
+    green verify-ready native CMB tests.
+  Files:
+    CHANGELOG.md
+    PLAN.md
+    README.md
+    copernican/README.md
+    copernican/docs/cmb_solver.md
+    copernican/lib/likelihoods/cmb/native_evolution.py
+    copernican/lib/likelihoods/cmb/native_projection.py
+    copernican/lib/perturbation_contract.py
+    tests/copernican/lib/likelihoods/cmb/test_cmb.py
+    tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-09:
   Change: Hardened transient local file I/O handling, moved test model
     caches out of the repo tree, and staged install-smoke sources in a
     temporary snapshot.

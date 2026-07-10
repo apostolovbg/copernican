@@ -67,7 +67,11 @@ moments aligned for native runs. The scalar compiler also seeds
 Newtonian and synchronous metric roles from leading-order physical
 initial-condition series instead of heuristic constants. The q-grid path
 now exposes direct per-bin density, momentum, and shear source moments
-for the later physical q integration work.
+for the later physical q integration work. The native scalar runtime now
+uses the baryon-velocity Doppler source, a physical terminal free-
+streaming closure with higher-multipole Thomson damping on the generated
+photon and polarization ladders, and explicit tight-coupling entry and
+exit thresholds for the analytic Thomson sub-step.
 The native collision substep now resolves exact Thomson relaxation from
 compiled collision metadata instead of hard-coded state names, and
 `lensed_BB` keeps declared primordial B-mode sources visible.
@@ -75,9 +79,9 @@ The public `CMBLike` likelihood now also accepts stacked spectrum blocks
 when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
 blocks can be flattened into one covariance surface. Row-order indexing
 keeps stacked mixed-spectrum tables aligned with the requested theory
-blocks. The temperature projection also carries a physical acoustic
-phase, so changing the primordial tilt reshapes the TT spectrum instead
-of only rescaling it.
+blocks. The temperature projection now integrates declared source
+histories directly through the native LOS kernels, so changing the
+primordial tilt reshapes the TT spectrum instead of only rescaling it.
 The regression suite also proves vector and tensor sector
 classification, plus a gauge-invariant native comparison, so the
 remaining sector and gauge claims are explicit rather than implicit.
