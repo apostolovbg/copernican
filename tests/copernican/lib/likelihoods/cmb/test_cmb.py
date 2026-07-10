@@ -4052,17 +4052,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_scalar_hierarchy_materializes_massive_neutrinos(
         self,
     ) -> None:
-        """The native scalar route should compile massive neutrinos."""
+        """The native scalar route should expose aggregate aliases only."""
 
         contract = _prepare_native_contract(
             _native_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         perturbation_data = contract["perturbation_data"]
 
-        self.assertIn("delta_nu_massive", perturbation_data.variables)
-        self.assertIn("theta_nu_massive", perturbation_data.variables)
-        self.assertIn("sigma_nu_massive", perturbation_data.variables)
-        self.assertIn("nu_massive_l5", perturbation_data.variables)
+        self.assertNotIn("delta_nu_massive", perturbation_data.variables)
+        self.assertNotIn("theta_nu_massive", perturbation_data.variables)
+        self.assertNotIn("sigma_nu_massive", perturbation_data.variables)
+        self.assertNotIn("nu_massive_l5", perturbation_data.variables)
+        self.assertIn("delta_nu_massive", perturbation_data.derived)
+        self.assertIn("theta_nu_massive", perturbation_data.derived)
+        self.assertIn("sigma_nu_massive", perturbation_data.derived)
+        self.assertIn("nu_massive_l5", perturbation_data.derived)
         self.assertEqual(
             perturbation_data.hierarchy_families[
                 "massive_neutrino"
@@ -4088,7 +4092,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_scalar_hierarchy_materializer_uses_q_weights(
         self,
     ) -> None:
-        """Generated q bins should keep the physical momentum weights."""
+        """Generated q bins should drive the only massive-neutrino states."""
 
         contract = _prepare_native_contract(
             _strip_native_runtime_sections(
@@ -4103,25 +4107,32 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.manifest_summary["generated_scalar_hierarchy"]
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * delta_nu_massive_q0",
+            "massive_neutrino_q0_density_weight * delta_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_density_q0"
             ].expression,
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * theta_nu_massive_q0",
+            "massive_neutrino_q0_pressure_weight * delta_nu_massive_q0",
+            perturbation_data.derived[
+                "massive_neutrino_metric_pressure_q0"
+            ].expression,
+        )
+        self.assertIn(
+            "acoustic_k * massive_neutrino_q0_momentum_weight * "
+            "theta_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_momentum_q0"
             ].expression,
         )
         self.assertIn(
-            "massive_neutrino_q0_weight * sigma_nu_massive_q0",
+            "massive_neutrino_q0_shear_weight * sigma_nu_massive_q0",
             perturbation_data.derived[
                 "massive_neutrino_metric_shear_q0"
             ].expression,
         )
         self.assertNotIn(
-            "massive_neutrino_q0_mass_fraction",
+            "massive_neutrino_q0_weight",
             perturbation_data.derived[
                 "massive_neutrino_metric_density_q0"
             ].expression,
@@ -4150,13 +4161,33 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_q0_streaming_speed",
             perturbation_data.equations["evolve_theta_nu_massive_q0"].rhs,
         )
-        self.assertIn(
-            "massive_neutrino_streaming_speed",
-            perturbation_data.equations["evolve_nu_massive_l3"].rhs,
+        self.assertNotIn(
+            "evolve_delta_nu_massive",
+            perturbation_data.equations,
         )
         self.assertNotIn(
-            "massive_neutrino_velocity_ratio",
-            perturbation_data.equations["evolve_nu_massive_l3"].rhs,
+            "evolve_theta_nu_massive",
+            perturbation_data.equations,
+        )
+        self.assertNotIn(
+            "evolve_sigma_nu_massive",
+            perturbation_data.equations,
+        )
+        self.assertNotIn(
+            "evolve_nu_massive_l3",
+            perturbation_data.equations,
+        )
+        self.assertIn(
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 6 * 6)",
+            perturbation_data.equations["evolve_nu_l5"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_streaming_speed",
+            perturbation_data.equations["evolve_nu_massive_q0_l5"].rhs,
+        )
+        self.assertIn(
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 6 * 6)",
+            perturbation_data.equations["evolve_nu_massive_q0_l5"].rhs,
         )
         self.assertIn(
             "massive_neutrino_momentum_source",
@@ -4273,25 +4304,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9) "
             "- collision_rate * e_gamma8",
         )
-        self.assertNotIn(
-            "massive_neutrino_pressure_ratio",
-            perturbation_data.equations["evolve_delta_nu_massive"].rhs,
-        )
-        self.assertIn(
+        self.assertEqual(
+            perturbation_data.derived["delta_nu_massive"].expression,
             "massive_neutrino_metric_density",
-            perturbation_data.equations["evolve_theta_nu_massive"].rhs,
         )
-        self.assertNotIn(
-            "massive_neutrino_velocity_ratio",
-            perturbation_data.equations["evolve_theta_nu_massive"].rhs,
+        self.assertEqual(
+            perturbation_data.derived["theta_nu_massive"].expression,
+            "massive_neutrino_metric_momentum",
+        )
+        self.assertEqual(
+            perturbation_data.derived["sigma_nu_massive"].expression,
+            "massive_neutrino_metric_shear",
         )
         self.assertIn(
-            "massive_neutrino_metric_momentum",
-            perturbation_data.equations["evolve_sigma_nu_massive"].rhs,
-        )
-        self.assertNotIn(
-            "massive_neutrino_velocity_ratio",
-            perturbation_data.equations["evolve_sigma_nu_massive"].rhs,
+            "massive_neutrino_q0_shear_weight * nu_massive_q0_l3",
+            perturbation_data.derived["nu_massive_l3"].expression,
         )
         self.assertIn(
             "acoustic_k * eta_initial / 6.0",
@@ -4321,6 +4348,70 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "theta_nu_massive_q0_seed"
             ].expression,
         )
+        self.assertNotIn(
+            "delta_nu_massive_seed",
+            perturbation_data.initial_conditions,
+        )
+        self.assertNotIn(
+            "theta_nu_massive_seed",
+            perturbation_data.initial_conditions,
+        )
+        self.assertNotIn(
+            "sigma_nu_massive_seed",
+            perturbation_data.initial_conditions,
+        )
+        self.assertNotIn(
+            "nu_massive_l3_seed",
+            perturbation_data.initial_conditions,
+        )
+
+    def test_native_scalar_hierarchy_q_integrated_aliases_match_bins(
+        self,
+    ) -> None:
+        """Resolved q-bin aliases should stay locked to physical moments."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
+        )
+        q_count = int(
+            contract["numerical"]["momentum_grids"][
+                "massive_neutrino_default"
+            ]["count"]
+        )
+        state_updates: dict[str, float] = {}
+        for q_index in range(q_count):
+            state_updates[f"delta_nu_massive_q{q_index}"] = 1.0
+            state_updates[f"theta_nu_massive_q{q_index}"] = 2.0
+            state_updates[f"sigma_nu_massive_q{q_index}"] = 3.0
+            for moment in range(3, 6):
+                state_updates[f"nu_massive_q{q_index}_l{moment}"] = (
+                    float(moment) + 1.0
+                )
+
+        context = _resolved_native_scalar_context(
+            contract,
+            state_updates=state_updates,
+        )
+
+        self.assertAlmostEqual(
+            float(context["massive_neutrino_metric_density"]), 1.0
+        )
+        self.assertAlmostEqual(
+            float(context["massive_neutrino_metric_pressure"]), 1.0
+        )
+        self.assertAlmostEqual(
+            float(context["massive_neutrino_metric_momentum"]),
+            0.2,
+        )
+        self.assertAlmostEqual(
+            float(context["massive_neutrino_metric_shear"]), 3.0
+        )
+        self.assertAlmostEqual(float(context["delta_nu_massive"]), 1.0)
+        self.assertAlmostEqual(float(context["theta_nu_massive"]), 0.2)
+        self.assertAlmostEqual(float(context["sigma_nu_massive"]), 3.0)
+        self.assertAlmostEqual(float(context["nu_massive_l3"]), 4.0)
+        self.assertAlmostEqual(float(context["nu_massive_l4"]), 5.0)
+        self.assertAlmostEqual(float(context["nu_massive_l5"]), 6.0)
 
     def test_native_scalar_hierarchy_metric_sources_respond_to_inputs(
         self,
@@ -4576,42 +4667,40 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_scalar_hierarchy_massive_neutrino_response(
         self,
     ) -> None:
-        """Massive-neutrino momentum grids should affect q-bin physics."""
+        """Massive-neutrino masses should alter physical moments and TT."""
 
-        light = _prepare_native_contract(
-            _speedup_contract(
-                _native_scalar_hierarchy_contract(
-                    include_massive_neutrino=True,
-                    sum_mnu=0.06,
-                )
+        light_contract = _speedup_contract(
+            _native_scalar_hierarchy_contract(
+                include_massive_neutrino=True,
+                sum_mnu=0.06,
             )
         )
-        light["numerical"].update(
+        light_contract["numerical"].update(
             {
-                "eta_sample_count": 32,
+                "eta_sample_count": 48,
                 "k_sample_count": 8,
             }
         )
-        light["numerical"]["momentum_grids"]["massive_neutrino_default"][
-            "count"
-        ] = 4
-        heavy = _prepare_native_contract(
-            _speedup_contract(
-                _native_scalar_hierarchy_contract(
-                    include_massive_neutrino=True,
-                    sum_mnu=2.0,
-                )
+        light_contract["numerical"]["momentum_grids"][
+            "massive_neutrino_default"
+        ]["count"] = 6
+        light = _prepare_native_contract(light_contract)
+        heavy_contract = _speedup_contract(
+            _native_scalar_hierarchy_contract(
+                include_massive_neutrino=True,
+                sum_mnu=6.0,
             )
         )
-        heavy["numerical"].update(
+        heavy_contract["numerical"].update(
             {
-                "eta_sample_count": 32,
+                "eta_sample_count": 48,
                 "k_sample_count": 8,
             }
         )
-        heavy["numerical"]["momentum_grids"]["massive_neutrino_default"][
-            "count"
-        ] = 4
+        heavy_contract["numerical"]["momentum_grids"][
+            "massive_neutrino_default"
+        ]["count"] = 6
+        heavy = _prepare_native_contract(heavy_contract)
         light_physical = (
             native_background._resolve_custom_cmb_physical_parameters(light)
         )
@@ -4662,6 +4751,128 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.max(numpy.abs(light_mass_fraction - heavy_mass_fraction))
             ),
             1.0e-12,
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        light_tt = numpy.asarray(
+            native_projection._compute_custom_cmb_spectrum_data(
+                light,
+                ells,
+            ).spectra["TT"],
+            dtype=numpy.longdouble,
+        )
+        heavy_tt = numpy.asarray(
+            native_projection._compute_custom_cmb_spectrum_data(
+                heavy,
+                ells,
+            ).spectra["TT"],
+            dtype=numpy.longdouble,
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(light_tt)))
+        self.assertTrue(numpy.all(numpy.isfinite(heavy_tt)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(light_tt - heavy_tt))),
+            1.0e-15,
+        )
+
+    def test_native_scalar_hierarchy_momentum_grid_limits_and_convergence(
+        self,
+    ) -> None:
+        """Physical q moments should respect limits and converge with count."""
+
+        def _momentum_context(
+            *,
+            sum_mnu: float,
+            q_count: int,
+            a_value: float,
+        ) -> dict[str, object]:
+            contract_data = _native_scalar_hierarchy_contract(
+                include_massive_neutrino=True,
+                sum_mnu=sum_mnu,
+            )
+            contract_data["numerical"]["momentum_grids"][
+                "massive_neutrino_default"
+            ]["count"] = q_count
+            contract = _prepare_native_contract(contract_data)
+            physical_params = (
+                native_background._resolve_custom_cmb_physical_parameters(
+                    contract
+                )
+            )
+            return native_evolution._declared_momentum_grid_context(
+                contract["perturbation_data"],
+                model_parameters=contract["param_map"],
+                physical_params=physical_params,
+                scale_factor=a_value,
+            )
+
+        relativistic = _momentum_context(
+            sum_mnu=1.0e-6, q_count=8, a_value=0.01
+        )
+        nonrelativistic = _momentum_context(
+            sum_mnu=60.0, q_count=8, a_value=1.0
+        )
+        coarse = _momentum_context(sum_mnu=1.5, q_count=4, a_value=0.5)
+        medium = _momentum_context(sum_mnu=1.5, q_count=6, a_value=0.5)
+        fine = _momentum_context(sum_mnu=1.5, q_count=8, a_value=0.5)
+
+        for prefix in (
+            "massive_neutrino_q0_density_weight",
+            "massive_neutrino_q0_pressure_weight",
+            "massive_neutrino_q0_momentum_weight",
+            "massive_neutrino_q0_shear_weight",
+        ):
+            self.assertGreater(float(relativistic[prefix]), 0.0)
+        for context in (relativistic, nonrelativistic):
+            for suffix in (
+                "density_weight",
+                "pressure_weight",
+                "momentum_weight",
+                "shear_weight",
+            ):
+                total = 0.0
+                for q_index in range(8):
+                    total += float(
+                        context[f"massive_neutrino_q{q_index}_{suffix}"]
+                    )
+                self.assertAlmostEqual(total, 1.0, places=12)
+
+        self.assertAlmostEqual(
+            float(relativistic["massive_neutrino_pressure_ratio"]),
+            1.0 / 3.0,
+            delta=5.0e-4,
+        )
+        self.assertLess(
+            float(relativistic["massive_neutrino_mass_fraction"]),
+            1.0e-6,
+        )
+        self.assertLess(
+            float(nonrelativistic["massive_neutrino_pressure_ratio"]),
+            5.0e-2,
+        )
+        self.assertGreater(
+            float(nonrelativistic["massive_neutrino_mass_fraction"]),
+            0.9,
+        )
+        self.assertGreater(
+            float(relativistic["massive_neutrino_q0_streaming_speed"]),
+            float(nonrelativistic["massive_neutrino_q0_streaming_speed"]),
+        )
+
+        coarse_pressure = float(coarse["massive_neutrino_pressure_ratio"])
+        medium_pressure = float(medium["massive_neutrino_pressure_ratio"])
+        fine_pressure = float(fine["massive_neutrino_pressure_ratio"])
+        coarse_mass_fraction = float(coarse["massive_neutrino_mass_fraction"])
+        medium_mass_fraction = float(medium["massive_neutrino_mass_fraction"])
+        fine_mass_fraction = float(fine["massive_neutrino_mass_fraction"])
+
+        self.assertLess(
+            abs(fine_pressure - medium_pressure),
+            abs(medium_pressure - coarse_pressure),
+        )
+        self.assertLess(
+            abs(fine_mass_fraction - medium_mass_fraction),
+            abs(medium_mass_fraction - coarse_mass_fraction),
         )
 
     def test_native_scalar_hierarchy_momentum_grid_cache_reuses(

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-10
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -58,16 +58,16 @@ surface now materializes time-dependent `matter_density_source`,
 diagnostics.
 The native low-k bridge stays explicit as
 `metric_constraint_scale = k^2 + 3 Hconf^2`, so the documented Einstein
-equations remain separate from the current stabilization layer while
-Slice Four finishes the final massive-neutrino weighting.
+equations remain separate from the current stabilization layer.
 It also keeps the physical collision-rate Thomson coupling, the
 CAMB-style low-multipole polarization source moment, exact photon and
 polarization hierarchy sources, and q-resolved massive-neutrino source
 moments aligned for native runs. The scalar compiler also seeds
 Newtonian and synchronous metric roles from leading-order physical
 initial-condition series instead of heuristic constants. The q-grid path
-now exposes direct per-bin density, momentum, and shear source moments
-for the later physical q integration work. The native scalar runtime now
+now uses thermally weighted per-bin density, pressure, momentum, and
+shear moments, with aggregate massive-neutrino aliases locked to the
+resolved hierarchy. The native scalar runtime now
 uses the baryon-velocity Doppler source, a physical terminal free-
 streaming closure with higher-multipole Thomson damping on the generated
 photon and polarization ladders, and explicit tight-coupling entry and

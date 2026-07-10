@@ -579,6 +579,49 @@ def _scalar_hierarchy_recurrence_rhs(
     return " ".join(pieces)
 
 
+def _scalar_streaming_hierarchy_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    streaming_speed_name: str,
+    use_physical_terminal_closure: bool = False,
+) -> str:
+    """Return one q-resolved hierarchy RHS with one streaming factor."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [
+        f"{previous_coeff:.16g} * acoustic_k * "
+        f"{streaming_speed_name} * {previous_name}"
+    ]
+    if next_name is None:
+        if use_physical_terminal_closure:
+            closure_scale = (
+                "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
+                f"{float(moment + 1):.16g} * {float(moment + 1):.16g})"
+            )
+            pieces[0] = (
+                f"acoustic_k * {streaming_speed_name} * {previous_name}"
+            )
+            pieces.append(
+                f"- acoustic_k * {streaming_speed_name} * "
+                f"{float(moment + 1):.16g} * {name} / {closure_scale}"
+            )
+        else:
+            pieces.append(
+                f"- {float(moment + 1):.16g} / {float((2 * moment) + 1):.16g} "
+                f"* acoustic_k * {streaming_speed_name} * {name}"
+            )
+    else:
+        next_coeff = float(moment + 1) / float((2 * moment) + 1)
+        pieces.append(
+            f"- {next_coeff:.16g} * acoustic_k * "
+            f"{streaming_speed_name} * {next_name}"
+        )
+    return " ".join(pieces)
+
+
 def _materialize_native_scalar_hierarchy_contract(
     contract: Mapping[str, Any],
 ) -> tuple[Mapping[str, Any], bool]:
@@ -760,26 +803,6 @@ def _materialize_native_scalar_hierarchy_contract(
         ),
         **metric_variables,
     }
-    if has_massive_neutrino:
-        variables.update(
-            {
-                "delta_nu_massive": _metadata_entry(
-                    "massive_neutrino_density_contrast",
-                    "Q-integrated massive-neutrino density contrast.",
-                    units=_DIMENSIONLESS_UNITS,
-                ),
-                "theta_nu_massive": _metadata_entry(
-                    "massive_neutrino_velocity_divergence",
-                    "Q-integrated massive-neutrino velocity divergence.",
-                    units=_INVERSE_MPC_UNITS,
-                ),
-                "sigma_nu_massive": _metadata_entry(
-                    "massive_neutrino_anisotropic_stress",
-                    "Q-integrated massive-neutrino anisotropic stress.",
-                    units=_DIMENSIONLESS_UNITS,
-                ),
-            }
-        )
     for moment in range(photon_l_max + 1):
         if moment == 0:
             kind = "photon_temperature_monopole"
@@ -829,40 +852,27 @@ def _materialize_native_scalar_hierarchy_contract(
             units=_DIMENSIONLESS_UNITS,
             tensor_character="scalar_like",
         )
-    if has_massive_neutrino:
-        for moment in range(3, massive_neutrino_l_max + 1):
-            variables[_scalar_massive_neutrino_name(moment)] = _metadata_entry(
-                "massive_neutrino_multipole",
-                "Q-integrated massive-neutrino multipole "
-                f"F_nu_m,{int(moment)}.",
+    for q_index in range(massive_neutrino_grid_count):
+        for moment in range(massive_neutrino_l_max + 1):
+            q_name = _scalar_massive_neutrino_q_name(
+                q_index,
+                moment,
+            )
+            if moment == 0:
+                kind = "massive_neutrino_momentum_bin_density_contrast"
+            elif moment == 1:
+                kind = "massive_neutrino_momentum_bin_velocity_dipole"
+            elif moment == 2:
+                kind = "massive_neutrino_momentum_bin_anisotropic_stress"
+            else:
+                kind = "massive_neutrino_momentum_bin_multipole"
+            variables[q_name] = _metadata_entry(
+                kind,
+                "Massive-neutrino momentum-bin perturbation for q index "
+                f"{int(q_index)} and multipole {int(moment)}.",
                 units=_DIMENSIONLESS_UNITS,
                 tensor_character="scalar_like",
             )
-        for q_index in range(massive_neutrino_grid_count):
-            for moment in range(massive_neutrino_l_max + 1):
-                q_name = _scalar_massive_neutrino_q_name(
-                    q_index,
-                    moment,
-                )
-                if moment == 0:
-                    kind = "massive_neutrino_momentum_bin_density_contrast"
-                elif moment == 1:
-                    kind = (
-                        "massive_neutrino_momentum_bin_" "velocity_divergence"
-                    )
-                elif moment == 2:
-                    kind = (
-                        "massive_neutrino_momentum_bin_" "anisotropic_stress"
-                    )
-                else:
-                    kind = "massive_neutrino_momentum_bin_multipole"
-                variables[q_name] = _metadata_entry(
-                    kind,
-                    "Massive-neutrino momentum-bin perturbation for q index "
-                    f"{int(q_index)} and multipole {int(moment)}.",
-                    units=_DIMENSIONLESS_UNITS,
-                    tensor_character="scalar_like",
-                )
 
     equations: dict[str, Any] = {
         "evolve_theta_gamma0": {
@@ -1100,89 +1110,11 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
+                use_physical_terminal_closure=True,
             ),
             "role": "hierarchy",
         }
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
-        equations.update(
-            {
-                "evolve_delta_nu_massive": {
-                    "lhs": {
-                        "kind": "derivative",
-                        "variable": "delta_nu_massive",
-                        "wrt": "tau",
-                        "order": 1,
-                    },
-                    "rhs": "-theta_nu_massive + 3.0 * Phi_tau",
-                    "role": "continuity",
-                },
-                "evolve_theta_nu_massive": {
-                    "lhs": {
-                        "kind": "derivative",
-                        "variable": "theta_nu_massive",
-                        "wrt": "tau",
-                        "order": 1,
-                    },
-                    "rhs": (
-                        "acoustic_k_sq * (0.25 * "
-                        "massive_neutrino_metric_density + "
-                        "Psi - massive_neutrino_metric_shear)"
-                    ),
-                    "role": "euler",
-                },
-                "evolve_sigma_nu_massive": {
-                    "lhs": {
-                        "kind": "derivative",
-                        "variable": "sigma_nu_massive",
-                        "wrt": "tau",
-                        "order": 1,
-                    },
-                    "rhs": (
-                        f"{4.0 / 15.0:.16g} * "
-                        "massive_neutrino_metric_momentum "
-                        f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                        f"{_scalar_massive_neutrino_name(3)}"
-                    ),
-                    "role": "hierarchy",
-                },
-            }
-        )
-        for moment in range(3, massive_neutrino_l_max + 1):
-            name = _scalar_massive_neutrino_name(moment)
-            next_name = None
-            if moment < massive_neutrino_l_max:
-                next_name = _scalar_massive_neutrino_name(moment + 1)
-            previous_name = (
-                "sigma_nu_massive"
-                if moment == 3
-                else _scalar_massive_neutrino_name(moment - 1)
-            )
-            previous_coeff = float(moment) / float((2 * moment) + 1)
-            next_coeff = float(moment + 1) / float((2 * moment) + 1)
-            if next_name is None:
-                next_term = (
-                    f"- {next_coeff:.16g} * acoustic_k * "
-                    f"massive_neutrino_streaming_speed * {name}"
-                )
-            else:
-                next_term = (
-                    f"- {next_coeff:.16g} * acoustic_k * "
-                    f"massive_neutrino_streaming_speed * {next_name}"
-                )
-            equations[f"evolve_{name}"] = {
-                "lhs": {
-                    "kind": "derivative",
-                    "variable": name,
-                    "wrt": "tau",
-                    "order": 1,
-                },
-                "rhs": (
-                    f"{previous_coeff:.16g} * acoustic_k * "
-                    f"massive_neutrino_streaming_speed * {previous_name} "
-                    f"{next_term}"
-                ),
-                "role": "hierarchy",
-            }
         for q_index in range(massive_neutrino_grid_count):
             q_streaming_speed_name = (
                 _scalar_massive_neutrino_q_streaming_speed_name(q_index)
@@ -1271,18 +1203,6 @@ def _materialize_native_scalar_hierarchy_contract(
                         moment - 1,
                     )
                 )
-                previous_coeff = float(moment) / float((2 * moment) + 1)
-                next_coeff = float(moment + 1) / float((2 * moment) + 1)
-                if next_name is None:
-                    next_term = (
-                        f"- {next_coeff:.16g} * acoustic_k * "
-                        f"{q_streaming_speed_name} * {name}"
-                    )
-                else:
-                    next_term = (
-                        f"- {next_coeff:.16g} * acoustic_k * "
-                        f"{q_streaming_speed_name} * {next_name}"
-                    )
                 equations[f"evolve_{name}"] = {
                     "lhs": {
                         "kind": "derivative",
@@ -1290,10 +1210,13 @@ def _materialize_native_scalar_hierarchy_contract(
                         "wrt": "tau",
                         "order": 1,
                     },
-                    "rhs": (
-                        f"{previous_coeff:.16g} * acoustic_k * "
-                        f"{q_streaming_speed_name} * {previous_name} "
-                        f"{next_term}"
+                    "rhs": _scalar_streaming_hierarchy_recurrence_rhs(
+                        name=name,
+                        moment=moment,
+                        previous_name=previous_name,
+                        next_name=next_name,
+                        streaming_speed_name=q_streaming_speed_name,
+                        use_physical_terminal_closure=True,
                     ),
                     "role": "hierarchy",
                 }
@@ -1546,11 +1469,16 @@ def _materialize_native_scalar_hierarchy_contract(
     )
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         q_density_component_names = []
+        q_pressure_component_names = []
         q_momentum_component_names = []
         q_shear_component_names = []
+        aggregate_hierarchy_component_names: dict[int, list[str]] = {
+            moment: [] for moment in range(3, massive_neutrino_l_max + 1)
+        }
         for q_index in range(massive_neutrino_grid_count):
             q_prefix = f"massive_neutrino_q{q_index}"
             q_density_name = f"massive_neutrino_metric_density_q{q_index}"
+            q_pressure_name = f"massive_neutrino_metric_pressure_q{q_index}"
             q_momentum_name = f"massive_neutrino_metric_momentum_q{q_index}"
             q_shear_name = f"massive_neutrino_metric_shear_q{q_index}"
             q_log_derivative_name = (
@@ -1562,6 +1490,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 _scalar_massive_neutrino_q_streaming_speed_name(q_index)
             )
             q_density_component_names.append(q_density_name)
+            q_pressure_component_names.append(q_pressure_name)
             q_momentum_component_names.append(q_momentum_name)
             q_shear_component_names.append(q_shear_name)
             derived_entries[q_log_derivative_name] = {
@@ -1587,7 +1516,7 @@ def _materialize_native_scalar_hierarchy_contract(
             }
             derived_entries[q_density_name] = {
                 "expression": (
-                    f"{q_prefix}_weight * "
+                    f"{q_prefix}_density_weight * "
                     f"{_scalar_massive_neutrino_q_name(q_index, 0)}"
                 ),
                 "description": (
@@ -1595,9 +1524,20 @@ def _materialize_native_scalar_hierarchy_contract(
                 ),
                 "units": _DIMENSIONLESS_UNITS,
             }
+            derived_entries[q_pressure_name] = {
+                "expression": (
+                    f"{q_prefix}_pressure_weight * "
+                    f"{_scalar_massive_neutrino_q_name(q_index, 0)}"
+                ),
+                "description": (
+                    "Momentum-grid-weighted q-bin pressure moment."
+                ),
+                "units": _DIMENSIONLESS_UNITS,
+            }
             derived_entries[q_momentum_name] = {
                 "expression": (
-                    f"{q_prefix}_weight * "
+                    "acoustic_k * "
+                    f"{q_prefix}_momentum_weight * "
                     f"{_scalar_massive_neutrino_q_name(q_index, 1)}"
                 ),
                 "description": (
@@ -1607,17 +1547,25 @@ def _materialize_native_scalar_hierarchy_contract(
             }
             derived_entries[q_shear_name] = {
                 "expression": (
-                    f"{q_prefix}_weight * "
+                    f"{q_prefix}_shear_weight * "
                     f"{_scalar_massive_neutrino_q_name(q_index, 2)}"
                 ),
                 "description": ("Momentum-grid-weighted q-bin shear moment."),
                 "units": _DIMENSIONLESS_UNITS,
             }
+            for moment in range(3, massive_neutrino_l_max + 1):
+                aggregate_hierarchy_component_names[moment].append(
+                    f"{q_prefix}_shear_weight * "
+                    f"{_scalar_massive_neutrino_q_name(q_index, moment)}"
+                )
         density_sum_expression = " + ".join(q_density_component_names)
+        pressure_sum_expression = " + ".join(q_pressure_component_names)
         momentum_sum_expression = " + ".join(q_momentum_component_names)
         shear_sum_expression = " + ".join(q_shear_component_names)
         if len(q_density_component_names) > 1:
             density_sum_expression = f"({density_sum_expression})"
+        if len(q_pressure_component_names) > 1:
+            pressure_sum_expression = f"({pressure_sum_expression})"
         if len(q_momentum_component_names) > 1:
             momentum_sum_expression = f"({momentum_sum_expression})"
         if len(q_shear_component_names) > 1:
@@ -1638,6 +1586,13 @@ def _materialize_native_scalar_hierarchy_contract(
                     ),
                     "units": _INVERSE_MPC_UNITS,
                 },
+                "massive_neutrino_metric_pressure": {
+                    "expression": pressure_sum_expression,
+                    "description": (
+                        "Momentum-grid-weighted massive-neutrino pressure."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
                 "massive_neutrino_metric_shear": {
                     "expression": shear_sum_expression,
                     "description": (
@@ -1645,8 +1600,42 @@ def _materialize_native_scalar_hierarchy_contract(
                     ),
                     "units": _DIMENSIONLESS_UNITS,
                 },
+                "delta_nu_massive": {
+                    "expression": "massive_neutrino_metric_density",
+                    "description": (
+                        "Q-integrated massive-neutrino density contrast."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "theta_nu_massive": {
+                    "expression": "massive_neutrino_metric_momentum",
+                    "description": (
+                        "Q-integrated massive-neutrino momentum divergence."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+                "sigma_nu_massive": {
+                    "expression": "massive_neutrino_metric_shear",
+                    "description": (
+                        "Q-integrated massive-neutrino anisotropic stress."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
             }
         )
+        for moment in range(3, massive_neutrino_l_max + 1):
+            component_expressions = aggregate_hierarchy_component_names[moment]
+            aggregate_expression = " + ".join(component_expressions)
+            if len(component_expressions) > 1:
+                aggregate_expression = f"({aggregate_expression})"
+            derived_entries[_scalar_massive_neutrino_name(moment)] = {
+                "expression": aggregate_expression,
+                "description": (
+                    "Q-integrated massive-neutrino higher multipole "
+                    f"F_nu_m,{int(moment)}."
+                ),
+                "units": _DIMENSIONLESS_UNITS,
+            }
     if sync_gauge:
         derived_entries.update(
             {
@@ -1915,23 +1904,6 @@ def _materialize_native_scalar_hierarchy_contract(
                 "expression": "0.0",
             },
         )
-    if has_massive_neutrino:
-        for required_name in (
-            "delta_nu_massive",
-            "theta_nu_massive",
-            "sigma_nu_massive",
-        ):
-            initial_conditions.setdefault(
-                f"{required_name}_seed",
-                {
-                    "target": {
-                        "variable": required_name,
-                        "wrt": "tau",
-                        "order": 0,
-                    },
-                    "expression": "0.0",
-                },
-            )
     for moment in range(3, photon_l_max + 1):
         initial_conditions[f"{_scalar_temperature_name(moment)}_seed"] = {
             "target": {
@@ -1959,17 +1931,6 @@ def _materialize_native_scalar_hierarchy_contract(
             "expression": "0.0",
         }
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
-        for moment in range(3, massive_neutrino_l_max + 1):
-            initial_conditions[
-                f"{_scalar_massive_neutrino_name(moment)}_seed"
-            ] = {
-                "target": {
-                    "variable": _scalar_massive_neutrino_name(moment),
-                    "wrt": "tau",
-                    "order": 0,
-                },
-                "expression": "0.0",
-            }
         for q_index in range(massive_neutrino_grid_count):
             q_log_derivative_name = (
                 _scalar_massive_neutrino_distribution_log_derivative_name(
@@ -4102,9 +4063,14 @@ def compile_perturbation_contract(
                 for suffix in (
                     "point",
                     "weight",
+                    "distribution_weight",
                     "velocity_ratio",
                     "pressure_ratio",
                     "mass_fraction",
+                    "density_weight",
+                    "momentum_weight",
+                    "pressure_weight",
+                    "shear_weight",
                 ):
                     allowed_name_pool.add(f"{family_name}_q{index}_{suffix}")
                     allowed_name_pool.add(

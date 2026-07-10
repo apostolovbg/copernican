@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-10
 **Project Version:** 12.0.26
 
 ## Overview
@@ -129,13 +129,16 @@ The authoritative evolved states are the q-resolved hierarchy members:
 - `sigma_nu_massive_q<i>`
 - `nu_massive_q<i>_l<j>`
 
-All q-resolved hierarchy amplitudes are dimensionless except the velocity
-divergence members, which carry `1/Mpc`.
+All q-resolved hierarchy amplitudes are dimensionless. The q-resolved
+`theta_nu_massive_q<i>` members are momentum-bin dipoles, and the
+physical velocity-divergence source only appears after the matching
+q-integrated momentum weight multiplies them by `k`.
 
 The aggregate names
-`delta_nu_massive`, `theta_nu_massive`, and `sigma_nu_massive`
-are reserved for q-integrated physical moments built from the same resolved
-hierarchy. They must not become an independently drifting evolution path.
+`delta_nu_massive`, `theta_nu_massive`, `sigma_nu_massive`,
+and `nu_massive_l<j>` are reserved for strict q-integrated aliases built
+from the same resolved hierarchy. They must not become an independently
+drifting evolution path.
 
 ### Vector And Tensor Roles
 The later physical vector and tensor slices will use the same basic units:
@@ -224,9 +227,9 @@ slices reuse one source surface:
 When the massive hierarchy is active, the generated scalar graph feeds
 the metric system through `massive_neutrino_density_source`,
 `massive_neutrino_momentum_source`, and
-`massive_neutrino_shear_source`. Slice Four will replace their current
-intermediate mapping with the final physical `q` integration without
-renaming those source slots.
+`massive_neutrino_shear_source`. Those source slots now consume the
+thermally weighted physical `q` integrals without renaming the public
+Einstein-input surface.
 
 Low-k stabilization must stay separate from the physical equations. The
 current generated hierarchy therefore keeps
@@ -281,8 +284,11 @@ generated `l >= 3` multipole.
 ### Matter And Neutrinos
 The baryon, CDM, massless-neutrino, and massive-neutrino continuity, Euler,
 and hierarchy equations follow the same Ma-Bertschinger sign convention.
-Massive-neutrino metric moments are fixed to physical q integrals with the
-appropriate `q`, `epsilon`, density, pressure, momentum, and shear weights.
+Massless-neutrino higher multipoles use the same horizon-aware terminal
+closure family as the photon and polarization ladders. Massive-neutrino
+density, pressure, momentum, and shear are fixed to thermal physical
+`q` integrals with the matching `epsilon` factors and background-moment
+normalization.
 
 ### Tight Coupling
 The native scalar integrator treats the Thomson dipole and quadrupole

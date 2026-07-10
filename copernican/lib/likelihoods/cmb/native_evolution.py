@@ -115,6 +115,34 @@ class _DeclaredMomentumGridRuntime:
     family_names: tuple[str, ...]
 
 
+def _thermal_fermi_dirac_distribution(
+    q_points: numpy.ndarray,
+) -> numpy.ndarray:
+    """Return the thermal Fermi-Dirac occupation for one q grid."""
+
+    exp_neg_q = numpy.exp(-numpy.asarray(q_points, dtype=float))
+    return numpy.asarray(exp_neg_q / (1.0 + exp_neg_q), dtype=float)
+
+
+def _normalize_declared_momentum_weights(
+    raw_weights: numpy.ndarray,
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Return normalized weights and their summed physical moments."""
+
+    raw = numpy.asarray(raw_weights, dtype=float)
+    totals = numpy.sum(raw, axis=-1, keepdims=True)
+    safe_totals = numpy.where(
+        numpy.abs(totals) > 1.0e-300,
+        totals,
+        1.0e-300,
+    )
+    normalized = numpy.asarray(raw / safe_totals, dtype=float)
+    return normalized, numpy.asarray(
+        numpy.squeeze(totals, axis=-1),
+        dtype=float,
+    )
+
+
 def _prepare_declared_graph_runtime_spec(
     perturbation_data: Any,
 ) -> _DeclaredGraphRuntimeSpec:
@@ -516,7 +544,6 @@ def _resolve_declared_momentum_grid_runtimes(
             if points.size > 2:
                 weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
         weights = numpy.asarray(weights, dtype=float)
-        weights /= max(float(numpy.sum(weights)), 1.0e-12)
         runtimes.append(
             _DeclaredMomentumGridRuntime(
                 name=str(grid_name),
@@ -550,7 +577,23 @@ def _declared_momentum_grid_context(
 
     a_values = numpy.asarray(scale_factor, dtype=float)
     context: dict[str, Any] = {}
+
+    def _context_value(value: Any) -> Any:
+        """Return ``value`` as a scalar or float array for the context."""
+
+        array_value = numpy.asarray(value, dtype=float)
+        if array_value.ndim == 0:
+            return float(array_value)
+        return array_value
+
     for runtime in runtimes:
+        thermal_distribution = _thermal_fermi_dirac_distribution(
+            runtime.points
+        )
+        quadrature_weights = numpy.asarray(
+            runtime.weights * thermal_distribution,
+            dtype=float,
+        )
         mass_term = float(runtime.mass_eV) * a_values
         epsilon = numpy.sqrt(
             numpy.square(runtime.points) + numpy.square(mass_term[..., None])
@@ -559,18 +602,42 @@ def _declared_momentum_grid_context(
         q_pressure_ratio = numpy.square(q_velocity_ratio) / 3.0
         q_mass_fraction = mass_term[..., None] / epsilon
         q_streaming_speed = numpy.asarray(q_velocity_ratio, dtype=float)
+        density_weight_raw = (
+            quadrature_weights * numpy.power(runtime.points, 3.0) * epsilon
+        )
+        pressure_weight_raw = (
+            quadrature_weights
+            * numpy.power(runtime.points, 5.0)
+            / (3.0 * epsilon)
+        )
+        momentum_weight_raw = quadrature_weights * numpy.power(
+            runtime.points, 4.0
+        )
+        shear_weight_raw = (
+            quadrature_weights * numpy.power(runtime.points, 5.0) / epsilon
+        )
+        density_weights, background_density_moment = (
+            _normalize_declared_momentum_weights(density_weight_raw)
+        )
+        pressure_weights, background_pressure_moment = (
+            _normalize_declared_momentum_weights(pressure_weight_raw)
+        )
+        momentum_weights, background_momentum_moment = (
+            _normalize_declared_momentum_weights(momentum_weight_raw)
+        )
+        shear_weights, background_shear_moment = (
+            _normalize_declared_momentum_weights(shear_weight_raw)
+        )
         velocity_ratio = numpy.sum(
-            runtime.weights * q_velocity_ratio,
+            momentum_weights * q_velocity_ratio,
             axis=-1,
         )
-        pressure_ratio = (
-            numpy.sum(
-                runtime.weights * numpy.square(q_velocity_ratio), axis=-1
-            )
-            / 3.0
+        pressure_ratio = numpy.divide(
+            background_pressure_moment,
+            numpy.maximum(background_density_moment, 1.0e-300),
         )
         mass_fraction = numpy.sum(
-            runtime.weights * q_mass_fraction,
+            density_weights * q_mass_fraction,
             axis=-1,
         )
         prefix = f"momentum_grid_{runtime.name}"
@@ -581,7 +648,20 @@ def _declared_momentum_grid_context(
             runtime.weights,
             dtype=float,
         )
+        context[f"{prefix}_distribution_weights"] = quadrature_weights
         context[f"{prefix}_mass_eV"] = float(runtime.mass_eV)
+        context[f"{prefix}_background_density_moment"] = _context_value(
+            background_density_moment
+        )
+        context[f"{prefix}_background_pressure_moment"] = _context_value(
+            background_pressure_moment
+        )
+        context[f"{prefix}_background_momentum_moment"] = _context_value(
+            background_momentum_moment
+        )
+        context[f"{prefix}_background_shear_moment"] = _context_value(
+            background_shear_moment
+        )
         for name, value in (
             ("velocity_ratio", velocity_ratio),
             ("streaming_speed", velocity_ratio),
@@ -598,6 +678,9 @@ def _declared_momentum_grid_context(
             context[f"{prefix}_q{index}_weight"] = float(
                 runtime.weights[index]
             )
+            context[f"{prefix}_q{index}_distribution_weight"] = float(
+                quadrature_weights[index]
+            )
             q_velocity_value = numpy.asarray(
                 q_velocity_ratio[..., index],
                 dtype=float,
@@ -612,6 +695,22 @@ def _declared_momentum_grid_context(
             )
             q_streaming_value = numpy.asarray(
                 q_streaming_speed[..., index],
+                dtype=float,
+            )
+            q_density_weight = numpy.asarray(
+                density_weights[..., index],
+                dtype=float,
+            )
+            q_pressure_weight = numpy.asarray(
+                pressure_weights[..., index],
+                dtype=float,
+            )
+            q_momentum_weight = numpy.asarray(
+                momentum_weights[..., index],
+                dtype=float,
+            )
+            q_shear_weight = numpy.asarray(
+                shear_weights[..., index],
                 dtype=float,
             )
             context[f"{prefix}_q{index}_velocity_ratio"] = (
@@ -632,12 +731,36 @@ def _declared_momentum_grid_context(
             context[f"{prefix}_q{index}_mass_fraction"] = (
                 float(q_mass_value) if q_mass_value.ndim == 0 else q_mass_value
             )
+            context[f"{prefix}_q{index}_density_weight"] = (
+                float(q_density_weight)
+                if q_density_weight.ndim == 0
+                else q_density_weight
+            )
+            context[f"{prefix}_q{index}_momentum_weight"] = (
+                float(q_momentum_weight)
+                if q_momentum_weight.ndim == 0
+                else q_momentum_weight
+            )
+            context[f"{prefix}_q{index}_pressure_weight"] = (
+                float(q_pressure_weight)
+                if q_pressure_weight.ndim == 0
+                else q_pressure_weight
+            )
+            context[f"{prefix}_q{index}_shear_weight"] = (
+                float(q_shear_weight)
+                if q_shear_weight.ndim == 0
+                else q_shear_weight
+            )
         if any(
             "massive_neutrino" in family_name
             for family_name in runtime.family_names
         ):
             for name in (
                 "mass_eV",
+                "background_density_moment",
+                "background_pressure_moment",
+                "background_momentum_moment",
+                "background_shear_moment",
                 "velocity_ratio",
                 "streaming_speed",
                 "pressure_ratio",
@@ -650,10 +773,15 @@ def _declared_momentum_grid_context(
                 for name in (
                     "point",
                     "weight",
+                    "distribution_weight",
                     "velocity_ratio",
                     "streaming_speed",
                     "pressure_ratio",
                     "mass_fraction",
+                    "density_weight",
+                    "momentum_weight",
+                    "pressure_weight",
+                    "shear_weight",
                 ):
                     context[f"massive_neutrino_q{index}_{name}"] = context[
                         f"{prefix}_q{index}_{name}"

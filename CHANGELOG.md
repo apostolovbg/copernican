@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-10
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,28 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-10:
+  Change: Completed Slice Four by replacing common massive-neutrino
+  q weights with thermal density, pressure, momentum, and shear
+  quadrature and by closing the scalar neutrino hierarchies with
+  physical terminal closures.
+  Why: Removed aggregate drift risk by keeping one authoritative
+  q-resolved massive-neutrino hierarchy.
+  Impact: Native scalar CMB runs now integrate massive-neutrino moments
+  from the physical q grid, expose strict aggregate aliases, and cover
+  the relativistic, nonrelativistic, and convergence behavior in tests.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-09:
   Change: Fixed generated scalar photon-polarization transport,

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-09
+**Last Updated:** 2026-07-10
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -380,7 +380,7 @@ Done when:
 * Tight coupling transitions without discontinuous physical output.
 * Temperature and E sources match the documented line-of-sight equations.
 
-### [open] Slice Four - Neutrino hierarchy and physical q integration
+### [closed] Slice Four - Neutrino hierarchy and physical q integration
 
 Purpose:
 
