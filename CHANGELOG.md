@@ -80,6 +80,29 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-11:
+  Change: Implemented Slice Six by generating regular scalar initial
+  modes, explicit synchronous gauge histories, and a dedicated
+  gauge-invariant observable route for the native CMB solver.
+  Why: Replaced label-only gauge handling and sparse scalar seeds with
+  compiled transforms, start-state Einstein checks, and regression
+  coverage that exercises the transformed histories.
+  Impact: Enabled native scalar runs to seed all planned regular modes,
+  keep synchronous internal variables connected to the observable basis,
+  and preserve gauge-equivalent spectra under the declared graph
+  runtime.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-11:
   Change: Hardened declared collision conservation evaluation by
   re-resolving array-valued operator terms before rule validation.
   Why: Prevented order-dependent test runs from dropping split collision

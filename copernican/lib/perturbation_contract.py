@@ -60,6 +60,7 @@ _COMPILED_UNARY_OPERATORS = {
 _RUNTIME_REFERENCE_NAMES = {
     "H0_km_s_Mpc",
     "H0_over_c_Mpc_inv",
+    "Hconf_tau",
     "Omega_b0",
     "Omega_c0",
     "Omega_de0",
@@ -448,23 +449,40 @@ def _select_standard_initial_mode(
     return None
 
 
+def _scalar_metric_seed_amplitude(mode: str) -> str:
+    """Return the leading super-horizon metric amplitude for ``mode``."""
+
+    by_mode = {
+        "adiabatic_scalar": "seed",
+        "baryon_isocurvature": "0.0",
+        "cdm_isocurvature": "0.25 * seed",
+        "neutrino_density_isocurvature": "0.0",
+        "neutrino_velocity_isocurvature": "0.0",
+        "tensor_mode": "0.0",
+    }
+    return str(by_mode.get(mode, "0.0"))
+
+
 def _scalar_hierarchy_base_seed_expressions(
     mode: str,
+    *,
+    gauge: str = "conformal_newtonian",
 ) -> dict[str, str]:
     """Return base seed expressions for one scalar hierarchy mode."""
 
-    adiabatic_brightness_dipole = "(acoustic_k * eta_initial / 6.0) * seed"
+    k_eta = "acoustic_k * eta_initial"
+    k_eta_sq = f"({k_eta}) * ({k_eta})"
+    adiabatic_brightness_dipole = f"({k_eta} / 6.0) * seed"
     adiabatic_velocity_divergence = (
         "(acoustic_k_sq * eta_initial / 2.0) * seed"
     )
-    adiabatic_quadrupole = (
-        "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) "
-        "* seed / 30.0"
-    )
-    adiabatic_neutrino_quadrupole = (
-        "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) "
-        "* seed / 15.0"
-    )
+    adiabatic_quadrupole = f"{k_eta_sq} * seed / 30.0"
+    adiabatic_neutrino_quadrupole = f"{k_eta_sq} * seed / 15.0"
+    isocurvature_velocity = "(acoustic_k_sq * eta_initial / 4.0) * seed"
+    compensated_brightness_dipole = f"({k_eta} / 12.0) * seed"
+    neutrino_velocity_divergence = "acoustic_k * seed"
+    neutrino_velocity_dipole = "seed / 3.0"
+    neutrino_velocity_quadrupole = f"({k_eta} / 6.0) * seed"
     by_mode = {
         "adiabatic_scalar": {
             "theta_gamma0": "-0.5 * seed",
@@ -486,24 +504,66 @@ def _scalar_hierarchy_base_seed_expressions(
         },
         "baryon_isocurvature": {
             "delta_b": "seed",
+            "theta_b": isocurvature_velocity,
+            "theta_gamma0": "-0.25 * seed",
+            "theta_gamma1": compensated_brightness_dipole,
+            "theta_gamma2": f"{k_eta_sq} * seed / 60.0",
+            "delta_nu": "-0.25 * seed",
+            "theta_nu": isocurvature_velocity,
+            "sigma_nu": f"{k_eta_sq} * seed / 30.0",
+            "delta_nu_massive": "-0.25 * seed",
+            "theta_nu_massive": isocurvature_velocity,
+            "sigma_nu_massive": f"{k_eta_sq} * seed / 30.0",
         },
         "cdm_isocurvature": {
             "theta_gamma0": "0.25 * seed",
+            "theta_gamma1": compensated_brightness_dipole,
+            "theta_gamma2": f"{k_eta_sq} * seed / 60.0",
             "delta_b": "-0.5 * seed",
+            "theta_b": isocurvature_velocity,
             "delta_c": "seed",
+            "theta_c": "0.0",
             "delta_nu": "-0.5 * seed",
+            "theta_nu": isocurvature_velocity,
+            "sigma_nu": f"{k_eta_sq} * seed / 30.0",
+            "delta_nu_massive": "-0.5 * seed",
+            "theta_nu_massive": isocurvature_velocity,
+            "sigma_nu_massive": f"{k_eta_sq} * seed / 30.0",
         },
         "neutrino_density_isocurvature": {
             "delta_nu": "seed",
+            "theta_gamma0": "-0.25 * seed",
+            "delta_b": "-0.75 * seed",
+            "delta_c": "-0.75 * seed",
+            "theta_gamma1": compensated_brightness_dipole,
+            "theta_nu": isocurvature_velocity,
+            "sigma_nu": f"{k_eta_sq} * seed / 15.0",
             "delta_nu_massive": "seed",
+            "theta_nu_massive": isocurvature_velocity,
+            "sigma_nu_massive": f"{k_eta_sq} * seed / 15.0",
         },
         "neutrino_velocity_isocurvature": {
-            "theta_nu": "seed",
-            "theta_nu_massive": "seed",
+            "theta_gamma1": neutrino_velocity_dipole,
+            "theta_b": neutrino_velocity_divergence,
+            "theta_c": neutrino_velocity_divergence,
+            "theta_nu": neutrino_velocity_divergence,
+            "sigma_nu": neutrino_velocity_quadrupole,
+            "theta_nu_massive": neutrino_velocity_divergence,
+            "sigma_nu_massive": neutrino_velocity_quadrupole,
         },
         "tensor_mode": {},
     }
-    return dict(by_mode.get(mode, {}))
+    seed_map = dict(by_mode.get(mode, {}))
+    if gauge == "synchronous":
+        metric_seed = _scalar_metric_seed_amplitude(mode)
+        seed_map.update(
+            {
+                "h_sync_metric": f"{k_eta_sq} * ({metric_seed})",
+                "eta_sync_metric": f"2.0 * ({metric_seed})",
+                "gauge_shift_alpha": f"eta_initial * ({metric_seed})",
+            }
+        )
+    return seed_map
 
 
 def _auto_initial_condition_expression(
@@ -677,6 +737,7 @@ def _materialize_native_scalar_hierarchy_contract(
         numerics = {}
     gauge = str(contract.get("gauge") or "conformal_newtonian")
     sync_gauge = gauge == "synchronous"
+    invariant_gauge = gauge == "gauge_invariant"
     has_massive_neutrino = (
         "massive_neutrino" in hierarchy_families
         and "massive_neutrino" in species
@@ -744,9 +805,22 @@ def _materialize_native_scalar_hierarchy_contract(
                     int(momentum_grid_def.get("count", 1)),
                 )
     materialized = copy.deepcopy(dict(contract))
+    scalar_sector = dict(
+        (materialized.get("sectors", {}) or {}).get("scalar", {}) or {}
+    )
+    if scalar_sector:
+        supported_gauges = list(
+            scalar_sector.get("supported_gauges", []) or []
+        )
+        if gauge not in supported_gauges:
+            supported_gauges.append(gauge)
+        scalar_sector["supported_gauges"] = supported_gauges
+        materialized["sectors"] = dict(materialized.get("sectors", {}) or {})
+        materialized["sectors"]["scalar"] = scalar_sector
     if sync_gauge:
         phi_state_name = "h_sync_metric"
         psi_state_name = "eta_sync_metric"
+        alpha_state_name = "gauge_shift_alpha"
         metric_variables = {
             phi_state_name: _metadata_entry(
                 "synchronous_metric_trace",
@@ -760,10 +834,52 @@ def _materialize_native_scalar_hierarchy_contract(
                 units=_DIMENSIONLESS_UNITS,
                 gauge_role="synchronous_metric_shear",
             ),
+            alpha_state_name: _metadata_entry(
+                "scalar_gauge_shift_generator",
+                "Scalar gauge-shift generator alpha.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+            "Phi": _metadata_entry(
+                "observable_curvature_potential",
+                "Observable-basis curvature potential.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+            "Psi": _metadata_entry(
+                "observable_lapse_potential",
+                "Observable-basis lapse potential.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+        }
+    elif invariant_gauge:
+        phi_state_name = "Phi_gi"
+        psi_state_name = "Psi_gi"
+        alpha_state_name = None
+        metric_variables = {
+            phi_state_name: _metadata_entry(
+                "gauge_invariant_curvature_potential",
+                "Gauge-invariant Bardeen curvature potential Phi.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+            psi_state_name: _metadata_entry(
+                "gauge_invariant_lapse_potential",
+                "Gauge-invariant Bardeen lapse potential Psi.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+            "Phi": _metadata_entry(
+                "observable_curvature_potential",
+                "Observable-basis curvature potential.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
+            "Psi": _metadata_entry(
+                "observable_lapse_potential",
+                "Observable-basis lapse potential.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
         }
     else:
         phi_state_name = "Phi"
         psi_state_name = "Psi"
+        alpha_state_name = None
         metric_variables = {
             phi_state_name: _metadata_entry(
                 "metric_potential_phi",
@@ -887,6 +1003,23 @@ def _materialize_native_scalar_hierarchy_contract(
                 tensor_character="scalar_like",
             )
 
+    photon_monopole_rhs = "-acoustic_k * theta_gamma1 - Phi_tau"
+    photon_dipole_rhs = (
+        "(acoustic_k / 3.0) * "
+        "(theta_gamma0 + Psi - 2.0 * theta_gamma2) + thomson_drag"
+    )
+    photon_quadrupole_metric_drive = "0.0"
+    baryon_density_rhs = "-theta_b + 3.0 * Phi_tau"
+    baryon_euler_rhs = (
+        "-Hconf * theta_b + acoustic_k_sq * sound_speed_sq * "
+        "delta_b + baryon_thomson_drag + acoustic_k_sq * Psi"
+    )
+    cdm_density_rhs = "-theta_c + 3.0 * Phi_tau"
+    cdm_euler_rhs = "-Hconf * theta_c + acoustic_k_sq * Psi"
+    neutrino_density_rhs = "-(4.0 / 3.0) * theta_nu + 4.0 * Phi_tau"
+    neutrino_euler_rhs = "acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)"
+    neutrino_quadrupole_metric_drive = "0.0"
+
     equations: dict[str, Any] = {
         "evolve_theta_gamma0": {
             "lhs": {
@@ -895,7 +1028,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-acoustic_k * theta_gamma1 - Phi_tau",
+            "rhs": photon_monopole_rhs,
             "role": "continuity",
         },
         "evolve_theta_gamma1": {
@@ -905,11 +1038,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": (
-                "(acoustic_k / 3.0) * "
-                "(theta_gamma0 + Psi - 2.0 * theta_gamma2) "
-                "+ thomson_drag"
-            ),
+            "rhs": photon_dipole_rhs,
             "role": "euler",
         },
         "evolve_theta_gamma2": {
@@ -923,6 +1052,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 f"{2.0 / 5.0:.16g} * acoustic_k * theta_gamma1 "
                 f"- {3.0 / 5.0:.16g} * acoustic_k * "
                 f"{_scalar_temperature_name(3)} "
+                f"+ {photon_quadrupole_metric_drive} "
                 "- collision_rate * "
                 "(theta_gamma2 - 0.1 * polarization_moment)"
             ),
@@ -981,7 +1111,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-theta_b + 3.0 * Phi_tau",
+            "rhs": baryon_density_rhs,
             "role": "continuity",
         },
         "evolve_theta_b": {
@@ -991,12 +1121,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": (
-                "-Hconf * theta_b + acoustic_k_sq * sound_speed_sq * "
-                "delta_b "
-                "+ baryon_thomson_drag "
-                "+ acoustic_k_sq * Psi"
-            ),
+            "rhs": baryon_euler_rhs,
             "role": "euler",
         },
         "evolve_delta_c": {
@@ -1006,7 +1131,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-theta_c + 3.0 * Phi_tau",
+            "rhs": cdm_density_rhs,
             "role": "continuity",
         },
         "evolve_theta_c": {
@@ -1016,7 +1141,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-Hconf * theta_c + acoustic_k_sq * Psi",
+            "rhs": cdm_euler_rhs,
             "role": "euler",
         },
         "evolve_delta_nu": {
@@ -1026,7 +1151,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-(4.0 / 3.0) * theta_nu + 4.0 * Phi_tau",
+            "rhs": neutrino_density_rhs,
             "role": "continuity",
         },
         "evolve_theta_nu": {
@@ -1036,7 +1161,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": ("acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)"),
+            "rhs": neutrino_euler_rhs,
             "role": "euler",
         },
         "evolve_sigma_nu": {
@@ -1049,11 +1174,47 @@ def _materialize_native_scalar_hierarchy_contract(
             "rhs": (
                 f"{4.0 / 15.0:.16g} * theta_nu "
                 f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                f"{_scalar_neutrino_name(3)}"
+                f"{_scalar_neutrino_name(3)} "
+                f"+ {neutrino_quadrupole_metric_drive}"
             ),
             "role": "hierarchy",
         },
     }
+    if sync_gauge:
+        equations.update(
+            {
+                "evolve_h_sync_metric": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "h_sync_metric",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "h_sync_metric_tau",
+                    "role": "metric",
+                },
+                "evolve_eta_sync_metric": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "eta_sync_metric",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "eta_sync_metric_tau",
+                    "role": "metric",
+                },
+                "evolve_gauge_shift_alpha": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "gauge_shift_alpha",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": "gauge_shift_alpha_tau",
+                    "role": "metric",
+                },
+            }
+        )
     for moment in range(3, photon_l_max + 1):
         name = _scalar_temperature_name(moment)
         next_name = None
@@ -1234,23 +1395,36 @@ def _materialize_native_scalar_hierarchy_contract(
                     "role": "hierarchy",
                 }
 
+    observable_theta_gamma0_expression = "theta_gamma0"
+    observable_theta_gamma1_expression = "theta_gamma1"
+    observable_delta_b_expression = "delta_b"
+    observable_theta_b_expression = "theta_b"
+    observable_delta_c_expression = "delta_c"
+    observable_theta_c_expression = "theta_c"
+    observable_delta_nu_expression = "delta_nu"
+    observable_theta_nu_expression = "theta_nu"
+    observable_delta_nu_massive_expression = "delta_nu_massive"
+    observable_theta_nu_massive_expression = "theta_nu_massive"
+
     materialized["variables"] = variables
     massless_fraction_expression = "Omega_nu0"
     matter_density_source_expression = (
-        "(Omega_c0 * delta_c + Omega_b0 * delta_b) / a"
+        "(Omega_c0 * observable_delta_c + "
+        "Omega_b0 * observable_delta_b) / a"
     )
     radiation_density_source_expression = (
-        "(4.0 * Omega_gamma0 * theta_gamma0 + "
-        "massless_neutrino_fraction * delta_nu) / (a * a)"
+        "(4.0 * Omega_gamma0 * observable_theta_gamma0 + "
+        "massless_neutrino_fraction * observable_delta_nu) / (a * a)"
     )
     total_density_source_expression = (
         "matter_density_source + radiation_density_source"
     )
     total_momentum_source_expression = (
-        "(Omega_b0 * theta_b + Omega_c0 * theta_c) / a + "
+        "(Omega_b0 * observable_theta_b + "
+        "Omega_c0 * observable_theta_c) / a + "
         "("
         "4.0 * Omega_gamma0 * photon_velocity_divergence + "
-        "(4.0 / 3.0) * massless_neutrino_fraction * theta_nu"
+        "(4.0 / 3.0) * massless_neutrino_fraction * observable_theta_nu"
         ") / (a * a)"
     )
     total_shear_source_expression = (
@@ -1272,8 +1446,52 @@ def _materialize_native_scalar_hierarchy_contract(
             "description": "Squared scalar acoustic wave number.",
             "units": _INVERSE_MPC_SQUARED_UNITS,
         },
+        "observable_theta_gamma0": {
+            "expression": observable_theta_gamma0_expression,
+            "description": ("Observable-basis photon temperature monopole."),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_theta_gamma1": {
+            "expression": observable_theta_gamma1_expression,
+            "description": ("Observable-basis photon temperature dipole."),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_delta_b": {
+            "expression": observable_delta_b_expression,
+            "description": "Observable-basis baryon density contrast.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_theta_b": {
+            "expression": observable_theta_b_expression,
+            "description": "Observable-basis baryon velocity divergence.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "observable_delta_c": {
+            "expression": observable_delta_c_expression,
+            "description": "Observable-basis CDM density contrast.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_theta_c": {
+            "expression": observable_theta_c_expression,
+            "description": "Observable-basis CDM velocity divergence.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "observable_delta_nu": {
+            "expression": observable_delta_nu_expression,
+            "description": (
+                "Observable-basis massless-neutrino density contrast."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_theta_nu": {
+            "expression": observable_theta_nu_expression,
+            "description": (
+                "Observable-basis massless-neutrino velocity divergence."
+            ),
+            "units": _INVERSE_MPC_UNITS,
+        },
         "photon_velocity_divergence": {
-            "expression": "3.0 * acoustic_k * theta_gamma1",
+            "expression": "3.0 * acoustic_k * observable_theta_gamma1",
             "description": "Photon velocity divergence theta_gamma.",
             "units": _INVERSE_MPC_UNITS,
         },
@@ -1365,7 +1583,7 @@ def _materialize_native_scalar_hierarchy_contract(
         derived_entries.update(
             {
                 "massive_neutrino_density_source": {
-                    "expression": "massive_neutrino_metric_density",
+                    "expression": "observable_delta_nu_massive",
                     "description": (
                         "Current massive-neutrino density source moment "
                         "for the scalar Einstein system."
@@ -1373,7 +1591,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "units": _DIMENSIONLESS_UNITS,
                 },
                 "massive_neutrino_momentum_source": {
-                    "expression": "massive_neutrino_metric_momentum",
+                    "expression": "observable_theta_nu_massive",
                     "description": (
                         "Current massive-neutrino momentum source moment "
                         "for the scalar Einstein system."
@@ -1420,17 +1638,91 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
             "units": _DIMENSIONLESS_UNITS,
         }
+    if sync_gauge:
+        derived_entries.update(
+            {
+                "eta_sync_metric_tau": {
+                    "expression": (
+                        "Phi_tau + Hconf_tau * gauge_shift_alpha + "
+                        "Hconf * gauge_shift_alpha_tau"
+                    ),
+                    "description": ("Synchronous-gauge shear evolution eta'."),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+                "h_sync_metric_tau": {
+                    "expression": (
+                        "2.0 * acoustic_k_sq * gauge_shift_alpha - "
+                        "6.0 * eta_sync_metric_tau"
+                    ),
+                    "description": ("Synchronous-gauge trace evolution h'."),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+                "gauge_shift_alpha_tau": {
+                    "expression": "Psi - Hconf * gauge_shift_alpha",
+                    "description": (
+                        "Conformal-time derivative of the gauge shift."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+                "Phi_from_synchronous": {
+                    "expression": (
+                        "eta_sync_metric - Hconf * gauge_shift_alpha"
+                    ),
+                    "description": (
+                        "Curvature potential reconstructed from the "
+                        "synchronous variables."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "Psi_from_synchronous": {
+                    "expression": (
+                        "gauge_shift_alpha_tau + " "Hconf * gauge_shift_alpha"
+                    ),
+                    "description": (
+                        "Lapse potential reconstructed from the synchronous "
+                        "variables."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "Phi_tau": {
+                    "kind": "metric_potential_time_derivative",
+                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "description": (
+                        "Observable-basis curvature-potential derivative."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+            }
+        )
+    elif invariant_gauge:
+        derived_entries.update(
+            {
+                "Phi_tau": {
+                    "kind": "metric_potential_time_derivative",
+                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "description": (
+                        "Gauge-invariant curvature-potential derivative."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+            }
+        )
+    else:
+        derived_entries.update(
+            {
+                "Phi_tau": {
+                    "kind": "metric_potential_time_derivative",
+                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "description": (
+                        "Scalar Einstein-system relation for the curvature "
+                        "potential time derivative."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+            }
+        )
     derived_entries.update(
         {
-            "Phi_tau": {
-                "kind": "metric_potential_time_derivative",
-                "expression": "metric_momentum_source_drive - Hconf * Psi",
-                "description": (
-                    "Scalar Einstein-system relation for the curvature "
-                    "potential time derivative."
-                ),
-                "units": _INVERSE_MPC_UNITS,
-            },
             "metric_momentum_constraint": {
                 "expression": "Phi_tau + Hconf * Psi",
                 "description": (
@@ -1441,7 +1733,7 @@ def _materialize_native_scalar_hierarchy_contract(
             },
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
-                "variable": ("Psi" if not sync_gauge else psi_state_name),
+                "variable": "Psi",
                 "wrt": "tau",
                 "order": 1,
                 "description": (
@@ -1634,6 +1926,21 @@ def _materialize_native_scalar_hierarchy_contract(
                     ),
                     "units": _DIMENSIONLESS_UNITS,
                 },
+                "observable_delta_nu_massive": {
+                    "expression": observable_delta_nu_massive_expression,
+                    "description": (
+                        "Observable-basis massive-neutrino density contrast."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "observable_theta_nu_massive": {
+                    "expression": observable_theta_nu_massive_expression,
+                    "description": (
+                        "Observable-basis massive-neutrino momentum "
+                        "divergence."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
             }
         )
         for moment in range(3, massive_neutrino_l_max + 1):
@@ -1649,21 +1956,6 @@ def _materialize_native_scalar_hierarchy_contract(
                 ),
                 "units": _DIMENSIONLESS_UNITS,
             }
-    if sync_gauge:
-        derived_entries.update(
-            {
-                "Phi": {
-                    "expression": f"0.5 * {phi_state_name}",
-                    "description": "Gauge-stable curvature-potential alias.",
-                    "units": _DIMENSIONLESS_UNITS,
-                },
-                "Psi": {
-                    "expression": f"0.5 * {psi_state_name}",
-                    "description": "Gauge-stable Newtonian-potential alias.",
-                    "units": _DIMENSIONLESS_UNITS,
-                },
-            }
-        )
     materialized["derived"] = derived_entries
     materialized["equations"] = equations
     collision_operator_entries = dict(
@@ -1737,32 +2029,65 @@ def _materialize_native_scalar_hierarchy_contract(
         "3.0 * Hconf * metric_momentum_source_drive"
         ") / metric_constraint_scale"
     )
-    materialized["constraints"] = {
-        "phi_constraint": {
-            "target": phi_state_name,
-            "expression": (
-                f"2.0 * ({phi_constraint_expression})"
-                if sync_gauge
-                else phi_constraint_expression
-            ),
-            "role": "constraint",
+    if sync_gauge:
+        materialized["constraints"] = {
+            "observable_phi_constraint": {
+                "target": "Phi",
+                "expression": phi_constraint_expression,
+                "role": "constraint",
+            }
         }
-    }
-    materialized["closures"] = {
-        "psi_closure": {
-            "target": psi_state_name,
-            "expression": (
-                f"2.0 * ({psi_closure_expression})"
-                if sync_gauge
-                else psi_closure_expression
-            ),
-            "role": "closure",
+        materialized["closures"] = {
+            "observable_psi_closure": {
+                "target": "Psi",
+                "expression": psi_closure_expression,
+                "role": "closure",
+            }
         }
-    }
+    elif invariant_gauge:
+        materialized["constraints"] = {
+            "observable_phi_constraint": {
+                "target": "Phi",
+                "expression": phi_state_name,
+                "role": "constraint",
+            },
+            "phi_constraint": {
+                "target": phi_state_name,
+                "expression": phi_constraint_expression,
+                "role": "constraint",
+            },
+        }
+        materialized["closures"] = {
+            "psi_closure": {
+                "target": psi_state_name,
+                "expression": psi_closure_expression,
+                "role": "closure",
+            },
+            "observable_psi_closure": {
+                "target": "Psi",
+                "expression": psi_state_name,
+                "role": "closure",
+            },
+        }
+    else:
+        materialized["constraints"] = {
+            "phi_constraint": {
+                "target": phi_state_name,
+                "expression": phi_constraint_expression,
+                "role": "constraint",
+            }
+        }
+        materialized["closures"] = {
+            "psi_closure": {
+                "target": psi_state_name,
+                "expression": psi_closure_expression,
+                "role": "closure",
+            }
+        }
     materialized["sources"] = {
         "temperature_monopole": {
             "expression": (
-                "visibility * (theta_gamma0 + Psi + "
+                "visibility * (observable_theta_gamma0 + Psi + "
                 "0.25 * polarization_moment)"
             ),
             "role": "monopole",
@@ -1774,7 +2099,7 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
         "temperature_doppler": {
-            "expression": "visibility * theta_b / acoustic_k",
+            "expression": "visibility * observable_theta_b / acoustic_k",
             "role": "doppler",
             "description": "Visibility-weighted Doppler source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
@@ -1784,11 +2109,7 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
         "temperature_isw": {
-            "expression": (
-                "exp(-tau) * (Psi_tau - Phi_tau)"
-                if not sync_gauge
-                else "exp(-tau) * (0.5 * Psi_tau - Phi_tau)"
-            ),
+            "expression": "exp(-tau) * (Psi_tau - Phi_tau)",
             "role": "isw",
             "description": "Integrated Sachs-Wolfe temperature source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
@@ -1911,7 +2232,10 @@ def _materialize_native_scalar_hierarchy_contract(
     }
     initial_conditions: dict[str, Any] = {}
     for variable_name, expression in sorted(
-        _scalar_hierarchy_base_seed_expressions(initial_mode).items()
+        _scalar_hierarchy_base_seed_expressions(
+            initial_mode,
+            gauge=gauge,
+        ).items()
     ):
         if variable_name not in variables:
             continue
@@ -1922,6 +2246,28 @@ def _materialize_native_scalar_hierarchy_contract(
                 "order": 0,
             },
             "expression": expression,
+        }
+    if sync_gauge:
+        initial_conditions["eta_sync_metric_seed"] = {
+            "target": {
+                "variable": "eta_sync_metric",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                f"({phi_constraint_expression}) + " "Hconf * gauge_shift_alpha"
+            ),
+        }
+        initial_conditions["h_sync_metric_seed"] = {
+            "target": {
+                "variable": "h_sync_metric",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "(acoustic_k * eta_initial) * "
+                f"(acoustic_k * eta_initial) * ({phi_constraint_expression})"
+            ),
         }
     for required_name in (
         "theta_gamma0",
@@ -1938,6 +2284,11 @@ def _materialize_native_scalar_hierarchy_contract(
         "delta_nu",
         "theta_nu",
         "sigma_nu",
+        *(
+            ("h_sync_metric", "eta_sync_metric", "gauge_shift_alpha")
+            if sync_gauge
+            else ()
+        ),
     ):
         initial_conditions.setdefault(
             f"{required_name}_seed",

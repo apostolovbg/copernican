@@ -1252,6 +1252,7 @@ def _resolved_native_scalar_context(
             "eta": 1.0,
             "H": 120.0,
             "Hconf": 0.02,
+            "Hconf_tau": -2.0e-4,
             "tau": 0.4,
             "tau_dot": -0.08,
             "visibility": 0.03,
@@ -1297,14 +1298,43 @@ def _resolved_native_scalar_context(
             scale_factor=float(a_value),
         )
     )
+    execution_plan = native_evolution._compile_declared_graph_execution_plan(
+        perturbation_data
+    )
+    if (
+        getattr(perturbation_data, "gauge", "") == "synchronous"
+        and state_updates is None
+    ):
+        provisional = native_evolution._resolve_declared_graph_context(
+            dict(context),
+            perturbation_data,
+            allow_partial=True,
+            eta_grid=None,
+            execution_plan=execution_plan,
+        )
+        gauge_shift_alpha = 0.015
+        phi_value = float(provisional["Phi"])
+        context.update(
+            {
+                "gauge_shift_alpha": gauge_shift_alpha,
+                "eta_sync_metric": (
+                    phi_value + float(context["Hconf"]) * gauge_shift_alpha
+                ),
+                "h_sync_metric": (
+                    float(context["k"])
+                    * float(context["eta"])
+                    * float(context["k"])
+                    * float(context["eta"])
+                    * phi_value
+                ),
+            }
+        )
     return native_evolution._resolve_declared_graph_context(
         context,
         perturbation_data,
         allow_partial=True,
         eta_grid=None,
-        execution_plan=native_evolution._compile_declared_graph_execution_plan(
-            perturbation_data
-        ),
+        execution_plan=execution_plan,
     )
 
 
@@ -4620,7 +4650,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.sources["temperature_doppler"].expression,
-            "visibility * theta_b / acoustic_k",
+            "visibility * observable_theta_b / acoustic_k",
         )
         self.assertIn(
             "theta_gamma3",
@@ -4987,6 +5017,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 rtol=1.0e-10,
                 atol=1.0e-10,
             )
+
+    def test_native_scalar_hierarchy_sync_transform_matches_observables(
+        self,
+    ) -> None:
+        """Synchronous histories should reconstruct the observable basis."""
+
+        synchronous = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(gauge="synchronous")
+        )
+        context = _resolved_native_scalar_context(synchronous)
+
+        self.assertAlmostEqual(
+            float(context["Phi_from_synchronous"]),
+            float(context["Phi"]),
+        )
+        self.assertAlmostEqual(
+            float(context["Psi_from_synchronous"]),
+            float(context["Psi"]),
+        )
+        self.assertNotEqual(
+            float(context["eta_sync_metric"]),
+            float(context["Phi"]),
+        )
 
     def test_native_scalar_hierarchy_standard_modes_generate_distinct(
         self,

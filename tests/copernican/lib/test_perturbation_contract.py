@@ -903,6 +903,66 @@ class PerturbationContractTestCase(unittest.TestCase):
             "2.0 * seed",
         )
 
+    def test_generated_synchronous_route_materializes_gauge_bridge(
+        self,
+    ) -> None:
+        """Generated synchronous metadata should expose explicit transforms."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["gauge"] = "synchronous"
+        compiled = self._compile(contract)
+
+        self.assertIn("gauge_shift_alpha", compiled.variables)
+        self.assertIn("Phi", compiled.variables)
+        self.assertIn("Psi", compiled.variables)
+        self.assertIn("evolve_h_sync_metric", compiled.equations)
+        self.assertIn("evolve_eta_sync_metric", compiled.equations)
+        self.assertIn("evolve_gauge_shift_alpha", compiled.equations)
+        self.assertIn("Phi_from_synchronous", compiled.derived)
+        self.assertIn("Psi_from_synchronous", compiled.derived)
+        self.assertEqual(
+            compiled.constraints["observable_phi_constraint"].expression,
+            "-("
+            "1.5 * einstein_gravity_strength * total_density_source + "
+            "3.0 * Hconf * metric_momentum_source_drive"
+            ") / metric_constraint_scale",
+        )
+        self.assertEqual(
+            compiled.closures["observable_psi_closure"].expression,
+            "Phi - metric_shear_correction",
+        )
+        self.assertEqual(
+            compiled.derived["gauge_shift_alpha_tau"].expression,
+            "Psi - Hconf * gauge_shift_alpha",
+        )
+
+    def test_generated_neutrino_velocity_mode_uses_regular_leading_powers(
+        self,
+    ) -> None:
+        """Velocity isocurvature seeds should use regular powers."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["initial_condition_families"] = {
+            "neutrino_velocity_isocurvature": {
+                "sector": "scalar",
+                "members": [],
+            }
+        }
+        compiled = self._compile(contract)
+
+        self.assertEqual(
+            compiled.initial_conditions["theta_nu_seed"].expression,
+            "acoustic_k * seed",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["theta_gamma1_seed"].expression,
+            "seed / 3.0",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["sigma_nu_seed"].expression,
+            "(acoustic_k * eta_initial / 6.0) * seed",
+        )
+
     def test_vector_and_tensor_sector_metadata_are_inferred(self) -> None:
         """Vector and tensor source ancestries should classify cleanly."""
 
@@ -1132,6 +1192,14 @@ class PerturbationContractTestCase(unittest.TestCase):
             "acoustic_k": 0.1,
             "massless_neutrino_fraction": 5.0e-5,
         }
+        context["observable_delta_b"] = context["delta_b"]
+        context["observable_delta_c"] = context["delta_c"]
+        context["observable_theta_gamma0"] = context["theta_gamma0"]
+        context["observable_theta_nu"] = context["theta_nu"]
+        context["observable_theta_b"] = context["theta_b"]
+        context["observable_theta_c"] = context["theta_c"]
+        context["observable_delta_nu"] = context["delta_nu"]
+        context["observable_theta_gamma1"] = context["theta_gamma1"]
         context["photon_velocity_divergence"] = (
             3.0 * context["acoustic_k"] * context["theta_gamma1"]
         )
@@ -1348,7 +1416,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.sources["temperature_doppler"].expression,
-            "visibility * theta_b / acoustic_k",
+            "visibility * observable_theta_b / acoustic_k",
         )
         self.assertNotIn(
             "tight_coupling_drag",

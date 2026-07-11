@@ -89,9 +89,17 @@ keeps stacked mixed-spectrum tables aligned with the requested theory
 blocks. The temperature projection now integrates declared source
 histories directly through the native LOS kernels, so changing the
 primordial tilt reshapes the TT spectrum instead of only rescaling it.
-The regression suite also proves vector and tensor sector
-classification, plus a gauge-invariant native comparison, so the
-remaining sector and gauge claims are explicit rather than implicit.
+The generated scalar route now seeds the regular adiabatic, baryon,
+CDM, neutrino-density, and neutrino-velocity modes with explicit
+super-horizon series and validates the starting Einstein residuals
+before evolution begins. Its synchronous bridge now evolves `h`, `eta`,
+and `alpha` as explicit internal histories while the native
+gauge-invariant route compiles through dedicated observable-basis
+aliases instead of only relabeling the Newtonian branch. The regression
+suite therefore proves vector and tensor sector classification together
+with synchronous, gauge-invariant, and transformed-history scalar
+coverage, so the remaining sector and gauge claims are explicit rather
+than implicit.
 The native transfer and spectrum accumulation stay in extended
 precision until the public solver converts the final values to float64.
 

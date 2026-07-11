@@ -50,6 +50,7 @@ from .native_evolution import (
     _resolve_declared_graph_context,
     _resolve_declared_momentum_grid_runtimes,
     _tight_coupling_is_active,
+    _validate_generated_scalar_initial_constraints,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -720,6 +721,10 @@ def _compute_custom_cmb_spectrum_data(
         dtype=float,
     )
     Hconf_los_grid = a_los_grid * H_los_grid / _C_LIGHT_KM_S
+    Hconf_tau_los_grid = numpy.asarray(
+        numpy.gradient(Hconf_los_grid, eta_los_grid, edge_order=1),
+        dtype=float,
+    )
     baryon_loading_grid = (
         3.0
         * physical_params.Omega_b0
@@ -764,6 +769,7 @@ def _compute_custom_cmb_spectrum_data(
         "eta": eta_los_grid,
         "H": H_los_grid,
         "Hconf": Hconf_los_grid,
+        "Hconf_tau": Hconf_tau_los_grid,
         "tau": tau_los_grid,
         "tau_dot": tau_dot_los_grid,
         "visibility": visibility_los_grid,
@@ -944,6 +950,11 @@ def _compute_custom_cmb_spectrum_data(
                 step_index=step_index,
                 blend=blend,
             ),
+            "Hconf_tau": _blend_history(
+                Hconf_tau_los_grid,
+                step_index=step_index,
+                blend=blend,
+            ),
             "tau": _blend_history(
                 tau_los_grid,
                 step_index=step_index,
@@ -1110,6 +1121,7 @@ def _compute_custom_cmb_spectrum_data(
             "eta": eta_los_grid,
             "H": H_los_grid,
             "Hconf": Hconf_los_grid,
+            "Hconf_tau": Hconf_tau_los_grid,
             "tau": tau_los_grid,
             "tau_dot": tau_dot_los_grid,
             "visibility": visibility_los_grid,
@@ -1635,6 +1647,17 @@ def _compute_custom_cmb_spectrum_data(
             base_context=initial_context,
         )
         state = numpy.asarray(initial_state, dtype=float)
+        initial_state_context = _build_scalar_state_context(
+            state,
+            k_value=float(k_value),
+            eta_value=float(initial_eta),
+            background_scalars=initial_background,
+        )
+        _validate_generated_scalar_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=initial_state_context,
+            k_value=float(k_value),
+        )
         if end_boundary_entries:
             assigned_target_set = set(assigned_targets)
             free_target_keys = tuple(

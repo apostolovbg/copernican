@@ -1193,3 +1193,91 @@ def _evaluate_declared_initial_state(
         execution_plan=execution_plan,
     )
     return state_vector, tuple(assigned_targets)
+
+
+def _validate_generated_scalar_initial_constraints(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    k_value: float,
+) -> None:
+    """Raise when generated scalar data violate Einstein constraints."""
+
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    if not manifest_summary.get("generated_scalar_hierarchy"):
+        return
+
+    residual_specs = (
+        (
+            "einstein_energy_residual",
+            max(
+                abs(float(context.get("acoustic_k_sq", 0.0) * context["Phi"])),
+                abs(
+                    float(
+                        1.5
+                        * context["einstein_gravity_strength"]
+                        * context["total_density_source"]
+                    )
+                ),
+                1.0,
+            ),
+        ),
+        (
+            "einstein_momentum_residual",
+            max(
+                abs(
+                    float(
+                        context["acoustic_k_sq"]
+                        * context["metric_momentum_constraint"]
+                    )
+                ),
+                abs(
+                    float(
+                        1.5
+                        * context["einstein_gravity_strength"]
+                        * context["total_momentum_source"]
+                    )
+                ),
+                1.0,
+            ),
+        ),
+        (
+            "einstein_shear_residual",
+            max(
+                abs(
+                    float(
+                        context["acoustic_k_sq"]
+                        * (context["Phi"] - context["Psi"])
+                    )
+                ),
+                abs(
+                    float(
+                        4.5
+                        * context["einstein_gravity_strength"]
+                        * context["total_shear_source"]
+                    )
+                ),
+                1.0,
+            ),
+        ),
+    )
+    tolerance = (
+        5.0e-2
+        if str(getattr(perturbation_data, "gauge", "")) == "synchronous"
+        else 1.0e-2
+    )
+    for residual_name, scale in residual_specs:
+        if residual_name not in context:
+            continue
+        normalized_residual = abs(float(context[residual_name])) / float(scale)
+        if not numpy.isfinite(normalized_residual):
+            raise ValueError(
+                "Generated scalar initial data produced non-finite Einstein "
+                f"diagnostics for {residual_name} at k={k_value}"
+            )
+        if normalized_residual > tolerance:
+            raise ValueError(
+                "Generated scalar initial data violate the Einstein "
+                f"constraints for {residual_name} at k={k_value} "
+                f"({normalized_residual} > {tolerance})"
+            )

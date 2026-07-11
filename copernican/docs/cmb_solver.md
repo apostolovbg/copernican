@@ -182,9 +182,41 @@ Gauge-invariant observable construction uses the Newtonian-basis `Phi`,
 `Psi`, and their matching matter and radiation combinations after those
 transformations.
 
-Slice Six must implement either these explicit transformations or an exactly
-equivalent gauge-invariant route. Gauge labels alone do not satisfy this
-contract.
+The generated synchronous route now carries `gauge_shift_alpha`,
+`h_sync_metric`, and `eta_sync_metric` as explicit internal histories.
+The observable scalar sources stay on the canonical `Phi` / `Psi`
+basis, while `Phi_from_synchronous` and `Psi_from_synchronous` record
+the explicit reconstructed transform used by the internal-history tests.
+
+The generated gauge-invariant route now compiles through dedicated
+`Phi_gi` and `Psi_gi` variables together with observable-basis aliases,
+instead of reaching the observable construction surface only by relabeling
+the Newtonian branch.
+
+Custom declared graphs may still supply their own gauge bridge when the
+standard first-order transform above does not apply, but gauge labels
+alone do not satisfy this contract.
+
+## Regular Scalar Initial Modes
+The generated scalar route now materializes the following regular scalar
+families with explicit leading super-horizon series:
+
+- `adiabatic_scalar`
+- `baryon_isocurvature`
+- `cdm_isocurvature`
+- `neutrino_density_isocurvature`
+- `neutrino_velocity_isocurvature`
+
+The generated series seed every affected scalar state through the same
+declared graph surface used during evolution.
+Density-like states keep the documented adiabatic and isocurvature
+amplitudes, velocity-like states use the matching leading `k` or `k^2
+tau` scaling, and the generated synchronous bridge seeds `h`, `eta`,
+and `alpha` from the same observable-basis metric constraint surface.
+
+Before integrating one generated scalar mode, the native runtime now
+evaluates the starting Einstein energy, momentum, and shear residuals and
+rejects non-finite or out-of-tolerance initial data.
 
 ## Canonical Scalar Equations
 The standard generated scalar hierarchy must use the following physical

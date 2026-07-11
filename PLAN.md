@@ -503,7 +503,7 @@ Done when:
 * No generic runtime path assumes standard variable names.
 * No declared interaction is silently removed.
 
-### [open] Slice Six - Scalar initial modes and genuine gauge support
+### [closed] Slice Six - Scalar initial modes and genuine gauge support
 
 Purpose:
 
