@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import math
+from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 import numpy
+from scipy.linalg import expm
 from scipy.optimize import least_squares
 
 from ...cmb_projection_contract import (
@@ -15,6 +17,7 @@ from ...cmb_projection_contract import (
 )
 from ...engine_adapter import FrozenMapping
 from ...perturbation_contract import (
+    PerturbationCollisionTargetSelectorData,
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
@@ -44,13 +47,204 @@ from .native_evolution import (
     _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
-    _exact_thomson_relaxation_step,
     _resolve_declared_graph_context,
     _resolve_declared_momentum_grid_runtimes,
     _tight_coupling_is_active,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
+
+
+@dataclass(frozen=True, slots=True)
+class _CompiledCollisionOperatorRuntime:
+    """Resolved runtime metadata for one split collision operator."""
+
+    name: str
+    integration_strategy: str
+    activation_strategy: str
+    counterpart: str | None
+    rate_expression: Any
+    target_variables: tuple[str, ...]
+    target_slot_indices: tuple[int, ...]
+    matrix: tuple[tuple[Any, ...], ...]
+    damping_slot_indices: tuple[int, ...] = ()
+    damping_coefficient: Any | None = None
+    conservation_rule_names: tuple[str, ...] = ()
+
+
+def _resolve_collision_target_selector_slots(
+    selector: PerturbationCollisionTargetSelectorData,
+    *,
+    perturbation_data: Any,
+    state_index_by_key: Mapping[tuple[str, str, int], int],
+    allow_multiple: bool,
+    label: str,
+) -> tuple[tuple[str, int], ...]:
+    """Return the declared state slots selected by one collision selector."""
+
+    matches: list[tuple[str, int]] = []
+    if selector.variable is not None:
+        slot_index = state_index_by_key.get((selector.variable, "tau", 0))
+        if slot_index is None:
+            raise ValueError(
+                f"{label} references non-state variable '{selector.variable}'"
+            )
+        return ((selector.variable, int(slot_index)),)
+    for variable_name, variable_entry in perturbation_data.variables.items():
+        if str(getattr(variable_entry, "kind", "")) != str(selector.kind):
+            continue
+        slot_index = state_index_by_key.get((variable_name, "tau", 0))
+        if slot_index is None:
+            continue
+        matches.append((str(variable_name), int(slot_index)))
+    if not matches:
+        raise ValueError(
+            f"{label} did not resolve any state slot for kind "
+            f"'{selector.kind}'"
+        )
+    if not allow_multiple and len(matches) != 1:
+        raise ValueError(
+            f"{label} resolved {len(matches)} state slots for kind "
+            f"'{selector.kind}' where exactly one was required"
+        )
+    return tuple(matches)
+
+
+def _compile_split_collision_operator_runtimes(
+    *,
+    perturbation_data: Any,
+    runtime_spec: Any,
+) -> tuple[_CompiledCollisionOperatorRuntime, ...]:
+    """Return the resolved split-operator runtimes for one graph."""
+
+    collision_operators = (
+        getattr(
+            perturbation_data,
+            "collision_operators",
+            {},
+        )
+        or {}
+    )
+    conservation_rules = (
+        getattr(
+            perturbation_data,
+            "conservation_rules",
+            {},
+        )
+        or {}
+    )
+    state_index_by_key = runtime_spec.state_index_by_key
+    compiled_runtimes: list[_CompiledCollisionOperatorRuntime] = []
+    for operator_name in sorted(collision_operators):
+        operator_entry = collision_operators[operator_name]
+        strategy = str(
+            getattr(operator_entry, "integration_strategy", "explicit")
+            or "explicit"
+        )
+        if strategy == "explicit":
+            continue
+        if strategy == "exact":
+            linear_form = getattr(operator_entry, "exact_form", None)
+        elif strategy == "implicit":
+            linear_form = getattr(operator_entry, "linear_block", None)
+        else:
+            raise ValueError(
+                "Declared collision operator uses unsupported integration "
+                f"strategy '{strategy}': {operator_name}"
+            )
+        if linear_form is None:
+            raise ValueError(
+                "Declared collision operator requires a compiled "
+                f"{'exact_form' if strategy == 'exact' else 'linear_block'}: "
+                f"{operator_name}"
+            )
+        rate_expression = getattr(
+            operator_entry,
+            "compiled_rate_expression",
+            None,
+        )
+        if rate_expression is None:
+            raise ValueError(
+                "Declared collision operator requires a rate_expression "
+                f"before evolution: {operator_name}"
+            )
+        target_variables: list[str] = []
+        target_slot_indices: list[int] = []
+        seen_variables: set[str] = set()
+        for selector_index, selector in enumerate(linear_form.targets):
+            matches = _resolve_collision_target_selector_slots(
+                selector,
+                perturbation_data=perturbation_data,
+                state_index_by_key=state_index_by_key,
+                allow_multiple=False,
+                label=(
+                    f"collision operator '{operator_name}' "
+                    f"target[{selector_index}]"
+                ),
+            )
+            variable_name, slot_index = matches[0]
+            if variable_name in seen_variables:
+                raise ValueError(
+                    "Declared collision operator targets the same state more "
+                    f"than once: {operator_name} -> {variable_name}"
+                )
+            seen_variables.add(variable_name)
+            target_variables.append(variable_name)
+            target_slot_indices.append(slot_index)
+        damping_slot_indices: list[int] = []
+        if linear_form.damping_targets:
+            for selector_index, selector in enumerate(
+                linear_form.damping_targets
+            ):
+                matches = _resolve_collision_target_selector_slots(
+                    selector,
+                    perturbation_data=perturbation_data,
+                    state_index_by_key=state_index_by_key,
+                    allow_multiple=True,
+                    label=(
+                        f"collision operator '{operator_name}' "
+                        f"damping_target[{selector_index}]"
+                    ),
+                )
+                for _, slot_index in matches:
+                    if slot_index not in damping_slot_indices:
+                        damping_slot_indices.append(slot_index)
+        conservation_rule_names = tuple(
+            sorted(
+                str(rule_name)
+                for rule_name, rule_entry in conservation_rules.items()
+                if operator_name in getattr(rule_entry, "dependencies", ())
+                or (
+                    getattr(operator_entry, "counterpart", None) is not None
+                    and getattr(operator_entry, "counterpart", None)
+                    in getattr(rule_entry, "dependencies", ())
+                )
+            )
+        )
+        compiled_runtimes.append(
+            _CompiledCollisionOperatorRuntime(
+                name=str(operator_name),
+                integration_strategy=strategy,
+                activation_strategy=(
+                    str(
+                        getattr(
+                            operator_entry, "activation_strategy", "always"
+                        )
+                    )
+                    if linear_form.activation_strategy == "always"
+                    else str(linear_form.activation_strategy)
+                ),
+                counterpart=getattr(operator_entry, "counterpart", None),
+                rate_expression=rate_expression,
+                target_variables=tuple(target_variables),
+                target_slot_indices=tuple(target_slot_indices),
+                matrix=linear_form.compiled_matrix,
+                damping_slot_indices=tuple(damping_slot_indices),
+                damping_coefficient=linear_form.compiled_damping_coefficient,
+                conservation_rule_names=conservation_rule_names,
+            )
+        )
+    return tuple(compiled_runtimes)
 
 
 def _integrate_power_spectrum(
@@ -320,9 +514,76 @@ def _validate_declared_conservation_rules(
 ) -> None:
     """Raise when one declared conservation rule exceeds its tolerance."""
 
+    def _resolve_rule_dependency(
+        dependency_name: str,
+        *,
+        local_context: dict[str, Any],
+        visiting: set[str],
+    ) -> bool:
+        """Resolve one declared value dependency into ``local_context``."""
+
+        if dependency_name in local_context:
+            return True
+        if dependency_name in visiting:
+            return False
+        visiting.add(dependency_name)
+        relation_entries = {
+            entry.target: entry
+            for entry in perturbation_data.constraints.values()
+        }
+        relation_entries.update(
+            {
+                entry.target: entry
+                for entry in perturbation_data.closures.values()
+            }
+        )
+        candidate_entry = perturbation_data.derived.get(dependency_name)
+        if candidate_entry is None:
+            candidate_entry = getattr(
+                perturbation_data,
+                "interactions",
+                {},
+            ).get(dependency_name)
+        if candidate_entry is None:
+            candidate_entry = getattr(
+                perturbation_data,
+                "collision_operators",
+                {},
+            ).get(dependency_name)
+        if candidate_entry is None:
+            candidate_entry = relation_entries.get(dependency_name)
+        compiled_expression = getattr(
+            candidate_entry,
+            "compiled_expression",
+            None,
+        )
+        if compiled_expression is None:
+            visiting.discard(dependency_name)
+            return False
+        dependencies = tuple(
+            getattr(candidate_entry, "dependencies", ()) or ()
+        )
+        for child_name in dependencies:
+            if child_name in local_context:
+                continue
+            if not _resolve_rule_dependency(
+                str(child_name),
+                local_context=local_context,
+                visiting=visiting,
+            ):
+                visiting.discard(dependency_name)
+                return False
+        local_context[dependency_name] = _evaluate_compiled_expression_noerr(
+            compiled_expression,
+            local_context,
+        )
+        visiting.discard(dependency_name)
+        return True
+
     rule_entries = getattr(perturbation_data, "conservation_rules", {}) or {}
     if not rule_entries:
         return
+    resolved_context = dict(context)
     with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
         for rule_name, rule_entry in rule_entries.items():
             rule_kind = str(rule_entry.kind or "absolute_max")
@@ -331,10 +592,18 @@ def _validate_declared_conservation_rules(
                     "Declared conservation rule uses unsupported kind "
                     f"'{rule_kind}': {rule_name}"
                 )
+            for dependency_name in tuple(rule_entry.dependencies or ()):
+                if dependency_name in resolved_context:
+                    continue
+                _resolve_rule_dependency(
+                    str(dependency_name),
+                    local_context=resolved_context,
+                    visiting=set(),
+                )
             residual = numpy.asarray(
                 _evaluate_compiled_expression_noerr(
                     rule_entry.compiled_expression,
-                    context,
+                    resolved_context,
                 ),
                 dtype=float,
             )
@@ -621,6 +890,10 @@ def _compute_custom_cmb_spectrum_data(
         for name in transfer_component_observables
     }
     eta_integration_weights = _trapezoid_weights(eta_los_grid)
+    split_collision_runtimes = _compile_split_collision_operator_runtimes(
+        perturbation_data=perturbation_data,
+        runtime_spec=runtime_spec,
+    )
 
     def _blend_history(
         history: numpy.ndarray,
@@ -796,6 +1069,7 @@ def _compute_custom_cmb_spectrum_data(
         k_value: float,
         eta_value: float,
         background_scalars: Mapping[str, float],
+        suppressed_collision_outputs: Mapping[str, float] | None = None,
     ) -> dict[str, Any]:
         """Return the scalar expression environment for one solver stage."""
 
@@ -820,6 +1094,7 @@ def _compute_custom_cmb_spectrum_data(
             allow_partial=True,
             eta_grid=None,
             execution_plan=execution_plan,
+            suppressed_outputs=suppressed_collision_outputs,
         )
 
     def _build_array_context(
@@ -932,7 +1207,7 @@ def _compute_custom_cmb_spectrum_data(
         step_index: int,
         blend: float,
         k_value: float,
-        include_collision_terms: bool = True,
+        tight_coupling_active: bool,
     ) -> numpy.ndarray:
         """Return the state derivative for one RK stage."""
 
@@ -940,15 +1215,23 @@ def _compute_custom_cmb_spectrum_data(
             step_index,
             blend,
         )
-        if not include_collision_terms:
-            background_scalars = dict(background_scalars)
-            background_scalars["collision_rate"] = 0.0
-            background_scalars["tight_coupling_drag"] = 0.0
+        suppressed_collision_outputs = {
+            runtime.name: 0.0
+            for runtime in split_collision_runtimes
+            if (
+                runtime.activation_strategy == "always"
+                or (
+                    runtime.activation_strategy == "tight_coupling"
+                    and tight_coupling_active
+                )
+            )
+        }
         scalar_context = _build_scalar_state_context(
             state_vector,
             k_value=float(k_value),
             eta_value=float(eta_value),
             background_scalars=background_scalars,
+            suppressed_collision_outputs=suppressed_collision_outputs,
         )
         derivative = numpy.zeros_like(state_vector, dtype=float)
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
@@ -991,79 +1274,6 @@ def _compute_custom_cmb_spectrum_data(
         """Integrate one Fourier mode through the declared graph."""
 
         end_boundary_entries = execution_plan.end_condition_entries
-        state_index_by_key = runtime_spec.state_index_by_key
-        collision_operator_entries = getattr(
-            perturbation_data,
-            "collision_operators",
-            {},
-        )
-        thomson_collision_entry = collision_operator_entries.get(
-            "thomson_drag"
-        )
-
-        # Resolve the exact Thomson sub-block from compiled collision
-        # metadata instead of hard-coding the underlying state names.
-        def _state_slot_index_for_kind(kind: str) -> int | None:
-            """Return the slot index for the first declared variable kind."""
-
-            for (
-                variable_name,
-                variable_entry,
-            ) in perturbation_data.variables.items():
-                if str(getattr(variable_entry, "kind", "")) != kind:
-                    continue
-                slot_index = state_index_by_key.get((variable_name, "tau", 0))
-                if slot_index is not None:
-                    return int(slot_index)
-            return None
-
-        thomson_relaxation_slots: dict[str, int] | None = None
-        thomson_species = {
-            str(species)
-            for species in getattr(thomson_collision_entry, "species", ())
-        }
-        thomson_damped_slots: tuple[int, ...] = ()
-        if {"photon", "baryon"}.issubset(thomson_species):
-            resolved_slots = {
-                "photon_dipole": _state_slot_index_for_kind(
-                    "photon_temperature_dipole"
-                ),
-                "baryon_velocity": _state_slot_index_for_kind(
-                    "baryon_velocity_divergence"
-                ),
-                "photon_quadrupole": _state_slot_index_for_kind(
-                    "photon_temperature_quadrupole"
-                ),
-                "polarization_quadrupole": _state_slot_index_for_kind(
-                    "photon_polarization_quadrupole"
-                ),
-            }
-            if all(
-                slot_index is not None
-                for slot_index in resolved_slots.values()
-            ):
-                thomson_relaxation_slots = {
-                    name: int(slot_index)
-                    for name, slot_index in resolved_slots.items()
-                }
-            thomson_damped_slots = tuple(
-                slot.index
-                for slot in runtime_spec.state_slots
-                if slot.order == 0
-                and str(
-                    getattr(
-                        perturbation_data.variables.get(slot.variable),
-                        "kind",
-                        "",
-                    )
-                )
-                in {
-                    "photon_temperature_octopole",
-                    "photon_temperature_multipole",
-                    "photon_polarization_octopole",
-                    "photon_polarization_multipole",
-                }
-            )
 
         def _describe_nonfinite_state(
             state_vector: numpy.ndarray,
@@ -1079,9 +1289,7 @@ def _compute_custom_cmb_spectrum_data(
             ]
             return ", ".join(bad_names)
 
-        # Solve the stiff Thomson sub-block exactly so the explicit part
-        # only carries the free-streaming and metric evolution terms.
-        def _apply_exact_thomson_relaxation(
+        def _apply_split_collision_steps(
             state_vector: numpy.ndarray,
             *,
             step_index: int,
@@ -1090,62 +1298,125 @@ def _compute_custom_cmb_spectrum_data(
             k_value: float,
             tight_coupling_active: bool,
         ) -> numpy.ndarray:
-            """Return one state vector after the exact Thomson sub-step."""
+            """Return one state vector after the split collision sub-step."""
 
             if dt == 0.0:
                 return numpy.asarray(state_vector, dtype=float)
-            if thomson_relaxation_slots is None:
+            if not split_collision_runtimes:
                 return numpy.asarray(state_vector, dtype=float)
-            if not tight_coupling_active:
-                return numpy.asarray(state_vector, dtype=float)
+            relaxed = numpy.asarray(state_vector, dtype=float).copy()
             _, background_scalars = _scalar_background_context(
                 step_index,
                 blend,
             )
-            collision_rate = float(background_scalars["collision_rate"])
-            if not numpy.isfinite(collision_rate) or collision_rate <= 0.0:
-                return numpy.asarray(state_vector, dtype=float)
-            baryon_loading = max(
-                float(background_scalars["baryon_loading"]),
-                1.0e-12,
-            )
-            relaxed = numpy.asarray(state_vector, dtype=float).copy()
-
-            photon_dipole_index = thomson_relaxation_slots["photon_dipole"]
-            baryon_velocity_index = thomson_relaxation_slots["baryon_velocity"]
-            photon_quadrupole_index = thomson_relaxation_slots[
-                "photon_quadrupole"
-            ]
-            polarization_quadrupole_index = thomson_relaxation_slots[
-                "polarization_quadrupole"
-            ]
-
-            theta_gamma1 = float(relaxed[photon_dipole_index])
-            theta_b = float(relaxed[baryon_velocity_index])
-            theta_gamma2 = float(relaxed[photon_quadrupole_index])
-            e_gamma2 = float(relaxed[polarization_quadrupole_index])
-            (
-                relaxed_theta_gamma1,
-                relaxed_theta_b,
-                relaxed_theta_gamma2,
-                relaxed_e_gamma2,
-            ) = _exact_thomson_relaxation_step(
-                theta_gamma1=theta_gamma1,
-                theta_b=theta_b,
-                theta_gamma2=theta_gamma2,
-                e_gamma2=e_gamma2,
-                collision_rate=collision_rate,
-                baryon_loading=baryon_loading,
-                dt=float(dt),
-            )
-            relaxed[photon_dipole_index] = relaxed_theta_gamma1
-            relaxed[baryon_velocity_index] = relaxed_theta_b
-            relaxed[photon_quadrupole_index] = relaxed_theta_gamma2
-            relaxed[polarization_quadrupole_index] = relaxed_e_gamma2
-            if thomson_damped_slots:
-                damping = math.exp(-collision_rate * float(dt))
-                for slot_index in thomson_damped_slots:
-                    relaxed[slot_index] *= damping
+            for runtime in split_collision_runtimes:
+                if runtime.activation_strategy == "tight_coupling":
+                    if not tight_coupling_active:
+                        continue
+                scalar_context = _build_scalar_state_context(
+                    relaxed,
+                    k_value=float(k_value),
+                    eta_value=float(
+                        _blend_history(
+                            eta_los_grid,
+                            step_index=step_index,
+                            blend=blend,
+                        )
+                    ),
+                    background_scalars=background_scalars,
+                )
+                collision_rate = _coerce_numeric_scalar(
+                    _evaluate_compiled_expression_noerr(
+                        runtime.rate_expression,
+                        scalar_context,
+                    ),
+                    name=f"collision operator '{runtime.name}' rate",
+                )
+                if (
+                    not numpy.isfinite(collision_rate)
+                    or abs(collision_rate) <= 1.0e-12
+                ):
+                    continue
+                matrix = numpy.asarray(
+                    [
+                        [
+                            _coerce_numeric_scalar(
+                                _evaluate_compiled_expression_noerr(
+                                    entry,
+                                    scalar_context,
+                                ),
+                                name=(
+                                    f"collision operator '{runtime.name}' "
+                                    "matrix entry"
+                                ),
+                            )
+                            for entry in row
+                        ]
+                        for row in runtime.matrix
+                    ],
+                    dtype=float,
+                )
+                if not numpy.all(numpy.isfinite(matrix)):
+                    raise ValueError(
+                        "Declared collision operator produced a non-finite "
+                        f"matrix before evolution: {runtime.name}"
+                    )
+                target_state = numpy.asarray(
+                    [
+                        float(relaxed[slot_index])
+                        for slot_index in runtime.target_slot_indices
+                    ],
+                    dtype=float,
+                )
+                operator_matrix = float(collision_rate) * matrix
+                if runtime.integration_strategy == "exact":
+                    evolved_state = expm(operator_matrix * float(dt)) @ (
+                        target_state
+                    )
+                elif runtime.integration_strategy == "implicit":
+                    evolved_state = numpy.linalg.solve(
+                        numpy.eye(operator_matrix.shape[0], dtype=float)
+                        - float(dt) * operator_matrix,
+                        target_state,
+                    )
+                else:
+                    raise ValueError(
+                        "Declared collision operator reached an unsupported "
+                        f"split strategy: {runtime.name}"
+                    )
+                if not numpy.all(numpy.isfinite(evolved_state)):
+                    raise ValueError(
+                        "Declared collision operator produced non-finite "
+                        f"state updates: {runtime.name}"
+                    )
+                for slot_index, value in zip(
+                    runtime.target_slot_indices,
+                    evolved_state,
+                ):
+                    relaxed[slot_index] = float(value)
+                if runtime.damping_slot_indices:
+                    if runtime.damping_coefficient is None:
+                        raise ValueError(
+                            "Declared exact collision operator omitted a "
+                            f"damping coefficient: {runtime.name}"
+                        )
+                    damping_coefficient = _coerce_numeric_scalar(
+                        _evaluate_compiled_expression_noerr(
+                            runtime.damping_coefficient,
+                            scalar_context,
+                        ),
+                        name=(
+                            f"collision operator '{runtime.name}' damping "
+                            "coefficient"
+                        ),
+                    )
+                    damping = math.exp(
+                        float(collision_rate)
+                        * float(damping_coefficient)
+                        * float(dt)
+                    )
+                    for slot_index in runtime.damping_slot_indices:
+                        relaxed[slot_index] *= damping
             return relaxed
 
         def _advance_declared_interval(
@@ -1184,7 +1455,7 @@ def _compute_custom_cmb_spectrum_data(
                     blend_start = substep_index / substep_count
                     blend_mid = (substep_index + 0.5) / substep_count
                     blend_end = (substep_index + 1.0) / substep_count
-                    trial_state = _apply_exact_thomson_relaxation(
+                    trial_state = _apply_split_collision_steps(
                         trial_state,
                         step_index=step_index,
                         blend=blend_start,
@@ -1204,28 +1475,28 @@ def _compute_custom_cmb_spectrum_data(
                         step_index=step_index,
                         blend=blend_start,
                         k_value=float(k_value),
-                        include_collision_terms=not tight_coupling_active,
+                        tight_coupling_active=tight_coupling_active,
                     )
                     stage_rhs_mid_a = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_initial,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
-                        include_collision_terms=not tight_coupling_active,
+                        tight_coupling_active=tight_coupling_active,
                     )
                     stage_rhs_mid_b = _mode_rhs(
                         trial_state + 0.5 * sub_dt * stage_rhs_mid_a,
                         step_index=step_index,
                         blend=blend_mid,
                         k_value=float(k_value),
-                        include_collision_terms=not tight_coupling_active,
+                        tight_coupling_active=tight_coupling_active,
                     )
                     stage_rhs_final = _mode_rhs(
                         trial_state + sub_dt * stage_rhs_mid_b,
                         step_index=step_index,
                         blend=blend_end,
                         k_value=float(k_value),
-                        include_collision_terms=not tight_coupling_active,
+                        tight_coupling_active=tight_coupling_active,
                     )
                     candidate_state = trial_state + (sub_dt / 6.0) * (
                         stage_rhs_initial
@@ -1240,7 +1511,7 @@ def _compute_custom_cmb_spectrum_data(
                         )
                         failed = True
                         break
-                    candidate_state = _apply_exact_thomson_relaxation(
+                    candidate_state = _apply_split_collision_steps(
                         candidate_state,
                         step_index=step_index,
                         blend=blend_end,
@@ -1494,6 +1765,16 @@ def _compute_custom_cmb_spectrum_data(
         )
         conservation_context = dict(array_context)
         conservation_context.update(source_arrays)
+        # Re-resolve declared value nodes on top of the array histories so
+        # conservation rules always see collision/operator surfaces even when
+        # earlier test runs have populated caches in a different order.
+        conservation_context = _resolve_declared_graph_context(
+            conservation_context,
+            perturbation_data,
+            allow_partial=True,
+            eta_grid=eta_los_grid,
+            execution_plan=execution_plan,
+        )
         _validate_declared_conservation_rules(
             perturbation_data=perturbation_data,
             context=conservation_context,

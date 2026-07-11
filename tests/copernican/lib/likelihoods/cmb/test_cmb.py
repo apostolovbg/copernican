@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import copy
+import re
 import unittest
 from pathlib import Path
+from typing import Mapping
 from unittest import mock
 
 import numpy
@@ -27,7 +29,6 @@ from copernican.lib.likelihoods.cmb import (
     native_evolution,
     native_projection,
 )
-from copernican.lib.perturbation_contract import evaluate_compiled_expression
 
 
 def _named_limit_message(
@@ -108,6 +109,139 @@ def _zero_crossing_ells(
         if (spectrum[index - 1] < 0.0) != (spectrum[index] < 0.0):
             zero_crossings.append(ell_value)
     return zero_crossings
+
+
+def _max_relative_delta(
+    baseline: numpy.ndarray,
+    changed: numpy.ndarray,
+) -> float:
+    """Return the maximum relative change between two arrays."""
+
+    baseline_values = numpy.asarray(baseline, dtype=numpy.longdouble)
+    changed_values = numpy.asarray(changed, dtype=numpy.longdouble)
+    baseline_scale = numpy.max(numpy.abs(baseline_values), initial=0.0)
+    if baseline_scale == 0.0:
+        baseline_scale = numpy.longdouble(1.0)
+    return float(
+        numpy.max(
+            numpy.abs(changed_values - baseline_values),
+            initial=0.0,
+        )
+        / baseline_scale
+    )
+
+
+def _rename_declared_contract_tokens(
+    value: object,
+    rename_map: Mapping[str, str],
+) -> object:
+    """Return ``value`` with declared symbol references renamed."""
+
+    if isinstance(value, str):
+        if not rename_map:
+            return value
+        pattern = re.compile(
+            r"\b("
+            + "|".join(
+                re.escape(name)
+                for name in sorted(rename_map, key=len, reverse=True)
+            )
+            + r")\b"
+        )
+        return pattern.sub(lambda match: rename_map[match.group(0)], value)
+    if isinstance(value, list):
+        return [
+            _rename_declared_contract_tokens(item, rename_map)
+            for item in value
+        ]
+    if isinstance(value, tuple):
+        return tuple(
+            _rename_declared_contract_tokens(item, rename_map)
+            for item in value
+        )
+    if isinstance(value, dict):
+        renamed: dict[object, object] = {}
+        for key, item in value.items():
+            renamed_key = (
+                rename_map.get(key, key) if isinstance(key, str) else key
+            )
+            renamed[renamed_key] = _rename_declared_contract_tokens(
+                item,
+                rename_map,
+            )
+        return renamed
+    return value
+
+
+def _split_collision_contract(
+    *,
+    rename_map: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """Return a declared graph that routes Thomson through exact metadata."""
+
+    contract = _speedup_contract(_custom_contract())
+    perturbations = contract["perturbations"]
+    perturbations["derived"]["baryon_thomson_drag"] = {
+        "expression": "-3.0 * thomson_drag",
+        "description": "Baryon counterpart for the exact Thomson block.",
+    }
+    perturbations["equations"]["evolve_theta_gamma1"]["rhs"] = (
+        "(k / 3.0) * (theta_gamma0 + Psi - 2.0 * theta_gamma2) "
+        "+ thomson_drag"
+    )
+    perturbations["equations"]["evolve_theta_gamma2"]["rhs"] = (
+        "(2.0 / 5.0) * k * theta_gamma1 " "- (3.0 / 5.0) * k * theta_gamma3"
+    )
+    perturbations["equations"]["evolve_e_gamma2"]["rhs"] = (
+        "(2.0 / 5.0) * k * e_gamma1 " "- (3.0 / 5.0) * k * e_gamma3"
+    )
+    perturbations["equations"]["evolve_theta_b"]["rhs"] = (
+        "-Hconf * theta_b + k * k * sound_speed_sq * delta_b "
+        "+ baryon_thomson_drag + k * k * Psi"
+    )
+    perturbations["collision_operators"] = {
+        "thomson_drag": {
+            "expression": ("collision_rate * (theta_b / 3.0 - theta_gamma1)"),
+            "counterpart": "baryon_thomson_drag",
+            "integration_strategy": "exact",
+            "activation_strategy": "tight_coupling",
+            "rate_expression": "collision_rate",
+            "exact_form": {
+                "targets": [
+                    {"kind": "photon_temperature_dipole"},
+                    {"kind": "baryon_velocity_divergence"},
+                    {"kind": "photon_temperature_quadrupole"},
+                    {"kind": "photon_polarization_quadrupole"},
+                ],
+                "matrix": [
+                    ["-1.0", "1.0 / 3.0", "0.0", "0.0"],
+                    ["3.0", "-1.0", "0.0", "0.0"],
+                    ["0.0", "0.0", "-0.9", "0.6"],
+                    ["0.0", "0.0", "0.1", "-0.4"],
+                ],
+                "damping_targets": [
+                    {"kind": "photon_temperature_octopole"},
+                    {"kind": "photon_polarization_octopole"},
+                ],
+                "damping_coefficient": "-1.0",
+                "activation_strategy": "tight_coupling",
+            },
+        }
+    }
+    perturbations["conservation_rules"] = {
+        "thomson_drag_balance": {
+            "kind": "absolute_max",
+            "expression": "3.0 * thomson_drag + baryon_thomson_drag",
+            "tolerance": 1.0e-12,
+            "domain": "scalar",
+        }
+    }
+    if rename_map:
+        contract["perturbations"] = _rename_declared_contract_tokens(
+            perturbations,
+            rename_map,
+        )
+    return contract
 
 
 def _declared_graph_perturbations(
@@ -949,6 +1083,148 @@ def _prepare_native_contract(
     return model_coder.prepare_native_cmb_execution_contract(
         copy.deepcopy(contract)
     )
+
+
+def _ensure_prepared_native_contract(
+    contract: dict[str, object],
+) -> dict[str, object]:
+    """Return a prepared native contract from raw or prepared input."""
+
+    if contract.get("perturbation_data") is not None:
+        return copy.deepcopy(contract)
+    return _prepare_native_contract(contract)
+
+
+def _raw_declared_spectrum_data(
+    contract: dict[str, object],
+    ells: numpy.ndarray,
+) -> native_projection.CustomCMBSpectrumData:
+    """Return unclipped native spectrum data for one declared contract."""
+
+    return native_projection._compute_custom_cmb_spectrum_data(
+        _ensure_prepared_native_contract(contract),
+        numpy.asarray(ells, dtype=int),
+    )
+
+
+def _raw_native_public_spectra(
+    contract: dict[str, object],
+    ells: numpy.ndarray,
+    *,
+    spectra: tuple[str, ...],
+) -> dict[str, numpy.ndarray]:
+    """Return unclipped public spectra for one prepared declared contract."""
+
+    prepared = _ensure_prepared_native_contract(contract)
+    requested_ell_grid = numpy.asarray(tuple(ells), dtype=int)
+    canonical_requested = tuple(
+        native_cmb_solver._canonical_spectrum_name(name) for name in spectra
+    )
+    needs_lensing = any(
+        spectrum_name in native_cmb_solver._LENSED_NATIVE_SPECTRA
+        for spectrum_name in canonical_requested
+    )
+    if needs_lensing:
+        analysis_ell_grid = numpy.arange(
+            int(requested_ell_grid.max()) + 1,
+            dtype=int,
+        )
+        output_indices = requested_ell_grid
+    else:
+        analysis_ell_grid = requested_ell_grid
+        output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
+    custom_data = native_projection._compute_custom_cmb_spectrum_data(
+        prepared,
+        analysis_ell_grid,
+        requested_spectra=native_cmb_solver._requested_base_spectra(
+            canonical_requested
+        ),
+    )
+    ell_grid = numpy.asarray(custom_data.ell_grid, dtype=numpy.longdouble)
+    ell_factor = (
+        ell_grid * (ell_grid + 1.0) / (2.0 * numpy.longdouble(numpy.pi))
+    )
+    t_cmb_muK = numpy.longdouble("2.7255e6")
+    perturbation_data = prepared["perturbation_data"]
+    spectra_results: dict[str, numpy.ndarray] = {}
+    for spectrum_name, spectrum_values in custom_data.spectra.items():
+        canonical_name = native_cmb_solver._canonical_spectrum_name(
+            spectrum_name
+        )
+        scale = numpy.asarray(
+            native_cmb_solver._power_spectrum_scale_factor(
+                perturbation_data,
+                canonical_name,
+                ell_factor=ell_factor,
+                t_cmb_muK=float(t_cmb_muK),
+                lensing_mode=needs_lensing,
+            ),
+            dtype=numpy.longdouble,
+        )
+        spectra_results[canonical_name] = scale * numpy.asarray(
+            spectrum_values, dtype=numpy.longdouble
+        )
+    if needs_lensing:
+        lensing_inputs = native_cmb_solver._normalize_lensing_input_spectra(
+            spectra_results
+        )
+        lmax = int(numpy.max(numpy.asarray(custom_data.ell_grid, dtype=int)))
+        base_cls = numpy.zeros((lmax + 1, 4), dtype=numpy.longdouble)
+        base_cls[:, 0] = numpy.asarray(
+            lensing_inputs["TT"][: lmax + 1],
+            dtype=numpy.longdouble,
+        )
+        base_cls[:, 1] = numpy.asarray(
+            lensing_inputs["EE"][: lmax + 1],
+            dtype=numpy.longdouble,
+        )
+        base_cls[:, 2] = numpy.asarray(
+            lensing_inputs.get(
+                "BB",
+                numpy.zeros(lmax + 1, dtype=numpy.longdouble),
+            )[: lmax + 1],
+            dtype=numpy.longdouble,
+        )
+        base_cls[:, 3] = numpy.asarray(
+            lensing_inputs["TE"][: lmax + 1],
+            dtype=numpy.longdouble,
+        )
+        clpp = native_cmb_solver._lensing_potential_clpp(
+            numpy.asarray(
+                lensing_inputs["PP"][: lmax + 1],
+                dtype=numpy.longdouble,
+            )
+        )
+        lensed_cls = native_cmb_solver._lensed_cls(
+            base_cls,
+            clpp,
+            lmax=lmax,
+            lmax_lensed=lmax,
+        )
+        spectra_results.update(
+            {
+                "lensed_TT": numpy.asarray(
+                    lensed_cls[:, 0], dtype=numpy.longdouble
+                ),
+                "lensed_EE": numpy.asarray(
+                    lensed_cls[:, 1], dtype=numpy.longdouble
+                ),
+                "lensed_BB": numpy.asarray(
+                    lensed_cls[:, 2], dtype=numpy.longdouble
+                ),
+                "lensed_TE": numpy.asarray(
+                    lensed_cls[:, 3], dtype=numpy.longdouble
+                ),
+            }
+        )
+    return {
+        original_name: numpy.asarray(
+            spectra_results[canonical_name],
+            dtype=numpy.longdouble,
+        )[output_indices]
+        for original_name, canonical_name in zip(spectra, canonical_requested)
+        if canonical_name in spectra_results
+    }
 
 
 def _resolved_native_scalar_context(
@@ -2316,22 +2592,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
-        changed_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
+        baseline_pp = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("PP",),
+        )["PP"]
+        changed_pp = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("PP",),
+        )["PP"]
         numpy.testing.assert_allclose(
             changed_pp / baseline_pp,
             numpy.full_like(baseline_pp, 1.35 * 1.35),
@@ -2359,22 +2629,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
-        changed_pp = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("PP",),
-            ),
-            dtype=float,
-        )
+        baseline_pp = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("PP",),
+        )["PP"]
+        changed_pp = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("PP",),
+        )["PP"]
         numpy.testing.assert_allclose(
             changed_pp / baseline_pp,
             numpy.full_like(baseline_pp, 1.35 * 1.35),
@@ -2395,22 +2659,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
-        changed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
+        baseline_bb = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        changed_bb = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("BB",),
+        )["BB"]
         numpy.testing.assert_allclose(
             changed_bb / baseline_bb,
             numpy.full_like(baseline_bb, 1.25 * 1.25),
@@ -2435,22 +2693,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_lensed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("lensed_BB",),
-            ),
-            dtype=float,
-        )
-        changed_lensed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("lensed_BB",),
-            ),
-            dtype=float,
-        )
+        baseline_lensed_bb = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("lensed_BB",),
+        )["lensed_BB"]
+        changed_lensed_bb = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("lensed_BB",),
+        )["lensed_BB"]
         self.assertGreater(
             float(
                 numpy.max(numpy.abs(changed_lensed_bb - baseline_lensed_bb))
@@ -2475,22 +2727,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
-        changed_bb = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("BB",),
-            ),
-            dtype=float,
-        )
+        baseline_bb = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        changed_bb = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("BB",),
+        )["BB"]
         numpy.testing.assert_allclose(
             changed_bb / baseline_bb,
             numpy.full_like(baseline_bb, 1.25 * 1.25),
@@ -2735,31 +2981,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 90, dtype=int)
-        base = cmb.compute_cmb_spectrum_from_contract(
+        base = _raw_native_public_spectra(
             contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
         hi_as_contract = _speedup_contract(_custom_contract())
         hi_as_contract["param_map"]["As"] = 4.2e-9
-        hi_as = cmb.compute_cmb_spectrum_from_contract(
+        hi_as = _raw_native_public_spectra(
             hi_as_contract,
             ells,
             spectra=("TT",),
-        )
+        )["TT"]
         hi_h0_contract = _speedup_contract(_custom_contract())
         hi_h0_contract["param_map"]["H0"] = 74.0
-        hi_h0 = cmb.compute_cmb_spectrum_from_contract(
+        hi_h0 = _raw_native_public_spectra(
             hi_h0_contract,
             ells,
             spectra=("TT",),
-        )
+        )["TT"]
 
-        base_tt = numpy.asarray(base["TT"], dtype=float)
-        base_te = numpy.asarray(base["TE"], dtype=float)
-        base_ee = numpy.asarray(base["EE"], dtype=float)
-        hi_as_tt = numpy.asarray(hi_as, dtype=float)
-        hi_h0_tt = numpy.asarray(hi_h0, dtype=float)
+        base_tt = numpy.asarray(base["TT"], dtype=numpy.longdouble)
+        base_te = numpy.asarray(base["TE"], dtype=numpy.longdouble)
+        base_ee = numpy.asarray(base["EE"], dtype=numpy.longdouble)
+        hi_as_tt = numpy.asarray(hi_as, dtype=numpy.longdouble)
+        hi_h0_tt = numpy.asarray(hi_h0, dtype=numpy.longdouble)
 
         self.assertTrue(numpy.all(numpy.isfinite(base_tt)))
         self.assertTrue(numpy.all(numpy.isfinite(base_te)))
@@ -2789,28 +3035,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         low_ns_contract["param_map"]["ns"] = 0.85
         high_ns_contract["param_map"]["ns"] = 1.15
         low_ns_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                low_ns_contract,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+            _raw_declared_spectrum_data(low_ns_contract, ells).spectra["TT"],
+            dtype=numpy.longdouble,
         )
         high_ns_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                high_ns_contract,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
+            _raw_declared_spectrum_data(high_ns_contract, ells).spectra["TT"],
+            dtype=numpy.longdouble,
         )
         low_shape = float(
             numpy.mean(numpy.abs(low_ns_tt[ells >= 60]))
-            / max(numpy.mean(numpy.abs(low_ns_tt[ells <= 35])), 1.0e-12)
+            / numpy.mean(numpy.abs(low_ns_tt[ells <= 35]))
         )
         high_shape = float(
             numpy.mean(numpy.abs(high_ns_tt[ells >= 60]))
-            / max(numpy.mean(numpy.abs(high_ns_tt[ells <= 35])), 1.0e-12)
+            / numpy.mean(numpy.abs(high_ns_tt[ells <= 35]))
         )
         self.assertGreater(high_shape, low_shape)
 
@@ -2860,22 +3098,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ]
         )
         ells = numpy.arange(20, 30, dtype=int)
-        low_tau_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                low_tau_contract,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        high_tau_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                high_tau_contract,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
+        low_tau_tt = _raw_native_public_spectra(
+            low_tau_contract,
+            ells,
+            spectra=("TT",),
+        )["TT"]
+        high_tau_tt = _raw_native_public_spectra(
+            high_tau_contract,
+            ells,
+            spectra=("TT",),
+        )["TT"]
         self.assertLess(
             abs(low_background.reionization_tau - low_physical.tau_reio),
             0.01,
@@ -2999,12 +3231,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "expression"
         ] = "1.6 * 1.0e4 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 60, dtype=int)
-        baseline_unlensed = cmb.compute_cmb_spectrum_from_contract(
+        baseline_unlensed = _raw_native_public_spectra(
             baseline,
             ells,
             spectra=("TT", "EE", "TE"),
         )
-        baseline_lensed = cmb.compute_cmb_spectrum_from_contract(
+        baseline_lensed = _raw_native_public_spectra(
             baseline,
             ells,
             spectra=(
@@ -3015,7 +3247,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "lensed_BB",
             ),
         )
-        changed_lensed = cmb.compute_cmb_spectrum_from_contract(
+        changed_lensed = _raw_native_public_spectra(
             changed,
             ells,
             spectra=(
@@ -3038,7 +3270,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.max(
                     numpy.abs(
                         numpy.asarray(
-                            baseline_lensed["lensed_BB"], dtype=float
+                            baseline_lensed["lensed_BB"],
+                            dtype=numpy.longdouble,
                         )
                     )
                 )
@@ -3051,9 +3284,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     numpy.abs(
                         numpy.asarray(
                             baseline_lensed["lensed_TT"],
-                            dtype=float,
+                            dtype=numpy.longdouble,
                         )
-                        - numpy.asarray(baseline_unlensed["TT"], dtype=float)
+                        - numpy.asarray(
+                            baseline_unlensed["TT"],
+                            dtype=numpy.longdouble,
+                        )
                     )
                 )
             ),
@@ -3063,8 +3299,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(
                 numpy.max(
                     numpy.abs(
-                        numpy.asarray(changed_lensed["PP"], dtype=float)
-                        - numpy.asarray(baseline_lensed["PP"], dtype=float)
+                        numpy.asarray(
+                            changed_lensed["PP"],
+                            dtype=numpy.longdouble,
+                        )
+                        - numpy.asarray(
+                            baseline_lensed["PP"],
+                            dtype=numpy.longdouble,
+                        )
                     )
                 )
             ),
@@ -3212,6 +3454,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_declared_background_symbols_feed_native_equations(self) -> None:
         """Declared background symbols should flow into perturbation math."""
 
+        native_cache.clear_native_cmb_caches()
         baseline = _speedup_contract(_custom_contract())
         changed = _speedup_contract(_custom_contract())
         baseline["background"]["derived"]["metric_drive"] = "0.25 * Omega_b0"
@@ -3225,89 +3468,222 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         baseline_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
         changed_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
+        baseline_tt = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("TT",),
+        )["TT"]
+        changed_tt = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("TT",),
+        )["TT"]
         self.assertGreater(
             float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
             1.0e-12,
         )
 
-    def test_declared_collision_operator_changes_temperature_response(
+    def test_declared_exact_collision_matrix_changes_temperature_response(
         self,
     ) -> None:
-        """Collision operators should alter the compiled drag response."""
+        """Exact collision-matrix changes should alter the native spectrum."""
 
-        baseline = _speedup_contract(_native_scalar_hierarchy_contract())
-        changed = _speedup_contract(_native_scalar_hierarchy_contract())
+        ells = numpy.arange(20, 45, dtype=int)
+        baseline = _speedup_contract(_split_collision_contract())
+        changed = _speedup_contract(_split_collision_contract())
         changed["perturbations"]["collision_operators"]["thomson_drag"][
-            "expression"
-        ] = (
-            "collision_rate * "
-            "(theta_b / 3.0 - theta_gamma1) + 0.25 * theta_gamma0"
+            "exact_form"
+        ]["matrix"][0][0] = "-1.2"
+        baseline_tt = numpy.asarray(
+            _raw_declared_spectrum_data(baseline, ells).spectra["TT"],
+            dtype=numpy.longdouble,
         )
-        baseline = _prepare_native_contract(baseline)
-        changed = _prepare_native_contract(changed)
-        baseline_thomson_drag = baseline[
-            "perturbation_data"
-        ].collision_operators["thomson_drag"]
-        changed_thomson_drag = changed[
-            "perturbation_data"
-        ].collision_operators["thomson_drag"]
-        context = {
-            "photon_baryon_momentum_ratio": 1.5,
-            "theta_b": 0.12,
-            "theta_gamma0": 0.31,
-            "theta_gamma1": 0.08,
-            "collision_rate": 0.75,
+        changed_tt = numpy.asarray(
+            _raw_declared_spectrum_data(changed, ells).spectra["TT"],
+            dtype=numpy.longdouble,
+        )
+        self.assertGreater(
+            _max_relative_delta(baseline_tt, changed_tt),
+            1.0e-6,
+        )
+
+    def test_explicit_collision_operator_survives_exact_split_step(
+        self,
+    ) -> None:
+        """Explicit collision terms should still run beside exact splits."""
+
+        ells = numpy.arange(20, 45, dtype=int)
+        baseline = _speedup_contract(_split_collision_contract())
+        changed = _speedup_contract(_split_collision_contract())
+        changed["perturbations"]["collision_operators"]["custom_drag"] = {
+            "expression": "0.2 * collision_rate * theta_gamma0",
         }
-        baseline_drag = evaluate_compiled_expression(
-            baseline_thomson_drag.compiled_expression,
-            context,
+        changed["perturbations"]["equations"]["evolve_theta_gamma1"][
+            "rhs"
+        ] += " + custom_drag"
+        baseline_tt = numpy.asarray(
+            _raw_declared_spectrum_data(baseline, ells).spectra["TT"],
+            dtype=numpy.longdouble,
         )
-        changed_drag = evaluate_compiled_expression(
-            changed_thomson_drag.compiled_expression,
-            context,
-        )
-        self.assertGreater(
-            float(numpy.abs(changed_drag - baseline_drag)),
-            1.0e-12,
-        )
-        baseline_baryon_drag = evaluate_compiled_expression(
-            baseline["perturbation_data"]
-            .derived["baryon_thomson_drag"]
-            .compiled_expression,
-            {
-                **context,
-                "thomson_drag": baseline_drag,
-            },
-        )
-        changed_baryon_drag = evaluate_compiled_expression(
-            changed["perturbation_data"]
-            .derived["baryon_thomson_drag"]
-            .compiled_expression,
-            {
-                **context,
-                "thomson_drag": changed_drag,
-            },
+        changed_tt = numpy.asarray(
+            _raw_declared_spectrum_data(changed, ells).spectra["TT"],
+            dtype=numpy.longdouble,
         )
         self.assertGreater(
-            float(numpy.abs(changed_baryon_drag - baseline_baryon_drag)),
-            1.0e-12,
+            _max_relative_delta(baseline_tt, changed_tt),
+            1.0e-7,
         )
+
+    def test_implicit_collision_operator_coexists_with_exact_thomson(
+        self,
+    ) -> None:
+        """Exact and implicit collision operators should coexist cleanly."""
+
+        ells = numpy.arange(20, 45, dtype=int)
+        baseline = _speedup_contract(_split_collision_contract())
+        changed = _speedup_contract(_split_collision_contract())
+        changed["perturbations"]["collision_operators"]["baryon_drag"] = {
+            "expression": "-0.25 * collision_rate * theta_b",
+            "integration_strategy": "implicit",
+            "rate_expression": "collision_rate",
+            "linear_block": {
+                "targets": [{"kind": "baryon_velocity_divergence"}],
+                "matrix": [["-0.25"]],
+            },
+        }
+        changed_theta_b_equation = changed["perturbations"]["equations"][
+            "evolve_theta_b"
+        ]
+        changed_theta_b_equation["rhs"] += " + baryon_drag"
+        baseline_tt = numpy.asarray(
+            _raw_declared_spectrum_data(baseline, ells).spectra["TT"],
+            dtype=numpy.longdouble,
+        )
+        changed_tt = numpy.asarray(
+            _raw_declared_spectrum_data(changed, ells).spectra["TT"],
+            dtype=numpy.longdouble,
+        )
+        self.assertGreater(
+            _max_relative_delta(baseline_tt, changed_tt),
+            1.0e-7,
+        )
+
+    def test_split_collision_contract_renamed_states_match_baseline(
+        self,
+    ) -> None:
+        """Exact collision targets should resolve by metadata, not names."""
+
+        ells = numpy.arange(20, 45, dtype=int)
+        baseline = _raw_declared_spectrum_data(
+            _speedup_contract(_split_collision_contract()),
+            ells,
+        )
+        renamed = _raw_declared_spectrum_data(
+            _speedup_contract(
+                _split_collision_contract(
+                    rename_map={
+                        "theta_gamma1": "temp_dipole",
+                        "theta_b": "baryon_velocity",
+                        "theta_gamma2": "temp_quadrupole",
+                        "e_gamma2": "pol_quadrupole",
+                        "theta_gamma3": "temp_octopole",
+                        "e_gamma3": "pol_octopole",
+                    }
+                )
+            ),
+            ells,
+        )
+
+        for component_name in ("temperature", "polarization_e"):
+            numpy.testing.assert_allclose(
+                numpy.asarray(
+                    renamed.transfer_components[component_name],
+                    dtype=numpy.longdouble,
+                ),
+                numpy.asarray(
+                    baseline.transfer_components[component_name],
+                    dtype=numpy.longdouble,
+                ),
+                rtol=1.0e-12,
+                atol=1.0e-12,
+            )
+        for spectrum_name in ("TT", "TE", "EE"):
+            numpy.testing.assert_allclose(
+                numpy.asarray(
+                    renamed.spectra[spectrum_name],
+                    dtype=numpy.longdouble,
+                ),
+                numpy.asarray(
+                    baseline.spectra[spectrum_name],
+                    dtype=numpy.longdouble,
+                ),
+                rtol=1.0e-12,
+                atol=1.0e-12,
+            )
+
+    def test_split_collision_contract_requires_exact_form_before_evolution(
+        self,
+    ) -> None:
+        """Exact split operators should fail before evolution if incomplete."""
+
+        contract = _speedup_contract(_split_collision_contract())
+        contract["perturbations"]["collision_operators"]["thomson_drag"].pop(
+            "exact_form"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires a compiled exact_form",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_split_collision_contract_requires_linear_block_before_evolution(
+        self,
+    ) -> None:
+        """Implicit split operators should fail if their block is missing."""
+
+        contract = _speedup_contract(_split_collision_contract())
+        contract["perturbations"]["collision_operators"]["baryon_drag"] = {
+            "expression": "-0.25 * collision_rate * theta_b",
+            "integration_strategy": "implicit",
+            "rate_expression": "collision_rate",
+        }
+        contract_theta_b_equation = contract["perturbations"]["equations"][
+            "evolve_theta_b"
+        ]
+        contract_theta_b_equation["rhs"] += " + baryon_drag"
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires a compiled linear_block",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
+
+    def test_split_collision_conservation_rule_failure_raises(self) -> None:
+        """Compiled collision conservation checks should stay enforced."""
+
+        contract = _speedup_contract(_split_collision_contract())
+        contract["perturbations"]["conservation_rules"][
+            "thomson_drag_balance"
+        ]["expression"] = "3.0 * thomson_drag + baryon_thomson_drag + 1.0e-2"
+        contract["perturbations"]["conservation_rules"][
+            "thomson_drag_balance"
+        ]["tolerance"] = 1.0e-6
+        with self.assertRaisesRegex(
+            ValueError,
+            "conservation rule exceeded tolerance",
+        ):
+            cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
 
     def test_multiple_declared_coordinates_preserve_runtime_response(
         self,
@@ -3412,10 +3788,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Source refinement above two should stay active at runtime."""
 
         baseline = _prepare_native_contract(
-            _speedup_contract(_custom_contract())
+            _speedup_contract(_analytic_signal_contract())
         )
         refined = _prepare_native_contract(
-            _speedup_contract(_custom_contract())
+            _speedup_contract(_analytic_signal_contract())
         )
         baseline["numerical"]["source_grid_multiplier"] = 3
         refined["numerical"]["source_grid_multiplier"] = 4
@@ -3699,22 +4075,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "1.4 * w0 * Omega_de0"
         )
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                baseline,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
-        changed_tt = numpy.asarray(
-            cmb.compute_cmb_spectrum_from_contract(
-                changed,
-                ells,
-                spectra=("TT",),
-            ),
-            dtype=float,
-        )
+        baseline_tt = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("TT",),
+        )["TT"]
+        changed_tt = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("TT",),
+        )["TT"]
         self.assertGreater(
             float(numpy.max(numpy.abs(changed_tt - baseline_tt))),
             1.0e-12,

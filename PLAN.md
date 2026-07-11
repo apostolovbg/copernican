@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-10
+**Last Updated:** 2026-07-11
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -442,7 +442,7 @@ Done when:
 * Changing neutrino mass changes evolved and projected spectra.
 * q-grid refinement produces convergent physical observables.
 
-### [open] Slice Five - Generic compiled collision integration
+### [closed] Slice Five - Generic compiled collision integration
 
 Purpose:
 

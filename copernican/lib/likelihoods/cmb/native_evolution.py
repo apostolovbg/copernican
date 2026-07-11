@@ -978,6 +978,7 @@ def _resolve_declared_graph_context(
     allow_partial: bool = False,
     eta_grid: numpy.ndarray | None,
     execution_plan: _DeclaredGraphExecutionPlan | None,
+    suppressed_outputs: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Resolve derivative symbols, derived expressions, and relations."""
 
@@ -1069,6 +1070,15 @@ def _resolve_declared_graph_context(
         next_values: list[_DeclaredValueStep] = []
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
             for step in pending_values:
+                if (
+                    suppressed_outputs is not None
+                    and step.output_name in suppressed_outputs
+                ):
+                    context[step.output_name] = suppressed_outputs[
+                        step.output_name
+                    ]
+                    progress = True
+                    continue
                 missing = [
                     dependency
                     for dependency in step.dependencies

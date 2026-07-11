@@ -8,7 +8,9 @@ import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
     PerturbationBackendMappingData,
     PerturbationClosureData,
+    PerturbationCollisionLinearFormData,
     PerturbationCollisionOperatorData,
+    PerturbationCollisionTargetSelectorData,
     PerturbationCompiledExpressionData,
     PerturbationConditionData,
     PerturbationConditionTargetData,
@@ -1185,8 +1187,36 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         self.assertIn("thomson_drag", compiled.collision_operators)
         self.assertEqual(
+            compiled.collision_operators["thomson_drag"].integration_strategy,
+            "exact",
+        )
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"].rate_expression,
+            "collision_rate",
+        )
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"].activation_strategy,
+            "tight_coupling",
+        )
+        self.assertEqual(
             compiled.collision_operators["thomson_drag"].counterpart,
             "baryon_thomson_drag",
+        )
+        self.assertIsInstance(
+            compiled.collision_operators["thomson_drag"].exact_form,
+            PerturbationCollisionLinearFormData,
+        )
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"]
+            .exact_form.targets[0]
+            .kind,
+            "photon_temperature_dipole",
+        )
+        self.assertEqual(
+            compiled.collision_operators[
+                "thomson_drag"
+            ].exact_form.damping_coefficient,
+            "-1.0",
         )
         self.assertIn("thomson_drag_balance", compiled.conservation_rules)
         self.assertEqual(
@@ -1197,6 +1227,85 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             compiled.derived["photon_baryon_momentum_ratio"].expression,
             "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
+        )
+
+    def test_collision_operator_linear_forms_compile(self) -> None:
+        """Collision operators should compile exact and implicit metadata."""
+
+        contract = _base_nonstandard_contract()
+        contract["collision_operators"] = {
+            "thomson_drag": {
+                "sector": "scalar",
+                "species": ["photon", "baryon"],
+                "expression": "collision_rate * (theta_x - delta_x)",
+                "integration_strategy": "exact",
+                "activation_strategy": "tight_coupling",
+                "rate_expression": "collision_rate",
+                "exact_form": {
+                    "targets": [
+                        {"variable": "delta_x"},
+                        {"variable": "theta_x"},
+                    ],
+                    "matrix": [
+                        ["-1.0", "0.5"],
+                        ["0.25", "-0.75"],
+                    ],
+                    "activation_strategy": "tight_coupling",
+                },
+            },
+            "drag_feedback": {
+                "sector": "scalar",
+                "species": ["baryon"],
+                "expression": "-0.25 * collision_rate * theta_x",
+                "integration_strategy": "implicit",
+                "rate_expression": "collision_rate",
+                "linear_block": {
+                    "targets": [{"variable": "theta_x"}],
+                    "matrix": [["-0.25"]],
+                },
+            },
+        }
+
+        compiled = self._compile(contract)
+        exact_drag = compiled.collision_operators["thomson_drag"]
+        implicit_drag = compiled.collision_operators["drag_feedback"]
+
+        self.assertEqual(exact_drag.integration_strategy, "exact")
+        self.assertEqual(exact_drag.activation_strategy, "tight_coupling")
+        self.assertEqual(exact_drag.rate_expression, "collision_rate")
+        self.assertIsInstance(
+            exact_drag.compiled_rate_expression,
+            PerturbationCompiledExpressionData,
+        )
+        self.assertIsInstance(
+            exact_drag.exact_form,
+            PerturbationCollisionLinearFormData,
+        )
+        self.assertIsInstance(
+            exact_drag.exact_form.targets[0],
+            PerturbationCollisionTargetSelectorData,
+        )
+        self.assertEqual(
+            exact_drag.exact_form.targets[0].variable,
+            "delta_x",
+        )
+        self.assertEqual(
+            exact_drag.exact_form.compiled_matrix[0][0].expression,
+            "-1.0",
+        )
+        self.assertEqual(implicit_drag.integration_strategy, "implicit")
+        self.assertEqual(implicit_drag.rate_expression, "collision_rate")
+        self.assertIsInstance(
+            implicit_drag.linear_block,
+            PerturbationCollisionLinearFormData,
+        )
+        self.assertEqual(
+            implicit_drag.linear_block.targets[0].variable,
+            "theta_x",
+        )
+        self.assertEqual(
+            implicit_drag.linear_block.compiled_matrix[0][0].expression,
+            "-0.25",
         )
 
     def test_scalar_hierarchy_uses_physical_collision_terms(self) -> None:

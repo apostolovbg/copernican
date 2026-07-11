@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-10
+**Last Updated:** 2026-07-11
 **Project Version:** 12.0.26
 
 ## Overview
@@ -290,9 +290,15 @@ density, pressure, momentum, and shear are fixed to thermal physical
 `q` integrals with the matching `epsilon` factors and background-moment
 normalization.
 
-### Tight Coupling
-The native scalar integrator treats the Thomson dipole and quadrupole
-sub-block as stiff only while
+### Tight Coupling And Collision Splitting
+The native scalar integrator now compiles every declared collision operator
+into one runtime block before evolution begins.
+Each block resolves its target state slots, `rate_expression`, linear
+coefficients or matrix entries, counterpart bookkeeping, and the declared
+integration strategy.
+The generated `thomson_drag` operator remains the built-in exact block, and
+its `activation_strategy: tight_coupling` metadata treats the Thomson dipole
+and quadrupole sub-block as stiff only while
 
 ```text
 collision_rate >= k * tight_coupling_ratio
@@ -304,10 +310,23 @@ and exits that regime once
 collision_rate <= 0.1 * k * tight_coupling_ratio
 ```
 
-Within the active regime, the Thomson sub-block is advanced analytically and
-the remaining free-streaming, metric, and source terms stay on the explicit
-declared graph. The same exact split also damps the generated `l >= 3`
-temperature and polarization multipoles while that regime stays active.
+Within the active regime, `copernican/lib/perturbation_contract.py` and
+`copernican/lib/likelihoods/cmb/native_projection.py` advance that exact
+Thomson block analytically from the compiled `exact_form`.
+The same exact split damps the generated `l >= 3` temperature and
+polarization multipoles while that regime stays active.
+Outside the active regime, the same compiled operator falls back to its
+ordinary declared expression in the explicit RHS.
+
+Other declared operators may remain `explicit`, or they may opt into one
+compiled split block with `integration_strategy: exact` and a declared
+`exact_form`, or with `integration_strategy: implicit` and a declared
+`linear_block`.
+Several compiled collision blocks may run in the same evolution interval, and
+the native solver now suppresses only the selected split-operator outputs
+instead of zeroing shared symbols such as `collision_rate`.
+Unsupported exact or implicit declarations therefore fail before evolution
+instead of being silently ignored.
 
 ## Line-Of-Sight Source Convention
 The canonical scalar source decomposition is:

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-10
+**Last Updated:** 2026-07-11
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,47 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-11:
+  Change: Hardened declared collision conservation evaluation by
+  re-resolving array-valued operator terms before rule validation.
+  Why: Prevented order-dependent test runs from dropping split collision
+  outputs such as `thomson_drag` out of the conservation context.
+  Impact: Fixed the surfaced Slice Five runtime regression and preserved
+  stable declared collision-rule enforcement under full test discovery.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-10:
+  Change: Closed Slice Five by compiling exact and implicit collision
+  blocks from declared operator metadata and by replacing the fixed
+  Thomson split path with generic resolved target matrices.
+  Why: Removed the last hard-coded collision integration route so
+  several compiled operators can coexist without globally suppressing
+  shared collision symbols such as `collision_rate`.
+  Impact: Added declared `exact_form` and `linear_block` execution,
+  early failure on unsupported split metadata, and renamed-state,
+  multi-operator, and raw spectrum-response coverage.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-10:
   Change: Completed Slice Four by replacing common massive-neutrino

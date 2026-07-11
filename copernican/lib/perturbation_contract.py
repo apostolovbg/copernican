@@ -239,6 +239,20 @@ _SUPPORTED_HIERARCHY_FAMILY_KEYS = {
     "species",
 }
 _SUPPORTED_COLLISION_OPERATOR_KEYS = {
+    "activation_strategy",
+    "counterpart",
+    "dependencies",
+    "description",
+    "expression",
+    "exact_form",
+    "integration_strategy",
+    "linear_block",
+    "notes",
+    "rate_expression",
+    "sector",
+    "species",
+}
+_SUPPORTED_INTERACTION_KEYS = {
     "counterpart",
     "dependencies",
     "description",
@@ -247,7 +261,6 @@ _SUPPORTED_COLLISION_OPERATOR_KEYS = {
     "sector",
     "species",
 }
-_SUPPORTED_INTERACTION_KEYS = _SUPPORTED_COLLISION_OPERATOR_KEYS
 _SUPPORTED_INITIAL_CONDITION_FAMILY_KEYS = {
     "description",
     "members",
@@ -1656,17 +1669,50 @@ def _materialize_native_scalar_hierarchy_contract(
     collision_operator_entries = dict(
         materialized.get("collision_operators", {}) or {}
     )
-    collision_operator_entries.setdefault(
-        "thomson_drag",
+    thomson_drag_entry = dict(
+        collision_operator_entries.get("thomson_drag", {}) or {}
+    )
+    thomson_drag_entry.setdefault("sector", "scalar")
+    thomson_drag_entry.setdefault("species", ["photon", "baryon"])
+    thomson_drag_entry.setdefault(
+        "expression",
+        "collision_rate * (theta_b / 3.0 - theta_gamma1)",
+    )
+    thomson_drag_entry.setdefault("counterpart", "baryon_thomson_drag")
+    thomson_drag_entry.setdefault("integration_strategy", "exact")
+    thomson_drag_entry.setdefault("activation_strategy", "tight_coupling")
+    thomson_drag_entry.setdefault("rate_expression", "collision_rate")
+    thomson_drag_entry.setdefault(
+        "exact_form",
         {
-            "sector": "scalar",
-            "species": ["photon", "baryon"],
-            "expression": (
-                "collision_rate * " "(theta_b / 3.0 - theta_gamma1)"
-            ),
-            "counterpart": "baryon_thomson_drag",
+            "targets": [
+                {"kind": "photon_temperature_dipole"},
+                {"kind": "baryon_velocity_divergence"},
+                {"kind": "photon_temperature_quadrupole"},
+                {"kind": "photon_polarization_quadrupole"},
+            ],
+            "matrix": [
+                ["-1.0", "1.0 / 3.0", "0.0", "0.0"],
+                [
+                    "photon_baryon_momentum_ratio",
+                    "-photon_baryon_momentum_ratio / 3.0",
+                    "0.0",
+                    "0.0",
+                ],
+                ["0.0", "0.0", "-0.9", "0.6"],
+                ["0.0", "0.0", "0.1", "-0.4"],
+            ],
+            "damping_targets": [
+                {"kind": "photon_temperature_octopole"},
+                {"kind": "photon_temperature_multipole"},
+                {"kind": "photon_polarization_octopole"},
+                {"kind": "photon_polarization_multipole"},
+            ],
+            "damping_coefficient": "-1.0",
+            "activation_strategy": "tight_coupling",
         },
     )
+    collision_operator_entries["thomson_drag"] = thomson_drag_entry
     materialized["collision_operators"] = collision_operator_entries
     conservation_rule_entries = dict(
         materialized.get("conservation_rules", {}) or {}
@@ -2261,6 +2307,34 @@ class PerturbationHierarchyFamilyData:
 
 
 @dataclass(frozen=True, slots=True)
+class PerturbationCollisionTargetSelectorData:
+    """Immutable selector for one collision-managed state target."""
+
+    variable: str | None = None
+    kind: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PerturbationCollisionLinearFormData:
+    """Immutable matrix-form metadata for exact or implicit operators."""
+
+    targets: tuple[PerturbationCollisionTargetSelectorData, ...] = ()
+    matrix: tuple[tuple[str, ...], ...] = ()
+    dependencies: tuple[str, ...] = ()
+    compiled_matrix: tuple[
+        tuple[PerturbationCompiledExpressionData, ...],
+        ...,
+    ] = ()
+    damping_targets: tuple[PerturbationCollisionTargetSelectorData, ...] = ()
+    damping_coefficient: str | None = None
+    damping_dependencies: tuple[str, ...] = ()
+    compiled_damping_coefficient: PerturbationCompiledExpressionData | None = (
+        None
+    )
+    activation_strategy: str = "always"
+
+
+@dataclass(frozen=True, slots=True)
 class PerturbationCollisionOperatorData:
     """Immutable collision-operator metadata for one declared contract."""
 
@@ -2273,6 +2347,13 @@ class PerturbationCollisionOperatorData:
     counterpart: str | None = None
     dependencies: tuple[str, ...] = ()
     compiled_expression: PerturbationCompiledExpressionData | None = None
+    integration_strategy: str = "explicit"
+    activation_strategy: str = "always"
+    rate_expression: str | None = None
+    rate_dependencies: tuple[str, ...] = ()
+    compiled_rate_expression: PerturbationCompiledExpressionData | None = None
+    exact_form: PerturbationCollisionLinearFormData | None = None
+    linear_block: PerturbationCollisionLinearFormData | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -2976,6 +3057,169 @@ def _compile_species_metadata(
     return compiled
 
 
+def _compile_collision_target_selector(
+    selector_def: Any,
+    *,
+    label: str,
+) -> PerturbationCollisionTargetSelectorData:
+    """Return one validated collision-state selector."""
+
+    if not isinstance(selector_def, Mapping):
+        raise ValueError(f"{label} must be a mapping")
+    variable = _validate_optional_string(
+        selector_def.get("variable"),
+        label=f"{label}.variable",
+    )
+    kind = _validate_optional_string(
+        selector_def.get("kind"),
+        label=f"{label}.kind",
+    )
+    if (variable is None) == (kind is None):
+        raise ValueError(
+            f"{label} must declare exactly one of 'variable' or 'kind'"
+        )
+    return PerturbationCollisionTargetSelectorData(
+        variable=variable,
+        kind=kind,
+    )
+
+
+def _compile_collision_linear_form(
+    linear_form_def: Any,
+    *,
+    label: str,
+    allowed_names: set[str],
+    replacements: Mapping[str, str],
+    allow_damping: bool,
+) -> PerturbationCollisionLinearFormData:
+    """Return one validated exact-form or implicit linear block."""
+
+    if not isinstance(linear_form_def, Mapping):
+        raise ValueError(f"{label} must be a mapping")
+    targets_def = linear_form_def.get("targets")
+    if not isinstance(targets_def, Sequence) or isinstance(
+        targets_def, (str, bytes)
+    ):
+        raise ValueError(f"{label}.targets must be a non-string sequence")
+    targets = tuple(
+        _compile_collision_target_selector(
+            selector_def,
+            label=f"{label}.targets[{index}]",
+        )
+        for index, selector_def in enumerate(targets_def)
+    )
+    if not targets:
+        raise ValueError(f"{label}.targets must not be empty")
+    matrix_def = linear_form_def.get("matrix")
+    if not isinstance(matrix_def, Sequence) or isinstance(
+        matrix_def, (str, bytes)
+    ):
+        raise ValueError(f"{label}.matrix must be a non-string sequence")
+    target_count = len(targets)
+    matrix_rows: list[tuple[str, ...]] = []
+    compiled_rows: list[tuple[PerturbationCompiledExpressionData, ...]] = []
+    dependency_names: set[str] = set()
+    if len(matrix_def) != target_count:
+        raise ValueError(f"{label}.matrix must have {target_count} row(s)")
+    for row_index, row_def in enumerate(matrix_def):
+        if not isinstance(row_def, Sequence) or isinstance(
+            row_def, (str, bytes)
+        ):
+            raise ValueError(
+                f"{label}.matrix[{row_index}] must be a non-string sequence"
+            )
+        if len(row_def) != target_count:
+            raise ValueError(
+                f"{label}.matrix[{row_index}] must have {target_count} "
+                "column(s)"
+            )
+        clean_row: list[str] = []
+        compiled_row: list[PerturbationCompiledExpressionData] = []
+        for column_index, entry in enumerate(row_def):
+            clean_expression, entry_dependencies = (
+                _replace_and_validate_expression(
+                    entry,
+                    label=(f"{label}.matrix[{row_index}][{column_index}]"),
+                    replacements=replacements,
+                    allowed_names=allowed_names,
+                )
+            )
+            dependency_names.update(entry_dependencies)
+            clean_row.append(clean_expression)
+            compiled_row.append(
+                _compile_expression_plan(
+                    clean_expression,
+                    dependencies=entry_dependencies,
+                )
+            )
+        matrix_rows.append(tuple(clean_row))
+        compiled_rows.append(tuple(compiled_row))
+    damping_targets: tuple[PerturbationCollisionTargetSelectorData, ...] = ()
+    damping_coefficient = None
+    damping_dependencies: tuple[str, ...] = ()
+    compiled_damping_coefficient = None
+    if "damping_targets" in linear_form_def:
+        if not allow_damping:
+            raise ValueError(
+                f"{label}.damping_targets is only supported for exact forms"
+            )
+        damping_def = linear_form_def.get("damping_targets")
+        if not isinstance(damping_def, Sequence) or isinstance(
+            damping_def, (str, bytes)
+        ):
+            raise ValueError(
+                f"{label}.damping_targets must be a non-string sequence"
+            )
+        damping_targets = tuple(
+            _compile_collision_target_selector(
+                selector_def,
+                label=f"{label}.damping_targets[{index}]",
+            )
+            for index, selector_def in enumerate(damping_def)
+        )
+    if "damping_coefficient" in linear_form_def:
+        if not allow_damping:
+            raise ValueError(
+                f"{label}.damping_coefficient is only supported for exact "
+                "forms"
+            )
+        damping_coefficient, damping_dependency_names = (
+            _replace_and_validate_expression(
+                linear_form_def.get("damping_coefficient"),
+                label=f"{label}.damping_coefficient",
+                replacements=replacements,
+                allowed_names=allowed_names,
+            )
+        )
+        damping_dependencies = tuple(sorted(damping_dependency_names))
+        compiled_damping_coefficient = _compile_expression_plan(
+            damping_coefficient,
+            dependencies=damping_dependencies,
+        )
+    activation_strategy = _validate_optional_string(
+        linear_form_def.get("activation_strategy"),
+        label=f"{label}.activation_strategy",
+    )
+    if activation_strategy is None:
+        activation_strategy = "always"
+    if activation_strategy not in {"always", "tight_coupling"}:
+        raise ValueError(
+            f"{label}.activation_strategy must be 'always' or "
+            "'tight_coupling'"
+        )
+    return PerturbationCollisionLinearFormData(
+        targets=targets,
+        matrix=tuple(matrix_rows),
+        dependencies=tuple(sorted(dependency_names)),
+        compiled_matrix=tuple(compiled_rows),
+        damping_targets=damping_targets,
+        damping_coefficient=damping_coefficient,
+        damping_dependencies=damping_dependencies,
+        compiled_damping_coefficient=compiled_damping_coefficient,
+        activation_strategy=activation_strategy,
+    )
+
+
 def _compile_collision_operator_metadata(
     collision_defs: Mapping[str, Any],
     *,
@@ -3039,6 +3283,80 @@ def _compile_collision_operator_metadata(
                 clean_expression,
                 dependencies=dependencies,
             )
+        integration_strategy = _validate_optional_string(
+            operator_def.get("integration_strategy"),
+            label=(
+                "cmb.perturbations.collision_operators."
+                f"{name}.integration_strategy"
+            ),
+        )
+        if integration_strategy is None:
+            integration_strategy = "explicit"
+        if integration_strategy not in {"explicit", "exact", "implicit"}:
+            raise ValueError(
+                "cmb.perturbations.collision_operators."
+                f"{name}.integration_strategy must be one of "
+                "'explicit', 'exact', or 'implicit'"
+            )
+        activation_strategy = _validate_optional_string(
+            operator_def.get("activation_strategy"),
+            label=(
+                "cmb.perturbations.collision_operators."
+                f"{name}.activation_strategy"
+            ),
+        )
+        if activation_strategy is None:
+            activation_strategy = "always"
+        if activation_strategy not in {"always", "tight_coupling"}:
+            raise ValueError(
+                "cmb.perturbations.collision_operators."
+                f"{name}.activation_strategy must be 'always' or "
+                "'tight_coupling'"
+            )
+        rate_expression = operator_def.get("rate_expression")
+        clean_rate_expression = None
+        rate_dependencies: tuple[str, ...] = ()
+        compiled_rate_expression = None
+        if rate_expression is not None:
+            clean_rate_expression, rate_dependencies = (
+                _replace_and_validate_expression(
+                    rate_expression,
+                    label=(
+                        "cmb.perturbations.collision_operators."
+                        f"{name}.rate_expression"
+                    ),
+                    replacements=replacements,
+                    allowed_names=allowed_names,
+                )
+            )
+            compiled_rate_expression = _compile_expression_plan(
+                clean_rate_expression,
+                dependencies=rate_dependencies,
+            )
+        exact_form = None
+        if "exact_form" in operator_def:
+            exact_form = _compile_collision_linear_form(
+                operator_def.get("exact_form"),
+                label=(
+                    "cmb.perturbations.collision_operators."
+                    f"{name}.exact_form"
+                ),
+                allowed_names=allowed_names,
+                replacements=replacements,
+                allow_damping=True,
+            )
+        linear_block = None
+        if "linear_block" in operator_def:
+            linear_block = _compile_collision_linear_form(
+                operator_def.get("linear_block"),
+                label=(
+                    "cmb.perturbations.collision_operators."
+                    f"{name}.linear_block"
+                ),
+                allowed_names=allowed_names,
+                replacements=replacements,
+                allow_damping=False,
+            )
         compiled[name] = PerturbationCollisionOperatorData(
             name=name,
             description=_validate_optional_string(
@@ -3064,6 +3382,13 @@ def _compile_collision_operator_metadata(
             ),
             dependencies=dependencies,
             compiled_expression=compiled_expression,
+            integration_strategy=integration_strategy,
+            activation_strategy=activation_strategy,
+            rate_expression=clean_rate_expression,
+            rate_dependencies=rate_dependencies,
+            compiled_rate_expression=compiled_rate_expression,
+            exact_form=exact_form,
+            linear_block=linear_block,
         )
     return compiled
 
@@ -6113,7 +6438,9 @@ def compile_perturbation_contract(
 
 __all__ = [
     "PerturbationBackendMappingData",
+    "PerturbationCollisionLinearFormData",
     "PerturbationCollisionOperatorData",
+    "PerturbationCollisionTargetSelectorData",
     "PerturbationClosureData",
     "PerturbationCompiledExpressionData",
     "PerturbationConservationRuleData",

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-10
+**Last Updated:** 2026-07-11
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -72,9 +72,16 @@ uses the baryon-velocity Doppler source, a physical terminal free-
 streaming closure with higher-multipole Thomson damping on the generated
 photon and polarization ladders, and explicit tight-coupling entry and
 exit thresholds for the analytic Thomson sub-step.
-The native collision substep now resolves exact Thomson relaxation from
-compiled collision metadata instead of hard-coded state names, and
-`lensed_BB` keeps declared primordial B-mode sources visible.
+The native collision path in
+`copernican/lib/perturbation_contract.py` and
+`copernican/lib/likelihoods/cmb/native_projection.py` now compiles
+exact and implicit collision blocks from declared `exact_form`,
+`linear_block`, `rate_expression`, and `activation_strategy` metadata.
+The built-in `thomson_drag` operator remains the standard exact block,
+multiple collision blocks may coexist in one interval, and explicit
+operators keep their shared `collision_rate` terms instead of being
+globally suppressed. `lensed_BB` also keeps declared primordial
+B-mode sources visible.
 The public `CMBLike` likelihood now also accepts stacked spectrum blocks
 when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
 blocks can be flattened into one covariance surface. Row-order indexing
