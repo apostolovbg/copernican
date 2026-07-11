@@ -6,9 +6,9 @@
 This document is the canonical physical convention for Copernican's native
 CMB solver path when `cmb.perturbations.standard: false`.
 
-The scalar and vector sectors now follow this contract. Later tensor slices
-may extend it, but they must not redefine the meaning of states, source
-terms, gauge labels, or public spectra.
+The scalar, vector, and tensor sectors now follow this contract, and later
+work must not redefine the meaning of states, source terms, gauge labels, or
+public spectra.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -166,8 +166,29 @@ The generated vector route also carries the algebraic source moments
 `vector_polarization_moment = pi_gamma_vector / 10 + 3 E_gamma,2 / 5`
 and `vector_visibility_polarization_moment = g * vector_polarization_moment`.
 
-Tensor slices still need to preserve the same parity rule: odd-parity transfer
-content remains odd and even-parity transfer content remains even.
+### Tensor States
+The canonical tensor metric amplitude is `h_tensor`, with the explicit
+conformal-time derivative `h_tensor_tau = d h_tensor / d eta`.
+`h_tensor` is dimensionless and `h_tensor_tau` has units `1/Mpc`.
+
+The native tensor radiation states are:
+
+- `pi_gamma_tensor`, `pi_nu_tensor`
+  Photon and massless-neutrino tensor anisotropic stress amplitudes.
+  Units: dimensionless.
+- `theta_gamma_t3`, `theta_gamma_t4`, ...
+  Higher photon tensor temperature multipoles. Units: dimensionless.
+- `e_gamma_t2`, `e_gamma_t3`, ...
+  Tensor even-parity polarization multipoles. Units: dimensionless.
+- `b_gamma_t2`, `b_gamma_t3`, ...
+  Tensor odd-parity polarization multipoles. Units: dimensionless.
+- `nu_t3`, `nu_t4`, ...
+  Higher massless-neutrino tensor multipoles. Units: dimensionless.
+
+The generated tensor route also carries the algebraic source moment
+`tensor_polarization_moment = pi_gamma_tensor / 10 + 3 E_gamma,2 / 5`.
+Odd-parity transfer content remains odd and even-parity transfer content
+remains even.
 
 ## Optical Depth And Visibility
 The native optical-depth convention is:
@@ -235,6 +256,13 @@ and `alpha` from the same observable-basis metric constraint surface.
 Before integrating one generated scalar mode, the native runtime now
 evaluates the starting Einstein energy, momentum, and shear residuals and
 rejects non-finite or out-of-tolerance initial data.
+
+## Regular Tensor Initial Mode
+The generated tensor route materializes the regular `tensor_mode` family.
+It seeds `h_tensor` from the declared primordial tensor amplitude, seeds
+`h_tensor_tau` from the leading `k^2 tau` super-horizon series, and starts the
+tensor photon, polarization, and neutrino multipoles from the same regular
+physical surface.
 
 ## Canonical Scalar Equations
 The standard generated scalar hierarchy must use the following physical
@@ -420,6 +448,22 @@ the same sign and parity convention across sectors: temperature sources are
 even, `E` is even, `B` is odd, and lensing uses the Weyl-potential sum
 `Phi + Psi`.
 
+The canonical tensor source decomposition is:
+
+```text
+P_T = pi_gamma_tensor / 10 + 3 E_gamma,2 / 5
+
+S_T^T = -exp(-tau) h_tensor' + 2 g P_T
+
+S_E^T = g P_T
+
+S_B^T = g B_gamma,2
+```
+
+`copernican/lib/perturbation_contract.py` materializes these as
+`tensor_temperature_source`, `tensor_polarization_e_source`, and
+`tensor_polarization_b_source`.
+
 ## Public Spectrum Convention
 The native projection layer integrates raw transfer functions into raw
 `C_ell` values. The public solver then applies the native output convention.
@@ -455,6 +499,12 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 
 `lensed_TT`, `lensed_TE`, `lensed_EE`, and `lensed_BB` stay in the same
 `muK^2` `D_ell` convention as their unlensed counterparts.
+
+Single-sector native routes also expose matching component aliases such as
+`scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
+The tensor route reads `r` as the tensor-to-scalar amplitude ratio and `nt`
+as the tensor spectral index when constructing the primordial tensor power
+law.
 
 Unavailable spectra stay unavailable. Physically zero and unavailable are not
 the same state.

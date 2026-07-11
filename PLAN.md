@@ -623,7 +623,7 @@ Done when:
 * Vector temperature and polarization observables are finite and physical.
 * Vector analytic limits pass their declared residual tolerances.
 
-### [open] Slice Eight - Physical tensor Boltzmann sector
+### [closed] Slice Eight - Physical tensor Boltzmann sector
 
 Purpose:
 

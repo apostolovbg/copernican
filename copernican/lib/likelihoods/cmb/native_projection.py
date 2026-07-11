@@ -30,6 +30,7 @@ from .native_background import (
     _build_custom_cmb_background,
     _coerce_numeric_scalar,
     _custom_cmb_spectrum_cache_key,
+    _CustomCMBPhysicalParameters,
     _DeclaredProjectionKernelBatch,
     _get_cached_custom_cmb_spectrum_data,
     _get_cached_declared_projection_kernel_batch,
@@ -270,6 +271,36 @@ def _integrate_power_spectrum(
     # Keep the raw spectrum in extended precision until the public solver
     # applies its final float conversion.
     return numpy.asarray(integrated, dtype=numpy.longdouble)
+
+
+def _primordial_power_grid_for_observable(
+    *,
+    physical_params: _CustomCMBPhysicalParameters,
+    perturbation_data: Any,
+    observable_entry: Any,
+    k_values: numpy.ndarray,
+) -> numpy.ndarray:
+    """Return the primordial power grid driving ``observable_entry``."""
+
+    sector = str(getattr(observable_entry, "sector", "") or "")
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    if sector == "tensor" and bool(
+        manifest_summary.get("generated_tensor_hierarchy")
+    ):
+        tensor_ratio = getattr(physical_params, "tensor_to_scalar_ratio", None)
+        tensor_tilt = getattr(
+            physical_params,
+            "tensor_spectral_index",
+            None,
+        )
+        amplitude = float(physical_params.primordial_amplitude) * float(
+            0.0 if tensor_ratio is None else max(float(tensor_ratio), 0.0)
+        )
+        exponent = 0.0 if tensor_tilt is None else float(tensor_tilt)
+    else:
+        amplitude = float(physical_params.primordial_amplitude)
+        exponent = float(physical_params.primordial_spectral_index) - 1.0
+    return amplitude * numpy.power(k_values / 0.05, exponent)
 
 
 def _declared_graph_projection(
@@ -1817,10 +1848,6 @@ def _compute_custom_cmb_spectrum_data(
         return histories, source_arrays
 
     log_k_values = numpy.log(k_values)
-    primordial_grid = physical_params.primordial_amplitude * numpy.power(
-        k_values / 0.05,
-        physical_params.primordial_spectral_index - 1.0,
-    )
     ell_signature = tuple(int(ell_value) for ell_value in ell_arr)
 
     for k_index, k_value in enumerate(k_values):
@@ -1874,6 +1901,12 @@ def _compute_custom_cmb_spectrum_data(
         observable_name,
         observable_entry,
     ) in power_spectrum_observables.items():
+        primordial_grid = _primordial_power_grid_for_observable(
+            physical_params=physical_params,
+            perturbation_data=perturbation_data,
+            observable_entry=observable_entry,
+            k_values=k_values,
+        )
         primary = numpy.asarray(
             transfer_components[str(observable_entry.primary)],
             dtype=numpy.longdouble,

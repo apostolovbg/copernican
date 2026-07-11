@@ -80,6 +80,27 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-11:
+  Change: Implemented the native tensor Einstein-Boltzmann hierarchy,
+  tensor primordial `r`/`nt` handling, and tensor spectrum alias routing.
+  Why: Added the physical tensor `TT/TE/EE/BB` route, tensor-response
+  coverage, and exposed sector/total spectrum components for Slice Eight.
+  Impact: Native tensor runs now materialize physical metric-wave,
+  photon, polarization, and neutrino states and preserve primordial
+  tensor `BB` through exact lensing tests.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-11:
   Change: Implemented Slice Seven by generating the physical vector
   Einstein-Boltzmann hierarchy, vector Thomson handling, and native
   `TT/TE/EE/BB` plus remapped `BB` regression coverage.

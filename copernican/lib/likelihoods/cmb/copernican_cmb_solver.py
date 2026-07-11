@@ -15,6 +15,9 @@ _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 _LENSED_NATIVE_SPECTRA = frozenset(
     {"lensed_BB", "lensed_EE", "lensed_TE", "lensed_TT"}
 )
+_NATIVE_SPECTRUM_COMPONENT_PREFIXES = frozenset(
+    {"scalar", "total", "tensor", "vector"}
+)
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_b",
     "polarization_e",
@@ -25,6 +28,43 @@ _SPECTRUM_ALIASES = {
     "PHIPHI": "PP",
     "TPHI": "TP",
 }
+
+
+def _split_canonical_spectrum_name(
+    spectrum_name: str,
+) -> tuple[bool, str | None, str]:
+    """Return ``(lensed, component, base_name)`` for ``spectrum_name``."""
+
+    name = str(spectrum_name)
+    lensed = name.lower().startswith("lensed_")
+    if lensed:
+        name = name.split("_", 1)[1]
+    lower_name = name.lower()
+    component = None
+    for candidate in sorted(_NATIVE_SPECTRUM_COMPONENT_PREFIXES):
+        prefix = f"{candidate}_"
+        if lower_name.startswith(prefix):
+            component = candidate
+            name = name[len(prefix) :]
+            break
+    return lensed, component, str(name).upper()
+
+
+def _compose_canonical_spectrum_name(
+    *,
+    lensed: bool,
+    component: str | None,
+    base_name: str,
+) -> str:
+    """Return the canonical spectrum name for one parsed spectrum token."""
+
+    name = str(base_name).upper()
+    name = _SPECTRUM_ALIASES.get(name, name)
+    if component is not None:
+        name = f"{component}_{name}"
+    if lensed:
+        return f"lensed_{name}"
+    return name
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -39,12 +79,35 @@ def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
 def _canonical_spectrum_name(spectrum_name: str) -> str:
     """Return the canonical native-spectrum name for ``spectrum_name``."""
 
-    name = str(spectrum_name)
-    if name.lower().startswith("lensed_"):
-        suffix = name.split("_", 1)[1].upper()
-        return f"lensed_{suffix}"
-    upper_name = name.upper()
-    return _SPECTRUM_ALIASES.get(upper_name, upper_name)
+    lensed, component, base_name = _split_canonical_spectrum_name(
+        spectrum_name
+    )
+    return _compose_canonical_spectrum_name(
+        lensed=lensed,
+        component=component,
+        base_name=base_name,
+    )
+
+
+def _base_spectrum_name(spectrum_name: str) -> str:
+    """Return the unprefixed unlensed spectrum token for ``spectrum_name``."""
+
+    _, _, base_name = _split_canonical_spectrum_name(spectrum_name)
+    return _SPECTRUM_ALIASES.get(base_name, base_name)
+
+
+def _spectrum_component_name(spectrum_name: str) -> str | None:
+    """Return the component prefix encoded in ``spectrum_name``."""
+
+    _, component, _ = _split_canonical_spectrum_name(spectrum_name)
+    return component
+
+
+def _is_lensed_requested_spectrum(spectrum_name: str) -> bool:
+    """Return ``True`` when ``spectrum_name`` requests exact lensing."""
+
+    lensed, _, _ = _split_canonical_spectrum_name(spectrum_name)
+    return lensed
 
 
 def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
@@ -139,7 +202,7 @@ def _power_spectrum_scale_factor(
 
     del perturbation_data
     del lensing_mode
-    name = str(spectrum_name).upper()
+    name = _base_spectrum_name(spectrum_name)
     if name in {"TT", "TE", "EE", "BB"}:
         return (
             ell_factor
@@ -174,11 +237,51 @@ def _requested_base_spectra(
 
     base_spectra: set[str] = set()
     for spectrum_name in canonical_requested_spectra:
-        if spectrum_name in _LENSED_NATIVE_SPECTRA:
+        if _is_lensed_requested_spectrum(spectrum_name):
             base_spectra.update({"TT", "TE", "EE", "BB", "PP"})
             continue
-        base_spectra.add(spectrum_name)
+        base_spectra.add(_base_spectrum_name(spectrum_name))
     return tuple(sorted(base_spectra))
+
+
+def _resolve_available_spectrum_name(
+    requested_name: str,
+    *,
+    perturbation_data: Any,
+    available_spectra: Mapping[str, numpy.ndarray],
+) -> str | None:
+    """Return the available internal spectrum backing ``requested_name``."""
+
+    canonical_requested = _canonical_spectrum_name(requested_name)
+    if canonical_requested in available_spectra:
+        return canonical_requested
+    lensed, component, base_name = _split_canonical_spectrum_name(
+        canonical_requested
+    )
+    fallback_name = _compose_canonical_spectrum_name(
+        lensed=lensed,
+        component=None,
+        base_name=base_name,
+    )
+    if fallback_name not in available_spectra:
+        return None
+    if component in (None, "total"):
+        return fallback_name
+    sector_names = tuple(
+        str(name)
+        for name in perturbation_data.manifest_summary.get("sector_names", ())
+    )
+    if len(sector_names) == 1 and sector_names[0] == component:
+        return fallback_name
+    observable_entry = perturbation_data.observables.get(
+        _base_spectrum_name(fallback_name)
+    )
+    if (
+        observable_entry is not None
+        and str(observable_entry.sector or "") == component
+    ):
+        return fallback_name
+    return None
 
 
 def _is_structured_camb_contract(
@@ -271,7 +374,7 @@ def _compute_declared_perturbation_spectrum(
         _canonical_spectrum_name(name) for name in requested_spectra
     )
     needs_lensing = any(
-        spectrum_name in _LENSED_NATIVE_SPECTRA
+        _is_lensed_requested_spectrum(spectrum_name)
         for spectrum_name in canonical_requested_spectra
     )
     if needs_lensing:
@@ -333,10 +436,15 @@ def _compute_declared_perturbation_spectrum(
         requested_spectra,
         canonical_requested_spectra,
     ):
-        if canonical_name not in spectra_results:
+        available_name = _resolve_available_spectrum_name(
+            canonical_name,
+            perturbation_data=perturbation_data,
+            available_spectra=spectra_results,
+        )
+        if available_name is None:
             continue
         result[original_name] = _safe_float_output(
-            spectra_results[canonical_name]
+            spectra_results[available_name]
         )[output_indices]
     if len(result) != len(requested_spectra):
         missing = sorted(
@@ -345,7 +453,12 @@ def _compute_declared_perturbation_spectrum(
                 requested_spectra,
                 canonical_requested_spectra,
             )
-            if canonical_name not in spectra_results
+            if _resolve_available_spectrum_name(
+                canonical_name,
+                perturbation_data=perturbation_data,
+                available_spectra=spectra_results,
+            )
+            is None
         )
         missing_str = ", ".join(missing)
         raise ValueError(

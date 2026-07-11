@@ -1121,7 +1121,7 @@ def _raw_native_public_spectra(
         native_cmb_solver._canonical_spectrum_name(name) for name in spectra
     )
     needs_lensing = any(
-        spectrum_name in native_cmb_solver._LENSED_NATIVE_SPECTRA
+        native_cmb_solver._is_lensed_requested_spectrum(spectrum_name)
         for spectrum_name in canonical_requested
     )
     if needs_lensing:
@@ -1716,6 +1716,150 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
             "validity": {
                 "regimes": ["linear", "native_vector_hierarchy"],
                 "notes": "Metadata-only native vector hierarchy route.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "implemented": True,
+                }
+            },
+        },
+    }
+
+
+def _native_tensor_hierarchy_contract() -> dict[str, object]:
+    """Return a tensor native hierarchy fixture."""
+
+    numerics = {
+        "ell_min": 20,
+        "ell_max": 120,
+        "k_min": 1.0e-4,
+        "k_max": 0.3,
+        "k_sample_count": 18,
+        "eta_sample_count": 192,
+        "ode_rtol": 1.0e-5,
+        "ode_atol": 1.0e-8,
+        "a_min": 1.0e-6,
+        "source_grid_multiplier": 1,
+        "initial_redshift": 2.0e4,
+        "photon_hierarchy_l_max": 8,
+        "photon_polarization_hierarchy_l_max": 8,
+        "neutrino_hierarchy_l_max": 5,
+    }
+    tensor_species = ["photon", "massless_neutrino"]
+    tensor_hierarchy_families = [
+        "photon_temperature_tensor",
+        "photon_polarization_e_tensor",
+        "photon_polarization_b_tensor",
+        "massless_neutrino_tensor",
+    ]
+    return {
+        "model_name": "NativeTensorHierarchy",
+        "backend": "camb",
+        "param_map": {
+            "H0": 67.4,
+            "ombh2": 0.02237,
+            "omch2": 0.12,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.046,
+            "YHe": 0.245,
+            "sum_mnu": 0.06,
+            "num_massive_neutrinos": 3,
+            "r": 0.1,
+            "nt": 0.0,
+        },
+        "model_parameters": {
+            "Tcmb_K": 2.7255,
+        },
+        "background": _declared_background(),
+        "grids": {},
+        "values": {},
+        "calls": [],
+        "numerical": dict(numerics),
+        "perturbations": {
+            "contract_version": 2,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {},
+            "derived": {},
+            "equations": {},
+            "constraints": {},
+            "closures": {},
+            "collision_operators": {},
+            "conservation_rules": {},
+            "initial_conditions": {},
+            "initial_condition_families": {
+                "tensor_mode": {
+                    "sector": "tensor",
+                    "members": [],
+                }
+            },
+            "boundary_conditions": {},
+            "sectors": {
+                "tensor": {
+                    "description": "Native tensor hierarchy sector.",
+                    "species": tensor_species,
+                    "hierarchy_families": tensor_hierarchy_families,
+                    "supported_gauges": ["conformal_newtonian"],
+                    "tensor_character": "tensor_like",
+                }
+            },
+            "species": {
+                "photon": {
+                    "sector": "tensor",
+                    "hierarchy_family": "photon_temperature_tensor",
+                    "background_reference": "Omega_gamma0",
+                },
+                "massless_neutrino": {
+                    "sector": "tensor",
+                    "hierarchy_family": "massless_neutrino_tensor",
+                    "background_reference": "Omega_nu0",
+                    "anisotropic_stress": "supported",
+                },
+            },
+            "hierarchy_families": {
+                "photon_temperature_tensor": {
+                    "sector": "tensor",
+                    "species": ["photon"],
+                    "closure": "free_streaming_tensor",
+                    "default_l_max": 8,
+                    "multipole_symbol": "theta_gamma_tl",
+                },
+                "photon_polarization_e_tensor": {
+                    "sector": "tensor",
+                    "species": ["photon"],
+                    "closure": "free_streaming_tensor",
+                    "default_l_max": 8,
+                    "multipole_symbol": "e_gamma_tl",
+                },
+                "photon_polarization_b_tensor": {
+                    "sector": "tensor",
+                    "species": ["photon"],
+                    "closure": "free_streaming_tensor",
+                    "default_l_max": 8,
+                    "multipole_symbol": "b_gamma_tl",
+                },
+                "massless_neutrino_tensor": {
+                    "sector": "tensor",
+                    "species": ["massless_neutrino"],
+                    "closure": "free_streaming_tensor",
+                    "default_l_max": 5,
+                    "multipole_symbol": "nu_tl",
+                },
+            },
+            "projection_typing": {},
+            "accuracy_controls": {
+                "tensor_reference_ells": [20, 60, 120],
+                "runtime_envelope": "bounded",
+            },
+            "sources": {},
+            "observables": {},
+            "numerics": dict(numerics),
+            "validity": {
+                "regimes": ["linear", "native_tensor_hierarchy"],
+                "notes": "Metadata-only native tensor hierarchy route.",
             },
             "backend_mapping": {
                 "camb": {
@@ -4722,6 +4866,244 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(
                 numpy.max(
                     numpy.abs(lensed_with_vector - lensed_without_vector)
+                )
+            ),
+            0.0,
+        )
+
+    def test_native_tensor_hierarchy_materializes_generated_hierarchy(
+        self,
+    ) -> None:
+        """The native tensor route should compile hierarchy data."""
+
+        contract = _prepare_native_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertTrue(
+            perturbation_data.manifest_summary["generated_tensor_hierarchy"]
+        )
+        self.assertFalse(
+            perturbation_data.manifest_summary["generated_scalar_hierarchy"]
+        )
+        self.assertFalse(
+            perturbation_data.manifest_summary["generated_vector_hierarchy"]
+        )
+        self.assertIn("h_tensor", perturbation_data.variables)
+        self.assertIn("h_tensor_tau", perturbation_data.variables)
+        self.assertIn("theta_gamma_t8", perturbation_data.variables)
+        self.assertIn("e_gamma_t8", perturbation_data.variables)
+        self.assertIn("b_gamma_t8", perturbation_data.variables)
+        self.assertIn("nu_t5", perturbation_data.variables)
+        self.assertIn("tensor_temperature_source", perturbation_data.sources)
+        self.assertIn("BB", perturbation_data.observables)
+        self.assertEqual(
+            perturbation_data.observables["polarization_b"].parity,
+            "odd",
+        )
+
+    def test_native_tensor_hierarchy_transfer_payloads_are_finite(
+        self,
+    ) -> None:
+        """Physical tensor transfer outputs should stay finite."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_native_tensor_hierarchy_contract())
+        )
+        ells = numpy.arange(20, 45, dtype=int)
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+        )
+
+        self.assertEqual(
+            set(spectrum_data.transfer_components),
+            {"temperature", "polarization_b", "polarization_e"},
+        )
+        self.assertEqual(set(spectrum_data.spectra), {"TT", "TE", "EE", "BB"})
+        for array in (
+            spectrum_data.transfer_components["temperature"],
+            spectrum_data.transfer_components["polarization_e"],
+            spectrum_data.transfer_components["polarization_b"],
+            spectrum_data.spectra["TT"],
+            spectrum_data.spectra["TE"],
+            spectrum_data.spectra["EE"],
+            spectrum_data.spectra["BB"],
+        ):
+            self.assertTrue(numpy.all(numpy.isfinite(array)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(spectrum_data.spectra["TT"]))),
+            0.0,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(spectrum_data.spectra["BB"]))),
+            0.0,
+        )
+
+    def test_native_tensor_hierarchy_amplitude_response_scales_linearly(
+        self,
+    ) -> None:
+        """Tensor primordial amplitude should scale tensor spectra linearly."""
+
+        baseline = _prepare_native_contract(
+            _speedup_contract(_native_tensor_hierarchy_contract())
+        )
+        changed_contract = _speedup_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        changed_contract["param_map"]["r"] = 0.15
+        changed = _prepare_native_contract(changed_contract)
+        ells = numpy.arange(20, 36, dtype=int)
+        baseline_bb = _raw_native_public_spectra(
+            baseline,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        changed_bb = _raw_native_public_spectra(
+            changed,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        numpy.testing.assert_allclose(
+            changed_bb / baseline_bb,
+            numpy.full_like(baseline_bb, 1.5),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
+    def test_native_tensor_hierarchy_tilt_changes_bb_shape(
+        self,
+    ) -> None:
+        """Tensor tilt should reshape the declared B-mode spectrum."""
+
+        red_contract = _speedup_contract(_native_tensor_hierarchy_contract())
+        blue_contract = _speedup_contract(_native_tensor_hierarchy_contract())
+        red_contract["param_map"]["nt"] = -0.6
+        blue_contract["param_map"]["nt"] = 0.6
+        red = _prepare_native_contract(red_contract)
+        blue = _prepare_native_contract(blue_contract)
+        ells = numpy.asarray((20, 30, 50, 80, 120), dtype=int)
+        red_bb = _raw_native_public_spectra(
+            red,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        blue_bb = _raw_native_public_spectra(
+            blue,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        red_shape = float(red_bb[-1] / red_bb[0])
+        blue_shape = float(blue_bb[-1] / blue_bb[0])
+
+        self.assertGreater(blue_shape, red_shape)
+
+    def test_native_tensor_hierarchy_neutrino_stress_changes_bb(
+        self,
+    ) -> None:
+        """Tensor neutrino stress should alter the declared B-mode output."""
+
+        with_neutrinos = _prepare_native_contract(
+            _speedup_contract(_native_tensor_hierarchy_contract())
+        )
+        without_neutrinos_contract = _speedup_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        without_neutrinos_contract["param_map"]["Neff"] = 0.0
+        without_neutrinos = _prepare_native_contract(
+            without_neutrinos_contract
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        baseline_bb = _raw_native_public_spectra(
+            with_neutrinos,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+        changed_bb = _raw_native_public_spectra(
+            without_neutrinos,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+
+        self.assertTrue(numpy.all(numpy.isfinite(baseline_bb)))
+        self.assertTrue(numpy.all(numpy.isfinite(changed_bb)))
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_bb - baseline_bb))),
+            1.0e-18,
+        )
+
+    def test_native_tensor_component_aliases_match_total_spectra(
+        self,
+    ) -> None:
+        """Tensor and total aliases should resolve to the same spectra."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_native_tensor_hierarchy_contract())
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        spectra = cmb.compute_cmb_spectrum_from_contract(
+            contract,
+            ells,
+            spectra=("TT", "tensor_TT", "total_TT", "BB", "tensor_BB"),
+        )
+
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["TT"], dtype=float),
+            numpy.asarray(spectra["tensor_TT"], dtype=float),
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["TT"], dtype=float),
+            numpy.asarray(spectra["total_TT"], dtype=float),
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(spectra["BB"], dtype=float),
+            numpy.asarray(spectra["tensor_BB"], dtype=float),
+        )
+
+    def test_native_tensor_b_mode_survives_exact_lensing_remapper(
+        self,
+    ) -> None:
+        """Exact lensing should preserve physical tensor primordial BB."""
+
+        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
+        tensor = _prepare_native_contract(
+            _speedup_contract(_native_tensor_hierarchy_contract())
+        )
+        ells = numpy.arange(0, 121, dtype=int)
+        scalar_spectra = _raw_native_public_spectra(
+            scalar,
+            ells,
+            spectra=("TT", "TE", "EE", "PP"),
+        )
+        tensor_bb = _raw_native_public_spectra(
+            tensor,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+
+        lensed_without_tensor = (
+            native_cmb_solver._assemble_exact_lensed_spectra(
+                {
+                    **scalar_spectra,
+                    "BB": numpy.zeros_like(tensor_bb, dtype=float),
+                },
+                ells,
+            )["lensed_BB"]
+        )
+        lensed_with_tensor = native_cmb_solver._assemble_exact_lensed_spectra(
+            {
+                **scalar_spectra,
+                "BB": tensor_bb,
+            },
+            ells,
+        )["lensed_BB"]
+
+        self.assertTrue(numpy.all(numpy.isfinite(lensed_with_tensor)))
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(lensed_with_tensor - lensed_without_tensor)
                 )
             ),
             0.0,

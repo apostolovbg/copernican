@@ -97,6 +97,8 @@ _RUNTIME_REFERENCE_NAMES = {
     "sound_speed_sq",
     "tight_coupling_drag",
     "tight_coupling_ratio",
+    "tensor_spectral_index",
+    "tensor_to_scalar_ratio",
     "w0",
     "wa",
     "primordial_amplitude",
@@ -321,6 +323,17 @@ _VECTOR_HIERARCHY_REQUIRED_FAMILIES = {
     "photon_polarization_e_vector",
     "photon_temperature_vector",
 }
+_TENSOR_HIERARCHY_REQUIRED_SECTOR = "tensor"
+_TENSOR_HIERARCHY_REQUIRED_SPECIES = {
+    "massless_neutrino",
+    "photon",
+}
+_TENSOR_HIERARCHY_REQUIRED_FAMILIES = {
+    "massless_neutrino_tensor",
+    "photon_polarization_b_tensor",
+    "photon_polarization_e_tensor",
+    "photon_temperature_tensor",
+}
 _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES = (
     "adiabatic_scalar",
     "baryon_isocurvature",
@@ -330,6 +343,7 @@ _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES = (
     "tensor_mode",
 )
 _VECTOR_HIERARCHY_STANDARD_INITIAL_MODES = ("regular_vector_mode",)
+_TENSOR_HIERARCHY_STANDARD_INITIAL_MODES = ("tensor_mode",)
 _NEWTONIAN_GAUGE_ROLES = frozenset(
     {"curvature_potential", "newtonian_potential"}
 )
@@ -464,6 +478,34 @@ def _vector_neutrino_name(moment: int) -> str:
     return f"nu_v{int(moment)}"
 
 
+def _tensor_temperature_name(moment: int) -> str:
+    """Return the declared tensor photon-temperature variable name."""
+
+    if moment == 2:
+        return "pi_gamma_tensor"
+    return f"theta_gamma_t{int(moment)}"
+
+
+def _tensor_polarization_e_name(moment: int) -> str:
+    """Return the declared tensor E-polarization variable name."""
+
+    return f"e_gamma_t{int(moment)}"
+
+
+def _tensor_polarization_b_name(moment: int) -> str:
+    """Return the declared tensor B-polarization variable name."""
+
+    return f"b_gamma_t{int(moment)}"
+
+
+def _tensor_neutrino_name(moment: int) -> str:
+    """Return the declared tensor massless-neutrino variable name."""
+
+    if moment == 2:
+        return "pi_nu_tensor"
+    return f"nu_t{int(moment)}"
+
+
 def _metadata_entry(
     kind: str,
     description: str,
@@ -500,6 +542,17 @@ def _select_standard_vector_initial_mode(
     """Return the declared auto-generated vector initial-condition mode."""
 
     for family_name in _VECTOR_HIERARCHY_STANDARD_INITIAL_MODES:
+        if family_name in family_defs:
+            return family_name
+    return None
+
+
+def _select_standard_tensor_initial_mode(
+    family_defs: Mapping[str, Any],
+) -> str | None:
+    """Return the declared auto-generated tensor initial-condition mode."""
+
+    for family_name in _TENSOR_HIERARCHY_STANDARD_INITIAL_MODES:
         if family_name in family_defs:
             return family_name
     return None
@@ -816,6 +869,92 @@ def _vector_polarization_recurrence_rhs(
         pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
     else:
         next_coeff = _vector_polarization_next_coeff(moment)
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    pieces.append(
+        f"{'+' if sign > 0 else '-'} "
+        f"{opposite_coeff:.16g} * acoustic_k * {opposite_name}"
+    )
+    if collision_term is not None:
+        pieces.append(collision_term)
+    return " ".join(pieces)
+
+
+def _tensor_hierarchy_next_coeff(moment: int) -> float:
+    """Return the tensor hierarchy coefficient multiplying ``F_{l+1}``."""
+
+    moment_value = float(moment)
+    return (((moment_value + 1.0) * (moment_value + 1.0)) - 4.0) / (
+        (2.0 * moment_value + 1.0) * (moment_value + 1.0)
+    )
+
+
+def _tensor_hierarchy_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    collision_term: str | None = None,
+) -> str:
+    """Return one tensor hierarchy RHS with spin-2 free streaming."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
+    else:
+        next_coeff = _tensor_hierarchy_next_coeff(moment)
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    if collision_term is not None:
+        pieces.append(collision_term)
+    return " ".join(pieces)
+
+
+def _tensor_streaming_hierarchy_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    streaming_speed_name: str,
+) -> str:
+    """Return one q-resolved tensor hierarchy RHS."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [
+        f"{previous_coeff:.16g} * acoustic_k * "
+        f"{streaming_speed_name} * {previous_name}"
+    ]
+    if next_name is None:
+        pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
+    else:
+        next_coeff = _tensor_hierarchy_next_coeff(moment)
+        pieces.append(
+            f"- {next_coeff:.16g} * acoustic_k * "
+            f"{streaming_speed_name} * {next_name}"
+        )
+    return " ".join(pieces)
+
+
+def _tensor_polarization_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    opposite_name: str,
+    sign: int,
+    collision_term: str | None = None,
+) -> str:
+    """Return one tensor polarization hierarchy RHS."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    opposite_coeff = 4.0 / (float(moment) * float(moment + 1))
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
+    else:
+        next_coeff = _tensor_hierarchy_next_coeff(moment)
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
     pieces.append(
         f"{'+' if sign > 0 else '-'} "
@@ -3427,6 +3566,568 @@ def _materialize_native_vector_hierarchy_contract(
     return materialized, True
 
 
+def _materialize_native_tensor_hierarchy_contract(
+    contract: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], bool]:
+    """Return a generated tensor hierarchy contract when metadata is enough."""
+
+    if contract.get("standard") is not False:
+        return contract, False
+    if _has_explicit_native_runtime_graph(contract):
+        return contract, False
+
+    sectors = contract.get("sectors", {}) or {}
+    species = contract.get("species", {}) or {}
+    hierarchy_families = contract.get("hierarchy_families", {}) or {}
+    initial_condition_families = (
+        contract.get("initial_condition_families", {}) or {}
+    )
+    if not isinstance(sectors, Mapping):
+        return contract, False
+    if not isinstance(species, Mapping):
+        return contract, False
+    if not isinstance(hierarchy_families, Mapping):
+        return contract, False
+    if not isinstance(initial_condition_families, Mapping):
+        return contract, False
+    if {str(name) for name in sectors} != {_TENSOR_HIERARCHY_REQUIRED_SECTOR}:
+        return contract, False
+    if _TENSOR_HIERARCHY_REQUIRED_SECTOR not in sectors:
+        return contract, False
+    if not _TENSOR_HIERARCHY_REQUIRED_SPECIES.issubset(species):
+        return contract, False
+    if not _TENSOR_HIERARCHY_REQUIRED_FAMILIES.issubset(hierarchy_families):
+        return contract, False
+    initial_mode = _select_standard_tensor_initial_mode(
+        initial_condition_families
+    )
+    if initial_mode is None:
+        return contract, False
+
+    gauge = str(contract.get("gauge") or "conformal_newtonian")
+    if gauge == "unspecified":
+        gauge = "conformal_newtonian"
+    if gauge != "conformal_newtonian":
+        return contract, False
+
+    numerics = contract.get("numerics", {}) or {}
+    if not isinstance(numerics, Mapping):
+        numerics = {}
+    photon_default_l_max = hierarchy_families["photon_temperature_tensor"].get(
+        "default_l_max",
+        6,
+    )
+    polarization_default_l_max = max(
+        hierarchy_families["photon_polarization_e_tensor"].get(
+            "default_l_max",
+            photon_default_l_max,
+        ),
+        hierarchy_families["photon_polarization_b_tensor"].get(
+            "default_l_max",
+            photon_default_l_max,
+        ),
+    )
+    neutrino_default_l_max = hierarchy_families[
+        "massless_neutrino_tensor"
+    ].get("default_l_max", 4)
+    photon_l_max = max(
+        3,
+        int(numerics.get("photon_hierarchy_l_max", photon_default_l_max)),
+    )
+    polarization_l_max = max(
+        2,
+        int(
+            numerics.get(
+                "photon_polarization_hierarchy_l_max",
+                max(photon_l_max, polarization_default_l_max),
+            )
+        ),
+    )
+    neutrino_l_max = max(
+        3,
+        int(
+            numerics.get(
+                "neutrino_hierarchy_l_max",
+                neutrino_default_l_max,
+            )
+        ),
+    )
+
+    materialized = copy.deepcopy(dict(contract))
+    materialized["gauge"] = gauge
+    tensor_sector = dict(
+        (materialized.get("sectors", {}) or {}).get("tensor", {}) or {}
+    )
+    supported_gauges = list(tensor_sector.get("supported_gauges", []) or [])
+    if gauge not in supported_gauges:
+        supported_gauges.append(gauge)
+    tensor_sector["supported_gauges"] = supported_gauges
+    materialized["sectors"] = dict(materialized.get("sectors", {}) or {})
+    materialized["sectors"]["tensor"] = tensor_sector
+
+    variables: dict[str, Any] = {
+        "h_tensor": _metadata_entry(
+            "tensor_metric_wave",
+            "Tensor metric-wave amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+        "h_tensor_tau": _metadata_entry(
+            "tensor_metric_wave_derivative",
+            "Conformal-time derivative of the tensor metric wave.",
+            units=_INVERSE_MPC_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+        "pi_gamma_tensor": _metadata_entry(
+            "photon_tensor_anisotropic_stress",
+            "Photon tensor anisotropic-stress amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+        "pi_nu_tensor": _metadata_entry(
+            "massless_neutrino_tensor_anisotropic_stress",
+            "Massless-neutrino tensor anisotropic-stress amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+    }
+    for moment in range(3, photon_l_max + 1):
+        variables[_tensor_temperature_name(moment)] = _metadata_entry(
+            "photon_tensor_temperature_multipole",
+            f"Photon tensor temperature multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        )
+    for moment in range(2, polarization_l_max + 1):
+        variables[_tensor_polarization_e_name(moment)] = _metadata_entry(
+            "photon_tensor_polarization_e_multipole",
+            f"Photon tensor E-polarization multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        )
+        variables[_tensor_polarization_b_name(moment)] = _metadata_entry(
+            "photon_tensor_polarization_b_multipole",
+            f"Photon tensor B-polarization multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="odd",
+            projection_role="b_mode",
+            spin=2.0,
+        )
+    for moment in range(3, neutrino_l_max + 1):
+        variables[_tensor_neutrino_name(moment)] = _metadata_entry(
+            "massless_neutrino_tensor_multipole",
+            f"Massless-neutrino tensor multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        )
+    materialized["variables"] = variables
+
+    derived_entries: dict[str, Any] = {
+        "acoustic_k": {
+            "expression": "k",
+            "description": "Tensor acoustic wave number.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "acoustic_k_sq": {
+            "expression": "acoustic_k * acoustic_k",
+            "description": "Squared tensor acoustic wave number.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "tensor_eta_safe": {
+            "expression": "sqrt(eta * eta + 1.0e-24)",
+            "description": "Regularized conformal time for tensor closures.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "tensor_neutrino_density": {
+            "expression": "Omega_nu0",
+            "description": "Massless-neutrino tensor density today.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "tensor_polarization_moment": {
+            "expression": "0.1 * pi_gamma_tensor + 0.6 * e_gamma_t2",
+            "description": "Tensor polarization source moment.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "tensor_total_shear_source": {
+            "expression": (
+                "(Omega_gamma0 * pi_gamma_tensor + "
+                "tensor_neutrino_density * pi_nu_tensor) / (a * a)"
+            ),
+            "description": "Total tensor anisotropic-stress source.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "einstein_gravity_strength": {
+            "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
+            "description": "Background gravity scale used by tensor modes.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "tensor_metric_wave_rhs": {
+            "expression": (
+                "-2.0 * Hconf * h_tensor_tau - acoustic_k_sq * h_tensor + "
+                "6.0 * einstein_gravity_strength * tensor_total_shear_source"
+            ),
+            "description": "Tensor metric-wave evolution RHS.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+    }
+    materialized["derived"] = derived_entries
+
+    equations: dict[str, Any] = {
+        "evolve_h_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "h_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "h_tensor_tau",
+            "role": "metric",
+        },
+        "evolve_h_tensor_tau": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "h_tensor_tau",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "tensor_metric_wave_rhs",
+            "role": "metric",
+        },
+        "evolve_pi_gamma_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "pi_gamma_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(1.0 / 3.0) * acoustic_k * theta_gamma_t3 - "
+                "0.2 * h_tensor_tau - tensor_quadrupole_collision"
+            ),
+            "role": "tensor_hierarchy",
+        },
+        "evolve_pi_nu_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "pi_nu_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(1.0 / 3.0) * acoustic_k * nu_t3 - " "0.2 * h_tensor_tau"
+            ),
+            "role": "tensor_hierarchy",
+        },
+        "evolve_e_gamma_t2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma_t2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(1.0 / 3.0) * acoustic_k * e_gamma_t3 + "
+                "(2.0 / 3.0) * acoustic_k * b_gamma_t2 - "
+                "tensor_e_quadrupole_collision"
+            ),
+            "role": "tensor_polarization",
+        },
+        "evolve_b_gamma_t2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "b_gamma_t2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(1.0 / 3.0) * acoustic_k * b_gamma_t3 - "
+                "(2.0 / 3.0) * acoustic_k * e_gamma_t2 - "
+                "collision_rate * b_gamma_t2"
+            ),
+            "role": "tensor_polarization_b",
+        },
+    }
+    for moment in range(3, photon_l_max + 1):
+        name = _tensor_temperature_name(moment)
+        next_name = None
+        if moment < photon_l_max:
+            next_name = _tensor_temperature_name(moment + 1)
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _tensor_hierarchy_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=(
+                    "pi_gamma_tensor"
+                    if moment == 3
+                    else _tensor_temperature_name(moment - 1)
+                ),
+                next_name=next_name,
+                collision_term=f"- collision_rate * {name}",
+            ),
+            "role": "tensor_hierarchy",
+        }
+    for moment in range(3, polarization_l_max + 1):
+        e_name = _tensor_polarization_e_name(moment)
+        b_name = _tensor_polarization_b_name(moment)
+        e_next_name = None
+        b_next_name = None
+        if moment < polarization_l_max:
+            e_next_name = _tensor_polarization_e_name(moment + 1)
+            b_next_name = _tensor_polarization_b_name(moment + 1)
+        equations[f"evolve_{e_name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": e_name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _tensor_polarization_recurrence_rhs(
+                name=e_name,
+                moment=moment,
+                previous_name=_tensor_polarization_e_name(moment - 1),
+                next_name=e_next_name,
+                opposite_name=b_name,
+                sign=1,
+                collision_term=f"- collision_rate * {e_name}",
+            ),
+            "role": "tensor_polarization",
+        }
+        equations[f"evolve_{b_name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": b_name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _tensor_polarization_recurrence_rhs(
+                name=b_name,
+                moment=moment,
+                previous_name=_tensor_polarization_b_name(moment - 1),
+                next_name=b_next_name,
+                opposite_name=e_name,
+                sign=-1,
+                collision_term=f"- collision_rate * {b_name}",
+            ),
+            "role": "tensor_polarization_b",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        name = _tensor_neutrino_name(moment)
+        next_name = None
+        if moment < neutrino_l_max:
+            next_name = _tensor_neutrino_name(moment + 1)
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _tensor_hierarchy_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=(
+                    "pi_nu_tensor"
+                    if moment == 3
+                    else _tensor_neutrino_name(moment - 1)
+                ),
+                next_name=next_name,
+            ),
+            "role": "tensor_hierarchy",
+        }
+    materialized["equations"] = equations
+
+    collision_operator_entries = dict(
+        materialized.get("collision_operators", {}) or {}
+    )
+    collision_operator_entries["tensor_quadrupole_collision"] = {
+        "sector": "tensor",
+        "species": ["photon"],
+        "expression": (
+            "collision_rate * (pi_gamma_tensor - tensor_polarization_moment)"
+        ),
+    }
+    collision_operator_entries["tensor_e_quadrupole_collision"] = {
+        "sector": "tensor",
+        "species": ["photon"],
+        "expression": (
+            "collision_rate * (e_gamma_t2 - tensor_polarization_moment)"
+        ),
+    }
+    materialized["collision_operators"] = collision_operator_entries
+    materialized["conservation_rules"] = dict(
+        materialized.get("conservation_rules", {}) or {}
+    )
+    materialized["constraints"] = {}
+    materialized["closures"] = {}
+    materialized["sources"] = {
+        "tensor_temperature_source": {
+            "expression": (
+                "-exp(-tau) * h_tensor_tau + "
+                "2.0 * visibility * tensor_polarization_moment"
+            ),
+            "role": "signal",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+        "tensor_polarization_e_source": {
+            "expression": "visibility * tensor_polarization_moment",
+            "role": "polarization",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+        "tensor_polarization_b_source": {
+            "expression": "visibility * b_gamma_t2",
+            "role": "polarization_b",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+    }
+    materialized["observables"] = {
+        "temperature": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_signal",
+            "source_terms": {"signal": "tensor_temperature_source"},
+            "description": "Tensor temperature transfer function.",
+        },
+        "polarization_e": {
+            "kind": "transfer_component",
+            "projection": "spin2_e_mode",
+            "source_terms": {"polarization": "tensor_polarization_e_source"},
+            "description": "Tensor E-polarization transfer function.",
+        },
+        "polarization_b": {
+            "kind": "transfer_component",
+            "projection": "spin2_b_mode",
+            "source_terms": {
+                "polarization_b": "tensor_polarization_b_source",
+            },
+            "description": "Tensor B-polarization transfer function.",
+        },
+        "TT": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "temperature",
+            "description": "Tensor temperature auto spectrum.",
+            "notes": "Public solver returns D_ell^TT in muK^2.",
+        },
+        "TE": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "polarization_e",
+            "description": "Tensor temperature and E-mode cross spectrum.",
+            "notes": "Public solver returns D_ell^TE in muK^2.",
+        },
+        "EE": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_e",
+            "secondary": "polarization_e",
+            "description": "Tensor E-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^EE in muK^2.",
+        },
+        "BB": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_b",
+            "secondary": "polarization_b",
+            "description": "Tensor B-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^BB in muK^2.",
+        },
+    }
+
+    initial_conditions: dict[str, Any] = {
+        "h_tensor_seed": {
+            "target": {
+                "variable": "h_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "seed",
+        },
+        "h_tensor_tau_seed": {
+            "target": {
+                "variable": "h_tensor_tau",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-acoustic_k_sq * eta_initial * seed / 5.0",
+        },
+        "pi_gamma_tensor_seed": {
+            "target": {
+                "variable": "pi_gamma_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-(2.0 / 15.0) * acoustic_k * eta_initial * seed",
+        },
+        "pi_nu_tensor_seed": {
+            "target": {
+                "variable": "pi_nu_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "-(2.0 / 15.0) * acoustic_k * eta_initial * seed",
+        },
+    }
+    for moment in range(3, photon_l_max + 1):
+        initial_conditions[f"{_tensor_temperature_name(moment)}_seed"] = {
+            "target": {
+                "variable": _tensor_temperature_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(2, polarization_l_max + 1):
+        initial_conditions[f"{_tensor_polarization_e_name(moment)}_seed"] = {
+            "target": {
+                "variable": _tensor_polarization_e_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+        initial_conditions[f"{_tensor_polarization_b_name(moment)}_seed"] = {
+            "target": {
+                "variable": _tensor_polarization_b_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        initial_conditions[f"{_tensor_neutrino_name(moment)}_seed"] = {
+            "target": {
+                "variable": _tensor_neutrino_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    materialized["initial_conditions"] = initial_conditions
+    family_entries = copy.deepcopy(dict(initial_condition_families))
+    family_entries[initial_mode]["members"] = list(sorted(initial_conditions))
+    materialized["initial_condition_families"] = family_entries
+    materialized["boundary_conditions"] = {}
+    return materialized, True
+
+
 _STANDARD_BACKEND_KEYS = {"uses_standard_perturbations"}
 _NONSTANDARD_BACKEND_KEYS = {
     "implemented",
@@ -5357,6 +6058,7 @@ def _build_manifest_summary(
     dependency_summary: PerturbationDependencyGraphSummaryData,
     generated_scalar_hierarchy: bool,
     generated_vector_hierarchy: bool,
+    generated_tensor_hierarchy: bool,
     equation_wrt_by_variable: Mapping[str, str],
     boundary_condition_anchors: Mapping[str, str],
     transfer_component_contracts: Mapping[str, Mapping[str, Any]],
@@ -5432,6 +6134,7 @@ def _build_manifest_summary(
         },
         "generated_scalar_hierarchy": generated_scalar_hierarchy,
         "generated_vector_hierarchy": generated_vector_hierarchy,
+        "generated_tensor_hierarchy": generated_tensor_hierarchy,
         "transfer_component_contracts": {
             str(name): {
                 str(key): value for key, value in contract_data.items()
@@ -5514,6 +6217,9 @@ def compile_perturbation_contract(
     )
     contract, materialized_vector_hierarchy = (
         _materialize_native_vector_hierarchy_contract(contract)
+    )
+    contract, materialized_tensor_hierarchy = (
+        _materialize_native_tensor_hierarchy_contract(contract)
     )
 
     cache_key = (
@@ -7769,6 +8475,7 @@ def compile_perturbation_contract(
             dependency_summary=dependency_summary,
             generated_scalar_hierarchy=materialized_scalar_hierarchy,
             generated_vector_hierarchy=materialized_vector_hierarchy,
+            generated_tensor_hierarchy=materialized_tensor_hierarchy,
             equation_wrt_by_variable={
                 entry.lhs.variable: entry.lhs.wrt
                 for entry in equation_entries.values()

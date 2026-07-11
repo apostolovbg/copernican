@@ -440,6 +440,102 @@ def _vector_metadata_only_contract() -> dict[str, object]:
     return contract
 
 
+def _tensor_metadata_only_contract() -> dict[str, object]:
+    """Return one metadata-only tensor contract for hierarchy generation."""
+
+    contract = _base_nonstandard_contract()
+    for section_name in (
+        "variables",
+        "derived",
+        "equations",
+        "constraints",
+        "closures",
+        "sources",
+        "observables",
+        "initial_conditions",
+        "boundary_conditions",
+    ):
+        contract[section_name] = {}
+    contract["gauge"] = "conformal_newtonian"
+    contract["sectors"] = {
+        "tensor": {
+            "description": "Native tensor hierarchy sector.",
+            "species": ["photon", "massless_neutrino"],
+            "hierarchy_families": [
+                "photon_temperature_tensor",
+                "photon_polarization_e_tensor",
+                "photon_polarization_b_tensor",
+                "massless_neutrino_tensor",
+            ],
+            "supported_gauges": ["conformal_newtonian"],
+            "tensor_character": "tensor_like",
+        }
+    }
+    contract["species"] = {
+        "photon": {
+            "sector": "tensor",
+            "hierarchy_family": "photon_temperature_tensor",
+            "background_reference": "Omega_gamma0",
+        },
+        "massless_neutrino": {
+            "sector": "tensor",
+            "hierarchy_family": "massless_neutrino_tensor",
+            "background_reference": "Omega_nu0",
+            "anisotropic_stress": "supported",
+        },
+    }
+    contract["hierarchy_families"] = {
+        "photon_temperature_tensor": {
+            "sector": "tensor",
+            "species": ["photon"],
+            "closure": "free_streaming_tensor",
+            "default_l_max": 6,
+            "multipole_symbol": "theta_gamma_t_l",
+        },
+        "photon_polarization_e_tensor": {
+            "sector": "tensor",
+            "species": ["photon"],
+            "closure": "free_streaming_tensor",
+            "default_l_max": 6,
+            "multipole_symbol": "e_gamma_t_l",
+        },
+        "photon_polarization_b_tensor": {
+            "sector": "tensor",
+            "species": ["photon"],
+            "closure": "free_streaming_tensor",
+            "default_l_max": 6,
+            "multipole_symbol": "b_gamma_t_l",
+        },
+        "massless_neutrino_tensor": {
+            "sector": "tensor",
+            "species": ["massless_neutrino"],
+            "closure": "free_streaming_tensor",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_t_l",
+        },
+    }
+    contract["collision_operators"] = {}
+    contract["conservation_rules"] = {}
+    contract["projection_typing"] = {}
+    contract["initial_condition_families"] = {
+        "tensor_mode": {
+            "sector": "tensor",
+            "members": [],
+        }
+    }
+    contract["numerics"].update(
+        {
+            "photon_hierarchy_l_max": 6,
+            "photon_polarization_hierarchy_l_max": 6,
+            "neutrino_hierarchy_l_max": 4,
+        }
+    )
+    contract["validity"] = {
+        "regimes": ["linear", "native_tensor_hierarchy"],
+    }
+    return contract
+
+
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
 
@@ -1214,6 +1310,114 @@ class PerturbationContractTestCase(unittest.TestCase):
             (3.0 / 7.0) * 0.5 * 0.7
             - (45.0 / 112.0) * 0.5 * (-0.2)
             + (1.0 / 6.0) * 0.5 * 0.6,
+        )
+
+    def test_tensor_metadata_contract_materializes_runtime_graph(
+        self,
+    ) -> None:
+        """Metadata-only tensor contracts should expand into graph entries."""
+
+        compiled = self._compile(_tensor_metadata_only_contract())
+
+        self.assertTrue(
+            compiled.manifest_summary["generated_tensor_hierarchy"]
+        )
+        self.assertFalse(
+            compiled.manifest_summary["generated_scalar_hierarchy"]
+        )
+        self.assertFalse(
+            compiled.manifest_summary["generated_vector_hierarchy"]
+        )
+        self.assertIn("h_tensor", compiled.variables)
+        self.assertIn("h_tensor_tau", compiled.variables)
+        self.assertIn("theta_gamma_t6", compiled.variables)
+        self.assertIn("e_gamma_t6", compiled.variables)
+        self.assertIn("b_gamma_t6", compiled.variables)
+        self.assertIn("nu_t4", compiled.variables)
+        self.assertIn("evolve_h_tensor_tau", compiled.equations)
+        self.assertIn("tensor_temperature_source", compiled.sources)
+        self.assertIn("TT", compiled.observables)
+        self.assertIn("TE", compiled.observables)
+        self.assertIn("EE", compiled.observables)
+        self.assertIn("BB", compiled.observables)
+        self.assertEqual(
+            compiled.observables["polarization_b"].projection,
+            "spin2_b_mode",
+        )
+        self.assertEqual(
+            compiled.observables["polarization_b"].parity,
+            "odd",
+        )
+
+    def test_tensor_materializer_generates_physical_source_terms(
+        self,
+    ) -> None:
+        """Generated tensor sources should expose metric and stress terms."""
+
+        compiled = self._compile(_tensor_metadata_only_contract())
+
+        self.assertEqual(
+            compiled.equations["evolve_h_tensor_tau"].rhs,
+            "tensor_metric_wave_rhs",
+        )
+        self.assertIn(
+            "pi_nu_tensor",
+            compiled.derived["tensor_total_shear_source"].expression,
+        )
+        self.assertIn(
+            "h_tensor_tau",
+            compiled.sources["tensor_temperature_source"].expression,
+        )
+        self.assertIn(
+            "tensor_polarization_moment",
+            compiled.sources["tensor_polarization_e_source"].expression,
+        )
+        self.assertEqual(
+            compiled.collision_operators[
+                "tensor_quadrupole_collision"
+            ].expression,
+            "collision_rate * (pi_gamma_tensor - tensor_polarization_moment)",
+        )
+
+    def test_tensor_free_streaming_hierarchy_uses_spin2_coefficients(
+        self,
+    ) -> None:
+        """Tensor hierarchy recurrences should use the spin-2 coefficients."""
+
+        compiled = self._compile(_tensor_metadata_only_contract())
+        context = {
+            "acoustic_k": 0.5,
+            "collision_rate": 0.0,
+            "pi_gamma_tensor": 0.25,
+            "theta_gamma_t3": -0.2,
+            "theta_gamma_t4": 0.4,
+            "e_gamma_t2": 0.3,
+            "e_gamma_t3": 0.1,
+            "e_gamma_t4": -0.2,
+            "b_gamma_t3": 0.6,
+            "tensor_eta_safe": 12.0,
+        }
+        photon_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_theta_gamma_t3"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            photon_rhs,
+            (3.0 / 7.0) * 0.5 * 0.25 - (3.0 / 7.0) * 0.5 * 0.4,
+        )
+        e_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_e_gamma_t3"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            e_rhs,
+            (3.0 / 7.0) * 0.5 * 0.3
+            - (3.0 / 7.0) * 0.5 * (-0.2)
+            + (1.0 / 3.0) * 0.5 * 0.6,
         )
 
     def test_vector_and_tensor_sector_metadata_are_inferred(self) -> None:

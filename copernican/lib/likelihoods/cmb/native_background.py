@@ -186,6 +186,18 @@ _PHYSICAL_QUANTITY_ALIASES = {
         "scalar_tilt",
         "scalar_tilt_index",
     ),
+    "tensor_to_scalar_ratio": (
+        "r",
+        "tensor_amplitude_ratio",
+        "tensor_ratio",
+        "tensor_to_scalar_ratio",
+    ),
+    "tensor_spectral_index": (
+        "n_t",
+        "nt",
+        "tensor_spectral_index",
+        "tensor_tilt",
+    ),
     "chi": (
         "chi",
         "comoving_distance",
@@ -219,6 +231,8 @@ _BACKGROUND_PROVENANCE_ROLE_KEYS = {
     "primordial": (
         "primordial_amplitude",
         "primordial_spectral_index",
+        "tensor_to_scalar_ratio",
+        "tensor_spectral_index",
     ),
 }
 
@@ -635,6 +649,8 @@ class _CustomCMBPhysicalParameters:
     Neff: float | None
     primordial_amplitude: float
     primordial_spectral_index: float
+    tensor_to_scalar_ratio: float | None
+    tensor_spectral_index: float | None
     z_rec: float
     tau_reio: float
     Tcmb_K: float
@@ -746,6 +762,8 @@ def _physical_runtime_scalars(
         "w0": physical_params.dark_energy_eos0,
         "wa": physical_params.dark_energy_eos1,
         "Neff": physical_params.Neff,
+        "tensor_to_scalar_ratio": physical_params.tensor_to_scalar_ratio,
+        "tensor_spectral_index": physical_params.tensor_spectral_index,
         "rho_c0_kg_m3": physical_params.rho_c0_kg_m3,
     }
     for name, value in optional_scalars.items():
@@ -1684,6 +1702,18 @@ def _resolve_custom_cmb_physical_parameters(
         "primordial_spectral_index",
         primordial_tilt_source,
     )
+    tensor_ratio_entry = _lookup_quantity("tensor_to_scalar_ratio")
+    tensor_to_scalar_ratio = (
+        None if tensor_ratio_entry is None else tensor_ratio_entry[0]
+    )
+    if tensor_ratio_entry is not None:
+        _record_quantity("tensor_to_scalar_ratio", tensor_ratio_entry[1])
+    tensor_tilt_entry = _lookup_quantity("tensor_spectral_index")
+    tensor_spectral_index = (
+        None if tensor_tilt_entry is None else tensor_tilt_entry[0]
+    )
+    if tensor_tilt_entry is not None:
+        _record_quantity("tensor_spectral_index", tensor_tilt_entry[1])
     z_rec = _lookup_declared_background_scalar(
         contract,
         background_scalar_context,
@@ -1720,6 +1750,8 @@ def _resolve_custom_cmb_physical_parameters(
         Neff=Neff,
         primordial_amplitude=primordial_amplitude,
         primordial_spectral_index=primordial_spectral_index,
+        tensor_to_scalar_ratio=tensor_to_scalar_ratio,
+        tensor_spectral_index=tensor_spectral_index,
         z_rec=z_rec,
         tau_reio=tau_reio,
         Tcmb_K=Tcmb_K,

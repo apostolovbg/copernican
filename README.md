@@ -34,9 +34,10 @@ full workflow. It also supports both standard backend CMB contracts and the
 native declared-graph route for custom theories, so the same application can
 handle conventional and extended cosmology models.
 
-The native declared-graph route now materializes scalar and vector
-hierarchies, exposes `PP / phiphi`, `TP / Tphi`, and `EP / Ephi`, and
-uses exact curved-sky lensing remapping for lensed spectra.
+The native declared-graph route now materializes scalar, vector, and
+tensor hierarchies, exposes `PP / phiphi`, `TP / Tphi`, `EP / Ephi`,
+plus sector aliases such as `tensor_BB` and `total_TT`, and uses exact
+curved-sky lensing remapping for lensed spectra.
 The native solver in `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
 keeps the exact remapper, collision terms, and source-grid refinement
 visible in regression coverage instead of hiding them behind solver-side
@@ -55,6 +56,11 @@ Its generated vector contract in
 `sigma_vector`, `q_gamma_vector`, `pi_gamma_vector`,
 `vector_temperature_source`, and `polarization_b` paths so native
 `TT/TE/EE/BB` output no longer depends on one synthetic vector probe.
+Its generated tensor contract now carries physical `h_tensor`,
+`h_tensor_tau`, `pi_gamma_tensor`, `pi_nu_tensor`,
+`tensor_temperature_source`, and spin-2 `E/B` transfer paths, while the
+native projection layer reads `r` and `nt` as the tensor primordial
+amplitude and tilt for `TT/TE/EE/BB`.
 In `copernican/lib/perturbation_contract.py`, the generated Einstein
 surface now materializes time-dependent `matter_density_source`,
 `radiation_density_source`, `total_momentum_source`, and
