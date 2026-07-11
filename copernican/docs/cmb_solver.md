@@ -6,9 +6,9 @@
 This document is the canonical physical convention for Copernican's native
 CMB solver path when `cmb.perturbations.standard: false`.
 
-Later roadmap slices may extend this contract to vector and tensor sectors,
-but they must not redefine the meaning of states, source terms, gauge labels,
-or public spectra.
+The scalar and vector sectors now follow this contract. Later tensor slices
+may extend it, but they must not redefine the meaning of states, source
+terms, gauge labels, or public spectra.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -140,16 +140,34 @@ and `nu_massive_l<j>` are reserved for strict q-integrated aliases built
 from the same resolved hierarchy. They must not become an independently
 drifting evolution path.
 
-### Vector And Tensor Roles
-The later physical vector and tensor slices will use the same basic units:
+### Vector States
+The canonical vector metric amplitude is `sigma_vector`, the transverse shear
+variable propagated by the vector Einstein system. It is dimensionless.
 
-- vector metric and matter amplitudes are dimensionless unless they are
-  velocity divergences, in which case they use `1/Mpc`;
-- tensor metric-wave amplitudes are dimensionless;
-- vector and tensor temperature, `E`, and `B` multipoles are dimensionless.
+The native matter and radiation vector states are:
 
-Odd-parity transfer content remains odd under parity and even-parity transfer
-content remains even under parity.
+- `v_b_vector`, `v_c_vector`
+  Baryon and CDM vorticity amplitudes. Units: dimensionless.
+- `q_gamma_vector`, `q_nu_vector`
+  Photon and massless-neutrino vector heat fluxes. Units: dimensionless.
+- `pi_gamma_vector`, `pi_nu_vector`
+  Photon and massless-neutrino vector anisotropic stress. Units:
+  dimensionless.
+- `theta_gamma_v3`, `theta_gamma_v4`, ...
+  Higher photon vector temperature multipoles. Units: dimensionless.
+- `e_gamma_v2`, `e_gamma_v3`, ...
+  Vector even-parity polarization multipoles. Units: dimensionless.
+- `b_gamma_v2`, `b_gamma_v3`, ...
+  Vector odd-parity polarization multipoles. Units: dimensionless.
+- `nu_v3`, `nu_v4`, ...
+  Higher massless-neutrino vector multipoles. Units: dimensionless.
+
+The generated vector route also carries the algebraic source moments
+`vector_polarization_moment = pi_gamma_vector / 10 + 3 E_gamma,2 / 5`
+and `vector_visibility_polarization_moment = g * vector_polarization_moment`.
+
+Tensor slices still need to preserve the same parity rule: odd-parity transfer
+content remains odd and even-parity transfer content remains even.
 
 ## Optical Depth And Visibility
 The native optical-depth convention is:
@@ -380,9 +398,27 @@ The generated scalar Doppler source uses the baryon velocity
 Bessel kernel. That derivative-kernel form is the implemented equivalent of
 the canonical `d/d eta [g v_b / k]` contribution above.
 
-Later vector and tensor slices must use the same sign and parity convention:
-temperature sources are even, `E` is even, `B` is odd, and lensing uses the
-Weyl-potential sum `Phi + Psi`.
+The canonical vector source decomposition is:
+
+```text
+P_V = pi_gamma_vector / 10 + 3 E_gamma,2 / 5
+x = k chi
+
+S_T^V = [4 g (v_b_vector + sigma_vector)
+       + 15 d/d eta (g P_V) / (2 k)
+       + 4 exp(-tau) sigma_vector'] / x
+
+S_E^V = 15 g P_V / x^2 + 15 d/d eta (g P_V) / (2 k x)
+
+S_B^V = -15 g P_V / (2 x)
+```
+
+`copernican/lib/perturbation_contract.py` materializes these as
+`vector_temperature_source`, `vector_polarization_e_source`, and
+`vector_polarization_b_source`. The native line-of-sight projector keeps
+the same sign and parity convention across sectors: temperature sources are
+even, `E` is even, `B` is odd, and lensing uses the Weyl-potential sum
+`Phi + Psi`.
 
 ## Public Spectrum Convention
 The native projection layer integrates raw transfer functions into raw
@@ -403,6 +439,10 @@ Native TP or EP = ell (ell + 1) C_ell^{X phi} Tcmb / (2 pi)
 ```
 
 with units `muK`.
+
+When exact lensing is requested, any declared unlensed `BB` input remains in
+the remapping basis. The vector `polarization_b` transfer therefore survives
+through `lensed_BB` instead of being dropped before the remapper runs.
 
 For `PP`, the public solver returns the exact `clpp` normalization consumed
 by the native curved-sky remapper:

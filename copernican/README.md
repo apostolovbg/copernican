@@ -34,9 +34,9 @@ full workflow. It also supports both standard backend CMB contracts and the
 native declared-graph route for custom theories, so the same application can
 handle conventional and extended cosmology models.
 
-The native declared-graph route now materializes scalar hierarchies,
-exposes `PP / phiphi`, `TP / Tphi`, and `EP / Ephi`, and uses exact
-curved-sky lensing remapping for lensed spectra.
+The native declared-graph route now materializes scalar and vector
+hierarchies, exposes `PP / phiphi`, `TP / Tphi`, and `EP / Ephi`, and
+uses exact curved-sky lensing remapping for lensed spectra.
 The native solver in `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
 keeps the exact remapper, collision terms, and source-grid refinement
 visible in regression coverage instead of hiding them behind solver-side
@@ -50,6 +50,11 @@ without a solver-side lensing bridge or hidden remap scale.
 Its generated scalar contract now keeps the hierarchy and metric-source
 terms aligned with the physical runtime graph instead of acceptance-only
 damping scaffolding.
+Its generated vector contract in
+`copernican/lib/perturbation_contract.py` now carries physical
+`sigma_vector`, `q_gamma_vector`, `pi_gamma_vector`,
+`vector_temperature_source`, and `polarization_b` paths so native
+`TT/TE/EE/BB` output no longer depends on one synthetic vector probe.
 In `copernican/lib/perturbation_contract.py`, the generated Einstein
 surface now materializes time-dependent `matter_density_source`,
 `radiation_density_source`, `total_momentum_source`, and
@@ -81,7 +86,8 @@ The built-in `thomson_drag` operator remains the standard exact block,
 multiple collision blocks may coexist in one interval, and explicit
 operators keep their shared `collision_rate` terms instead of being
 globally suppressed. `lensed_BB` also keeps declared primordial
-B-mode sources visible.
+B-mode sources visible, including the physical vector `BB` transfer fed
+through `copernican/lib/likelihoods/cmb/native_projection.py`.
 The public `CMBLike` likelihood now also accepts stacked spectrum blocks
 when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
 blocks can be flattened into one covariance surface. Row-order indexing

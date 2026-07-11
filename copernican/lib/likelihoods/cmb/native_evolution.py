@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 import numpy
 
-from ...engine_adapter import FrozenMapping
+from ...engine_adapter import FrozenMapping, _freeze_for_cache
 from ...perturbation_contract import (
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
@@ -192,12 +192,125 @@ def _prepare_declared_graph_runtime_spec(
     )
 
 
+def _declared_graph_execution_plan_cache_token(
+    perturbation_data: Any,
+) -> Any:
+    """Return one structural cache token for a declared execution plan."""
+
+    equation_entries = getattr(perturbation_data, "equations", {}) or {}
+    derived_entries = getattr(perturbation_data, "derived", {}) or {}
+    constraint_entries = getattr(perturbation_data, "constraints", {}) or {}
+    closure_entries = getattr(perturbation_data, "closures", {}) or {}
+    interaction_entries = getattr(perturbation_data, "interactions", {}) or {}
+    source_entries = getattr(perturbation_data, "sources", {}) or {}
+    initial_condition_entries = (
+        getattr(perturbation_data, "initial_conditions", {}) or {}
+    )
+    boundary_condition_entries = (
+        getattr(perturbation_data, "boundary_conditions", {}) or {}
+    )
+    collision_entries = (
+        getattr(perturbation_data, "collision_operators", {}) or {}
+    )
+    dependency_graph = getattr(
+        perturbation_data,
+        "dependency_graph_summary",
+        None,
+    )
+    structural_view = {
+        "backend": getattr(perturbation_data, "backend", ""),
+        "closures": {
+            name: (
+                getattr(entry, "target", None),
+                getattr(entry, "expression", None),
+            )
+            for name, entry in closure_entries.items()
+        },
+        "collisions": {
+            name: (
+                getattr(entry, "expression", None),
+                getattr(entry, "counterpart", None),
+                getattr(entry, "integration_strategy", None),
+                getattr(entry, "rate_expression", None),
+            )
+            for name, entry in collision_entries.items()
+        },
+        "constraints": {
+            name: (
+                getattr(entry, "target", None),
+                getattr(entry, "expression", None),
+            )
+            for name, entry in constraint_entries.items()
+        },
+        "derived": {
+            name: (
+                getattr(entry, "expression", None),
+                getattr(entry, "variable", None),
+                getattr(entry, "wrt", None),
+                getattr(entry, "order", None),
+            )
+            for name, entry in derived_entries.items()
+        },
+        "equations": {
+            name: (
+                getattr(entry.lhs, "variable", None),
+                getattr(entry.lhs, "wrt", None),
+                getattr(entry.lhs, "order", None),
+                getattr(entry, "rhs", None),
+            )
+            for name, entry in equation_entries.items()
+        },
+        "evaluation_order": (
+            ()
+            if dependency_graph is None
+            else tuple(dependency_graph.evaluation_order)
+        ),
+        "gauge": getattr(perturbation_data, "gauge", ""),
+        "initial_conditions": {
+            name: (
+                getattr(entry.target, "variable", None),
+                getattr(entry.target, "wrt", None),
+                getattr(entry.target, "order", None),
+                getattr(entry, "expression", None),
+                getattr(entry, "anchor", None),
+            )
+            for name, entry in initial_condition_entries.items()
+        },
+        "interactions": {
+            name: (
+                getattr(entry, "expression", None),
+                getattr(entry, "counterpart", None),
+            )
+            for name, entry in interaction_entries.items()
+        },
+        "model_name": getattr(perturbation_data, "model_name", ""),
+        "boundary_conditions": {
+            name: (
+                getattr(entry.target, "variable", None),
+                getattr(entry.target, "wrt", None),
+                getattr(entry.target, "order", None),
+                getattr(entry, "expression", None),
+                getattr(entry, "anchor", None),
+            )
+            for name, entry in boundary_condition_entries.items()
+        },
+        "sources": {
+            name: (
+                getattr(entry, "expression", None),
+                getattr(entry, "role", None),
+            )
+            for name, entry in source_entries.items()
+        },
+    }
+    return _freeze_for_cache(structural_view)
+
+
 def _compile_declared_graph_execution_plan(
     perturbation_data: Any,
 ) -> _DeclaredGraphExecutionPlan:
     """Return the compiled execution plan for one declared graph."""
 
-    cache_token = object.__hash__(perturbation_data)
+    cache_token = _declared_graph_execution_plan_cache_token(perturbation_data)
     cached = native_cache.get_declared_graph_execution_plan(cache_token)
     if cached is not None:
         return cached
@@ -1281,3 +1394,85 @@ def _validate_generated_scalar_initial_constraints(
                 f"constraints for {residual_name} at k={k_value} "
                 f"({normalized_residual} > {tolerance})"
             )
+
+
+def _validate_generated_vector_initial_constraints(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    k_value: float,
+) -> None:
+    """Raise when generated vector initial data violate their constraint.
+
+    The vector momentum constraint is numerically cancellation-dominated at
+    early times because the regular photon and neutrino heat fluxes nearly
+    cancel. The robust diagnostic is therefore the residual on the underlying
+    momentum-source surface rather than the ratio between two nearly cancelled
+    sigma amplitudes.
+    """
+
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    if not manifest_summary.get("generated_vector_hierarchy"):
+        return
+    residual_name = "vector_einstein_momentum_residual"
+    required_names = {
+        "a",
+        "acoustic_k_sq",
+        "einstein_gravity_strength",
+        "q_gamma_vector",
+        "q_nu_vector",
+        "sigma_vector",
+        "v_b_vector",
+        "vector_neutrino_density",
+        "vector_total_momentum_source",
+        "Omega_b0",
+        "Omega_gamma0",
+    }
+    if residual_name not in context or not required_names.issubset(context):
+        return
+
+    scale_factor = max(abs(float(context["a"])), 1.0e-30)
+    radiation_scale_factor = scale_factor * scale_factor
+    source_scale = (
+        abs(float(context["Omega_b0"]) * float(context["v_b_vector"]))
+        / scale_factor
+        + abs(
+            float(context["Omega_gamma0"]) * float(context["q_gamma_vector"])
+        )
+        / radiation_scale_factor
+        + abs(
+            float(context["vector_neutrino_density"])
+            * float(context["q_nu_vector"])
+        )
+        / radiation_scale_factor
+    )
+    if "Omega_c0" in context and "v_c_vector" in context:
+        source_scale += (
+            abs(float(context["Omega_c0"]) * float(context["v_c_vector"]))
+            / scale_factor
+        )
+
+    gravity_strength = max(
+        abs(float(context["einstein_gravity_strength"])),
+        1.0e-30,
+    )
+    constrained_momentum_source = (
+        float(context["acoustic_k_sq"]) * float(context["sigma_vector"])
+    ) / (6.0 * gravity_strength)
+    residual_source = abs(
+        float(context["vector_total_momentum_source"])
+        - constrained_momentum_source
+    )
+    normalized_residual = residual_source / max(source_scale, 1.0)
+    if not numpy.isfinite(normalized_residual):
+        raise ValueError(
+            "Generated vector initial data produced non-finite Einstein "
+            f"diagnostics for {residual_name} at k={k_value}"
+        )
+    tolerance = 2.0e-2
+    if normalized_residual > tolerance:
+        raise ValueError(
+            "Generated vector initial data violate the Einstein "
+            f"constraint for {residual_name} at k={k_value} "
+            f"({normalized_residual} > {tolerance})"
+        )

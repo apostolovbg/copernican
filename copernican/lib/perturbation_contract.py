@@ -309,6 +309,18 @@ _SCALAR_HIERARCHY_REQUIRED_FAMILIES = {
     "photon_temperature",
 }
 _SCALAR_HIERARCHY_REQUIRED_COLLISION = "thomson_drag"
+_VECTOR_HIERARCHY_REQUIRED_SECTOR = "vector"
+_VECTOR_HIERARCHY_REQUIRED_SPECIES = {
+    "baryon",
+    "massless_neutrino",
+    "photon",
+}
+_VECTOR_HIERARCHY_REQUIRED_FAMILIES = {
+    "massless_neutrino_vector",
+    "photon_polarization_b_vector",
+    "photon_polarization_e_vector",
+    "photon_temperature_vector",
+}
 _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES = (
     "adiabatic_scalar",
     "baryon_isocurvature",
@@ -317,6 +329,7 @@ _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES = (
     "neutrino_velocity_isocurvature",
     "tensor_mode",
 )
+_VECTOR_HIERARCHY_STANDARD_INITIAL_MODES = ("regular_vector_mode",)
 _NEWTONIAN_GAUGE_ROLES = frozenset(
     {"curvature_potential", "newtonian_potential"}
 )
@@ -419,6 +432,38 @@ def _scalar_massive_neutrino_q_streaming_speed_name(
     return f"massive_neutrino_q{int(index)}_streaming_speed"
 
 
+def _vector_temperature_name(moment: int) -> str:
+    """Return the declared vector photon-temperature variable name."""
+
+    if moment == 1:
+        return "q_gamma_vector"
+    if moment == 2:
+        return "pi_gamma_vector"
+    return f"theta_gamma_v{int(moment)}"
+
+
+def _vector_polarization_e_name(moment: int) -> str:
+    """Return the declared vector E-polarization variable name."""
+
+    return f"e_gamma_v{int(moment)}"
+
+
+def _vector_polarization_b_name(moment: int) -> str:
+    """Return the declared vector B-polarization variable name."""
+
+    return f"b_gamma_v{int(moment)}"
+
+
+def _vector_neutrino_name(moment: int) -> str:
+    """Return the declared vector massless-neutrino variable name."""
+
+    if moment == 1:
+        return "q_nu_vector"
+    if moment == 2:
+        return "pi_nu_vector"
+    return f"nu_v{int(moment)}"
+
+
 def _metadata_entry(
     kind: str,
     description: str,
@@ -444,6 +489,17 @@ def _select_standard_initial_mode(
     """Return the declared auto-generated initial-condition mode."""
 
     for family_name in _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES:
+        if family_name in family_defs:
+            return family_name
+    return None
+
+
+def _select_standard_vector_initial_mode(
+    family_defs: Mapping[str, Any],
+) -> str | None:
+    """Return the declared auto-generated vector initial-condition mode."""
+
+    for family_name in _VECTOR_HIERARCHY_STANDARD_INITIAL_MODES:
         if family_name in family_defs:
             return family_name
     return None
@@ -692,6 +748,81 @@ def _scalar_streaming_hierarchy_recurrence_rhs(
             f"- {next_coeff:.16g} * acoustic_k * "
             f"{streaming_speed_name} * {next_name}"
         )
+    return " ".join(pieces)
+
+
+def _vector_hierarchy_next_coeff(moment: int) -> float:
+    """Return the vector hierarchy coefficient multiplying ``F_{l+1}``."""
+
+    moment_value = float(moment)
+    return (
+        moment_value
+        * (moment_value + 2.0)
+        / ((2.0 * moment_value + 1.0) * (moment_value + 1.0))
+    )
+
+
+def _vector_polarization_next_coeff(moment: int) -> float:
+    """Return the vector polarization coefficient for ``E_{l+1}`` or ``B``."""
+
+    moment_value = float(moment)
+    return (
+        (moment_value + 3.0)
+        * moment_value
+        * (moment_value - 1.0)
+        * (moment_value + 2.0)
+        / ((2.0 * moment_value + 1.0) * (moment_value + 1.0) ** 3)
+    )
+
+
+def _vector_hierarchy_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    collision_term: str | None = None,
+) -> str:
+    """Return one vector hierarchy RHS using the CAMB flat-space closure."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
+    else:
+        next_coeff = _vector_hierarchy_next_coeff(moment)
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    if collision_term is not None:
+        pieces.append(collision_term)
+    return " ".join(pieces)
+
+
+def _vector_polarization_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    opposite_name: str,
+    sign: int,
+    collision_term: str | None = None,
+) -> str:
+    """Return one vector polarization hierarchy RHS."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    opposite_coeff = 2.0 / (float(moment) * float(moment + 1))
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
+    else:
+        next_coeff = _vector_polarization_next_coeff(moment)
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    pieces.append(
+        f"{'+' if sign > 0 else '-'} "
+        f"{opposite_coeff:.16g} * acoustic_k * {opposite_name}"
+    )
+    if collision_term is not None:
+        pieces.append(collision_term)
     return " ".join(pieces)
 
 
@@ -2396,6 +2527,901 @@ def _materialize_native_scalar_hierarchy_contract(
         family_entries[initial_mode]["members"] = list(
             sorted(initial_conditions)
         )
+    materialized["initial_condition_families"] = family_entries
+    materialized["boundary_conditions"] = {}
+    return materialized, True
+
+
+def _materialize_native_vector_hierarchy_contract(
+    contract: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], bool]:
+    """Return a generated vector hierarchy contract when metadata is enough."""
+
+    if contract.get("standard") is not False:
+        return contract, False
+    if _has_explicit_native_runtime_graph(contract):
+        return contract, False
+
+    sectors = contract.get("sectors", {}) or {}
+    species = contract.get("species", {}) or {}
+    hierarchy_families = contract.get("hierarchy_families", {}) or {}
+    initial_condition_families = (
+        contract.get("initial_condition_families", {}) or {}
+    )
+    if not isinstance(sectors, Mapping):
+        return contract, False
+    if not isinstance(species, Mapping):
+        return contract, False
+    if not isinstance(hierarchy_families, Mapping):
+        return contract, False
+    if not isinstance(initial_condition_families, Mapping):
+        return contract, False
+    if {str(name) for name in sectors} != {_VECTOR_HIERARCHY_REQUIRED_SECTOR}:
+        return contract, False
+    if _VECTOR_HIERARCHY_REQUIRED_SECTOR not in sectors:
+        return contract, False
+    if not _VECTOR_HIERARCHY_REQUIRED_SPECIES.issubset(species):
+        return contract, False
+    if not _VECTOR_HIERARCHY_REQUIRED_FAMILIES.issubset(hierarchy_families):
+        return contract, False
+    initial_mode = _select_standard_vector_initial_mode(
+        initial_condition_families
+    )
+    if initial_mode is None:
+        return contract, False
+
+    gauge = str(contract.get("gauge") or "conformal_newtonian")
+    if gauge == "unspecified":
+        gauge = "conformal_newtonian"
+    if gauge != "conformal_newtonian":
+        return contract, False
+
+    numerics = contract.get("numerics", {}) or {}
+    if not isinstance(numerics, Mapping):
+        numerics = {}
+    photon_default_l_max = hierarchy_families["photon_temperature_vector"].get(
+        "default_l_max", 6
+    )
+    polarization_default_l_max = max(
+        hierarchy_families["photon_polarization_e_vector"].get(
+            "default_l_max",
+            photon_default_l_max,
+        ),
+        hierarchy_families["photon_polarization_b_vector"].get(
+            "default_l_max",
+            photon_default_l_max,
+        ),
+    )
+    neutrino_default_l_max = hierarchy_families[
+        "massless_neutrino_vector"
+    ].get("default_l_max", 4)
+    photon_l_max = max(
+        3,
+        int(numerics.get("photon_hierarchy_l_max", photon_default_l_max)),
+    )
+    polarization_l_max = max(
+        2,
+        int(
+            numerics.get(
+                "photon_polarization_hierarchy_l_max",
+                max(photon_l_max, polarization_default_l_max),
+            )
+        ),
+    )
+    neutrino_l_max = max(
+        3,
+        int(
+            numerics.get(
+                "neutrino_hierarchy_l_max",
+                neutrino_default_l_max,
+            )
+        ),
+    )
+    has_cdm = "cdm" in species
+
+    materialized = copy.deepcopy(dict(contract))
+    materialized["gauge"] = gauge
+    vector_sector = dict(
+        (materialized.get("sectors", {}) or {}).get("vector", {}) or {}
+    )
+    supported_gauges = list(vector_sector.get("supported_gauges", []) or [])
+    if gauge not in supported_gauges:
+        supported_gauges.append(gauge)
+    vector_sector["supported_gauges"] = supported_gauges
+    materialized["sectors"] = dict(materialized.get("sectors", {}) or {})
+    materialized["sectors"]["vector"] = vector_sector
+
+    variables: dict[str, Any] = {
+        "sigma_vector": _metadata_entry(
+            "vector_metric_shear",
+            "Vector metric shear amplitude sigma.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "v_b_vector": _metadata_entry(
+            "baryon_vector_vorticity",
+            "Baryon vector-vorticity amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "q_gamma_vector": _metadata_entry(
+            "photon_vector_heat_flux",
+            "Photon vector heat-flux amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "pi_gamma_vector": _metadata_entry(
+            "photon_vector_anisotropic_stress",
+            "Photon vector anisotropic-stress amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "vector_polarization_moment": _metadata_entry(
+            "photon_vector_source_moment",
+            "Vector polarization source moment.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "vector_visibility_polarization_moment": _metadata_entry(
+            "photon_vector_visibility_weighted_source_moment",
+            "Visibility-weighted vector polarization source moment.",
+            units=_INVERSE_MPC_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "q_nu_vector": _metadata_entry(
+            "massless_neutrino_vector_heat_flux",
+            "Massless-neutrino vector heat-flux amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+        "pi_nu_vector": _metadata_entry(
+            "massless_neutrino_vector_anisotropic_stress",
+            "Massless-neutrino vector anisotropic stress amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        ),
+    }
+    if has_cdm:
+        variables["v_c_vector"] = _metadata_entry(
+            "cdm_vector_vorticity",
+            "Cold-dark-matter vector-vorticity amplitude.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        )
+    for moment in range(3, photon_l_max + 1):
+        variables[_vector_temperature_name(moment)] = _metadata_entry(
+            "photon_vector_temperature_multipole",
+            f"Photon vector temperature multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        )
+    for moment in range(2, polarization_l_max + 1):
+        variables[_vector_polarization_e_name(moment)] = _metadata_entry(
+            "photon_vector_polarization_e_multipole",
+            f"Photon vector E-polarization multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=2.0,
+        )
+        variables[_vector_polarization_b_name(moment)] = _metadata_entry(
+            "photon_vector_polarization_b_multipole",
+            f"Photon vector B-polarization multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="odd",
+            projection_role="b_mode",
+            spin=2.0,
+        )
+    for moment in range(3, neutrino_l_max + 1):
+        variables[_vector_neutrino_name(moment)] = _metadata_entry(
+            "massless_neutrino_vector_multipole",
+            f"Massless-neutrino vector multipole at l={int(moment)}.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="vector_like",
+            parity="even",
+            spin=1.0,
+        )
+    materialized["variables"] = variables
+
+    vector_momentum_source_expression = (
+        "(Omega_b0 * v_b_vector) / a + "
+        "(Omega_gamma0 * q_gamma_vector + "
+        "vector_neutrino_density * q_nu_vector) / (a * a)"
+    )
+    vector_matter_density_expression = "Omega_b0"
+    if has_cdm:
+        vector_matter_density_expression = "Omega_b0 + Omega_c0"
+        vector_momentum_source_expression = (
+            "(Omega_b0 * v_b_vector + Omega_c0 * v_c_vector) / a + "
+            "(Omega_gamma0 * q_gamma_vector + "
+            "vector_neutrino_density * q_nu_vector) / (a * a)"
+        )
+    vector_cdm_fraction_expression = (
+        f"Omega_c0 / ({vector_matter_density_expression})"
+        if has_cdm
+        else "0.0"
+    )
+    vector_initial_conformal_time_expression = (
+        "a_initial / (H0_over_c_Mpc_inv * sqrt("
+        "Omega_gamma0 + vector_neutrino_density + 1.0e-30))"
+    )
+    vector_initial_matter_loading_expression = (
+        f"a_initial * ({vector_matter_density_expression}) / "
+        "(Omega_gamma0 + vector_neutrino_density)"
+    )
+    vector_heat_flux_regular_correction_expression = (
+        "1.0 - 0.75 * "
+        f"({vector_initial_matter_loading_expression}) * "
+        "(vector_cdm_matter_fraction - 1.0) / "
+        "(vector_neutrino_fraction - 1.0) * (1.0 - 0.25 * "
+        f"({vector_initial_matter_loading_expression}) * "
+        "(3.0 * vector_cdm_matter_fraction - 2.0 - "
+        "vector_neutrino_fraction) / "
+        "(vector_neutrino_fraction - 1.0))"
+    )
+    derived_entries: dict[str, Any] = {
+        "acoustic_k": {
+            "expression": "k",
+            "description": "Vector acoustic wave number.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "acoustic_k_sq": {
+            "expression": "acoustic_k * acoustic_k",
+            "description": "Squared vector acoustic wave number.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "vector_eta_safe": {
+            "expression": "sqrt(eta * eta + 1.0e-24)",
+            "description": "Regularized conformal time for vector closures.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_radial_argument": {
+            "expression": "acoustic_k * chi",
+            "description": "Vector line-of-sight radial argument x = k chi.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_radial_argument_safe": {
+            "expression": (
+                "sqrt(vector_radial_argument * vector_radial_argument + "
+                "1.0e-24)"
+            ),
+            "description": "Regularized radial argument for vector sources.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_neutrino_density": {
+            "expression": "Omega_nu0",
+            "description": "Massless-neutrino radiation density today.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_neutrino_fraction": {
+            "expression": "Omega_nu0 / (Omega_nu0 + Omega_gamma0)",
+            "description": "Massless-neutrino fraction in the radiation bath.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_photon_fraction": {
+            "expression": "Omega_gamma0 / (Omega_nu0 + Omega_gamma0)",
+            "description": "Photon fraction in the radiation bath.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_photon_baryon_loading": {
+            "expression": "Omega_gamma0 / (Omega_b0 * a)",
+            "description": "Photon-to-baryon vector momentum-loading ratio.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_initial_conformal_time": {
+            "expression": vector_initial_conformal_time_expression,
+            "description": (
+                "Radiation-era conformal-time estimate used by vector "
+                "initial conditions."
+            ),
+            "units": "Mpc",
+        },
+        "vector_initial_matter_loading": {
+            "expression": vector_initial_matter_loading_expression,
+            "description": (
+                "Radiation-era matter loading used by vector initial "
+                "conditions."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_cdm_matter_fraction": {
+            "expression": vector_cdm_fraction_expression,
+            "description": (
+                "Cold-dark-matter share of the pressureless matter sector."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_heat_flux_regular_correction": {
+            "expression": vector_heat_flux_regular_correction_expression,
+            "description": (
+                "Regular vector-mode correction applied to the photon and "
+                "baryon heat flux seeds."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "baryon_vector_thomson_drag": {
+            "expression": (
+                "-vector_photon_baryon_loading * thomson_vector_drag"
+            ),
+            "description": "Baryon counterpart of the vector Thomson drag.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_polarization_moment_tau": {
+            "kind": "vector_source_time_derivative",
+            "variable": "vector_polarization_moment",
+            "wrt": "tau",
+            "order": 1,
+            "description": (
+                "History-derived conformal-time derivative of the vector "
+                "polarization source moment."
+            ),
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "vector_visibility_polarization_moment_tau": {
+            "kind": "vector_source_time_derivative",
+            "variable": "vector_visibility_polarization_moment",
+            "wrt": "tau",
+            "order": 1,
+            "description": (
+                "History-derived conformal-time derivative of the "
+                "visibility-weighted vector polarization source moment."
+            ),
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "vector_total_momentum_source": {
+            "expression": vector_momentum_source_expression,
+            "description": (
+                "Total vector momentum source entering the Einstein system."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_total_shear_source": {
+            "expression": (
+                "(Omega_gamma0 * pi_gamma_vector + "
+                "vector_neutrino_density * pi_nu_vector) / (a * a)"
+            ),
+            "description": (
+                "Total vector anisotropic-stress source for the Einstein "
+                "system."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "einstein_gravity_strength": {
+            "expression": "H0_over_c_Mpc_inv * H0_over_c_Mpc_inv",
+            "description": "Background gravity scale used by vector modes.",
+            "units": _INVERSE_MPC_SQUARED_UNITS,
+        },
+        "vector_sigma_constraint": {
+            "expression": (
+                "6.0 * einstein_gravity_strength * "
+                "vector_total_momentum_source / acoustic_k_sq"
+            ),
+            "description": "Vector Einstein momentum-constraint solution.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "vector_metric_shear_rhs": {
+            "expression": (
+                "-2.0 * Hconf * sigma_vector - "
+                "3.0 * einstein_gravity_strength * "
+                "vector_total_shear_source / acoustic_k"
+            ),
+            "description": "Vector metric-shear evolution RHS.",
+            "units": _INVERSE_MPC_UNITS,
+        },
+        "vector_einstein_momentum_residual": {
+            "expression": "sigma_vector - vector_sigma_constraint",
+            "description": "Vector Einstein momentum-constraint residual.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
+    }
+    materialized["derived"] = derived_entries
+
+    equations: dict[str, Any] = {
+        "evolve_sigma_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "sigma_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "vector_metric_shear_rhs",
+            "role": "metric",
+        },
+        "evolve_v_b_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "v_b_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-Hconf * v_b_vector + baryon_vector_thomson_drag",
+            "role": "vector_euler",
+        },
+        "evolve_q_gamma_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "q_gamma_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-0.5 * acoustic_k * pi_gamma_vector + " "thomson_vector_drag"
+            ),
+            "role": "vector_hierarchy",
+        },
+        "evolve_pi_gamma_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "pi_gamma_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "(2.0 / 5.0) * acoustic_k * q_gamma_vector - "
+                "(8.0 / 15.0) * acoustic_k * theta_gamma_v3 + "
+                "(8.0 / 15.0) * acoustic_k * sigma_vector - "
+                "vector_quadrupole_collision"
+            ),
+            "role": "vector_hierarchy",
+        },
+        "evolve_q_nu_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "q_nu_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-0.5 * acoustic_k * pi_nu_vector",
+            "role": "vector_hierarchy",
+        },
+        "evolve_pi_nu_vector": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "pi_nu_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "(2.0 / 5.0) * acoustic_k * q_nu_vector - "
+                "(8.0 / 15.0) * acoustic_k * nu_v3 + "
+                "(8.0 / 15.0) * acoustic_k * sigma_vector"
+            ),
+            "role": "vector_hierarchy",
+        },
+        "evolve_e_gamma_v2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma_v2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(8.0 / 27.0) * acoustic_k * e_gamma_v3 + "
+                "(1.0 / 3.0) * acoustic_k * b_gamma_v2 - "
+                "vector_e_quadrupole_collision"
+            ),
+            "role": "vector_polarization",
+        },
+        "evolve_b_gamma_v2": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "b_gamma_v2",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "-(8.0 / 27.0) * acoustic_k * b_gamma_v3 - "
+                "(1.0 / 3.0) * acoustic_k * e_gamma_v2 - "
+                "collision_rate * b_gamma_v2"
+            ),
+            "role": "vector_polarization_b",
+        },
+    }
+    if has_cdm:
+        equations["evolve_v_c_vector"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "v_c_vector",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "-Hconf * v_c_vector",
+            "role": "vector_euler",
+        }
+    for moment in range(3, photon_l_max + 1):
+        name = _vector_temperature_name(moment)
+        next_name = None
+        if moment < photon_l_max:
+            next_name = _vector_temperature_name(moment + 1)
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _vector_hierarchy_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=(
+                    "pi_gamma_vector"
+                    if moment == 3
+                    else _vector_temperature_name(moment - 1)
+                ),
+                next_name=next_name,
+                collision_term=f"- collision_rate * {name}",
+            ),
+            "role": "vector_hierarchy",
+        }
+    for moment in range(3, polarization_l_max + 1):
+        e_name = _vector_polarization_e_name(moment)
+        b_name = _vector_polarization_b_name(moment)
+        e_next_name = None
+        b_next_name = None
+        if moment < polarization_l_max:
+            e_next_name = _vector_polarization_e_name(moment + 1)
+            b_next_name = _vector_polarization_b_name(moment + 1)
+        equations[f"evolve_{e_name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": e_name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _vector_polarization_recurrence_rhs(
+                name=e_name,
+                moment=moment,
+                previous_name=_vector_polarization_e_name(moment - 1),
+                next_name=e_next_name,
+                opposite_name=b_name,
+                sign=1,
+                collision_term=f"- collision_rate * {e_name}",
+            ),
+            "role": "vector_polarization",
+        }
+        equations[f"evolve_{b_name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": b_name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _vector_polarization_recurrence_rhs(
+                name=b_name,
+                moment=moment,
+                previous_name=_vector_polarization_b_name(moment - 1),
+                next_name=b_next_name,
+                opposite_name=e_name,
+                sign=-1,
+                collision_term=f"- collision_rate * {b_name}",
+            ),
+            "role": "vector_polarization_b",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        name = _vector_neutrino_name(moment)
+        next_name = None
+        if moment < neutrino_l_max:
+            next_name = _vector_neutrino_name(moment + 1)
+        equations[f"evolve_{name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": _vector_hierarchy_recurrence_rhs(
+                name=name,
+                moment=moment,
+                previous_name=(
+                    "pi_nu_vector"
+                    if moment == 3
+                    else _vector_neutrino_name(moment - 1)
+                ),
+                next_name=next_name,
+            ),
+            "role": "vector_hierarchy",
+        }
+    materialized["equations"] = equations
+
+    collision_operator_entries = dict(
+        materialized.get("collision_operators", {}) or {}
+    )
+    collision_operator_entries["thomson_vector_drag"] = {
+        "sector": "vector",
+        "species": ["photon", "baryon"],
+        "expression": (
+            "collision_rate * ((4.0 / 3.0) * v_b_vector - q_gamma_vector)"
+        ),
+        "counterpart": "baryon_vector_thomson_drag",
+        "integration_strategy": "implicit",
+        "activation_strategy": "tight_coupling",
+        "rate_expression": "collision_rate",
+        "linear_block": {
+            "targets": [
+                {"variable": "q_gamma_vector"},
+                {"variable": "v_b_vector"},
+            ],
+            "matrix": [
+                ["-1.0", "4.0 / 3.0"],
+                [
+                    "vector_photon_baryon_loading",
+                    "-(4.0 / 3.0) * vector_photon_baryon_loading",
+                ],
+            ],
+            "activation_strategy": "tight_coupling",
+        },
+    }
+    collision_operator_entries["vector_quadrupole_collision"] = {
+        "sector": "vector",
+        "species": ["photon"],
+        "expression": (
+            "collision_rate * (pi_gamma_vector - "
+            "vector_polarization_moment)"
+        ),
+    }
+    collision_operator_entries["vector_e_quadrupole_collision"] = {
+        "sector": "vector",
+        "species": ["photon"],
+        "expression": (
+            "collision_rate * (e_gamma_v2 - vector_polarization_moment)"
+        ),
+    }
+    materialized["collision_operators"] = collision_operator_entries
+    conservation_rule_entries = dict(
+        materialized.get("conservation_rules", {}) or {}
+    )
+    conservation_rule_entries["thomson_vector_drag_balance"] = {
+        "kind": "absolute_max",
+        "expression": (
+            "vector_photon_baryon_loading * thomson_vector_drag + "
+            "baryon_vector_thomson_drag"
+        ),
+        "tolerance": 1.0e-12,
+        "domain": "vector",
+    }
+    materialized["conservation_rules"] = conservation_rule_entries
+    materialized["constraints"] = {}
+    materialized["closures"] = {
+        "vector_polarization_moment_closure": {
+            "target": "vector_polarization_moment",
+            "expression": "0.1 * pi_gamma_vector + 0.6 * e_gamma_v2",
+            "role": "closure",
+            "description": "Vector polarization source moment.",
+        },
+        "vector_visibility_polarization_moment_closure": {
+            "target": "vector_visibility_polarization_moment",
+            "expression": "visibility * vector_polarization_moment",
+            "role": "closure",
+            "description": (
+                "Visibility-weighted vector polarization source moment."
+            ),
+        },
+    }
+
+    materialized["sources"] = {
+        "vector_temperature_source": {
+            "expression": (
+                "("
+                "4.0 * (v_b_vector + sigma_vector) * visibility + "
+                "7.5 * vector_visibility_polarization_moment_tau / "
+                "acoustic_k + "
+                "4.0 * exp(-tau) * vector_metric_shear_rhs"
+                ") / vector_radial_argument_safe"
+            ),
+            "role": "signal",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+        "vector_polarization_e_source": {
+            "expression": (
+                "15.0 * visibility * vector_polarization_moment / "
+                "(vector_radial_argument_safe * "
+                "vector_radial_argument_safe) + "
+                "7.5 * vector_visibility_polarization_moment_tau / "
+                "(acoustic_k * vector_radial_argument_safe)"
+            ),
+            "role": "signal",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+        "vector_polarization_b_source": {
+            "expression": (
+                "-7.5 * visibility * vector_polarization_moment / "
+                "vector_radial_argument_safe"
+            ),
+            "role": "signal",
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+    }
+    materialized["observables"] = {
+        "temperature": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_vector_temperature",
+            "source_terms": {"signal": "vector_temperature_source"},
+            "description": "Vector temperature transfer function.",
+        },
+        "polarization_e": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_vector_polarization_e",
+            "source_terms": {"signal": "vector_polarization_e_source"},
+            "description": "Vector E-polarization transfer function.",
+        },
+        "polarization_b": {
+            "kind": "transfer_component",
+            "projection": "line_of_sight_vector_polarization_b",
+            "source_terms": {"signal": "vector_polarization_b_source"},
+            "description": "Vector B-polarization transfer function.",
+        },
+        "TT": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "temperature",
+            "description": "Vector temperature auto spectrum.",
+            "notes": "Public solver returns D_ell^TT in muK^2.",
+        },
+        "TE": {
+            "kind": "angular_power_spectrum",
+            "primary": "temperature",
+            "secondary": "polarization_e",
+            "description": "Vector temperature and E-mode cross spectrum.",
+            "notes": "Public solver returns D_ell^TE in muK^2.",
+        },
+        "EE": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_e",
+            "secondary": "polarization_e",
+            "description": "Vector E-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^EE in muK^2.",
+        },
+        "BB": {
+            "kind": "angular_power_spectrum",
+            "primary": "polarization_b",
+            "secondary": "polarization_b",
+            "description": "Vector B-polarization auto spectrum.",
+            "notes": "Public solver returns D_ell^BB in muK^2.",
+        },
+    }
+
+    initial_conditions: dict[str, Any] = {
+        "sigma_vector_seed": {
+            "target": {
+                "variable": "sigma_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "seed * (1.0 - 7.5 * vector_initial_matter_loading / "
+                "(4.0 * vector_neutrino_fraction + 15.0))"
+            ),
+        },
+        "v_b_vector_seed": {
+            "target": {
+                "variable": "v_b_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "0.25 * seed * (4.0 * vector_neutrino_fraction + 5.0) / "
+                "vector_photon_fraction * "
+                "vector_heat_flux_regular_correction"
+            ),
+        },
+        "q_gamma_vector_seed": {
+            "target": {
+                "variable": "q_gamma_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "(seed / 3.0) * "
+                "(4.0 * vector_neutrino_fraction + 5.0) / "
+                "vector_photon_fraction * "
+                "vector_heat_flux_regular_correction"
+            ),
+        },
+        "pi_gamma_vector_seed": {
+            "target": {
+                "variable": "pi_gamma_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        },
+        "q_nu_vector_seed": {
+            "target": {
+                "variable": "q_nu_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "-(seed / 3.0) * "
+                "(4.0 * vector_neutrino_fraction + 5.0) / "
+                "vector_neutrino_fraction + "
+                "(acoustic_k * vector_initial_conformal_time) * "
+                "(acoustic_k * vector_initial_conformal_time) * seed / "
+                "6.0 / "
+                "vector_neutrino_fraction"
+            ),
+        },
+        "pi_nu_vector_seed": {
+            "target": {
+                "variable": "pi_nu_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                "-(2.0 / 3.0) * acoustic_k * "
+                "vector_initial_conformal_time * seed / "
+                "vector_neutrino_fraction"
+            ),
+        },
+    }
+    if has_cdm:
+        initial_conditions["v_c_vector_seed"] = {
+            "target": {
+                "variable": "v_c_vector",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(3, photon_l_max + 1):
+        initial_conditions[f"{_vector_temperature_name(moment)}_seed"] = {
+            "target": {
+                "variable": _vector_temperature_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(2, polarization_l_max + 1):
+        initial_conditions[f"{_vector_polarization_e_name(moment)}_seed"] = {
+            "target": {
+                "variable": _vector_polarization_e_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+        initial_conditions[f"{_vector_polarization_b_name(moment)}_seed"] = {
+            "target": {
+                "variable": _vector_polarization_b_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    for moment in range(3, neutrino_l_max + 1):
+        initial_conditions[f"{_vector_neutrino_name(moment)}_seed"] = {
+            "target": {
+                "variable": _vector_neutrino_name(moment),
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        }
+    materialized["initial_conditions"] = initial_conditions
+    family_entries = copy.deepcopy(dict(initial_condition_families))
+    family_entries[initial_mode]["members"] = list(sorted(initial_conditions))
     materialized["initial_condition_families"] = family_entries
     materialized["boundary_conditions"] = {}
     return materialized, True
@@ -4330,6 +5356,7 @@ def _build_manifest_summary(
     backend_mapping: PerturbationBackendMappingData,
     dependency_summary: PerturbationDependencyGraphSummaryData,
     generated_scalar_hierarchy: bool,
+    generated_vector_hierarchy: bool,
     equation_wrt_by_variable: Mapping[str, str],
     boundary_condition_anchors: Mapping[str, str],
     transfer_component_contracts: Mapping[str, Mapping[str, Any]],
@@ -4404,6 +5431,7 @@ def _build_manifest_summary(
             "hot_path_recompilation_allowed": False,
         },
         "generated_scalar_hierarchy": generated_scalar_hierarchy,
+        "generated_vector_hierarchy": generated_vector_hierarchy,
         "transfer_component_contracts": {
             str(name): {
                 str(key): value for key, value in contract_data.items()
@@ -4483,6 +5511,9 @@ def compile_perturbation_contract(
         raise ValueError("cmb.perturbations must be a mapping")
     contract, materialized_scalar_hierarchy = (
         _materialize_native_scalar_hierarchy_contract(contract)
+    )
+    contract, materialized_vector_hierarchy = (
+        _materialize_native_vector_hierarchy_contract(contract)
     )
 
     cache_key = (
@@ -6737,6 +7768,7 @@ def compile_perturbation_contract(
             backend_mapping=backend_data,
             dependency_summary=dependency_summary,
             generated_scalar_hierarchy=materialized_scalar_hierarchy,
+            generated_vector_hierarchy=materialized_vector_hierarchy,
             equation_wrt_by_variable={
                 entry.lhs.variable: entry.lhs.wrt
                 for entry in equation_entries.values()

@@ -334,6 +334,112 @@ def _scalar_metadata_only_contract() -> dict[str, object]:
     return contract
 
 
+def _vector_metadata_only_contract() -> dict[str, object]:
+    """Return one metadata-only vector contract for hierarchy generation."""
+
+    contract = _base_nonstandard_contract()
+    for section_name in (
+        "variables",
+        "derived",
+        "equations",
+        "constraints",
+        "closures",
+        "sources",
+        "observables",
+        "initial_conditions",
+        "boundary_conditions",
+    ):
+        contract[section_name] = {}
+    contract["gauge"] = "conformal_newtonian"
+    contract["sectors"] = {
+        "vector": {
+            "description": "Native vector hierarchy sector.",
+            "species": ["photon", "baryon", "cdm", "massless_neutrino"],
+            "hierarchy_families": [
+                "photon_temperature_vector",
+                "photon_polarization_e_vector",
+                "photon_polarization_b_vector",
+                "massless_neutrino_vector",
+            ],
+            "supported_gauges": ["conformal_newtonian"],
+            "tensor_character": "vector_like",
+        }
+    }
+    contract["species"] = {
+        "photon": {
+            "sector": "vector",
+            "hierarchy_family": "photon_temperature_vector",
+            "collision_operators": ["thomson_vector_drag"],
+            "background_reference": "Omega_gamma0",
+        },
+        "baryon": {
+            "sector": "vector",
+            "collision_operators": ["thomson_vector_drag"],
+            "background_reference": "Omega_b0",
+        },
+        "cdm": {
+            "sector": "vector",
+            "background_reference": "Omega_c0",
+        },
+        "massless_neutrino": {
+            "sector": "vector",
+            "hierarchy_family": "massless_neutrino_vector",
+            "background_reference": "Omega_nu0",
+            "anisotropic_stress": "supported",
+        },
+    }
+    contract["hierarchy_families"] = {
+        "photon_temperature_vector": {
+            "sector": "vector",
+            "species": ["photon"],
+            "closure": "free_streaming_vector",
+            "default_l_max": 6,
+            "multipole_symbol": "theta_gamma_v_l",
+        },
+        "photon_polarization_e_vector": {
+            "sector": "vector",
+            "species": ["photon"],
+            "closure": "free_streaming_vector",
+            "default_l_max": 6,
+            "multipole_symbol": "e_gamma_v_l",
+        },
+        "photon_polarization_b_vector": {
+            "sector": "vector",
+            "species": ["photon"],
+            "closure": "free_streaming_vector",
+            "default_l_max": 6,
+            "multipole_symbol": "b_gamma_v_l",
+        },
+        "massless_neutrino_vector": {
+            "sector": "vector",
+            "species": ["massless_neutrino"],
+            "closure": "free_streaming_vector",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_v_l",
+        },
+    }
+    contract["collision_operators"] = {}
+    contract["conservation_rules"] = {}
+    contract["projection_typing"] = {}
+    contract["initial_condition_families"] = {
+        "regular_vector_mode": {
+            "sector": "vector",
+            "members": [],
+        }
+    }
+    contract["numerics"].update(
+        {
+            "photon_hierarchy_l_max": 6,
+            "photon_polarization_hierarchy_l_max": 6,
+            "neutrino_hierarchy_l_max": 4,
+        }
+    )
+    contract["validity"] = {
+        "regimes": ["linear", "native_vector_hierarchy"],
+    }
+    return contract
+
+
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
 
@@ -961,6 +1067,153 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             compiled.initial_conditions["sigma_nu_seed"].expression,
             "(acoustic_k * eta_initial / 6.0) * seed",
+        )
+
+    def test_vector_metadata_contract_materializes_runtime_graph(self) -> None:
+        """Metadata-only vector contracts should expand into graph entries."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+
+        self.assertTrue(
+            compiled.manifest_summary["generated_vector_hierarchy"]
+        )
+        self.assertFalse(
+            compiled.manifest_summary["generated_scalar_hierarchy"]
+        )
+        self.assertIn("sigma_vector", compiled.variables)
+        self.assertIn("theta_gamma_v6", compiled.variables)
+        self.assertIn("e_gamma_v6", compiled.variables)
+        self.assertIn("b_gamma_v6", compiled.variables)
+        self.assertIn("nu_v4", compiled.variables)
+        self.assertIn("evolve_sigma_vector", compiled.equations)
+        self.assertIn("vector_temperature_source", compiled.sources)
+        self.assertIn("TT", compiled.observables)
+        self.assertIn("TE", compiled.observables)
+        self.assertIn("EE", compiled.observables)
+        self.assertIn("BB", compiled.observables)
+        self.assertEqual(
+            compiled.observables["temperature"].kernel,
+            "spherical_bessel_window",
+        )
+        self.assertEqual(
+            compiled.observables["polarization_b"].parity,
+            "odd",
+        )
+
+    def test_vector_materializer_generates_physical_source_terms(self) -> None:
+        """Generated vector sources should expose LOS and drag surfaces."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+
+        self.assertEqual(
+            compiled.collision_operators["thomson_vector_drag"].expression,
+            "collision_rate * ((4.0 / 3.0) * v_b_vector - q_gamma_vector)",
+        )
+        self.assertIn(
+            "vector_visibility_polarization_moment_tau",
+            compiled.sources["vector_temperature_source"].expression,
+        )
+        self.assertIn(
+            "vector_metric_shear_rhs",
+            compiled.sources["vector_temperature_source"].expression,
+        )
+        self.assertIn(
+            "vector_photon_baryon_loading * thomson_vector_drag",
+            compiled.conservation_rules[
+                "thomson_vector_drag_balance"
+            ].expression,
+        )
+
+    def test_vector_collision_terms_vanish_on_tight_coupling_surface(
+        self,
+    ) -> None:
+        """Vector Thomson terms should vanish on the tight-coupling surface."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+        drag_context = {
+            "collision_rate": 25.0,
+            "q_gamma_vector": 2.0,
+            "v_b_vector": 1.5,
+        }
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.collision_operators[
+                        "thomson_vector_drag"
+                    ].compiled_expression,
+                    drag_context,
+                )
+            ),
+            0.0,
+        )
+        quadrupole_context = {
+            "collision_rate": 25.0,
+            "pi_gamma_vector": 0.4,
+            "e_gamma_v2": 0.4,
+            "vector_polarization_moment": 0.4,
+        }
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.collision_operators[
+                        "vector_quadrupole_collision"
+                    ].compiled_expression,
+                    quadrupole_context,
+                )
+            ),
+            0.0,
+        )
+        self.assertAlmostEqual(
+            float(
+                evaluate_compiled_expression(
+                    compiled.collision_operators[
+                        "vector_e_quadrupole_collision"
+                    ].compiled_expression,
+                    quadrupole_context,
+                )
+            ),
+            0.0,
+        )
+
+    def test_vector_free_streaming_hierarchy_uses_camb_coefficients(
+        self,
+    ) -> None:
+        """Vector hierarchy recurrences should follow the CAMB coefficients."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+        context = {
+            "acoustic_k": 0.5,
+            "collision_rate": 0.0,
+            "pi_gamma_vector": 1.2,
+            "theta_gamma_v3": -0.1,
+            "theta_gamma_v4": -0.4,
+            "e_gamma_v2": 0.7,
+            "e_gamma_v3": 0.1,
+            "e_gamma_v4": -0.2,
+            "b_gamma_v3": 0.6,
+            "vector_eta_safe": 10.0,
+        }
+        photon_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_theta_gamma_v3"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            photon_rhs,
+            (3.0 / 7.0) * 0.5 * 1.2 - (15.0 / 28.0) * 0.5 * (-0.4),
+        )
+        e_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_e_gamma_v3"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            e_rhs,
+            (3.0 / 7.0) * 0.5 * 0.7
+            - (45.0 / 112.0) * 0.5 * (-0.2)
+            + (1.0 / 6.0) * 0.5 * 0.6,
         )
 
     def test_vector_and_tensor_sector_metadata_are_inferred(self) -> None:

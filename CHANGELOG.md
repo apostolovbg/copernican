@@ -80,6 +80,29 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-11:
+  Change: Implemented Slice Seven by generating the physical vector
+  Einstein-Boltzmann hierarchy, vector Thomson handling, and native
+  `TT/TE/EE/BB` plus remapped `BB` regression coverage.
+  Why: Replaced the last vector proof based on one synthetic tagged
+  variable with a physical `sigma_vector` / `q_gamma_vector` /
+  `pi_gamma_vector` route that stays stable under the native runtime.
+  Impact: Enabled native vector transfer and spectrum output from the
+  generated hierarchy, kept vector `BB` visible to exact lensing, and
+  hardened declared-plan caching against stale runtime-plan reuse.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-11:
   Change: Implemented Slice Six by generating regular scalar initial
   modes, explicit synchronous gauge histories, and a dedicated
   gauge-invariant observable route for the native CMB solver.

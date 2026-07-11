@@ -564,7 +564,7 @@ Done when:
 * Final observables agree within the declared tolerance.
 * Every supported scalar mode is regular and constraint-consistent.
 
-### [open] Slice Seven - Physical vector Boltzmann sector
+### [closed] Slice Seven - Physical vector Boltzmann sector
 
 Purpose:
 

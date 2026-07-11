@@ -51,6 +51,7 @@ from .native_evolution import (
     _resolve_declared_momentum_grid_runtimes,
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
+    _validate_generated_vector_initial_constraints,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -364,6 +365,9 @@ def _declared_graph_projection(
         "line_of_sight_polarization_e",
         "line_of_sight_signal",
         "line_of_sight_signal_derivative",
+        "line_of_sight_vector_polarization_b",
+        "line_of_sight_vector_polarization_e",
+        "line_of_sight_vector_temperature",
         "spin2_e_mode",
         "spin2_b_mode",
         "line_of_sight_potential",
@@ -1117,8 +1121,10 @@ def _compute_custom_cmb_spectrum_data(
 
         context = {
             "a": a_los_grid,
+            "a_initial": float(a_los_grid[0]),
             "z": z_los_grid,
             "eta": eta_los_grid,
+            "eta_initial": float(eta_los_grid[0]),
             "H": H_los_grid,
             "Hconf": Hconf_los_grid,
             "Hconf_tau": Hconf_tau_los_grid,
@@ -1654,6 +1660,11 @@ def _compute_custom_cmb_spectrum_data(
             background_scalars=initial_background,
         )
         _validate_generated_scalar_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=initial_state_context,
+            k_value=float(k_value),
+        )
+        _validate_generated_vector_initial_constraints(
             perturbation_data=perturbation_data,
             context=initial_state_context,
             k_value=float(k_value),

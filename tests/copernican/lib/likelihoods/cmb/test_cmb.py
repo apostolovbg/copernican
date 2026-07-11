@@ -1569,6 +1569,164 @@ def _native_scalar_hierarchy_contract(
     }
 
 
+def _native_vector_hierarchy_contract() -> dict[str, object]:
+    """Return a vector native hierarchy fixture."""
+
+    numerics = {
+        "ell_min": 20,
+        "ell_max": 120,
+        "k_min": 1.0e-4,
+        "k_max": 0.3,
+        "k_sample_count": 18,
+        "eta_sample_count": 192,
+        "ode_rtol": 1.0e-5,
+        "ode_atol": 1.0e-8,
+        "tight_coupling_ratio": 80.0,
+        "a_min": 1.0e-6,
+        "source_grid_multiplier": 1,
+        "initial_redshift": 2.0e4,
+        "photon_hierarchy_l_max": 8,
+        "photon_polarization_hierarchy_l_max": 8,
+        "neutrino_hierarchy_l_max": 5,
+    }
+    vector_species = [
+        "photon",
+        "baryon",
+        "cdm",
+        "massless_neutrino",
+    ]
+    vector_hierarchy_families = [
+        "photon_temperature_vector",
+        "photon_polarization_e_vector",
+        "photon_polarization_b_vector",
+        "massless_neutrino_vector",
+    ]
+    return {
+        "model_name": "NativeVectorHierarchy",
+        "backend": "camb",
+        "param_map": {
+            "H0": 67.4,
+            "ombh2": 0.02237,
+            "omch2": 0.12,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.046,
+            "YHe": 0.245,
+            "sum_mnu": 0.06,
+            "num_massive_neutrinos": 3,
+        },
+        "model_parameters": {
+            "Tcmb_K": 2.7255,
+        },
+        "background": _declared_background(),
+        "grids": {},
+        "values": {},
+        "calls": [],
+        "numerical": dict(numerics),
+        "perturbations": {
+            "contract_version": 2,
+            "standard": False,
+            "gauge": "conformal_newtonian",
+            "variables": {},
+            "derived": {},
+            "equations": {},
+            "constraints": {},
+            "closures": {},
+            "collision_operators": {},
+            "conservation_rules": {},
+            "initial_conditions": {},
+            "initial_condition_families": {
+                "regular_vector_mode": {
+                    "sector": "vector",
+                    "members": [],
+                }
+            },
+            "boundary_conditions": {},
+            "sectors": {
+                "vector": {
+                    "description": "Native vector hierarchy sector.",
+                    "species": vector_species,
+                    "hierarchy_families": vector_hierarchy_families,
+                    "supported_gauges": ["conformal_newtonian"],
+                    "tensor_character": "vector_like",
+                }
+            },
+            "species": {
+                "photon": {
+                    "sector": "vector",
+                    "hierarchy_family": "photon_temperature_vector",
+                    "collision_operators": ["thomson_vector_drag"],
+                    "background_reference": "Omega_gamma0",
+                },
+                "baryon": {
+                    "sector": "vector",
+                    "collision_operators": ["thomson_vector_drag"],
+                    "background_reference": "Omega_b0",
+                },
+                "cdm": {
+                    "sector": "vector",
+                    "background_reference": "Omega_c0",
+                },
+                "massless_neutrino": {
+                    "sector": "vector",
+                    "hierarchy_family": "massless_neutrino_vector",
+                    "background_reference": "Omega_nu0",
+                    "anisotropic_stress": "supported",
+                },
+            },
+            "hierarchy_families": {
+                "photon_temperature_vector": {
+                    "sector": "vector",
+                    "species": ["photon"],
+                    "closure": "free_streaming_vector",
+                    "default_l_max": 8,
+                    "multipole_symbol": "theta_gamma_vl",
+                },
+                "photon_polarization_e_vector": {
+                    "sector": "vector",
+                    "species": ["photon"],
+                    "closure": "free_streaming_vector",
+                    "default_l_max": 8,
+                    "multipole_symbol": "e_gamma_vl",
+                },
+                "photon_polarization_b_vector": {
+                    "sector": "vector",
+                    "species": ["photon"],
+                    "closure": "free_streaming_vector",
+                    "default_l_max": 8,
+                    "multipole_symbol": "b_gamma_vl",
+                },
+                "massless_neutrino_vector": {
+                    "sector": "vector",
+                    "species": ["massless_neutrino"],
+                    "closure": "free_streaming_vector",
+                    "default_l_max": 5,
+                    "multipole_symbol": "nu_vl",
+                },
+            },
+            "projection_typing": {},
+            "accuracy_controls": {
+                "vector_reference_ells": [20, 60, 120],
+                "runtime_envelope": "bounded",
+            },
+            "sources": {},
+            "observables": {},
+            "numerics": dict(numerics),
+            "validity": {
+                "regimes": ["linear", "native_vector_hierarchy"],
+                "notes": "Metadata-only native vector hierarchy route.",
+            },
+            "backend_mapping": {
+                "camb": {
+                    "native_solver_required": True,
+                    "implemented": True,
+                }
+            },
+        },
+    }
+
+
 def _custom_perturbations(**perturbation_kwargs: object) -> dict[str, object]:
     """Return the non-standard perturbation graph from the fixture."""
 
@@ -4447,6 +4605,126 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(
             perturbation_data.derived["polarization_moment"].expression,
             "theta_gamma2 + 6.0 * e_gamma2",
+        )
+
+    def test_native_vector_hierarchy_materializes_generated_hierarchy(
+        self,
+    ) -> None:
+        """The native vector route should compile hierarchy data."""
+
+        contract = _prepare_native_contract(
+            _native_vector_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertTrue(
+            perturbation_data.manifest_summary["generated_vector_hierarchy"]
+        )
+        self.assertFalse(
+            perturbation_data.manifest_summary["generated_scalar_hierarchy"]
+        )
+        self.assertIn("sigma_vector", perturbation_data.variables)
+        self.assertIn("theta_gamma_v8", perturbation_data.variables)
+        self.assertIn("e_gamma_v8", perturbation_data.variables)
+        self.assertIn("b_gamma_v8", perturbation_data.variables)
+        self.assertIn("nu_v5", perturbation_data.variables)
+        self.assertIn("vector_temperature_source", perturbation_data.sources)
+        self.assertIn("BB", perturbation_data.observables)
+        self.assertEqual(
+            perturbation_data.observables["polarization_b"].parity,
+            "odd",
+        )
+
+    def test_native_vector_hierarchy_transfer_payloads_are_finite(
+        self,
+    ) -> None:
+        """Physical vector transfer outputs should stay finite."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_native_vector_hierarchy_contract())
+        )
+        ells = numpy.arange(20, 45, dtype=int)
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+        )
+
+        self.assertEqual(
+            set(spectrum_data.transfer_components),
+            {"temperature", "polarization_b", "polarization_e"},
+        )
+        self.assertEqual(set(spectrum_data.spectra), {"TT", "TE", "EE", "BB"})
+        for array in (
+            spectrum_data.transfer_components["temperature"],
+            spectrum_data.transfer_components["polarization_e"],
+            spectrum_data.transfer_components["polarization_b"],
+            spectrum_data.spectra["TT"],
+            spectrum_data.spectra["TE"],
+            spectrum_data.spectra["EE"],
+            spectrum_data.spectra["BB"],
+        ):
+            self.assertTrue(numpy.all(numpy.isfinite(array)))
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(
+                        spectrum_data.transfer_components["polarization_b"]
+                    )
+                )
+            ),
+            0.0,
+        )
+        self.assertGreater(
+            float(numpy.max(numpy.abs(spectrum_data.spectra["BB"]))),
+            0.0,
+        )
+
+    def test_native_vector_b_mode_survives_exact_lensing_remapper(
+        self,
+    ) -> None:
+        """Exact lensing should preserve physical vector primordial BB."""
+
+        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
+        vector = _prepare_native_contract(
+            _speedup_contract(_native_vector_hierarchy_contract())
+        )
+        ells = numpy.arange(0, 121, dtype=int)
+        scalar_spectra = _raw_native_public_spectra(
+            scalar,
+            ells,
+            spectra=("TT", "TE", "EE", "PP"),
+        )
+        vector_bb = _raw_native_public_spectra(
+            vector,
+            ells,
+            spectra=("BB",),
+        )["BB"]
+
+        lensed_without_vector = (
+            native_cmb_solver._assemble_exact_lensed_spectra(
+                {
+                    **scalar_spectra,
+                    "BB": numpy.zeros_like(vector_bb, dtype=float),
+                },
+                ells,
+            )["lensed_BB"]
+        )
+        lensed_with_vector = native_cmb_solver._assemble_exact_lensed_spectra(
+            {
+                **scalar_spectra,
+                "BB": vector_bb,
+            },
+            ells,
+        )["lensed_BB"]
+
+        self.assertTrue(numpy.all(numpy.isfinite(lensed_with_vector)))
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(lensed_with_vector - lensed_without_vector)
+                )
+            ),
+            0.0,
         )
 
     def test_native_scalar_hierarchy_materializes_massive_neutrinos(
