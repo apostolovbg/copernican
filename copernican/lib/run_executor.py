@@ -19,6 +19,11 @@ from copernican.lib import (
     run_pipeline,
     utils,
 )
+from copernican.lib.model_selection import (
+    ComparisonRequest,
+    build_comparison_request,
+    validate_comparison_compatibility,
+)
 from copernican.lib.run_config import (
     DatasetDescriptor,
     build_config_from_manifest,
@@ -27,7 +32,6 @@ from copernican.lib.run_config import (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _MODELS_DIR = _REPO_ROOT / "copernican" / "models"
 _MODEL_CACHE_DIR = _MODELS_DIR / "cache"
-_LCDM_MODEL_PATH = _MODELS_DIR / "model_lcdm.yml"
 _MODEL_SUFFIXES = (".yml", ".yaml")
 
 _PLUGIN_CACHE: dict[str, Any] = {}
@@ -114,6 +118,24 @@ def _load_model_plugin(model_name: str | None) -> Any:
     if model_path is None:
         raise RuntimeError(f"Model '{model_name}' could not be found.")
     return _build_plugin_from_path(model_path)
+
+
+def _canonicalize_manifest_comparison(
+    manifest: dict,
+    comparison: ComparisonRequest,
+) -> None:
+    """Record resolved model identities across the persisted manifest."""
+
+    selection = manifest.setdefault("selection", {})
+    selection["comparison"] = comparison.as_manifest()
+    selection["control_model"] = comparison.control_model.name
+    selection["test_model"] = comparison.test_model.name
+    selection["models"] = list(comparison.model_names)
+    configuration = manifest.setdefault("configuration", {})
+    configuration["comparison"] = comparison.as_manifest()
+    configuration["control_model"] = comparison.control_model.name
+    configuration["test_model"] = comparison.test_model.name
+    configuration["models"] = list(comparison.model_names)
 
 
 def execute_run_from_manifest(
@@ -206,18 +228,51 @@ def execute_run_from_manifest(
         )
         raise
 
-    if not _LCDM_MODEL_PATH.is_file():
-        raise RuntimeError("Missing required model model_lcdm.yml.")
-    lcdm_plugin = _build_plugin_from_path(_LCDM_MODEL_PATH)
-    alt_name = config.models[0] if config.models else None
-    alt_plugin = _load_model_plugin(alt_name) if alt_name else lcdm_plugin
+    control_selection = config.comparison.control_model
+    test_selection = config.comparison.test_model
+    control_plugin = _load_model_plugin(
+        control_selection.filename or control_selection.name
+    )
+    test_plugin = _load_model_plugin(
+        test_selection.filename or test_selection.name
+    )
+    comparison = build_comparison_request(
+        getattr(control_plugin, "MODEL_NAME", None) or control_selection.name,
+        getattr(test_plugin, "MODEL_NAME", None) or test_selection.name,
+        control_filename=str(
+            getattr(control_plugin, "MODEL_FILENAME", None)
+            or control_selection.filename
+        ),
+        test_filename=str(
+            getattr(test_plugin, "MODEL_FILENAME", None)
+            or test_selection.filename
+        ),
+    )
+    validate_comparison_compatibility(
+        comparison,
+        control_metadata=getattr(control_plugin, "CMB_CONTRACT", {}),
+        test_metadata=getattr(test_plugin, "CMB_CONTRACT", {}),
+    )
+    _canonicalize_manifest_comparison(manifest, comparison)
+    try:
+        run_manifest.save_manifest(
+            manifest,
+            str(output_root),
+            target_path=manifest_target,
+        )
+    except (OSError, ValueError) as exc:
+        log.warning(
+            "Failed to update resolved model identities in %s: %s",
+            manifest_target,
+            exc,
+        )
 
     sampling_plan = dict(config.run_settings.settings or {})
     sampling_plan.setdefault("engine_kind", config.run_settings.engine_kind)
     display_progress = bool(sampling_plan.pop("display_progress", True))
     run_pipeline.execute_run_pipeline(
-        lcdm=lcdm_plugin,
-        alt_model_plugin=alt_plugin,
+        lcdm=control_plugin,
+        alt_model_plugin=test_plugin,
         engine_module=engine_module,
         sne_data_df=loaded_data.get("sne"),
         bao_data_df=loaded_data.get("bao"),
@@ -228,6 +283,7 @@ def execute_run_from_manifest(
         progress_callback=progress_callback,
         display_progress=display_progress,
         logger=log,
+        comparison=comparison,
     )
 
 

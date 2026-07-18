@@ -18,6 +18,9 @@ import pytest
 
 from copernican.lib import plotter
 from copernican.lib import utils as plot_utils
+from copernican.lib.model_selection import build_comparison_request
+
+_TEST_COMPARISON = build_comparison_request("LCDM", "TestModel")
 
 
 class _DummyPlugin:
@@ -234,13 +237,14 @@ def _case_plot_corner_renders_expected_file(
         attrs,
         plot_dir=str(tmp_path),
         timestamp=timestamp,
+        comparison=_TEST_COMPARISON,
     )
 
     expected_name = plot_utils.generate_filename(
         "corner-plot",
         "joint_posterior",
         "png",
-        model_name="vs-TestModel",
+        model_name="LCDM-vs-TestModel",
         timestamp=timestamp,
     )
     self.assertTrue((tmp_path / expected_name).exists())
@@ -270,13 +274,14 @@ def _case_plot_parameter_histograms_renders_expected_file(
         attrs,
         plot_dir=str(tmp_path),
         timestamp=timestamp,
+        comparison=_TEST_COMPARISON,
     )
 
     expected_name = plot_utils.generate_filename(
         "parameter-histograms",
         "joint_posterior",
         "png",
-        model_name="vs-TestModel",
+        model_name="LCDM-vs-TestModel",
         timestamp=timestamp,
     )
     self.assertTrue((tmp_path / expected_name).exists())
@@ -366,6 +371,7 @@ def _case_plot_corner_scales_layout_with_dimension(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000000",
+        comparison=_TEST_COMPARISON,
     )
 
     plotter.plot_corner(
@@ -374,6 +380,7 @@ def _case_plot_corner_scales_layout_with_dimension(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000100",
+        comparison=_TEST_COMPARISON,
     )
 
     self.assertEqual(len(layout_calls), 2)
@@ -517,6 +524,7 @@ def _case_plot_corner_positions_title_and_footer(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000200",
+        comparison=_TEST_COMPARISON,
     )
 
     self.assertTrue(recorded_suptitles)
@@ -648,6 +656,7 @@ def _case_plot_corner_downsamples_large_chains(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000000",
+        comparison=_TEST_COMPARISON,
     )
 
     stats = captured["stats"]
@@ -706,6 +715,7 @@ def _case_plot_corner_falls_back_to_agg_backend(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000000",
+        comparison=_TEST_COMPARISON,
     )
 
     self.assertEqual(attempts["count"], 2)
@@ -753,13 +763,14 @@ def _case_plot_corner_handles_legacy_validator_signature(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251108_000000",
+        comparison=_TEST_COMPARISON,
     )
 
     expected_name = plot_utils.generate_filename(
         "corner-plot",
         "joint_posterior",
         "png",
-        model_name="vs-TestModel",
+        model_name="LCDM-vs-TestModel",
         timestamp="20251108_000000",
     )
     self.assertTrue((tmp_path / expected_name).exists())
@@ -825,6 +836,7 @@ def _case_plot_corner_omits_dataset_metadata_from_footer(
         attrs,
         plot_dir=str(tmp_path),
         timestamp="20251109_120000",
+        comparison=_TEST_COMPARISON,
     )
 
     self.assertTrue(captured["include_dataset_details"] is False)
@@ -850,7 +862,10 @@ def _case_build_footer_lines_preserves_citation_by_default(self) -> None:
     }
 
     footer_lines = plotter.build_footer_lines(
-        _CornerPlugin, attrs, "20250101_000000"
+        _CornerPlugin,
+        attrs,
+        "20250101_000000",
+        comparison=_TEST_COMPARISON,
     )
 
     self.assertTrue(
@@ -876,10 +891,11 @@ def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
         "20250101_000000",
         extra_lines=extra_lines,
         include_dataset_details=False,
+        comparison=_TEST_COMPARISON,
     )
 
     footer_text = [line for line, _ in footer_lines]
-    self.assertTrue(footer_text[0].startswith("ΛCDM vs"))
+    self.assertTrue(footer_text[0].startswith("LCDM vs TestModel"))
     self.assertNotIn("Corner validation stub", "\n".join(footer_text))
     generation_line = "Corner plot generation: 12 samples used"
     self.assertEqual(footer_text.count(generation_line), 1)

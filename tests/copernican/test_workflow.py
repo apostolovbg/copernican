@@ -25,7 +25,13 @@ def _create_run_dir(tmp_path, name, chi2_total, rows, h0_value):
     run_dir = tmp_path / name
     run_dir.mkdir()
     manifest = {
-        "datasets": {"union3_2025": {"name": "Union sample", "type": "sne"}}
+        "datasets": {"union3_2025": {"name": "Union sample", "type": "sne"}},
+        "selection": {
+            "comparison": {
+                "control": {"name": "LambdaCDM"},
+                "test": {"name": "LambdaCDM"},
+            }
+        },
     }
     (run_dir / "run_manifest_20250101.yml").write_text(
         yaml.safe_dump(manifest), encoding="utf-8"
@@ -342,6 +348,20 @@ class LaunchArgParsingTestCase(unittest.TestCase):
             )
         self.assertEqual(args.manifest_path, manifest_path.resolve())
         self.assertEqual(args.output_dir, output_dir.resolve())
+
+    def test_control_and_test_flags_are_retained(self) -> None:
+        args = self.copernican._parse_launch_args(
+            [
+                "--manifest",
+                "run.yml",
+                "--control-model",
+                "reference.yml",
+                "--test-model",
+                "test.yml",
+            ]
+        )
+        self.assertEqual(args.control_model, "reference.yml")
+        self.assertEqual(args.test_model, "test.yml")
 
 
 if __name__ == "__main__":

@@ -29,8 +29,9 @@ Headless runs can pin the manifest location with the `--manifest` flag to
 `python -m copernican` so CI pipelines always collect the same path even
 when output directories change.
 - Copernican version under `copernican.version`.
-- Selected model and engine names with their versions plus a `selection` block
- so GUI import/export can re-seed new runs without retyping choices.
+- Selected control and test model names with their versions plus a `selection`
+ block so GUI import/export can re-seed the shared comparison without
+ retyping choices.
 - Parameter priors and the random seed captured at start confirmation.
 - Dataset identifiers, names and release versions with SHA256 hashes of input
  files.
@@ -53,6 +54,12 @@ when output directories change.
  were kept, deleted or archived after a stop decision.
 - The Run Builder snapshot under ``configuration`` plus the operator notes
  captured during the start confirmation stored in ``confirmation``.
+The canonical ``selection.comparison`` block contains ``control`` and ``test``
+records with model names and YAML filenames. ``configuration.comparison``
+mirrors it for builder consumers, while ``control_model`` and ``test_model``
+provide direct scalar names. The same pair is consumed by the CLI and GUI,
+and compatibility checks reject mismatched declared observable surfaces
+before model execution.
 Saving this manifest alongside plots and tables allows others to reproduce a
 run exactly. To rerun an analysis:
 1. Checkout the commit listed under `git.commit` and ensure the dirty flag

@@ -21,7 +21,8 @@ directly without using the command-line interface. The core modules are:
  the GUI progress monitors. The helper keeps stage metadata and the listener
  contract unchanged so every backend can report progress without depending on
  carriage-return renderers or spinner pumps.
-- `copernican.lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir)` –
+- `copernican.lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir,
+  comparison)` –
  render the Stage 2 posterior as an automatically thinned corner plot whose
  KDE/contour grid and marginals are produced by ArviZ while the suite
  retains the responsive panel sizing, footers, and layout safeguards that keep
@@ -32,7 +33,8 @@ directly without using the command-line interface. The core modules are:
  statistics and feeds `build_footer_lines`, keeping the `legacy` shim in place
  for earlier automation.
 - `copernican.lib.plotter.plot_parameter_histograms(samples, plugin,
-  data_attrs, plot_dir)` – generate a grid of per-parameter histograms rendered
+  data_attrs, plot_dir, comparison)` – generate a grid of per-parameter
+  histograms rendered
  by ArviZ, complete with neutral info boxes, dataset-aware footers and
  quantile annotations so the GUI viewer can reuse the same assets. The helper
  uses `_prepare_corner_inputs` to thin the samples, lists the effective
@@ -76,7 +78,27 @@ directly without using the command-line interface. The core modules are:
  posterior block see the model, dataset and other provenance details.
 - `csv_writer.save_sne_results_detailed_csv`, `save_bao_results_csv` and
  `save_cmb_results_csv` – persist fitting results with filenames that encode
- the dataset, model and timestamp.
+ the dataset, control/test model pair and timestamp.
+## Shared Model Comparison
+`copernican.lib.model_selection` is the common selection contract used by the
+CLI, GUI, manifest builder, executor, and plotting layer. Construct a pair
+with `build_comparison_request(control_model, test_model)`, or recover one
+from a saved manifest with `comparison_from_manifest(manifest)`. The request
+contains `control_model` and `test_model` role records, each with a display
+name and optional YAML filename.
+
+`run_manifest.build_manifest` stores this request under
+`selection.comparison`, alongside explicit `control_model` and `test_model`
+names for simple consumers. `run_config.RunConfig.comparison` exposes the
+same object after manifest loading. `validate_comparison_compatibility`
+rejects mismatched declared observables, units, multipole grids, or spectrum
+roles before the pair reaches the executor.
+
+Plot, CSV, posterior, summary, and manifest output identities derive from
+the request. LCDM is only the default control selection; it is not a special
+execution route or an output-label assumption. Plotting functions require the
+comparison request, while `analysis.plot_posterior` resolves it from the
+saved run manifest or accepts it explicitly.
 ## CMB Likelihood Helpers
 The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
 non-standard paths separate. The package-level `cmb.py` entrypoint dispatches
@@ -271,7 +293,9 @@ output_dir, kinds=("overview", "corner", "histograms"))``. The helper reads the
 archived ``posterior-*.nc`` snapshots, builds an ArviZ-powered corner grid,
 per-parameter histograms, and the compact trace/ histogram overview used inside
 the GUI, and returns the written file paths so scripts can log or publish the
-assets without needing to replicate the GUI plumbing.
+assets without needing to replicate the GUI plumbing. The saved manifest must
+contain the control/test comparison, or callers can provide the comparison
+explicitly.
 ```python
 from copernican.lib import analysis
 

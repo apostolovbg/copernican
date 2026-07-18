@@ -52,6 +52,7 @@ def save_summary(
     output_dir: str | Path,
     *,
     timestamp: str | None = None,
+    comparison_slug: str | None = None,
 ) -> tuple[Path, Path]:
     """Write parameter summaries for one or more models.
 
@@ -122,7 +123,8 @@ def save_summary(
             "sampling": sampling_entry,
         }
 
-    base_name = f"parameter-summary_{summary_timestamp}"
+    pair_token = f"_{comparison_slug}" if comparison_slug else ""
+    base_name = f"parameter-summary{pair_token}_{summary_timestamp}"
     json_path = out_path / f"{base_name}.json"
     yaml_path = out_path / f"{base_name}.yml"
     with open(json_path, "w", encoding="utf-8") as json_file_handle:

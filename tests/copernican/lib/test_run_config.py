@@ -56,6 +56,8 @@ class TestRunConfig(unittest.TestCase):
         self.assertEqual(config.engine.version, "7.6.20")
         self.assertEqual(config.run_settings.engine_kind, "mcmc")
         self.assertEqual(config.run_settings.settings["n_steps"], 200)
+        self.assertEqual(config.control_model, "model_lcdm.yml")
+        self.assertEqual(config.test_model, "LambdaCDM")
         self.assertEqual(len(config.datasets), 1)
         descriptor = config.datasets[0]
         self.assertIsInstance(descriptor, DatasetDescriptor)

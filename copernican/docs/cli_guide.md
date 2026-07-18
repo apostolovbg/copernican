@@ -36,19 +36,21 @@ After the environment check you can select:
  interpreter
 You can call `python -m copernican --cli` directly after activating `.venv`
 if you do not need the curated prompts. Additional switches include `--gui`,
-`--no-gui`, `--manifest <path>` to execute a saved manifest, and
-`--output-dir` to override where run directories are created.
+`--no-gui`, `--manifest <path>` to execute a saved manifest,
+`--control-model <model>` and `--test-model <model>` to override the pair in
+that manifest, and `--output-dir` to override where run directories are
+created.
 ## Interactive CLI Workflow
-The CLI mirrors the Run Builder pages:
+The CLI mirrors the Run Builder pages and the shared comparison request:
 1. **Seed selection** – Accept the default seed (`0`), supply your own value or
  request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
-2. **Model selection** – Choose any `model_*.yml` discovered under
- `copernican/models/`, or use the final `Load model...` option to type an
- exact path to any valid `.yml` or `.yaml` file on disk. The CLI validates
- YAML using the cached schema before generating engine adapters.
-3. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
+2. **Control model** – Select the model used as the comparison control. The
+ `model_lcdm.yml` definition is the default.
+3. **Test model** – Select the model evaluated against the control. Both model
+ roles use the same YAML validation and exact-path loading rules.
+4. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
  Parsers are verified by SHA256 digest before their modules are imported.
-4. **Engine selection** – Choose a sampler backend from `copernican/engines/`.
+5. **Engine selection** – Choose a sampler backend from `copernican/engines/`.
  The default is `copernican/engines/engine_mcmc.py` unless you
  override it. Engine metadata (walkers, burn-in, production steps, pool
  size) is gathered immediately after the engine choice. When a selected
@@ -58,7 +60,7 @@ The CLI mirrors the Run Builder pages:
  reports the configured worker pool count. This keeps diagnostics, plots
  and manifest metadata consistent even though no sampling steps are
  actually executed.
-5. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
+6. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
  writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
  naming convention as the GUI. The manifest records dataset hashes, model
  metadata, engine knobs and Git information. The CLI run log for each
@@ -67,7 +69,7 @@ The CLI mirrors the Run Builder pages:
  `copernican-run_<timestamp>.txt`. GUI-launched runs also write the same
  per-run monitoring log there so the Run Monitor can tail progress without
  editing the reproducibility artifacts.
-6. **Confirm and Launch** – The CLI displays a summary, asks for confirmation
+7. **Confirm and Launch** – The CLI displays a summary, asks for confirmation
  and starts the worker. Logs stream to stdout and to the per-run
  `copernican-run_<timestamp>.txt` file in parallel.
 Every stage logs progress and flushes stdout so long optimisations remain
@@ -133,6 +135,8 @@ The executor rebuilds the declared models via
 `copernican.lib.engine_adapter.build_plugin`, reloads datasets using the
 recorded hashes, and hands sampling to the selected engine. Progress updates
 and log output match the GUI’s Run Monitor display.
+The optional `--control-model` and `--test-model` overrides update the same
+comparison object used by the GUI before the executor loads either model.
 ## Environment Variables
 - `COPERNICAN_STRICT_WARNINGS=1` – Elevates Python warnings to errors, useful
  in CI pipelines.

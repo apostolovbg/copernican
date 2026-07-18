@@ -25,9 +25,11 @@ padding.
 - [Launching the GUI](#launching-the-gui)
 ## Run Builder
 The Run Builder mirrors the CLI stages with dedicated panels for the seed,
-model selection, dataset selection, engine choice, plan notes and the final
-confirmation. Models and datasets use single-selection lists so you cannot
-select more than one item at each stage, and every panel draws live entries
+control model, test model, dataset selection, engine choice, plan notes and
+the final confirmation. The control model defaults to `model_lcdm.yml`; the
+test model is selected independently. Models and datasets use single-selection
+lists so you cannot select more than one item at each stage, and every panel
+draws live entries
 from the inventories generated during GUI start-up. Revalidation, metadata
 previewing and folder opening remain available inside the builder, and the
 confirm panel lists the new run settings alongside the usual seeds, models and
@@ -39,7 +41,7 @@ when they can move, and the only way to launch sampling is through the
 confirmation step’s **Start Run from manifest** button. A companion **Insert
 manifest** button stages the generated manifest so you can review metadata or
 export it before launching the worker.
-The Save Manifest step stays locked until every seed/model/dataset/
+The Save Manifest step stays locked until every seed/control-model/test-model/
 engine panel reports a selection. Saving writes the current manifest to
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, leaves
 the workspace editable and enables the **Save and confirm** controls.
@@ -48,6 +50,8 @@ never leave stray manifests, and the confirmation panel keeps its
 **Start run** button disabled until a manifest exists so the GUI always
 renames the workspace to `copernican-run_<timestamp>` before handing it
 to `copernican.lib.gui.run_worker`.
+The generated manifest contains one comparison object with both model roles;
+the CLI consumes that same object when it replays the run.
 ## Data
 The Data catalogue renders separate scrollable lists for each dataset type so
 you choose at most one SNe, BAO or CMB entry per run. Each row shows badges,

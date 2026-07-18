@@ -36,6 +36,10 @@ from copernican.lib import console_output as console
 from copernican.lib import logger as log_mod
 from copernican.lib import orchestration, progress_state, run_manifest, utils
 from copernican.lib.cli import dependencies as cli_dependencies
+from copernican.lib.model_selection import (
+    build_comparison_request,
+    comparison_from_manifest,
+)
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -189,6 +193,8 @@ class LaunchRequest:
     analysis_posterior_dir: Path | None = None
     analysis_posterior_file: Path | None = None
     analysis_posterior_output: Path | None = None
+    control_model: str | None = None
+    test_model: str | None = None
 
 
 def _data_root() -> Path:
@@ -958,6 +964,16 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         ),
     )
     parser.add_argument(
+        "--control-model",
+        metavar="MODEL",
+        help="Override the control model recorded in the manifest.",
+    )
+    parser.add_argument(
+        "--test-model",
+        metavar="MODEL",
+        help="Override the test model recorded in the manifest.",
+    )
+    parser.add_argument(
         "--catalogue-summary",
         action="store_true",
         help=(
@@ -1129,6 +1145,8 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         analysis_posterior_dir=analysis_posterior_dir,
         analysis_posterior_file=analysis_posterior_file,
         analysis_posterior_output=analysis_posterior_output,
+        control_model=parsed.control_model,
+        test_model=parsed.test_model,
     )
 
 
@@ -1262,7 +1280,12 @@ def _get_cpu_info() -> tuple[str, str]:
 # logic of the program.
 
 
-def main_workflow(manifest_path: Path | None = None):
+def main_workflow(
+    manifest_path: Path | None = None,
+    *,
+    control_model: str | None = None,
+    test_model: str | None = None,
+):
     """Execute the manifest-driven CLI workflow after dependency checks."""
     opts = cli_dependencies.get_runtime_options()
     if opts.run_tests:
@@ -1311,6 +1334,26 @@ def main_workflow(manifest_path: Path | None = None):
         return
 
     manifest = run_manifest.load_manifest(str(manifest_path))
+    if control_model or test_model:
+        current = comparison_from_manifest(manifest)
+        comparison = build_comparison_request(
+            control_model or current.control_model.name,
+            test_model or current.test_model.name,
+            control_filename=(
+                current.control_model.filename if not control_model else ""
+            ),
+            test_filename=(
+                current.test_model.filename if not test_model else ""
+            ),
+        )
+        selection = manifest.setdefault("selection", {})
+        selection["comparison"] = comparison.as_manifest()
+        selection["control_model"] = comparison.control_model.name
+        selection["test_model"] = comparison.test_model.name
+        configuration = manifest.setdefault("configuration", {})
+        configuration["comparison"] = comparison.as_manifest()
+        configuration["control_model"] = comparison.control_model.name
+        configuration["test_model"] = comparison.test_model.name
     run_executor.execute_run_from_manifest(
         manifest,
         script_dir=Path(SCRIPT_DIR),
@@ -1364,7 +1407,11 @@ def _run_cli_launch(
         console.write(missing_manifest_message, error=True)
         return 1
     try:
-        main_workflow(manifest_path=launch_request.manifest_path)
+        main_workflow(
+            manifest_path=launch_request.manifest_path,
+            control_model=launch_request.control_model,
+            test_model=launch_request.test_model,
+        )
         return 0
     except (
         OSError,

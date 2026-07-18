@@ -21,6 +21,7 @@ from copernican import version as version_module
 from . import latex_utils
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
+from .model_selection import ComparisonRequest, comparison_slug
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
 
 # Resolve the Matplotlib backend during import so later calls do not trigger
@@ -41,6 +42,23 @@ except ModuleNotFoundError:  # pragma: no cover - pytest installs ArviZ already
 MAX_CORNER_SAMPLES = 100_000
 _INFO_BOX_WIDTH = 0.22
 _INFO_BOX_MARGIN = 0.03
+
+
+def _comparison_display(
+    comparison: ComparisonRequest,
+) -> tuple[str, str, str]:
+    """Return display names and a stable filename token for a comparison."""
+
+    control_name = comparison.control_model.name
+    test_name = comparison.test_model.name
+    token = comparison_slug(comparison)
+    return control_name, test_name, token
+
+
+def _latex_model_name(name: str) -> str:
+    """Escape model names for Matplotlib's mathtext labels."""
+
+    return name.replace("_", r"\_")
 
 
 # NOTE: ``_prepare_corner_inputs`` used to be spelled
@@ -884,6 +902,7 @@ def build_footer_lines(
     *,
     extra_lines: Iterable[tuple[str, bool]] | None = None,
     include_dataset_details: bool = True,
+    comparison: ComparisonRequest,
 ) -> list[tuple[str, bool]]:
     """Return footer lines for a given dataset and model comparison.
 
@@ -894,8 +913,9 @@ def build_footer_lines(
     generated.
     """
 
+    control_name, test_name, _ = _comparison_display(comparison)
     base_line = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite "
+        f"{control_name} vs {test_name} | Copernican Suite "
         f"{COPERNICAN_VERSION} | {timestamp or get_timestamp()}"
     )
     composed = compose_footer(base_line, data_attrs)
@@ -1050,10 +1070,15 @@ def plot_hubble_diagram(
     alt_model_plugin: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
+    *,
+    comparison: ComparisonRequest,
 ) -> None:
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
+    control_name, test_name, comparison_name = _comparison_display(comparison)
+    control_latex = _latex_model_name(control_name)
+    test_latex = _latex_model_name(test_name)
     dataset_name = sne_data_df.attrs.get("dataset_name", "SNe data")
     dataset_id = sne_data_df.attrs.get("dataset_id", "sne_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
@@ -1143,6 +1168,7 @@ def plot_hubble_diagram(
         alt_model_plugin,
         sne_data_df.attrs,
         timestamp,
+        comparison=comparison,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -1185,7 +1211,7 @@ def plot_hubble_diagram(
             mu_model_lcdm_smooth,
             color="red",
             ls="-",
-            label=rf"$\Lambda$CDM ($\chi^2$={chi2_lcdm})",
+            label=rf"{control_latex} ($\chi^2$={chi2_lcdm})",
             lw=2.5,
         )
         axs[1].errorbar(
@@ -1195,7 +1221,7 @@ def plot_hubble_diagram(
             fmt=".",
             color="red",
             alpha=0.5,
-            label=r"$\Lambda$CDM Res.",
+            label=rf"{control_latex} Res.",
             elinewidth=1,
             capsize=2,
             ms=4,
@@ -1209,11 +1235,10 @@ def plot_hubble_diagram(
             ls="-",
             lw=2,
             zorder=10,
-            label=r"Avg. $\Lambda$CDM Res.",
+            label=rf"Avg. {control_latex} Res.",
         )
 
-    alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
-    alt_name_latex = alt_name_raw.replace("_", r"\_")
+    alt_name_latex = test_latex
     if alt_model_fit_results and alt_model_fit_results.get("success"):
         fitted_vals = alt_model_fit_results["fitted_cosmological_params"]
         p_alt = list(fitted_vals.values())
@@ -1367,10 +1392,7 @@ def plot_hubble_diagram(
         )
         y -= line_height
 
-    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
-        ".", ""
-    )
-    model_comparison_name = f"vs-{alt_model_name}"
+    model_comparison_name = comparison_name
     filename = generate_filename(
         "hubble-plot",
         dataset_id,
@@ -1396,10 +1418,15 @@ def plot_bao_observables(
     sne_data_df: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
+    *,
+    comparison: ComparisonRequest,
 ) -> None:
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
+    control_name, test_name, comparison_name = _comparison_display(comparison)
+    control_latex = _latex_model_name(control_name)
+    test_latex = _latex_model_name(test_name)
     dataset_name = bao_data_df.attrs.get("dataset_name", "BAO data")
     dataset_id = bao_data_df.attrs.get("dataset_id", "bao_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
@@ -1434,6 +1461,7 @@ def plot_bao_observables(
         alt_model_plugin,
         bao_data_df.attrs,
         timestamp,
+        comparison=comparison,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -1529,10 +1557,9 @@ def plot_bao_observables(
             )
 
     line_styles = ["-", "--", ":"]
-    plot_model_bao(lcdm_full_results, "red", line_styles, r"$\Lambda$CDM")
+    plot_model_bao(lcdm_full_results, "red", line_styles, control_latex)
 
-    alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
-    alt_name_latex = alt_name_raw.replace("_", r"\_")
+    alt_name_latex = test_latex
     plot_model_bao(
         alt_model_full_results, "blue", line_styles, alt_name_latex, alpha=0.25
     )
@@ -1551,7 +1578,7 @@ def plot_bao_observables(
             fmt=".",
             color="red",
             alpha=0.5,
-            label=r"$\Lambda$CDM Res.",
+            label=rf"{control_latex} Res.",
             elinewidth=1,
             capsize=2,
             ms=4,
@@ -1568,7 +1595,7 @@ def plot_bao_observables(
             ls="-",
             lw=2,
             zorder=10,
-            label=r"Avg. $\Lambda$CDM Res.",
+            label=rf"Avg. {control_latex} Res.",
         )
 
     alt_pred = alt_model_full_results.get("pred_df")
@@ -1714,10 +1741,7 @@ def plot_bao_observables(
         )
         y -= line_height
 
-    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
-        ".", ""
-    )
-    model_comparison_name = f"vs-{alt_model_name}"
+    model_comparison_name = comparison_name
     filename = generate_filename(
         "bao-plot",
         dataset_id,
@@ -1744,10 +1768,15 @@ def plot_cmb_spectrum(
     alt_model_plugin: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
+    *,
+    comparison: ComparisonRequest,
 ) -> None:
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
+    control_name, test_name, comparison_name = _comparison_display(comparison)
+    control_latex = _latex_model_name(control_name)
+    test_latex = _latex_model_name(test_name)
     dataset_name = cmb_data_df.attrs.get("dataset_name", "CMB data")
     dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
@@ -1809,6 +1838,7 @@ def plot_cmb_spectrum(
         alt_model_plugin,
         cmb_data_df.attrs,
         timestamp,
+        comparison=comparison,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -1827,8 +1857,7 @@ def plot_cmb_spectrum(
     if alt_cmb_results:
         alt_theory = alt_cmb_results.get("theory_spectrum")
 
-    alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
-    alt_name_latex = alt_name_raw.replace("_", r"\_")
+    alt_name_latex = test_latex
 
     for i, comp in enumerate(components):
         idx_main = i * 2
@@ -1879,7 +1908,7 @@ def plot_cmb_spectrum(
                     if comp == "TT"
                     else ""
                 )
-                label = r"$\Lambda$CDM" + (
+                label = control_latex + (
                     rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else ""
                 )
                 axs[idx_main].plot(
@@ -1911,7 +1940,7 @@ def plot_cmb_spectrum(
                     fmt=".",
                     color="red",
                     alpha=0.5,
-                    label=r"$\Lambda$CDM Res." if i == 0 else None,
+                    label=f"{control_latex} Res." if i == 0 else None,
                     elinewidth=1,
                     capsize=2,
                     ms=4,
@@ -1925,7 +1954,7 @@ def plot_cmb_spectrum(
                     ls="-",
                     lw=2,
                     zorder=10,
-                    label=r"Avg. $\Lambda$CDM Res." if i == 0 else None,
+                    label=(f"Avg. {control_latex} Res." if i == 0 else None),
                 )
 
         if alt_theory is not None:
@@ -2087,10 +2116,7 @@ def plot_cmb_spectrum(
         )
         y -= line_height
 
-    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
-        ".", ""
-    )
-    model_comparison_name = f"vs-{alt_model_name}"
+    model_comparison_name = comparison_name
     filename = generate_filename(
         "cmb-plot",
         dataset_id,
@@ -2114,6 +2140,8 @@ def plot_corner(
     plot_dir: str = ".",
     parameter_names: list[str] | None = None,
     timestamp: str | None = None,
+    *,
+    comparison: ComparisonRequest,
 ) -> None:
     """Generate a corner plot for the joint posterior samples.
 
@@ -2125,11 +2153,12 @@ def plot_corner(
         NaNs or infinities; these are dropped before plotting to avoid
         distorting the marginal distributions.
     alt_model_plugin:
-        Plugin describing the alternative model in the Stage 2 comparison.
+        Plugin describing the model whose posterior is being rendered in the
+        selected comparison.
         The helper inspects ``PARAMETER_NAMES`` and ``PARAMETER_LATEX_NAMES``
         when axis labels are not supplied explicitly. The model name also
-        drives filename generation and footer text so plots tie back to the
-        original run directory.
+        supplies the posterior parameter labels; ``comparison`` drives the
+        filename and footer provenance so plots tie back to the full run.
     data_attrs:
         Metadata dictionary associated with the combined dataset. The
         ``dataset_id`` and ``dataset_name`` entries are used both for the
@@ -2146,6 +2175,9 @@ def plot_corner(
         Fixed timestamp passed from the caller so filenames and footer
         content remain deterministic during tests. The current time is used
         when the argument is ``None``.
+    comparison:
+        Required control/test model pair used for labels, filenames, and
+        footer provenance.
     """
 
     ensure_dir_exists(plot_dir)
@@ -2233,6 +2265,7 @@ def plot_corner(
         timestamp,
         extra_lines=extra_lines,
         include_dataset_details=False,
+        comparison=comparison,
     )
 
     _apply_common_style()
@@ -2418,12 +2451,12 @@ def plot_corner(
         )
 
     dataset_id = attrs.get("dataset_id", "joint")
-    alt_model_name = alt_name.replace(" ", "_").replace(".", "")
+    model_token = comparison_slug(comparison)
     filename = generate_filename(
         "corner-plot",
         dataset_id,
         "png",
-        model_name=f"vs-{alt_model_name}",
+        model_name=model_token,
         timestamp=timestamp,
     )
 
@@ -2448,8 +2481,14 @@ def plot_parameter_histograms(
     plot_dir: str = ".",
     parameter_names: list[str] | None = None,
     timestamp: str | None = None,
+    *,
+    comparison: ComparisonRequest,
 ) -> None:
-    """Generate per-parameter histograms using ArviZ."""
+    """Generate per-parameter histograms using ArviZ.
+
+    ``comparison`` supplies the control/test identities used in the output
+    filename and rendered provenance.
+    """
 
     ensure_dir_exists(plot_dir)
     logger = get_logger()
@@ -2629,6 +2668,7 @@ def plot_parameter_histograms(
         timestamp,
         extra_lines=extra_lines,
         include_dataset_details=True,
+        comparison=comparison,
     )
 
     footer_padding = 0.04
@@ -2659,12 +2699,12 @@ def plot_parameter_histograms(
     )
 
     dataset_id = attrs.get("dataset_id", "joint")
-    alt_model_name = model_label.replace(" ", "_")
+    model_token = comparison_slug(comparison)
     filename = generate_filename(
         "parameter-histograms",
         dataset_id,
         "png",
-        model_name=f"vs-{alt_model_name}",
+        model_name=model_token,
         timestamp=timestamp,
     )
 

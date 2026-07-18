@@ -20,8 +20,9 @@ workflow for selecting data, choosing a model, running the sampler, and
 keeping the results tied to the exact inputs that produced them.
 
 The same manifest can drive the command-line interface or the GUI. That keeps
-interactive runs and scripted runs on the same configuration surface, with the
-same seed handling, dataset selection, engine choice, and output layout.
+interactive runs and scripted runs on one configuration surface, with the same
+seed handling, control-model and test-model selection, dataset selection,
+engine choice, and output layout.
 
 Copernican is built for reproducibility. Every run writes a manifest, logs,
 summary artifacts, plots, and chain outputs into a per-run directory under
@@ -206,12 +207,21 @@ Each run keeps its own run logs inside the generated
 
 ## Run Builder and GUI
 The GUI keeps the same manifest model as the CLI. The Run Builder walks
-through seed, model, dataset, engine, and plan panels; the Save Manifest page
-stays locked until each step has a selection; and the Start Run action
-renames the workspace to `copernican-run_<timestamp>` before launching the
-worker. The Run Settings panel mirrors the CLI prompts for walkers, burn-in,
-production steps, and pool size so GUI runs and CLI runs use the same run
-metadata.
+through seed, control model, test model, dataset, engine, and plan panels. The
+control model defaults to `model_lcdm.yml`, while the test model is selected
+independently. The Save Manifest page stays locked until each step has a
+selection; and the Start Run action renames the workspace to
+`copernican-run_<timestamp>` before launching the worker. The Run Settings
+panel mirrors the CLI prompts for walkers, burn-in, production steps, and pool
+size so GUI runs and CLI runs use the same run metadata.
+
+The manifest stores one comparison request containing both model identities.
+Compatibility checks cover declared observables, units, multipole grids, and
+spectrum roles before execution. Summaries, CSV files, posterior artifacts,
+plot footers, and residual labels use the resolved control/test pair rather
+than assuming an LCDM control.
+Posterior plotting reads that pair from the saved manifest, and direct
+plotting calls provide the same comparison object.
 
 The Run Monitor streams stdout and stderr into a log box, tails the per-run
 log file, and keeps the cancel controls disabled until a run exists. Metadata

@@ -29,6 +29,12 @@ and that Copernican was launched with `python -m copernican --gui`.
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.
 
+If a comparison is rejected, inspect both entries under
+`selection.comparison` in the manifest. The control and test models must
+declare matching observables, units, multipole grids, and spectrum roles.
+The same pair can be selected in the GUI or overridden with
+`--control-model` and `--test-model` in the CLI.
+
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and
 `copernican/lib/global_settings/defaults.yml` first.

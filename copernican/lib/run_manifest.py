@@ -24,6 +24,11 @@ from .likelihoods import cmb as cmb_module
 from .likelihoods.cmb.native_background import (
     _summarize_declared_background_manifest_summary,
 )
+from .model_selection import (
+    ComparisonRequest,
+    build_comparison_request,
+    validate_comparison_compatibility,
+)
 
 
 def _copernican_version() -> str:
@@ -530,6 +535,7 @@ def build_manifest(
     state: str = "pending",
     output_policy: str = "unprepared",
     configuration: Optional[dict[str, Any]] = None,
+    comparison: ComparisonRequest | None = None,
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -560,6 +566,39 @@ def build_manifest(
         derived from the collected model and dataset metadata.
     """
 
+    model_records = list(models)
+    if comparison is None:
+        if len(model_records) >= 2:
+            comparison = build_comparison_request(
+                getattr(model_records[0][0], "MODEL_NAME", "control"),
+                getattr(model_records[1][0], "MODEL_NAME", "test"),
+                control_filename=getattr(
+                    model_records[0][0], "MODEL_FILENAME", ""
+                ),
+                test_filename=getattr(
+                    model_records[1][0], "MODEL_FILENAME", ""
+                ),
+            )
+        elif model_records:
+            comparison = build_comparison_request(
+                "model_lcdm.yml",
+                getattr(model_records[0][0], "MODEL_NAME", "test"),
+                test_filename=getattr(
+                    model_records[0][0], "MODEL_FILENAME", ""
+                ),
+            )
+        else:
+            comparison = build_comparison_request(
+                "model_lcdm.yml", "model_lcdm.yml"
+            )
+
+    if len(model_records) >= 2:
+        validate_comparison_compatibility(
+            comparison,
+            control_metadata=getattr(model_records[0][0], "CMB_CONTRACT", {}),
+            test_metadata=getattr(model_records[1][0], "CMB_CONTRACT", {}),
+        )
+
     manifest = {
         "copernican": {"version": _copernican_version()},
         "models": [],
@@ -571,10 +610,17 @@ def build_manifest(
         "datasets": {},
         "git": _git_info(),
         "status": {"state": state, "outputs": output_policy},
-        "selection": {"models": [], "engine": {}, "datasets": []},
+        "selection": {
+            "models": [],
+            "engine": {},
+            "datasets": [],
+            "comparison": comparison.as_manifest(),
+            "control_model": comparison.control_model.name,
+            "test_model": comparison.test_model.name,
+        },
     }
 
-    for plugin, version in models:
+    for plugin, version in model_records:
         priors = {
             name: prior
             for name, prior in zip(
@@ -613,16 +659,28 @@ def build_manifest(
     manifest["selection"]["engine"] = manifest["engine"].copy()
 
     if configuration:
-        manifest["configuration"] = configuration
+        manifest["configuration"] = dict(configuration)
+        manifest["configuration"].setdefault(
+            "comparison", comparison.as_manifest()
+        )
+        manifest["configuration"].setdefault(
+            "control_model", comparison.control_model.name
+        )
+        manifest["configuration"].setdefault(
+            "test_model", comparison.test_model.name
+        )
     else:
         manifest["configuration"] = {
             "notes": "Derived from GUI selections; update when importing.",
             "engine": manifest["selection"]["engine"],
             "models": manifest["selection"]["models"],
             "datasets": manifest["selection"]["datasets"],
+            "comparison": comparison.as_manifest(),
+            "control_model": comparison.control_model.name,
+            "test_model": comparison.test_model.name,
         }
 
-    camb_details = _camb_info(models)
+    camb_details = _camb_info(model_records)
     if camb_details is not None:
         manifest["camb"] = camb_details
 

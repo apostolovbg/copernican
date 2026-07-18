@@ -771,7 +771,7 @@ Done when:
 * Projection and remapper normalization tests pass independently.
 * No scalar or non-scalar absolute-parity claim is made by this slice.
 
-### [open] Slice Ten - Shared control and test model selection
+### [closed] Slice Ten - Shared control and test model selection
 
 Purpose:
 

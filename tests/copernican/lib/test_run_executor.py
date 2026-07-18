@@ -174,6 +174,13 @@ class TestRunExecutor(unittest.TestCase):
         self.assertTrue(pipeline_calls)
         alt_model = pipeline_calls[0]["alt_model_plugin"]
         self.assertEqual(alt_model.MODEL_FILENAME, "external_model.yaml")
+        comparison = pipeline_calls[0]["comparison"]
+        self.assertEqual(comparison.control_model.name, "model_lcdm")
+        self.assertEqual(comparison.test_model.name, "external_model")
+        self.assertEqual(
+            comparison.test_model.filename,
+            "external_model.yaml",
+        )
 
     def test_execute_run_from_manifest_persists_manifest(self) -> None:
         manifest = self._base_manifest(seed=999)

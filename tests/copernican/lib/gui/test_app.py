@@ -52,6 +52,24 @@ class TestCopernicanGUI(unittest.TestCase):
     def test_catalogue_metadata_and_filters(self) -> None:
         _case_catalogue_metadata_and_filters(self)
 
+    def test_lcdm_is_default_control_and_manifest_has_pair(self) -> None:
+        gui = CopernicanGUI(render=False)
+        self.assertEqual(
+            gui._selected_control_model_entry["filename"], "model_lcdm.yml"
+        )
+        test_entry = next(
+            entry
+            for entry in gui.model_index.values()
+            if entry["filename"] != "model_lcdm.yml"
+        )
+        gui._apply_model_role("test", test_entry)
+        manifest = gui._generate_manifest_snapshot()
+        comparison = manifest["selection"]["comparison"]
+        self.assertEqual(comparison["control"]["filename"], "model_lcdm.yml")
+        self.assertEqual(
+            comparison["test"]["filename"], test_entry["filename"]
+        )
+
     def test_model_and_engine_metadata_actions(self) -> None:
         _case_model_and_engine_metadata_actions(self)
 
@@ -221,8 +239,6 @@ def _case_builder_navigation_and_draft(self) -> None:
 
 def _case_builder_next_requires_all_pages_selected(self) -> None:
     gui = CopernicanGUI(render=False)
-    if gui.builder_steps.index("Engine") != 3:
-        self.skipTest("Expected engine step at index 3")
     gui.current_step_index = gui.builder_steps.index("Engine")
     starting_alerts = len(gui.alerts)
     gui._handle_builder_next()

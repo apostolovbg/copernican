@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from .model_selection import ComparisonRequest, comparison_from_manifest
+
 
 @dataclass(frozen=True)
 class DatasetDescriptor:
@@ -45,6 +47,19 @@ class RunConfig:
     engine: EngineDescriptor
     datasets: Sequence[DatasetDescriptor]
     run_settings: RunSettings
+    comparison: ComparisonRequest
+
+    @property
+    def control_model(self) -> str:
+        """Return the selected control model name."""
+
+        return self.comparison.control_model.name
+
+    @property
+    def test_model(self) -> str:
+        """Return the selected test model name."""
+
+        return self.comparison.test_model.name
 
 
 def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
@@ -84,4 +99,5 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
             engine_kind=settings.get("engine_kind", "mcmc"),
             settings=settings,
         ),
+        comparison=comparison_from_manifest(manifest),
     )

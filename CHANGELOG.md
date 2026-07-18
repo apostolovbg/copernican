@@ -80,6 +80,89 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-18:
+  Change: Enforced pair-based posterior plotting and updated GUI navigation
+    fixtures.
+  Why: Removed single-model plotting fixtures and stale page-index skips from
+    the resolved control/test comparison workflow.
+  Impact: Analysis derives comparison identities from manifests, plotters
+    require pairs, and GUI tests exercise the live builder page order.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cli_guide.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/run_manifest.md
+  copernican/lib/analysis.py
+  copernican/lib/csv_writer.py
+  copernican/lib/gui/app.py
+  copernican/lib/model_selection.py
+  copernican/lib/plotter.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/cli_guide.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/run_manifest.md
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/test_analysis.py
+  tests/copernican/lib/test_model_selection.py
+  tests/copernican/lib/test_plotter.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/test_workflow.py
+
+- 2026-07-18:
+  Change: Implemented shared control and test model selection across the
+    CLI, GUI, manifests, execution pipeline, exports, and plots.
+  Why: Enabled compatible comparisons between any two declared models while
+    preserving LCDM as the default control selection.
+  Impact: Propagated resolved pair identities into validation, summaries,
+    filenames, footers, residuals, and user-facing workflow documentation.
+  Files:
+  CHANGELOG.md
+  README.md
+  PLAN.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cli_guide.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/run_manifest.md
+  copernican/lib/csv_writer.py
+  copernican/lib/gui/app.py
+  copernican/lib/model_selection.py
+  copernican/lib/plotter.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/cli_guide.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/run_manifest.md
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/test_model_selection.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/test_workflow.py
+
+- 2026-07-18:
   Change: Corrected stale native hierarchy and projection test fixtures.
   Why: Aligned focused assertions with the expanded kernel batch and the
     generic collision-operator materialization contract.

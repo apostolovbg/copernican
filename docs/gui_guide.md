@@ -16,7 +16,7 @@ plus buttons for every page:
 - **Home** – Surfaces catalogue health, model/engine badges, and quick actions
  for importing manifests, launching the Run Builder or opening the output
  directory.
-- **Run Builder** – Opens the six-step wizard described below and keeps the
+- **Run Builder** – Opens the seven-step wizard described below and keeps the
  Previous/Next/Cancel controls anchored beneath the jump buttons.
 - **Run Monitor** – Streams sampler progress, logs and run alerts. Buttons for
  cancel, pause and hard stop share the same disabled state logic used
@@ -49,8 +49,9 @@ plus buttons for every page:
 All navigation pages share the same bold header style used by Run Builder
 and Run Monitor, keeping the typography consistent regardless of the page.
 ## Run Builder Overview
-The builder consists of six pages listed at the top of the panel. Jump buttons
-have the same width as the Previous/Next/Cancel controls and use native ttk
+The builder consists of seven pages listed at the top of the panel. Jump
+buttons have the same width as the Previous/Next/Cancel controls and use
+native ttk
 states so Manifest and Confirm grey out until prerequisites are satisfied. A
 contextual two-line message under the buttons explains what needs to happen on
 each page. The steps are:
@@ -68,29 +69,31 @@ each page. The steps are:
  completions or let the AI practice on their behalf. The window also exposes
  Pause/Resume, **Let AI learn** (continuous loops) and **Let AI forget**
  controls, all documented in the alien-invasion README.
-2. **Models** – Single-select list with quick metadata access. The preview pane
- stays pinned above the footer and shortens automatically so dataset controls
- remain visible. The page also offers a `Load model...` button that opens a
- file picker for any valid `.yml` or `.yaml` file, matching the CLI's
- exact-path model-loading rule.
-3. **Data** – Three fixed-height (four-row) listboxes stack vertically for SNe,
+2. **Control model** – Select the comparison control from the shared model
+ catalogue. `model_lcdm.yml` is selected by default, and the preview pane and
+ `Load model...` action use the same validation behavior as the test page.
+3. **Test model** – Select the model evaluated against the control. The page
+ uses the same single-select list, metadata preview, and exact-path loading
+ behavior as the control page.
+4. **Data** – Three fixed-height (four-row) listboxes stack vertically for SNe,
  BAO and CMB catalogues. Each box is 500 px wide and uses a dedicated
  scrollbar so selections remain readable.
-4. **Engine** – Selecting an engine loads its capability metadata and renders
+5. **Engine** – Selecting an engine loads its capability metadata and renders
  per-parameter controls inside the Run Settings box. Integer and float fields
  use spinboxes with bounded ranges taken from `_ENGINE_SETTING_LIMITS`; pool
  size is capped by the detected CPU core count. Boolean settings render as
  checkboxes (for example, Display progress). Recommendations display directly
  above their associated inputs.
-5. **Manifest** – Displays the draft manifest in a scrollable text widget and
+6. **Manifest** – Displays the draft manifest in a scrollable text widget and
  surfaces reminder text if the workspace has not been saved. The buttons let
  you save, save-and-confirm, export to an external path, open the on-disk
  manifest or clear the workspace.
-6. **Confirm** – Summarises the entire run, including walker/burn-in/production
+7. **Confirm** – Summarises the entire run, including the control/test pair and
+ walker/burn-in/production
  settings and pool size hints. The **Start run** button stays disabled until
  a manifest exists so every execution renames the workspace (`copernican-
    run_<timestamp>`) before launching the CLI worker.
-`Next` is blocked on the Engine step until all of the first four pages have
+`Next` is blocked on the Engine step until all of the first five pages have
 selections. Attempting to proceed triggers a toast and a modal warning telling
 you which prerequisites are missing. The Manifest page also refuses to advance
 until the manifest is saved, ensuring the Confirm page always opens with a real

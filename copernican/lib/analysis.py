@@ -19,6 +19,11 @@ import yaml
 from . import plotter, posterior_explorer
 from . import run_manifest as run_manifest_module
 from . import utils
+from .model_selection import (
+    ComparisonRequest,
+    comparison_from_manifest,
+    comparison_slug,
+)
 
 _GREEK_REPLACEMENTS = {
     "Λ": "Lambda",
@@ -554,33 +559,49 @@ def _posterior_plugin(
     )
 
 
-def _sanitize_model_name(name: str) -> str:
-    """Create a filesystem-friendly model name without spaces or dots."""
-    return name.replace(" ", "_").replace(".", "")
-
-
-def _corner_filename(dataset_id: str, model_name: str, timestamp: str) -> str:
-    """Generate the corner plot filename for a dataset/model pair."""
+def _corner_filename(
+    dataset_id: str,
+    comparison: ComparisonRequest,
+    timestamp: str,
+) -> str:
+    """Generate the corner plot filename for a selected model pair."""
     return utils.generate_filename(
         "corner-plot",
         dataset_id,
         "png",
-        model_name=f"vs-{_sanitize_model_name(model_name)}",
+        model_name=comparison_slug(comparison),
         timestamp=timestamp,
     )
 
 
 def _histogram_filename(
-    dataset_id: str, model_name: str, timestamp: str
+    dataset_id: str,
+    comparison: ComparisonRequest,
+    timestamp: str,
 ) -> str:
-    """Generate the histogram plot filename for a dataset/model pair."""
+    """Generate the histogram filename for a selected model pair."""
     return utils.generate_filename(
         "parameter-histograms",
         dataset_id,
         "png",
-        model_name=f"vs-{_sanitize_model_name(model_name)}",
+        model_name=comparison_slug(comparison),
         timestamp=timestamp,
     )
+
+
+def _posterior_comparison(
+    result: RunAnalysisResult,
+    comparison: ComparisonRequest | None,
+) -> ComparisonRequest:
+    """Resolve the required control/test pair for posterior diagnostics."""
+
+    if comparison is not None:
+        return comparison
+    if result.manifest is None:
+        raise ValueError(
+            "Posterior plotting requires a control/test comparison."
+        )
+    return comparison_from_manifest(result.manifest)
 
 
 def plot_posterior(
@@ -592,11 +613,20 @@ def plot_posterior(
     timestamp: str | None = None,
     result: RunAnalysisResult | None = None,
     overview_path: Path | str | None = None,
+    comparison: ComparisonRequest | None = None,
 ) -> dict[str, Path]:
-    """Render cached posterior diagnostics for an existing run."""
+    """Render cached posterior diagnostics for an existing comparison run.
+
+    The comparison is recovered from the saved manifest unless callers pass
+    it explicitly for an in-memory analysis result.
+    """
 
     resolved_run_dir = Path(run_dir)
     resolved_result = result or analyze_run(resolved_run_dir)
+    resolved_comparison = _posterior_comparison(
+        resolved_result,
+        comparison,
+    )
     selected_kinds = _normalize_posterior_kinds(kinds)
     allowed = {"corner", "histograms", "overview"}
     invalid = [kind for kind in selected_kinds if kind not in allowed]
@@ -625,9 +655,10 @@ def plot_posterior(
             plot_dir=str(out_dir),
             parameter_names=param_names,
             timestamp=summary_timestamp,
+            comparison=resolved_comparison,
         )
         saved["corner"] = out_dir / _corner_filename(
-            dataset_id, plugin.MODEL_NAME, summary_timestamp
+            dataset_id, resolved_comparison, summary_timestamp
         )
     if "histograms" in selected_kinds:
         plotter.plot_parameter_histograms(
@@ -637,9 +668,10 @@ def plot_posterior(
             plot_dir=str(out_dir),
             parameter_names=param_names,
             timestamp=summary_timestamp,
+            comparison=resolved_comparison,
         )
         saved["histograms"] = out_dir / _histogram_filename(
-            dataset_id, plugin.MODEL_NAME, summary_timestamp
+            dataset_id, resolved_comparison, summary_timestamp
         )
     if "overview" in selected_kinds:
         figure = posterior_explorer.create_posterior_overview_figure(

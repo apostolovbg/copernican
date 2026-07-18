@@ -59,6 +59,11 @@ from copernican.lib.engine_capabilities import (
     get_engine_capabilities,
 )
 from copernican.lib.gui.plot_viewer import PlotViewer
+from copernican.lib.model_selection import (
+    DEFAULT_CONTROL_MODEL,
+    build_comparison_request,
+    comparison_from_manifest,
+)
 from copernican.lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -263,6 +268,8 @@ class RunDraft:
 
     seed: str = ""
     model: str = ""
+    control_model: str = ""
+    test_model: str = ""
     dataset: str = ""
     engine: str = ""
     plan: str = ""
@@ -364,7 +371,8 @@ class CopernicanGUI:
     _CONFIRM_HEADER_TEXT = "Confirm and start"
     builder_steps: list[str] = [
         "Seed",
-        "Models",
+        "Control model",
+        "Test model",
         "Data",
         "Engine",
         "Manifest",
@@ -373,7 +381,8 @@ class CopernicanGUI:
     _TEMP_MANIFEST_FOLDER = "copernican_run_NEW_CONFIG"
     _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
     _BUILDER_COMPLETION_MESSAGE = (
-        "Set all required selections in Seed, Models, Data and Engine "
+        "Set all required selections in Seed, Control model, Test model, "
+        "Data and Engine "
         "before saving the manifest."
     )
     _OVERWRITE_MANIFEST_MESSAGE = (
@@ -421,9 +430,14 @@ class CopernicanGUI:
         self.gui_version = version.get_version()
         self.current_phase = "Idle"
         self.selected_models: list[str] = []
+        self.selected_control_model: str = ""
+        self.selected_test_model: str = ""
         self.selected_engine: str = ""
         self.selected_engine_kind: str = "mcmc"
         self._selected_model_entry: dict | None = None
+        self._selected_control_model_entry: dict | None = None
+        self._selected_test_model_entry: dict | None = None
+        self._active_model_role = "test"
         self._selected_engine_entry: dict | None = None
         self._equation_html_frame: HtmlFrame | None = None
         self._equations_window: tkinter_module.Toplevel | None = None
@@ -1288,6 +1302,50 @@ class CopernicanGUI:
                 return record
         return None
 
+    def _model_role_value(self, role: str) -> str:
+        """Return the selected model value for the requested builder role."""
+
+        if role == "control":
+            return self.selected_control_model or self.draft.control_model
+        return self.selected_test_model or self.draft.test_model
+
+    def _model_role_entry(self, role: str) -> dict | None:
+        """Return the selected catalogue entry for a builder role."""
+
+        if role == "control" and self._selected_control_model_entry:
+            return self._selected_control_model_entry
+        if role == "test" and self._selected_test_model_entry:
+            return self._selected_test_model_entry
+        return self._model_entry_for_value(self._model_role_value(role))
+
+    def _apply_model_role(self, role: str, entry: dict) -> None:
+        """Store one role selection while retaining legacy display state."""
+
+        model_value = (
+            entry["path"] if entry.get("is_external") else entry["id"]
+        )
+        if role == "control":
+            self.selected_control_model = model_value
+            self.draft.control_model = model_value
+            self._selected_control_model_entry = entry
+        else:
+            self.selected_test_model = model_value
+            self.draft.test_model = model_value
+            self._selected_test_model_entry = entry
+            self.selected_models = [model_value]
+            self.draft.model = model_value
+        self._selected_model_entry = entry
+
+    def _set_default_control_model(self) -> None:
+        """Select the repository LCDM model as the control default."""
+
+        if self.selected_control_model:
+            return
+        entry = self._model_entry_for_value(DEFAULT_CONTROL_MODEL)
+        if entry is None:
+            return
+        self._apply_model_role("control", entry)
+
     def _load_model_from_path(self, path: str) -> dict | None:
         """Load a model YAML file from an arbitrary filesystem path."""
 
@@ -1324,9 +1382,7 @@ class CopernicanGUI:
             return None
         entry["is_external"] = True
         entry["path"] = str(candidate.resolve())
-        self._selected_model_entry = entry
-        self.selected_models = [entry["path"]]
-        self.draft.model = entry["path"]
+        self._apply_model_role(self._active_model_role, entry)
         self.summary.manifest_actions.append(
             f"Loaded model from {entry['path']}"
         )
@@ -1386,6 +1442,7 @@ class CopernicanGUI:
         )
         self.model_index = self._discover_model_library()
         self.engine_index = self._discover_engine_library()
+        self._set_default_control_model()
 
     def _catalogue_health_summary(self) -> dict[str, object]:
         """Return dataset, trust and filter metadata for the Home dashboard."""
@@ -3910,9 +3967,26 @@ class CopernicanGUI:
         return bool(self.draft.seed.strip())
 
     def _is_model_step_complete(self) -> bool:
-        """Return True when the user has picked at least one model."""
+        """Return True when both comparison roles have been selected."""
 
-        return bool(self.selected_models or self.draft.model.strip())
+        return self._is_control_model_step_complete() and (
+            self._is_test_model_step_complete()
+        )
+
+    def _is_control_model_step_complete(self) -> bool:
+        """Return True when a control model is selected."""
+
+        return bool(self.selected_control_model or self.draft.control_model)
+
+    def _is_test_model_step_complete(self) -> bool:
+        """Return True when a test model is selected."""
+
+        return bool(
+            self.selected_test_model
+            or self.draft.test_model
+            or self.selected_models
+            or self.draft.model.strip()
+        )
 
     def _is_data_step_complete(self) -> bool:
         """Return True once datasets are recorded."""
@@ -3939,6 +4013,15 @@ class CopernicanGUI:
 
         return bool(
             self.manifest_workspace
+            or (
+                self.selected_control_model
+                and (
+                    not self._selected_control_model_entry
+                    or self._selected_control_model_entry.get("filename")
+                    != DEFAULT_CONTROL_MODEL
+                )
+            )
+            or self.selected_test_model
             or self.selected_models
             or self.selected_engine
             or self.selected_datasets
@@ -4035,9 +4118,13 @@ class CopernicanGUI:
 
         self.draft = RunDraft()
         self.selected_models = []
+        self.selected_control_model = ""
+        self.selected_test_model = ""
         self.selected_engine = ""
         self.selected_engine_kind = "mcmc"
         self._selected_model_entry = None
+        self._selected_control_model_entry = None
+        self._selected_test_model_entry = None
         self._selected_engine_entry = None
         self.engine_capabilities = None
         if self._engine_run_settings_frame is not None:
@@ -4047,6 +4134,7 @@ class CopernicanGUI:
         self._engine_run_settings_frame = None
         self._current_engine_module = None
         self.selected_datasets = []
+        self._set_default_control_model()
         self._staged_confirm_manifest = None
 
     def _clear_manifest_configuration(self) -> None:
@@ -4273,7 +4361,8 @@ class CopernicanGUI:
 
         handlers = [
             self._render_builder_step_seed,
-            self._render_builder_step_models,
+            self._render_builder_step_control_model,
+            self._render_builder_step_test_model,
             self._render_builder_step_data,
             self._render_builder_step_engine,
             self._render_builder_step_manifest,
@@ -4285,12 +4374,14 @@ class CopernicanGUI:
     def _parameter_count_for_selection(self) -> int:
         """Return summed parameter count for selected models."""
 
-        if not self.selected_models and self.draft.model:
-            candidate = self.draft.model.strip()
-            if candidate:
-                self.selected_models = [candidate]
+        role_values = [
+            self.selected_control_model or self.draft.control_model,
+            self.selected_test_model or self.draft.test_model,
+        ]
+        if not any(role_values) and self.selected_models:
+            role_values = list(self.selected_models)
         counts = []
-        for model_id in self.selected_models:
+        for model_id in role_values:
             entry = self._model_entry_for_value(model_id)
             if entry:
                 counts.append(entry.get("parameter_count", 0))
@@ -4497,15 +4588,36 @@ class CopernicanGUI:
         )
         self._build_seed_button_column(container, seed_var, env_seed)
 
+    def _render_builder_step_control_model(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the shared model picker for the control role."""
+
+        self._active_model_role = "control"
+        self._render_builder_step_models(container)
+
+    def _render_builder_step_test_model(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the shared model picker for the test role."""
+
+        self._active_model_role = "test"
+        self._render_builder_step_models(container)
+
     def _render_builder_step_models(
         self,
         container: tkinter_module.Frame,
     ) -> None:
-        """Render the Models step UI for selecting and previewing a model."""
+        """Render the shared role-specific model picker UI."""
         ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk_module.Label(
             container,
-            text="Pick one YAML-defined model to include in the run.",
+            text=(
+                "Pick one YAML-defined model for the "
+                f"{self._active_model_role} role."
+            ),
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
@@ -4541,12 +4653,7 @@ class CopernicanGUI:
         def _apply_model_entry(entry: dict) -> None:
             """Persist the selected model entry into the builder draft."""
 
-            self._selected_model_entry = entry
-            model_value = (
-                entry["path"] if entry.get("is_external") else entry["id"]
-            )
-            self.selected_models = [model_value]
-            self.draft.model = model_value
+            self._apply_model_role(self._active_model_role, entry)
             if entry.get("is_external"):
                 summary_text = f"Loaded model: {entry['filename']}"
             else:
@@ -4557,7 +4664,7 @@ class CopernicanGUI:
 
         def _view_selected_model() -> None:
             """Preview the currently selected model metadata."""
-            entry = self._selected_model_entry
+            entry = self._model_role_entry(self._active_model_role)
             if not entry:
                 self.create_toast(
                     "Select a model before viewing its definition.",
@@ -4571,7 +4678,7 @@ class CopernicanGUI:
 
         def _open_selected_model_file() -> None:
             """Launch the selected model file in the OS default editor."""
-            entry = self._selected_model_entry
+            entry = self._model_role_entry(self._active_model_role)
             if not entry:
                 self.create_toast(
                     "Select a model before opening its YAML file.",
@@ -4636,9 +4743,7 @@ class CopernicanGUI:
 
         for index, model in enumerate(available):
             listbox.insert("end", f"{model['id']} ({model['filename']})")
-            selected_model = (
-                self.selected_models[0] if self.selected_models else None
-            )
+            selected_model = self._model_role_value(self._active_model_role)
             selected_entry = self._model_entry_for_value(selected_model)
             if selected_entry and model["path"] == selected_entry.get("path"):
                 listbox.select_set(index)
@@ -4719,13 +4824,21 @@ class CopernicanGUI:
                 entry = available[indices[0]]
                 _apply_model_entry(entry)
             else:
-                current = self._selected_model_entry
+                current = self._model_role_entry(self._active_model_role)
                 if current and current.get("is_external"):
                     summary.config(text=f"Loaded model: {current['filename']}")
                     _refresh_model_preview(current)
                 else:
-                    self.selected_models = []
-                    self.draft.model = ""
+                    if self._active_model_role == "control":
+                        self.selected_control_model = ""
+                        self.draft.control_model = ""
+                        self._selected_control_model_entry = None
+                    else:
+                        self.selected_test_model = ""
+                        self.selected_models = []
+                        self.draft.test_model = ""
+                        self.draft.model = ""
+                        self._selected_test_model_entry = None
                     self._selected_model_entry = None
                     summary.config(text="No model selected yet.")
                     _refresh_model_preview(None)
@@ -5746,8 +5859,12 @@ class CopernicanGUI:
         summary_entries = [
             ("Seed", self.draft.seed or "unset"),
             (
-                "Models",
-                ", ".join(self.selected_models) or "no models selected",
+                "Control model",
+                self.selected_control_model or "no control selected",
+            ),
+            (
+                "Test model",
+                self.selected_test_model or "no test selected",
             ),
             (
                 "Datasets",
@@ -7166,17 +7283,22 @@ class CopernicanGUI:
         self._refresh_status_label()
 
     def _resolve_model_entry(self) -> dict:
-        """Return the currently selected model metadata record."""
+        """Return the selected test model metadata record."""
 
-        if self._selected_model_entry:
-            return self._selected_model_entry
+        if self._selected_test_model_entry:
+            return self._selected_test_model_entry
         candidate = ""
-        if self.selected_models:
-            candidate = self.selected_models[0]
+        if self.selected_test_model:
+            candidate = self.selected_test_model
+        elif self.draft.test_model:
+            candidate = self.draft.test_model
+        elif self.selected_models:
+            candidate = self.selected_models[-1]
         elif self.draft.model:
-            candidate = self.draft.model.split(",")[0].strip()
+            candidate = self.draft.model.split(",")[-1].strip()
         entry = self._model_entry_for_value(candidate)
         if entry:
+            self._selected_test_model_entry = entry
             self._selected_model_entry = entry
             return entry
         raise RuntimeError("Select a model before starting the run.")
@@ -8065,10 +8187,24 @@ class CopernicanGUI:
         self.summary.manifest_metadata = self._summarise_manifest()
         self.summary.manifest_actions.append(f"Imported manifest from {path}")
         configuration = manifest.get("configuration", {})
+        comparison = comparison_from_manifest(manifest)
+        self.selected_control_model = comparison.control_model.name
+        self.selected_test_model = comparison.test_model.name
+        self._selected_control_model_entry = self._model_entry_for_value(
+            comparison.control_model.filename or comparison.control_model.name
+        )
+        self._selected_test_model_entry = self._model_entry_for_value(
+            comparison.test_model.filename or comparison.test_model.name
+        )
         models = configuration.get("models", [])
         if isinstance(models, str):
             models = [models]
         self.selected_models = list(models)
+        if not self.selected_models:
+            self.selected_models = [
+                self.selected_control_model,
+                self.selected_test_model,
+            ]
         engine_meta = configuration.get("engine", {})
         self.selected_engine = engine_meta.get("name", "")
         datasets = configuration.get("datasets", [])
@@ -8110,6 +8246,10 @@ class CopernicanGUI:
             self.draft.seed = str(seed)
         if models:
             self.draft.model = ", ".join(models)
+        self.draft.control_model = self.selected_control_model
+        self.draft.test_model = self.selected_test_model
+        if not self.draft.model:
+            self.draft.model = self.selected_test_model
         if datasets:
             self.draft.dataset = ", ".join(datasets)
         if self.selected_engine:
@@ -8261,7 +8401,31 @@ class CopernicanGUI:
         utils.set_random_seed(seed_value)
         engine_name = self.draft.engine or self.selected_engine or "engine"
         engine = SimpleNamespace(__name__=engine_name, ENGINE_VERSION="gui")
-        models = self.selected_models or [self.draft.model or "model"]
+        control_value = (
+            self.selected_control_model
+            or self.draft.control_model
+            or DEFAULT_CONTROL_MODEL
+        )
+        test_value = (
+            self.selected_test_model
+            or self.draft.test_model
+            or (self.selected_models[0] if self.selected_models else "model")
+        )
+        control_entry = self._model_entry_for_value(control_value)
+        test_entry = self._model_entry_for_value(test_value)
+        comparison = build_comparison_request(
+            (
+                control_entry.get("id", control_value)
+                if control_entry
+                else control_value
+            ),
+            test_entry.get("id", test_value) if test_entry else test_value,
+            control_filename=(
+                control_entry.get("filename", "") if control_entry else ""
+            ),
+            test_filename=test_entry.get("filename", "") if test_entry else "",
+        )
+        models = [comparison.control_model.name, comparison.test_model.name]
         model_pairs = []
         for model in models:
             entry = self._model_entry_for_value(model)
@@ -8316,6 +8480,9 @@ class CopernicanGUI:
             )
         configuration = {
             "models": models,
+            "comparison": comparison.as_manifest(),
+            "control_model": comparison.control_model.name,
+            "test_model": comparison.test_model.name,
             "engine": {"name": engine_name, "version": "gui"},
             "datasets": [dataset.get("id", "") for dataset in datasets],
             "notes": "Snapshot captured at run start confirmation.",
@@ -8330,6 +8497,7 @@ class CopernicanGUI:
             state="pending",
             output_policy="unprepared",
             configuration=configuration,
+            comparison=comparison,
         )
         manifest["confirmation"] = {
             "seed": seed_value,
@@ -8350,8 +8518,9 @@ class CopernicanGUI:
             f"{status.get('outputs', 'n/a')})"
         )
         selection = self.pending_manifest.get("selection", {})
-        models = selection.get("models", []) or []
-        summary.append(f"Models: {', '.join(models)}")
+        comparison = comparison_from_manifest(self.pending_manifest)
+        summary.append(f"Control model: {comparison.control_model.name}")
+        summary.append(f"Test model: {comparison.test_model.name}")
         engine_meta = selection.get("engine", {})
         engine_desc = engine_meta.get("name", "engine")
         if engine_meta.get("version"):

@@ -7,6 +7,9 @@ from pathlib import Path
 import numpy
 
 from copernican.lib import analysis, chain_io
+from copernican.lib.model_selection import build_comparison_request
+
+_TEST_COMPARISON = build_comparison_request("LambdaCDM", "LambdaCDM")
 
 
 def _build_run_result(run_dir: Path) -> analysis.RunAnalysisResult:
@@ -23,7 +26,11 @@ def _build_run_result(run_dir: Path) -> analysis.RunAnalysisResult:
     return analysis.RunAnalysisResult(
         run_dir=run_dir,
         model_summaries={"LambdaCDM": summary},
-        manifest=None,
+        manifest={
+            "selection": {
+                "comparison": _TEST_COMPARISON.as_manifest(),
+            },
+        },
         manifest_path=None,
         parameter_summary_path=None,
         datasets={"union3_2025": {"name": "Union sample"}},
