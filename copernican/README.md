@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-11
+**Last Updated:** 2026-07-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -34,86 +34,12 @@ full workflow. It also supports both standard backend CMB contracts and the
 native declared-graph route for custom theories, so the same application can
 handle conventional and extended cosmology models.
 
-The native declared-graph route now materializes scalar, vector, and
-tensor hierarchies, exposes `PP / phiphi`, `TP / Tphi`, `EP / Ephi`,
-plus sector aliases such as `tensor_BB` and `total_TT`, and uses exact
-curved-sky lensing remapping for lensed spectra.
-The native solver in `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-keeps the exact remapper, collision terms, and source-grid refinement
-visible in regression coverage instead of hiding them behind solver-side
-shortcuts.
-The canonical native CMB sign, gauge, source, projection, and spectrum
-conventions now live in `copernican/docs/cmb_solver.md`, so later solver
-slices change equations against one explicit physical contract rather than
-redefining state meaning in code.
-The exact remapper now consumes the declared `PP` spectrum directly,
-without a solver-side lensing bridge or hidden remap scale.
-Its generated scalar contract now keeps the hierarchy and metric-source
-terms aligned with the physical runtime graph instead of acceptance-only
-damping scaffolding.
-Its generated vector contract in
-`copernican/lib/perturbation_contract.py` now carries physical
-`sigma_vector`, `q_gamma_vector`, `pi_gamma_vector`,
-`vector_temperature_source`, and `polarization_b` paths so native
-`TT/TE/EE/BB` output no longer depends on one synthetic vector probe.
-Its generated tensor contract now carries physical `h_tensor`,
-`h_tensor_tau`, `pi_gamma_tensor`, `pi_nu_tensor`,
-`tensor_temperature_source`, and spin-2 `E/B` transfer paths, while the
-native projection layer reads `r` and `nt` as the tensor primordial
-amplitude and tilt for `TT/TE/EE/BB`.
-In `copernican/lib/perturbation_contract.py`, the generated Einstein
-surface now materializes time-dependent `matter_density_source`,
-`radiation_density_source`, `total_momentum_source`, and
-`total_shear_source` terms, plus opt-in `einstein_energy_residual`,
-`einstein_momentum_residual`, and `einstein_shear_residual`
-diagnostics.
-The native low-k bridge stays explicit as
-`metric_constraint_scale = k^2 + 3 Hconf^2`, so the documented Einstein
-equations remain separate from the current stabilization layer.
-It also keeps the physical collision-rate Thomson coupling, the
-CAMB-style low-multipole polarization source moment, exact photon and
-polarization hierarchy sources, and q-resolved massive-neutrino source
-moments aligned for native runs. The scalar compiler also seeds
-Newtonian and synchronous metric roles from leading-order physical
-initial-condition series instead of heuristic constants. The q-grid path
-now uses thermally weighted per-bin density, pressure, momentum, and
-shear moments, with aggregate massive-neutrino aliases locked to the
-resolved hierarchy. The native scalar runtime now
-uses the baryon-velocity Doppler source, a physical terminal free-
-streaming closure with higher-multipole Thomson damping on the generated
-photon and polarization ladders, and explicit tight-coupling entry and
-exit thresholds for the analytic Thomson sub-step.
-The native collision path in
-`copernican/lib/perturbation_contract.py` and
-`copernican/lib/likelihoods/cmb/native_projection.py` now compiles
-exact and implicit collision blocks from declared `exact_form`,
-`linear_block`, `rate_expression`, and `activation_strategy` metadata.
-The built-in `thomson_drag` operator remains the standard exact block,
-multiple collision blocks may coexist in one interval, and explicit
-operators keep their shared `collision_rate` terms instead of being
-globally suppressed. `lensed_BB` also keeps declared primordial
-B-mode sources visible, including the physical vector `BB` transfer fed
-through `copernican/lib/likelihoods/cmb/native_projection.py`.
-The public `CMBLike` likelihood now also accepts stacked spectrum blocks
-when the data frame carries a `spectrum` column, so TT/TE/EE/BB/PP/TP/EP
-blocks can be flattened into one covariance surface. Row-order indexing
-keeps stacked mixed-spectrum tables aligned with the requested theory
-blocks. The temperature projection now integrates declared source
-histories directly through the native LOS kernels, so changing the
-primordial tilt reshapes the TT spectrum instead of only rescaling it.
-The generated scalar route now seeds the regular adiabatic, baryon,
-CDM, neutrino-density, and neutrino-velocity modes with explicit
-super-horizon series and validates the starting Einstein residuals
-before evolution begins. Its synchronous bridge now evolves `h`, `eta`,
-and `alpha` as explicit internal histories while the native
-gauge-invariant route compiles through dedicated observable-basis
-aliases instead of only relabeling the Newtonian branch. The regression
-suite therefore proves vector and tensor sector classification together
-with synchronous, gauge-invariant, and transformed-history scalar
-coverage, so the remaining sector and gauge claims are explicit rather
-than implicit.
-The native transfer and spectrum accumulation stay in extended
-precision until the public solver converts the final values to float64.
+The CMB subsystem supports standard backend contracts and native
+declared-graph contracts. Its physical state convention, hierarchy equations,
+collision operators, gauge routes, line-of-sight sources, spectrum units,
+lensing inputs, numerical controls, and independent-reference boundaries are
+documented in
+[`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

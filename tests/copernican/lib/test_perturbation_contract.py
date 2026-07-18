@@ -313,7 +313,10 @@ def _scalar_metadata_only_contract() -> dict[str, object]:
         "thomson_drag": {
             "sector": "scalar",
             "species": ["photon", "baryon"],
-            "expression": ("collision_rate * (theta_b / 3.0 - theta_gamma1)"),
+            "expression": (
+                "collision_rate * "
+                "((theta_b / acoustic_k) / 3.0 - theta_gamma1)"
+            ),
         }
     }
     contract["initial_condition_families"] = {
@@ -1096,7 +1099,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             synchronous_data.initial_conditions[
                 "adiabatic_scalar_h_sync_metric_tau_0_seed"
             ].compiled_expression.expression,
-            "(acoustic_k * eta_initial) * (acoustic_k * eta_initial) * seed",
+            "(acoustic_k * eta_initial) * "
+            "(acoustic_k * eta_initial) * seed",
         )
         self.assertEqual(
             synchronous_data.initial_conditions[
@@ -1122,15 +1126,14 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIn("evolve_gauge_shift_alpha", compiled.equations)
         self.assertIn("Phi_from_synchronous", compiled.derived)
         self.assertIn("Psi_from_synchronous", compiled.derived)
+        self.assertNotIn("evolve_Phi", compiled.equations)
         self.assertEqual(
-            compiled.constraints["observable_phi_constraint"].expression,
-            "-("
-            "1.5 * einstein_gravity_strength * total_density_source + "
-            "3.0 * Hconf * metric_momentum_source_drive"
-            ") / metric_constraint_scale",
+            compiled.closures["phi_closure"].expression,
+            "Phi_from_synchronous",
         )
+        self.assertEqual(compiled.constraints, {})
         self.assertEqual(
-            compiled.closures["observable_psi_closure"].expression,
+            compiled.closures["psi_closure"].expression,
             "Phi - metric_shear_correction",
         )
         self.assertEqual(
@@ -1162,7 +1165,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.initial_conditions["sigma_nu_seed"].expression,
-            "(acoustic_k * eta_initial / 6.0) * seed",
+            "(acoustic_k * scalar_initial_conformal_time / 6.0) * seed",
         )
 
     def test_vector_metadata_contract_materializes_runtime_graph(self) -> None:
@@ -1283,10 +1286,15 @@ class PerturbationContractTestCase(unittest.TestCase):
             "pi_gamma_vector": 1.2,
             "theta_gamma_v3": -0.1,
             "theta_gamma_v4": -0.4,
+            "theta_gamma_v5": 0.2,
+            "theta_gamma_v6": -0.3,
             "e_gamma_v2": 0.7,
             "e_gamma_v3": 0.1,
             "e_gamma_v4": -0.2,
+            "e_gamma_v5": 0.4,
+            "e_gamma_v6": -0.1,
             "b_gamma_v3": 0.6,
+            "b_gamma_v6": 0.8,
             "vector_eta_safe": 10.0,
         }
         photon_rhs = float(
@@ -1310,6 +1318,24 @@ class PerturbationContractTestCase(unittest.TestCase):
             (3.0 / 7.0) * 0.5 * 0.7
             - (45.0 / 112.0) * 0.5 * (-0.2)
             + (1.0 / 6.0) * 0.5 * 0.6,
+        )
+        terminal_temperature_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_theta_gamma_v6"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            terminal_temperature_rhs,
+            (6.0 / 5.0) * 0.5 * 0.2 - (8.0 / 10.0) * (-0.3),
+        )
+        self.assertEqual(
+            compiled.equations["evolve_e_gamma_v6"].rhs,
+            "0.0",
+        )
+        self.assertEqual(
+            compiled.equations["evolve_b_gamma_v6"].rhs,
+            "0.0",
         )
 
     def test_tensor_metadata_contract_materializes_runtime_graph(
@@ -1368,15 +1394,64 @@ class PerturbationContractTestCase(unittest.TestCase):
             "h_tensor_tau",
             compiled.sources["tensor_temperature_source"].expression,
         )
+        self.assertEqual(
+            compiled.sources["tensor_temperature_source"].expression,
+            "-exp(-tau) * h_tensor_tau + "
+            "(15.0 / 8.0) * visibility * tensor_polarization_moment",
+        )
         self.assertIn(
             "tensor_polarization_moment",
             compiled.sources["tensor_polarization_e_source"].expression,
         )
         self.assertEqual(
-            compiled.collision_operators[
-                "tensor_quadrupole_collision"
-            ].expression,
-            "collision_rate * (pi_gamma_tensor - tensor_polarization_moment)",
+            compiled.derived["tensor_polarization_moment"].expression,
+            "0.1 * pi_gamma_tensor + 0.6 * e_gamma_t2",
+        )
+        self.assertEqual(
+            compiled.sources["tensor_polarization_e_source"].expression,
+            "(15.0 / 2.0) * sqrt(3.0 / 8.0) * visibility * "
+            "tensor_polarization_moment",
+        )
+        self.assertEqual(
+            compiled.sources["tensor_polarization_b_source"].expression,
+            "(15.0 / 2.0) * sqrt(3.0 / 8.0) * visibility * "
+            "tensor_polarization_moment + "
+            "0.0 * visibility * b_gamma_t2",
+        )
+        tensor_collision = compiled.collision_operators[
+            "tensor_thomson_collision"
+        ]
+        self.assertEqual(
+            tensor_collision.integration_strategy,
+            "exact",
+        )
+        self.assertEqual(
+            tensor_collision.rate_expression,
+            "collision_rate",
+        )
+        self.assertEqual(
+            tensor_collision.exact_form.matrix,
+            (
+                ("-0.9", "0.6"),
+                ("0.1", "-0.4"),
+            ),
+        )
+        self.assertEqual(
+            tensor_collision.exact_form.targets,
+            (
+                PerturbationCollisionTargetSelectorData(
+                    variable="pi_gamma_tensor",
+                ),
+                PerturbationCollisionTargetSelectorData(
+                    variable="e_gamma_t2",
+                ),
+            ),
+        )
+        self.assertIn(
+            PerturbationCollisionTargetSelectorData(
+                variable="b_gamma_t2",
+            ),
+            tensor_collision.exact_form.damping_targets,
         )
 
     def test_tensor_free_streaming_hierarchy_uses_spin2_coefficients(
@@ -1416,7 +1491,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertAlmostEqual(
             e_rhs,
             (3.0 / 7.0) * 0.5 * 0.3
-            - (3.0 / 7.0) * 0.5 * (-0.2)
+            - (9.0 / 28.0) * 0.5 * (-0.2)
             + (1.0 / 3.0) * 0.5 * 0.6,
         )
 
@@ -1575,24 +1650,19 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.equations["evolve_theta_gamma2"].rhs,
         )
         self.assertIn(
-            "0.4 * acoustic_k * e_gamma1",
-            compiled.equations["evolve_e_gamma2"].rhs,
-        )
-        self.assertIn(
-            "0.6 * acoustic_k * e_gamma3",
+            "0.3333333333333333 * acoustic_k * e_gamma3",
             compiled.equations["evolve_e_gamma2"].rhs,
         )
         self.assertEqual(
             compiled.equations["evolve_theta_gamma6"].rhs,
             "acoustic_k * theta_gamma5 - acoustic_k * 7 * theta_gamma6 / "
-            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7) "
-            "- collision_rate * theta_gamma6",
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7)",
         )
         self.assertEqual(
             compiled.equations["evolve_e_gamma6"].rhs,
-            "acoustic_k * e_gamma5 - acoustic_k * 7 * e_gamma6 / "
-            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7) "
-            "- collision_rate * e_gamma6",
+            "1.5 * acoustic_k * e_gamma5 - "
+            "acoustic_k * 9 * e_gamma6 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9)",
         )
         self.assertIn("matter_density_source", compiled.derived)
         self.assertIn("radiation_density_source", compiled.derived)
@@ -1609,12 +1679,37 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.derived["total_momentum_source"].expression,
         )
         self.assertIn(
-            "total_density_source",
-            compiled.constraints["phi_constraint"].expression,
+            "Omega_gamma0 * observable_theta_gamma2",
+            compiled.derived["total_shear_source"].expression,
         )
-        self.assertIn(
-            "metric_constraint_scale",
-            compiled.constraints["phi_constraint"].expression,
+        self.assertIn("evolve_Phi", compiled.equations)
+        self.assertEqual(
+            compiled.equations["evolve_Phi"].rhs,
+            "Phi_tau",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["Phi_seed"].expression,
+            "(scalar_potential_seed) + metric_shear_correction",
+        )
+        self.assertEqual(
+            compiled.derived["scalar_potential_seed"].expression,
+            "(10.0 / (15.0 + 4.0 * scalar_neutrino_fraction)) * seed",
+        )
+        self.assertEqual(
+            compiled.derived["scalar_lapse_seed"].expression,
+            "scalar_potential_seed",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["theta_gamma2_seed"].expression,
+            "(8.0 / 15.0) * acoustic_k * theta_gamma1 / " "collision_rate",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["e_gamma2_seed"].expression,
+            "theta_gamma2 / 4.0",
+        )
+        self.assertEqual(
+            compiled.derived["metric_constraint_scale"].expression,
+            "acoustic_k_sq",
         )
         self.assertEqual(
             compiled.closures["psi_closure"].expression,
@@ -1694,7 +1789,9 @@ class PerturbationContractTestCase(unittest.TestCase):
             (
                 (0.05 * 0.03 + 0.25 * 0.01) / 0.5
                 + (
-                    4.0 * 1.0e-4 * context["photon_velocity_divergence"]
+                    (4.0 / 3.0)
+                    * 1.0e-4
+                    * context["photon_velocity_divergence"]
                     + (4.0 / 3.0) * 5.0e-5 * 0.04
                 )
                 / (0.5 * 0.5)
@@ -1721,7 +1818,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.collision_operators["thomson_drag"].activation_strategy,
-            "tight_coupling",
+            "always",
         )
         self.assertEqual(
             compiled.collision_operators["thomson_drag"].counterpart,
@@ -1743,10 +1840,25 @@ class PerturbationContractTestCase(unittest.TestCase):
             ].exact_form.damping_coefficient,
             "-1.0",
         )
+        self.assertEqual(
+            compiled.collision_operators["thomson_drag"].exact_form.matrix,
+            (
+                ("-1.0", "1.0 / (3.0 * acoustic_k)", "0.0", "0.0"),
+                (
+                    "3.0 * acoustic_k * photon_baryon_momentum_ratio",
+                    "-photon_baryon_momentum_ratio",
+                    "0.0",
+                    "0.0",
+                ),
+                ("0.0", "0.0", "-0.9", "0.6"),
+                ("0.0", "0.0", "0.1", "-0.4"),
+            ),
+        )
         self.assertIn("thomson_drag_balance", compiled.conservation_rules)
         self.assertEqual(
             compiled.conservation_rules["thomson_drag_balance"].expression,
-            "photon_baryon_momentum_ratio * thomson_drag + "
+            "3.0 * acoustic_k * photon_baryon_momentum_ratio * "
+            "thomson_drag + "
             "baryon_thomson_drag",
         )
         self.assertEqual(
@@ -1833,47 +1945,98 @@ class PerturbationContractTestCase(unittest.TestCase):
             "-0.25",
         )
 
-    def test_scalar_hierarchy_uses_physical_collision_terms(self) -> None:
-        """Generated scalar photon terms should keep the physical couplings."""
+    def test_scalar_hierarchy_uses_physical_collision_block(self) -> None:
+        """Generated scalar photon collisions should use the exact block."""
 
         contract = _scalar_metadata_only_contract()
         compiled = self._compile(contract)
 
-        self.assertIn(
-            "collision_rate * (theta_gamma2 - 0.1 * " "polarization_moment)",
+        self.assertNotIn(
+            "collision_rate",
             compiled.equations["evolve_theta_gamma2"].rhs,
         )
         self.assertEqual(
             compiled.equations["evolve_e_gamma0"].rhs,
-            "-acoustic_k * e_gamma1",
+            "0.0",
         )
         self.assertEqual(
             compiled.equations["evolve_e_gamma1"].rhs,
-            "(acoustic_k / 3.0) * (e_gamma0 - 2.0 * e_gamma2)",
+            "0.0",
         )
-        self.assertIn(
-            "collision_rate * (e_gamma2 - 0.1 * polarization_moment)",
+        self.assertNotIn(
+            "collision_rate",
             compiled.equations["evolve_e_gamma2"].rhs,
         )
-        self.assertIn(
+        self.assertNotIn(
             "e_gamma1",
             compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
+            "0.3333333333333333 * acoustic_k * e_gamma3",
+            compiled.equations["evolve_e_gamma2"].rhs,
+        )
+        self.assertIn(
+            "- 0.4285714285714285 * acoustic_k * e_gamma4",
+            compiled.equations["evolve_e_gamma3"].rhs,
+        )
+        self.assertIn(
+            "1.5 * acoustic_k * e_gamma5",
+            compiled.equations["evolve_e_gamma6"].rhs,
+        )
+        self.assertIn(
+            "- acoustic_k * 9 * e_gamma6 / sqrt((acoustic_k * eta) * "
+            "(acoustic_k * eta) + 9 * 9)",
+            compiled.equations["evolve_e_gamma6"].rhs,
         )
         self.assertIn(
             "baryon_thomson_drag",
             compiled.equations["evolve_theta_b"].rhs,
         )
+        self.assertIn(
+            "baryon_sound_speed_sq * delta_b",
+            compiled.equations["evolve_theta_b"].rhs,
+        )
         self.assertEqual(
             compiled.collision_operators["thomson_drag"].expression,
-            "collision_rate * (theta_b / 3.0 - theta_gamma1)",
+            "collision_rate * ((theta_b / acoustic_k) / 3.0 - theta_gamma1)",
         )
         self.assertEqual(
             compiled.derived["polarization_moment"].expression,
-            "theta_gamma2 + 6.0 * e_gamma2",
+            "0.1 * theta_gamma2 + 0.6 * e_gamma2",
+        )
+        self.assertEqual(
+            compiled.derived[
+                "visibility_polarization_moment_tau_tau"
+            ].variable,
+            "visibility_polarization_moment",
+        )
+        self.assertEqual(
+            compiled.derived["visibility_polarization_moment_tau_tau"].order,
+            2,
+        )
+        self.assertEqual(
+            compiled.sources["temperature_quadrupole"].expression,
+            "(5.0 / 2.0) * visibility * polarization_moment",
+        )
+        self.assertEqual(
+            compiled.sources["temperature_quadrupole_derivative"].expression,
+            "(15.0 / 2.0) * visibility * polarization_moment",
+        )
+        self.assertEqual(
+            compiled.sources["polarization_source"].expression,
+            "(15.0 / 2.0) * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_doppler"].expression,
             "visibility * observable_theta_b / acoustic_k",
+        )
+        self.assertEqual(
+            compiled.sources["temperature_isw"].expression,
+            "exp(-tau) * (Phi_tau + Psi_tau)",
+        )
+        self.assertEqual(
+            compiled.sources["lensing_potential"].expression,
+            "Phi + Psi",
         )
         self.assertNotIn(
             "tight_coupling_drag",
@@ -1883,12 +2046,12 @@ class PerturbationContractTestCase(unittest.TestCase):
             "tight_coupling_drag",
             compiled.equations["evolve_e_gamma3"].rhs,
         )
-        self.assertIn(
-            "- collision_rate * theta_gamma3",
+        self.assertNotIn(
+            "collision_rate",
             compiled.equations["evolve_theta_gamma3"].rhs,
         )
-        self.assertIn(
-            "- collision_rate * e_gamma3",
+        self.assertNotIn(
+            "collision_rate",
             compiled.equations["evolve_e_gamma3"].rhs,
         )
 

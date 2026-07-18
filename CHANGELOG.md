@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-11
+**Last Updated:** 2026-07-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,572 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-18:
+  Change: Corrected stale native hierarchy and projection test fixtures.
+  Why: Aligned focused assertions with the expanded kernel batch and the
+    generic collision-operator materialization contract.
+  Impact: Native projection and q-resolved hierarchy tests no longer report
+    failures for the implemented terminal closure behavior.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/validation/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-18:
+  Change: Closed Slice Nine after verifying the native reference foundation.
+  Why: Defined the independent CAMB reference surface, native background
+    thresholds, projection limits, remapper checks, and runtime controls.
+  Impact: Enabled the roadmap to proceed to shared model selection without
+    claiming scalar or non-scalar absolute parity ahead of its dedicated
+    slices.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/validation/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-18:
+  Change: Added shared control and test model selection to the post-Slice
+    Nine roadmap.
+  Why: Aligned CLI and GUI comparison workflow migration with the native LCDM
+    cutover and paired model execution.
+  Impact: PLAN.md now sequences shared model selection, native LCDM creation,
+    universal migration, parity, cutover, and convergence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/validation/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-18:
+  Change: Restructured the roadmap into eighteen native migration and parity
+    slices.
+  Why: Mapped incomplete parity work to explicit acceptance slices and
+    separated the native-only production cutover from convergence.
+  Impact: Defined the final native production shape and moved convergence to
+    the closing Slice Eighteen.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/validation/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-17:
+  Change: Restructured the roadmap into native migration and parity slices.
+  Why: Separated the reference foundation from incomplete absolute-parity
+    work and the native-only production cutover.
+  Impact: PLAN.md now defines eighteen ordered slices ending with convergence
+    after every production CMB model uses the native contract.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-07-17:
+  Change: Corrected Slice Nine status and redistributed native CMB
+    documentation.
+  Why: Aligned roadmap claims and front-door documentation with the
+    independently verified coverage boundary.
+  Impact: The readmes point to the solver reference, and the roadmap records
+    the acceptance evidence required before Slice Ten.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/api_overview.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/validation/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-17:
+  Change: Completed native Slice Nine parity plumbing and closed its
+  declared solver roadmap slice.
+  Why: Reconciled scalar source transfer, gauge routes, exact radial
+  derivatives, and absolute-reference acceptance surfaces.
+  Impact: Native declared CMB execution now exposes the documented
+  background, hierarchy, projection, lensing, tensor, and neutrino checks.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  PLAN.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-17:
+  Change: Optimized declared-graph resolution and corrected the native
+  massive-neutrino background closure.
+  Why: Native acceptance runs exposed repeated state-independent graph work
+  and required a conserved relativistic-to-nonrelativistic density history.
+  Impact: Scalar hierarchy execution now reuses safe graph and collision
+  metadata while preserving state-dependent equations and exact operators.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-16:
+  Change: Corrected massive-neutrino q physics and separated synchronous
+  metric evolution from the Newtonian potential state.
+  Why: Native scalar source constraints require physical `T_nu0` scaling,
+  per-species masses, time-dependent density weights, and explicit gauge
+  state ownership.
+  Impact: Preserved physical q-resolved neutrino sources and explicit
+  synchronous and gauge-invariant runtime contracts before final parity.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-16:
+  Change: Corrected tensor free-streaming normalization, metric stress, and
+  CAMB-aligned hierarchy closures, and verified vector terminal limits.
+  Why: Absolute tensor comparisons exposed radiation-era ratio and declared
+  collision/projection surfaces that were not physically aligned.
+  Impact: Preserved native tensor evolution on the physical
+  neutrino-to-photon ratio and exact two-state Thomson action, with focused
+  parity coverage.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-16:
+  Change: Added reusable absolute-spectrum metrics and stabilized native k
+  quadrature against requested ell subsets.
+  Why: Scalar and lensed CAMB comparisons need safe cross-spectrum metrics
+  and one deterministic integration surface for every public request.
+  Impact: Reference parity diagnostics now cover zero crossings, while native
+  projection results use the declared ell envelope and reference scales.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-15:
+  Change: Added direct CAMB checks for lensing normalization, all four
+  lensed scalar spectra, and PP/TP/EP convention surfaces, and accelerated
+  exact declared collision updates with a stable eigen-action path.
+  Why: Compared the native remapping boundary with an independent reference
+  and exposed the cost of repeated small matrix exponentials during native
+  acceptance calculations.
+  Impact: Verified remapping thresholds and sparse-multipole consistency
+  while preserving exact collision semantics and the declared public units.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-15:
+  Change: Corrected the generated scalar tight-coupling quadrupole to
+  balance the declared photon hierarchy against the exact Thomson block,
+  and aligned its first-order polarization and octopole seeds.
+  Why: The prior closure used a coefficient inconsistent with the generated
+  free-streaming source and collision eigenmode, biasing the early scalar
+  transfer history before absolute parity comparisons.
+  Impact: Preserved native scalar initial data on the physical declared
+  hierarchy surface through tight coupling, while focused contract and runtime
+  regressions verify the normalization.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-15:
+  Change: Added fixed native background and recombination acceptance checks
+  against direct CAMB histories and opacity integration.
+  Why: Locked conformal age, sound horizon, visibility, recombination, and
+  reionization comparisons to the Slice Nine threshold surface.
+  Impact: Background regressions now enforce the neutral native cosmology
+  before scalar-spectrum parity work proceeds.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-15:
+  Change: Added a fixed Slice Nine neutral native acceptance contract and
+  direct CAMB reference helpers for test-only scientific comparisons.
+  Why: Defined one reproducible cosmology, numerical envelope, output range,
+  and tolerance surface before absolute-parity implementation begins.
+  Impact: Enables later native acceptance tests to use an independent CAMB
+  path without routing expected values through the production solver.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-15:
+  Change: Corrected the generated scalar integrated Sachs-Wolfe source to
+  evolve the Weyl-potential sum and synchronized the native source
+  convention documentation and regression expectations.
+  Why: The conformal-Newtonian metric defines the Weyl potential as
+  `(Phi + Psi) / 2`, so the ISW source must use `exp(-tau) * (Phi_tau +
+  Psi_tau)` rather than the potential difference.
+  Impact: Native scalar temperature transfer histories now include the
+  physical Weyl-potential derivative, with source-contract and capture
+  regressions aligned to the corrected convention.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-14:
+  Change: Replaced native line-of-sight trapezoid weights with nonuniform
+  composite Simpson weights, added a quadratic-history regression, and
+  aligned the PP normalization regression with the CAMB clpp convention;
+  normalized the scalar E-mode source to the CAMB `15/8` convention and
+  restored the canonical polarization second-derivative term in the
+  generated scalar temperature source, introduced nonuniform-grid
+  derivatives for native history rates and ISW sources, and moved generated
+  tensor Thomson damping into an exact collision block; corrected the
+  generated scalar E hierarchy's quadrupole coefficient and spin-2 terminal
+  truncation; normalized the generated scalar Thomson moment to CAMB's
+  photon-quadrupole convention, aligned its tight-coupling closure, and
+  restored the first-order scalar photon and polarization octopoles; replaced
+  the generated scalar Thomson split's double-counted explicit collision
+  terms with one always-active exact CAMB-normalized block.
+  Why: Visibility-era source histories are sampled on a nonuniform conformal
+  time grid, so first-order endpoint integration left avoidable projection
+  error even when the declared source grid was resolved. The public PP
+  contract is the dimensionless `[ell (ell + 1)]^2 C_ell / (2 pi)` quantity,
+  not an unscaled raw transfer product. The scalar line-of-sight temperature
+  scalar E-mode source is `15/8` times the visibility-weighted polarization
+  moment, matching CAMB's line-of-sight source contract. The scalar
+  temperature source also requires the second derivative of the
+  visibility-weighted polarization moment after integration by parts.
+  First-order endpoint differences also weakened derivatives on the
+  nonuniform conformal-time grid, while explicit early-time tensor Thomson
+  terms were unstable at the large collision rate. The scalar polarization
+  ladder also requires its own spin-2 free-streaming coefficients rather
+  than the temperature recurrence. CAMB stores the photon anisotropic-stress
+  quadrupole as four times the temperature multipole used by the native
+  scalar hierarchy, so the collision and polarization closures must account
+  for that conversion. The leading tight-coupling surface also carries the
+  first-order octopole terms rather than discarding the entire `l >= 3`
+  ladder.
+  Impact: Native transfer projection preserves quadratic source integrals on
+  nonuniform grids without changing the declared runtime envelope, while the
+  normalization test now protects the exact lensing remapper input and the
+  scalar temperature source now carries the canonical derivative
+  polarization term. Native coordinate and potential derivatives now use
+  three-point nonuniform
+  stencils with second-order endpoint accuracy, and tensor transfer
+  histories remain finite through the high-rate collision era. Scalar E
+  transfer evolution now uses the CAMB quadrupole and terminal closure, and
+  generated scalar Thomson coupling uses the correctly normalized source
+  moment with a first-order octopole seed in the stiff early-time regime. The
+  exact scalar collision matrix now owns the full photon-baryon Thomson
+  history, so explicit hierarchy equations no longer duplicate its update.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-13:
+  Change: Aligned the native background reference regression with the
+  Slice Nine tolerance table, corrected adiabatic seed conversion, fixed the
+  scalar ISW potential difference, corrected scalar E free streaming, separated
+  baryon thermodynamic pressure from acoustic sound speed, and aligned the
+  neutrino-aware adiabatic lapse seed with the radiation-era metric solution;
+  switched native primordial integration to nonuniform Simpson quadrature.
+  Why: The background test still used legacy limits, the hierarchy treated
+  primordial curvature as an unscaled potential, its ISW source summed
+  potentials despite the canonical metric convention requiring a difference,
+  its generated E quadrupole used the wrong free-streaming coefficient, the
+  generated baryon Euler equation used the photon-baryon sound speed as baryon
+  pressure, and the lapse seed was divided by the neutrino anisotropic-stress
+  correction even though the metric shear closure supplies that correction.
+  The prior trapezoid rule also left avoidable leading error on the anchored
+  logarithmic k-grid used by the native spectrum integrator.
+  Impact: Background parity now reports against the declared `0.2%`, `0.5%`,
+  `3%`, `2%`, `5%`, and `1%` limits; scalar initial data converts curvature
+  into neutrino-corrected radiation-era potential seeds; and late-time
+  temperature evolution uses the canonical `Psi' - Phi'` ISW source, generated
+  scalar polarization follows the documented `3 k E_3 / 5` term, baryon
+  pressure uses a physical thermodynamic sound-speed history, and regular
+  adiabatic initial data uses the same radiation-era potential seed for the
+  lapse and curvature variables before the shear closure maps them to the
+  distinct metric potentials, and native spectra integrate their primordial
+  transfer products with nonuniform Simpson quadrature.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/api_overview.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/model_template.yml
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-12:
+  Change: Deepened scalar superhorizon prefix evolution, anchored the
+  native k-grid to declared scalar reference multipoles, preserved the
+  recombination-focused LOS eta spacing, restored the radiation-era
+  conformal origin, and evolved the scalar metric from the exact Einstein
+  momentum and shear system with tight-coupling initial quadrupoles; added
+  post-decoupling matter-temperature recombination evolution.
+  Why: Reduced the late-start gap in adiabatic source histories, aligned
+  fixed-count scalar k sampling with the Slice Nine reference multipoles,
+  stopped LOS fallback densification from flattening the visibility grid,
+  removed the algebraic low-k metric bridge that distorted physical scalar
+  evolution, and prevented late-time recombination from remaining tied to
+  the photon temperature; the native case-B path now includes the standard
+  RECFAST multilevel-atom correction and converged helium Saha iteration.
+  Impact: Native scalar runs now pre-evolve further before the LOS grid,
+  preserve declared k-sample counts while hitting reference scales, keep
+  recombination-era eta clustering, share one physical conformal clock, and
+  evolve regular metric and photon initial data under focused regressions.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-11:
   Change: Implemented the native tensor Einstein-Boltzmann hierarchy,

@@ -123,7 +123,8 @@ described throughout this document.
 * Declared equations, constraints, closures, sources, and conditions may
  reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
  `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
- `sound_speed_sq`, `collision_rate`, `free_streaming`,
+ `sound_speed_sq`, `baryon_sound_speed_sq`, `collision_rate`,
+ `free_streaming`,
  `tight_coupling_drag`, and `tight_coupling_ratio`, plus any solved or
  derived graph quantity. The default `seed` is a unit-normalized transfer
  seed unless the contract overrides it, while declared relation targets

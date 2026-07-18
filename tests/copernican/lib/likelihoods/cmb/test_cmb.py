@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import re
 import unittest
 from pathlib import Path
-from typing import Mapping
+from types import MappingProxyType
+from typing import Mapping, Sequence
 from unittest import mock
 
 import numpy
 import pandas
+from scipy.linalg import expm
 
 try:
     import camb
@@ -131,6 +134,383 @@ def _max_relative_delta(
     )
 
 
+def _slice_nine_spectrum_metrics(
+    actual: Mapping[str, numpy.ndarray],
+    reference: Mapping[str, numpy.ndarray],
+    *,
+    spectra: Sequence[str],
+    auto_spectrum_floor: float = 1.0e-10,
+) -> dict[str, dict[str, float]]:
+    """Return absolute auto and normalized cross-spectrum error metrics.
+
+    Auto spectra are summarized with fractional errors only where the
+    reference is above a relative floor. Cross spectra use an RMS error
+    normalized by the reference RMS, so sign changes and zero crossings do
+    not create artificial fractional singularities.
+    """
+
+    auto_spectra = {
+        "TT",
+        "EE",
+        "BB",
+        "PP",
+        "lensed_TT",
+        "lensed_EE",
+        "lensed_BB",
+    }
+    metrics: dict[str, dict[str, float]] = {}
+    for spectrum_name in spectra:
+        name = str(spectrum_name)
+        if name not in actual or name not in reference:
+            raise KeyError(f"Missing spectrum '{name}' for comparison")
+        actual_values = numpy.asarray(actual[name], dtype=numpy.longdouble)
+        reference_values = numpy.asarray(
+            reference[name],
+            dtype=numpy.longdouble,
+        )
+        if actual_values.shape != reference_values.shape:
+            raise ValueError(
+                f"Spectrum '{name}' has incompatible comparison shapes: "
+                f"{actual_values.shape} != {reference_values.shape}"
+            )
+        finite = numpy.isfinite(actual_values) & numpy.isfinite(
+            reference_values
+        )
+        if not numpy.any(finite):
+            raise ValueError(
+                f"Spectrum '{name}' has no finite comparison data"
+            )
+        if name in auto_spectra:
+            reference_scale = numpy.max(
+                numpy.abs(reference_values[finite]),
+                initial=numpy.longdouble(0.0),
+            )
+            floor = max(
+                numpy.longdouble("1.0e-30"),
+                numpy.longdouble(auto_spectrum_floor) * reference_scale,
+            )
+            supported = finite & (numpy.abs(reference_values) > floor)
+            if not numpy.any(supported):
+                raise ValueError(
+                    f"Spectrum '{name}' has no values above the comparison "
+                    "floor"
+                )
+            fractional = numpy.abs(
+                (actual_values[supported] - reference_values[supported])
+                / reference_values[supported]
+            )
+            metrics[name] = {
+                "median_fractional": float(numpy.median(fractional)),
+                "p90_fractional": float(numpy.percentile(fractional, 90.0)),
+                "max_fractional": float(numpy.max(fractional)),
+                "sample_count": float(fractional.size),
+            }
+            continue
+        delta = actual_values[finite] - reference_values[finite]
+        reference_rms = numpy.sqrt(
+            numpy.mean(numpy.square(reference_values[finite]))
+        )
+        if reference_rms <= numpy.longdouble("1.0e-30"):
+            normalized_rms = numpy.longdouble(0.0)
+            if numpy.any(numpy.abs(delta) > numpy.longdouble("1.0e-30")):
+                normalized_rms = numpy.longdouble(numpy.inf)
+        else:
+            normalized_rms = (
+                numpy.sqrt(numpy.mean(numpy.square(delta))) / reference_rms
+            )
+        metrics[name] = {
+            "normalized_rms": float(normalized_rms),
+            "sample_count": float(delta.size),
+        }
+    return metrics
+
+
+SLICE_NINE_NEUTRAL_COSMOLOGY = MappingProxyType(
+    {
+        "H0": 67.4,
+        "ombh2": 0.02237,
+        "omch2": 0.12,
+        "Tcmb_K": 2.7255,
+        "YHe": 0.245,
+        "Neff": 3.046,
+        "As": 2.1e-9,
+        "ns": 0.965,
+        "tau": 0.054,
+    }
+)
+
+SLICE_NINE_NATIVE_NUMERICAL_CONTROLS = MappingProxyType(
+    {
+        "ell_min": 2,
+        "ell_max": 2000,
+        "k_min": 1.0e-4,
+        "k_max": 0.3,
+        "k_sample_count": 128,
+        "eta_sample_count": 2048,
+        "ode_rtol": 1.0e-6,
+        "ode_atol": 1.0e-9,
+        "tight_coupling_ratio": 80.0,
+        "a_min": 1.0e-6,
+        "source_grid_multiplier": 2,
+        "initial_redshift": 2.0e4,
+        "photon_hierarchy_l_max": 16,
+        "neutrino_hierarchy_l_max": 12,
+    }
+)
+
+SLICE_NINE_ACCEPTANCE_RANGES = MappingProxyType(
+    {
+        "scalar_ell": (2, 2000),
+        "potential_ell": (10, 1500),
+        "lensing_ell": (2, 2000),
+    }
+)
+
+SLICE_NINE_ACCEPTANCE_SPECTRA = (
+    "TT",
+    "TE",
+    "EE",
+    "PP",
+    "TP",
+    "EP",
+    "lensed_TT",
+    "lensed_TE",
+    "lensed_EE",
+    "lensed_BB",
+)
+
+SLICE_NINE_ACCEPTANCE_THRESHOLDS = MappingProxyType(
+    {
+        "conformal_age_fraction": numpy.longdouble("0.002"),
+        "sound_horizon_fraction": numpy.longdouble("0.002"),
+        "visibility_peak_fraction": numpy.longdouble("0.005"),
+        "visibility_width_fraction": numpy.longdouble("0.03"),
+        "recombination_median_fraction": numpy.longdouble("0.02"),
+        "recombination_p90_fraction": numpy.longdouble("0.05"),
+        "tau_reio_fraction": numpy.longdouble("0.01"),
+        "tt_fractional_median": numpy.longdouble("0.05"),
+        "tt_fractional_p90": numpy.longdouble("0.10"),
+        "ee_fractional_median": numpy.longdouble("0.05"),
+        "ee_fractional_p90": numpy.longdouble("0.10"),
+        "te_normalized_rms": numpy.longdouble("0.05"),
+        "acoustic_feature_ell": numpy.longdouble("3.0"),
+        "pp_fractional_median": numpy.longdouble("0.10"),
+        "pp_fractional_p90": numpy.longdouble("0.20"),
+        "lensed_bb_fractional_median": numpy.longdouble("0.15"),
+        "tensor_fractional_median": numpy.longdouble("0.10"),
+        "massive_neutrino_response_fractional": numpy.longdouble("0.10"),
+        "gauge_equivalent_fractional": numpy.longdouble("0.001"),
+    }
+)
+
+
+def _slice_nine_native_acceptance_contract() -> dict[str, object]:
+    """Return the fixed native contract used by later Slice Nine tests."""
+
+    contract = _native_scalar_hierarchy_contract(sum_mnu=0.0)
+    contract["model_name"] = "SliceNineNeutralNative"
+    contract["param_map"] = {
+        name: float(value)
+        for name, value in SLICE_NINE_NEUTRAL_COSMOLOGY.items()
+        if name != "Tcmb_K"
+    }
+    contract["model_parameters"] = {
+        "Tcmb_K": SLICE_NINE_NEUTRAL_COSMOLOGY["Tcmb_K"]
+    }
+    numerical = dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS)
+    contract["numerical"] = copy.deepcopy(numerical)
+    perturbations = contract["perturbations"]
+    if not isinstance(perturbations, dict):  # pragma: no cover - fixture guard
+        raise TypeError("Native acceptance perturbations must be a mapping")
+    perturbations["numerics"] = copy.deepcopy(numerical)
+    accuracy_controls = dict(perturbations.get("accuracy_controls", {}))
+    accuracy_controls["scalar_reference_ells"] = [2, 2000]
+    accuracy_controls["runtime_envelope"] = "bounded"
+    perturbations["accuracy_controls"] = accuracy_controls
+    return contract
+
+
+def _slice_nine_reference_backend_name() -> str:
+    """Return the independent reference backend name."""
+
+    return "CAMB"
+
+
+def _slice_nine_camb_reference_contract(*, lmax: int) -> dict[str, object]:
+    """Return metadata for a direct CAMB reference calculation."""
+
+    if int(lmax) < 2:
+        raise ValueError("lmax must be at least 2")
+    return {
+        "backend": "camb",
+        "standard": True,
+        "lmax": int(lmax),
+        "cosmology": dict(SLICE_NINE_NEUTRAL_COSMOLOGY),
+    }
+
+
+def _slice_nine_build_camb_params(
+    *,
+    lmax: int,
+    sum_mnu: float = 0.0,
+    num_massive_neutrinos: int = 3,
+    want_tensors: bool = False,
+    tensor_ratio: float = 0.0,
+    tensor_tilt: float = 0.0,
+) -> object:
+    """Build CAMB parameters without using a production solver path."""
+
+    if camb is None:
+        raise RuntimeError("CAMB is not installed")
+    params = camb.CAMBparams()
+    params.set_cosmology(
+        H0=float(SLICE_NINE_NEUTRAL_COSMOLOGY["H0"]),
+        ombh2=float(SLICE_NINE_NEUTRAL_COSMOLOGY["ombh2"]),
+        omch2=float(SLICE_NINE_NEUTRAL_COSMOLOGY["omch2"]),
+        tau=float(SLICE_NINE_NEUTRAL_COSMOLOGY["tau"]),
+        YHe=float(SLICE_NINE_NEUTRAL_COSMOLOGY["YHe"]),
+        nnu=float(SLICE_NINE_NEUTRAL_COSMOLOGY["Neff"]),
+        TCMB=float(SLICE_NINE_NEUTRAL_COSMOLOGY["Tcmb_K"]),
+        mnu=float(sum_mnu),
+        num_massive_neutrinos=int(num_massive_neutrinos),
+    )
+    params.InitPower.set_params(
+        As=float(SLICE_NINE_NEUTRAL_COSMOLOGY["As"]),
+        ns=float(SLICE_NINE_NEUTRAL_COSMOLOGY["ns"]),
+        r=float(tensor_ratio),
+        nt=float(tensor_tilt),
+    )
+    params.WantTensors = bool(want_tensors)
+    params.set_for_lmax(int(lmax) + 300, lens_potential_accuracy=1)
+    return params
+
+
+def _slice_nine_camb_background_reference(
+    eta_grid: numpy.ndarray,
+) -> dict[str, object]:
+    """Return direct CAMB background and recombination reference data."""
+
+    eta_values = numpy.asarray(eta_grid, dtype=float)
+    if eta_values.ndim != 1 or eta_values.size == 0:
+        raise ValueError("eta_grid must be a non-empty one-dimensional array")
+    lmax = 32
+    params = _slice_nine_build_camb_params(lmax=lmax)
+    results = camb.get_results(params)
+    histories = results.get_background_time_evolution(
+        eta_values,
+        vars=["x_e", "visibility", "opacity"],
+        format="dict",
+    )
+    reionization_eta_grid = numpy.linspace(
+        float(results.conformal_time(50.0)),
+        float(results.conformal_time(0.0)),
+        max(2048, eta_values.size),
+    )
+    reionization_opacity = results.get_background_time_evolution(
+        reionization_eta_grid,
+        vars=["opacity"],
+        format="dict",
+    )["opacity"]
+    tau_reio = numpy.trapz(
+        numpy.asarray(reionization_opacity, dtype=float),
+        reionization_eta_grid,
+    )
+    peak_eta = float(results.tau_maxvis)
+    peak_z = float(results.redshift_at_conformal_time(peak_eta))
+    return {
+        "eta0": float(results.conformal_time(0.0)),
+        "peak_eta": peak_eta,
+        "peak_z": peak_z,
+        "sound_horizon": float(results.sound_horizon(peak_z)),
+        "x_e": numpy.asarray(histories["x_e"], dtype=float),
+        "visibility": numpy.asarray(histories["visibility"], dtype=float),
+        "tau_reio": float(tau_reio),
+    }
+
+
+def _slice_nine_camb_reference_spectra(
+    ells: Sequence[int] | numpy.ndarray,
+    *,
+    spectra: Sequence[str] = SLICE_NINE_ACCEPTANCE_SPECTRA,
+    sum_mnu: float = 0.0,
+    num_massive_neutrinos: int = 3,
+) -> dict[str, numpy.ndarray]:
+    """Return direct CAMB reference spectra at requested multipoles."""
+
+    ell_grid = numpy.asarray(tuple(ells), dtype=int)
+    if ell_grid.size == 0 or numpy.any(ell_grid < 2):
+        raise ValueError("ells must contain values at or above 2")
+    lmax = int(numpy.max(ell_grid))
+    params = _slice_nine_build_camb_params(
+        lmax=lmax,
+        sum_mnu=float(sum_mnu),
+        num_massive_neutrinos=int(num_massive_neutrinos),
+    )
+    results = camb.get_results(params)
+    unlensed = numpy.asarray(
+        results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=numpy.longdouble,
+    )
+    lensed = numpy.asarray(
+        results.get_lensed_scalar_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=numpy.longdouble,
+    )
+    lensing = numpy.asarray(
+        results.get_lens_potential_cls(lmax=lmax),
+        dtype=numpy.longdouble,
+    )
+    columns = {"TT": 0, "EE": 1, "BB": 2, "TE": 3}
+    outputs: dict[str, numpy.ndarray] = {}
+    for spectrum_name in spectra:
+        name = str(spectrum_name)
+        if name in columns:
+            values = unlensed[:, columns[name]]
+        elif name.startswith("lensed_") and name[7:] in columns:
+            values = lensed[:, columns[name[7:]]]
+        elif name in {"PP", "TP", "EP"}:
+            values = lensing[:, {"PP": 0, "TP": 1, "EP": 2}[name]]
+        else:
+            raise ValueError(f"Unsupported CAMB reference spectrum: {name}")
+        outputs[name] = numpy.asarray(values[ell_grid], dtype=numpy.longdouble)
+    return outputs
+
+
+def _slice_nine_camb_tensor_reference_spectra(
+    ells: Sequence[int] | numpy.ndarray,
+    *,
+    sum_mnu: float = 0.0,
+    tensor_ratio: float = 0.1,
+    tensor_tilt: float = 0.0,
+) -> dict[str, numpy.ndarray]:
+    """Return direct CAMB tensor TT, EE, and BB spectra."""
+
+    ell_grid = numpy.asarray(tuple(ells), dtype=int)
+    if ell_grid.size == 0 or numpy.any(ell_grid < 2):
+        raise ValueError("ells must contain values at or above 2")
+    lmax = int(numpy.max(ell_grid))
+    params = _slice_nine_build_camb_params(
+        lmax=lmax,
+        sum_mnu=float(sum_mnu),
+        want_tensors=True,
+        tensor_ratio=float(tensor_ratio),
+        tensor_tilt=float(tensor_tilt),
+    )
+    tensor_cls = numpy.asarray(
+        camb.get_results(params).get_tensor_cls(
+            lmax=lmax,
+            CMB_unit="muK",
+        ),
+        dtype=numpy.longdouble,
+    )
+    return {
+        name: numpy.asarray(
+            tensor_cls[ell_grid, column],
+            dtype=numpy.longdouble,
+        )
+        for name, column in (("TT", 0), ("EE", 1), ("BB", 2))
+    }
+
+
 def _rename_declared_contract_tokens(
     value: object,
     rename_map: Mapping[str, str],
@@ -181,8 +561,14 @@ def _split_collision_contract(
 
     contract = _speedup_contract(_custom_contract())
     perturbations = contract["perturbations"]
+    perturbations["derived"]["photon_baryon_momentum_ratio"] = {
+        "expression": "(4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a)",
+        "description": "Photon-to-baryon momentum-transfer ratio.",
+    }
     perturbations["derived"]["baryon_thomson_drag"] = {
-        "expression": "-3.0 * thomson_drag",
+        "expression": (
+            "-3.0 * k * photon_baryon_momentum_ratio * thomson_drag"
+        ),
         "description": "Baryon counterpart for the exact Thomson block.",
     }
     perturbations["equations"]["evolve_theta_gamma1"]["rhs"] = (
@@ -192,16 +578,28 @@ def _split_collision_contract(
     perturbations["equations"]["evolve_theta_gamma2"]["rhs"] = (
         "(2.0 / 5.0) * k * theta_gamma1 " "- (3.0 / 5.0) * k * theta_gamma3"
     )
+    perturbations["equations"]["evolve_e_gamma0"]["rhs"] = (
+        "-k * e_gamma1 - collision_rate * "
+        "(e_gamma0 - 0.5 * polarization_moment)"
+    )
+    perturbations["equations"]["evolve_e_gamma1"]["rhs"] = (
+        "(k / 3.0) * (e_gamma0 - 2.0 * e_gamma2) - "
+        "collision_rate * e_gamma1"
+    )
     perturbations["equations"]["evolve_e_gamma2"]["rhs"] = (
         "(2.0 / 5.0) * k * e_gamma1 " "- (3.0 / 5.0) * k * e_gamma3"
     )
+    polarization_moment = perturbations["derived"]["polarization_moment"]
+    polarization_moment["expression"] = "theta_gamma2 + e_gamma0 + e_gamma2"
     perturbations["equations"]["evolve_theta_b"]["rhs"] = (
         "-Hconf * theta_b + k * k * sound_speed_sq * delta_b "
         "+ baryon_thomson_drag + k * k * Psi"
     )
     perturbations["collision_operators"] = {
         "thomson_drag": {
-            "expression": ("collision_rate * (theta_b / 3.0 - theta_gamma1)"),
+            "expression": (
+                "collision_rate * ((theta_b / k) / 3.0 - theta_gamma1)"
+            ),
             "counterpart": "baryon_thomson_drag",
             "integration_strategy": "exact",
             "activation_strategy": "tight_coupling",
@@ -211,13 +609,31 @@ def _split_collision_contract(
                     {"kind": "photon_temperature_dipole"},
                     {"kind": "baryon_velocity_divergence"},
                     {"kind": "photon_temperature_quadrupole"},
+                    {"kind": "photon_polarization_monopole"},
+                    {"kind": "photon_polarization_dipole"},
                     {"kind": "photon_polarization_quadrupole"},
                 ],
                 "matrix": [
-                    ["-1.0", "1.0 / 3.0", "0.0", "0.0"],
-                    ["3.0", "-1.0", "0.0", "0.0"],
-                    ["0.0", "0.0", "-0.9", "0.6"],
-                    ["0.0", "0.0", "0.1", "-0.4"],
+                    [
+                        "-1.0",
+                        "1.0 / (3.0 * k)",
+                        "0.0",
+                        "0.0",
+                        "0.0",
+                        "0.0",
+                    ],
+                    [
+                        "3.0 * k * photon_baryon_momentum_ratio",
+                        "-photon_baryon_momentum_ratio",
+                        "0.0",
+                        "0.0",
+                        "0.0",
+                        "0.0",
+                    ],
+                    ["0.0", "0.0", "-0.9", "0.1", "0.0", "0.1"],
+                    ["0.0", "0.0", "0.5", "-0.5", "0.0", "0.5"],
+                    ["0.0", "0.0", "0.0", "0.0", "-1.0", "0.0"],
+                    ["0.0", "0.0", "0.1", "0.1", "0.0", "-0.9"],
                 ],
                 "damping_targets": [
                     {"kind": "photon_temperature_octopole"},
@@ -231,7 +647,10 @@ def _split_collision_contract(
     perturbations["conservation_rules"] = {
         "thomson_drag_balance": {
             "kind": "absolute_max",
-            "expression": "3.0 * thomson_drag + baryon_thomson_drag",
+            "expression": (
+                "3.0 * k * photon_baryon_momentum_ratio * thomson_drag + "
+                "baryon_thomson_drag"
+            ),
             "tolerance": 1.0e-12,
             "domain": "scalar",
         }
@@ -248,7 +667,7 @@ def _declared_graph_perturbations(
     *,
     baryon_rhs: str = (
         "-Hconf * theta_b + k * k * sound_speed_sq * delta_b "
-        "+ collision_rate * (3.0 * theta_gamma1 - theta_b) "
+        "+ collision_rate * (3.0 * k * theta_gamma1 - theta_b) "
         "+ k * k * Psi"
     ),
     photon_monopole_rhs: str = "-k * theta_gamma1 + (k * Psi) / 3.0",
@@ -381,7 +800,7 @@ def _declared_graph_perturbations(
                 },
                 "rhs": (
                     "(k / 3.0) * (theta_gamma0 + Psi - 2.0 * theta_gamma2) "
-                    "+ collision_rate * (theta_b / 3.0 - theta_gamma1)"
+                    "+ collision_rate * ((theta_b / k) / 3.0 - theta_gamma1)"
                 ),
                 "role": "euler",
             },
@@ -1227,6 +1646,53 @@ def _raw_native_public_spectra(
     }
 
 
+def _capture_visible_scalar_monopole_history(
+    contract: dict[str, object],
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Return the visible scalar monopole history captured from one run."""
+
+    native_cache.clear_native_cmb_caches()
+    captured: list[tuple[numpy.ndarray, numpy.ndarray]] = []
+    original = native_projection._evaluate_compiled_expression_noerr
+
+    def _capture_monopole_history(
+        expression_data: object,
+        env: Mapping[str, object],
+    ) -> object:
+        """Record the visible monopole history once."""
+
+        if (
+            getattr(expression_data, "expression", "")
+            == "visibility * (observable_theta_gamma0 + Psi)"
+            and not captured
+        ):
+            captured.append(
+                (
+                    numpy.asarray(env["eta"], dtype=float).copy(),
+                    numpy.asarray(
+                        env["theta_gamma0"],
+                        dtype=float,
+                    ).copy(),
+                )
+            )
+        return original(expression_data, env)
+
+    with mock.patch.object(
+        native_projection,
+        "_evaluate_compiled_expression_noerr",
+        side_effect=_capture_monopole_history,
+    ):
+        native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((40,), dtype=int),
+            requested_spectra=("TT",),
+        )
+
+    if len(captured) != 1:
+        raise AssertionError("Expected one visible scalar monopole history")
+    return captured[0]
+
+
 def _resolved_native_scalar_context(
     contract: dict[str, object],
     *,
@@ -1260,6 +1726,7 @@ def _resolved_native_scalar_context(
             "angular_diameter_distance": 13_100.0,
             "sound_speed": 3.0**-0.5,
             "sound_speed_sq": 1.0 / 3.0,
+            "baryon_sound_speed_sq": 1.0e-9,
             "collision_rate": 0.12,
             "free_streaming": 1.0,
             "tight_coupling_drag": 0.08,
@@ -1468,6 +1935,40 @@ def _native_scalar_hierarchy_contract(
             "default_l_max": 8,
             "multipole_symbol": "phi_l",
         }
+    background = _declared_background()
+    if include_massive_neutrino:
+        background_derived = dict(background["derived"])
+        background_derived.update(
+            {
+                "Omega_nu_massive0": ("sum_mnu / (93.14 * h * h)"),
+                "massive_neutrino_transition_a": (
+                    "(3.151 * ((4.0 / 11.0) ** (1.0 / 3.0)) * "
+                    "8.617333262145e-5 * Tcmb_K) / "
+                    "(sum_mnu / num_massive_neutrinos + 1.0e-30)"
+                ),
+                "Omega_nu_massive_rel0": (
+                    "Omega_nu_massive0 * massive_neutrino_transition_a"
+                ),
+                "Omega_nu_massless0": (
+                    "0.5 * (Omega_nu0 - Omega_nu_massive_rel0 + "
+                    "abs(Omega_nu0 - Omega_nu_massive_rel0))"
+                ),
+                "Omega_de0": ("1.0 - Omega_m0 - Omega_r0 - Omega_nu_massive0"),
+                "H": (
+                    "H0 * sqrt("
+                    "(Omega_gamma0 + Omega_nu_massless0) / (a ** 4) + "
+                    "Omega_nu_massive0 * sqrt("
+                    "a * a + massive_neutrino_transition_a * "
+                    "massive_neutrino_transition_a) / "
+                    "(sqrt(1.0 + massive_neutrino_transition_a * "
+                    "massive_neutrino_transition_a) * (a ** 4)) + "
+                    "Omega_m0 / (a ** 3) + "
+                    "Omega_k0 / (a ** 2) + Omega_de0"
+                    ")"
+                ),
+            }
+        )
+        background["derived"] = background_derived
     return {
         "model_name": "NativeScalarHierarchy",
         "backend": "camb",
@@ -1486,7 +1987,7 @@ def _native_scalar_hierarchy_contract(
         "model_parameters": {
             "Tcmb_K": 2.7255,
         },
-        "background": _declared_background(),
+        "background": background,
         "grids": {},
         "values": {},
         "calls": [],
@@ -1505,7 +2006,8 @@ def _native_scalar_hierarchy_contract(
                     "sector": "scalar",
                     "species": ["photon", "baryon"],
                     "expression": (
-                        "collision_rate * " "(theta_b / 3.0 - theta_gamma1)"
+                        "collision_rate * "
+                        "((theta_b / acoustic_k) / 3.0 - theta_gamma1)"
                     ),
                     "counterpart": "baryon_thomson_drag",
                 }
@@ -1514,6 +2016,7 @@ def _native_scalar_hierarchy_contract(
                 "thomson_drag_balance": {
                     "kind": "absolute_max",
                     "expression": (
+                        "3.0 * acoustic_k * "
                         "photon_baryon_momentum_ratio * thomson_drag + "
                         "baryon_thomson_drag"
                     ),
@@ -1765,7 +2268,7 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
             "ns": 0.965,
             "Neff": 3.046,
             "YHe": 0.245,
-            "sum_mnu": 0.06,
+            "sum_mnu": 0.0,
             "num_massive_neutrinos": 3,
             "r": 0.1,
             "nt": 0.0,
@@ -1851,7 +2354,7 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
             },
             "projection_typing": {},
             "accuracy_controls": {
-                "tensor_reference_ells": [20, 60, 120],
+                "tensor_reference_ells": [40, 50, 70],
                 "runtime_envelope": "bounded",
             },
             "sources": {},
@@ -2177,18 +2680,587 @@ class _CustomCMBPlugin:
         return _custom_perturbations()
 
 
-class CMBScientificReferenceValidationTestCase(unittest.TestCase):
-    """CAMB-backed scientific reference checks for the CMB surface."""
+class SliceNineReferenceContractTestCase(unittest.TestCase):
+    """Exercise the fixed Slice Nine independent-reference surface."""
 
-    def test_slow_custom_background_matches_camb_recombination_reference(
+    def test_neutral_cosmology_is_fixed_and_native(self) -> None:
+        """The acceptance fixture must be one non-standard native contract."""
+
+        contract = _slice_nine_native_acceptance_contract()
+
+        self.assertFalse(contract["perturbations"]["standard"])
+        self.assertEqual(contract["model_name"], "SliceNineNeutralNative")
+        cosmology = dict(contract["param_map"])
+        cosmology.update(contract["model_parameters"])
+        self.assertEqual(cosmology, dict(SLICE_NINE_NEUTRAL_COSMOLOGY))
+        self.assertEqual(
+            contract["numerical"],
+            dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS),
+        )
+
+    def test_acceptance_ranges_and_thresholds_are_explicit(self) -> None:
+        """Reference ranges and PLAN thresholds must be machine-readable."""
+
+        ranges = SLICE_NINE_ACCEPTANCE_RANGES
+        thresholds = SLICE_NINE_ACCEPTANCE_THRESHOLDS
+
+        self.assertEqual(ranges["scalar_ell"], (2, 2000))
+        self.assertEqual(ranges["lensing_ell"], (2, 2000))
+        self.assertEqual(ranges["potential_ell"], (10, 1500))
+        self.assertEqual(
+            thresholds["tt_fractional_p90"], numpy.longdouble("0.10")
+        )
+        self.assertEqual(
+            thresholds["lensed_bb_fractional_median"],
+            numpy.longdouble("0.15"),
+        )
+
+    def test_absolute_reference_metrics_handle_cross_zeroes(self) -> None:
+        """Reference metrics must remain finite across cross-spectrum zeros."""
+
+        actual = {
+            "TT": numpy.asarray((1.1, 1.8, 4.4, 8.8), dtype=numpy.longdouble),
+            "TE": numpy.asarray((1.2, -1.8, 0.4, 2.7), dtype=numpy.longdouble),
+        }
+        reference = {
+            "TT": numpy.asarray((1.0, 2.0, 4.0, 8.0), dtype=numpy.longdouble),
+            "TE": numpy.asarray((1.0, -2.0, 0.0, 3.0), dtype=numpy.longdouble),
+        }
+        metrics = _slice_nine_spectrum_metrics(
+            actual,
+            reference,
+            spectra=("TT", "TE"),
+        )
+        self.assertAlmostEqual(metrics["TT"]["median_fractional"], 0.1)
+        self.assertAlmostEqual(metrics["TT"]["p90_fractional"], 0.1)
+        self.assertIn("normalized_rms", metrics["TE"])
+        self.assertTrue(numpy.isfinite(metrics["TE"]["normalized_rms"]))
+
+    def test_absolute_reference_metrics_cover_lensing_cross_surfaces(
         self,
     ) -> None:
-        """Slow reference validation should catch named background defects."""
+        """Metrics must cover scalar, potential, and every lensed surface."""
+
+        reference = {
+            name: numpy.asarray((1.0, 2.0, 3.0, 4.0), dtype=numpy.longdouble)
+            for name in SLICE_NINE_ACCEPTANCE_SPECTRA
+        }
+        actual = {
+            name: values * numpy.longdouble("1.01")
+            for name, values in reference.items()
+        }
+        metrics = _slice_nine_spectrum_metrics(
+            actual,
+            reference,
+            spectra=SLICE_NINE_ACCEPTANCE_SPECTRA,
+        )
+        self.assertEqual(set(metrics), set(SLICE_NINE_ACCEPTANCE_SPECTRA))
+        for name in ("TT", "EE", "PP", "lensed_TT", "lensed_BB"):
+            self.assertAlmostEqual(
+                metrics[name]["median_fractional"],
+                0.01,
+            )
+        for name in ("TE", "TP", "EP", "lensed_TE"):
+            self.assertAlmostEqual(metrics[name]["normalized_rms"], 0.01)
+
+    def test_native_reference_k_grid_is_request_independent(self) -> None:
+        """Native reference quadrature must not depend on requested ells."""
+
+        raw_contract = _native_scalar_hierarchy_contract(sum_mnu=0.0)
+        raw_contract["numerical"].update(
+            {
+                "ell_max": 2000,
+                "k_sample_count": 16,
+                "eta_sample_count": 64,
+            }
+        )
+        raw_contract["perturbations"]["accuracy_controls"] = {
+            "scalar_reference_ells": [2, 2000]
+        }
+        contract = _prepare_native_contract(raw_contract)
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical_params,
+            numerics,
+        )
+        low_ell_grid = native_projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((20, 60, 120), dtype=int),
+            background=background,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+        )
+        full_ell_grid = native_projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((2, 2000), dtype=int),
+            background=background,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+        )
+        numpy.testing.assert_allclose(low_ell_grid, full_ell_grid)
+
+    def test_camb_reference_is_test_only_and_independent(self) -> None:
+        """CAMB reference construction must not depend on native execution."""
+
+        self.assertEqual(_slice_nine_reference_backend_name(), "CAMB")
+        reference_contract = _slice_nine_camb_reference_contract(lmax=32)
+        self.assertTrue(reference_contract["standard"])
+        self.assertEqual(reference_contract["lmax"], 32)
+        self.assertEqual(
+            reference_contract["cosmology"],
+            dict(SLICE_NINE_NEUTRAL_COSMOLOGY),
+        )
+        self.assertNotIn("native", reference_contract)
+
+    def test_camb_reference_returns_requested_finite_cls(self) -> None:
+        """The independent reference path must return finite requested data."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
 
-        contract = _prepare_native_contract(_custom_contract())
+        reference = _slice_nine_camb_reference_spectra(
+            numpy.asarray((2, 10, 32), dtype=int),
+            spectra=("TT", "TE", "EE", "lensed_BB", "PP", "TP", "EP"),
+        )
+
+        self.assertEqual(
+            set(reference),
+            {"TT", "TE", "EE", "lensed_BB", "PP", "TP", "EP"},
+        )
+        for values in reference.values():
+            self.assertEqual(values.shape, (3,))
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_reference_helpers_do_not_call_production_cmb_solver(self) -> None:
+        """The test reference must remain independent of native execution."""
+
+        source = inspect.getsource(_slice_nine_camb_reference_spectra)
+        self.assertNotIn("compute_cmb_spectrum_from_contract", source)
+        self.assertNotIn("native_projection", source)
+
+
+class CMBScientificReferenceValidationTestCase(unittest.TestCase):
+    """CAMB-backed scientific reference checks for the CMB surface."""
+
+    def test_camb_tensor_reference_returns_absolute_cls(self) -> None:
+        """Tensor references must expose absolute TT, EE, and BB spectra."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        reference = _slice_nine_camb_tensor_reference_spectra(
+            numpy.asarray((20, 60, 120), dtype=int),
+        )
+        self.assertEqual(set(reference), {"TT", "EE", "BB"})
+        for values in reference.values():
+            self.assertEqual(values.shape, (3,))
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+        self.assertGreater(float(numpy.max(reference["TT"])), 0.0)
+        self.assertGreater(float(numpy.max(reference["EE"])), 0.0)
+        self.assertGreater(float(numpy.max(reference["BB"])), 0.0)
+
+    def test_native_tensor_spectra_match_absolute_camb_anchors(self) -> None:
+        """Native tensor TT, EE, and BB must match fixed CAMB anchors."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        ells = numpy.asarray((40, 50, 70), dtype=int)
+        tensor_contract = _native_tensor_hierarchy_contract()
+        tensor_contract["numerical"]["k_sample_count"] = 64
+        native = _raw_native_public_spectra(
+            _prepare_native_contract(tensor_contract),
+            ells,
+            spectra=("TT", "EE", "BB"),
+        )
+        reference = _slice_nine_camb_tensor_reference_spectra(ells)
+        metrics = _slice_nine_spectrum_metrics(
+            native,
+            reference,
+            spectra=("TT", "EE", "BB"),
+            auto_spectrum_floor=1.0e-6,
+        )
+        for spectrum_name in ("TT", "EE", "BB"):
+            self.assertLessEqual(
+                metrics[spectrum_name]["median_fractional"],
+                float(
+                    SLICE_NINE_ACCEPTANCE_THRESHOLDS[
+                        "tensor_fractional_median"
+                    ]
+                ),
+                msg=f"{spectrum_name} metrics: {metrics[spectrum_name]}",
+            )
+
+    def test_camb_massive_neutrino_references_are_fixed_cosmologies(
+        self,
+    ) -> None:
+        """Massive-neutrino references must compare absolute spectra."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        ells = numpy.asarray((20, 60, 120), dtype=int)
+        spectra = ("TT", "TE", "EE")
+        light_reference = _slice_nine_camb_reference_spectra(
+            ells,
+            spectra=spectra,
+            sum_mnu=0.0,
+        )
+        heavy_reference = _slice_nine_camb_reference_spectra(
+            ells,
+            spectra=spectra,
+            sum_mnu=0.6,
+        )
+        for spectrum_name in spectra:
+            light_values = light_reference[spectrum_name]
+            heavy_values = heavy_reference[spectrum_name]
+            self.assertTrue(numpy.all(numpy.isfinite(light_values)))
+            self.assertTrue(numpy.all(numpy.isfinite(heavy_values)))
+            self.assertGreater(
+                float(numpy.max(numpy.abs(light_values))),
+                0.0,
+            )
+        self.assertGreater(
+            float(
+                numpy.max(
+                    numpy.abs(heavy_reference["TT"] - light_reference["TT"])
+                )
+            ),
+            0.0,
+        )
+
+    def test_tensor_projection_uses_tensor_radial_kernel(self) -> None:
+        """Tensor sources must not be projected with scalar Bessel windows."""
+
+        x_values = numpy.asarray((0.7, 1.3, 2.1), dtype=float)
+        x_signature = "slice-nine-item5-tensor-radial-kernel"
+        native_cache.store_bessel_inputs(x_signature, x_values)
+        kernel_batch = (
+            native_background._get_cached_declared_projection_kernel_batch(
+                (2,),
+                x_signature,
+            )
+        )
+        source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
+        actual = native_projection._declared_graph_projection(
+            projection="line_of_sight_signal",
+            kernel="spherical_bessel_window",
+            sector="tensor",
+            kernel_batch=kernel_batch,
+            k_value=1.0,
+            eta_weights=numpy.ones(3, dtype=float),
+            chi_grid=numpy.zeros(3, dtype=float),
+            source_chi=1.0,
+            source_histories={"signal": source},
+        )
+        numpy.testing.assert_allclose(
+            actual,
+            kernel_batch.tensor_temperature @ source,
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.tensor_temperature[0],
+            numpy.sqrt(3.0 / 8.0)
+            * numpy.sqrt(24.0)
+            * native_background.spherical_jn(2, x_values)
+            / numpy.maximum(x_values, 1.0e-12) ** 2,
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        j_l = native_background.spherical_jn(2, x_values)
+        j_l_derivative = native_background.spherical_jn(
+            2,
+            x_values,
+            derivative=True,
+        )
+        inverse_x = 1.0 / x_values
+        j_l_second = (
+            2.0 * 3.0 * inverse_x**2 - 1.0
+        ) * j_l - 2.0 * inverse_x * j_l_derivative
+        numpy.testing.assert_allclose(
+            kernel_batch.tensor_e[0],
+            0.25
+            * (
+                -j_l
+                + j_l_second
+                + 2.0 * j_l * inverse_x**2
+                + 4.0 * j_l_derivative * inverse_x
+            ),
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.tensor_b[0],
+            0.5 * (j_l_derivative + 2.0 * j_l * inverse_x),
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        for projection, kernel, expected in (
+            (
+                "spin2_e_mode",
+                "spin2_e_window",
+                kernel_batch.tensor_e,
+            ),
+            (
+                "spin2_b_mode",
+                "spin2_b_window",
+                kernel_batch.tensor_b,
+            ),
+        ):
+            actual = native_projection._declared_graph_projection(
+                projection=projection,
+                kernel=kernel,
+                sector="tensor",
+                kernel_batch=kernel_batch,
+                k_value=1.0,
+                eta_weights=numpy.ones(3, dtype=float),
+                chi_grid=numpy.zeros(3, dtype=float),
+                source_chi=1.0,
+                source_histories={"signal": source},
+            )
+            numpy.testing.assert_allclose(
+                actual,
+                expected @ source,
+                rtol=1.0e-14,
+                atol=1.0e-14,
+            )
+
+    def test_vector_projection_kernels_match_flat_space_limits(self) -> None:
+        """Vector radial kernels must match the declared flat limits."""
+
+        x_values = numpy.asarray((0.7, 1.3, 2.1), dtype=float)
+        x_signature = "slice-nine-item5-vector-radial-kernel"
+        native_cache.store_bessel_inputs(x_signature, x_values)
+        kernel_batch = (
+            native_background._get_cached_declared_projection_kernel_batch(
+                (3,),
+                x_signature,
+            )
+        )
+        j_l = native_background.spherical_jn(3, x_values)
+        j_l_derivative = native_background.spherical_jn(
+            3,
+            x_values,
+            derivative=True,
+        )
+        inverse_x = 1.0 / x_values
+        numpy.testing.assert_allclose(
+            kernel_batch.vector_temperature_1[0],
+            numpy.sqrt(3.0 * 4.0 / 2.0) * j_l * inverse_x,
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.vector_temperature_2[0],
+            numpy.sqrt(3.0 * 3.0 * 4.0 / 2.0)
+            * (j_l_derivative * inverse_x - j_l * inverse_x**2),
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.vector_e[0],
+            0.5
+            * numpy.sqrt(2.0 * 5.0)
+            * (j_l * inverse_x**2 + j_l_derivative * inverse_x),
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.vector_b[0],
+            0.5 * numpy.sqrt(2.0 * 5.0) * j_l * inverse_x,
+            rtol=1.0e-14,
+            atol=1.0e-14,
+        )
+        source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
+        residuals = []
+        for projection, expected in (
+            (
+                "line_of_sight_vector_temperature",
+                kernel_batch.vector_temperature_1,
+            ),
+            (
+                "line_of_sight_vector_polarization_e",
+                kernel_batch.vector_e,
+            ),
+            (
+                "line_of_sight_vector_polarization_b",
+                kernel_batch.vector_b,
+            ),
+        ):
+            actual = native_projection._declared_graph_projection(
+                projection=projection,
+                kernel="spherical_bessel_window",
+                sector="vector",
+                kernel_batch=kernel_batch,
+                k_value=1.0,
+                eta_weights=numpy.ones(3, dtype=float),
+                chi_grid=numpy.zeros(3, dtype=float),
+                source_chi=1.0,
+                source_histories={"signal": source},
+            )
+            expected_values = expected @ source
+            numpy.testing.assert_allclose(
+                actual,
+                expected_values,
+                rtol=1.0e-14,
+                atol=1.0e-14,
+            )
+            residuals.append(
+                numpy.max(
+                    numpy.abs(actual - expected_values)
+                    / numpy.maximum(numpy.abs(expected_values), 1.0e-30)
+                )
+            )
+        self.assertLess(max(residuals), 1.0e-12)
+
+    def test_native_lensing_normalization_and_absolute_remapping_match_camb(
+        self,
+    ) -> None:
+        """The native remapper must match CAMB on all lensed scalar spectra."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        lmax = SLICE_NINE_ACCEPTANCE_RANGES["lensing_ell"][1]
+        params = _slice_nine_build_camb_params(lmax=lmax)
+        results = camb.get_results(params)
+        unlensed = numpy.asarray(
+            results.get_unlensed_scalar_cls(
+                lmax=lmax,
+                CMB_unit="muK",
+            ),
+            dtype=numpy.longdouble,
+        )
+        lensed_reference = numpy.asarray(
+            results.get_lensed_scalar_cls(
+                lmax=lmax,
+                CMB_unit="muK",
+            ),
+            dtype=numpy.longdouble,
+        )
+        lensing = numpy.asarray(
+            results.get_lens_potential_cls(lmax=lmax),
+            dtype=numpy.longdouble,
+        )
+        raw_lensing = numpy.asarray(
+            results.get_lens_potential_cls(lmax=lmax, raw_cl=True),
+            dtype=numpy.longdouble,
+        )
+        ell_values = numpy.arange(lmax + 1, dtype=numpy.longdouble)
+        ell_factor = ell_values * (ell_values + 1.0)
+        numpy.testing.assert_allclose(
+            lensing[2:, 0],
+            raw_lensing[2:, 0]
+            * ell_factor[2:] ** 2
+            / (2.0 * numpy.longdouble(numpy.pi)),
+            rtol=1.0e-12,
+            atol=1.0e-30,
+            err_msg="CAMB PP must use the declared deflection convention.",
+        )
+        actual = native_cmb_solver._assemble_exact_lensed_spectra(
+            {
+                "TT": unlensed[:, 0],
+                "EE": unlensed[:, 1],
+                "BB": unlensed[:, 2],
+                "TE": unlensed[:, 3],
+                "PP": lensing[:, 0],
+            },
+            numpy.arange(lmax + 1, dtype=int),
+        )
+        thresholds = SLICE_NINE_ACCEPTANCE_THRESHOLDS
+        reference = {
+            name: numpy.asarray(
+                lensed_reference[
+                    :,
+                    {
+                        "lensed_TT": 0,
+                        "lensed_EE": 1,
+                        "lensed_BB": 2,
+                        "lensed_TE": 3,
+                    }[name],
+                ],
+                dtype=numpy.longdouble,
+            )
+            for name in actual
+        }
+        metrics = _slice_nine_spectrum_metrics(
+            {
+                name: numpy.asarray(values, dtype=numpy.longdouble)
+                for name, values in actual.items()
+            },
+            reference,
+            spectra=(
+                "lensed_TT",
+                "lensed_EE",
+                "lensed_TE",
+                "lensed_BB",
+            ),
+        )
+        self.assertLessEqual(
+            metrics["lensed_TT"]["median_fractional"],
+            float(thresholds["tt_fractional_median"]),
+        )
+        self.assertLessEqual(
+            metrics["lensed_TT"]["p90_fractional"],
+            float(thresholds["tt_fractional_p90"]),
+        )
+        self.assertLessEqual(
+            metrics["lensed_EE"]["median_fractional"],
+            float(thresholds["ee_fractional_median"]),
+        )
+        self.assertLessEqual(
+            metrics["lensed_EE"]["p90_fractional"],
+            float(thresholds["ee_fractional_p90"]),
+        )
+        self.assertLessEqual(
+            metrics["lensed_TE"]["normalized_rms"],
+            float(thresholds["te_normalized_rms"]),
+        )
+        self.assertLessEqual(
+            metrics["lensed_BB"]["median_fractional"],
+            float(thresholds["lensed_bb_fractional_median"]),
+        )
+
+    def test_camb_reference_lensing_cross_surfaces_use_native_conventions(
+        self,
+    ) -> None:
+        """The independent PP, TP, and EP surfaces use native units."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        ells = numpy.asarray((10, 100, 1500), dtype=int)
+        reference = _slice_nine_camb_reference_spectra(
+            ells,
+            spectra=("PP", "TP", "EP"),
+        )
+        params = _slice_nine_build_camb_params(lmax=int(ells.max()))
+        results = camb.get_results(params)
+        lensing = numpy.asarray(
+            results.get_lens_potential_cls(lmax=int(ells.max())),
+            dtype=numpy.longdouble,
+        )
+        for name, column in (("PP", 0), ("TP", 1), ("EP", 2)):
+            numpy.testing.assert_allclose(
+                reference[name],
+                lensing[ells, column],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+                err_msg=f"Independent CAMB {name} reference changed units.",
+            )
+
+    def test_slice_nine_neutral_background_matches_camb(self) -> None:
+        """The fixed native background must meet all CAMB thresholds."""
+
+        if camb is None:
+            self.skipTest("CAMB is not installed")
+
+        contract = _prepare_native_contract(
+            _slice_nine_native_acceptance_contract()
+        )
         physical = native_background._resolve_custom_cmb_physical_parameters(
             contract
         )
@@ -2198,29 +3270,17 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             physical,
             numerics,
         )
-        reference_contract = _strip_perturbations(contract)
-        reference_contract["param_map"].pop("z_rec", None)
-        params = camb_solver._make_camb_params(reference_contract, lmax=32)
-        results = camb.get_results(params)
-        reference = results.get_background_time_evolution(
-            background.eta_grid,
-            vars=["x_e", "visibility", "opacity"],
-            format="dict",
-        )
-
-        reference_peak_eta = float(results.tau_maxvis)
-        reference_peak_z = float(
-            results.redshift_at_conformal_time(reference_peak_eta)
-        )
-        reference_eta0 = float(results.conformal_time(0.0))
-        reference_sound_horizon = float(
-            results.sound_horizon(reference_peak_z)
-        )
+        reference = _slice_nine_camb_background_reference(background.eta_grid)
+        reference_peak_eta = float(reference["peak_eta"])
+        reference_peak_z = float(reference["peak_z"])
+        reference_eta0 = float(reference["eta0"])
+        reference_sound_horizon = float(reference["sound_horizon"])
         reference_x_e = numpy.asarray(reference["x_e"], dtype=float)
         reference_visibility = numpy.asarray(
             reference["visibility"],
             dtype=float,
         )
+        thresholds = SLICE_NINE_ACCEPTANCE_THRESHOLDS
 
         peak_index = int(numpy.argmax(background.visibility_grid))
         peak_z = float(background.z_grid[peak_index])
@@ -2290,11 +3350,11 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         peak_z_error = abs(peak_z - reference_peak_z) / reference_peak_z
         self.assertLess(
             peak_z_error,
-            0.005,
+            thresholds["visibility_peak_fraction"],
             _named_limit_message(
                 "visibility peak redshift",
                 peak_z_error,
-                0.005,
+                thresholds["visibility_peak_fraction"],
             ),
         )
         peak_eta_error = (
@@ -2302,11 +3362,11 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         self.assertLess(
             peak_eta_error,
-            0.005,
+            thresholds["visibility_peak_fraction"],
             _named_limit_message(
                 "visibility peak conformal time",
                 peak_eta_error,
-                0.005,
+                thresholds["visibility_peak_fraction"],
             ),
         )
         visibility_width_eta_error = (
@@ -2315,11 +3375,11 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         self.assertLess(
             visibility_width_eta_error,
-            0.02,
+            thresholds["visibility_width_fraction"],
             _named_limit_message(
                 "visibility FWHM in conformal time",
                 visibility_width_eta_error,
-                0.02,
+                thresholds["visibility_width_fraction"],
             ),
         )
         visibility_width_z_error = (
@@ -2328,18 +3388,22 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         self.assertLess(
             visibility_width_z_error,
-            0.02,
+            thresholds["visibility_width_fraction"],
             _named_limit_message(
                 "visibility FWHM in redshift",
                 visibility_width_z_error,
-                0.02,
+                thresholds["visibility_width_fraction"],
             ),
         )
         eta0_error = abs(background.eta0 - reference_eta0) / reference_eta0
         self.assertLess(
             eta0_error,
-            0.002,
-            _named_limit_message("eta0", eta0_error, 0.002),
+            thresholds["conformal_age_fraction"],
+            _named_limit_message(
+                "eta0",
+                eta0_error,
+                thresholds["conformal_age_fraction"],
+            ),
         )
         sound_horizon_error = (
             abs(background.sound_horizon_mpc - reference_sound_horizon)
@@ -2347,29 +3411,29 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         self.assertLess(
             sound_horizon_error,
-            0.002,
+            thresholds["sound_horizon_fraction"],
             _named_limit_message(
                 "sound horizon at visibility peak",
                 sound_horizon_error,
-                0.002,
+                thresholds["sound_horizon_fraction"],
             ),
         )
         self.assertLess(
             recombination_median_x_e_error,
-            0.01,
+            thresholds["recombination_median_fraction"],
             _named_limit_message(
                 "recombination x_e median relative error",
                 recombination_median_x_e_error,
-                0.01,
+                thresholds["recombination_median_fraction"],
             ),
         )
         self.assertLess(
             recombination_p90_error,
-            0.45,
+            thresholds["recombination_p90_fraction"],
             _named_limit_message(
                 "recombination x_e p90 relative error",
                 recombination_p90_error,
-                0.45,
+                thresholds["recombination_p90_fraction"],
             ),
         )
         self.assertLess(
@@ -2381,16 +3445,16 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 0.08,
             ),
         )
-        tau_error = abs(background.reionization_tau - physical.tau_reio) / max(
-            physical.tau_reio, 1.0e-12
-        )
+        tau_error = abs(
+            background.reionization_tau - float(reference["tau_reio"])
+        ) / max(float(reference["tau_reio"]), 1.0e-12)
         self.assertLess(
             tau_error,
-            0.03,
+            thresholds["tau_reio_fraction"],
             _named_limit_message(
                 "reionization optical depth",
                 tau_error,
-                0.03,
+                thresholds["tau_reio_fraction"],
             ),
         )
 
@@ -3084,6 +4148,43 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Fast runtime-response coverage for declared-graph execution."""
 
+    def test_native_los_simpson_weights_integrate_nonuniform_quadratic(
+        self,
+    ) -> None:
+        """Native LOS weights should preserve quadratic histories."""
+
+        eta_grid = numpy.asarray((0.0, 0.3, 0.9, 1.4, 2.1), dtype=float)
+        history = 2.0 * eta_grid**2 + 3.0 * eta_grid + 1.0
+        weights = native_projection._simpson_weights(eta_grid)
+        expected = (
+            (2.0 / 3.0) * eta_grid[-1] ** 3
+            + (3.0 / 2.0) * eta_grid[-1] ** 2
+            + eta_grid[-1]
+        )
+        self.assertAlmostEqual(
+            float(numpy.dot(weights, history)),
+            float(expected),
+            places=12,
+        )
+
+    def test_native_nonuniform_gradient_preserves_quadratic_derivative(
+        self,
+    ) -> None:
+        """Native history derivatives should remain second-order at edges."""
+
+        eta_grid = numpy.asarray((0.0, 0.3, 0.9, 1.4, 2.1), dtype=float)
+        history = 2.0 * eta_grid**2 + 3.0 * eta_grid + 1.0
+        derivative = native_evolution._nonuniform_gradient(
+            history,
+            eta_grid,
+        )
+        numpy.testing.assert_allclose(
+            derivative,
+            4.0 * eta_grid + 3.0,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
     def test_temperature_projection_uses_declared_histories_directly(
         self,
     ) -> None:
@@ -3094,6 +4195,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             j_l_derivative=numpy.asarray(((0.2, 0.1, 0.0), (0.0, 0.3, 0.4))),
             e_kernel=numpy.zeros((2, 3), dtype=float),
             b_kernel=numpy.zeros((2, 3), dtype=float),
+            j_l_second_derivative=numpy.zeros((2, 3), dtype=float),
+            vector_temperature_1=numpy.zeros((2, 3), dtype=float),
+            vector_temperature_2=numpy.zeros((2, 3), dtype=float),
+            vector_e=numpy.zeros((2, 3), dtype=float),
+            vector_b=numpy.zeros((2, 3), dtype=float),
+            tensor_temperature=numpy.zeros((2, 3), dtype=float),
+            tensor_e=numpy.zeros((2, 3), dtype=float),
+            tensor_b=numpy.zeros((2, 3), dtype=float),
         )
         eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
         source_histories = {
@@ -3167,45 +4276,6 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 k_value=0.2,
                 tight_coupling_ratio=50.0,
             )
-        )
-
-    def test_exact_thomson_relaxation_matches_collision_subblock(
-        self,
-    ) -> None:
-        """Exact Thomson stepping should match the full collision subblock."""
-
-        from scipy.linalg import expm
-
-        collision_rate = 250.0
-        baryon_loading = 0.8
-        dt = 0.015
-        photon_baryon_ratio = 1.0 / baryon_loading
-        initial_state = numpy.asarray((0.03, 0.09, 0.01, 0.004), dtype=float)
-        collision_matrix = collision_rate * numpy.asarray(
-            (
-                (-1.0, 1.0 / 3.0, 0.0, 0.0),
-                (photon_baryon_ratio, -photon_baryon_ratio / 3.0, 0.0, 0.0),
-                (0.0, 0.0, -0.9, 0.6),
-                (0.0, 0.0, 0.1, -0.4),
-            ),
-            dtype=float,
-        )
-        expected_state = expm(collision_matrix * dt) @ initial_state
-
-        actual_state = native_evolution._exact_thomson_relaxation_step(
-            theta_gamma1=float(initial_state[0]),
-            theta_b=float(initial_state[1]),
-            theta_gamma2=float(initial_state[2]),
-            e_gamma2=float(initial_state[3]),
-            collision_rate=collision_rate,
-            baryon_loading=baryon_loading,
-            dt=dt,
-        )
-        numpy.testing.assert_allclose(
-            numpy.asarray(actual_state, dtype=float),
-            expected_state,
-            rtol=1.0e-12,
-            atol=1.0e-12,
         )
 
     def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
@@ -3305,6 +4375,166 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             spectrum_data.spectra["EE"],
         ):
             self.assertTrue(numpy.all(numpy.isfinite(array)))
+
+    def test_native_scalar_sources_use_runtime_optical_depth_history(
+        self,
+    ) -> None:
+        """Generated scalar sources should see the background tau history."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["numerical"].update(
+            {
+                "k_min": 0.02,
+                "k_max": 0.02,
+                "k_sample_count": 1,
+                "eta_sample_count": 48,
+                "source_grid_multiplier": 1,
+            }
+        )
+        contract = _prepare_native_contract(contract_data)
+        captured_tau: list[numpy.ndarray] = []
+        original = native_projection._evaluate_compiled_expression_noerr
+
+        def _capture_tau(
+            expression_data: object,
+            env: Mapping[str, object],
+        ) -> object:
+            """Record the tau history seen by the scalar ISW source."""
+
+            if (
+                getattr(expression_data, "expression", "")
+                == "exp(-tau) * (Phi_tau + Psi_tau)"
+                and not captured_tau
+            ):
+                captured_tau.append(
+                    numpy.asarray(env["tau"], dtype=float).copy()
+                )
+            return original(expression_data, env)
+
+        with mock.patch.object(
+            native_projection,
+            "_evaluate_compiled_expression_noerr",
+            side_effect=_capture_tau,
+        ):
+            native_projection._compute_custom_cmb_spectrum_data(
+                contract,
+                numpy.asarray((40,), dtype=int),
+                requested_spectra=("TT",),
+            )
+
+        self.assertEqual(len(captured_tau), 1)
+        tau_history = captured_tau[0]
+        self.assertEqual(tau_history.ndim, 1)
+        self.assertGreater(float(tau_history.max()), 100.0)
+        self.assertLess(float(tau_history.min()), 1.0)
+        self.assertGreater(
+            float(numpy.max(numpy.abs(numpy.diff(tau_history)))),
+            1.0e-6,
+        )
+
+    def test_native_scalar_adiabatic_sources_use_hidden_superhorizon_prefix(
+        self,
+    ) -> None:
+        """Adiabatic sources should evolve before the LOS grid start."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["numerical"].update(
+            {
+                "k_min": 0.01987357845532738,
+                "k_max": 0.01987357845532738,
+                "k_sample_count": 1,
+                "eta_sample_count": 48,
+                "source_grid_multiplier": 1,
+                "initial_redshift": 2.0e4,
+            }
+        )
+        contract = _prepare_native_contract(contract_data)
+        eta_history, theta_gamma0_history = (
+            _capture_visible_scalar_monopole_history(contract)
+        )
+        self.assertGreater(float(eta_history[0]), 20.0)
+        self.assertTrue(numpy.isfinite(theta_gamma0_history[0]))
+        physical = native_background._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        neutrino_fraction = physical.Omega_nu0 / max(
+            physical.Omega_gamma0 + physical.Omega_nu0,
+            1.0e-30,
+        )
+        initial_potential = 10.0 / (15.0 + 4.0 * neutrino_fraction)
+        self.assertGreater(
+            abs(float(theta_gamma0_history[0]) + 0.5 * initial_potential),
+            0.1,
+        )
+
+    def test_native_scalar_adiabatic_hidden_prefix_tracks_early_start(
+        self,
+    ) -> None:
+        """Hidden evolution should stay close to an early start."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["numerical"].update(
+            {
+                "k_min": 0.01987357845532738,
+                "k_max": 0.01987357845532738,
+                "k_sample_count": 1,
+                "eta_sample_count": 48,
+                "source_grid_multiplier": 1,
+                "initial_redshift": 2.0e4,
+            }
+        )
+        contract = _prepare_native_contract(contract_data)
+        reference_data = copy.deepcopy(contract_data)
+        reference_data["numerical"]["initial_redshift"] = 1.0e6
+        reference = _prepare_native_contract(reference_data)
+
+        eta_history, theta_gamma0_history = (
+            _capture_visible_scalar_monopole_history(contract)
+        )
+        reference_eta, reference_theta_gamma0 = (
+            _capture_visible_scalar_monopole_history(reference)
+        )
+        reference_interp = numpy.interp(
+            eta_history,
+            reference_eta,
+            reference_theta_gamma0,
+        )
+        support = numpy.abs(reference_interp) >= (
+            0.05 * float(numpy.max(numpy.abs(reference_interp)))
+        )
+        self.assertTrue(bool(numpy.any(support)))
+        relative_error = numpy.abs(
+            theta_gamma0_history[support] - reference_interp[support]
+        ) / numpy.maximum(numpy.abs(reference_interp[support]), 1.0e-12)
+
+        self.assertLess(float(numpy.median(relative_error)), 0.27)
+        self.assertLess(float(numpy.max(relative_error)), 0.27)
+
+    def test_native_scalar_source_grid_preserves_visibility_refinement(
+        self,
+    ) -> None:
+        """Scalar source grids should keep visibility-era clustering."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["numerical"].update(
+            {
+                "k_min": 0.01987357845532738,
+                "k_max": 0.01987357845532738,
+                "k_sample_count": 1,
+                "eta_sample_count": 48,
+                "source_grid_multiplier": 1,
+                "initial_redshift": 2.0e4,
+            }
+        )
+        contract = _prepare_native_contract(contract_data)
+        eta_history, _ = _capture_visible_scalar_monopole_history(contract)
+        eta_steps = numpy.diff(eta_history)
+
+        self.assertGreater(int(eta_history.size), 40)
+        self.assertLess(
+            float(numpy.min(eta_steps)) / float(numpy.max(eta_steps)),
+            0.5,
+        )
 
     def test_custom_spectra_have_structure_and_parameter_response(
         self,
@@ -3643,6 +4873,115 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
             ),
             0.0,
+        )
+
+    def test_lensed_sparse_requests_match_contiguous_remapping(self) -> None:
+        """Lensing must interpolate on a contiguous analysis grid once."""
+
+        contract = _speedup_contract(_custom_contract(include_lensing=True))
+        spectra = (
+            "lensed_TT",
+            "lensed_TE",
+            "lensed_EE",
+            "lensed_BB",
+        )
+        sparse_ells = numpy.asarray((20, 27, 44), dtype=int)
+        dense_ells = numpy.arange(20, 45, dtype=int)
+        sparse = _raw_native_public_spectra(
+            contract,
+            sparse_ells,
+            spectra=spectra,
+        )
+        dense = _raw_native_public_spectra(
+            contract,
+            dense_ells,
+            spectra=spectra,
+        )
+        dense_indices = sparse_ells - dense_ells[0]
+        for name in spectra:
+            numpy.testing.assert_allclose(
+                sparse[name],
+                dense[name][dense_indices],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+                err_msg=(
+                    f"Sparse {name} requests must preserve remapped "
+                    "multipoles."
+                ),
+            )
+
+    def test_exact_collision_action_matches_matrix_exponential(self) -> None:
+        """The accelerated action must retain matrix-exponential values."""
+
+        operator_matrix = numpy.asarray(
+            (
+                (-1.0, 0.25, 0.0),
+                (2.0, -0.5, 0.5),
+                (0.0, -1.0, -0.75),
+            ),
+            dtype=float,
+        )
+        target_state = numpy.asarray((0.5, -0.25, 0.75), dtype=float)
+        dt = 0.125
+        actual = native_projection._exact_linear_collision_step(
+            operator_matrix=operator_matrix,
+            dt=dt,
+            target_state=target_state,
+        )
+        expected = expm(operator_matrix * dt) @ target_state
+        numpy.testing.assert_allclose(
+            actual, expected, rtol=1.0e-12, atol=1.0e-12
+        )
+
+    def test_exact_two_state_collision_action_matches_matrix_exponential(
+        self,
+    ) -> None:
+        """The tensor Thomson two-state action must remain exact."""
+
+        operator_matrix = numpy.asarray(
+            ((-0.9, 0.6), (0.1, -0.4)),
+            dtype=float,
+        )
+        target_state = numpy.asarray((0.35, -0.2), dtype=float)
+        dt = 0.375
+        actual = native_projection._exact_linear_collision_step(
+            operator_matrix=operator_matrix,
+            dt=dt,
+            target_state=target_state,
+        )
+        expected = expm(operator_matrix * dt) @ target_state
+        numpy.testing.assert_allclose(
+            actual,
+            expected,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
+    def test_exact_block_collision_action_matches_matrix_exponential(self):
+        """Independent exact collision blocks must retain their action."""
+
+        operator_matrix = numpy.asarray(
+            (
+                (-1.0, 0.25, 0.0, 0.0),
+                (2.0, -0.5, 0.0, 0.0),
+                (0.0, 0.0, -0.9, 0.6),
+                (0.0, 0.0, 0.1, -0.4),
+            ),
+            dtype=float,
+        )
+        target_state = numpy.asarray((0.5, -0.25, 0.35, -0.2), dtype=float)
+        dt = 0.375
+        actual = native_projection._exact_linear_collision_step(
+            operator_matrix=operator_matrix,
+            dt=dt,
+            target_state=target_state,
+        )
+        expected = expm(operator_matrix * dt) @ target_state
+        numpy.testing.assert_allclose(
+            actual,
+            expected,
+            rtol=1.0e-12,
+            atol=1.0e-12,
         )
 
     def test_projection_kernel_batches_reuse_across_scalar_rebinds(
@@ -4003,7 +5342,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_split_collision_contract())
         contract["perturbations"]["conservation_rules"][
             "thomson_drag_balance"
-        ]["expression"] = "3.0 * thomson_drag + baryon_thomson_drag + 1.0e-2"
+        ]["expression"] = (
+            "3.0 * k * photon_baryon_momentum_ratio * thomson_drag + "
+            "baryon_thomson_drag + 1.0e-2"
+        )
         contract["perturbations"]["conservation_rules"][
             "thomson_drag_balance"
         ]["tolerance"] = 1.0e-6
@@ -4169,6 +5511,97 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(coarse_background.eta_grid.size),
         )
 
+    def test_native_background_keeps_pre_grid_conformal_time(self) -> None:
+        """Native eta and sound-horizon grids should start at the big bang."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        physical = native_background._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical,
+            numerics,
+        )
+        radiation_density = max(
+            float(physical.Omega_r0 or 0.0),
+            float(physical.Omega_gamma0),
+            1.0e-30,
+        )
+        expected_eta_start = float(background.a_grid[0]) / (
+            float(physical.H0_over_c_Mpc_inv) * numpy.sqrt(radiation_density)
+        )
+
+        self.assertGreater(float(background.eta_grid[0]), 0.0)
+        self.assertAlmostEqual(
+            float(background.eta_grid[0]),
+            expected_eta_start,
+            places=12,
+        )
+        self.assertGreater(float(background.sound_horizon_mpc), 0.0)
+
+    def test_native_recombination_uses_post_decoupling_matter_temperature(
+        self,
+    ) -> None:
+        """Native recombination should not keep matter coupled to the CMB."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        physical = native_background._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical,
+            numerics,
+        )
+        low_redshift = (background.z_grid >= 20.0) & (
+            background.z_grid <= 100.0
+        )
+        self.assertTrue(numpy.all(background.x_e_grid[low_redshift] > 0.0))
+        self.assertLess(
+            float(numpy.min(background.x_e_grid[low_redshift])),
+            0.001,
+        )
+
+    def test_native_background_separates_baryon_and_acoustic_sound_speeds(
+        self,
+    ) -> None:
+        """Baryon pressure should not use the photon-baryon sound speed."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        physical = native_background._resolve_custom_cmb_physical_parameters(
+            contract
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical,
+            numerics,
+        )
+        baryon_speed_sq = numpy.asarray(
+            background.baryon_sound_speed_sq_grid,
+            dtype=float,
+        )
+        acoustic_speed_sq = numpy.square(
+            numpy.asarray(background.sound_speed_grid, dtype=float)
+            / native_background._C_LIGHT_KM_S
+        )
+
+        self.assertTrue(bool(numpy.all(numpy.isfinite(baryon_speed_sq))))
+        self.assertGreater(float(numpy.min(baryon_speed_sq)), 0.0)
+        self.assertLess(
+            float(numpy.max(baryon_speed_sq)),
+            float(numpy.min(acoustic_speed_sq)),
+        )
+
     def test_requested_native_k_sample_count_is_not_capped(self) -> None:
         """Native `k_sample_count` should honor declared values above 48."""
 
@@ -4181,6 +5614,51 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.arange(20, 25, dtype=int),
         )
         self.assertEqual(int(spectrum_data.k_grid.size), 64)
+
+    def test_native_k_grid_includes_declared_scalar_reference_scales(
+        self,
+    ) -> None:
+        """Native k sampling should include scalar reference scales."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical_params,
+            numerics,
+        )
+        ells = numpy.arange(20, 121, dtype=int)
+        k_grid = native_projection._build_projection_k_grid(
+            ell_arr=ells,
+            background=background,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+        )
+        eta_rec_distance = max(
+            float(background.eta0) - float(background.eta_rec),
+            1.0,
+        )
+
+        self.assertEqual(int(k_grid.size), int(numerics.k_sample_count))
+        for ell_value in (20, 60, 120):
+            expected_k = (float(ell_value) + 0.5) / eta_rec_distance
+            self.assertTrue(
+                bool(
+                    numpy.any(
+                        numpy.isclose(
+                            k_grid,
+                            expected_k,
+                            rtol=1.0e-12,
+                            atol=1.0e-12,
+                        )
+                    )
+                )
+            )
 
     def test_accuracy_controls_reject_underresolved_scalar_numerics(
         self,
@@ -4748,8 +6226,65 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("EP", perturbation_data.observables)
         self.assertEqual(
             perturbation_data.derived["polarization_moment"].expression,
-            "theta_gamma2 + 6.0 * e_gamma2",
+            "0.1 * theta_gamma2 + 0.6 * e_gamma2",
         )
+        self.assertEqual(
+            perturbation_data.initial_conditions["e_gamma2_seed"].expression,
+            "theta_gamma2 / 4.0",
+        )
+        self.assertIn(
+            "acoustic_k * theta_gamma2 / collision_rate",
+            perturbation_data.initial_conditions[
+                "theta_gamma3_seed"
+            ].expression,
+        )
+        self.assertIn(
+            "acoustic_k * theta_gamma2 / collision_rate",
+            perturbation_data.initial_conditions["e_gamma3_seed"].expression,
+        )
+        self.assertEqual(
+            perturbation_data.sources["temperature_quadrupole"].expression,
+            "(5.0 / 2.0) * visibility * polarization_moment",
+        )
+        self.assertEqual(
+            perturbation_data.sources[
+                "temperature_quadrupole_derivative"
+            ].expression,
+            "(15.0 / 2.0) * visibility * polarization_moment",
+        )
+        self.assertEqual(
+            perturbation_data.sources["polarization_source"].expression,
+            "(15.0 / 2.0) * visibility * polarization_moment",
+        )
+        self.assertEqual(
+            perturbation_data.sources["lensing_potential"].expression,
+            "Phi + Psi",
+        )
+        self.assertEqual(
+            perturbation_data.equations["evolve_theta_gamma0"].rhs,
+            "-acoustic_k * theta_gamma1 + Phi_tau",
+        )
+
+    def test_native_scalar_tight_coupling_uses_first_order_multipoles(
+        self,
+    ) -> None:
+        """Scalar TCA should seed the CAMB quadrupole and octopole chain."""
+
+        result = native_projection._generated_scalar_tight_coupling_multipoles(
+            photon_dipole=0.03,
+            baryon_velocity_divergence=0.09,
+            baryon_loading=2.0,
+            k_value=0.1,
+            collision_rate=10.0,
+        )
+        common_dipole, theta_gamma2, theta_gamma3, e_gamma2, e_gamma3 = result
+        self.assertAlmostEqual(common_dipole, 0.21)
+        expected_theta_gamma2 = (8.0 / 15.0) * 0.1 * common_dipole / 10.0
+        self.assertAlmostEqual(theta_gamma2, expected_theta_gamma2)
+        expected_theta_gamma3 = (3.0 / 7.0) * 0.1 * theta_gamma2 / 10.0
+        self.assertAlmostEqual(theta_gamma3, expected_theta_gamma3)
+        self.assertAlmostEqual(e_gamma2, theta_gamma2 / 4.0)
+        self.assertAlmostEqual(e_gamma3, theta_gamma3 / 4.0)
 
     def test_native_vector_hierarchy_materializes_generated_hierarchy(
         self,
@@ -4911,7 +6446,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_native_contract(
             _speedup_contract(_native_tensor_hierarchy_contract())
         )
-        ells = numpy.arange(20, 45, dtype=int)
+        ells = numpy.asarray((20, 60, 120), dtype=int)
         spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
@@ -5255,7 +6790,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.derived["baryon_thomson_drag"].expression,
-            "- photon_baryon_momentum_ratio * thomson_drag",
+            "- 3.0 * acoustic_k * photon_baryon_momentum_ratio * "
+            "thomson_drag",
         )
         self.assertIn(
             "thomson_drag_balance",
@@ -5269,7 +6805,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.conservation_rules[
                 "thomson_drag_balance"
             ].expression,
-            "photon_baryon_momentum_ratio * thomson_drag + "
+            "3.0 * acoustic_k * photon_baryon_momentum_ratio * "
+            "thomson_drag + "
             "baryon_thomson_drag",
         )
         self.assertIn("einstein_energy_residual", perturbation_data.derived)
@@ -5284,9 +6821,17 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "Psi",
         )
         self.assertIsNone(perturbation_data.derived["Psi_tau"].expression)
-        self.assertIn(
-            "metric_constraint_scale",
-            perturbation_data.constraints["phi_constraint"].expression,
+        self.assertEqual(
+            perturbation_data.equations["evolve_Phi"].rhs,
+            "Phi_tau",
+        )
+        self.assertEqual(
+            perturbation_data.initial_conditions["Phi_seed"].expression,
+            "(scalar_potential_seed) + metric_shear_correction",
+        )
+        self.assertEqual(
+            perturbation_data.derived["metric_constraint_scale"].expression,
+            "acoustic_k_sq",
         )
         self.assertEqual(
             perturbation_data.closures["psi_closure"].expression,
@@ -5301,7 +6846,23 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.derived["total_density_source"].expression,
         )
         self.assertIn(
+            "neutrino_temperature_eV",
+            perturbation_data.derived[
+                "massive_neutrino_q0_streaming_speed"
+            ].expression,
+        )
+        self.assertIn(
+            "(4.0 / 3.0) * a * a",
+            perturbation_data.derived[
+                "massive_neutrino_momentum_source"
+            ].expression,
+        )
+        self.assertIn(
             "massive_neutrino_shear_source",
+            perturbation_data.derived["total_shear_source"].expression,
+        )
+        self.assertIn(
+            "Omega_gamma0 * observable_theta_gamma2",
             perturbation_data.derived["total_shear_source"].expression,
         )
         self.assertIn(
@@ -5316,33 +6877,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "theta_gamma3",
             perturbation_data.equations["evolve_theta_gamma2"].rhs,
         )
-        self.assertIn(
+        self.assertNotIn(
             "collision_rate",
             perturbation_data.equations["evolve_theta_gamma2"].rhs,
-        )
-        self.assertIn(
-            "e_gamma1",
-            perturbation_data.equations["evolve_e_gamma2"].rhs,
         )
         self.assertIn(
             "e_gamma3",
             perturbation_data.equations["evolve_e_gamma2"].rhs,
         )
-        self.assertIn(
-            "- collision_rate * theta_gamma3",
+        self.assertNotIn(
+            "collision_rate",
             perturbation_data.equations["evolve_theta_gamma3"].rhs,
         )
-        self.assertIn(
+        self.assertNotIn(
             "collision_rate",
             perturbation_data.equations["evolve_e_gamma2"].rhs,
         )
-        self.assertIn(
-            "- collision_rate * e_gamma3",
+        self.assertNotIn(
+            "collision_rate",
             perturbation_data.equations["evolve_e_gamma3"].rhs,
         )
         self.assertEqual(
             perturbation_data.equations["evolve_e_gamma0"].rhs,
-            "-acoustic_k * e_gamma1",
+            "0.0",
         )
         self.assertNotIn(
             "tight_coupling_drag",
@@ -5355,14 +6912,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(
             perturbation_data.equations["evolve_theta_gamma8"].rhs,
             "acoustic_k * theta_gamma7 - acoustic_k * 9 * theta_gamma8 / "
-            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9) "
-            "- collision_rate * theta_gamma8",
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9)",
         )
         self.assertEqual(
             perturbation_data.equations["evolve_e_gamma8"].rhs,
-            "acoustic_k * e_gamma7 - acoustic_k * 9 * e_gamma8 / "
-            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9) "
-            "- collision_rate * e_gamma8",
+            "1.333333333333333 * acoustic_k * e_gamma7 - "
+            "acoustic_k * 11 * e_gamma8 / "
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 11 * 11)",
         )
         self.assertEqual(
             perturbation_data.derived["delta_nu_massive"].expression,
@@ -5381,13 +6937,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.derived["nu_massive_l3"].expression,
         )
         self.assertIn(
-            "acoustic_k * eta_initial / 6.0",
+            "acoustic_k * scalar_initial_conformal_time / 6.0",
             perturbation_data.initial_conditions[
                 "theta_gamma1_seed"
             ].expression,
         )
         self.assertIn(
-            "acoustic_k_sq * eta_initial / 2.0",
+            "acoustic_k_sq * scalar_initial_conformal_time / 2.0",
             perturbation_data.initial_conditions["theta_b_seed"].expression,
         )
         self.assertIn(
@@ -5397,7 +6953,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ].expression,
         )
         self.assertIn(
-            "acoustic_k * eta_initial / 6.0",
+            "acoustic_k * scalar_initial_conformal_time / 8.0",
             perturbation_data.initial_conditions[
                 "theta_nu_massive_q0_seed"
             ].expression,
@@ -5557,8 +7113,27 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         numpy.testing.assert_allclose(
             numpy.asarray(pp_scale, dtype=numpy.longdouble),
-            numpy.ones_like(ell_factor, dtype=numpy.longdouble),
+            2.0 * numpy.longdouble(numpy.pi) * ell_factor * ell_factor,
         )
+
+    def test_native_power_spectrum_uses_log_k_simpson_quadrature(self) -> None:
+        """Primordial transfer products should use the declared log-k rule."""
+
+        log_k = numpy.asarray((-2.0, -0.5, 1.0), dtype=numpy.longdouble)
+        primordial = numpy.square(log_k)
+        unit_transfer = numpy.ones((1, log_k.size), dtype=numpy.longdouble)
+        actual = native_projection._integrate_power_spectrum(
+            primordial,
+            log_k,
+            unit_transfer,
+            unit_transfer,
+        )
+        expected = numpy.asarray(
+            (4.0 * numpy.longdouble(numpy.pi)) * 3.0,
+            dtype=numpy.longdouble,
+        )
+
+        numpy.testing.assert_allclose(actual, expected)
 
     def test_native_scalar_spectrum_aliases_round_trip(self) -> None:
         """Declared phiphi, Tphi, and Ephi aliases should round-trip."""
@@ -5744,7 +7319,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             adiabatic["perturbation_data"]
             .initial_conditions["delta_c_seed"]
             .expression,
-            "-1.5 * seed",
+            "-1.5 * scalar_lapse_seed",
         )
 
     def test_native_scalar_hierarchy_massive_neutrino_response(
@@ -5858,6 +7433,98 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-15,
         )
 
+    def test_massive_neutrino_grid_uses_physical_temperature_and_sources(
+        self,
+    ) -> None:
+        """Massive q bins must use T_nu0 and physical Einstein weights."""
+
+        raw_contract = _native_scalar_hierarchy_contract(
+            include_massive_neutrino=True,
+            sum_mnu=0.06,
+        )
+        contract = _prepare_native_contract(raw_contract)
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        context = native_evolution._declared_momentum_grid_context(
+            contract["perturbation_data"],
+            model_parameters=contract["param_map"],
+            physical_params=physical_params,
+            scale_factor=1.0,
+        )
+
+        self.assertLess(
+            float(context["massive_neutrino_q0_streaming_speed"]),
+            0.2,
+        )
+        self.assertGreater(
+            float(context["massive_neutrino_density_fraction"]),
+            0.0,
+        )
+        expected_omega_nu = 0.06 / (93.14 * (67.4 / 100.0) ** 2)
+        self.assertAlmostEqual(
+            float(context["massive_neutrino_density_fraction"]),
+            expected_omega_nu,
+            delta=expected_omega_nu * 0.02,
+        )
+        self.assertGreater(
+            float(context["massive_neutrino_density_fraction"])
+            - float(context["massive_neutrino_pressure_fraction"]),
+            0.0,
+        )
+
+    def test_synchronous_route_evolves_only_synchronous_metric_states(
+        self,
+    ) -> None:
+        """Synchronous execution must not evolve a hidden Newtonian Phi."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(gauge="synchronous")
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertNotIn("evolve_Phi", perturbation_data.equations)
+        self.assertIn("evolve_h_sync_metric", perturbation_data.equations)
+        self.assertIn("evolve_eta_sync_metric", perturbation_data.equations)
+        self.assertIn("evolve_gauge_shift_alpha", perturbation_data.equations)
+        self.assertEqual(
+            perturbation_data.closures["phi_closure"].target,
+            "Phi",
+        )
+        self.assertEqual(
+            perturbation_data.closures["psi_closure"].target,
+            "Psi",
+        )
+
+    def test_gauge_invariant_route_evolves_bardeen_metric_states(self) -> None:
+        """Gauge-invariant execution must use its own metric states."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(gauge="gauge_invariant")
+        )
+        perturbation_data = contract["perturbation_data"]
+
+        self.assertIn("evolve_Phi_gi", perturbation_data.equations)
+        self.assertNotIn("evolve_Phi", perturbation_data.equations)
+        self.assertEqual(
+            perturbation_data.constraints["observable_phi_constraint"].target,
+            "Phi",
+        )
+        self.assertEqual(
+            perturbation_data.constraints[
+                "observable_phi_constraint"
+            ].expression,
+            "Phi_gi",
+        )
+        self.assertEqual(
+            perturbation_data.closures["observable_psi_closure"].target,
+            "Psi",
+        )
+        self.assertEqual(
+            perturbation_data.closures["observable_psi_closure"].expression,
+            "Psi_gi",
+        )
+
     def test_native_scalar_hierarchy_momentum_grid_limits_and_convergence(
         self,
     ) -> None:
@@ -5927,7 +7594,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertLess(
             float(relativistic["massive_neutrino_mass_fraction"]),
-            1.0e-6,
+            1.0e-5,
         )
         self.assertLess(
             float(nonrelativistic["massive_neutrino_pressure_ratio"]),

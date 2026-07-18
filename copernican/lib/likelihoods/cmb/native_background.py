@@ -682,6 +682,7 @@ class _CustomCMBBackgroundData:
     n_e_grid: numpy.ndarray
     n_H_grid: numpy.ndarray
     sound_speed_grid: numpy.ndarray
+    baryon_sound_speed_sq_grid: numpy.ndarray
     sound_horizon_mpc: float
     reionization_z: float
     reionization_tau: float
@@ -699,6 +700,7 @@ class _CustomCMBBackgroundData:
     visibility_of_eta: PchipInterpolator
     x_e_of_eta: PchipInterpolator
     sound_speed_of_eta: PchipInterpolator
+    baryon_sound_speed_sq_of_eta: PchipInterpolator
 
     def sample(
         self, eta_values: numpy.ndarray | float
@@ -724,6 +726,9 @@ class _CustomCMBBackgroundData:
             "x_e": numpy.asarray(self.x_e_of_eta(eta_arr), dtype=float),
             "sound_speed": numpy.asarray(
                 self.sound_speed_of_eta(eta_arr), dtype=float
+            ),
+            "baryon_sound_speed_sq": numpy.asarray(
+                self.baryon_sound_speed_sq_of_eta(eta_arr), dtype=float
             ),
         }
 
@@ -818,12 +823,20 @@ class CustomCMBSpectrumData:
 
 @dataclass(frozen=True, slots=True)
 class _DeclaredProjectionKernelBatch:
-    """Cache one ell-batched set of spherical-Bessel projection kernels."""
+    """Cache scalar, vector, and tensor radial projection kernels."""
 
     j_l: numpy.ndarray
     j_l_derivative: numpy.ndarray
+    j_l_second_derivative: numpy.ndarray
     e_kernel: numpy.ndarray
     b_kernel: numpy.ndarray
+    vector_temperature_1: numpy.ndarray
+    vector_temperature_2: numpy.ndarray
+    vector_e: numpy.ndarray
+    vector_b: numpy.ndarray
+    tensor_temperature: numpy.ndarray
+    tensor_e: numpy.ndarray
+    tensor_b: numpy.ndarray
 
 
 def _resolve_declared_accuracy_controls(
@@ -935,8 +948,16 @@ def _get_cached_declared_projection_kernel_batch(
     shape = (len(ell_signature), x_values.size)
     j_l_matrix = numpy.empty(shape, dtype=float)
     j_l_derivative_matrix = numpy.empty(shape, dtype=float)
+    j_l_second_derivative_matrix = numpy.empty(shape, dtype=float)
     e_kernel = numpy.zeros(shape, dtype=float)
     b_kernel = numpy.zeros(shape, dtype=float)
+    vector_temperature_1 = numpy.zeros(shape, dtype=float)
+    vector_temperature_2 = numpy.zeros(shape, dtype=float)
+    vector_e = numpy.zeros(shape, dtype=float)
+    vector_b = numpy.zeros(shape, dtype=float)
+    tensor_temperature = numpy.zeros(shape, dtype=float)
+    tensor_e = numpy.zeros(shape, dtype=float)
+    tensor_b = numpy.zeros(shape, dtype=float)
     inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
     inverse_x_sq = inverse_x * inverse_x
     for ell_index, ell_value in enumerate(ell_signature):
@@ -946,6 +967,11 @@ def _get_cached_declared_projection_kernel_batch(
         )
         j_l_matrix[ell_index] = j_l
         j_l_derivative_matrix[ell_index] = j_l_derivative
+        j_l_second_derivative_matrix[ell_index] = (
+            float(ell_value * (ell_value + 1)) * inverse_x_sq * j_l
+            - j_l
+            - 2.0 * inverse_x * j_l_derivative
+        )
         if int(ell_value) < 2:
             continue
         prefactor = math.exp(
@@ -955,13 +981,53 @@ def _get_cached_declared_projection_kernel_batch(
                 - math.lgamma(int(ell_value) - 1)
             )
         )
+        vector_prefactor = math.sqrt(
+            float((int(ell_value) - 1) * (int(ell_value) + 2))
+        )
         e_kernel[ell_index] = prefactor * j_l * inverse_x_sq
-        b_kernel[ell_index] = prefactor * j_l_derivative * inverse_x
+        b_kernel[ell_index] = (
+            0.5 * prefactor * (j_l_derivative + 2.0 * j_l * inverse_x)
+        )
+        spherical_jn_second = (
+            float(ell_value) * float(ell_value + 1) * inverse_x_sq - 1.0
+        ) * j_l - 2.0 * inverse_x * j_l_derivative
+        vector_temperature_1[ell_index] = (
+            math.sqrt(float(ell_value * (ell_value + 1)) / 2.0)
+            * j_l
+            * inverse_x
+        )
+        vector_temperature_2[ell_index] = math.sqrt(
+            3.0 * float(ell_value * (ell_value + 1)) / 2.0
+        ) * (j_l_derivative * inverse_x - j_l * inverse_x_sq)
+        vector_e[ell_index] = (
+            0.5
+            * vector_prefactor
+            * (j_l * inverse_x_sq + j_l_derivative * inverse_x)
+        )
+        vector_b[ell_index] = 0.5 * vector_prefactor * j_l * inverse_x
+        tensor_temperature[ell_index] = (
+            math.sqrt(3.0 / 8.0) * prefactor * j_l * inverse_x_sq
+        )
+        tensor_e[ell_index] = 0.25 * (
+            -j_l
+            + spherical_jn_second
+            + 2.0 * j_l * inverse_x_sq
+            + 4.0 * j_l_derivative * inverse_x
+        )
+        tensor_b[ell_index] = 0.5 * (j_l_derivative + 2.0 * j_l * inverse_x)
     batch = _DeclaredProjectionKernelBatch(
         j_l=j_l_matrix,
         j_l_derivative=j_l_derivative_matrix,
+        j_l_second_derivative=j_l_second_derivative_matrix,
         e_kernel=e_kernel,
         b_kernel=b_kernel,
+        vector_temperature_1=vector_temperature_1,
+        vector_temperature_2=vector_temperature_2,
+        vector_e=vector_e,
+        vector_b=vector_b,
+        tensor_temperature=tensor_temperature,
+        tensor_e=tensor_e,
+        tensor_b=tensor_b,
     )
     native_cache.set_declared_projection_kernel_batch(cache_key, batch)
     return batch
@@ -1796,6 +1862,7 @@ def _build_custom_cmb_background(
     boltzmann_j_k = 1.380_649e-23
     planck_j_s = 6.626_070_15e-34
     electron_mass_kg = 9.109_383_7015e-31
+    proton_mass_kg = 1.672_621_923_69e-27
     helium_number_ratio = max(
         0.0,
         physical_params.YHe / (4.0 * max(1.0 - physical_params.YHe, 1.0e-6)),
@@ -1867,12 +1934,20 @@ def _build_custom_cmb_background(
             "Declared CMB background expansion history must stay positive."
         )
     H_grid = numpy.asarray(hubble_entry[0], dtype=float)
+    radiation_density = max(
+        float(physical_params.Omega_r0 or 0.0),
+        float(physical_params.Omega_gamma0),
+        1.0e-30,
+    )
+    early_eta_offset = float(a_grid[0]) / (
+        float(physical_params.H0_over_c_Mpc_inv) * math.sqrt(radiation_density)
+    )
     eta_grid = cumulative_trapezoid(
         _C_LIGHT_KM_S / numpy.maximum(a_grid * a_grid * H_grid, 1.0e-12),
         a_grid,
         initial=0.0,
     )
-    eta_grid = numpy.asarray(eta_grid, dtype=float)
+    eta_grid = numpy.asarray(eta_grid + early_eta_offset, dtype=float)
     eta0 = float(eta_grid[-1])
 
     z_asc = z_grid[::-1]
@@ -1979,7 +2054,7 @@ def _build_custom_cmb_background(
         temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
         total_fraction = hydrogen_fraction + 2.0 * helium_number_ratio
         helium_fraction = 2.0 * helium_number_ratio
-        for _ in range(5):
+        for _ in range(32):
             n_e_value = max(total_fraction * n_h_value, 1.0e-30)
             he_ii_ratio = (
                 _saha_ratio(
@@ -2005,7 +2080,9 @@ def _build_custom_cmb_background(
             )
             updated_fraction = hydrogen_fraction + helium_fraction
             if abs(updated_fraction - total_fraction) <= 1.0e-8 * max(
-                1.0, updated_fraction
+                abs(total_fraction),
+                abs(updated_fraction),
+                1.0e-8,
             ):
                 total_fraction = updated_fraction
                 break
@@ -2026,6 +2103,19 @@ def _build_custom_cmb_background(
     recombination_quantities = (
         recombination_section.get("quantities", {}) or {}
     )
+
+    def _hydrogen_temperature(z_value: float) -> float:
+        """Return matter temperature after Compton decoupling."""
+
+        decoupling_z = 150.0
+        photon_temperature = physical_params.Tcmb_K * (1.0 + z_value)
+        if z_value >= decoupling_z:
+            return photon_temperature
+        decoupling_temperature = physical_params.Tcmb_K * (1.0 + decoupling_z)
+        return (
+            decoupling_temperature
+            * ((1.0 + z_value) / (1.0 + decoupling_z)) ** 2
+        )
 
     def _hydrogen_saha_fraction(
         z_value: float,
@@ -2121,8 +2211,8 @@ def _build_custom_cmb_background(
                 name="background.recombination.quantities.peebles_c",
             )
         else:
-            temperature_k = physical_params.Tcmb_K * (1.0 + z_value)
-            alpha_b = _hydrogen_alpha_coefficient(temperature_k)
+            temperature_k = _hydrogen_temperature(z_value)
+            alpha_b = 1.14 * _hydrogen_alpha_coefficient(temperature_k)
             beta_n2 = alpha_b * _saha_ratio(
                 temperature_k,
                 hydrogen_n2_binding_energy_j,
@@ -2740,6 +2830,24 @@ def _build_custom_cmb_background(
     )
     if not numpy.isfinite(visibility_integral) or visibility_integral <= 0.0:
         raise ValueError("Failed to construct a physical visibility function")
+    photon_temperature_grid = physical_params.Tcmb_K * (1.0 + z_grid)
+    decoupling_z = 150.0
+    decoupling_temperature = physical_params.Tcmb_K * (1.0 + decoupling_z)
+    matter_temperature_grid = numpy.where(
+        z_grid >= decoupling_z,
+        photon_temperature_grid,
+        decoupling_temperature * ((1.0 + z_grid) / (1.0 + decoupling_z)) ** 2,
+    )
+    baryon_particle_factor = (1.0 + helium_number_ratio + x_e_grid) / max(
+        1.0 + 4.0 * helium_number_ratio, 1.0e-12
+    )
+    baryon_sound_speed_sq_grid = (
+        (5.0 / 3.0)
+        * boltzmann_j_k
+        * matter_temperature_grid
+        / (proton_mass_kg * (299_792_458.0**2))
+        * baryon_particle_factor
+    )
     sound_speed_grid = _C_LIGHT_KM_S / numpy.sqrt(
         3.0
         * (
@@ -2760,6 +2868,9 @@ def _build_custom_cmb_background(
         sound_speed_over_a2_h,
         a_grid,
         initial=0.0,
+    )
+    sound_horizon_grid += (
+        float(sound_speed_grid[0]) / _C_LIGHT_KM_S * early_eta_offset
     )
     sound_horizon_mpc = float(
         numpy.interp(
@@ -2794,6 +2905,11 @@ def _build_custom_cmb_background(
         sound_speed_grid,
         extrapolate=True,
     )
+    baryon_sound_speed_sq_of_eta = PchipInterpolator(
+        eta_grid,
+        baryon_sound_speed_sq_grid,
+        extrapolate=True,
+    )
 
     background_data = _CustomCMBBackgroundData(
         a_grid=a_grid,
@@ -2811,6 +2927,7 @@ def _build_custom_cmb_background(
         n_e_grid=n_e_grid,
         n_H_grid=n_H_grid,
         sound_speed_grid=sound_speed_grid,
+        baryon_sound_speed_sq_grid=baryon_sound_speed_sq_grid,
         sound_horizon_mpc=sound_horizon_mpc,
         reionization_z=float(z_reion),
         reionization_tau=float(reionization_tau),
@@ -2828,6 +2945,7 @@ def _build_custom_cmb_background(
         visibility_of_eta=visibility_of_eta,
         x_e_of_eta=x_e_of_eta,
         sound_speed_of_eta=sound_speed_of_eta,
+        baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
     )
     native_cache.set_custom_cmb_background(cache_key, background_data)
     return _get_cached_custom_cmb_background(cache_key)

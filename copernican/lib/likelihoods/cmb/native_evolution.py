@@ -22,6 +22,11 @@ from .native_background import (
     _resolve_declared_accuracy_controls,
 )
 
+_NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
+    1.0 / 3.0
+) * 8.617_333_262_145e-5
+_NEUTRINO_DENSITY_EV_H2 = 93.14
+
 
 def _compile_declared_perturbation_contract(
     contract: Mapping[str, Any],
@@ -562,7 +567,22 @@ def _resolve_declared_momentum_grid_runtimes(
             isinstance(parameter_name, str)
             and parameter_name in model_parameters
         ):
-            return max(float(model_parameters[parameter_name]), 0.0)
+            total_mass = max(float(model_parameters[parameter_name]), 0.0)
+            if parameter_name in {"sum_mnu", "mnu"}:
+                count = max(
+                    int(
+                        round(
+                            float(
+                                model_parameters.get(
+                                    "num_massive_neutrinos", 1.0
+                                )
+                            )
+                        )
+                    ),
+                    1,
+                )
+                return total_mass / float(count)
+            return total_mass
         for candidate in ("sum_mnu", "mnu"):
             if candidate in model_parameters:
                 total_mass = max(float(model_parameters[candidate]), 0.0)
@@ -699,6 +719,52 @@ def _declared_momentum_grid_context(
             return float(array_value)
         return array_value
 
+    neutrino_temperature_eV = (
+        float(physical_params.Tcmb_K) * _NEUTRINO_TEMPERATURE_EV_PER_K
+    )
+    neutrino_temperature_eV = max(neutrino_temperature_eV, 1.0e-12)
+    context["neutrino_temperature_eV"] = neutrino_temperature_eV
+
+    def _declared_total_mass_eV(
+        runtime: _DeclaredMomentumGridRuntime,
+    ) -> float:
+        """Return the total thermal mass represented by one q family."""
+
+        for parameter_name in ("sum_mnu", "mnu"):
+            if parameter_name in model_parameters:
+                return max(float(model_parameters[parameter_name]), 0.0)
+        count = max(
+            int(
+                round(float(model_parameters.get("num_massive_neutrinos", 1)))
+            ),
+            1,
+        )
+        return max(float(runtime.mass_eV) * count, 0.0)
+
+    def _massive_neutrino_omega0(
+        runtime: _DeclaredMomentumGridRuntime,
+        total_mass_eV: float,
+    ) -> float:
+        """Return the present massive-neutrino density fraction."""
+
+        del runtime
+
+        if total_mass_eV > 0.0:
+            return total_mass_eV / (
+                _NEUTRINO_DENSITY_EV_H2
+                * max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
+            )
+        neutrino_count = max(
+            int(
+                round(float(model_parameters.get("num_massive_neutrinos", 1)))
+            ),
+            0,
+        )
+        effective_neff = max(float(physical_params.Neff or 0.0), 1.0e-30)
+        return max(float(physical_params.Omega_nu0 or 0.0), 0.0) * (
+            float(neutrino_count) / effective_neff
+        )
+
     for runtime in runtimes:
         thermal_distribution = _thermal_fermi_dirac_distribution(
             runtime.points
@@ -707,7 +773,8 @@ def _declared_momentum_grid_context(
             runtime.weights * thermal_distribution,
             dtype=float,
         )
-        mass_term = float(runtime.mass_eV) * a_values
+        mass_ratio_today = float(runtime.mass_eV) / neutrino_temperature_eV
+        mass_term = mass_ratio_today * a_values
         epsilon = numpy.sqrt(
             numpy.square(runtime.points) + numpy.square(mass_term[..., None])
         )
@@ -740,6 +807,45 @@ def _declared_momentum_grid_context(
         )
         shear_weights, background_shear_moment = (
             _normalize_declared_momentum_weights(shear_weight_raw)
+        )
+        total_mass_eV = _declared_total_mass_eV(runtime)
+        massive_omega0 = _massive_neutrino_omega0(
+            runtime,
+            total_mass_eV,
+        )
+        epsilon_today = numpy.sqrt(
+            numpy.square(runtime.points) + mass_ratio_today * mass_ratio_today
+        )
+        density_moment_today = numpy.sum(
+            quadrature_weights
+            * numpy.power(runtime.points, 3.0)
+            * epsilon_today
+        )
+        density_moment_today = max(float(density_moment_today), 1.0e-300)
+        scale_factor_array = numpy.maximum(a_values, 1.0e-30)
+        density_fraction = (
+            massive_omega0
+            * numpy.power(scale_factor_array, -4.0)
+            * background_density_moment
+            / density_moment_today
+        )
+        pressure_fraction = (
+            massive_omega0
+            * numpy.power(scale_factor_array, -4.0)
+            * background_pressure_moment
+            / density_moment_today
+        )
+        momentum_fraction = (
+            massive_omega0
+            * numpy.power(scale_factor_array, -4.0)
+            * background_momentum_moment
+            / density_moment_today
+        )
+        shear_fraction = (
+            massive_omega0
+            * numpy.power(scale_factor_array, -4.0)
+            * background_shear_moment
+            / density_moment_today
         )
         velocity_ratio = numpy.sum(
             momentum_weights * q_velocity_ratio,
@@ -780,6 +886,10 @@ def _declared_momentum_grid_context(
             ("streaming_speed", velocity_ratio),
             ("pressure_ratio", pressure_ratio),
             ("mass_fraction", mass_fraction),
+            ("density_fraction", density_fraction),
+            ("pressure_fraction", pressure_fraction),
+            ("momentum_fraction", momentum_fraction),
+            ("shear_fraction", shear_fraction),
         ):
             normalized = numpy.asarray(value, dtype=float)
             if normalized.ndim == 0:
@@ -878,6 +988,10 @@ def _declared_momentum_grid_context(
                 "streaming_speed",
                 "pressure_ratio",
                 "mass_fraction",
+                "density_fraction",
+                "pressure_fraction",
+                "momentum_fraction",
+                "shear_fraction",
             ):
                 context[f"massive_neutrino_{name}"] = context[
                     f"{prefix}_{name}"
@@ -991,6 +1105,64 @@ def _compute_tight_coupling_drag(
     return drag
 
 
+def _nonuniform_gradient(
+    values: numpy.ndarray,
+    grid: numpy.ndarray,
+) -> numpy.ndarray:
+    """Return a three-point derivative on a strictly increasing grid."""
+
+    samples = numpy.asarray(values, dtype=float)
+    coordinates = numpy.asarray(grid, dtype=float)
+    if samples.ndim != 1 or coordinates.ndim != 1:
+        raise ValueError("Nonuniform derivatives require one-dimensional data")
+    if samples.size != coordinates.size or samples.size < 2:
+        raise ValueError("Nonuniform derivative data must have two samples")
+    steps = numpy.diff(coordinates)
+    if (
+        not numpy.all(numpy.isfinite(samples))
+        or not numpy.all(numpy.isfinite(coordinates))
+        or numpy.any(steps <= 0.0)
+    ):
+        raise ValueError(
+            "Nonuniform derivative grid must be finite and ordered"
+        )
+    if samples.size == 2:
+        slope = (samples[1] - samples[0]) / steps[0]
+        return numpy.asarray((slope, slope), dtype=float)
+
+    derivative = numpy.empty_like(samples, dtype=float)
+    left_step = float(steps[0])
+    right_step = float(steps[1])
+    left_span = left_step + right_step
+    derivative[0] = (
+        -(2.0 * left_step + right_step) * samples[0] / (left_step * left_span)
+        + left_span * samples[1] / (left_step * right_step)
+        - left_step * samples[2] / (right_step * left_span)
+    )
+    for index in range(1, samples.size - 1):
+        left_step = float(steps[index - 1])
+        right_step = float(steps[index])
+        span = left_step + right_step
+        derivative[index] = (
+            -right_step * samples[index - 1] / (left_step * span)
+            + (right_step - left_step)
+            * samples[index]
+            / (left_step * right_step)
+            + left_step * samples[index + 1] / (right_step * span)
+        )
+    left_step = float(steps[-2])
+    right_step = float(steps[-1])
+    right_span = left_step + right_step
+    derivative[-1] = (
+        right_step * samples[-3] / (left_step * right_span)
+        - right_span * samples[-2] / (left_step * right_step)
+        + (left_step + 2.0 * right_step)
+        * samples[-1]
+        / (right_step * right_span)
+    )
+    return derivative
+
+
 def _tight_coupling_entry_rate(
     *,
     k_value: float,
@@ -1039,51 +1211,6 @@ def _tight_coupling_is_active(
     )
 
 
-def _exact_thomson_relaxation_step(
-    *,
-    theta_gamma1: float,
-    theta_b: float,
-    theta_gamma2: float,
-    e_gamma2: float,
-    collision_rate: float,
-    baryon_loading: float,
-    dt: float,
-) -> tuple[float, float, float, float]:
-    """Return the exact collision-only Thomson update for one sub-step."""
-
-    if dt == 0.0 or collision_rate <= 0.0:
-        return theta_gamma1, theta_b, theta_gamma2, e_gamma2
-    photon_baryon_ratio = 1.0 / max(float(baryon_loading), 1.0e-12)
-    collision_strength = float(collision_rate) * float(dt)
-
-    dipole_mode = float(theta_gamma1) - float(theta_b) / 3.0
-    momentum_mode = float(theta_b) + photon_baryon_ratio * float(theta_gamma1)
-    dipole_decay = numpy.exp(
-        -collision_strength * (1.0 + photon_baryon_ratio / 3.0)
-    )
-    relaxed_theta_gamma1 = (
-        momentum_mode + 3.0 * dipole_mode * dipole_decay
-    ) / (3.0 + photon_baryon_ratio)
-    relaxed_theta_b = momentum_mode - (
-        photon_baryon_ratio * relaxed_theta_gamma1
-    )
-
-    fast_mode = float(theta_gamma2) - float(e_gamma2)
-    slow_mode = float(theta_gamma2) + 6.0 * float(e_gamma2)
-    fast_decay = numpy.exp(-collision_strength)
-    slow_decay = numpy.exp(-0.3 * collision_strength)
-    relaxed_theta_gamma2 = (
-        slow_mode * slow_decay + 6.0 * fast_mode * fast_decay
-    ) / 7.0
-    relaxed_e_gamma2 = (slow_mode * slow_decay - fast_mode * fast_decay) / 7.0
-    return (
-        float(relaxed_theta_gamma1),
-        float(relaxed_theta_b),
-        float(relaxed_theta_gamma2),
-        float(relaxed_e_gamma2),
-    )
-
-
 def _resolve_declared_graph_context(
     context: dict[str, Any],
     perturbation_data: Any,
@@ -1092,6 +1219,7 @@ def _resolve_declared_graph_context(
     eta_grid: numpy.ndarray | None,
     execution_plan: _DeclaredGraphExecutionPlan | None,
     suppressed_outputs: Mapping[str, Any] | None = None,
+    required_names: set[str] | None = None,
 ) -> dict[str, Any]:
     """Resolve derivative symbols, derived expressions, and relations."""
 
@@ -1101,13 +1229,63 @@ def _resolve_declared_graph_context(
         )
     runtime_spec = execution_plan.runtime_spec
 
+    if required_names is not None and eta_grid is None:
+        unresolved = False
+        for step in execution_plan.derivative_steps:
+            if step.output_name not in required_names:
+                continue
+            if step.output_name in context:
+                continue
+            slot_index = runtime_spec.state_index_by_key.get(
+                (step.variable, step.wrt, int(step.order))
+            )
+            if slot_index is None or step.slot_name not in context:
+                unresolved = True
+                continue
+            context[step.output_name] = context[step.slot_name]
+        with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+            for step in execution_plan.value_steps:
+                if step.output_name not in required_names:
+                    continue
+                if (
+                    suppressed_outputs is not None
+                    and step.output_name in suppressed_outputs
+                ):
+                    context[step.output_name] = suppressed_outputs[
+                        step.output_name
+                    ]
+                    continue
+                if step.output_name in context:
+                    continue
+                if any(
+                    dependency not in context
+                    for dependency in step.dependencies
+                ):
+                    unresolved = True
+                    break
+                context[step.output_name] = (
+                    _evaluate_compiled_expression_noerr(
+                        step.compiled_expression,
+                        context,
+                    )
+                )
+        if not unresolved:
+            return context
+
     pending_derivatives = list(execution_plan.derivative_steps)
     pending_values = list(execution_plan.value_steps)
     while pending_derivatives or pending_values:
         progress = False
         next_derivatives: list[_DeclaredDerivativeStep] = []
         for step in pending_derivatives:
+            if (
+                required_names is not None
+                and step.output_name not in required_names
+            ):
+                continue
             target_name = step.variable
+            if step.output_name in context:
+                continue
             if target_name not in context:
                 next_derivatives.append(step)
                 continue
@@ -1147,24 +1325,16 @@ def _resolve_declared_graph_context(
                         f"grid for derivative symbol '{step.output_name}'."
                     )
             for _ in range(derivative_order):
-                derivative_eta = numpy.asarray(
-                    numpy.gradient(
-                        derivative_value,
-                        eta_grid,
-                        edge_order=1,
-                    ),
-                    dtype=float,
+                derivative_eta = _nonuniform_gradient(
+                    derivative_value,
+                    eta_grid,
                 )
                 if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
                     derivative_value = derivative_eta
                     continue
-                coordinate_rate = numpy.asarray(
-                    numpy.gradient(
-                        coordinate_history,
-                        eta_grid,
-                        edge_order=1,
-                    ),
-                    dtype=float,
+                coordinate_rate = _nonuniform_gradient(
+                    coordinate_history,
+                    eta_grid,
                 )
                 if not numpy.all(numpy.isfinite(coordinate_rate)):
                     raise ValueError(
@@ -1184,6 +1354,11 @@ def _resolve_declared_graph_context(
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
             for step in pending_values:
                 if (
+                    required_names is not None
+                    and step.output_name not in required_names
+                ):
+                    continue
+                if (
                     suppressed_outputs is not None
                     and step.output_name in suppressed_outputs
                 ):
@@ -1191,6 +1366,8 @@ def _resolve_declared_graph_context(
                         step.output_name
                     ]
                     progress = True
+                    continue
+                if step.output_name in context:
                     continue
                 missing = [
                     dependency

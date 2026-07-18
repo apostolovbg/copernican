@@ -354,7 +354,8 @@ notes: |
   * Non-standard perturbation expressions can use the declared variables, the
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
-    `sound_speed_sq`, `collision_rate`, `free_streaming`,
+    `sound_speed_sq`, `baryon_sound_speed_sq`, `collision_rate`,
+    `free_streaming`,
     `tight_coupling_drag`, and `tight_coupling_ratio`, plus the safe math
     functions exposed by the validator. The default `seed` is a
     unit-normalized transfer seed unless the contract overrides it, and
@@ -365,14 +366,14 @@ notes: |
     End boundary conditions are supported when they replace the missing
     start-state slots for the declared solver.
   * `cmb.perturbations.interactions`, `conservation_rules`, and
-    `projection_extensions` close the remaining theory-extension surface.
+    `projection_extensions` define the theory-extension surface.
     Use interactions for compiled source/equation helpers, conservation
     rules for fail-loud residual checks, and projection extensions to name
     reviewed `custom_line_of_sight` kernels with explicit source-role
     contracts.
   * `cmb.background.derived` may expose expansion, density, pressure,
     equation-of-state, or curvature quantities directly. The native solver
-    consumes those declared outputs first and only derives the remaining
+    consumes those declared outputs first and only derives the required
     physically required scalars when the contract makes that possible.
     `cmb.background.recombination.quantities` may also override the native
     hydrogen recombination hook, but when present it must define

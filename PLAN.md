@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-11
+**Last Updated:** 2026-07-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -16,22 +16,22 @@ Use `PLAN.md` to track active implementation work below this block.
 
 Use this plan to complete the native CMB solver.
 
-The previous roadmap grouped several independent implementation sessions
-inside broad slices. That structure allowed individual plumbing or proof
-changes to be presented as closure while major physical work remained.
-
-This replacement plan uses real sequential slices.
+This roadmap uses real sequential implementation slices. Each slice has a
+specific physical target and an explicit acceptance boundary.
 
 Each slice must be independently implementable, testable, documentable,
 and closable in one work session. If a slice cannot be completed in one
 session, the plan must be divided into additional slices before coding
-continues. Do not create hidden sub-slices, work packages, phases, or
+proceeds. Do not create hidden sub-slices, work packages, phases, or
 follow-up cleanup inside a slice.
 
 The target condition is final:
 
-* `standard: true` stays on the standard backend path.
-* `standard: false` stays native, CAMB-free, and CLASS-free in production.
+* Every production CMB model uses the native declared-graph path.
+* CAMB and CLASS are independent test references only; production remains
+  free of both backends.
+* The production model contract has no solver-route boolean or backend
+  fallback.
 * The native path implements physical scalar, vector, and tensor
   Einstein-Boltzmann sectors.
 * Massive neutrinos use one authoritative q-resolved hierarchy with
@@ -56,7 +56,7 @@ The target condition is final:
 
 ## Problem Preamble
 
-Copernican already has a substantial native declared-graph CMB engine.
+Copernican has a substantial native declared-graph CMB engine.
 
 The current branch includes:
 
@@ -74,7 +74,7 @@ The current branch includes:
 Those capabilities are the baseline. They are not proof that the native
 solver is physically complete.
 
-The remaining gaps are:
+The target capability gaps are:
 
 * scalar Einstein equations and metric-source normalization;
 * physical photon, polarization, matter, and neutrino hierarchy closure;
@@ -94,10 +94,11 @@ response-only tests while its physical target remains absent.
 
 ## Current Baseline
 
-The following items are already closed and must not be added back to the
-roadmap as unfinished work:
+The following baseline capabilities are established outside the open
+acceptance work and must not be restored to the roadmap as unfinished work:
 
-* The native solver route is selected for `standard: false`.
+* A declared native route executes models carrying the transitional native
+  marker.
 * The native route does not use CAMB or CLASS in production.
 * The exact curved-sky lensing remapper exists.
 * Gaussian lensing smoothing is removed.
@@ -117,7 +118,7 @@ roadmap as unfinished work:
 * Generic vector-like and tensor-like graph variables can execute.
 * Sector-incompatible cross spectra fail before execution.
 
-The following remain open:
+The following acceptance areas are not established by the current baseline:
 
 * physical scalar normalization;
 * physical massive-neutrino quadrature;
@@ -130,7 +131,7 @@ The following remain open:
 
 ## Overview
 
-The remaining work is divided into ten slices.
+The roadmap divides the target work into nineteen slices.
 
 Slice One locks the physical convention.
 
@@ -151,20 +152,39 @@ Slice Seven implements the physical vector sector.
 
 Slice Eight implements the physical tensor sector.
 
-Slice Nine establishes native absolute reference parity.
+Slice Nine establishes the native reference foundation.
 
-Slice Ten establishes convergence and closes the repository truth.
+Slice Ten establishes shared control-model and test-model selection.
+
+Slice Eleven creates the native LCDM model.
+
+Slice Twelve migrates all other CMB models to the native contract.
+
+Slice Thirteen establishes native scalar absolute parity.
+
+Slice Fourteen establishes native lensing parity.
+
+Slice Fifteen establishes massive-neutrino absolute parity.
+
+Slice Sixteen establishes tensor absolute parity.
+
+Slice Seventeen establishes gauge and vector absolute parity.
+
+Slice Eighteen removes production backend routing and completes the native-
+only cutover.
+
+Slice Nineteen establishes convergence and closes the repository truth.
 
 Each slice includes its own implementation, tests, documentation, and
-changelog entry. There is no later cleanup slice.
+changelog entry. The roadmap contains no cleanup slice.
 
 ## Execution Rules
 
 * Execute slices strictly in order.
 * Do not begin a later slice while an earlier slice is open.
 * Each slice represents one complete work session.
-* If a slice requires another work session, divide it into new numbered
-  slices before implementation continues.
+* If a slice requires another work session, divide it into numbered slices
+  before implementation proceeds.
 * Do not hide additional sessions under tasks, work packages, follow-ups,
   polish, or cleanup.
 * Do not add optional or deferred physics.
@@ -172,8 +192,9 @@ changelog entry. There is no later cleanup slice.
 * Use a neutral native standard cosmology for acceptance testing.
 * CAMB or CLASS may be used only as independent test references.
 * Production native code must not import or call CAMB or CLASS.
-* Do not alter `standard: true` behavior except where shared output
-  consistency requires it.
+* During migration, preserve model physics and public output contracts;
+  complete the native replacement before removing the standard route in
+  Slice Eighteen.
 * Do not add empirical output scales, direct spectrum injections, hidden
   damping, or test-only physical terms.
 * Missing spectra must remain unavailable with a reason.
@@ -255,7 +276,8 @@ Tasks:
 
 Done when:
 
-* Every later slice can implement equations without inventing conventions.
+* Each subsequent slice can implement equations without inventing
+  conventions.
 * Every generated state has one documented meaning.
 * Every standard spectrum has one documented normalization.
 * No undocumented mixture of conventions remains.
@@ -264,7 +286,7 @@ Done when:
 
 Purpose:
 
-Replace the remaining proxy scalar metric system with the complete scalar
+Replace the proxy scalar metric system with the complete scalar
 Einstein system in the convention fixed by Slice One.
 
 Depends on:
@@ -446,7 +468,7 @@ Done when:
 
 Purpose:
 
-Replace the remaining special-case Thomson integration path with generic
+Replace the special-case Thomson integration path with generic
 compiled collision blocks.
 
 Depends on:
@@ -685,12 +707,12 @@ Done when:
 * Tensor `TT`, `TE`, `EE`, and `BB` respond physically to tensor inputs.
 * Primordial tensor `BB` survives exact lensing remapping.
 
-### [open] Slice Nine - Native absolute scientific parity
+### [closed] Slice Nine - Native reference foundation
 
 Purpose:
 
-Demonstrate that the completed native solver reproduces an independent
-Boltzmann reference in absolute physical output.
+Freeze the independent reference surface and establish the native background
+and recombination baseline used by the parity slices that follow.
 
 Depends on:
 
@@ -699,32 +721,29 @@ Depends on:
 Probable affected files:
 
 * `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
 * `copernican/lib/likelihoods/cmb/native_projection.py`
 * `copernican/lib/likelihoods/cmb/native_lensing.py`
 * `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
 * `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
+* `copernican/docs/model_template.yml`
 * `CHANGELOG.md`
 * `PLAN.md`
 
 Scope:
 
-* Create one neutral `standard: false` native acceptance cosmology.
-* Run it through the production native solver.
-* Generate reference results through CAMB or CLASS only inside tests.
+* Freeze one neutral native LCDM acceptance cosmology definition for the
+  native model created in Slice Eleven.
+* Run the existing native acceptance contract through the production native
+  background and recombination path.
+* Generate CAMB or CLASS reference fixtures only inside scientific tests.
 * Compare native background quantities.
-* Compare recombination and visibility quantities.
-* Compare native scalar `TT`, `TE`, and `EE`.
-* Compare native `PP`, `TP`, and `EP`.
-* Compare all four native lensed spectra.
-* Compare native massive-neutrino responses.
-* Compare native tensor outputs.
-* Compare physical acoustic features.
-* Do not use the standard adapter as the tested output.
-* Do not accept amplitude response as absolute parity.
+* Compare recombination, visibility, and reionization quantities.
+* Validate projection-kernel analytic limits.
+* Validate exact curved-sky remapper normalization and interpolation.
+* Record reference provenance, numerical controls, and bounded work units.
+* Keep full scalar, lensing, neutrino, tensor, gauge, and vector parity in
+  the dedicated slices below.
 
 Required background thresholds:
 
@@ -736,49 +755,461 @@ Required background thresholds:
 * recombination 90th-percentile relative error at or below `5%`;
 * reionization optical-depth relative error at or below `1%`.
 
-Required scalar-spectrum thresholds:
-
-* compare `TT`, `TE`, and `EE` over ell `2..2000`;
-* compare `PP` over ell `10..1500`;
-* compare lensed spectra over ell `2..2000`;
-* `TT` median fractional error at or below `5%`;
-* `TT` 90th-percentile fractional error at or below `10%`;
-* `EE` median fractional error at or below `5%`;
-* `EE` 90th-percentile fractional error at or below `10%`;
-* normalized `TE` RMS error at or below `5%`;
-* first three `TT` peaks within three ell;
-* first three `EE` peaks within three ell;
-* first three `TE` zero crossings within three ell;
-* `PP` median fractional error at or below `10%`;
-* `PP` 90th-percentile fractional error at or below `20%`;
-* lensed `BB` median fractional error at or below `15%`.
-
-Required non-scalar and neutrino thresholds:
-
-* tensor `TT`, `EE`, and `BB` median fractional error at or below `10%`;
-* massive-neutrino spectrum changes agree with the reference to `10%`;
-* gauge-equivalent scalar spectra agree to `0.1%`;
-* vector analytic-limit residuals meet their declared tolerances.
-
 Tasks:
 
-* Add native absolute background-reference tests.
-* Add native absolute scalar-spectrum tests.
-* Add native lensing-reference tests.
-* Add native massive-neutrino response-reference tests.
-* Add native tensor-reference tests.
-* Fix physical source defects exposed by those comparisons.
-* Record the accepted reference cosmology and tolerance table.
+* Complete independent reference-fixture construction.
+* Complete background and recombination acceptance metrics.
+* Complete projection and remapper unit-level acceptance metrics.
+* Record the accepted cosmology and tolerance table.
 * Update the solver documentation and changelog.
 
 Done when:
 
-* Production native results meet all declared reference thresholds.
-* The comparison is against an independent code path.
-* No standard-backend result is presented as native validation.
-* No response-only test is presented as absolute parity.
+* The native acceptance contract executes through the native solver.
+* All background and recombination thresholds pass.
+* Reference fixtures are created outside production native execution.
+* Projection and remapper normalization tests pass independently.
+* No scalar or non-scalar absolute-parity claim is made by this slice.
 
-### [open] Slice Ten - Numerical convergence and final closure
+### [open] Slice Ten - Shared control and test model selection
+
+Purpose:
+
+Replace the hard-coded LCDM comparison control with an explicit control-model
+and test-model pair shared by the CLI and GUI workflow layers.
+
+Depends on:
+
+* Slice Nine.
+
+Probable affected files:
+
+* `copernican/workflow.py`
+* `copernican/lib/cli/**`
+* `copernican/lib/gui/**`
+* `copernican/lib/plotter.py`
+* `copernican/lib/gui/plot_viewer.py`
+* `copernican/lib/validation/**`
+* `tests/copernican/lib/test_workflow.py`
+* `tests/copernican/lib/test_plotter.py`
+* `tests/copernican/lib/gui/**`
+* `tests/project/lib/test_core.py`
+* `README.md`
+* `copernican/README.md`
+* `copernican/docs/api_overview.md`
+* `copernican/docs/gui_guide.md`
+* `copernican/docs/gui_overview.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Add a control-model field with the current LCDM model as its default.
+* Use `copernican/models/model_lcdm.yml` as that transitional default.
+* Keep the existing test-model page and selection as the test-model field.
+* Add a control-model page immediately before the existing test-model page.
+* Reuse the existing model-choice page behavior and validation in the new
+  control page rather than creating a separate selection implementation.
+* Add matching CLI control-model and test-model options.
+* Represent both selections in one shared comparison request consumed by CLI
+  and GUI execution paths.
+* Permit comparisons between any two compatible declared models.
+* Validate compatible observables, units, ell grids, and spectrum roles before
+  comparison.
+* Propagate resolved control and test identities into manifests, caches, run
+  summaries, output names, plot titles, plot footers, and residual labels.
+* Keep solver selection out of this feature; control and test are model roles,
+  not backend choices.
+
+Tasks:
+
+* Generalize the hard-coded LCDM control input in the shared workflow layer.
+* Add the control-model GUI page before the existing test-model page.
+* Add CLI flags with equivalent shared request semantics.
+* Replace hard-coded `LCDM vs. X` labels and filenames with resolved model
+  identities.
+* Add pair-selection, compatibility, manifest, plotting, CLI, and GUI tests.
+* Update the user-facing documentation and changelog.
+
+Done when:
+
+* CLI and GUI construct the same control/test comparison request.
+* LCDM remains the default control model.
+* Any compatible model can be selected as control or test model.
+* Outputs identify the actual control and test models without LCDM-specific
+  assumptions.
+
+### [open] Slice Eleven - Native LCDM model
+
+Purpose:
+
+Create the first real production native LCDM model. The model must be a
+declared physical graph rather than a documentation template or a route flag
+that delegates to another backend.
+
+Depends on:
+
+* Slice Ten.
+
+Probable affected files:
+
+* `copernican/models/model_lcdm_ccmbs.yml`
+* `copernican/docs/model_template.yml`
+* `docs/model_template.yml`
+* `copernican/lib/model_spec_validator.py`
+* `copernican/lib/perturbation_contract.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Define LCDM background and recombination inputs in the native model shape.
+* Define the scalar Einstein-Boltzmann graph, sources, projections, and
+  numerical controls.
+* Define regular adiabatic scalar initial conditions.
+* Execute the model through the production native solver.
+* Preserve the same cosmological parameters used by the independent
+  reference model.
+* Expose declared spectrum availability and provenance in the run manifest.
+
+Tasks:
+
+* Create a real native LCDM model file.
+* Name the native migration artifact
+  `copernican/models/model_lcdm_ccmbs.yml`.
+* Validate its schema, units, source roles, and graph compilation.
+* Add an end-to-end native LCDM smoke test.
+* Remove any dependency on the documentation-only template for execution.
+* Update native model documentation and the changelog.
+
+Done when:
+
+* The real native LCDM model validates and executes without CAMB or CLASS.
+* Its scalar transfer and spectrum outputs are finite and declared.
+* The model manifest records native execution and numerical provenance.
+* No standard-backend result is used as the production output.
+
+### [open] Slice Twelve - Universal native model migration
+
+Purpose:
+
+Migrate every other CMB theory model to the native declared-graph shape so
+production has one solver contract for LCDM and custom theories.
+
+Depends on:
+
+* Slice Eleven.
+
+Probable affected files:
+
+* `copernican/models/*.yml`
+* `copernican/lib/model_spec_validator.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/engine_adapter.py`
+* `copernican/lib/likelihoods/cmb/cmb.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/test_model_spec_validator.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/model_template.yml`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Inventory every model with CMB perturbations.
+* Translate every standard and custom CMB model into native declarations.
+* Preserve model parameters, background quantities, priors, and observable
+  contracts while replacing backend-specific execution assumptions.
+* Declare equations, initial conditions, interactions, conservation rules,
+  source roles, projections, units, and numerical controls for each model.
+* Add native validation and smoke execution for every migrated model.
+* Keep CAMB or CLASS references inside tests only.
+
+Tasks:
+
+* Migrate all CMB model manifests.
+* Reject incomplete native declarations before execution.
+* Add model-by-model native validation coverage.
+* Remove production assumptions that require a standard backend.
+* Update model and solver documentation and the changelog.
+
+Done when:
+
+* Every CMB theory model compiles through the native contract.
+* Every migrated model has a native execution smoke test.
+* No production model requires CAMB or CLASS to produce CMB spectra.
+* Model manifests distinguish unavailable, zero, and unrequested spectra.
+
+### [open] Slice Thirteen - Native scalar absolute parity
+
+Purpose:
+
+Establish absolute scalar spectrum parity for the production native LCDM
+model at a fixed cosmology against an independent reference.
+
+Depends on:
+
+* Slice Twelve.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Compare native `TT`, `TE`, and `EE` over ell `2..2000`.
+* Compare native `PP` over ell `10..1500`.
+* Compare native `TP` and `EP` over their declared supported ranges.
+* Compare TT and EE acoustic peak locations.
+* Compare TE zero crossings.
+* Generate CAMB or CLASS results only in independent scientific tests.
+* Do not use response ratios or standard-backend output as parity evidence.
+
+Required thresholds:
+
+* `TT` median and 90th-percentile error at or below `5%` and `10%`.
+* `EE` median and 90th-percentile error at or below `5%` and `10%`.
+* normalized `TE` RMS error at or below `5%`.
+* first three TT and EE peaks within three ell.
+* first three TE zero crossings within three ell.
+* `PP` median and 90th-percentile error at or below `10%` and `20%`.
+
+Done when:
+
+* Production native scalar output meets every threshold at fixed cosmology.
+* The full-range comparison is absolute and independently generated.
+* The physical source and hierarchy defects exposed by the comparison are
+  fixed at their production roots.
+
+### [open] Slice Fourteen - Native lensing parity
+
+Purpose:
+
+Validate the complete native scalar-to-lensed pipeline independently of the
+remapper-only tests.
+
+Depends on:
+
+* Slice Thirteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Validate remapping normalization separately with independent inputs.
+* Validate remapping interpolation separately.
+* Feed native unlensed spectra and native `PP` into the remapper.
+* Compare native-source lensed `TT`, `TE`, `EE`, and `BB` with the reference.
+* Verify declared primordial and generated B-mode sources survive lensing.
+
+Required thresholds:
+
+* lensed spectra compare over ell `2..2000`.
+* lensed `BB` median fractional error is at or below `15%`.
+* Remapping normalization meets its analytic and reference tolerances.
+
+Done when:
+
+* Full lensed parity passes using native source and native lensing inputs.
+* No direct reference-spectrum injection participates in the production path.
+
+### [open] Slice Fifteen - Massive-neutrino absolute parity
+
+Purpose:
+
+Validate the authoritative q-resolved massive-neutrino hierarchy at fixed
+cosmology with absolute native spectra.
+
+Depends on:
+
+* Slice Thirteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Compare massive-neutrino native spectra at fixed cosmologies.
+* Validate q-grid nodes, weights, and thermal momentum factors.
+* Validate density, pressure, momentum, and shear source moments.
+* Validate relativistic-to-nonrelativistic background transitions.
+* Replace response-only neutrino evidence with absolute comparisons.
+
+Required threshold:
+
+* Massive-neutrino absolute spectrum errors are at or below `10%` for the
+  accepted comparison surface.
+
+Done when:
+
+* Native massive-neutrino output agrees with the independent fixed-cosmology
+  reference and remains tied to the resolved q hierarchy.
+
+### [open] Slice Sixteen - Tensor absolute parity
+
+Purpose:
+
+Establish absolute tensor spectrum parity for the native tensor hierarchy.
+
+Depends on:
+
+* Slice Thirteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Compare native tensor `TT`, `EE`, and `BB` absolutely.
+* Validate tensor amplitude and tilt.
+* Validate photon and neutrino tensor hierarchy contributions.
+* Compare tensor unlensed and lensed outputs.
+* Keep the proof independent of synthetic tensor probes.
+
+Required threshold:
+
+* Tensor `TT`, `EE`, and `BB` median fractional errors are at or below `10%`.
+
+Done when:
+
+* Tensor spectra agree with the independent fixed-cosmology reference.
+* Tensor primordial `BB` survives the native lensing path.
+
+### [open] Slice Seventeen - Gauge and vector absolute parity
+
+Purpose:
+
+Validate gauge-equivalent scalar output and generated vector output against
+analytic limits and independent fixed-cosmology evidence.
+
+Depends on:
+
+* Slices Thirteen and Sixteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Compare Newtonian, synchronous, and gauge-invariant scalar routes at fixed
+  cosmology.
+* Validate explicit gauge transformations and invariant variables.
+* Compare generated vector spectra and analytic flat-space limits.
+* Validate vector source normalization, parity, and radial kernels.
+* Keep sector totals consistent with their scalar, vector, and tensor inputs.
+
+Required thresholds:
+
+* Gauge-equivalent scalar spectra agree to `0.1%`.
+* Vector analytic-limit residuals meet their declared tolerances.
+
+Done when:
+
+* Gauge routes agree without alias-forced identity.
+* Generated vector output passes its analytic and absolute acceptance tests.
+
+### [open] Slice Eighteen - Native-only production cutover
+
+Purpose:
+
+Make the native declared graph the only production CMB execution path and
+retain CAMB or CLASS solely as independent scientific test references.
+
+Depends on:
+
+* Slices Ten through Seventeen.
+
+Probable affected files:
+
+* `copernican/lib/model_spec_validator.py`
+* `copernican/lib/model_coder.py`
+* `copernican/lib/engine_adapter.py`
+* `copernican/lib/likelihoods/cmb/cmb.py`
+* `copernican/lib/likelihoods/cmb/camb_solver.py`
+* `copernican/lib/cli/**`
+* `copernican/lib/gui/**`
+* `copernican/models/*.yml`
+* `pyproject.toml`
+* `requirements.in`
+* `requirements.lock`
+* `copernican/runtime-requirements.lock`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/docs/model_template.yml`
+* `copernican/docs/cmb_solver.md`
+* `README.md`
+* `copernican/README.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Remove the production `standard` solver-route boolean.
+* Remove standard-backend production routing and fallback paths.
+* Remove any public CAMB/native solver choice from CLI and GUI.
+* Keep CAMB or CLASS imports confined to scientific tests and fixtures.
+* Move CAMB from production runtime dependencies to test/development
+  dependencies where packaging permits.
+* Remove obsolete compatibility readers, aliases, and bridge paths.
+* Delete the CAMB-style `model_lcdm.yml` and rename
+  `model_lcdm_ccmbs.yml` to `model_lcdm.yml` after migration is complete.
+* Update every manifest, cache, test, documentation, and package asset that
+  references the renamed model.
+* Record native-only execution in manifests, cache identity, and docs.
+
+Tasks:
+
+* Update the model schema, validator, coder, adapters, cache, CLI, and GUI.
+* Update dependency surfaces and license artifacts coherently.
+* Add negative tests for removed route flags and production CAMB imports.
+* Update all user-facing documentation and changelog entries.
+
+Done when:
+
+* Every production CMB execution uses the native declared graph.
+* CAMB and CLASS are available only to independent scientific tests.
+* No production model or user-facing command selects a second CMB solver.
+* No legacy route fallback or deprecated reader remains.
+
+### [open] Slice Nineteen - Numerical convergence and final closure
 
 Purpose:
 
@@ -787,7 +1218,7 @@ repository only after all implementation and scientific claims agree.
 
 Depends on:
 
-* Slice Nine.
+* Slices Nine through Eighteen.
 
 Probable affected files:
 
@@ -881,14 +1312,15 @@ Done when:
 
 ## Completion Standard
 
-This roadmap is complete only when all ten slices are `[closed]`.
+This roadmap is complete only when all nineteen slices are `[closed]`.
 
 The repository must then truthfully satisfy all of the following:
 
 * Copernican ships a native, universal, theory-agnostic
   Boltzmann-hierarchy CMB solver.
-* `standard: false` runs without a CAMB or CLASS production fallback.
-* The standard native acceptance model contains physical scalar, vector,
+* Every production CMB model uses the native declared contract without a
+  CAMB or CLASS fallback.
+* The native LCDM acceptance model contains physical scalar, vector,
   and tensor Einstein-Boltzmann sectors.
 * Photon temperature, E polarization, B polarization, baryon, CDM,
   massless-neutrino, and massive-neutrino physics use one documented
@@ -918,6 +1350,6 @@ The repository must then truthfully satisfy all of the following:
 * The complete repository gate passes from a clean checkout.
 * Documentation and changelog statements match the measured code state.
 
-No slice may be marked `[closed]` because a later slice is expected to fix
+No slice may be marked `[closed]` because another slice is expected to fix
 it. If any completion statement is false, the responsible slice remains
 `[open]`.

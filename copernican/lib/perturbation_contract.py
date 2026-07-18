@@ -56,7 +56,6 @@ _COMPILED_UNARY_OPERATORS = {
     "uadd": lambda value: value,
     "usub": numpy.negative,
 }
-
 _RUNTIME_REFERENCE_NAMES = {
     "H0_km_s_Mpc",
     "H0_over_c_Mpc_inv",
@@ -80,10 +79,16 @@ _RUNTIME_REFERENCE_NAMES = {
     "free_streaming",
     "hubble_ratio",
     "massive_neutrino_mass_eV",
+    "neutrino_temperature_eV",
     "massive_neutrino_mass_fraction",
+    "massive_neutrino_density_fraction",
+    "massive_neutrino_momentum_fraction",
+    "massive_neutrino_pressure_fraction",
+    "massive_neutrino_shear_fraction",
     "massive_neutrino_pressure_ratio",
     "massive_neutrino_streaming_speed",
     "massive_neutrino_velocity_ratio",
+    "num_massive_neutrinos",
     "n_H0_m3",
     "n_b0_m3",
     "ombh2",
@@ -95,6 +100,7 @@ _RUNTIME_REFERENCE_NAMES = {
     "sound_horizon",
     "sound_speed",
     "sound_speed_sq",
+    "baryon_sound_speed_sq",
     "tight_coupling_drag",
     "tight_coupling_ratio",
     "tensor_spectral_index",
@@ -562,7 +568,7 @@ def _scalar_metric_seed_amplitude(mode: str) -> str:
     """Return the leading super-horizon metric amplitude for ``mode``."""
 
     by_mode = {
-        "adiabatic_scalar": "seed",
+        "adiabatic_scalar": "scalar_potential_seed",
         "baryon_isocurvature": "0.0",
         "cdm_isocurvature": "0.25 * seed",
         "neutrino_density_isocurvature": "0.0",
@@ -579,37 +585,43 @@ def _scalar_hierarchy_base_seed_expressions(
 ) -> dict[str, str]:
     """Return base seed expressions for one scalar hierarchy mode."""
 
-    k_eta = "acoustic_k * eta_initial"
+    k_eta = "acoustic_k * scalar_initial_conformal_time"
     k_eta_sq = f"({k_eta}) * ({k_eta})"
-    adiabatic_brightness_dipole = f"({k_eta} / 6.0) * seed"
-    adiabatic_velocity_divergence = (
-        "(acoustic_k_sq * eta_initial / 2.0) * seed"
+    isocurvature_velocity = (
+        "(acoustic_k_sq * scalar_initial_conformal_time / 4.0) * seed"
     )
-    adiabatic_quadrupole = f"{k_eta_sq} * seed / 30.0"
-    adiabatic_neutrino_quadrupole = f"{k_eta_sq} * seed / 15.0"
-    isocurvature_velocity = "(acoustic_k_sq * eta_initial / 4.0) * seed"
     compensated_brightness_dipole = f"({k_eta} / 12.0) * seed"
     neutrino_velocity_divergence = "acoustic_k * seed"
     neutrino_velocity_dipole = "seed / 3.0"
     neutrino_velocity_quadrupole = f"({k_eta} / 6.0) * seed"
+    adiabatic_seed = "scalar_lapse_seed"
+    adiabatic_k_eta = "acoustic_k * scalar_initial_conformal_time"
+    adiabatic_k_eta_sq = f"({adiabatic_k_eta}) * ({adiabatic_k_eta})"
+    adiabatic_velocity_divergence = (
+        "(acoustic_k_sq * scalar_initial_conformal_time / 2.0) * "
+        f"{adiabatic_seed}"
+    )
     by_mode = {
         "adiabatic_scalar": {
-            "theta_gamma0": "-0.5 * seed",
-            "theta_gamma1": adiabatic_brightness_dipole,
-            "theta_gamma2": adiabatic_quadrupole,
+            "theta_gamma0": f"-0.5 * {adiabatic_seed}",
+            "theta_gamma1": f"({adiabatic_k_eta} / 6.0) * "
+            f"{adiabatic_seed}",
+            "theta_gamma2": f"{adiabatic_k_eta_sq} * "
+            f"{adiabatic_seed} / 30.0",
             "e_gamma0": "0.0",
             "e_gamma1": "0.0",
             "e_gamma2": "0.0",
-            "delta_b": "-1.5 * seed",
+            "delta_b": f"-1.5 * {adiabatic_seed}",
             "theta_b": adiabatic_velocity_divergence,
-            "delta_c": "-1.5 * seed",
+            "delta_c": f"-1.5 * {adiabatic_seed}",
             "theta_c": adiabatic_velocity_divergence,
-            "delta_nu": "-2.0 * seed",
+            "delta_nu": f"-2.0 * {adiabatic_seed}",
             "theta_nu": adiabatic_velocity_divergence,
-            "sigma_nu": adiabatic_neutrino_quadrupole,
-            "delta_nu_massive": "-2.0 * seed",
+            "sigma_nu": f"{adiabatic_k_eta_sq} * " f"{adiabatic_seed} / 15.0",
+            "delta_nu_massive": f"-2.0 * {adiabatic_seed}",
             "theta_nu_massive": adiabatic_velocity_divergence,
-            "sigma_nu_massive": adiabatic_neutrino_quadrupole,
+            "sigma_nu_massive": f"{adiabatic_k_eta_sq} * "
+            f"{adiabatic_seed} / 15.0",
         },
         "baryon_isocurvature": {
             "delta_b": "seed",
@@ -667,9 +679,15 @@ def _scalar_hierarchy_base_seed_expressions(
         metric_seed = _scalar_metric_seed_amplitude(mode)
         seed_map.update(
             {
-                "h_sync_metric": f"{k_eta_sq} * ({metric_seed})",
+                "h_sync_metric": (
+                    "0.5 * (acoustic_k * scalar_initial_conformal_time) * "
+                    "(acoustic_k * scalar_initial_conformal_time) * "
+                    f"({metric_seed})"
+                ),
                 "eta_sync_metric": f"2.0 * ({metric_seed})",
-                "gauge_shift_alpha": f"eta_initial * ({metric_seed})",
+                "gauge_shift_alpha": (
+                    "0.5 * scalar_initial_conformal_time * " f"({metric_seed})"
+                ),
             }
         )
     return seed_map
@@ -804,6 +822,48 @@ def _scalar_streaming_hierarchy_recurrence_rhs(
     return " ".join(pieces)
 
 
+def _scalar_polarization_recurrence_rhs(
+    *,
+    name: str,
+    moment: int,
+    previous_name: str,
+    next_name: str | None,
+    collision_term: str | None = None,
+    use_physical_terminal_closure: bool = False,
+) -> str:
+    """Return one scalar E hierarchy RHS with spin-2 streaming factors."""
+
+    previous_coeff = float(moment) / float((2 * moment) + 1)
+    pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
+    if next_name is None:
+        if use_physical_terminal_closure:
+            truncation_coeff = float(moment) / float(moment - 2)
+            closure_scale = (
+                "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
+                f"{float(moment + 3):.16g} * {float(moment + 3):.16g})"
+            )
+            pieces[0] = (
+                f"{truncation_coeff:.16g} * acoustic_k * {previous_name}"
+            )
+            pieces.append(
+                f"- acoustic_k * {float(moment + 3):.16g} * {name} / "
+                f"{closure_scale}"
+            )
+        else:
+            pieces.append(
+                f"- {float(moment + 3):.16g} / "
+                f"{float((2 * moment) + 1):.16g} * acoustic_k * {name}"
+            )
+    else:
+        next_coeff = float((moment + 3) * (moment - 1)) / float(
+            ((2 * moment) + 1) * (moment + 1)
+        )
+        pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
+    if collision_term is not None:
+        pieces.append(collision_term)
+    return " ".join(pieces)
+
+
 def _vector_hierarchy_next_coeff(moment: int) -> float:
     """Return the vector hierarchy coefficient multiplying ``F_{l+1}``."""
 
@@ -841,6 +901,10 @@ def _vector_hierarchy_recurrence_rhs(
     previous_coeff = float(moment) / float((2 * moment) + 1)
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
+        pieces[0] = (
+            f"{float(moment) / float(moment - 1):.16g} * acoustic_k * "
+            f"{previous_name}"
+        )
         pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
     else:
         next_coeff = _vector_hierarchy_next_coeff(moment)
@@ -866,7 +930,7 @@ def _vector_polarization_recurrence_rhs(
     opposite_coeff = 2.0 / (float(moment) * float(moment + 1))
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
+        return "0.0"
     else:
         next_coeff = _vector_polarization_next_coeff(moment)
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
@@ -901,6 +965,10 @@ def _tensor_hierarchy_recurrence_rhs(
     previous_coeff = float(moment) / float((2 * moment) + 1)
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
+        pieces[0] = (
+            f"{float(moment) / float(moment - 2):.16g} * acoustic_k * "
+            f"{previous_name}"
+        )
         pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
     else:
         next_coeff = _tensor_hierarchy_next_coeff(moment)
@@ -926,6 +994,10 @@ def _tensor_streaming_hierarchy_recurrence_rhs(
         f"{streaming_speed_name} * {previous_name}"
     ]
     if next_name is None:
+        pieces[0] = (
+            f"{float(moment) / float(moment - 2):.16g} * acoustic_k * "
+            f"{streaming_speed_name} * {previous_name}"
+        )
         pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
     else:
         next_coeff = _tensor_hierarchy_next_coeff(moment)
@@ -952,9 +1024,17 @@ def _tensor_polarization_recurrence_rhs(
     opposite_coeff = 4.0 / (float(moment) * float(moment + 1))
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
+        pass
     else:
-        next_coeff = _tensor_hierarchy_next_coeff(moment)
+        moment_value = float(moment)
+        tensor_factor = (
+            (moment_value + 3.0) * (moment_value - 1.0) / (moment_value + 1.0)
+        )
+        next_coeff = (
+            tensor_factor
+            * tensor_factor
+            / ((2.0 * moment_value + 1.0) * (moment_value + 1.0))
+        )
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
     pieces.append(
         f"{'+' if sign > 0 else '-'} "
@@ -1244,6 +1324,12 @@ def _materialize_native_scalar_hierarchy_contract(
         parity="odd",
         spin=2.0,
     )
+    variables["visibility_polarization_moment"] = _metadata_entry(
+        "photon_scalar_visibility_weighted_source_moment",
+        "Visibility-weighted scalar polarization source moment.",
+        units=_INVERSE_MPC_UNITS,
+        tensor_character="scalar_like",
+    )
     for moment in range(3, neutrino_l_max + 1):
         variables[_scalar_neutrino_name(moment)] = _metadata_entry(
             "massless_neutrino_multipole",
@@ -1273,7 +1359,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 tensor_character="scalar_like",
             )
 
-    photon_monopole_rhs = "-acoustic_k * theta_gamma1 - Phi_tau"
+    photon_monopole_rhs = "-acoustic_k * theta_gamma1 + Phi_tau"
     photon_dipole_rhs = (
         "(acoustic_k / 3.0) * "
         "(theta_gamma0 + Psi - 2.0 * theta_gamma2) + thomson_drag"
@@ -1281,7 +1367,7 @@ def _materialize_native_scalar_hierarchy_contract(
     photon_quadrupole_metric_drive = "0.0"
     baryon_density_rhs = "-theta_b + 3.0 * Phi_tau"
     baryon_euler_rhs = (
-        "-Hconf * theta_b + acoustic_k_sq * sound_speed_sq * "
+        "-Hconf * theta_b + acoustic_k_sq * baryon_sound_speed_sq * "
         "delta_b + baryon_thomson_drag + acoustic_k_sq * Psi"
     )
     cdm_density_rhs = "-theta_c + 3.0 * Phi_tau"
@@ -1322,9 +1408,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 f"{2.0 / 5.0:.16g} * acoustic_k * theta_gamma1 "
                 f"- {3.0 / 5.0:.16g} * acoustic_k * "
                 f"{_scalar_temperature_name(3)} "
-                f"+ {photon_quadrupole_metric_drive} "
-                "- collision_rate * "
-                "(theta_gamma2 - 0.1 * polarization_moment)"
+                f"+ {photon_quadrupole_metric_drive}"
             ),
             "role": "hierarchy",
         },
@@ -1335,7 +1419,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "-acoustic_k * e_gamma1",
+            "rhs": "0.0",
             "role": "polarization",
         },
         "evolve_e_gamma1": {
@@ -1345,7 +1429,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": "(acoustic_k / 3.0) * (e_gamma0 - 2.0 * e_gamma2)",
+            "rhs": "0.0",
             "role": "polarization",
         },
         "evolve_e_gamma2": {
@@ -1356,11 +1440,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                f"{2.0 / 5.0:.16g} * acoustic_k * e_gamma1 "
-                f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                f"{_scalar_polarization_name(3)} "
-                "- collision_rate * "
-                "(e_gamma2 - 0.1 * polarization_moment)"
+                f"- {1.0 / 3.0:.16g} * acoustic_k * "
+                f"{_scalar_polarization_name(3)}"
             ),
             "role": "polarization",
         },
@@ -1450,6 +1531,18 @@ def _materialize_native_scalar_hierarchy_contract(
             "role": "hierarchy",
         },
     }
+    metric_evolution_state_name = None if sync_gauge else phi_state_name
+    if metric_evolution_state_name is not None:
+        equations[f"evolve_{metric_evolution_state_name}"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": metric_evolution_state_name,
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "Phi_tau",
+            "role": "metric",
+        }
     if sync_gauge:
         equations.update(
             {
@@ -1502,7 +1595,6 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=_scalar_temperature_name(moment - 1),
                 next_name=next_name,
-                collision_term=f"- collision_rate * {name}",
                 use_physical_terminal_closure=True,
             ),
             "role": "hierarchy",
@@ -1524,12 +1616,11 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
-            "rhs": _scalar_hierarchy_recurrence_rhs(
+            "rhs": _scalar_polarization_recurrence_rhs(
                 name=name,
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
-                collision_term=f"- collision_rate * {name}",
                 use_physical_terminal_closure=True,
             ),
             "role": "polarization",
@@ -1678,6 +1769,11 @@ def _materialize_native_scalar_hierarchy_contract(
 
     materialized["variables"] = variables
     massless_fraction_expression = "Omega_nu0"
+    if has_massive_neutrino and massive_neutrino_grid_count > 0:
+        massless_fraction_expression = (
+            "Omega_nu0 * 0.5 * (Neff - num_massive_neutrinos + "
+            "abs(Neff - num_massive_neutrinos)) / Neff"
+        )
     matter_density_source_expression = (
         "(Omega_c0 * observable_delta_c + "
         "Omega_b0 * observable_delta_b) / a"
@@ -1693,18 +1789,72 @@ def _materialize_native_scalar_hierarchy_contract(
         "(Omega_b0 * observable_theta_b + "
         "Omega_c0 * observable_theta_c) / a + "
         "("
-        "4.0 * Omega_gamma0 * photon_velocity_divergence + "
+        "(4.0 / 3.0) * Omega_gamma0 * photon_velocity_divergence + "
         "(4.0 / 3.0) * massless_neutrino_fraction * observable_theta_nu"
         ") / (a * a)"
     )
     total_shear_source_expression = (
-        "((4.0 / 3.0) * massless_neutrino_fraction * sigma_nu) / (a * a)"
+        "("
+        "4.0 * Omega_gamma0 * observable_theta_gamma2 + "
+        "2.0 * massless_neutrino_fraction * sigma_nu"
+        ") / (a * a)"
     )
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
-            "expression": "theta_gamma2 + 6.0 * e_gamma2",
-            "description": "Scalar polarization source moment.",
+            "expression": "0.1 * theta_gamma2 + 0.6 * e_gamma2",
+            "description": (
+                "CAMB scalar polarization source moment, equal to "
+                "0.1 Theta_gamma,2 + 0.6 E_gamma,2."
+            ),
             "units": _DIMENSIONLESS_UNITS,
+        },
+        "scalar_initial_conformal_time": {
+            "expression": (
+                "a_initial / (H0_over_c_Mpc_inv * sqrt("
+                "Omega_gamma0 + Omega_nu0 + 1.0e-30))"
+            ),
+            "description": (
+                "Radiation-era conformal-time estimate used by scalar "
+                "initial-condition series."
+            ),
+            "units": "Mpc",
+        },
+        "scalar_neutrino_fraction": {
+            "expression": ("Omega_nu0 / (Omega_gamma0 + Omega_nu0 + 1.0e-30)"),
+            "description": (
+                "Relativistic neutrino fraction used by the regular scalar "
+                "initial-condition series."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "scalar_potential_seed": {
+            "expression": (
+                "(10.0 / (15.0 + 4.0 * scalar_neutrino_fraction)) * seed"
+            ),
+            "description": (
+                "Radiation-era curvature potential sourced by primordial "
+                "curvature seed."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "scalar_lapse_seed": {
+            "expression": "scalar_potential_seed",
+            "description": (
+                "Radiation-era lapse potential for regular adiabatic scalar "
+                "initial data."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "visibility_polarization_moment_tau_tau": {
+            "kind": "scalar_source_time_derivative",
+            "variable": "visibility_polarization_moment",
+            "wrt": "tau",
+            "order": 2,
+            "description": (
+                "Second conformal-time derivative of the visibility-weighted "
+                "scalar polarization source moment."
+            ),
+            "units": _INVERSE_MPC_CUBED_UNITS,
         },
         "acoustic_k": {
             "expression": "k",
@@ -1724,6 +1874,11 @@ def _materialize_native_scalar_hierarchy_contract(
         "observable_theta_gamma1": {
             "expression": observable_theta_gamma1_expression,
             "description": ("Observable-basis photon temperature dipole."),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "observable_theta_gamma2": {
+            "expression": "theta_gamma2",
+            "description": ("Observable-basis photon temperature quadrupole."),
             "units": _DIMENSIONLESS_UNITS,
         },
         "observable_delta_b": {
@@ -1816,10 +1971,9 @@ def _materialize_native_scalar_hierarchy_contract(
             "units": _INVERSE_MPC_SQUARED_UNITS,
         },
         "metric_constraint_scale": {
-            "expression": "acoustic_k_sq + 3.0 * Hconf * Hconf",
+            "expression": "acoustic_k_sq",
             "description": (
-                "Scalar Einstein low-k bridge scale used by the "
-                "generated hierarchy."
+                "Exact scalar Einstein constraint wave-number scale."
             ),
             "units": _INVERSE_MPC_SQUARED_UNITS,
         },
@@ -1833,7 +1987,7 @@ def _materialize_native_scalar_hierarchy_contract(
         },
         "metric_shear_correction": {
             "expression": (
-                "4.5 * einstein_gravity_strength * total_shear_source "
+                "3.0 * einstein_gravity_strength * total_shear_source "
                 "/ metric_constraint_scale"
             ),
             "description": ("Scalar anisotropic-stress correction Phi - Psi."),
@@ -1845,7 +1999,10 @@ def _materialize_native_scalar_hierarchy_contract(
             "units": _DIMENSIONLESS_UNITS,
         },
         "baryon_thomson_drag": {
-            "expression": "- photon_baryon_momentum_ratio * thomson_drag",
+            "expression": (
+                "- 3.0 * acoustic_k * photon_baryon_momentum_ratio * "
+                "thomson_drag"
+            ),
             "description": "Baryon-side Thomson drag counterpart.",
         },
     }
@@ -1853,7 +2010,10 @@ def _materialize_native_scalar_hierarchy_contract(
         derived_entries.update(
             {
                 "massive_neutrino_density_source": {
-                    "expression": "observable_delta_nu_massive",
+                    "expression": (
+                        "a * a * massive_neutrino_density_fraction * "
+                        "observable_delta_nu_massive"
+                    ),
                     "description": (
                         "Current massive-neutrino density source moment "
                         "for the scalar Einstein system."
@@ -1861,7 +2021,11 @@ def _materialize_native_scalar_hierarchy_contract(
                     "units": _DIMENSIONLESS_UNITS,
                 },
                 "massive_neutrino_momentum_source": {
-                    "expression": "observable_theta_nu_massive",
+                    "expression": (
+                        "(4.0 / 3.0) * a * a * "
+                        "massive_neutrino_momentum_fraction * "
+                        "observable_theta_nu_massive"
+                    ),
                     "description": (
                         "Current massive-neutrino momentum source moment "
                         "for the scalar Einstein system."
@@ -1869,7 +2033,10 @@ def _materialize_native_scalar_hierarchy_contract(
                     "units": _INVERSE_MPC_UNITS,
                 },
                 "massive_neutrino_shear_source": {
-                    "expression": "massive_neutrino_metric_shear",
+                    "expression": (
+                        "a * a * massive_neutrino_shear_fraction * "
+                        "massive_neutrino_metric_shear"
+                    ),
                     "description": (
                         "Current massive-neutrino shear source moment for "
                         "the scalar Einstein system."
@@ -1901,7 +2068,7 @@ def _materialize_native_scalar_hierarchy_contract(
         derived_entries["total_shear_source"] = {
             "expression": (
                 total_shear_source_expression
-                + " + massive_neutrino_shear_source"
+                + " + 2.0 * massive_neutrino_shear_source"
             ),
             "description": (
                 "Total shear source for the scalar Einstein system."
@@ -2033,7 +2200,7 @@ def _materialize_native_scalar_hierarchy_contract(
             "einstein_shear_residual": {
                 "expression": (
                     "acoustic_k_sq * (Phi - Psi) - "
-                    "4.5 * einstein_gravity_strength * total_shear_source"
+                    "3.0 * einstein_gravity_strength * total_shear_source"
                 ),
                 "description": (
                     "Scalar Einstein anisotropic-stress residual."
@@ -2081,8 +2248,10 @@ def _materialize_native_scalar_hierarchy_contract(
                 "expression": (
                     f"{q_prefix}_point / sqrt(("
                     f"{q_prefix}_point * {q_prefix}_point) + "
-                    "(a * massive_neutrino_mass_eV) * "
-                    "(a * massive_neutrino_mass_eV))"
+                    "(a * massive_neutrino_mass_eV / "
+                    "neutrino_temperature_eV) * "
+                    "(a * massive_neutrino_mass_eV / "
+                    "neutrino_temperature_eV))"
                 ),
                 "description": (
                     "Streaming speed for one massive-neutrino momentum bin."
@@ -2238,11 +2407,11 @@ def _materialize_native_scalar_hierarchy_contract(
     thomson_drag_entry.setdefault("species", ["photon", "baryon"])
     thomson_drag_entry.setdefault(
         "expression",
-        "collision_rate * (theta_b / 3.0 - theta_gamma1)",
+        "collision_rate * ((theta_b / acoustic_k) / 3.0 - theta_gamma1)",
     )
     thomson_drag_entry.setdefault("counterpart", "baryon_thomson_drag")
     thomson_drag_entry.setdefault("integration_strategy", "exact")
-    thomson_drag_entry.setdefault("activation_strategy", "tight_coupling")
+    thomson_drag_entry.setdefault("activation_strategy", "always")
     thomson_drag_entry.setdefault("rate_expression", "collision_rate")
     thomson_drag_entry.setdefault(
         "exact_form",
@@ -2254,10 +2423,15 @@ def _materialize_native_scalar_hierarchy_contract(
                 {"kind": "photon_polarization_quadrupole"},
             ],
             "matrix": [
-                ["-1.0", "1.0 / 3.0", "0.0", "0.0"],
                 [
-                    "photon_baryon_momentum_ratio",
-                    "-photon_baryon_momentum_ratio / 3.0",
+                    "-1.0",
+                    "1.0 / (3.0 * acoustic_k)",
+                    "0.0",
+                    "0.0",
+                ],
+                [
+                    "3.0 * acoustic_k * photon_baryon_momentum_ratio",
+                    "-photon_baryon_momentum_ratio",
                     "0.0",
                     "0.0",
                 ],
@@ -2271,7 +2445,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 {"kind": "photon_polarization_multipole"},
             ],
             "damping_coefficient": "-1.0",
-            "activation_strategy": "tight_coupling",
+            "activation_strategy": "always",
         },
     )
     collision_operator_entries["thomson_drag"] = thomson_drag_entry
@@ -2284,7 +2458,8 @@ def _materialize_native_scalar_hierarchy_contract(
         {
             "kind": "absolute_max",
             "expression": (
-                "photon_baryon_momentum_ratio * thomson_drag + "
+                "3.0 * acoustic_k * photon_baryon_momentum_ratio * "
+                "thomson_drag + "
                 "baryon_thomson_drag"
             ),
             "tolerance": 1.0e-12,
@@ -2293,37 +2468,25 @@ def _materialize_native_scalar_hierarchy_contract(
     )
     materialized["conservation_rules"] = conservation_rule_entries
     psi_closure_expression = "Phi - metric_shear_correction"
-    phi_constraint_expression = (
-        "-("
-        "1.5 * einstein_gravity_strength * total_density_source + "
-        "3.0 * Hconf * metric_momentum_source_drive"
-        ") / metric_constraint_scale"
-    )
     if sync_gauge:
-        materialized["constraints"] = {
-            "observable_phi_constraint": {
-                "target": "Phi",
-                "expression": phi_constraint_expression,
-                "role": "constraint",
-            }
-        }
+        materialized["constraints"] = {}
         materialized["closures"] = {
-            "observable_psi_closure": {
+            "phi_closure": {
+                "target": "Phi",
+                "expression": "Phi_from_synchronous",
+                "role": "closure",
+            },
+            "psi_closure": {
                 "target": "Psi",
                 "expression": psi_closure_expression,
                 "role": "closure",
-            }
+            },
         }
     elif invariant_gauge:
         materialized["constraints"] = {
             "observable_phi_constraint": {
                 "target": "Phi",
                 "expression": phi_state_name,
-                "role": "constraint",
-            },
-            "phi_constraint": {
-                "target": phi_state_name,
-                "expression": phi_constraint_expression,
                 "role": "constraint",
             },
         }
@@ -2340,13 +2503,7 @@ def _materialize_native_scalar_hierarchy_contract(
             },
         }
     else:
-        materialized["constraints"] = {
-            "phi_constraint": {
-                "target": phi_state_name,
-                "expression": phi_constraint_expression,
-                "role": "constraint",
-            }
-        }
+        materialized["constraints"] = {}
         materialized["closures"] = {
             "psi_closure": {
                 "target": psi_state_name,
@@ -2354,19 +2511,38 @@ def _materialize_native_scalar_hierarchy_contract(
                 "role": "closure",
             }
         }
+    materialized["closures"]["visibility_polarization_moment_closure"] = {
+        "target": "visibility_polarization_moment",
+        "expression": "visibility * polarization_moment",
+        "role": "closure",
+        "description": (
+            "Visibility-weighted scalar polarization source moment."
+        ),
+    }
     materialized["sources"] = {
         "temperature_monopole": {
-            "expression": (
-                "visibility * (observable_theta_gamma0 + Psi + "
-                "0.25 * polarization_moment)"
-            ),
+            "expression": "visibility * (observable_theta_gamma0 + Psi)",
             "role": "monopole",
             "description": "Visibility-weighted temperature monopole source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
-            "notes": (
-                "Uses Theta_gamma,0 + Psi + Pi/4 with "
-                "Pi = theta_gamma2 + 6 E_gamma,2."
+            "notes": ("Uses Delta_gamma / 4 + Psi on the visibility surface."),
+        },
+        "temperature_quadrupole": {
+            "expression": ("(5.0 / 2.0) * visibility * polarization_moment"),
+            "role": "additive",
+            "description": (
+                "Local scalar temperature polarization-quadrupole source."
             ),
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
+        },
+        "temperature_quadrupole_derivative": {
+            "expression": ("(15.0 / 2.0) * visibility * polarization_moment"),
+            "role": "additive_derivative",
+            "description": (
+                "Second-derivative scalar temperature polarization source "
+                "with its derivative transferred to the radial kernel."
+            ),
+            "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "temperature_doppler": {
             "expression": "visibility * observable_theta_b / acoustic_k",
@@ -2379,15 +2555,20 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
         "temperature_isw": {
-            "expression": "exp(-tau) * (Psi_tau - Phi_tau)",
+            "expression": "exp(-tau) * (Phi_tau + Psi_tau)",
             "role": "isw",
-            "description": "Integrated Sachs-Wolfe temperature source.",
+            "description": (
+                "Integrated Sachs-Wolfe source from the Weyl-potential "
+                "time derivative."
+            ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_source": {
-            "expression": "0.75 * visibility * polarization_moment",
+            "expression": "(15.0 / 2.0) * visibility * polarization_moment",
             "role": "polarization",
-            "description": "Visibility-weighted E-polarization source.",
+            "description": (
+                "CAMB-normalized visibility-weighted E-polarization source."
+            ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_b_source": {
@@ -2397,7 +2578,7 @@ def _materialize_native_scalar_hierarchy_contract(
             "units": _DIMENSIONLESS_UNITS,
         },
         "lensing_potential": {
-            "expression": "exp(-tau) * (Phi + Psi)",
+            "expression": "Phi + Psi",
             "role": "potential",
             "description": "Scalar Weyl-potential source for CMB lensing.",
             "units": _DIMENSIONLESS_UNITS,
@@ -2414,6 +2595,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 "monopole": "temperature_monopole",
                 "doppler": "temperature_doppler",
                 "isw": "temperature_isw",
+                "additive": "temperature_quadrupole",
+                "additive_derivative": "temperature_quadrupole_derivative",
             },
             "description": "Temperature transfer function Delta_ell^T(k).",
         },
@@ -2517,6 +2700,36 @@ def _materialize_native_scalar_hierarchy_contract(
             },
             "expression": expression,
         }
+    initial_conditions["theta_gamma2_seed"] = {
+        "target": {
+            "variable": "theta_gamma2",
+            "wrt": "tau",
+            "order": 0,
+        },
+        "expression": (
+            "(8.0 / 15.0) * acoustic_k * theta_gamma1 / " "collision_rate"
+        ),
+    }
+    initial_conditions["e_gamma2_seed"] = {
+        "target": {
+            "variable": "e_gamma2",
+            "wrt": "tau",
+            "order": 0,
+        },
+        "expression": "theta_gamma2 / 4.0",
+    }
+    if metric_evolution_state_name is not None:
+        initial_conditions[f"{metric_evolution_state_name}_seed"] = {
+            "target": {
+                "variable": metric_evolution_state_name,
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": (
+                f"({_scalar_metric_seed_amplitude(initial_mode)}) + "
+                "metric_shear_correction"
+            ),
+        }
     if sync_gauge:
         initial_conditions["eta_sync_metric_seed"] = {
             "target": {
@@ -2525,7 +2738,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 "order": 0,
             },
             "expression": (
-                f"({phi_constraint_expression}) + " "Hconf * gauge_shift_alpha"
+                "scalar_potential_seed + metric_shear_correction + "
+                "Hconf * gauge_shift_alpha"
             ),
         }
         initial_conditions["h_sync_metric_seed"] = {
@@ -2535,8 +2749,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 "order": 0,
             },
             "expression": (
-                "(acoustic_k * eta_initial) * "
-                f"(acoustic_k * eta_initial) * ({phi_constraint_expression})"
+                "0.5 * (acoustic_k * scalar_initial_conformal_time) * "
+                "(acoustic_k * scalar_initial_conformal_time) * seed"
             ),
         }
     for required_name in (
@@ -2572,13 +2786,22 @@ def _materialize_native_scalar_hierarchy_contract(
             },
         )
     for moment in range(3, photon_l_max + 1):
+        temperature_expression = "0.0"
+        polarization_expression = "0.0"
+        if moment == 3:
+            temperature_expression = (
+                "(3.0 / 7.0) * acoustic_k * theta_gamma2 / collision_rate"
+            )
+            polarization_expression = (
+                "(3.0 / 28.0) * acoustic_k * theta_gamma2 / collision_rate"
+            )
         initial_conditions[f"{_scalar_temperature_name(moment)}_seed"] = {
             "target": {
                 "variable": _scalar_temperature_name(moment),
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "0.0",
+            "expression": temperature_expression,
         }
         initial_conditions[f"{_scalar_polarization_name(moment)}_seed"] = {
             "target": {
@@ -2586,7 +2809,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "0.0",
+            "expression": polarization_expression,
         }
     for moment in range(3, neutrino_l_max + 1):
         initial_conditions[f"{_scalar_neutrino_name(moment)}_seed"] = {
@@ -2622,7 +2845,9 @@ def _materialize_native_scalar_hierarchy_contract(
                     "wrt": "tau",
                     "order": 0,
                 },
-                "expression": f"-2.0 * seed * {q_log_derivative_name}",
+                "expression": (
+                    f"0.5 * scalar_lapse_seed * " f"{q_log_derivative_name}"
+                ),
             }
             initial_conditions[f"{q_theta_name}_seed"] = {
                 "target": {
@@ -2631,7 +2856,8 @@ def _materialize_native_scalar_hierarchy_contract(
                     "order": 0,
                 },
                 "expression": (
-                    f"(acoustic_k * eta_initial / 6.0) * seed * "
+                    "-(acoustic_k * scalar_initial_conformal_time / 8.0) "
+                    f"* scalar_lapse_seed * "
                     f"{q_log_derivative_name}"
                 ),
             }
@@ -2642,8 +2868,9 @@ def _materialize_native_scalar_hierarchy_contract(
                     "order": 0,
                 },
                 "expression": (
-                    "(acoustic_k * eta_initial) * "
-                    "(acoustic_k * eta_initial) * seed / 15.0 * "
+                    "-(acoustic_k * scalar_initial_conformal_time) * "
+                    "(acoustic_k * scalar_initial_conformal_time) * "
+                    "scalar_lapse_seed / 60.0 * "
                     f"{q_log_derivative_name}"
                 ),
             }
@@ -3366,27 +3593,22 @@ def _materialize_native_vector_hierarchy_contract(
                 "7.5 * vector_visibility_polarization_moment_tau / "
                 "acoustic_k + "
                 "4.0 * exp(-tau) * vector_metric_shear_rhs"
-                ") / vector_radial_argument_safe"
+                ")"
             ),
             "role": "signal",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "vector_polarization_e_source": {
             "expression": (
-                "15.0 * visibility * vector_polarization_moment / "
-                "(vector_radial_argument_safe * "
-                "vector_radial_argument_safe) + "
+                "15.0 * visibility * vector_polarization_moment + "
                 "7.5 * vector_visibility_polarization_moment_tau / "
-                "(acoustic_k * vector_radial_argument_safe)"
+                "acoustic_k"
             ),
             "role": "signal",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "vector_polarization_b_source": {
-            "expression": (
-                "-7.5 * visibility * vector_polarization_moment / "
-                "vector_radial_argument_safe"
-            ),
+            "expression": ("-7.5 * visibility * vector_polarization_moment"),
             "role": "signal",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
@@ -3666,6 +3888,22 @@ def _materialize_native_tensor_hierarchy_contract(
     materialized["sectors"]["tensor"] = tensor_sector
 
     variables: dict[str, Any] = {
+        "delta_gamma_tensor": _metadata_entry(
+            "photon_tensor_density",
+            "Photon tensor temperature monopole.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+        "theta_gamma_tensor": _metadata_entry(
+            "photon_tensor_velocity",
+            "Photon tensor temperature dipole.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
         "h_tensor": _metadata_entry(
             "tensor_metric_wave",
             "Tensor metric-wave amplitude.",
@@ -3690,6 +3928,22 @@ def _materialize_native_tensor_hierarchy_contract(
             parity="even",
             spin=2.0,
         ),
+        "delta_nu_tensor": _metadata_entry(
+            "massless_neutrino_tensor_density",
+            "Massless-neutrino tensor temperature monopole.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
+        "theta_nu_tensor": _metadata_entry(
+            "massless_neutrino_tensor_velocity",
+            "Massless-neutrino tensor temperature dipole.",
+            units=_DIMENSIONLESS_UNITS,
+            tensor_character="tensor_like",
+            parity="even",
+            spin=2.0,
+        ),
         "pi_nu_tensor": _metadata_entry(
             "massless_neutrino_tensor_anisotropic_stress",
             "Massless-neutrino tensor anisotropic-stress amplitude.",
@@ -3708,7 +3962,7 @@ def _materialize_native_tensor_hierarchy_contract(
             parity="even",
             spin=2.0,
         )
-    for moment in range(2, polarization_l_max + 1):
+    for moment in range(0, polarization_l_max + 1):
         variables[_tensor_polarization_e_name(moment)] = _metadata_entry(
             "photon_tensor_polarization_e_multipole",
             f"Photon tensor E-polarization multipole at l={int(moment)}.",
@@ -3717,6 +3971,7 @@ def _materialize_native_tensor_hierarchy_contract(
             parity="even",
             spin=2.0,
         )
+    for moment in range(2, polarization_l_max + 1):
         variables[_tensor_polarization_b_name(moment)] = _metadata_entry(
             "photon_tensor_polarization_b_multipole",
             f"Photon tensor B-polarization multipole at l={int(moment)}.",
@@ -3753,22 +4008,57 @@ def _materialize_native_tensor_hierarchy_contract(
             "description": "Regularized conformal time for tensor closures.",
             "units": _DIMENSIONLESS_UNITS,
         },
+        "tensor_shear": {
+            "expression": "-h_tensor_tau / (acoustic_k + 1.0e-30)",
+            "description": "Tensor shear obtained from the metric derivative.",
+            "units": _DIMENSIONLESS_UNITS,
+        },
         "tensor_neutrino_density": {
             "expression": "Omega_nu0",
             "description": "Massless-neutrino tensor density today.",
             "units": _DIMENSIONLESS_UNITS,
         },
+        "tensor_free_streaming_fraction": {
+            "expression": ("Omega_nu0 / (Omega_gamma0 + Omega_nu0 + 1.0e-30)"),
+            "description": (
+                "Radiation-era free-streaming fraction used by tensor "
+                "initial conditions."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "tensor_free_streaming_ratio": {
+            "expression": "Omega_nu0 / (Omega_gamma0 + 1.0e-30)",
+            "description": (
+                "Radiation-era neutrino-to-photon density ratio used by "
+                "tensor initial conditions."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
+        "tensor_initial_series_denominator": {
+            "expression": ("15.0 + 4.0 * tensor_free_streaming_ratio"),
+            "description": (
+                "Regular tensor initial-series denominator including "
+                "free-streaming neutrino stress."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        },
         "tensor_polarization_moment": {
             "expression": "0.1 * pi_gamma_tensor + 0.6 * e_gamma_t2",
-            "description": "Tensor polarization source moment.",
+            "description": (
+                "Tensor polarization source moment from the photon "
+                "temperature and polarization hierarchy."
+            ),
             "units": _DIMENSIONLESS_UNITS,
         },
         "tensor_total_shear_source": {
             "expression": (
-                "(Omega_gamma0 * pi_gamma_tensor + "
-                "tensor_neutrino_density * pi_nu_tensor) / (a * a)"
+                "Omega_gamma0 * pi_gamma_tensor + "
+                "tensor_neutrino_density * pi_nu_tensor"
             ),
-            "description": "Total tensor anisotropic-stress source.",
+            "description": (
+                "Total tensor anisotropic-stress source from photon and "
+                "massless-neutrino moments."
+            ),
             "units": _DIMENSIONLESS_UNITS,
         },
         "einstein_gravity_strength": {
@@ -3779,7 +4069,8 @@ def _materialize_native_tensor_hierarchy_contract(
         "tensor_metric_wave_rhs": {
             "expression": (
                 "-2.0 * Hconf * h_tensor_tau - acoustic_k_sq * h_tensor + "
-                "6.0 * einstein_gravity_strength * tensor_total_shear_source"
+                "3.0 * einstein_gravity_strength * "
+                "tensor_total_shear_source / (a * a)"
             ),
             "description": "Tensor metric-wave evolution RHS.",
             "units": _INVERSE_MPC_SQUARED_UNITS,
@@ -3788,6 +4079,26 @@ def _materialize_native_tensor_hierarchy_contract(
     materialized["derived"] = derived_entries
 
     equations: dict[str, Any] = {
+        "evolve_delta_gamma_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_gamma_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "tensor_hierarchy",
+        },
+        "evolve_theta_gamma_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_gamma_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "tensor_hierarchy",
+        },
         "evolve_h_tensor": {
             "lhs": {
                 "kind": "derivative",
@@ -3816,9 +4127,29 @@ def _materialize_native_tensor_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                "-(1.0 / 3.0) * acoustic_k * theta_gamma_t3 - "
-                "0.2 * h_tensor_tau - tensor_quadrupole_collision"
+                "-(1.0 / 3.0) * acoustic_k * theta_gamma_t3 + "
+                "(8.0 / 15.0) * acoustic_k * tensor_shear"
             ),
+            "role": "tensor_hierarchy",
+        },
+        "evolve_delta_nu_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "delta_nu_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "tensor_hierarchy",
+        },
+        "evolve_theta_nu_tensor": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "theta_nu_tensor",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
             "role": "tensor_hierarchy",
         },
         "evolve_pi_nu_tensor": {
@@ -3829,9 +4160,30 @@ def _materialize_native_tensor_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                "-(1.0 / 3.0) * acoustic_k * nu_t3 - " "0.2 * h_tensor_tau"
+                "-(1.0 / 3.0) * acoustic_k * nu_t3 + "
+                "(8.0 / 15.0) * acoustic_k * tensor_shear"
             ),
             "role": "tensor_hierarchy",
+        },
+        "evolve_e_gamma_t0": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma_t0",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "tensor_polarization",
+        },
+        "evolve_e_gamma_t1": {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "e_gamma_t1",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": "0.0",
+            "role": "tensor_polarization",
         },
         "evolve_e_gamma_t2": {
             "lhs": {
@@ -3841,9 +4193,8 @@ def _materialize_native_tensor_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                "-(1.0 / 3.0) * acoustic_k * e_gamma_t3 + "
-                "(2.0 / 3.0) * acoustic_k * b_gamma_t2 - "
-                "tensor_e_quadrupole_collision"
+                "-(5.0 / 27.0) * acoustic_k * e_gamma_t3 + "
+                "(2.0 / 3.0) * acoustic_k * b_gamma_t2"
             ),
             "role": "tensor_polarization",
         },
@@ -3855,9 +4206,8 @@ def _materialize_native_tensor_hierarchy_contract(
                 "order": 1,
             },
             "rhs": (
-                "-(1.0 / 3.0) * acoustic_k * b_gamma_t3 - "
-                "(2.0 / 3.0) * acoustic_k * e_gamma_t2 - "
-                "collision_rate * b_gamma_t2"
+                "-(5.0 / 27.0) * acoustic_k * b_gamma_t3 - "
+                "(2.0 / 3.0) * acoustic_k * e_gamma_t2"
             ),
             "role": "tensor_polarization_b",
         },
@@ -3883,7 +4233,6 @@ def _materialize_native_tensor_hierarchy_contract(
                     else _tensor_temperature_name(moment - 1)
                 ),
                 next_name=next_name,
-                collision_term=f"- collision_rate * {name}",
             ),
             "role": "tensor_hierarchy",
         }
@@ -3909,7 +4258,6 @@ def _materialize_native_tensor_hierarchy_contract(
                 next_name=e_next_name,
                 opposite_name=b_name,
                 sign=1,
-                collision_term=f"- collision_rate * {e_name}",
             ),
             "role": "tensor_polarization",
         }
@@ -3927,7 +4275,6 @@ def _materialize_native_tensor_hierarchy_contract(
                 next_name=b_next_name,
                 opposite_name=e_name,
                 sign=-1,
-                collision_term=f"- collision_rate * {b_name}",
             ),
             "role": "tensor_polarization_b",
         }
@@ -3960,19 +4307,40 @@ def _materialize_native_tensor_hierarchy_contract(
     collision_operator_entries = dict(
         materialized.get("collision_operators", {}) or {}
     )
-    collision_operator_entries["tensor_quadrupole_collision"] = {
+    tensor_damping_targets = [
+        *[
+            {"variable": _tensor_temperature_name(moment)}
+            for moment in range(3, photon_l_max + 1)
+        ],
+        *[
+            {"variable": _tensor_polarization_e_name(moment)}
+            for moment in range(3, polarization_l_max + 1)
+        ],
+        *[
+            {"variable": _tensor_polarization_b_name(moment)}
+            for moment in range(2, polarization_l_max + 1)
+        ],
+    ]
+    collision_operator_entries["tensor_thomson_collision"] = {
         "sector": "tensor",
         "species": ["photon"],
-        "expression": (
-            "collision_rate * (pi_gamma_tensor - tensor_polarization_moment)"
-        ),
-    }
-    collision_operator_entries["tensor_e_quadrupole_collision"] = {
-        "sector": "tensor",
-        "species": ["photon"],
-        "expression": (
-            "collision_rate * (e_gamma_t2 - tensor_polarization_moment)"
-        ),
+        "expression": "collision_rate * tensor_polarization_moment",
+        "integration_strategy": "exact",
+        "activation_strategy": "always",
+        "rate_expression": "collision_rate",
+        "exact_form": {
+            "targets": [
+                {"variable": "pi_gamma_tensor"},
+                {"variable": "e_gamma_t2"},
+            ],
+            "matrix": [
+                ["-0.9", "0.6"],
+                ["0.1", "-0.4"],
+            ],
+            "damping_targets": tensor_damping_targets,
+            "damping_coefficient": "-1.0",
+            "activation_strategy": "always",
+        },
     }
     materialized["collision_operators"] = collision_operator_entries
     materialized["conservation_rules"] = dict(
@@ -3984,18 +4352,25 @@ def _materialize_native_tensor_hierarchy_contract(
         "tensor_temperature_source": {
             "expression": (
                 "-exp(-tau) * h_tensor_tau + "
-                "2.0 * visibility * tensor_polarization_moment"
+                "(15.0 / 8.0) * visibility * tensor_polarization_moment"
             ),
             "role": "signal",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "tensor_polarization_e_source": {
-            "expression": "visibility * tensor_polarization_moment",
+            "expression": (
+                "(15.0 / 2.0) * sqrt(3.0 / 8.0) * visibility * "
+                "tensor_polarization_moment"
+            ),
             "role": "polarization",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "tensor_polarization_b_source": {
-            "expression": "visibility * b_gamma_t2",
+            "expression": (
+                "(15.0 / 2.0) * sqrt(3.0 / 8.0) * visibility * "
+                "tensor_polarization_moment + "
+                "0.0 * visibility * b_gamma_t2"
+            ),
             "role": "polarization_b",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
@@ -4052,6 +4427,22 @@ def _materialize_native_tensor_hierarchy_contract(
     }
 
     initial_conditions: dict[str, Any] = {
+        "delta_gamma_tensor_seed": {
+            "target": {
+                "variable": "delta_gamma_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        },
+        "theta_gamma_tensor_seed": {
+            "target": {
+                "variable": "theta_gamma_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        },
         "h_tensor_seed": {
             "target": {
                 "variable": "h_tensor",
@@ -4066,7 +4457,10 @@ def _materialize_native_tensor_hierarchy_contract(
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "-acoustic_k_sq * eta_initial * seed / 5.0",
+            "expression": (
+                "-5.0 * acoustic_k_sq * eta_initial * seed / "
+                "tensor_initial_series_denominator"
+            ),
         },
         "pi_gamma_tensor_seed": {
             "target": {
@@ -4074,7 +4468,25 @@ def _materialize_native_tensor_hierarchy_contract(
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "-(2.0 / 15.0) * acoustic_k * eta_initial * seed",
+            "expression": (
+                "-(32.0 / 45.0) * h_tensor_tau / " "(collision_rate + 1.0e-30)"
+            ),
+        },
+        "delta_nu_tensor_seed": {
+            "target": {
+                "variable": "delta_nu_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
+        },
+        "theta_nu_tensor_seed": {
+            "target": {
+                "variable": "theta_nu_tensor",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "0.0",
         },
         "pi_nu_tensor_seed": {
             "target": {
@@ -4082,7 +4494,10 @@ def _materialize_native_tensor_hierarchy_contract(
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "-(2.0 / 15.0) * acoustic_k * eta_initial * seed",
+            "expression": (
+                "4.0 * acoustic_k_sq * eta_initial * eta_initial * seed / "
+                "(3.0 * (15.0 + 4.0 * tensor_free_streaming_ratio))"
+            ),
         },
     }
     for moment in range(3, photon_l_max + 1):
@@ -4094,15 +4509,16 @@ def _materialize_native_tensor_hierarchy_contract(
             },
             "expression": "0.0",
         }
-    for moment in range(2, polarization_l_max + 1):
+    for moment in range(0, polarization_l_max + 1):
         initial_conditions[f"{_tensor_polarization_e_name(moment)}_seed"] = {
             "target": {
                 "variable": _tensor_polarization_e_name(moment),
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": "0.0",
+            "expression": ("pi_gamma_tensor / 4.0" if moment == 2 else "0.0"),
         }
+    for moment in range(2, polarization_l_max + 1):
         initial_conditions[f"{_tensor_polarization_b_name(moment)}_seed"] = {
             "target": {
                 "variable": _tensor_polarization_b_name(moment),

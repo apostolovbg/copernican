@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-06
+**Last Updated:** 2026-07-18
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -17,7 +17,7 @@ answerable from the README, the manual docs, the GUI help panel, or the
 validation and dataset guides. That keeps routine usage self-service and
 reduces the amount of guesswork needed when a run does not behave as expected.
 
-Validation runs now write their local summary marker to `~/VALIDATION.md`, so
+Validation runs write their local summary marker to `~/VALIDATION.md`, so
 the package guide in `copernican/validation/README.md` and the GUI validation
 help stay aligned with the runtime path layout.
 

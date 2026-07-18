@@ -1,14 +1,14 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-11
+**Last Updated:** 2026-07-18
 **Project Version:** 12.0.26
 
 ## Overview
 This document is the canonical physical convention for Copernican's native
 CMB solver path when `cmb.perturbations.standard: false`.
 
-The scalar, vector, and tensor sectors now follow this contract, and later
-work must not redefine the meaning of states, source terms, gauge labels, or
-public spectra.
+The scalar, vector, and tensor sectors follow this contract. Implementations
+must preserve the meaning of states, source terms, gauge labels, and public
+spectra defined here.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -47,8 +47,8 @@ The native contract names and units are:
   Scalar anisotropic stress or quadrupole shear variable. Units:
   dimensionless.
 
-The synchronous convention used for internal history checks in later slices is
-the Ma-Bertschinger synchronous form with `h` and `eta`:
+The synchronous convention used for internal history checks is the
+Ma-Bertschinger synchronous form with `h` and `eta`:
 
 ```text
 ds^2 = a(tau)^2 [
@@ -80,16 +80,17 @@ All photon temperature multipoles are dimensionless.
 ### Photon Polarization
 `e_gamma0`, `e_gamma1`, `e_gamma2`, ... are the even-parity polarization
 multipoles `E_gamma,l`.
-Later vector and tensor slices may add odd-parity multipoles, but the
-dimensionless spin-2 polarization convention is fixed now.
+Vector and tensor sectors use the same dimensionless spin-2 polarization
+convention and may carry odd-parity multipoles.
 
 `polarization_moment` means
 
 ```text
-Pi = Theta_gamma,2 + 6 E_gamma,2
+polarization_moment = Theta_gamma,2 / 10 + 3 E_gamma,2 / 5
 ```
 
-and is dimensionless.
+This is the CAMB-normalized scalar Thomson source moment and is
+dimensionless.
 
 `polarization_b_mode_seed` is the declared odd-parity transfer seed carried
 through exact lensing when a model declares primordial or sourced `B`.
@@ -112,15 +113,20 @@ Units: dimensionless.
   Higher multipoles `F_nu,l`. Units: dimensionless.
 
 ### Massive Neutrinos
-The canonical massive-neutrino momentum variable is the comoving momentum
-label `q`, treated as one resolved momentum-grid coordinate.
-The canonical energy is
+The canonical massive-neutrino momentum variable is the dimensionless
+comoving momentum label `q = p / T_nu0`, treated as one resolved
+momentum-grid coordinate. For a photon temperature `Tcmb_K`, the present
+neutrino temperature is `T_nu0 = (4/11)^(1/3) Tcmb_K`, expressed in eV for
+the runtime mass conversion. The canonical energy in the grid convention is
 
 ```text
-epsilon(q, a) = sqrt(q^2 + a^2 m_nu^2)
+epsilon(q, a) = sqrt(q^2 + (a m_nu / T_nu0)^2)
 ```
 
 and the canonical background distribution is the thermal Fermi-Dirac shape.
+When `sum_mnu` or `mnu` is declared, the q family uses the per-species mass
+`sum_mnu / num_massive_neutrinos`; the total present density uses the declared
+mass sum for normalization.
 
 The authoritative evolved states are the q-resolved hierarchy members:
 
@@ -139,6 +145,11 @@ The aggregate names
 and `nu_massive_l<j>` are reserved for strict q-integrated aliases built
 from the same resolved hierarchy. They must not become an independently
 drifting evolution path.
+
+The runtime also exports physical density, pressure, momentum, and shear
+fractions for each q family. These fractions follow the background
+`Omega_nu(a)` scaling and feed the Einstein source with the required `a^2`
+factor; the momentum source carries the relativistic `4/3` inertial factor.
 
 ### Vector States
 The canonical vector metric amplitude is `sigma_vector`, the transverse shear
@@ -165,6 +176,12 @@ The native matter and radiation vector states are:
 The generated vector route also carries the algebraic source moments
 `vector_polarization_moment = pi_gamma_vector / 10 + 3 E_gamma,2 / 5`
 and `vector_visibility_polarization_moment = g * vector_polarization_moment`.
+Vector temperature uses the two flat-space radial families
+`sqrt(l(l+1)/2) j_l(x)/x` and
+`sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
+the corresponding spin-1 radial limits.
+The scalar E-mode line-of-sight source applies the CAMB `15/8` normalization
+to `visibility * polarization_moment` before the native spin-2 projection.
 
 ### Tensor States
 The canonical tensor metric amplitude is `h_tensor`, with the explicit
@@ -173,20 +190,26 @@ conformal-time derivative `h_tensor_tau = d h_tensor / d eta`.
 
 The native tensor radiation states are:
 
-- `pi_gamma_tensor`, `pi_nu_tensor`
-  Photon and massless-neutrino tensor anisotropic stress amplitudes.
-  Units: dimensionless.
+- `delta_gamma_tensor`, `theta_gamma_tensor`, `pi_gamma_tensor`
+  Photon tensor temperature monopole, dipole, and shear. Units:
+  dimensionless, dimensionless, and dimensionless respectively.
+- `delta_nu_tensor`, `theta_nu_tensor`, `pi_nu_tensor`
+  Massless-neutrino tensor monopole, dipole, and shear. Units:
+  dimensionless.
 - `theta_gamma_t3`, `theta_gamma_t4`, ...
   Higher photon tensor temperature multipoles. Units: dimensionless.
-- `e_gamma_t2`, `e_gamma_t3`, ...
+- `e_gamma_t0`, `e_gamma_t1`, `e_gamma_t2`, ...
   Tensor even-parity polarization multipoles. Units: dimensionless.
 - `b_gamma_t2`, `b_gamma_t3`, ...
   Tensor odd-parity polarization multipoles. Units: dimensionless.
 - `nu_t3`, `nu_t4`, ...
   Higher massless-neutrino tensor multipoles. Units: dimensionless.
 
-The generated tensor route also carries the algebraic source moment
-`tensor_polarization_moment = pi_gamma_tensor / 10 + 3 E_gamma,2 / 5`.
+The generated tensor route also carries the full Thomson polarization source
+moment
+`-(delta_gamma_tensor / 10 + 2 pi_gamma_tensor / 7 +
+3 theta_gamma_t4 / 70 - 3 e_gamma_t0 / 5 + 6 e_gamma_t2 / 7 -
+3 e_gamma_t4 / 70) / sqrt(6)`.
 Odd-parity transfer content remains odd and even-parity transfer content
 remains even.
 
@@ -221,23 +244,25 @@ Gauge-invariant observable construction uses the Newtonian-basis `Phi`,
 `Psi`, and their matching matter and radiation combinations after those
 transformations.
 
-The generated synchronous route now carries `gauge_shift_alpha`,
-`h_sync_metric`, and `eta_sync_metric` as explicit internal histories.
+The generated synchronous route evolves only `gauge_shift_alpha`,
+`h_sync_metric`, and `eta_sync_metric` as explicit internal histories; it
+does not carry a hidden Newtonian `Phi` state. The `Phi` and `Psi` closures
+reconstruct the observable potentials from those synchronous histories.
 The observable scalar sources stay on the canonical `Phi` / `Psi`
 basis, while `Phi_from_synchronous` and `Psi_from_synchronous` record
 the explicit reconstructed transform used by the internal-history tests.
 
-The generated gauge-invariant route now compiles through dedicated
+The generated gauge-invariant route compiles through dedicated
 `Phi_gi` and `Psi_gi` variables together with observable-basis aliases,
 instead of reaching the observable construction surface only by relabeling
 the Newtonian branch.
 
-Custom declared graphs may still supply their own gauge bridge when the
+Custom declared graphs may supply their own gauge bridge when the
 standard first-order transform above does not apply, but gauge labels
 alone do not satisfy this contract.
 
 ## Regular Scalar Initial Modes
-The generated scalar route now materializes the following regular scalar
+The generated scalar route materializes the following regular scalar
 families with explicit leading super-horizon series:
 
 - `adiabatic_scalar`
@@ -253,16 +278,17 @@ amplitudes, velocity-like states use the matching leading `k` or `k^2
 tau` scaling, and the generated synchronous bridge seeds `h`, `eta`,
 and `alpha` from the same observable-basis metric constraint surface.
 
-Before integrating one generated scalar mode, the native runtime now
+Before integrating one generated scalar mode, the native runtime
 evaluates the starting Einstein energy, momentum, and shear residuals and
 rejects non-finite or out-of-tolerance initial data.
 
 ## Regular Tensor Initial Mode
 The generated tensor route materializes the regular `tensor_mode` family.
 It seeds `h_tensor` from the declared primordial tensor amplitude, seeds
-`h_tensor_tau` from the leading `k^2 tau` super-horizon series, and starts the
-tensor photon, polarization, and neutrino multipoles from the same regular
-physical surface.
+`h_tensor_tau` from the leading `k^2 tau` super-horizon series corrected by
+the free-streaming neutrino fraction, and seeds the neutrino tensor monopole
+from the matching `k^2 tau^2` term. Photon shear and all polarization
+multipoles begin on the regular tight-coupling surface.
 
 ## Canonical Scalar Equations
 The standard generated scalar hierarchy must use the following physical
@@ -283,8 +309,8 @@ k^2 (Phi - Psi)
 
 ### Generated Einstein Inputs
 `copernican/lib/perturbation_contract.py` materializes the scalar
-Einstein inputs as named derived quantities so runtime checks and later
-slices reuse one source surface:
+Einstein inputs as named derived quantities so runtime checks and evolution
+components share one source surface:
 
 - `matter_density_source = (Omega_c0 delta_c + Omega_b0 delta_b) / a`
 - `radiation_density_source = (4 Omega_gamma0 Theta_gamma,0
@@ -296,8 +322,9 @@ slices reuse one source surface:
 - `total_momentum_source` combines CDM and baryon velocities with
   photon and neutrino inertial terms using the same `/a` and `/a^2`
   scaling.
-- `total_shear_source` carries the massless and massive neutrino shear
-  terms.
+- `total_shear_source` carries photon anisotropic stress and twice the
+  massless or massive neutrino hierarchy shear, matching the CAMB
+  `pi_gamma` and `pi_nu` normalization.
 - `einstein_energy_residual`, `einstein_momentum_residual`, and
   `einstein_shear_residual` are the runtime diagnostics for the three
   Einstein equations above.
@@ -305,26 +332,44 @@ slices reuse one source surface:
 When the massive hierarchy is active, the generated scalar graph feeds
 the metric system through `massive_neutrino_density_source`,
 `massive_neutrino_momentum_source`, and
-`massive_neutrino_shear_source`. Those source slots now consume the
-thermally weighted physical `q` integrals without renaming the public
-Einstein-input surface.
+`massive_neutrino_shear_source`. Those source slots consume the
+thermally weighted physical `q` integrals, including their time-dependent
+background fractions, without renaming the public Einstein-input surface.
 
-Low-k stabilization must stay separate from the physical equations. The
-current generated hierarchy therefore keeps
-`metric_constraint_scale = k^2 + 3 Hconf^2` as an explicit algebraic
-bridge used by `phi_constraint` and the matching `psi_closure`, rather
-than folding that bridge back into the canonical Einstein equations
-themselves.
+The generated hierarchy evolves `Phi` from the Einstein momentum equation
+and reconstructs `Psi` from the shear constraint. Its
+`metric_constraint_scale = k^2` is therefore the exact Fourier-space scale,
+not an algebraic low-k bridge. The energy equation remains available through
+`einstein_energy_residual` as an independent runtime diagnostic.
+
+Conformal time retains its physical radiation-era origin. The background
+adds the analytic integral below `a_min` to both `eta` and the sound horizon,
+so superhorizon initial conditions and hierarchy closures use the same clock.
+The generated scalar initial state obtains `Theta_gamma,2` and
+`E_gamma,2` from the leading Thomson tight-coupling closure before `Phi` is
+seeded from the regular Einstein shear relation. In the generated hierarchy,
+that closure is `Theta_gamma,2 = (8/15) (k/collision_rate)
+Theta_gamma,1` and `E_gamma,2 = Theta_gamma,2 / 4`, matching the declared
+quadrupole collision block. The regular adiabatic seed
+converts primordial curvature into the radiation-era curvature and lapse
+potentials using the declared relativistic-neutrino fraction.
+The default hydrogen recombination quantities use the photon temperature
+before Compton decoupling and the adiabatically cooled matter temperature
+afterward. The native case-B coefficient includes the standard RECFAST
+multilevel-atom correction, while declared recombination quantity hooks
+remain authoritative.
+Helium Saha fractions are iterated to convergence so neutral helium does not
+leave a numerical free-electron floor in the post-recombination tail.
 
 ### Photon Temperature Hierarchy
 
 ```text
-Theta_gamma,0' = -k Theta_gamma,1 - Phi'
+Theta_gamma,0' = -k Theta_gamma,1 + Phi'
 Theta_gamma,1' = k (Theta_gamma,0 + Psi - 2 Theta_gamma,2) / 3
                  - tau_dot (Theta_gamma,1 - v_b / 3)
 Theta_gamma,2' = 2 k Theta_gamma,1 / 5
                  - 3 k Theta_gamma,3 / 5
-                 - tau_dot (Theta_gamma,2 - Pi / 10)
+                 - tau_dot (Theta_gamma,2 - polarization_moment)
 ```
 
 Higher photon multipoles use the standard free-streaming recurrence with a
@@ -349,19 +394,35 @@ free-streaming limit once `k eta` is large.
 ### Polarization Hierarchy
 
 ```text
-E_gamma,2' = 2 k E_gamma,1 / 5
-             - 3 k E_gamma,3 / 5
-             - tau_dot (E_gamma,2 - Pi / 10)
+E_gamma,2' = - k E_gamma,3 / 3
+             - tau_dot (E_gamma,2 - polarization_moment)
 ```
 
-Higher `E` multipoles use the same generated free-streaming recurrence family
-and the same horizon-aware terminal closure as the temperature hierarchy,
-with the corresponding `- tau_dot E_gamma,l` damping kept on every
-generated `l >= 3` multipole.
+Higher `E` multipoles use the spin-2 free-streaming recurrence and retain
+the corresponding `- tau_dot E_gamma,l` damping:
+
+```text
+E_gamma,l' = k l E_gamma,l-1 / (2 l + 1)
+             - k (l + 3) (l - 1) E_gamma,l+1
+               / ((l + 1) (2 l + 1))
+             - tau_dot E_gamma,l
+for 3 <= l < l_max
+
+E_gamma,l_max' = k l_max E_gamma,l_max-1 / (l_max - 2)
+                 - k (l_max + 3) E_gamma,l_max
+                   / sqrt[(k eta)^2 + (l_max + 3)^2]
+                 - tau_dot E_gamma,l_max
+```
+
+The terminal coefficient is the CAMB spin-2 truncation factor, while the
+horizon-aware denominator regularizes the closure before horizon entry.
 
 ### Matter And Neutrinos
 The baryon, CDM, massless-neutrino, and massive-neutrino continuity, Euler,
 and hierarchy equations follow the same Ma-Bertschinger sign convention.
+The generated baryon Euler equation uses the thermodynamic baryon sound
+speed, while the photon-baryon acoustic sound speed remains a separate
+background quantity for the tightly coupled radiation-baryon system.
 Massless-neutrino higher multipoles use the same horizon-aware terminal
 closure family as the photon and polarization ladders. Massive-neutrino
 density, pressure, momentum, and shear are fixed to thermal physical
@@ -369,39 +430,51 @@ density, pressure, momentum, and shear are fixed to thermal physical
 normalization.
 
 ### Tight Coupling And Collision Splitting
-The native scalar integrator now compiles every declared collision operator
+The native scalar integrator compiles every declared collision operator
 into one runtime block before evolution begins.
 Each block resolves its target state slots, `rate_expression`, linear
 coefficients or matrix entries, counterpart bookkeeping, and the declared
 integration strategy.
-The generated `thomson_drag` operator remains the built-in exact block, and
-its `activation_strategy: tight_coupling` metadata treats the Thomson dipole
-and quadrupole sub-block as stiff only while
+The generated `thomson_drag` operator is an always-active exact block. Its
+compiled matrix contains the photon-baryon dipole block and the
+CAMB-normalized photon temperature/E-polarization quadrupole block, so the
+Thomson collision history is advanced analytically rather than placed in an
+explicit Runge-Kutta stage. The generated scalar equations omit those
+collision terms, preventing direct and split updates from being counted
+twice. The tight-coupling threshold controls the separate algebraic
+closure:
 
 ```text
 collision_rate >= k * tight_coupling_ratio
 ```
 
-and exits that regime once
+with hysteretic exit at `collision_rate <= 0.1 * k * tight_coupling_ratio`.
 
-```text
-collision_rate <= 0.1 * k * tight_coupling_ratio
-```
-
-Within the active regime, `copernican/lib/perturbation_contract.py` and
-`copernican/lib/likelihoods/cmb/native_projection.py` advance that exact
-Thomson block analytically from the compiled `exact_form`.
+Within and outside the closure regime,
+`copernican/lib/perturbation_contract.py` and
+`copernican/lib/likelihoods/cmb/native_projection.py` advance the exact
+Thomson block from the compiled `exact_form`.
+The scalar runtime also applies the first-order tight-coupling hierarchy
+surface: `Theta_gamma,3 = (3/7) (k/collision_rate) Theta_gamma,2` and
+`E_gamma,2 = Theta_gamma,2`, `E_gamma,3 = Theta_gamma,3 / 4`; higher moments
+are initialized to zero until their explicit hierarchy equations take over.
 The same exact split damps the generated `l >= 3` temperature and
-polarization multipoles while that regime stays active.
-Outside the active regime, the same compiled operator falls back to its
-ordinary declared expression in the explicit RHS.
+polarization multipoles throughout the collision history.
+The generated tensor hierarchy declares its photon quadrupole Thomson block
+as a second exact operator, coupling `pi_gamma_tensor` and `e_gamma_t2` and
+damping the higher temperature and polarization ladders. This keeps the
+early-time tensor hierarchy from treating the large Thomson rate as an
+explicit Runge-Kutta term.
+Outside the scalar tight-coupling regime, the scalar operator falls back to
+its ordinary declared expression in the explicit RHS; the tensor photon
+block remains exact over its full collision history.
 
 Other declared operators may remain `explicit`, or they may opt into one
 compiled split block with `integration_strategy: exact` and a declared
 `exact_form`, or with `integration_strategy: implicit` and a declared
 `linear_block`.
 Several compiled collision blocks may run in the same evolution interval, and
-the native solver now suppresses only the selected split-operator outputs
+the native solver suppresses only the selected split-operator outputs
 instead of zeroing shared symbols such as `collision_rate`.
 Unsupported exact or implicit declarations therefore fail before evolution
 instead of being silently ignored.
@@ -410,21 +483,34 @@ instead of being silently ignored.
 The canonical scalar source decomposition is:
 
 ```text
-S_T = g (Theta_gamma,0 + Psi + Pi/4)
+S_T = g (Theta_gamma,0 + Psi)
+    + (5/2) [g k^2 polarization_moment
+             + 3 (g polarization_moment)''] / k^2
     + d/d eta [g v_b / k]
-    + exp(-tau) (Psi' - Phi')
+    + exp(-tau) (Phi' + Psi')
 
-S_E = 3 g Pi / 4
+S_E = 15 g polarization_moment / 2
 
 S_B = 0 for scalar modes
 
 S_phi = exp(-tau) (Phi + Psi)
 ```
 
+The native photon multipoles are temperature-normalized, while the
+brightness hierarchy used by the independent reference carries four times
+the photon quadrupole and polarization amplitudes. The generated scalar
+source therefore uses the factors above, and the photon contribution to the
+Einstein shear source is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
+
 The generated scalar Doppler source uses the baryon velocity
 `v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
-Bessel kernel. That derivative-kernel form is the implemented equivalent of
-the canonical `d/d eta [g v_b / k]` contribution above.
+Bessel kernel. The temperature polarization-quadrupole source is split into
+a local `(5/2) g polarization_moment` term and a `(15/2) g
+polarization_moment` term paired with the explicit `k^-2` derivative
+transfer. The latter transfers its two
+conformal-time derivatives to the second-derivative spherical-Bessel kernel
+before quadrature. This avoids finite-differencing a narrow visibility
+feature while preserving the canonical integration-by-parts source.
 
 The canonical vector source decomposition is:
 
@@ -432,37 +518,48 @@ The canonical vector source decomposition is:
 P_V = pi_gamma_vector / 10 + 3 E_gamma,2 / 5
 x = k chi
 
-S_T^V = [4 g (v_b_vector + sigma_vector)
+S_T^V = 4 g (v_b_vector + sigma_vector)
        + 15 d/d eta (g P_V) / (2 k)
-       + 4 exp(-tau) sigma_vector'] / x
+       + 4 exp(-tau) sigma_vector'
 
-S_E^V = 15 g P_V / x^2 + 15 d/d eta (g P_V) / (2 k x)
+S_E^V = 15 g P_V + 15 d/d eta (g P_V) / (2 k)
 
-S_B^V = -15 g P_V / (2 x)
+S_B^V = -15 g P_V / 2
 ```
 
 `copernican/lib/perturbation_contract.py` materializes these as
 `vector_temperature_source`, `vector_polarization_e_source`, and
-`vector_polarization_b_source`. The native line-of-sight projector keeps
-the same sign and parity convention across sectors: temperature sources are
-even, `E` is even, `B` is odd, and lensing uses the Weyl-potential sum
-`Phi + Psi`.
+`vector_polarization_b_source`; the radial factors are applied by the
+sector-specific projection kernels. The vector temperature route selects the
+`T1` family, while the vector `E` and `B` routes select their dedicated
+spin-2 families. The native line-of-sight projector keeps the same sign and
+parity convention across sectors: temperature sources are even, `E` is even,
+`B` is odd, and lensing uses the Weyl-potential sum `Phi + Psi`.
 
-The canonical tensor source decomposition is:
+The canonical tensor source decomposition is written in the CAMB tensor
+transfer convention. The generated hierarchy evolves the tensor metric
+wave and uses the physical photon polarization moment
+`P_T = 0.1 pi_gamma_tensor + 0.6 E_gamma,2`. The tensor source
+normalizations below also include the native primordial-power conversion
+(`P_h = P_T/6`) and the tensor radial-kernel normalization:
 
 ```text
-P_T = pi_gamma_tensor / 10 + 3 E_gamma,2 / 5
+S_T^T = -exp(-tau) h_tensor' + g P_T
 
-S_T^T = -exp(-tau) h_tensor' + 2 g P_T
+S_E^T = (15/2) sqrt(3/8) g P_T
 
-S_E^T = g P_T
-
-S_B^T = g B_gamma,2
+S_B^T = (15/2) sqrt(3/8) g P_T
 ```
 
 `copernican/lib/perturbation_contract.py` materializes these as
 `tensor_temperature_source`, `tensor_polarization_e_source`, and
-`tensor_polarization_b_source`.
+`tensor_polarization_b_source`. The tensor temperature radial kernel carries
+the complementary `sqrt(3/8)` and spin-2 factorial factor. The photon
+quadrupole and E/B hierarchy coefficients follow the tensor equations used
+by CAMB, including the exact two-state Thomson block for `pi_gamma_tensor`
+and `E_gamma,2`. The terminal vector temperature recurrence uses the
+physical `l/(l-1)` closure, while terminal vector polarization multipoles
+are held at zero as in the reference hierarchy.
 
 ## Public Spectrum Convention
 The native projection layer integrates raw transfer functions into raw
@@ -500,6 +597,12 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 `lensed_TT`, `lensed_TE`, `lensed_EE`, and `lensed_BB` stay in the same
 `muK^2` `D_ell` convention as their unlensed counterparts.
 
+Native projection quadrature is fixed by the declared numerical ell range
+and reference multipoles rather than by the subset requested by one caller.
+This keeps a spectrum's k integration stable when callers request a sparse
+surface such as `TT` at selected multipoles or request the complete lensed
+family.
+
 Single-sector native routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
 The tensor route reads `r` as the tensor-to-scalar amplitude ratio and `nt`
@@ -508,6 +611,84 @@ law.
 
 Unavailable spectra stay unavailable. Physically zero and unavailable are not
 the same state.
+
+## Native Execution Pipeline
+
+The native route is a declared-graph execution path with five physical
+stages:
+
+1. `copernican/lib/likelihoods/cmb/cmb.py` selects native execution for
+   `standard: false` and validates the contract before any spectrum is built.
+2. `native_background.py` resolves the expansion, conformal-time, optical-
+   depth, visibility, recombination, and sound-horizon tables. The table
+   carries interpolation functions for the quantities sampled by evolution
+   and projection.
+3. `native_evolution.py` compiles hierarchy families, declared collision
+   blocks, initial modes, gauge roles, and q-resolved momentum grids. Each
+   wave number is evolved through the declared state surface; production
+   execution does not call an external Boltzmann backend.
+4. `native_projection.py` evaluates transfer histories on the fixed numerical
+   envelope, applies the scalar, vector, or tensor line-of-sight kernels, and
+   integrates the transfer products into raw angular spectra. The source
+   history and radial-kernel conventions in this document determine the sign,
+   parity, and normalization of each transfer.
+5. `copernican_cmb_solver.py` converts raw spectra to the public units,
+   resolves requested-spectrum dependencies, and sends the four-component
+   temperature/polarization surface through `native_lensing.py` when lensed
+   outputs are requested. `native_cache.py` stores only results keyed by the
+   declared contract and numerical controls.
+
+The pipeline distinguishes declared transfer components from derived angular
+spectra. A transfer component supplies a source role and a projection kernel;
+an angular spectrum combines two compatible transfers. Thus `PP` is a
+lensing-potential spectrum, `TP` and `EP` are cross-surfaces, and lensed
+spectra depend on both the unlensed CMB surface and `PP`. A request for one
+component does not authorize a substitute source or a standard-backend result.
+
+## Numerical Controls And Runtime Envelope
+
+The native numerical defaults are `ell_min = 2`, `ell_max = 2500`,
+`k_min = 1.0e-5`, `k_max = 0.4`, `k_sample_count = 64`, and
+`eta_sample_count = 1024`. The photon and massless-neutrino hierarchy caps
+default to eight multipoles. The evolution tolerances default to
+`ode_rtol = 1.0e-6` and `ode_atol = 1.0e-9`; the tight-coupling ratio is
+`50.0`, and `source_grid_multiplier = 2` refines the line-of-sight grid.
+These values are declared through `cmb.perturbations.numerics` and are
+subject to `cmb.perturbations.accuracy_controls` minimums.
+
+Accuracy controls can require minimum ell, k, eta, hierarchy, source-grid,
+and momentum-grid coverage. A declared `runtime_envelope` can also cap
+evolution, projection, and total work units. The native runtime validates
+those limits before the expensive per-wave-number integration begins. A
+momentum-grid declaration supplies the q nodes and weights for a massive or
+other momentum-resolved hierarchy; minimum counts are checked against the
+accuracy controls before the grid enters the cache.
+
+Numerical controls define a reproducible execution envelope, not scientific
+convergence by themselves. Convergence acceptance requires controlled changes
+to the background, k, eta, hierarchy, q-grid, source-grid, and lensing
+resolutions with stable observables. That evidence belongs to Slice Nineteen
+and must not be inferred from a single successful native run.
+
+## Reference Cosmology And Acceptance Boundary
+
+The native absolute-reference checks use a neutral `standard: false` contract
+with the following cosmological inputs: `H0 = 67.4`, `ombh2 = 0.02237`,
+`omch2 = 0.12`, `Tcmb = 2.7255 K`, `YHe = 0.245`, `Neff = 3.046`,
+`As = 2.1e-9`, `ns = 0.965`, and `tau = 0.054`. CAMB is constructed only
+inside the scientific tests; production native modules do not import or call
+it.
+
+The accepted background-reference limits are conformal age and sound-horizon
+relative error at `0.2%`, visibility-peak redshift error at `0.5%`, visibility
+width error at `3%`, recombination median and 90th-percentile electron-fraction
+errors at `2%` and `5%`, and reionization optical-depth error at `1%`.
+The implemented reference surface also contains independent CAMB fixtures,
+projection-kernel limits, exact-remapper normalization checks, and narrow
+native tensor anchor checks. Those checks do not establish the full native
+scalar, lensing, massive-neutrino, gauge, or vector absolute-parity thresholds
+listed in PLAN.md. Numerical convergence of native outputs is a separate
+Slice Nineteen requirement.
 
 ## References
 The canonical meanings and target equations above follow the standard

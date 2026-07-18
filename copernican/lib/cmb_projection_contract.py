@@ -95,7 +95,13 @@ _DECLARED_PROJECTION_SPECS = {
     "line_of_sight_temperature": DeclaredProjectionSpec(
         name="line_of_sight_temperature",
         required_roles=(),
-        allowed_roles=("additive", "doppler", "isw", "monopole"),
+        allowed_roles=(
+            "additive",
+            "additive_derivative",
+            "doppler",
+            "isw",
+            "monopole",
+        ),
         description="Temperature line-of-sight transfer component.",
         output_role="temperature",
         transfer_units="dimensionless",

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The validation suite now runs *real* manifests through the same pipeline that
+The validation suite runs *real* manifests through the same pipeline that
 the GUI and CLI use for ordinary analyses. The manifest files live under
 `copernican/validation/manifests/`, and the canonical manifest
 `reference_planck2018.yml` evaluates the fixed-parameter
@@ -14,11 +14,11 @@ datasets.
 `copernican/models/model_ref_planck2018.yml` fixes the Hubble constant,
 matter/baryon densities, photon density, effective neutrino number and
 recombination redshift to the values reported in Planck Collaboration VI
-(2018, Table 2). Each prior is declared as a `fixed` value so the run still
+(2018, Table 2). Each prior is declared as a `fixed` value so the run also
 records the reference trace, the plotter draws the canonical comparison lines,
 and the corner output highlights the sameness even though the parameters do
 not wander. Because the parameters remain numerically locked, the manifest run
-is deterministic, reproducible across environments and continues to provide
+is deterministic, reproducible across environments and provides
 the golden dataset used for validation and regression tracking.
 
 ## Running validation
