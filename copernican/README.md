@@ -42,6 +42,12 @@ lensing inputs, numerical controls, and independent-reference boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
+The first production native LambdaCDM declaration is the
+[native LambdaCDM model](copernican/models/model_lcdm_ccmbs.yml).
+It executes through the declared native graph route without using an external
+Boltzmann backend. The transitional `model_lcdm.yml` remains separate until
+the later native-model migration slices replace it.
+
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
 source checkouts and installed copies follow the same launch path.

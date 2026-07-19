@@ -34,6 +34,9 @@ If a comparison is rejected, inspect both entries under
 declare matching observables, units, multipole grids, and spectrum roles.
 The same pair can be selected in the GUI or overridden with
 `--control-model` and `--test-model` in the CLI.
+The GUI keeps the selected filenames attached to each role, so models with
+the same display name remain distinct comparisons; the default control stays
+`model_lcdm.yml` until a different control is chosen.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and

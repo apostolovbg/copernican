@@ -839,7 +839,7 @@ Done when:
 * Outputs identify the actual control and test models without LCDM-specific
   assumptions.
 
-### [open] Slice Eleven - Native LCDM model
+### [closed] Slice Eleven - Native LCDM model
 
 Purpose:
 

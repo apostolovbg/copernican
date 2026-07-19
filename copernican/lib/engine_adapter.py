@@ -159,6 +159,7 @@ _SUPPORTED_CMB_CONTRACT_KEYS = {
     *_REQUIRED_CMB_CONTRACT_KEYS,
     "background",
     "model_parameters",
+    "numerical",
     "value_definitions",
 }
 _SUPPORTED_CMB_GRID_KEYS = {

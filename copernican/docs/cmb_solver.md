@@ -16,6 +16,20 @@ dimensionless perturbations are Fourier amplitudes in the same plane-wave
 convention used by the declared graph compiler and the native line-of-sight
 integrator.
 
+## Native LambdaCDM Artifact
+`copernican/models/model_lcdm_ccmbs.yml` is the production native LambdaCDM
+declaration. It defines the background and recombination inputs, scalar
+species and hierarchy families, Thomson coupling, adiabatic initial data,
+projection typing, and a bounded numerical envelope. The model compiles its
+generated scalar hierarchy through the same native runtime described below.
+
+Its perturbation contract uses `standard: false` and marks the `camb` mapping
+as `native_solver_required`. The `backend: camb` value remains only the
+historical adapter namespace required by the transitional model schema; the
+production output is the native declared-graph result and does not call CAMB
+or CLASS. The artifact remains separate from the transitional
+`model_lcdm.yml` until the later model-migration slices replace that route.
+
 ## Scalar Metric Convention
 The canonical scalar convention is the conformal-Newtonian convention
 used by Ma and Bertschinger for the physical meaning of the two scalar

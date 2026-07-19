@@ -80,6 +80,27 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-18:
+  Change: Created the native LambdaCDM model and documented its solver route.
+  Why: Defined the first production native model for Slice Eleven without
+    delegating CMB execution to an external Boltzmann backend.
+  Impact: Exposed finite native spectra, numerical provenance, and the
+    declared scalar graph through validation, manifests, and model guidance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/engine_adapter.py
+  copernican/lib/gui/app.py
+  copernican/models/model_lcdm_ccmbs.yml
+  docs/model_template.yml
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-07-18:
   Change: Enforced pair-based posterior plotting and updated GUI navigation
     fixtures.
   Why: Removed single-model plotting fixtures and stale page-index skips from

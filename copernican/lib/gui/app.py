@@ -8411,8 +8411,8 @@ class CopernicanGUI:
             or self.draft.test_model
             or (self.selected_models[0] if self.selected_models else "model")
         )
-        control_entry = self._model_entry_for_value(control_value)
-        test_entry = self._model_entry_for_value(test_value)
+        control_entry = self._model_role_entry("control")
+        test_entry = self._model_role_entry("test")
         comparison = build_comparison_request(
             (
                 control_entry.get("id", control_value)
@@ -8427,8 +8427,7 @@ class CopernicanGUI:
         )
         models = [comparison.control_model.name, comparison.test_model.name]
         model_pairs = []
-        for model in models:
-            entry = self._model_entry_for_value(model)
+        for model, entry in zip(models, (control_entry, test_entry)):
             if entry:
                 model_name = entry.get("id")
                 model_filename = entry.get("filename")

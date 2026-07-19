@@ -22,20 +22,24 @@ description: |
     `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
     aligned with the CAMB background while letting relativistic species
     float.
-  * The `cmb` block is a backend adapter contract, not a model class tag.
-    Use `backend: camb`, keep scalar CAMB inputs in `param_map`, declare any
-    generated numerical grids in `grids`, put evaluated expressions in
-    `values`, list backend calls in `calls`, and add a perturbation contract
-    under `cmb.perturbations`.
-  * `valid_for_cmb: true` requires a complete backend contract. A
-    backend-default model uses `calls: []`; models with additional
-    backend method calls may declare them explicitly without changing the
-    model's declared mathematics.
-  * Every CMB-valid model also declares a perturbation contract under
-    `cmb.perturbations`. `standard: true` means the backend owns the full
-    perturbation machinery and the math sections stay empty. `standard: false`
-    requires a fully declared perturbation contract with typed derivative
-    equations and backend mapping.
+  * The `cmb` block is the structured native execution contract. The current
+    `backend: camb` value names the historical adapter namespace; native
+    execution is selected by `standard: false` and
+    `native_solver_required: true` in the backend mapping. Keep scalar
+    reference inputs in `param_map`, declare numerical grids in `grids`, put
+    evaluated expressions in `values`, list adapter calls in `calls`, and
+    define the native background and perturbation graph in the same block.
+  * `cmb.numerical` declares native runtime controls such as ell and k bounds,
+    sampling counts, ODE tolerances, tight-coupling settings, and the initial
+    redshift. Repeat the controls under `cmb.perturbations.numerics` when the
+    hierarchy compiler must use them while materializing the graph.
+  * `valid_for_cmb: true` requires a complete structured contract. A native
+    model uses `calls: []` unless it declares reviewed adapter metadata, and
+    its perturbation contract must provide typed graph metadata, physical
+    sources, projections, initial conditions, validity, and native mapping.
+  * `standard: true` is reserved for transitional backend models and
+    independent reference fixtures. Production native models use
+    `standard: false` with a compiled declared graph.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -165,6 +169,19 @@ cmb:
   grids: {}
   values: {}
   calls: []
+  numerical:
+    ell_min: 2
+    ell_max: 2000
+    k_min: 1.0e-4
+    k_max: 0.3
+    k_sample_count: 64
+    eta_sample_count: 1024
+    ode_rtol: 1.0e-6
+    ode_atol: 1.0e-9
+    tight_coupling_ratio: 80.0
+    a_min: 1.0e-6
+    source_grid_multiplier: 2
+    initial_redshift: 2.0e4
   background:
     derived:
       h: H0 / 100.0

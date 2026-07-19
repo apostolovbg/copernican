@@ -16,8 +16,9 @@ import numpy
 from copernican import validation as validation_module
 from copernican.lib import camb_contract
 from copernican.lib import engine_adapter as engine_plugin_validation
-from copernican.lib import model_coder, model_spec_validator
+from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.engine_adapter import PluginValidationError
+from copernican.lib.likelihoods.cmb import cmb
 from copernican.lib.perturbation_contract import PerturbationContractData
 
 # fmt: off
@@ -1185,6 +1186,102 @@ class FrozenMappingTests(unittest.TestCase):
         extras_copy = plugin.extras.to_dict()
         extras_copy["custom_extra"] = "shadowed"
         self.assertEqual(plugin.extras["custom_extra"](), "extra")
+
+
+class NativeLCDMModelTestCase(unittest.TestCase):
+    """Verify that the native LambdaCDM file reaches the native solver."""
+
+    @staticmethod
+    def _build_plugin():
+        """Build the native model through the repository validation path."""
+
+        model_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / "model_lcdm_ccmbs.yml"
+        )
+        with tempfile.TemporaryDirectory() as cache_dir:
+            cache_path = model_spec_validator.validate_and_cache_model(
+                model_path,
+                cache_dir,
+            )
+            functions, model_data = model_coder.generate_callables(cache_path)
+        plugin = engine_plugin_validation.build_plugin(model_data, functions)
+        plugin.MODEL_FILENAME = model_path.name
+        return plugin
+
+    def test_native_lcdm_declares_compiled_scalar_graph(self) -> None:
+        """The artifact must compile a native graph with declared outputs."""
+
+        plugin = self._build_plugin()
+        perturbation_data = plugin.get_cmb_perturbation_data(
+            plugin.INITIAL_GUESSES
+        )
+        summary = perturbation_data.manifest_summary
+        route = summary["execution_route"]
+
+        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        self.assertTrue(route["uses_native_declared_graph"])
+        self.assertFalse(route["uses_camb_prediction"])
+        self.assertTrue(route["route_ready_for_execution"])
+        self.assertIn("evolve_theta_gamma0", summary["equation_names"])
+        self.assertIn(
+            "adiabatic_scalar", summary["initial_condition_family_names"]
+        )
+        self.assertEqual(
+            set(summary["angular_power_spectrum_targets"]),
+            {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
+        )
+
+    def test_native_lcdm_spectrum_smoke_is_finite(self) -> None:
+        """Native scalar spectra must execute without an external solver."""
+
+        plugin = self._build_plugin()
+        ell_grid = numpy.asarray([2, 10, 20], dtype=int)
+        spectra = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            plugin.INITIAL_GUESSES,
+            ell_grid,
+            spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
+        )
+
+        self.assertEqual(
+            set(spectra),
+            {"TT", "TE", "EE", "PP", "TP", "EP"},
+        )
+        for values in spectra.values():
+            self.assertEqual(values.shape, ell_grid.shape)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_native_lcdm_manifest_records_provenance(self) -> None:
+        """A run manifest must identify native execution and controls."""
+
+        plugin = self._build_plugin()
+        manifest = run_manifest.build_manifest(
+            [(plugin, "1.0")],
+            SimpleNamespace(__name__="native_test", ENGINE_VERSION="test"),
+            [],
+        )
+        model_entry = manifest["camb"]["models"][0]
+        route = model_entry["custom_cmb_execution_route"]
+
+        self.assertFalse(model_entry["perturbation_standard"])
+        self.assertTrue(
+            model_entry["perturbation_backend_native_solver_required"]
+        )
+        self.assertTrue(route["uses_native_declared_graph"])
+        self.assertFalse(route["uses_camb_prediction"])
+        self.assertEqual(
+            model_entry["custom_cmb_numerical_settings"]["ell_max"],
+            2000,
+        )
+        self.assertEqual(
+            model_entry["custom_cmb_runtime_manifest_summary"][
+                "compile_diagnostics"
+            ]["compiler"],
+            "copernican.lib.model_coder.compile_native_cmb_runtime",
+        )
 
 
 if __name__ == "__main__":
