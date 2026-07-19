@@ -235,7 +235,7 @@ parameters:
   - 3.5
   unit: ''
   latex_name: N_{\rm eff}
-  definition: Sampled relativistic species count used in CAMB.
+  definition: Sampled relativistic species count used in native CMB solver.
   prior:
     type: uniform
     lower: 2.5
@@ -279,7 +279,7 @@ rs_expression: >-
   )
 skip_bao: false
 valid_for_bao: true
-valid_for_cmb: true
+valid_for_cmb: false
 cmb:
   backend: camb
   param_map:
@@ -291,56 +291,207 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-  grids:
-    a_grid:
-      symbol: a
-      lower: 0.001
-      upper: 1.0
-      points: 256
-      spacing: linear
-  values:
-    w_usmf:
-      grid: a_grid
-      expression: >-
-        -1 + (2/3) * (
-          1 + p_{alpha}
-          + k_{exp} * s_{exp} * (a**s_{exp}) / (1 + a**(2*s_{exp}))
-        )
-  calls:
-    - method: set_dark_energy_w_a
-      args:
-        a: "@grid.a_grid"
-        w: "@value.w_usmf"
-      kwargs:
-        dark_energy_model: ppf
+    YHe: 0.245
+    sum_mnu: 0.0
+    num_massive_neutrinos: 3
+  model_parameters: {}
+  grids: {}
+  values: {}
+  calls: []
+  numerical:
+    ell_min: 2
+    ell_max: 2000
+    k_min: 0.0001
+    k_max: 0.3
+    k_sample_count: 18
+    eta_sample_count: 192
+    ode_rtol: 1.0e-05
+    ode_atol: 1.0e-08
+    tight_coupling_ratio: 80.0
+    a_min: 1.0e-06
+    source_grid_multiplier: 2
+    initial_redshift: 2.0e4
+  background:
+    derived:
+      h: H0 / 100.0
+      H0_over_c_Mpc_inv: H0 / 299792.458
+      Omega_k0: '0.0'
+      Tcmb_K: 2.7255
+      Tcmb: Tcmb_K
+      YHe: 0.245
+      Omega_b0: ombh2 / (h * h)
+      Omega_c0: omch2 / (h * h)
+      Omega_gamma0: Omega_gamma
+      Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
+      Omega_r0: Omega_gamma0 + Omega_nu0
+      Omega_m0: Omega_b0 + Omega_c0
+      Omega_de0: 1.0 - Omega_m0 - Omega_r0 - Omega_k0
+      H: H0 * (1 / a) ** (1 + p_alpha) * exp(k_exp * (atan((1 / a) ** s_exp) - pi
+        / 4))
+    reionization:
+      calibration:
+        symbol: reionization_log10_amplitude
+        target_optical_depth: tau
+        lower: -24.0
+        upper: 32.0
+      quantities:
+        stellar_temperature_K: 5.0e4
+        quasar_temperature_K: 1.5e5
+        hydrogen_temperature_K: 1.0e4
+        helium_temperature_K: 1.0e4
+        helium_double_temperature_K: 2.0e4
+        collapse_threshold: 1.686
+        collapse_source: exp(-collapse_threshold / (a + 1.0e-6))
+        hard_source: collapse_source * collapse_source
+        stellar_helium_hardness: exp(-((24.587387 - 13.605693122994) * 1.602176634e-19)
+          / (1.380649e-23 * stellar_temperature_K))
+        quasar_helium_hardness: exp(-((54.417763 - 13.605693122994) * 1.602176634e-19)
+          / (1.380649e-23 * quasar_temperature_K))
+        hydrogen_ionization_rate: (10 ** reionization_log10_amplitude) * H_SI * collapse_source
+        helium_ionization_rate: hydrogen_ionization_rate * stellar_helium_hardness
+        helium_double_ionization_rate: (10 ** reionization_log10_amplitude) * H_SI
+          * hard_source * quasar_helium_hardness
   perturbations:
-    contract_version: 1
-    standard: true
-    gauge: unspecified
+    contract_version: 2
+    standard: false
+    gauge: conformal_newtonian
+    sectors:
+      scalar:
+        description: >-
+          Scalar Einstein-Boltzmann hierarchy for the declared model
+          background.
+        species:
+        - photon
+        - baryon
+        - massless_neutrino
+        hierarchy_families:
+        - photon_temperature
+        - photon_polarization_e
+        - massless_neutrino
+        supported_gauges:
+        - conformal_newtonian
+        - synchronous
+        tensor_character: scalar_like
+    species:
+      photon:
+        sector: scalar
+        hierarchy_family: photon_temperature
+        collision_operators:
+        - thomson_drag
+        background_reference: Omega_gamma0
+      baryon:
+        sector: scalar
+        collision_operators:
+        - thomson_drag
+        background_reference: Omega_b0
+      massless_neutrino:
+        sector: scalar
+        hierarchy_family: massless_neutrino
+        background_reference: Omega_nu0
+        anisotropic_stress: supported
+    hierarchy_families:
+      photon_temperature:
+        sector: scalar
+        species:
+        - photon
+        closure: free_streaming_scalar
+        default_l_max: 8
+        multipole_symbol: theta_gamma_l
+      photon_polarization_e:
+        sector: scalar
+        species:
+        - photon
+        closure: free_streaming_scalar
+        default_l_max: 8
+        multipole_symbol: e_gamma_l
+      massless_neutrino:
+        sector: scalar
+        species:
+        - massless_neutrino
+        closure: free_streaming_scalar
+        default_l_max: 5
+        multipole_symbol: nu_l
+    collision_operators:
+      thomson_drag:
+        sector: scalar
+        species:
+        - photon
+        - baryon
+        expression: collision_rate * ((theta_b / acoustic_k) / 3.0 - theta_gamma1)
+        counterpart: baryon_thomson_drag
+    conservation_rules:
+      thomson_drag_balance:
+        kind: absolute_max
+        expression: 3.0 * acoustic_k * photon_baryon_momentum_ratio * thomson_drag
+          + baryon_thomson_drag
+        tolerance: 1.0e-12
+        domain: scalar
+    initial_condition_families:
+      adiabatic_scalar:
+        sector: scalar
+        description: Regular adiabatic growing scalar mode.
+        members: []
+    projection_typing:
+      temperature_line_of_sight:
+        sector: scalar
+        kernel: temperature_mixed_window
+        source_roles:
+        - monopole
+        - doppler
+        - isw
+        observable_kinds:
+        - transfer_component
+        parity: even
+        spin: 0.0
+    accuracy_controls:
+      scalar_reference_ells:
+      - 2
+      - 2000
+      runtime_envelope: bounded
     variables: {}
     derived: {}
     equations: {}
+    constraints: {}
     closures: {}
     sources: {}
+    observables: {}
+    initial_conditions: {}
+    boundary_conditions: {}
+    numerics:
+      ell_min: 2
+      ell_max: 2000
+      k_min: 0.0001
+      k_max: 0.3
+      k_sample_count: 18
+      eta_sample_count: 192
+      ode_rtol: 1.0e-05
+      ode_atol: 1.0e-08
+      tight_coupling_ratio: 80.0
+      a_min: 1.0e-06
+      source_grid_multiplier: 2
+      initial_redshift: 2.0e4
     validity:
       regimes:
-        - standard_camb_with_declared_background_adapter
-      notes: Uses standard backend perturbations with the model's declared
-        background adapter contract.
+      - linear
+      - native_scalar_hierarchy
+      notes: CMB output is unavailable without a declared perturbation closure.
     backend_mapping:
       camb:
-        uses_standard_perturbations: true
+        native_solver_required: true
+        implemented: true
     notes: >-
-      Native non-standard perturbation equations are not declared in this model
-      file.
+      The model declares no defensible linear perturbation closure for the
+      shrinking-matter mechanism. CMB output is unavailable until that
+      closure is specified; the native solver does not substitute a
+      particulate matter sector.
 notes: >-
   Detailed model behaviour embedded in this JSON. The BAO radiation mapping
   multiplies
   Omega_gamma by (1 + 0.2271 * Neff) inside omnuh2 so the neutrino content
-  matches the CAMB background, and letting Neff float between 2.5 and 3.5 keeps
+  matches the native CMB background, and letting Neff float between 2.5 and 3.5 keeps
   the sampled radiation density aligned with the analytic integrals without
   hard-coding the Planck default.
-  The CAMB adapter contract evaluates the shrinking-matter background on a
-  scale-factor grid and forwards an effective w(a) table into CAMB directly.
+  The native CMB contract evaluates the shrinking-matter background on a
+  scale-factor grid and forwards an effective w(a) table into native CMB solver directly.
 title: The Unified Shrinking Matter Framework (USMF) Version 2
 date: '2025-05-26'

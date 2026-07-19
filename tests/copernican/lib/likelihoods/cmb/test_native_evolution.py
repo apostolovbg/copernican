@@ -1,5 +1,6 @@
 """Focused tests for the native CMB evolution module."""
 
+import ast
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -118,6 +119,21 @@ def _compiled_graph_fixture():
 
 class NativeEvolutionModuleTestCase(unittest.TestCase):
     """Exercise native evolution helpers directly."""
+
+    def test_context_name_rewriter_maps_runtime_names(self):
+        """The generated context program must rewrite declared names."""
+
+        rewriter = native_evolution._ContextNameRewriter()
+        runtime_name = rewriter.visit_Name(
+            ast.Name(id="delta_x", ctx=ast.Load())
+        )
+        allowed_function = rewriter.visit_Name(
+            ast.Name(id="sqrt", ctx=ast.Load())
+        )
+
+        self.assertEqual(rewriter.visit_Name.__name__, "visit_Name")
+        self.assertEqual(ast.unparse(runtime_name), "context['delta_x']")
+        self.assertEqual(ast.unparse(allowed_function), "sqrt")
 
     def test_precompiled_perturbation_payload_is_reused(self):
         """Existing compiled perturbation data should bypass recompilation."""

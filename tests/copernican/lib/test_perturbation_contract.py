@@ -611,6 +611,101 @@ class PerturbationContractTestCase(unittest.TestCase):
             evaluate_compiled_expression,
         )
 
+    def test_scalar_hierarchy_omits_undeclared_cdm(self) -> None:
+        """Generated scalar graphs should contain only declared species."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"].pop("cdm")
+        compiled = self._compile(contract)
+
+        self.assertTrue(
+            compiled.manifest_summary["generated_scalar_hierarchy"]
+        )
+        self.assertNotIn("delta_c", compiled.variables)
+        self.assertNotIn("theta_c", compiled.variables)
+        self.assertNotIn("evolve_delta_c", compiled.equations)
+        self.assertNotIn("evolve_theta_c", compiled.equations)
+        self.assertNotIn("observable_delta_c", compiled.derived)
+        self.assertNotIn("observable_theta_c", compiled.derived)
+        self.assertNotIn(
+            "Omega_c0",
+            compiled.derived["matter_density_source"].expression,
+        )
+        self.assertNotIn(
+            "Omega_c0",
+            compiled.derived["total_momentum_source"].expression,
+        )
+
+    def test_scalar_hierarchy_omits_undeclared_massless_neutrinos(
+        self,
+    ) -> None:
+        """Massless-neutrino states should follow the species inventory."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"].pop("massless_neutrino")
+        contract["hierarchy_families"].pop("massless_neutrino")
+        compiled = self._compile(contract)
+
+        self.assertNotIn("delta_nu", compiled.variables)
+        self.assertNotIn("theta_nu", compiled.variables)
+        self.assertNotIn("sigma_nu", compiled.variables)
+        self.assertNotIn("evolve_delta_nu", compiled.equations)
+        self.assertNotIn("evolve_theta_nu", compiled.equations)
+        self.assertNotIn("evolve_sigma_nu", compiled.equations)
+        self.assertNotIn("observable_delta_nu", compiled.derived)
+        self.assertNotIn("observable_theta_nu", compiled.derived)
+        self.assertNotIn(
+            "massless_neutrino_fraction",
+            compiled.derived["radiation_density_source"].expression,
+        )
+
+    def test_scalar_hierarchy_consumes_declared_matter_source_closure(
+        self,
+    ) -> None:
+        """Theory source closures should replace the generic matter term."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"].pop("cdm")
+        contract["sources"] = {
+            "relational_matter_density": {
+                "expression": "2.0 * Omega_b0 * observable_delta_b",
+                "role": "matter_density",
+                "description": "Relational matter source closure.",
+            },
+            "relational_matter_momentum": {
+                "expression": "2.0 * Omega_b0 * observable_theta_b",
+                "role": "matter_momentum",
+                "description": "Relational momentum source closure.",
+            },
+            "relational_baryon_euler": {
+                "expression": (
+                    "-Hconf * theta_b + acoustic_k_sq * "
+                    "baryon_sound_speed_sq * delta_b + "
+                    "baryon_thomson_drag / 2.0 + acoustic_k_sq * Psi"
+                ),
+                "role": "baryon_euler",
+                "description": "Relational baryon Euler closure.",
+            },
+        }
+        compiled = self._compile(contract)
+
+        self.assertIn("relational_matter_density", compiled.sources)
+        self.assertIn(
+            "2.0 * Omega_b0 * observable_delta_b",
+            compiled.derived["matter_density_source"].expression,
+        )
+        self.assertIn(
+            "2.0 * Omega_b0 * observable_theta_b",
+            compiled.derived["total_momentum_source"].expression,
+        )
+        self.assertEqual(
+            compiled.equations["evolve_theta_b"].rhs,
+            (
+                "-Hconf * theta_b + acoustic_k_sq * baryon_sound_speed_sq * "
+                "delta_b + baryon_thomson_drag / 2.0 + acoustic_k_sq * Psi"
+            ),
+        )
+
     def test_scalar_metadata_contract_tracks_canonical_units_and_roles(
         self,
     ) -> None:

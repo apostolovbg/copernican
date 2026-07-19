@@ -1,14 +1,17 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-07-19
 **Project Version:** 12.0.26
 
 ## Overview
 This document is the canonical physical convention for Copernican's native
-CMB solver path when `cmb.perturbations.standard: false`.
+CMB solver path. Every bundled production CMB model uses
+`cmb.perturbations.standard: false` and the declared native graph.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
-spectra defined here.
+spectra defined here. A model may declare a native contract while marking CMB
+output unavailable when its theory has no defensible linear perturbation
+closure.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -16,7 +19,7 @@ dimensionless perturbations are Fourier amplitudes in the same plane-wave
 convention used by the declared graph compiler and the native line-of-sight
 integrator.
 
-## Native LambdaCDM Artifact
+## Native Model Declarations
 `copernican/models/model_lcdm_ccmbs.yml` is the production native LambdaCDM
 declaration. It defines the background and recombination inputs, scalar
 species and hierarchy families, Thomson coupling, adiabatic initial data,
@@ -24,11 +27,27 @@ projection typing, and a bounded numerical envelope. The model compiles its
 generated scalar hierarchy through the same native runtime described below.
 
 Its perturbation contract uses `standard: false` and marks the `camb` mapping
-as `native_solver_required`. The `backend: camb` value remains only the
-historical adapter namespace required by the transitional model schema; the
-production output is the native declared-graph result and does not call CAMB
-or CLASS. The artifact remains separate from the transitional
-`model_lcdm.yml` until the later model-migration slices replace that route.
+as `native_solver_required`. The `backend: camb` value remains the historical
+adapter namespace in the current model schema; it does not select a
+production backend. The production output is the native declared-graph
+result and does not call CAMB or CLASS.
+
+Available bundled CMB models use the same contract shape. Their model files
+preserve theory-specific parameters, priors, distance equations, sound-
+horizon expressions, and declared background functions while replacing
+backend grids and calls with native numerical controls. Each file declares a
+scalar sector, its physical species, hierarchy families, Thomson coupling,
+conservation rule, regular adiabatic initial family, projection typing, and
+native backend mapping. The compiler materializes the common scalar
+hierarchy from this metadata, so model-specific background expressions feed
+one solver without a standard-backend branch. USMF declares its physical
+species and native contract but marks CMB output unavailable until its
+shrinking-matter perturbation closure is specified.
+
+For a non-radiation-dominated early background, the generated regular scalar
+series scales its leading time powers with the local conformal-Hubble time.
+This keeps the declared Einstein constraints valid for theory-specific
+expansion laws while retaining the same adiabatic mode contract.
 
 ## Scalar Metric Convention
 The canonical scalar convention is the conformal-Newtonian convention
@@ -110,11 +129,21 @@ dimensionless.
 through exact lensing when a model declares primordial or sourced `B`.
 Units: dimensionless.
 
-### Baryons And Cold Dark Matter
-- `delta_b`, `delta_c`
-  Density contrasts. Units: dimensionless.
-- `theta_b`, `theta_c`
-  Velocity divergences. Units: `1/Mpc`.
+### Declared Matter Species
+- `delta_b`, `theta_b`
+  Baryon density contrast and velocity divergence. Units: dimensionless and
+  `1/Mpc`.
+- `delta_c`, `theta_c`
+  CDM density contrast and velocity divergence. These states exist only when
+  the model declares a `cdm` species; the compiler never adds them to satisfy
+  a hierarchy requirement.
+
+The scalar Einstein sources assemble only the declared matter terms. Models
+without CDM must provide a theory-specific matter source closure when their
+background adds relational or effective inertia. QRSF and TORG declare
+baryon-locked density and momentum sources and baryon Euler closures. Their
+source expressions use the model background factors rather than relabeling
+those effects as CDM.
 
 ### Massless Neutrinos
 - `delta_nu`
@@ -172,7 +201,8 @@ variable propagated by the vector Einstein system. It is dimensionless.
 The native matter and radiation vector states are:
 
 - `v_b_vector`, `v_c_vector`
-  Baryon and CDM vorticity amplitudes. Units: dimensionless.
+  Baryon and optional CDM vorticity amplitudes. `v_c_vector` is present only
+  when the model declares CDM. Units: dimensionless.
 - `q_gamma_vector`, `q_nu_vector`
   Photon and massless-neutrino vector heat fluxes. Units: dimensionless.
 - `pi_gamma_vector`, `pi_nu_vector`

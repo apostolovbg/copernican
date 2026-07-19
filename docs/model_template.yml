@@ -19,8 +19,8 @@ description: |
   * Always pair the photon density `Omega_gamma` with a sampled `Neff`
     parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
     (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
-    `rs_expression`. This keeps BAO plots, CSV exports and likelihood calls
-    aligned with the CAMB background while letting relativistic species
+    `rs_expression`. This keeps BAO plots, CSV exports, likelihood calls,
+    and native CMB backgrounds aligned while letting relativistic species
     float.
   * The `cmb` block is the structured native execution contract. The current
     `backend: camb` value names the historical adapter namespace; native
@@ -37,9 +37,21 @@ description: |
     model uses `calls: []` unless it declares reviewed adapter metadata, and
     its perturbation contract must provide typed graph metadata, physical
     sources, projections, initial conditions, validity, and native mapping.
-  * `standard: true` is reserved for transitional backend models and
-    independent reference fixtures. Production native models use
-    `standard: false` with a compiled declared graph.
+  * A metadata-generated scalar hierarchy materializes only the species and
+    hierarchy families listed in `species` and `hierarchy_families`. It never
+    adds CDM or neutrino states to complete a compiler requirement.
+  * Theory-specific source closures belong in `perturbations.sources`. Use
+    the `matter_density`, `matter_momentum`, and `baryon_euler` roles when a
+    declared background changes the baryon-locked scalar source. Do not
+    represent a relational or effective response as a synthetic species.
+  * Set `valid_for_cmb: false` when the theory lacks a defensible linear
+    perturbation closure. Keep the native contract descriptive, and expose
+    CMB output as unavailable rather than substituting a standard model or
+    returning fabricated zero spectra.
+  * `standard: true` is reserved for independent reference fixtures.
+    Every bundled production CMB model uses `standard: false` with a
+    compiled declared graph. The `camb` backend key is a historical schema
+    namespace; `native_solver_required: true` selects production execution.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -98,7 +110,8 @@ parameters:
     bounds: [2.5, 3.5]
     unit: ""
     latex_name: N_{\rm eff}
-    definition: Sampled relativistic neutrino count aligned with CAMB.
+    definition: Sampled relativistic neutrino count used by the native CMB
+      background and independent reference fixtures.
     prior:
       type: uniform
       lower: 2.5
@@ -357,7 +370,7 @@ cmb:
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV
-    exports and CAMB inputs in sync.
+    exports, native CMB backgrounds, and reference inputs in sync.
   * The template lists uniform, gaussian, loguniform and fixed priors so you
     can see all supported options. Always repeat the definition, unit and
     latex name to make the cached YAML readable.
@@ -368,6 +381,9 @@ notes: |
     observables whenever the convention is fixed. The canonical native CMB
     sign, gauge, source, and spectrum conventions live in
     `copernican/docs/cmb_solver.md`.
+  * Review the compiled species and source names against the theory before
+    enabling CMB output. A native graph is valid only when every emitted
+    state and source has an explicit physical origin.
   * Non-standard perturbation expressions can use the declared variables, the
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
@@ -426,6 +442,6 @@ notes: |
     that powering the χ² residual regression. Adjust `Omega_b` intentionally
     and rerun the BAO test whenever you take the value outside this window.
   * Set `skip_bao: true` when you intentionally leave BAO disabled. Leaving the
-    key absent (or setting it to `false`) keeps the standard expectation that
-    `rs_expression` and CAMB-aligned BAO helpers remain active.
+    key absent (or setting it to `false`) keeps the declared expectation that
+    `rs_expression` and reference-aligned BAO helpers remain active.
 date: '2025-12-06'

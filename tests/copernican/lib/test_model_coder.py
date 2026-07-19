@@ -414,7 +414,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "numerical": {"ell_max": 64},
             "perturbations": {
                 "standard": False,
-                "backend": {"implemented": True},
             },
         }
 
@@ -486,7 +485,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "calls": [],
             "perturbations": {
                 "standard": False,
-                "backend": {"implemented": True},
             },
         }
 
@@ -787,6 +785,41 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             prepared["runtime_signature"].startswith("native-cmb-runtime:")
         )
         self.assertIsNotNone(prepared["compile_diagnostics"])
+
+    def test_prepare_native_strips_runtime_metadata_from_perturbations(
+        self,
+    ) -> None:
+        """Outer runtime metadata must not enter the graph compiler."""
+
+        compile_result = object()
+        cmb_contract = {
+            "model_name": "MetadataModel",
+            "backend": "camb",
+            "param_map": {},
+            "model_parameters": {},
+            "background": {},
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "numerical": {},
+            "perturbations": {
+                "contract_version": 2,
+                "standard": False,
+                "model_name": "MetadataModel",
+                "backend": "camb",
+            },
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ) as compile_contract:
+            model_coder.prepare_native_cmb_execution_contract(cmb_contract)
+
+        compiled_contract = compile_contract.call_args.args[0]
+        self.assertNotIn("model_name", compiled_contract)
+        self.assertNotIn("backend", compiled_contract)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

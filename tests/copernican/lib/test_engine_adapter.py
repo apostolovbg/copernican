@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy
+import yaml
 
 from copernican import validation as validation_module
 from copernican.lib import camb_contract
@@ -931,6 +932,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         models_dir = repo_root / "copernican" / "models"
         model_names = [
             "model_lcdm.yml",
+            "model_lcdm_ccmbs.yml",
             "model_lcdm_mnu.yml",
             "model_ref_planck2018.yml",
             "model_tog.yml",
@@ -939,8 +941,88 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "model_w0wa.yml",
             "model_qauc.yml",
             "model_qrsf.yml",
-            "model_usmf2.yml",
         ]
+        expected_species = {
+            "model_lcdm.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_lcdm_ccmbs.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "photon",
+            },
+            "model_lcdm_mnu.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_ref_planck2018.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_tog.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_torg.yml": {
+                "baryon",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_wcdm.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_w0wa.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_qauc.yml": {
+                "baryon",
+                "cdm",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+            "model_qrsf.yml": {
+                "baryon",
+                "massless_neutrino",
+                "massive_neutrino",
+                "photon",
+            },
+        }
+        expected_source_closures = {
+            "model_qrsf.yml": {
+                "qrsf_matter_density",
+                "qrsf_matter_momentum",
+                "qrsf_baryon_euler",
+            },
+            "model_torg.yml": {
+                "torg_matter_density",
+                "torg_matter_momentum",
+                "torg_baryon_euler",
+            },
+        }
         for model_name in model_names:
             with self.subTest(model_name=model_name):
                 yaml_path = models_dir / model_name
@@ -963,14 +1045,123 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 self.assertIsNotNone(
                     plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
                 )
-                if model_name == "model_torg.yml":
-                    self.assertTrue(plugin.CMB_PERTURBATION_STANDARD)
-                    self.assertEqual(
-                        plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"][
-                            "camb"
-                        ]["uses_standard_perturbations"],
-                        True,
+                self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+                summary = plugin.get_cmb_perturbation_data(
+                    plugin.INITIAL_GUESSES
+                ).manifest_summary
+                self.assertTrue(summary["execution_route"][
+                    "uses_native_declared_graph"
+                ])
+                self.assertFalse(summary["execution_route"][
+                    "uses_camb_prediction"
+                ])
+                self.assertEqual(
+                    set(summary["species_names"]),
+                    expected_species[model_name],
+                )
+                if model_name in {"model_qrsf.yml", "model_torg.yml"}:
+                    source_names = set(summary["source_names"])
+                    self.assertTrue(
+                        expected_source_closures[model_name].issubset(
+                            source_names
+                        )
                     )
+                self.assertIn(
+                    "adiabatic_scalar",
+                    summary["initial_condition_family_names"],
+                )
+                self.assertEqual(
+                    set(summary["angular_power_spectrum_targets"]),
+                    {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
+                )
+
+    def test_model_without_perturbation_closure_is_explicitly_unavailable(
+        self,
+    ):
+        """Models without a declared closure must not expose fake CMB data."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        yaml_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
+        with tempfile.TemporaryDirectory() as cache_dir:
+            cache_path = model_spec_validator.validate_and_cache_model(
+                yaml_path,
+                cache_dir,
+            )
+            funcs, parsed = model_coder.generate_callables(cache_path)
+        plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+
+        self.assertFalse(plugin.valid_for_cmb)
+        perturbations = parsed["cmb"]["perturbations"]
+        self.assertFalse(perturbations["standard"])
+        self.assertNotIn("cdm", perturbations["species"])
+        self.assertIsNone(plugin.CMB_NATIVE_RUNTIME)
+        self.assertIsNone(
+            plugin.CMB_PERTURBATION_DATA
+        )
+
+    def test_migrated_cmb_models_native_spectrum_smoke(self):
+        """Every migrated model must execute a finite native spectrum."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        models_dir = repo_root / "copernican" / "models"
+        model_names = [
+            "model_lcdm.yml",
+            "model_lcdm_ccmbs.yml",
+            "model_lcdm_mnu.yml",
+            "model_ref_planck2018.yml",
+            "model_tog.yml",
+            "model_torg.yml",
+            "model_wcdm.yml",
+            "model_w0wa.yml",
+            "model_qauc.yml",
+            "model_qrsf.yml",
+        ]
+        for model_name in model_names:
+            with self.subTest(model_name=model_name):
+                model_data = yaml.safe_load(
+                    (models_dir / model_name).read_text(encoding="utf-8")
+                )
+                model_data["cmb"]["numerical"].update(
+                    {
+                        "ell_min": 2,
+                        "ell_max": 20,
+                        "k_min": 1.0e-4,
+                        "k_max": 1.0e-3,
+                        "k_sample_count": 1,
+                        "eta_sample_count": 16,
+                        "source_grid_multiplier": 1,
+                    }
+                )
+                model_data["cmb"]["perturbations"][
+                    "accuracy_controls"
+                ]["scalar_reference_ells"] = [2, 20]
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_path = Path(temp_dir) / model_name
+                    temp_path.write_text(
+                        yaml.safe_dump(model_data, sort_keys=False),
+                        encoding="utf-8",
+                    )
+                    cache_path = (
+                        model_spec_validator.validate_and_cache_model(
+                            temp_path,
+                            Path(temp_dir) / "cache",
+                        )
+                    )
+                    functions, parsed = model_coder.generate_callables(
+                        cache_path
+                    )
+                    plugin = engine_plugin_validation.build_plugin(
+                        parsed,
+                        functions,
+                    )
+                    spectra = cmb.compute_cmb_spectrum_cached(
+                        plugin,
+                        plugin.INITIAL_GUESSES,
+                        numpy.asarray([2], dtype=int),
+                        spectra=("TT", "TE", "EE"),
+                    )
+                for values in spectra.values():
+                    self.assertTrue(numpy.all(numpy.isfinite(values)))
 
     def test_unknown_cmb_key_fails(self):
         """Unknown contract keys are rejected early."""

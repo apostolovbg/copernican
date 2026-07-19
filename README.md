@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-07-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -31,22 +31,24 @@ guessing which options were used.
 
 The package includes the model library, trusted dataset parsers, sampler
 engines, validation manifests, and supporting analysis tools needed for the
-full workflow. It also supports both standard backend CMB contracts and the
-native declared-graph route for custom theories, so the same application can
-handle conventional and extended cosmology models.
+full workflow. Every bundled CMB model declares the native graph contract;
+models with available CMB output use the same native solver, while a model
+without a defensible perturbation closure reports CMB output as unavailable.
 
-The CMB subsystem supports standard backend contracts and native
-declared-graph contracts. Its physical state convention, hierarchy equations,
-collision operators, gauge routes, line-of-sight sources, spectrum units,
-lensing inputs, numerical controls, and independent-reference boundaries are
+The CMB subsystem's physical state convention, hierarchy equations, collision
+operators, gauge routes, line-of-sight sources, spectrum units, lensing
+inputs, numerical controls, and independent-reference boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
-The first production native LambdaCDM declaration is the
-[native LambdaCDM model](copernican/models/model_lcdm_ccmbs.yml).
-It executes through the declared native graph route without using an external
-Boltzmann backend. The transitional `model_lcdm.yml` remains separate until
-the later native-model migration slices replace it.
+All bundled CMB model manifests, including
+[`model_lcdm.yml`](copernican/models/model_lcdm.yml), declare
+`standard: false` and execute through the native graph route without using an
+external Boltzmann backend when CMB output is available. The explicit
+[`model_lcdm_ccmbs.yml`](copernican/models/model_lcdm_ccmbs.yml) artifact
+documents the native LambdaCDM contract. Each model's species and source
+closures remain theory-specific; CAMB and CLASS are independent scientific
+reference tools used by tests, not production spectrum engines.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

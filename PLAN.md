@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-07-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -43,7 +43,6 @@ The target condition is final:
   the required physical sources.
 * Completion is demonstrated through native absolute reference parity and
   spectrum convergence.
-* TORG remains untouched during this roadmap.
 
 ## Table of Contents
 
@@ -110,8 +109,8 @@ acceptance work and must not be restored to the roadmap as unfinished work:
 * Multi-spectrum likelihood results use returned spectrum positions
   rather than ell values as array indices.
 * Photon-baryon Thomson momentum conservation is declared.
-* The scalar materializer creates photon, baryon, CDM, polarization,
-  massless-neutrino, and massive-neutrino states.
+* The scalar materializer creates photon, baryon, polarization, and each
+  optional matter or neutrino state only when the contract declares it.
 * Massive-neutrino q-bin states are generated and evolved.
 * `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, `EP`, and lensed outputs can be
   represented when declared.
@@ -158,7 +157,8 @@ Slice Ten establishes shared control-model and test-model selection.
 
 Slice Eleven creates the native LCDM model.
 
-Slice Twelve migrates all other CMB models to the native contract.
+Slice Twelve migrates and audits every CMB model against a species-accurate
+native contract without embedding LCDM assumptions in the shared compiler.
 
 Slice Thirteen establishes native scalar absolute parity.
 
@@ -188,7 +188,6 @@ changelog entry. The roadmap contains no cleanup slice.
 * Do not hide additional sessions under tasks, work packages, follow-ups,
   polish, or cleanup.
 * Do not add optional or deferred physics.
-* Do not modify TORG during this roadmap.
 * Use a neutral native standard cosmology for acceptance testing.
 * CAMB or CLASS may be used only as independent test references.
 * Production native code must not import or call CAMB or CLASS.
@@ -893,57 +892,136 @@ Done when:
 * The model manifest records native execution and numerical provenance.
 * No standard-backend result is used as the production output.
 
-### [open] Slice Twelve - Universal native model migration
+### [closed] Slice Twelve - Theory-accurate native model migration
 
 Purpose:
 
-Migrate every other CMB theory model to the native declared-graph shape so
-production has one solver contract for LCDM and custom theories.
+Migrate every CMB theory model to the native declared-graph shape without
+turning the native hierarchy compiler into a hidden LCDM solver. Production
+must have one reusable evolution, projection, and lensing infrastructure, but
+each model must declare its actual species, background sources, interactions,
+closures, and available observables.
+
+Treat runtime performance and reusable work as part of this migration. A
+native model is not complete when it is physically declared but requires
+multi-hour spectrum or likelihood evaluation for ordinary development and
+validation workflows.
 
 Depends on:
 
 * Slice Eleven.
 
-Probable affected files:
+Affected files:
 
 * `copernican/models/*.yml`
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
+* `copernican/lib/perturbation_contract.py`
 * `copernican/lib/engine_adapter.py`
-* `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-* `tests/copernican/lib/test_model_spec_validator.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/model_coder.py`
 * `copernican/docs/model_template.yml`
 * `copernican/docs/cmb_solver.md`
 * `CHANGELOG.md`
 * `PLAN.md`
+* `README.md`
+* `tests/copernican/lib/test_engine_adapter.py`
+* `tests/copernican/lib/test_model_coder.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/engines/test_engine_mcmc.py`
 
 Scope:
 
 * Inventory every model with CMB perturbations.
+* Record each model's physical species, hierarchy families, background
+  references, source roles, interactions, conservation rules, initial modes,
+  projection roles, and unavailable observables.
 * Translate every standard and custom CMB model into native declarations.
 * Preserve model parameters, background quantities, priors, and observable
   contracts while replacing backend-specific execution assumptions.
 * Declare equations, initial conditions, interactions, conservation rules,
   source roles, projections, units, and numerical controls for each model.
-* Add native validation and smoke execution for every migrated model.
+* Reuse the common native evolution, projection, and lensing infrastructure;
+  do not add a solver branch or a solver implementation per theory.
+* Compile graph structure, dependency closure, state layouts, collision plans,
+  context layouts, and momentum-grid structure once per native runtime.
+* Move reusable background, collision, momentum, and k-mode preparation out
+  of Runge-Kutta stages and other hot evolution loops.
+* Execute declared expressions through generated generic numeric kernels
+  rather than rebuilding dictionary contexts and resolving the graph at every
+  stage. The kernels remain theory-agnostic and are generated from the model
+  contract.
+* Evolve massive-neutrino q bins through an efficient coupled numeric path
+  without removing q-resolved physics or synthesizing aggregate states.
+* Keep requested multipole work separate from unrelated high-multipole
+  accuracy work unless the contract explicitly requests that accuracy tier.
+* Enforce explicit native runtime work limits and fail fast when a declared
+  accuracy tier exceeds its budget.
+* Make hierarchy materialization conditional on the declared species and
+  source graph. `cdm`, massive neutrinos, and any other species must not be
+  synthesized to satisfy a compiler requirement.
+* Represent theory-specific effects as declared background, source,
+  interaction, constraint, or closure terms rather than as fake matter
+  species. QRSF and TORG relational inertia use explicit native source
+  closures; USMF declares CMB output unavailable until its perturbation
+  closure exists.
+* Add native validation and smoke execution for every model whose CMB output
+  is declared available.
 * Keep CAMB or CLASS references inside tests only.
 
 Tasks:
 
-* Migrate all CMB model manifests.
-* Reject incomplete native declarations before execution.
-* Add model-by-model native validation coverage.
-* Remove production assumptions that require a standard backend.
+* Reopen the model inventory and classify the physical ontology of every
+  CMB manifest before changing compiler requirements.
+* Replace the fixed LCDM species assumptions in the generated scalar graph
+  with species-aware source assembly and optional hierarchy families.
+* Generate density, velocity, momentum, shear, Einstein-source, and initial
+  condition terms only when their declared species or source closure exists.
+* Migrate model manifests after the compiler accepts species-accurate
+  contracts. LCDM-family models may declare CDM; QRSF, TORG, and USMF do not
+  declare it, and every other model is resolved from its own theory definition.
+* Reject a model that claims CMB availability without a defensible native
+  perturbation closure. Mark genuinely unsupported observables unavailable
+  instead of producing a zero or substituting a standard-backend result.
+* Add model-by-model tests for exact compiled species, source provenance,
+  observable availability, and finite native spectra.
+* Remove production assumptions that require a standard backend while keeping
+  independent backend references in scientific tests.
+* Profile the representative native LCDM contract before and after the
+  runtime refactor, including scalar, interaction, gauge, tensor, vector, and
+  massive-neutrino q-resolved paths.
+* Add counters and bounded benchmarks proving that static preparation does not
+  scale with k modes, Runge-Kutta stages, or repeated parameter proposals.
+* Keep native MCMC smoke coverage on the native path and make its test
+  contract explicitly bounded without replacing it with CAMB or weaker
+  physics.
 * Update model and solver documentation and the changelog.
 
 Done when:
 
-* Every CMB theory model compiles through the native contract.
-* Every migrated model has a native execution smoke test.
+* Every bundled CMB model has a reviewed ontology record and a native
+  contract whose compiled species and sources match that record.
+* The native scalar materializer has no unconditional LCDM species, density,
+  velocity, or background assumptions.
+* No model contains a synthetic CDM species merely to satisfy compilation.
+* TORG, USMF, and every other non-LCDM theory either has an explicit native
+  perturbation closure or declares CMB output unavailable.
+* Every model with available CMB output has native validation and finite-
+  spectrum smoke coverage.
 * No production model requires CAMB or CLASS to produce CMB spectra.
 * Model manifests distinguish unavailable, zero, and unrequested spectra.
+* Static graph, dependency, collision, context, and momentum preparation is
+  reused rather than repeated inside k-mode or Runge-Kutta hot loops.
+* Generated generic numeric kernels preserve reference-interpreter results
+  for scalar, interaction, gauge, tensor, vector, and q-resolved contracts.
+* A representative full native LCDM spectrum completes within 180 seconds.
+* A native joint MCMC smoke test completes within 60 seconds.
+* Native runtime work budgets are explicit, measured, and fail fast when
+  exceeded rather than allowing unbounded development runs.
+* The targeted native solver and MCMC performance tests pass before the full
+  repository workflow is attempted.
 
 ### [open] Slice Thirteen - Native scalar absolute parity
 
@@ -954,7 +1032,7 @@ model at a fixed cosmology against an independent reference.
 
 Depends on:
 
-* Slice Twelve.
+* Slice Twelve with the species-accurate native contract closed.
 
 Probable affected files:
 
@@ -968,6 +1046,8 @@ Probable affected files:
 
 Scope:
 
+* Establish the LCDM-family baseline only after tests prove that the compiled
+  species and source graph match the model declaration.
 * Compare native `TT`, `TE`, and `EE` over ell `2..2000`.
 * Compare native `PP` over ell `10..1500`.
 * Compare native `TP` and `EP` over their declared supported ranges.
@@ -989,6 +1069,8 @@ Done when:
 
 * Production native scalar output meets every threshold at fixed cosmology.
 * The full-range comparison is absolute and independently generated.
+* The parity fixture proves that no undeclared species or LCDM-only source is
+  present in the compiled production graph.
 * The physical source and hierarchy defects exposed by the comparison are
   fixed at their production roots.
 
@@ -1056,6 +1138,8 @@ Probable affected files:
 Scope:
 
 * Compare massive-neutrino native spectra at fixed cosmologies.
+* Apply the comparison only to models that explicitly declare a massive-
+  neutrino species and q hierarchy; `sum_mnu: 0` alone does not declare one.
 * Validate q-grid nodes, weights, and thermal momentum factors.
 * Validate density, pressure, momentum, and shear source moments.
 * Validate relativistic-to-nonrelativistic background transitions.
@@ -1070,6 +1154,8 @@ Done when:
 
 * Native massive-neutrino output agrees with the independent fixed-cosmology
   reference and remains tied to the resolved q hierarchy.
+* Models without a declared massive-neutrino species remain free of massive-
+  neutrino state variables and source terms.
 
 ### [open] Slice Sixteen - Tensor absolute parity
 
@@ -1132,6 +1218,8 @@ Scope:
 
 * Compare Newtonian, synchronous, and gauge-invariant scalar routes at fixed
   cosmology.
+* Run gauge comparisons against each model's declared species and source
+  graph rather than importing LCDM matter aliases.
 * Validate explicit gauge transformations and invariant variables.
 * Compare generated vector spectra and analytic flat-space limits.
 * Validate vector source normalization, parity, and radial kernels.
@@ -1252,6 +1340,8 @@ Scope:
 * Fail when a requested accuracy tier is under-resolved.
 * Record the active numerical envelope in validation output.
 * Keep output availability explicit.
+* Recheck that refinement does not introduce undeclared species, source terms,
+  or LCDM-only aliases into any compiled model manifest.
 * Keep default plotting limited to `TT`, `TE`, and `EE`.
 * Keep unlensed, lensed, lensing, sector, and diagnostic views separate.
 * Replace weak tests whose names overstate their assertions.
@@ -1346,7 +1436,6 @@ The repository must then truthfully satisfy all of the following:
   demonstrate convergence.
 * No empirical scales, source injections, hidden fallbacks, or
   acceptance-only physical equations remain.
-* TORG remains unchanged.
 * The complete repository gate passes from a clean checkout.
 * Documentation and changelog statements match the measured code state.
 

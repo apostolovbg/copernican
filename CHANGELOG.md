@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-07-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,167 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-19:
+  Change: Completed theory-accurate native migration and optimized execution.
+  Why: Reusable solver preparation and declared native model execution needed
+    to remain bounded for development and validation workflows.
+  Impact: Native models use cached graph kernels, bounded projection work,
+    efficient radial kernels, and native likelihood coverage.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/project/lib/test_core.py
+
+- 2026-07-19:
+  Change: Repaired native contract preparation and CAMB convention coverage.
+  Why: Corrects runtime metadata entering the perturbation graph and a legacy
+    Dl regression routing through the native solver without its context.
+  Impact: Direct native contracts retain their declared background, while
+    CAMB convention checks stay isolated from production native execution.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/test_core.py
+
+- 2026-07-19:
+  Change: Closed Slice Twelve with species-aware native model contracts.
+  Why: Native materialization must follow each theory's declared ontology
+    instead of supplying LCDM-only states or unproved perturbation output.
+  Impact: Configures available models to compile their declared species and
+    source closures, while USMF reports CMB output as unavailable.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  docs/model_template.yml
+  copernican/lib/engine_adapter.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-19:
+  Change: Reopened Slice Twelve and strengthened the native-model roadmap.
+  Why: The migration acceptance criteria allowed LCDM species assumptions
+    and synthetic CDM entries in theories that do not contain CDM.
+  Impact: Species-aware graph materialization, explicit theory source
+    closures, honest unavailable outputs, and downstream parity dependencies
+    are required before Slice Twelve can close.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-07-19:
+  Change: Migrated every bundled CMB model to the native declared graph and
+    added finite-spectrum smoke coverage.
+  Why: Unified production CMB execution across LambdaCDM, neutrino, dark
+    energy, and alternative theory manifests without backend solver branches.
+  Impact: Model validation, native scalar initial data, solver documentation,
+    and production guidance now describe one native CMB contract.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/test_engine_adapter.py
 
 - 2026-07-18:
   Change: Created the native LambdaCDM model and documented its solver route.

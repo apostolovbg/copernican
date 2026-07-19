@@ -6,9 +6,9 @@ description: >-
   The w₀wₐCDM catalog entry elevates the CPL parametrisation to a full
   sample model. A time-varying dark-energy equation of state tracks the
   present-day value w₀ plus a linear run rate wₐ that multiplies the
-  scale factor. Complementary BAO, CMB and supernova constraints now
+  scale factor. Complementary BAO, CMB and supernova constraints
   share this unpacked freedom so operators can inspect whether the
-  early universe already hints at evolving dark energy or if the
+  early universe hints at evolving dark energy or if the
   late-time acceleration remains indistinguishable from a cosmological
   constant.
 
@@ -30,7 +30,7 @@ abstract: >-
   density while flat or mildly curved geometries keep the matter and
   radiation terms standard. Including both w₀ and wₐ lets the sampler
   match the subtle tilt seen in the latest joint SNe+BAO data without
-  losing contact with the CAMB-run CMB predictions.
+  losing contact with the native CMB solver-run CMB predictions.
 parameters:
   - name: Hubble constant
     python_var: H0
@@ -173,45 +173,226 @@ cmb:
     num_massive_neutrinos: 3
     sum_mnu: 0.06
     omk: Omega_k
+    YHe: 0.245
+  model_parameters: {}
   grids: {}
-  values:
-    w0_cmb:
-      expression: w0
-    wa_cmb:
-      expression: wa
-  calls:
-    - method: set_dark_energy
-      kwargs:
-        w0: "@value.w0_cmb"
-        wa: "@value.wa_cmb"
-        dark_energy_model: ppf
+  values: {}
+  calls: []
+  numerical:
+    ell_min: 2
+    ell_max: 2000
+    k_min: 0.0001
+    k_max: 0.3
+    k_sample_count: 18
+    eta_sample_count: 192
+    ode_rtol: 1.0e-05
+    ode_atol: 1.0e-08
+    tight_coupling_ratio: 80.0
+    a_min: 1.0e-06
+    source_grid_multiplier: 2
+    initial_redshift: 2.0e4
+  background:
+    derived:
+      h: H0 / 100.0
+      H0_over_c_Mpc_inv: H0 / 299792.458
+      Omega_k0: omk
+      Tcmb_K: 2.7255
+      Tcmb: Tcmb_K
+      YHe: 0.245
+      Omega_b0: ombh2 / (h * h)
+      Omega_c0: omch2 / (h * h)
+      Omega_gamma0: Omega_gamma
+      Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
+      Omega_r0: Omega_gamma0 + Omega_nu0
+      Omega_de0: 1.0 - Omega_m0 - Omega_r0 - Omega_k0
+      H: H0 * sqrt(Omega_m0 / (a ** 3) + Omega_r0 / (a ** 4) + Omega_de0 * a ** (-3
+        * (1 + w0 + wa)) * exp(-3 * wa * (1 - a)) + Omega_k0 / (a ** 2))
+    reionization:
+      calibration:
+        symbol: reionization_log10_amplitude
+        target_optical_depth: tau
+        lower: -24.0
+        upper: 32.0
+      quantities:
+        stellar_temperature_K: 5.0e4
+        quasar_temperature_K: 1.5e5
+        hydrogen_temperature_K: 1.0e4
+        helium_temperature_K: 1.0e4
+        helium_double_temperature_K: 2.0e4
+        collapse_threshold: 1.686
+        collapse_source: exp(-collapse_threshold / (a + 1.0e-6))
+        hard_source: collapse_source * collapse_source
+        stellar_helium_hardness: exp(-((24.587387 - 13.605693122994) * 1.602176634e-19)
+          / (1.380649e-23 * stellar_temperature_K))
+        quasar_helium_hardness: exp(-((54.417763 - 13.605693122994) * 1.602176634e-19)
+          / (1.380649e-23 * quasar_temperature_K))
+        hydrogen_ionization_rate: (10 ** reionization_log10_amplitude) * H_SI * collapse_source
+        helium_ionization_rate: hydrogen_ionization_rate * stellar_helium_hardness
+        helium_double_ionization_rate: (10 ** reionization_log10_amplitude) * H_SI
+          * hard_source * quasar_helium_hardness
   perturbations:
-    contract_version: 1
-    standard: true
-    gauge: unspecified
+    contract_version: 2
+    standard: false
+    gauge: conformal_newtonian
+    sectors:
+      scalar:
+        description: >-
+          Scalar Einstein-Boltzmann hierarchy for the declared model
+          background.
+        species:
+        - photon
+        - baryon
+        - cdm
+        - massless_neutrino
+        - massive_neutrino
+        hierarchy_families:
+        - photon_temperature
+        - photon_polarization_e
+        - massless_neutrino
+        - massive_neutrino
+        supported_gauges:
+        - conformal_newtonian
+        - synchronous
+        tensor_character: scalar_like
+    species:
+      photon:
+        sector: scalar
+        hierarchy_family: photon_temperature
+        collision_operators:
+        - thomson_drag
+        background_reference: Omega_gamma0
+      baryon:
+        sector: scalar
+        collision_operators:
+        - thomson_drag
+        background_reference: Omega_b0
+      cdm:
+        sector: scalar
+        background_reference: Omega_c0
+      massless_neutrino:
+        sector: scalar
+        hierarchy_family: massless_neutrino
+        background_reference: Omega_nu0
+        anisotropic_stress: supported
+      massive_neutrino:
+        sector: scalar
+        hierarchy_family: massive_neutrino
+        background_reference: Omega_nu0
+        anisotropic_stress: supported
+    hierarchy_families:
+      photon_temperature:
+        sector: scalar
+        species:
+        - photon
+        closure: free_streaming_scalar
+        default_l_max: 8
+        multipole_symbol: theta_gamma_l
+      photon_polarization_e:
+        sector: scalar
+        species:
+        - photon
+        closure: free_streaming_scalar
+        default_l_max: 8
+        multipole_symbol: e_gamma_l
+      massless_neutrino:
+        sector: scalar
+        species:
+        - massless_neutrino
+        closure: free_streaming_scalar
+        default_l_max: 5
+        multipole_symbol: nu_l
+      massive_neutrino:
+        sector: scalar
+        species:
+        - massive_neutrino
+        closure: free_streaming_scalar
+        default_l_max: 5
+        multipole_symbol: nu_massive_l
+        momentum_grid: massive_neutrino_default
+    collision_operators:
+      thomson_drag:
+        sector: scalar
+        species:
+        - photon
+        - baryon
+        expression: collision_rate * ((theta_b / acoustic_k) / 3.0 - theta_gamma1)
+        counterpart: baryon_thomson_drag
+    conservation_rules:
+      thomson_drag_balance:
+        kind: absolute_max
+        expression: 3.0 * acoustic_k * photon_baryon_momentum_ratio * thomson_drag
+          + baryon_thomson_drag
+        tolerance: 1.0e-12
+        domain: scalar
+    initial_condition_families:
+      adiabatic_scalar:
+        sector: scalar
+        description: Regular adiabatic growing scalar mode.
+        members: []
+    projection_typing:
+      temperature_line_of_sight:
+        sector: scalar
+        kernel: temperature_mixed_window
+        source_roles:
+        - monopole
+        - doppler
+        - isw
+        observable_kinds:
+        - transfer_component
+        parity: even
+        spin: 0.0
+    accuracy_controls:
+      scalar_reference_ells:
+      - 2
+      - 2000
+      runtime_envelope: bounded
     variables: {}
     derived: {}
     equations: {}
+    constraints: {}
     closures: {}
     sources: {}
+    observables: {}
+    initial_conditions: {}
+    boundary_conditions: {}
+    numerics:
+      ell_min: 2
+      ell_max: 2000
+      k_min: 0.0001
+      k_max: 0.3
+      k_sample_count: 18
+      eta_sample_count: 192
+      ode_rtol: 1.0e-05
+      ode_atol: 1.0e-08
+      tight_coupling_ratio: 80.0
+      a_min: 1.0e-06
+      source_grid_multiplier: 2
+      initial_redshift: 2.0e4
+      massive_neutrino_hierarchy_l_max: 5
+      momentum_grids:
+        massive_neutrino_default:
+          count: 8
+          q_min: 0.05
+          q_max: 18.0
+          mass_parameter: sum_mnu
     validity:
       regimes:
-        - standard_camb_with_declared_background_adapter
-      notes: Uses standard backend perturbations with the model's declared
-        background adapter contract.
+      - linear
+      - native_scalar_hierarchy
+      notes: Production spectra use the Copernican native hierarchy.
     backend_mapping:
       camb:
-        uses_standard_perturbations: true
-    notes: >-
-      Native non-standard perturbation equations are not declared in this model
-      file.
+        native_solver_required: true
+        implemented: true
+    notes: Native declared scalar hierarchy for w0waCDM; the model background remains
+      theory-specific.
 notes: >-
   The CPL dark-energy density multiplies the derived dark-energy
   density so the manifest records the evaluated CPL values along with
   curvature. When wa → 0 the expression collapses to wCDM, making
   this sample useful for continuity tests in the sampler pipeline.
-  Radiation now multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
-  BAO integrals share the same relativistic density as the CAMB
+  Radiation multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
+  BAO integrals share the same relativistic density as the native CMB solver
   likelihood.
 title: CPL dark energy variation
 date: '2025-12-06'

@@ -182,26 +182,19 @@ class FunctionalTestCase(unittest.TestCase):
         )
 
     def test_cmb_spectrum_is_d_ell(self):
-        """Ensure cached CAMB spectra match Dl convention."""
+        """Ensure the CAMB adapter returns spectra in Dl convention."""
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         ells = cmb_df["ell"].values[:5]
         camb_params = self.plugin.get_camb_contract(
             self.plugin.INITIAL_GUESSES
         )
-        camb_params["perturbations"] = (
-            self.plugin.get_cmb_perturbation_contract(
-                self.plugin.INITIAL_GUESSES
-            )
-        )
-        result = engine.compute_cmb_spectrum_from_contract(
-            camb_params, ells, spectra=("TT",)
+        result = camb_solver.compute_cmb_spectrum_from_camb_contract(
+            camb_params,
+            ells,
         )
 
-        # Mirror the likelihood helper's CAMB parameter construction so the
-        # comparison exercises the same neutrino-sector mapping that feeds the
-        # cached spectra.  Calling the internal builder keeps the functional
-        # regression aligned with whichever optional neutrino knobs the plugin
-        # exposes.
+        # Mirror the adapter's CAMB parameter construction so the comparison
+        # exercises the same neutrino-sector mapping used by the reference.
         params = camb_solver._make_camb_params(
             camb_params,
             lmax=int(numpy.max(ells)),

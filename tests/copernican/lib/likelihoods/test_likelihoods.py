@@ -134,8 +134,8 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(cmb_like.loglike(params)))
         self.assertTrue(numpy.isfinite(cmb_like.state["chi2"]))
 
-    def test_bao_loglike_falls_back_without_camb(self):
-        """BAO helper should reuse model distance functions when CAMB fails."""
+    def test_bao_loglike_uses_native_background_for_native_model(self):
+        """Native BAO evaluation must not invoke the CAMB background path."""
 
         class TrackingPlugin:
             """Proxy raising the structured CAMB contract and tracking

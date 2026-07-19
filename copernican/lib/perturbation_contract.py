@@ -56,6 +56,11 @@ _COMPILED_UNARY_OPERATORS = {
     "uadd": lambda value: value,
     "usub": numpy.negative,
 }
+_COMPILED_EXPRESSION_GLOBALS = {
+    "__builtins__": {},
+    **_ALLOWED_CONSTANTS,
+    **_ALLOWED_MATH_FUNCS,
+}
 _RUNTIME_REFERENCE_NAMES = {
     "H0_km_s_Mpc",
     "H0_over_c_Mpc_inv",
@@ -307,12 +312,9 @@ _SUPPORTED_PROJECTION_TYPING_KEYS = {
 _SCALAR_HIERARCHY_REQUIRED_SECTOR = "scalar"
 _SCALAR_HIERARCHY_REQUIRED_SPECIES = {
     "baryon",
-    "cdm",
-    "massless_neutrino",
     "photon",
 }
 _SCALAR_HIERARCHY_REQUIRED_FAMILIES = {
-    "massless_neutrino",
     "photon_polarization_e",
     "photon_temperature",
 }
@@ -374,7 +376,6 @@ def _has_explicit_native_runtime_graph(
         "equations",
         "constraints",
         "closures",
-        "sources",
         "observables",
         "initial_conditions",
         "boundary_conditions",
@@ -1088,10 +1089,25 @@ def _materialize_native_scalar_hierarchy_contract(
     gauge = str(contract.get("gauge") or "conformal_newtonian")
     sync_gauge = gauge == "synchronous"
     invariant_gauge = gauge == "gauge_invariant"
+    has_cdm = "cdm" in species
+    has_massless_neutrino = (
+        "massless_neutrino" in hierarchy_families
+        and "massless_neutrino" in species
+    )
     has_massive_neutrino = (
         "massive_neutrino" in hierarchy_families
         and "massive_neutrino" in species
     )
+    if initial_mode == "cdm_isocurvature" and not has_cdm:
+        raise ValueError("cdm_isocurvature requires a declared cdm species")
+    if (
+        initial_mode
+        in {"neutrino_density_isocurvature", "neutrino_velocity_isocurvature"}
+        and not has_massless_neutrino
+    ):
+        raise ValueError(
+            f"{initial_mode} requires a declared massless_neutrino species"
+        )
     photon_default_l_max = hierarchy_families["photon_temperature"].get(
         "default_l_max", 6
     )
@@ -1101,8 +1117,10 @@ def _materialize_native_scalar_hierarchy_contract(
         "default_l_max",
         photon_default_l_max,
     )
-    neutrino_default_l_max = hierarchy_families["massless_neutrino"].get(
-        "default_l_max", 4
+    neutrino_default_l_max = (
+        hierarchy_families.get("massless_neutrino", {}).get("default_l_max", 4)
+        if has_massless_neutrino
+        else 3
     )
     photon_l_max = max(
         3,
@@ -1155,6 +1173,34 @@ def _materialize_native_scalar_hierarchy_contract(
                     int(momentum_grid_def.get("count", 1)),
                 )
     materialized = copy.deepcopy(dict(contract))
+    declared_source_definitions = copy.deepcopy(
+        materialized.get("sources", {}) or {}
+    )
+
+    def _declared_source_expression(role: str) -> str | None:
+        """Return one model-declared scalar source closure by role."""
+
+        matches = [
+            definition.get("expression")
+            for definition in declared_source_definitions.values()
+            if isinstance(definition, Mapping)
+            and definition.get("role") == role
+        ]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Native scalar hierarchy permits one '{role}' source "
+                "closure"
+            )
+        if not matches:
+            return None
+        expression = matches[0]
+        if not isinstance(expression, str) or not expression.strip():
+            raise ValueError(
+                f"Native scalar hierarchy '{role}' source closure must "
+                "declare an expression"
+            )
+        return expression
+
     scalar_sector = dict(
         (materialized.get("sectors", {}) or {}).get("scalar", {}) or {}
     )
@@ -1255,33 +1301,43 @@ def _materialize_native_scalar_hierarchy_contract(
             "Baryon velocity divergence theta_b.",
             units=_INVERSE_MPC_UNITS,
         ),
-        "delta_c": _metadata_entry(
-            "cdm_density_contrast",
-            "Cold-dark-matter density contrast delta_c.",
-            units=_DIMENSIONLESS_UNITS,
-        ),
-        "theta_c": _metadata_entry(
-            "cdm_velocity_divergence",
-            "Cold-dark-matter velocity divergence theta_c.",
-            units=_INVERSE_MPC_UNITS,
-        ),
-        "delta_nu": _metadata_entry(
-            "massless_neutrino_density_contrast",
-            "Massless-neutrino density contrast delta_nu.",
-            units=_DIMENSIONLESS_UNITS,
-        ),
-        "theta_nu": _metadata_entry(
-            "massless_neutrino_velocity_divergence",
-            "Massless-neutrino velocity divergence theta_nu.",
-            units=_INVERSE_MPC_UNITS,
-        ),
-        "sigma_nu": _metadata_entry(
-            "massless_neutrino_anisotropic_stress",
-            "Massless-neutrino anisotropic stress sigma_nu.",
-            units=_DIMENSIONLESS_UNITS,
-        ),
         **metric_variables,
     }
+    if has_cdm:
+        variables.update(
+            {
+                "delta_c": _metadata_entry(
+                    "cdm_density_contrast",
+                    "Cold-dark-matter density contrast delta_c.",
+                    units=_DIMENSIONLESS_UNITS,
+                ),
+                "theta_c": _metadata_entry(
+                    "cdm_velocity_divergence",
+                    "Cold-dark-matter velocity divergence theta_c.",
+                    units=_INVERSE_MPC_UNITS,
+                ),
+            }
+        )
+    if has_massless_neutrino:
+        variables.update(
+            {
+                "delta_nu": _metadata_entry(
+                    "massless_neutrino_density_contrast",
+                    "Massless-neutrino density contrast delta_nu.",
+                    units=_DIMENSIONLESS_UNITS,
+                ),
+                "theta_nu": _metadata_entry(
+                    "massless_neutrino_velocity_divergence",
+                    "Massless-neutrino velocity divergence theta_nu.",
+                    units=_INVERSE_MPC_UNITS,
+                ),
+                "sigma_nu": _metadata_entry(
+                    "massless_neutrino_anisotropic_stress",
+                    "Massless-neutrino anisotropic stress sigma_nu.",
+                    units=_DIMENSIONLESS_UNITS,
+                ),
+            }
+        )
     for moment in range(photon_l_max + 1):
         if moment == 0:
             kind = "photon_temperature_monopole"
@@ -1330,13 +1386,14 @@ def _materialize_native_scalar_hierarchy_contract(
         units=_INVERSE_MPC_UNITS,
         tensor_character="scalar_like",
     )
-    for moment in range(3, neutrino_l_max + 1):
-        variables[_scalar_neutrino_name(moment)] = _metadata_entry(
-            "massless_neutrino_multipole",
-            f"Massless-neutrino multipole F_nu,{int(moment)}.",
-            units=_DIMENSIONLESS_UNITS,
-            tensor_character="scalar_like",
-        )
+    if has_massless_neutrino:
+        for moment in range(3, neutrino_l_max + 1):
+            variables[_scalar_neutrino_name(moment)] = _metadata_entry(
+                "massless_neutrino_multipole",
+                f"Massless-neutrino multipole F_nu,{int(moment)}.",
+                units=_DIMENSIONLESS_UNITS,
+                tensor_character="scalar_like",
+            )
     for q_index in range(massive_neutrino_grid_count):
         for moment in range(massive_neutrino_l_max + 1):
             q_name = _scalar_massive_neutrino_q_name(
@@ -1370,6 +1427,9 @@ def _materialize_native_scalar_hierarchy_contract(
         "-Hconf * theta_b + acoustic_k_sq * baryon_sound_speed_sq * "
         "delta_b + baryon_thomson_drag + acoustic_k_sq * Psi"
     )
+    declared_baryon_euler_rhs = _declared_source_expression("baryon_euler")
+    if declared_baryon_euler_rhs is not None:
+        baryon_euler_rhs = declared_baryon_euler_rhs
     cdm_density_rhs = "-theta_c + 3.0 * Phi_tau"
     cdm_euler_rhs = "-Hconf * theta_c + acoustic_k_sq * Psi"
     neutrino_density_rhs = "-(4.0 / 3.0) * theta_nu + 4.0 * Phi_tau"
@@ -1475,62 +1535,72 @@ def _materialize_native_scalar_hierarchy_contract(
             "rhs": baryon_euler_rhs,
             "role": "euler",
         },
-        "evolve_delta_c": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "delta_c",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": cdm_density_rhs,
-            "role": "continuity",
-        },
-        "evolve_theta_c": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "theta_c",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": cdm_euler_rhs,
-            "role": "euler",
-        },
-        "evolve_delta_nu": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "delta_nu",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": neutrino_density_rhs,
-            "role": "continuity",
-        },
-        "evolve_theta_nu": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "theta_nu",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": neutrino_euler_rhs,
-            "role": "euler",
-        },
-        "evolve_sigma_nu": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "sigma_nu",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": (
-                f"{4.0 / 15.0:.16g} * theta_nu "
-                f"- {3.0 / 5.0:.16g} * acoustic_k * "
-                f"{_scalar_neutrino_name(3)} "
-                f"+ {neutrino_quadrupole_metric_drive}"
-            ),
-            "role": "hierarchy",
-        },
     }
+    if has_cdm:
+        equations.update(
+            {
+                "evolve_delta_c": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "delta_c",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": cdm_density_rhs,
+                    "role": "continuity",
+                },
+                "evolve_theta_c": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "theta_c",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": cdm_euler_rhs,
+                    "role": "euler",
+                },
+            }
+        )
+    if has_massless_neutrino:
+        equations.update(
+            {
+                "evolve_delta_nu": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "delta_nu",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": neutrino_density_rhs,
+                    "role": "continuity",
+                },
+                "evolve_theta_nu": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "theta_nu",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": neutrino_euler_rhs,
+                    "role": "euler",
+                },
+                "evolve_sigma_nu": {
+                    "lhs": {
+                        "kind": "derivative",
+                        "variable": "sigma_nu",
+                        "wrt": "tau",
+                        "order": 1,
+                    },
+                    "rhs": (
+                        f"{4.0 / 15.0:.16g} * theta_nu "
+                        f"- {3.0 / 5.0:.16g} * acoustic_k * "
+                        f"{_scalar_neutrino_name(3)} "
+                        f"+ {neutrino_quadrupole_metric_drive}"
+                    ),
+                    "role": "hierarchy",
+                },
+            }
+        )
     metric_evolution_state_name = None if sync_gauge else phi_state_name
     if metric_evolution_state_name is not None:
         equations[f"evolve_{metric_evolution_state_name}"] = {
@@ -1625,30 +1695,33 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
             "role": "polarization",
         }
-    for moment in range(3, neutrino_l_max + 1):
-        name = _scalar_neutrino_name(moment)
-        next_name = None
-        if moment < neutrino_l_max:
-            next_name = _scalar_neutrino_name(moment + 1)
-        previous_name = (
-            "sigma_nu" if moment == 3 else _scalar_neutrino_name(moment - 1)
-        )
-        equations[f"evolve_{name}"] = {
-            "lhs": {
-                "kind": "derivative",
-                "variable": name,
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": _scalar_hierarchy_recurrence_rhs(
-                name=name,
-                moment=moment,
-                previous_name=previous_name,
-                next_name=next_name,
-                use_physical_terminal_closure=True,
-            ),
-            "role": "hierarchy",
-        }
+    if has_massless_neutrino:
+        for moment in range(3, neutrino_l_max + 1):
+            name = _scalar_neutrino_name(moment)
+            next_name = None
+            if moment < neutrino_l_max:
+                next_name = _scalar_neutrino_name(moment + 1)
+            previous_name = (
+                "sigma_nu"
+                if moment == 3
+                else _scalar_neutrino_name(moment - 1)
+            )
+            equations[f"evolve_{name}"] = {
+                "lhs": {
+                    "kind": "derivative",
+                    "variable": name,
+                    "wrt": "tau",
+                    "order": 1,
+                },
+                "rhs": _scalar_hierarchy_recurrence_rhs(
+                    name=name,
+                    moment=moment,
+                    previous_name=previous_name,
+                    next_name=next_name,
+                    use_physical_terminal_closure=True,
+                ),
+                "role": "hierarchy",
+            }
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         for q_index in range(massive_neutrino_grid_count):
             q_streaming_speed_name = (
@@ -1760,45 +1833,68 @@ def _materialize_native_scalar_hierarchy_contract(
     observable_theta_gamma1_expression = "theta_gamma1"
     observable_delta_b_expression = "delta_b"
     observable_theta_b_expression = "theta_b"
-    observable_delta_c_expression = "delta_c"
-    observable_theta_c_expression = "theta_c"
     observable_delta_nu_expression = "delta_nu"
     observable_theta_nu_expression = "theta_nu"
     observable_delta_nu_massive_expression = "delta_nu_massive"
     observable_theta_nu_massive_expression = "theta_nu_massive"
+    if has_cdm:
+        observable_delta_c_expression = "delta_c"
+        observable_theta_c_expression = "theta_c"
 
     materialized["variables"] = variables
-    massless_fraction_expression = "Omega_nu0"
+    massless_fraction_expression = "0.0"
+    if has_massless_neutrino:
+        massless_fraction_expression = "Omega_nu0"
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         massless_fraction_expression = (
             "Omega_nu0 * 0.5 * (Neff - num_massive_neutrinos + "
             "abs(Neff - num_massive_neutrinos)) / Neff"
         )
+    matter_density_terms = ["Omega_b0 * observable_delta_b"]
+    if has_cdm:
+        matter_density_terms.insert(0, "Omega_c0 * observable_delta_c")
+    declared_matter_density_expression = _declared_source_expression(
+        "matter_density"
+    )
+    if declared_matter_density_expression is not None:
+        matter_density_terms = [declared_matter_density_expression]
     matter_density_source_expression = (
-        "(Omega_c0 * observable_delta_c + "
-        "Omega_b0 * observable_delta_b) / a"
+        f"({ ' + '.join(matter_density_terms) }) / a"
     )
     radiation_density_source_expression = (
-        "(4.0 * Omega_gamma0 * observable_theta_gamma0 + "
-        "massless_neutrino_fraction * observable_delta_nu) / (a * a)"
+        "(4.0 * Omega_gamma0 * observable_theta_gamma0"
     )
+    if has_massless_neutrino:
+        radiation_density_source_expression += (
+            " + massless_neutrino_fraction * observable_delta_nu"
+        )
+    radiation_density_source_expression += ") / (a * a)"
     total_density_source_expression = (
         "matter_density_source + radiation_density_source"
     )
+    matter_momentum_terms = ["Omega_b0 * observable_theta_b"]
+    if has_cdm:
+        matter_momentum_terms.insert(0, "Omega_c0 * observable_theta_c")
+    declared_matter_momentum_expression = _declared_source_expression(
+        "matter_momentum"
+    )
+    if declared_matter_momentum_expression is not None:
+        matter_momentum_terms = [declared_matter_momentum_expression]
+    radiation_momentum_terms = [
+        "(4.0 / 3.0) * Omega_gamma0 * photon_velocity_divergence"
+    ]
+    if has_massless_neutrino:
+        radiation_momentum_terms.append(
+            "(4.0 / 3.0) * massless_neutrino_fraction * observable_theta_nu"
+        )
     total_momentum_source_expression = (
-        "(Omega_b0 * observable_theta_b + "
-        "Omega_c0 * observable_theta_c) / a + "
-        "("
-        "(4.0 / 3.0) * Omega_gamma0 * photon_velocity_divergence + "
-        "(4.0 / 3.0) * massless_neutrino_fraction * observable_theta_nu"
-        ") / (a * a)"
+        f"({ ' + '.join(matter_momentum_terms) }) / a + "
+        f"({ ' + '.join(radiation_momentum_terms) }) / (a * a)"
     )
-    total_shear_source_expression = (
-        "("
-        "4.0 * Omega_gamma0 * observable_theta_gamma2 + "
-        "2.0 * massless_neutrino_fraction * sigma_nu"
-        ") / (a * a)"
-    )
+    shear_terms = ["4.0 * Omega_gamma0 * observable_theta_gamma2"]
+    if has_massless_neutrino:
+        shear_terms.append("2.0 * massless_neutrino_fraction * sigma_nu")
+    total_shear_source_expression = f"({ ' + '.join(shear_terms) }) / (a * a)"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
             "expression": "0.1 * theta_gamma2 + 0.6 * e_gamma2",
@@ -1809,13 +1905,11 @@ def _materialize_native_scalar_hierarchy_contract(
             "units": _DIMENSIONLESS_UNITS,
         },
         "scalar_initial_conformal_time": {
-            "expression": (
-                "a_initial / (H0_over_c_Mpc_inv * sqrt("
-                "Omega_gamma0 + Omega_nu0 + 1.0e-30))"
-            ),
+            "expression": "1.0 / (Hconf + 1.0e-30)",
             "description": (
-                "Radiation-era conformal-time estimate used by scalar "
-                "initial-condition series."
+                "Local conformal-Hubble time used to scale the regular "
+                "scalar initial-condition series for each declared "
+                "background."
             ),
             "units": "Mpc",
         },
@@ -1889,30 +1983,6 @@ def _materialize_native_scalar_hierarchy_contract(
         "observable_theta_b": {
             "expression": observable_theta_b_expression,
             "description": "Observable-basis baryon velocity divergence.",
-            "units": _INVERSE_MPC_UNITS,
-        },
-        "observable_delta_c": {
-            "expression": observable_delta_c_expression,
-            "description": "Observable-basis CDM density contrast.",
-            "units": _DIMENSIONLESS_UNITS,
-        },
-        "observable_theta_c": {
-            "expression": observable_theta_c_expression,
-            "description": "Observable-basis CDM velocity divergence.",
-            "units": _INVERSE_MPC_UNITS,
-        },
-        "observable_delta_nu": {
-            "expression": observable_delta_nu_expression,
-            "description": (
-                "Observable-basis massless-neutrino density contrast."
-            ),
-            "units": _DIMENSIONLESS_UNITS,
-        },
-        "observable_theta_nu": {
-            "expression": observable_theta_nu_expression,
-            "description": (
-                "Observable-basis massless-neutrino velocity divergence."
-            ),
             "units": _INVERSE_MPC_UNITS,
         },
         "photon_velocity_divergence": {
@@ -2006,6 +2076,42 @@ def _materialize_native_scalar_hierarchy_contract(
             "description": "Baryon-side Thomson drag counterpart.",
         },
     }
+    if has_cdm:
+        derived_entries.update(
+            {
+                "observable_delta_c": {
+                    "expression": observable_delta_c_expression,
+                    "description": "Observable-basis CDM density contrast.",
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "observable_theta_c": {
+                    "expression": observable_theta_c_expression,
+                    "description": "Observable-basis CDM velocity divergence.",
+                    "units": _INVERSE_MPC_UNITS,
+                },
+            }
+        )
+    if has_massless_neutrino:
+        derived_entries.update(
+            {
+                "observable_delta_nu": {
+                    "expression": observable_delta_nu_expression,
+                    "description": (
+                        "Observable-basis massless-neutrino density "
+                        "contrast."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                },
+                "observable_theta_nu": {
+                    "expression": observable_theta_nu_expression,
+                    "description": (
+                        "Observable-basis massless-neutrino velocity "
+                        "divergence."
+                    ),
+                    "units": _INVERSE_MPC_UNITS,
+                },
+            }
+        )
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         derived_entries.update(
             {
@@ -2519,7 +2625,7 @@ def _materialize_native_scalar_hierarchy_contract(
             "Visibility-weighted scalar polarization source moment."
         ),
     }
-    materialized["sources"] = {
+    generated_sources = {
         "temperature_monopole": {
             "expression": "visibility * (observable_theta_gamma0 + Psi)",
             "role": "monopole",
@@ -2587,6 +2693,8 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
     }
+    generated_sources.update(declared_source_definitions)
+    materialized["sources"] = generated_sources
     materialized["observables"] = {
         "temperature": {
             "kind": "transfer_component",
@@ -2753,7 +2861,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "(acoustic_k * scalar_initial_conformal_time) * seed"
             ),
         }
-    for required_name in (
+    required_initial_names = [
         "theta_gamma0",
         "theta_gamma1",
         "theta_gamma2",
@@ -2763,17 +2871,16 @@ def _materialize_native_scalar_hierarchy_contract(
         "polarization_b_mode_seed",
         "delta_b",
         "theta_b",
-        "delta_c",
-        "theta_c",
-        "delta_nu",
-        "theta_nu",
-        "sigma_nu",
-        *(
+    ]
+    if has_cdm:
+        required_initial_names.extend(("delta_c", "theta_c"))
+    if has_massless_neutrino:
+        required_initial_names.extend(("delta_nu", "theta_nu", "sigma_nu"))
+    if sync_gauge:
+        required_initial_names.extend(
             ("h_sync_metric", "eta_sync_metric", "gauge_shift_alpha")
-            if sync_gauge
-            else ()
-        ),
-    ):
+        )
+    for required_name in required_initial_names:
         initial_conditions.setdefault(
             f"{required_name}_seed",
             {
@@ -2811,15 +2918,16 @@ def _materialize_native_scalar_hierarchy_contract(
             },
             "expression": polarization_expression,
         }
-    for moment in range(3, neutrino_l_max + 1):
-        initial_conditions[f"{_scalar_neutrino_name(moment)}_seed"] = {
-            "target": {
-                "variable": _scalar_neutrino_name(moment),
-                "wrt": "tau",
-                "order": 0,
-            },
-            "expression": "0.0",
-        }
+    if has_massless_neutrino:
+        for moment in range(3, neutrino_l_max + 1):
+            initial_conditions[f"{_scalar_neutrino_name(moment)}_seed"] = {
+                "target": {
+                    "variable": _scalar_neutrino_name(moment),
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.0",
+            }
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         for q_index in range(massive_neutrino_grid_count):
             q_log_derivative_name = (
@@ -5085,48 +5193,32 @@ def _compile_expression_plan(
     )
 
 
+@lru_cache(maxsize=4096)
+def _compile_expression_code(expr: str) -> Any:
+    """Return a validated Python expression code object for hot evaluation."""
+
+    node = _parse_safe_expression(expr)
+    # The expression has already passed the restricted AST validator during
+    # contract compilation.  Keeping the globals closed prevents builtins or
+    # imports from entering this generated evaluation path.
+    return compile(node, "<declared-cmb-expression>", "eval")
+
+
 def _evaluate_compiled_expression_noerr(
     expression_data: PerturbationCompiledExpressionData,
     env: Mapping[str, Any],
 ) -> Any:
     """Evaluate one compiled expression against ``env`` without errstate."""
 
-    stack: list[Any] = []
-    for opcode, payload in expression_data.program:
-        if opcode == "const":
-            stack.append(payload)
-            continue
-        if opcode == "name":
-            if payload in env:
-                stack.append(env[payload])
-                continue
-            if payload in _ALLOWED_CONSTANTS:
-                stack.append(_ALLOWED_CONSTANTS[payload])
-                continue
-            raise ValueError(f"name '{payload}' not allowed")
-        if opcode == "binary":
-            right = stack.pop()
-            left = stack.pop()
-            stack.append(_COMPILED_BINARY_OPERATORS[payload](left, right))
-            continue
-        if opcode == "unary":
-            stack.append(_COMPILED_UNARY_OPERATORS[payload](stack.pop()))
-            continue
-        if opcode == "call":
-            func_name, arg_count = payload
-            func = _ALLOWED_MATH_FUNCS.get(func_name)
-            if func is None:
-                raise ValueError(f"function '{func_name}' not allowed")
-            args = [stack.pop() for _ in range(int(arg_count))]
-            args.reverse()
-            stack.append(func(*args))
-            continue
-        raise ValueError("expression not allowed")
-    if len(stack) != 1:
-        raise ValueError(
-            "Compiled expression evaluation did not produce one result"
-        )
-    return stack[0]
+    # Native evolution evaluates the same validated expressions millions of
+    # times.  Python bytecode avoids allocating a stack program for every
+    # call while retaining the restricted AST and globals contract.
+    # security-scanner: allow validated expression evaluation.
+    return eval(  # nosec B307 - code comes from the validated AST grammar.
+        _compile_expression_code(expression_data.expression),
+        _COMPILED_EXPRESSION_GLOBALS,
+        env,
+    )
 
 
 def evaluate_compiled_expression(

@@ -2763,8 +2763,8 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         for name in ("TE", "TP", "EP", "lensed_TE"):
             self.assertAlmostEqual(metrics[name]["normalized_rms"], 0.01)
 
-    def test_native_reference_k_grid_is_request_independent(self) -> None:
-        """Native reference quadrature must not depend on requested ells."""
+    def test_native_k_grid_scales_to_requested_multipoles(self) -> None:
+        """Low-ell requests must not pay for unrelated high-ell anchors."""
 
         raw_contract = _native_scalar_hierarchy_contract(sum_mnu=0.0)
         raw_contract["numerical"].update(
@@ -2799,7 +2799,10 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        numpy.testing.assert_allclose(low_ell_grid, full_ell_grid)
+        self.assertFalse(numpy.array_equal(low_ell_grid, full_ell_grid))
+        self.assertTrue(
+            bool(numpy.all(low_ell_grid <= float(numpy.max(full_ell_grid))))
+        )
 
     def test_camb_reference_is_test_only_and_independent(self) -> None:
         """CAMB reference construction must not depend on native execution."""
@@ -2929,6 +2932,40 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 )
             ),
             0.0,
+        )
+
+    def test_batched_projection_bessel_values_match_reference(self) -> None:
+        """Batched radial kernels must preserve SciPy reference values."""
+
+        ell_signature = (2, 10, 40, 200, 1000)
+        x_values = numpy.asarray((0.7, 5.0, 50.0, 500.0, 1900.0))
+        values, derivatives = (
+            native_background._compute_spherical_bessel_batch(
+                ell_signature,
+                x_values,
+            )
+        )
+        ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
+        expected_values = native_background.spherical_jn(
+            ell_array,
+            x_values[None, :],
+        )
+        expected_derivatives = native_background.spherical_jn(
+            ell_array,
+            x_values[None, :],
+            derivative=True,
+        )
+        numpy.testing.assert_allclose(
+            values,
+            expected_values,
+            rtol=1.0e-10,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            derivatives,
+            expected_derivatives,
+            rtol=1.0e-10,
+            atol=1.0e-14,
         )
 
     def test_tensor_projection_uses_tensor_radial_kernel(self) -> None:
@@ -5724,6 +5761,23 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertIn("evolution_work_units", spectrum_data.runtime_envelope)
         self.assertIn("projection_work_units", spectrum_data.runtime_envelope)
+
+    def test_native_runtime_prepares_graph_once_per_spectrum(self) -> None:
+        """Static graph preparation must not scale with Fourier modes."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+        )
+        envelope = spectrum_data.runtime_envelope
+        self.assertEqual(int(envelope["static_graph_preparations"]), 1)
+        self.assertEqual(
+            int(envelope["dynamic_mode_count"]),
+            int(envelope["k_sample_count"]),
+        )
 
     def test_runtime_envelope_rejects_unbounded_work_units(self) -> None:
         """Declared runtime envelopes should fail before large runs start."""

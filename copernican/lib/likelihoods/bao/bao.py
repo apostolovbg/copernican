@@ -1,10 +1,8 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-Computes BAO observables using CAMB background distances when a structured
-CAMB contract is available. If CAMB background evaluation fails, the helper
-falls back to the model's native distance functions and explicit
-``rs_expression`` support so existing benchmark models and defensive test
-fixtures continue to operate.
+Native model plugins provide their own background distances and sound
+horizon. CAMB background evaluation remains available only for the older
+standard reference route and defensive fixtures.
 """
 
 from __future__ import annotations
@@ -50,6 +48,7 @@ class BAOLike(LikelihoodProtocol):
     _get_camb_contract: (
         Callable[[Sequence[float]], Mapping[str, Any]] | None
     ) = field(init=False, repr=False)
+    _use_native_background: bool = field(init=False, repr=False)
     _fallback_dm: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_hz: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_dv: Callable[..., Any] | None = field(init=False, repr=False)
@@ -91,6 +90,17 @@ class BAOLike(LikelihoodProtocol):
         self._get_camb_contract = getattr(
             self.model_plugin, "get_camb_contract", None
         )
+        self._use_native_background = (
+            callable(
+                getattr(self.model_plugin, "get_cmb_native_runtime", None)
+            )
+            and getattr(
+                self.model_plugin,
+                "CMB_PERTURBATION_STANDARD",
+                True,
+            )
+            is False
+        )
         if self._get_camb_contract is None:
             self._setup_error = (
                 "(bao_like): Model plugin does not expose a CAMB contract."
@@ -129,7 +139,7 @@ class BAOLike(LikelihoodProtocol):
         background = None
         camb_params: Mapping[str, Any] | None = None
         get_camb_contract = self._get_camb_contract
-        if get_camb_contract is not None:
+        if get_camb_contract is not None and not self._use_native_background:
             try:
                 camb_params = get_camb_contract(params)
             except (

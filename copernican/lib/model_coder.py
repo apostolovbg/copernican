@@ -409,6 +409,8 @@ def compile_native_cmb_runtime(
     perturbation_contract = copy.deepcopy(
         (cmb_contract.get("perturbations", {}) or {})
     )
+    perturbation_contract.pop("model_name", None)
+    perturbation_contract.pop("backend", None)
     background_section = cmb_contract.get("background", {}) or {}
     recombination_section = (
         background_section.get("recombination", {}) or {}

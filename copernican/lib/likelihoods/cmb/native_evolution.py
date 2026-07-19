@@ -2,14 +2,21 @@ r"""Declared native perturbation compilation and graph-evolution helpers."""
 
 from __future__ import annotations
 
+import ast
+import copy
+import keyword
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Mapping
 
 import numpy
 
 from ...engine_adapter import FrozenMapping, _freeze_for_cache
 from ...perturbation_contract import (
+    _ALLOWED_CONSTANTS,
+    _ALLOWED_MATH_FUNCS,
     _evaluate_compiled_expression_noerr,
+    _parse_safe_expression,
     evaluate_compiled_expression,
 )
 from . import native_cache
@@ -26,6 +33,29 @@ _NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
     1.0 / 3.0
 ) * 8.617_333_262_145e-5
 _NEUTRINO_DENSITY_EV_H2 = 93.14
+_COMPILED_CONTEXT_GLOBALS = {
+    "__builtins__": {},
+    **_ALLOWED_CONSTANTS,
+    **_ALLOWED_MATH_FUNCS,
+}
+
+
+class _ContextNameRewriter(ast.NodeTransformer):
+    """Rewrite declared symbols to direct context lookups."""
+
+    def visit_Name(self, node: ast.Name) -> ast.AST:
+        """Keep approved globals and map runtime names to context."""
+
+        if node.id in _ALLOWED_CONSTANTS or node.id in _ALLOWED_MATH_FUNCS:
+            return node
+        return ast.copy_location(
+            ast.Subscript(
+                value=ast.Name(id="context", ctx=ast.Load()),
+                slice=ast.Constant(node.id),
+                ctx=ast.Load(),
+            ),
+            node,
+        )
 
 
 def _compile_declared_perturbation_contract(
@@ -107,6 +137,125 @@ class _DeclaredGraphExecutionPlan:
     start_condition_entries: tuple[Any, ...]
     end_condition_entries: tuple[Any, ...]
     equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
+
+
+@lru_cache(maxsize=256)
+def _compile_ordered_context_program(
+    value_specs: tuple[tuple[str, str], ...],
+) -> Any:
+    """Compile one direct-assignment program for a prepared value order."""
+
+    statements: list[ast.stmt] = []
+    for output_name, expression in value_specs:
+        if not output_name.isidentifier() or keyword.iskeyword(output_name):
+            raise ValueError(
+                "Declared value names must be identifiers for the native "
+                f"compiled context path: {output_name}"
+            )
+        expression_node = copy.deepcopy(_parse_safe_expression(expression))
+        expression_node = _ContextNameRewriter().visit(expression_node)
+        expression_node = ast.fix_missing_locations(expression_node)
+        condition = ast.BoolOp(
+            op=ast.And(),
+            values=[
+                ast.Compare(
+                    left=ast.Constant(output_name),
+                    ops=[ast.NotIn()],
+                    comparators=[
+                        ast.Name(
+                            id="context",
+                            ctx=ast.Load(),
+                        )
+                    ],
+                ),
+                ast.Compare(
+                    left=ast.Constant(output_name),
+                    ops=[ast.NotIn()],
+                    comparators=[
+                        ast.Name(
+                            id="suppressed_outputs",
+                            ctx=ast.Load(),
+                        )
+                    ],
+                ),
+            ],
+        )
+        statements.append(
+            ast.If(
+                test=condition,
+                body=[
+                    ast.Assign(
+                        targets=[
+                            ast.Subscript(
+                                value=ast.Name(
+                                    id="context",
+                                    ctx=ast.Load(),
+                                ),
+                                slice=ast.Constant(output_name),
+                                ctx=ast.Store(),
+                            )
+                        ],
+                        value=expression_node.body,
+                    )
+                ],
+                orelse=[],
+            )
+        )
+    module = ast.fix_missing_locations(
+        ast.Module(body=statements, type_ignores=[])
+    )
+    return compile(module, "<declared-cmb-context>", "exec")
+
+
+@lru_cache(maxsize=128)
+def _compile_equation_program(
+    slot_specs: tuple[tuple[int, str, str | None, int | None], ...],
+) -> Any:
+    """Compile direct scalar assignments for one declared state layout."""
+
+    statements: list[ast.stmt] = []
+    for state_index, wrt_name, expression, promote_from_index in slot_specs:
+        if expression is None:
+            if promote_from_index is None:
+                raise ValueError(
+                    "Declared state slot lacks an equation or promotion "
+                    f"source: {state_index}"
+                )
+            value_node: ast.expr = ast.Subscript(
+                value=ast.Name(id="state_vector", ctx=ast.Load()),
+                slice=ast.Constant(int(promote_from_index)),
+                ctx=ast.Load(),
+            )
+        else:
+            expression_node = copy.deepcopy(_parse_safe_expression(expression))
+            expression_node = _ContextNameRewriter().visit(expression_node)
+            expression_node = ast.fix_missing_locations(expression_node)
+            value_node = expression_node.body
+        value_node = ast.BinOp(
+            left=value_node,
+            op=ast.Mult(),
+            right=ast.Subscript(
+                value=ast.Name(id="coordinate_rates", ctx=ast.Load()),
+                slice=ast.Constant(str(wrt_name)),
+                ctx=ast.Load(),
+            ),
+        )
+        statements.append(
+            ast.Assign(
+                targets=[
+                    ast.Subscript(
+                        value=ast.Name(id="derivative", ctx=ast.Load()),
+                        slice=ast.Constant(int(state_index)),
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=value_node,
+            )
+        )
+    module = ast.fix_missing_locations(
+        ast.Module(body=statements, type_ignores=[])
+    )
+    return compile(module, "<declared-cmb-equations>", "exec")
 
 
 @dataclass(frozen=True, slots=True)
@@ -691,6 +840,43 @@ def _resolve_declared_momentum_grid_runtimes(
     return runtime_tuple
 
 
+@lru_cache(maxsize=128)
+def _prepare_declared_momentum_static_terms(
+    points_key: tuple[float, ...],
+    weights_key: tuple[float, ...],
+    mass_ratio_today: float,
+) -> tuple[Any, ...]:
+    """Cache q-grid algebra that is independent of the scale factor."""
+
+    points = numpy.asarray(points_key, dtype=float)
+    weights = numpy.asarray(weights_key, dtype=float)
+    thermal_distribution = _thermal_fermi_dirac_distribution(points)
+    quadrature_weights = numpy.asarray(
+        weights * thermal_distribution,
+        dtype=float,
+    )
+    points_squared = numpy.square(points)
+    density_weight_base = quadrature_weights * numpy.power(points, 3.0)
+    pressure_weight_base = quadrature_weights * numpy.power(points, 5.0)
+    momentum_weight_raw = quadrature_weights * numpy.power(points, 4.0)
+    momentum_weights, background_momentum_moment = (
+        _normalize_declared_momentum_weights(momentum_weight_raw)
+    )
+    epsilon_today = numpy.sqrt(
+        points_squared + float(mass_ratio_today) * float(mass_ratio_today)
+    )
+    density_moment_today = numpy.sum(density_weight_base * epsilon_today)
+    return (
+        quadrature_weights,
+        density_weight_base,
+        pressure_weight_base,
+        momentum_weights,
+        float(background_momentum_moment),
+        epsilon_today,
+        max(float(density_moment_today), 1.0e-300),
+    )
+
+
 def _declared_momentum_grid_context(
     perturbation_data: Any,
     *,
@@ -766,14 +952,20 @@ def _declared_momentum_grid_context(
         )
 
     for runtime in runtimes:
-        thermal_distribution = _thermal_fermi_dirac_distribution(
-            runtime.points
-        )
-        quadrature_weights = numpy.asarray(
-            runtime.weights * thermal_distribution,
-            dtype=float,
-        )
         mass_ratio_today = float(runtime.mass_eV) / neutrino_temperature_eV
+        (
+            quadrature_weights,
+            density_weight_base,
+            pressure_weight_base,
+            momentum_weights,
+            background_momentum_moment,
+            epsilon_today,
+            density_moment_today,
+        ) = _prepare_declared_momentum_static_terms(
+            tuple(float(value) for value in runtime.points),
+            tuple(float(value) for value in runtime.weights),
+            mass_ratio_today,
+        )
         mass_term = mass_ratio_today * a_values
         epsilon = numpy.sqrt(
             numpy.square(runtime.points) + numpy.square(mass_term[..., None])
@@ -782,28 +974,14 @@ def _declared_momentum_grid_context(
         q_pressure_ratio = numpy.square(q_velocity_ratio) / 3.0
         q_mass_fraction = mass_term[..., None] / epsilon
         q_streaming_speed = numpy.asarray(q_velocity_ratio, dtype=float)
-        density_weight_raw = (
-            quadrature_weights * numpy.power(runtime.points, 3.0) * epsilon
-        )
-        pressure_weight_raw = (
-            quadrature_weights
-            * numpy.power(runtime.points, 5.0)
-            / (3.0 * epsilon)
-        )
-        momentum_weight_raw = quadrature_weights * numpy.power(
-            runtime.points, 4.0
-        )
-        shear_weight_raw = (
-            quadrature_weights * numpy.power(runtime.points, 5.0) / epsilon
-        )
+        density_weight_raw = density_weight_base * epsilon
+        pressure_weight_raw = pressure_weight_base / (3.0 * epsilon)
+        shear_weight_raw = pressure_weight_base / epsilon
         density_weights, background_density_moment = (
             _normalize_declared_momentum_weights(density_weight_raw)
         )
         pressure_weights, background_pressure_moment = (
             _normalize_declared_momentum_weights(pressure_weight_raw)
-        )
-        momentum_weights, background_momentum_moment = (
-            _normalize_declared_momentum_weights(momentum_weight_raw)
         )
         shear_weights, background_shear_moment = (
             _normalize_declared_momentum_weights(shear_weight_raw)
@@ -813,15 +991,6 @@ def _declared_momentum_grid_context(
             runtime,
             total_mass_eV,
         )
-        epsilon_today = numpy.sqrt(
-            numpy.square(runtime.points) + mass_ratio_today * mass_ratio_today
-        )
-        density_moment_today = numpy.sum(
-            quadrature_weights
-            * numpy.power(runtime.points, 3.0)
-            * epsilon_today
-        )
-        density_moment_today = max(float(density_moment_today), 1.0e-300)
         scale_factor_array = numpy.maximum(a_values, 1.0e-30)
         density_fraction = (
             massive_omega0
@@ -1401,6 +1570,151 @@ def _resolve_declared_graph_context(
             f"{pending_str}"
         )
     return context
+
+
+def _resolve_declared_graph_context_ordered(
+    context: dict[str, Any],
+    perturbation_data: Any,
+    *,
+    allow_partial: bool,
+    eta_grid: numpy.ndarray | None,
+    execution_plan: _DeclaredGraphExecutionPlan,
+    derivative_steps: tuple[_DeclaredDerivativeStep, ...] = (),
+    value_steps: tuple[_DeclaredValueStep, ...] = (),
+    suppressed_outputs: Mapping[str, Any] | None = None,
+    use_compiled_program: bool = False,
+) -> dict[str, Any]:
+    """Resolve a prepared dependency order without pending-round scans."""
+
+    runtime_spec = execution_plan.runtime_spec
+    unresolved = False
+    for step in derivative_steps:
+        if step.output_name in context:
+            continue
+        slot_index = runtime_spec.state_index_by_key.get(
+            (step.variable, step.wrt, int(step.order))
+        )
+        if eta_grid is None:
+            if slot_index is None or step.slot_name not in context:
+                unresolved = True
+                continue
+            context[step.output_name] = context[step.slot_name]
+            continue
+
+        if step.variable not in context:
+            unresolved = True
+            continue
+        coordinate_name = str(step.wrt or runtime_spec.evolution_variable)
+        derivative_value = numpy.asarray(context[step.variable], dtype=float)
+        if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+            coordinate_history = numpy.asarray(eta_grid, dtype=float)
+        else:
+            if coordinate_name not in context:
+                unresolved = True
+                continue
+            coordinate_history = numpy.asarray(
+                context[coordinate_name],
+                dtype=float,
+            )
+            if coordinate_history.ndim == 0:
+                coordinate_history = numpy.full_like(
+                    eta_grid,
+                    float(coordinate_history),
+                    dtype=float,
+                )
+            if coordinate_history.shape != eta_grid.shape:
+                raise ValueError(
+                    "Declared coordinate history must match the eta grid "
+                    f"for derivative symbol '{step.output_name}'."
+                )
+        for _ in range(int(step.order)):
+            derivative_eta = _nonuniform_gradient(
+                derivative_value,
+                eta_grid,
+            )
+            if coordinate_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
+                derivative_value = derivative_eta
+                continue
+            coordinate_rate = _nonuniform_gradient(
+                coordinate_history,
+                eta_grid,
+            )
+            if not numpy.all(numpy.isfinite(coordinate_rate)):
+                raise ValueError(
+                    "Declared coordinate history produced non-finite rates "
+                    f"for derivative symbol '{step.output_name}'."
+                )
+            if numpy.any(numpy.abs(coordinate_rate) <= 1.0e-12):
+                raise ValueError(
+                    "Declared coordinate history is singular for derivative "
+                    f"symbol '{step.output_name}'."
+                )
+            derivative_value = derivative_eta / coordinate_rate
+        context[step.output_name] = derivative_value
+
+    if use_compiled_program and value_steps:
+        suppressed = dict(suppressed_outputs or {})
+        context.update(suppressed)
+        value_specs = tuple(
+            (
+                str(step.output_name),
+                str(step.compiled_expression.expression),
+            )
+            for step in value_steps
+        )
+        try:
+            # security-scanner: allow validated declared program execution.
+            exec(  # nosec B102 - expressions passed AST validation.
+                _compile_ordered_context_program(value_specs),
+                _COMPILED_CONTEXT_GLOBALS,
+                {
+                    "context": context,
+                    "suppressed_outputs": suppressed,
+                },
+            )
+        except (NameError, ValueError):
+            return _resolve_declared_graph_context(
+                context,
+                perturbation_data,
+                allow_partial=allow_partial,
+                eta_grid=eta_grid,
+                execution_plan=execution_plan,
+                suppressed_outputs=suppressed_outputs,
+            )
+        return context
+
+    with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        for step in value_steps:
+            if (
+                suppressed_outputs is not None
+                and step.output_name in suppressed_outputs
+            ):
+                context[step.output_name] = suppressed_outputs[
+                    step.output_name
+                ]
+                continue
+            if step.output_name in context:
+                continue
+            if any(
+                dependency not in context for dependency in step.dependencies
+            ):
+                unresolved = True
+                continue
+            context[step.output_name] = _evaluate_compiled_expression_noerr(
+                step.compiled_expression,
+                context,
+            )
+
+    if not unresolved:
+        return context
+    return _resolve_declared_graph_context(
+        context,
+        perturbation_data,
+        allow_partial=allow_partial,
+        eta_grid=eta_grid,
+        execution_plan=execution_plan,
+        suppressed_outputs=suppressed_outputs,
+    )
 
 
 def _evaluate_declared_initial_state(

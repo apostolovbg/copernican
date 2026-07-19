@@ -708,6 +708,16 @@ def _validate_camb_contract_definition(
     background_reference_names = set(param_map_keys)
     background_reference_names.update(grid_symbols.values())
     background_reference_names.update(value_names)
+    background_section = contract.get("background", {}) or {}
+    if isinstance(background_section, Mapping):
+        for section_name in (
+            "derived",
+            "expressions",
+            "quantities",
+        ):
+            section = background_section.get(section_name, {}) or {}
+            if isinstance(section, Mapping):
+                background_reference_names.update(str(key) for key in section)
     from .perturbation_contract import compile_perturbation_contract
 
     compile_perturbation_contract(
@@ -1149,6 +1159,12 @@ class EnginePlugin:
         }
         evaluated["value_definitions"] = copy.deepcopy(
             self.CMB_CONTRACT.get("values", {}) or {}
+        )
+        evaluated["background"] = copy.deepcopy(
+            self.CMB_CONTRACT.get("background", {}) or {}
+        )
+        evaluated["numerical"] = copy.deepcopy(
+            self.CMB_CONTRACT.get("numerical", {}) or {}
         )
         evaluated["model_name"] = self.MODEL_NAME
         evaluated["backend"] = self.CMB_CONTRACT.get(

@@ -30,8 +30,13 @@ from copernican.lib.progress import BatchProgressBar
 from copernican.lib.utils import set_random_seed
 
 
-def _build_model_plugin(yaml_filename: str):
-    """Return a validated plugin for ``yaml_filename``."""
+def _build_model_plugin(
+    yaml_filename: str,
+    *,
+    compact_native: bool = False,
+    fixed_native: bool = False,
+):
+    """Return a validated plugin with optional bounded native test controls."""
 
     models_dir = Path(__file__).resolve().parents[3] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
@@ -41,7 +46,56 @@ def _build_model_plugin(yaml_filename: str):
             cache_dir,
         )
         func_dict, parsed = model_coder.generate_callables(cache_path)
-    return engine_plugin_validation.build_plugin(parsed, func_dict)
+    if compact_native:
+        # The joint-likelihood test exercises native execution repeatedly.
+        # Keep that fixture explicitly native while bounding its declared
+        # accuracy tier so the test measures likelihood behavior, not a
+        # production full-range spectrum on every proposal.
+        numerical = parsed["cmb"]["numerical"]
+        numerical.update(
+            {
+                "ell_max": 40,
+                "k_min": 1.0e-3,
+                "k_max": 0.12,
+                "k_sample_count": 8,
+                "eta_sample_count": 16,
+                "source_grid_multiplier": 1,
+                "photon_hierarchy_l_max": 4,
+                "neutrino_hierarchy_l_max": 2,
+            }
+        )
+        perturbations = parsed["cmb"]["perturbations"]
+        perturbations["accuracy_controls"]["scalar_reference_ells"] = [
+            2,
+            40,
+        ]
+        perturbations["numerics"].update(
+            {
+                "ell_max": 40,
+                "k_min": 1.0e-3,
+                "k_max": 0.12,
+                "k_sample_count": 8,
+                "eta_sample_count": 16,
+                "source_grid_multiplier": 1,
+                "photon_hierarchy_l_max": 4,
+                "neutrino_hierarchy_l_max": 2,
+            }
+        )
+        momentum_grids = perturbations["numerics"].get("momentum_grids", {})
+        if "massive_neutrino_default" in momentum_grids:
+            momentum_grids["massive_neutrino_default"].update(
+                {
+                    "count": 2,
+                    "q_min": 0.1,
+                    "q_max": 12.0,
+                }
+            )
+    plugin = engine_plugin_validation.build_plugin(parsed, func_dict)
+    if fixed_native:
+        plugin.PARAMETER_BOUNDS = tuple(
+            (float(value), float(value)) for value in plugin.INITIAL_GUESSES
+        )
+    return plugin
 
 
 def _build_short_chain_plugin():
@@ -578,7 +632,11 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(math.isfinite(result["log_prior_best"]))
 
     def test_joint_fit_component_chi2_totals(self) -> None:
-        plugin = _build_model_plugin("model_lcdm.yml")
+        plugin = _build_model_plugin(
+            "model_lcdm_ccmbs.yml",
+            compact_native=True,
+            fixed_native=True,
+        )
         sne_df = pandas.DataFrame(
             {
                 "zcmb": [0.01, 0.02, 0.03],

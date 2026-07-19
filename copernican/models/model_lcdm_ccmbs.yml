@@ -198,7 +198,9 @@ cmb:
     gauge: conformal_newtonian
     sectors:
       scalar:
-        description: Scalar Einstein-Boltzmann hierarchy for flat LambdaCDM.
+        description: >-
+          Scalar Einstein-Boltzmann hierarchy for the declared model
+          background.
         species:
         - photon
         - baryon

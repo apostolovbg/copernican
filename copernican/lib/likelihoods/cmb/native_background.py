@@ -932,6 +932,126 @@ def _get_cached_spherical_bessel_values(
     return values
 
 
+def _compute_spherical_bessel_batch(
+    ell_signature: tuple[int, ...],
+    x_values: numpy.ndarray,
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Compute radial Bessel values and derivatives without per-ell calls."""
+
+    if not ell_signature:
+        empty = numpy.empty((0, x_values.size), dtype=float)
+        return empty, empty.copy()
+    maximum_ell = max(ell_signature)
+    order_limit = max(maximum_ell, 1)
+    x_array = numpy.asarray(x_values, dtype=float)
+    values = numpy.zeros((order_limit + 1, x_array.size), dtype=float)
+    downward_mask = x_array >= 0.0
+    downward_mask &= x_array <= float(maximum_ell)
+    if numpy.any(downward_mask):
+        downward_x = x_array[downward_mask]
+        safe_x = numpy.maximum(downward_x, 1.0e-300)
+        work = numpy.zeros((order_limit + 1, downward_x.size))
+        scales = numpy.zeros_like(work)
+        current = numpy.ones(downward_x.size)
+        next_value = numpy.zeros(downward_x.size)
+        log_scale = numpy.zeros(downward_x.size)
+        for order in range(order_limit + 64, 0, -1):
+            previous = (2.0 * order + 1.0) / safe_x * current
+            previous -= next_value
+            magnitude = numpy.maximum(
+                numpy.abs(previous),
+                numpy.abs(current),
+            )
+            rescale_mask = (magnitude > 1.0e100) | (
+                (magnitude > 0.0) & (magnitude < 1.0e-100)
+            )
+            factors = numpy.ones(downward_x.size)
+            factors[rescale_mask] = magnitude[rescale_mask]
+            previous[rescale_mask] /= factors[rescale_mask]
+            current[rescale_mask] /= factors[rescale_mask]
+            log_scale[rescale_mask] += numpy.log(factors[rescale_mask])
+            if order - 1 <= order_limit:
+                work[order - 1] = previous
+                scales[order - 1] = log_scale
+            next_value, current = current, previous
+        work *= numpy.exp(scales - scales[0])
+        work *= numpy.sinc(downward_x / math.pi) / work[0]
+        values[:, downward_mask] = work
+    upward_mask = ~downward_mask
+    if numpy.any(upward_mask):
+        upward_x = x_array[upward_mask]
+        work = numpy.zeros((order_limit + 1, upward_x.size))
+        work[0] = numpy.sin(upward_x) / upward_x
+        if maximum_ell >= 1:
+            work[1] = (
+                numpy.sin(upward_x) / upward_x**2
+                - numpy.cos(upward_x) / upward_x
+            )
+        for order in range(1, order_limit):
+            work[order + 1] = (2.0 * order + 1.0) / upward_x * work[
+                order
+            ] - work[order - 1]
+        values[:, upward_mask] = work
+    if numpy.any(x_array < 0.0):
+        negative_mask = x_array < 0.0
+        negative_x = x_array[negative_mask]
+        values[:, negative_mask] = numpy.asarray(
+            spherical_jn(
+                numpy.arange(order_limit + 1)[:, None],
+                negative_x[None, :],
+            ),
+            dtype=float,
+        )
+    ell_indices = numpy.asarray(ell_signature, dtype=int)
+    selected_values = values[ell_indices]
+    derivatives = numpy.empty_like(selected_values)
+    safe_x = numpy.maximum(numpy.abs(x_array), 1.0e-300)
+    for row, ell_value in enumerate(ell_indices):
+        if ell_value == 0:
+            derivatives[row] = -values[1]
+        else:
+            derivatives[row] = (
+                values[ell_value - 1]
+                - (float(ell_value) + 1.0) * values[ell_value] / safe_x
+            )
+    if numpy.any(x_array < 0.0):
+        negative_mask = x_array < 0.0
+        negative_x = x_array[negative_mask]
+        derivatives[:, negative_mask] = numpy.asarray(
+            spherical_jn(
+                ell_indices[:, None],
+                negative_x[None, :],
+                derivative=True,
+            ),
+            dtype=float,
+        )
+    zero_mask = x_array == 0.0
+    if numpy.any(zero_mask):
+        zero_values, zero_derivatives = _get_zero_argument_bessel_batch(
+            ell_signature,
+            int(numpy.count_nonzero(zero_mask)),
+        )
+        selected_values[:, zero_mask] = zero_values
+        derivatives[:, zero_mask] = zero_derivatives
+    return selected_values, derivatives
+
+
+def _get_zero_argument_bessel_batch(
+    ell_signature: tuple[int, ...],
+    column_count: int,
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Return the exact spherical-Bessel limits at zero argument."""
+
+    values = numpy.zeros((len(ell_signature), column_count), dtype=float)
+    derivatives = numpy.zeros_like(values)
+    for row, ell_value in enumerate(ell_signature):
+        if ell_value == 0:
+            values[row] = 1.0
+        elif ell_value == 1:
+            derivatives[row] = 1.0 / 3.0
+    return values, derivatives
+
+
 def _get_cached_declared_projection_kernel_batch(
     ell_signature: tuple[int, ...],
     x_signature: str,
@@ -946,8 +1066,10 @@ def _get_cached_declared_projection_kernel_batch(
     if x_values is None:  # pragma: no cover - projection stores inputs first
         raise KeyError(x_signature)
     shape = (len(ell_signature), x_values.size)
-    j_l_matrix = numpy.empty(shape, dtype=float)
-    j_l_derivative_matrix = numpy.empty(shape, dtype=float)
+    j_l_matrix, j_l_derivative_matrix = _compute_spherical_bessel_batch(
+        ell_signature,
+        numpy.asarray(x_values, dtype=float),
+    )
     j_l_second_derivative_matrix = numpy.empty(shape, dtype=float)
     e_kernel = numpy.zeros(shape, dtype=float)
     b_kernel = numpy.zeros(shape, dtype=float)
@@ -961,12 +1083,8 @@ def _get_cached_declared_projection_kernel_batch(
     inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
     inverse_x_sq = inverse_x * inverse_x
     for ell_index, ell_value in enumerate(ell_signature):
-        j_l, j_l_derivative = _get_cached_spherical_bessel_values(
-            int(ell_value),
-            x_signature,
-        )
-        j_l_matrix[ell_index] = j_l
-        j_l_derivative_matrix[ell_index] = j_l_derivative
+        j_l = j_l_matrix[ell_index]
+        j_l_derivative = j_l_derivative_matrix[ell_index]
         j_l_second_derivative_matrix[ell_index] = (
             float(ell_value * (ell_value + 1)) * inverse_x_sq * j_l
             - j_l
@@ -1455,7 +1573,7 @@ def _resolve_custom_cmb_physical_parameters(
         """Return one resolved physical quantity and its source."""
 
         return _lookup_declared_background_scalar_with_source(
-            contract,
+            prepared_contract,
             background_scalar_context,
             _physical_quantity_names(quantity_name),
         )
@@ -1492,7 +1610,7 @@ def _resolve_custom_cmb_physical_parameters(
             )
         hubble_entry = (
             _lookup_declared_background_scalar_with_source(
-                contract,
+                prepared_contract,
                 background_scalar_context,
                 ("H",),
             )
@@ -1781,14 +1899,14 @@ def _resolve_custom_cmb_physical_parameters(
     if tensor_tilt_entry is not None:
         _record_quantity("tensor_spectral_index", tensor_tilt_entry[1])
     z_rec = _lookup_declared_background_scalar(
-        contract,
+        prepared_contract,
         background_scalar_context,
         ("z_rec",),
     )
     if z_rec is None or z_rec <= 0.0:
         z_rec = 0.0
     tau_reio = _lookup_declared_background_scalar(
-        contract,
+        prepared_contract,
         background_scalar_context,
         ("tau", "tau_reio", "reionization_tau"),
     )

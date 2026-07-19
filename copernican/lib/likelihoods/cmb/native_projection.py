@@ -42,15 +42,18 @@ from .native_background import (
     _resolve_declared_background_context,
 )
 from .native_evolution import (
+    _COMPILED_CONTEXT_GLOBALS,
     _build_declared_base_context,
     _compile_declared_graph_execution_plan,
     _compile_declared_perturbation_contract,
+    _compile_equation_program,
     _compute_tight_coupling_drag,
     _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
     _nonuniform_gradient,
     _resolve_declared_graph_context,
+    _resolve_declared_graph_context_ordered,
     _resolve_declared_momentum_grid_runtimes,
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
@@ -333,6 +336,8 @@ def _integrate_power_spectrum(
 
 def _configured_reference_ells(
     perturbation_data: Any,
+    *,
+    maximum_ell: int | None = None,
 ) -> tuple[int, ...]:
     """Return all declared reference multipoles for the native run."""
 
@@ -356,7 +361,8 @@ def _configured_reference_ells(
                     ),
                 )
             )
-            anchor_ells.append(ell_value)
+            if maximum_ell is None or ell_value <= int(maximum_ell):
+                anchor_ells.append(ell_value)
     return tuple(sorted(set(anchor_ells)))
 
 
@@ -374,7 +380,10 @@ def _projection_anchor_ells(
     required_ells = {
         ell_min,
         ell_max,
-        *_configured_reference_ells(perturbation_data),
+        *_configured_reference_ells(
+            perturbation_data,
+            maximum_ell=ell_max,
+        ),
     }
     if node_budget <= len(required_ells):
         return tuple(sorted(required_ells))
@@ -415,16 +424,20 @@ def _build_projection_k_grid(
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     sample_count = max(8, int(numerics.k_sample_count))
-    configured_reference_ells = _configured_reference_ells(perturbation_data)
+    configured_reference_ells = _configured_reference_ells(
+        perturbation_data,
+        maximum_ell=int(ell_values.max()),
+    )
     grid_ell_min = min(
         int(ell_values.min()),
         int(numerics.ell_min),
         *configured_reference_ells,
     )
     grid_ell_max = max(
-        int(ell_values.max()),
-        int(numerics.ell_max),
-        *configured_reference_ells,
+        (
+            int(ell_values.max()),
+            *configured_reference_ells,
+        )
     )
     eta0_floor = max(float(background.eta0), 1.0e-6)
     k_min = max(
@@ -949,6 +962,24 @@ def _densify_eta_grid(
     return numpy.asarray(refined, dtype=float)
 
 
+def _limit_eta_grid(
+    eta_grid: numpy.ndarray,
+    maximum_samples: int,
+) -> numpy.ndarray:
+    """Limit a source grid while retaining its nonuniform spacing."""
+
+    target_size = max(int(maximum_samples), 16)
+    if eta_grid.size <= target_size:
+        return numpy.asarray(eta_grid, dtype=float)
+    source_indices = numpy.linspace(
+        0,
+        eta_grid.size - 1,
+        target_size,
+        dtype=int,
+    )
+    return numpy.asarray(eta_grid[source_indices], dtype=float)
+
+
 def _validate_runtime_envelope_controls(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
@@ -956,8 +987,15 @@ def _validate_runtime_envelope_controls(
 
     accuracy_controls = _resolve_declared_accuracy_controls(contract)
     runtime_envelope = accuracy_controls.get("runtime_envelope")
-    if runtime_envelope in (None, "bounded"):
+    if runtime_envelope is None:
         return {}
+    if runtime_envelope == "bounded":
+        return {
+            "maximum_evolution_work_units": 100_000_000,
+            "maximum_momentum_work_units": 10_000_000,
+            "maximum_projection_work_units": 5_000_000_000,
+            "maximum_total_work_units": 5_200_000_000,
+        }
     if not isinstance(runtime_envelope, Mapping):
         raise ValueError(
             "cmb.perturbations.accuracy_controls.runtime_envelope must be "
@@ -1001,6 +1039,7 @@ def _enforce_runtime_envelope(
     runtime_envelope = _validate_runtime_envelope_controls(contract)
     for limit_name, work_name in (
         ("maximum_evolution_work_units", "evolution_work_units"),
+        ("maximum_momentum_work_units", "momentum_work_units"),
         ("maximum_projection_work_units", "projection_work_units"),
         ("maximum_total_work_units", "total_work_units"),
     ):
@@ -1212,6 +1251,16 @@ def _compute_custom_cmb_spectrum_data(
                 continue
             stage_required_names.add(dependency_name)
             pending_required_names.append(dependency_name)
+    stage_derivative_steps = tuple(
+        step
+        for step in execution_plan.derivative_steps
+        if step.output_name in stage_required_names
+    )
+    stage_value_steps = tuple(
+        step
+        for step in execution_plan.value_steps
+        if step.output_name in stage_required_names
+    )
     runtime_spec = execution_plan.runtime_spec
     manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
     generated_scalar_hierarchy = bool(
@@ -1255,6 +1304,11 @@ def _compute_custom_cmb_spectrum_data(
         eta_los_grid = _densify_eta_grid(
             eta_los_grid,
             minimum_samples=minimum_eta_samples,
+        )
+    if generated_scalar_hierarchy and eta_los_refinement > 1:
+        eta_los_grid = _limit_eta_grid(
+            eta_los_grid,
+            maximum_samples=minimum_eta_samples,
         )
 
     def _sample_eta_background_grids(
@@ -1486,6 +1540,8 @@ def _compute_custom_cmb_spectrum_data(
             sum(runtime.points.size for runtime in momentum_runtimes)
         ),
     )
+    runtime_envelope["static_graph_preparations"] = 1
+    runtime_envelope["dynamic_mode_count"] = int(k_values.size)
     transfer_components = {
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
@@ -1495,6 +1551,24 @@ def _compute_custom_cmb_spectrum_data(
         perturbation_data=perturbation_data,
         runtime_spec=runtime_spec,
     )
+    equation_program_specs = tuple(
+        (
+            int(slot_plan.state_index),
+            str(slot_plan.wrt),
+            (
+                None
+                if slot_plan.compiled_rhs is None
+                else str(slot_plan.compiled_rhs.expression)
+            ),
+            (
+                None
+                if slot_plan.promote_from_index is None
+                else int(slot_plan.promote_from_index)
+            ),
+        )
+        for slot_plan in execution_plan.equation_slot_plans
+    )
+    equation_program = _compile_equation_program(equation_program_specs)
     scalar_temperature_slot_indices: dict[int, int] = {}
     scalar_polarization_slot_indices: dict[int, int] = {}
     for slot in runtime_spec.state_slots:
@@ -1838,7 +1912,13 @@ def _compute_custom_cmb_spectrum_data(
             keep |= visibility > max(visibility_peak * 1.0e-3, 1.0e-14)
             keep[0] = True
             keep[-1] = True
-            return numpy.asarray(base_grid[keep], dtype=float)
+            return _limit_eta_grid(
+                numpy.asarray(base_grid[keep], dtype=float),
+                maximum_samples=(
+                    int(numerics.eta_sample_count)
+                    * int(numerics.source_grid_multiplier)
+                ),
+            )
 
         eta_target = min(
             source_eta_start,
@@ -1871,18 +1951,28 @@ def _compute_custom_cmb_spectrum_data(
         k_value: float,
         eta_value: float,
         background_scalars: Mapping[str, float],
+        cache_token: tuple[int, float] | None = None,
+        resolve_graph: bool = False,
     ) -> dict[str, Any]:
         """Return the cached scalar expression environment for backgrounds."""
 
-        base_context_key = (
-            float(k_value),
-            tuple(
-                sorted(
-                    (str(name), float(value))
-                    for name, value in background_scalars.items()
-                )
-            ),
-        )
+        if cache_token is None:
+            base_context_key = (
+                float(k_value),
+                tuple(
+                    sorted(
+                        (str(name), float(value))
+                        for name, value in background_scalars.items()
+                    )
+                ),
+                bool(resolve_graph),
+            )
+        else:
+            base_context_key = (
+                float(k_value),
+                cache_token,
+                bool(resolve_graph),
+            )
         base_context = scalar_base_context_cache.get(base_context_key)
         if base_context is None:
             base_context = _build_declared_base_context(
@@ -1894,13 +1984,15 @@ def _compute_custom_cmb_spectrum_data(
                 eta_value=float(eta_value),
                 background_scalars=background_scalars,
             )
-            base_context = _resolve_declared_graph_context(
-                base_context,
-                perturbation_data,
-                allow_partial=True,
-                eta_grid=None,
-                execution_plan=execution_plan,
-            )
+            if resolve_graph:
+                base_context = _resolve_declared_graph_context_ordered(
+                    base_context,
+                    perturbation_data,
+                    allow_partial=True,
+                    eta_grid=None,
+                    execution_plan=execution_plan,
+                    value_steps=execution_plan.value_steps,
+                )
             scalar_base_context_cache[base_context_key] = base_context
         return base_context
 
@@ -1911,6 +2003,7 @@ def _compute_custom_cmb_spectrum_data(
         eta_value: float,
         background_scalars: Mapping[str, float],
         suppressed_collision_outputs: Mapping[str, float] | None = None,
+        cache_token: tuple[int, float] | None = None,
     ) -> dict[str, Any]:
         """Return the scalar expression environment for one solver stage."""
 
@@ -1919,6 +2012,8 @@ def _compute_custom_cmb_spectrum_data(
                 k_value=float(k_value),
                 eta_value=float(eta_value),
                 background_scalars=background_scalars,
+                cache_token=cache_token,
+                resolve_graph=False,
             )
         )
         for slot in runtime_spec.state_slots:
@@ -1927,14 +2022,16 @@ def _compute_custom_cmb_spectrum_data(
                 context[slot.variable] = value
             else:
                 context[f"__d{slot.order}_{slot.variable}_{slot.wrt}"] = value
-        return _resolve_declared_graph_context(
+        return _resolve_declared_graph_context_ordered(
             context,
             perturbation_data,
             allow_partial=True,
             eta_grid=None,
             execution_plan=execution_plan,
+            derivative_steps=stage_derivative_steps,
+            value_steps=stage_value_steps,
             suppressed_outputs=suppressed_collision_outputs,
-            required_names=stage_required_names,
+            use_compiled_program=True,
         )
 
     def _build_array_context(
@@ -2089,37 +2186,64 @@ def _compute_custom_cmb_spectrum_data(
             eta_value=float(eta_value),
             background_scalars=background_scalars,
             suppressed_collision_outputs=suppressed_collision_outputs,
+            cache_token=(int(step_index), float(blend)),
         )
         derivative = numpy.zeros_like(state_vector, dtype=float)
+        coordinate_rates: dict[str, float] = {}
+        for slot_plan in execution_plan.equation_slot_plans:
+            if slot_plan.wrt in coordinate_rates:
+                continue
+            coordinate_rates[slot_plan.wrt] = _resolve_coordinate_rate(
+                wrt_name=slot_plan.wrt,
+                scalar_context=scalar_context,
+                step_index=step_index,
+                blend=blend,
+                k_value=float(k_value),
+            )
+        compiled_equations_succeeded = True
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
-            for slot_plan in execution_plan.equation_slot_plans:
-                coordinate_rate = _resolve_coordinate_rate(
-                    wrt_name=slot_plan.wrt,
-                    scalar_context=scalar_context,
-                    step_index=step_index,
-                    blend=blend,
-                    k_value=float(k_value),
+            try:
+                # security-scanner: allow validated declared program execution.
+                exec(  # nosec B102 - expressions passed AST validation.
+                    equation_program,
+                    _COMPILED_CONTEXT_GLOBALS,
+                    {
+                        "context": scalar_context,
+                        "state_vector": effective_state_vector,
+                        "derivative": derivative,
+                        "coordinate_rates": coordinate_rates,
+                    },
                 )
-                if slot_plan.promote_from_index is not None:
+            except (KeyError, NameError, TypeError, ValueError):
+                compiled_equations_succeeded = False
+            except ArithmeticError as exc:
+                raise ValueError(
+                    "Declared CMB equation result must be finite; "
+                    f"evaluation failed at eta={eta_value}, k={k_value}"
+                ) from exc
+            if not compiled_equations_succeeded:
+                for slot_plan in execution_plan.equation_slot_plans:
+                    coordinate_rate = coordinate_rates[slot_plan.wrt]
+                    if slot_plan.promote_from_index is not None:
+                        derivative[slot_plan.state_index] = (
+                            float(
+                                effective_state_vector[
+                                    slot_plan.promote_from_index
+                                ]
+                            )
+                            * coordinate_rate
+                        )
+                        continue
                     derivative[slot_plan.state_index] = (
-                        float(
-                            effective_state_vector[
-                                slot_plan.promote_from_index
-                            ]
+                        _coerce_numeric_scalar(
+                            _evaluate_compiled_expression_noerr(
+                                slot_plan.compiled_rhs,
+                                scalar_context,
+                            ),
+                            name=f"equation '{slot_plan.equation_name}'",
                         )
                         * coordinate_rate
                     )
-                    continue
-                derivative[slot_plan.state_index] = (
-                    _coerce_numeric_scalar(
-                        _evaluate_compiled_expression_noerr(
-                            slot_plan.compiled_rhs,
-                            scalar_context,
-                        ),
-                        name=f"equation '{slot_plan.equation_name}'",
-                    )
-                    * coordinate_rate
-                )
         if generated_scalar_hierarchy and tight_coupling_active:
             for slot_index in scalar_tight_coupling_closure_indices:
                 derivative[slot_index] = 0.0
@@ -2881,6 +3005,97 @@ def _compute_custom_cmb_spectrum_data(
             )
         return histories, state
 
+    # These dependency classifications depend on the declared graph and the
+    # stable background-history names, not on the Fourier mode being evolved.
+    state_variable_names = {
+        str(slot.variable)
+        for slot in runtime_spec.state_slots
+        if int(slot.order) == 0
+    }
+    dynamic_context_names = {
+        *active_grids,
+        *active_declared_background_histories,
+    }
+    derived_entries = getattr(perturbation_data, "derived", {}) or {}
+    changed = True
+    while changed:
+        changed = False
+        for name, entry in derived_entries.items():
+            if str(name) in dynamic_context_names:
+                continue
+            dependencies = set(getattr(entry, "dependencies", ()))
+            if dependencies & dynamic_context_names:
+                dynamic_context_names.add(str(name))
+                changed = True
+    state_dependent_names = set(state_variable_names)
+    state_dependency_entries: list[tuple[str, set[str]]] = [
+        (
+            str(name),
+            set(getattr(entry, "dependencies", ()) or ()),
+        )
+        for name, entry in derived_entries.items()
+    ]
+    for relation_entries in (
+        getattr(perturbation_data, "constraints", {}).values(),
+        getattr(perturbation_data, "closures", {}).values(),
+        getattr(perturbation_data, "interactions", {}).values(),
+        getattr(perturbation_data, "collision_operators", {}).values(),
+    ):
+        for entry in relation_entries:
+            target_name = getattr(entry, "target", None)
+            if target_name is None:
+                target_name = getattr(entry, "name", None)
+            dependencies = getattr(entry, "dependencies", ()) or ()
+            if target_name is not None:
+                state_dependency_entries.append(
+                    (str(target_name), set(dependencies))
+                )
+    changed = True
+    while changed:
+        changed = False
+        for name, dependencies in state_dependency_entries:
+            if name in state_dependent_names:
+                continue
+            if dependencies & state_dependent_names:
+                state_dependent_names.add(name)
+                changed = True
+    static_collision_runtimes = {
+        runtime.name: not (
+            set(runtime.rate_expression.dependencies)
+            | {
+                dependency
+                for row in runtime.matrix
+                for entry in row
+                for dependency in entry.dependencies
+            }
+            | (
+                set(runtime.damping_coefficient.dependencies)
+                if runtime.damping_coefficient is not None
+                else set()
+            )
+        )
+        & (state_variable_names | dynamic_context_names)
+        for runtime in split_collision_runtimes
+    }
+    state_independent_collision_runtimes = {
+        runtime.name: not (
+            set(runtime.rate_expression.dependencies)
+            | {
+                dependency
+                for row in runtime.matrix
+                for entry in row
+                for dependency in entry.dependencies
+            }
+            | (
+                set(runtime.damping_coefficient.dependencies)
+                if runtime.damping_coefficient is not None
+                else set()
+            )
+        )
+        & state_dependent_names
+        for runtime in split_collision_runtimes
+    }
+
     def _evolve_declared_mode(
         k_value: float,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
@@ -2900,94 +3115,6 @@ def _compute_custom_cmb_spectrum_data(
             active_coordinate_rate_histories,
         ) = _mode_grids_for_k(float(k_value))
 
-        state_variable_names = {
-            str(slot.variable)
-            for slot in runtime_spec.state_slots
-            if int(slot.order) == 0
-        }
-        dynamic_context_names = {
-            *active_grids,
-            *active_declared_background_histories,
-        }
-        derived_entries = getattr(perturbation_data, "derived", {}) or {}
-        changed = True
-        while changed:
-            changed = False
-            for name, entry in derived_entries.items():
-                if str(name) in dynamic_context_names:
-                    continue
-                dependencies = set(getattr(entry, "dependencies", ()))
-                if dependencies & dynamic_context_names:
-                    dynamic_context_names.add(str(name))
-                    changed = True
-        state_dependent_names = set(state_variable_names)
-        state_dependency_entries: list[tuple[str, set[str]]] = [
-            (
-                str(name),
-                set(getattr(entry, "dependencies", ()) or ()),
-            )
-            for name, entry in derived_entries.items()
-        ]
-        for relation_entries in (
-            getattr(perturbation_data, "constraints", {}).values(),
-            getattr(perturbation_data, "closures", {}).values(),
-            getattr(perturbation_data, "interactions", {}).values(),
-            getattr(perturbation_data, "collision_operators", {}).values(),
-        ):
-            for entry in relation_entries:
-                target_name = getattr(entry, "target", None)
-                if target_name is None:
-                    target_name = getattr(entry, "name", None)
-                dependencies = getattr(entry, "dependencies", ()) or ()
-                if target_name is not None:
-                    state_dependency_entries.append(
-                        (str(target_name), set(dependencies))
-                    )
-        changed = True
-        while changed:
-            changed = False
-            for name, dependencies in state_dependency_entries:
-                if name in state_dependent_names:
-                    continue
-                if dependencies & state_dependent_names:
-                    state_dependent_names.add(name)
-                    changed = True
-        static_collision_runtimes = {
-            runtime.name: not (
-                set(runtime.rate_expression.dependencies)
-                | {
-                    dependency
-                    for row in runtime.matrix
-                    for entry in row
-                    for dependency in entry.dependencies
-                }
-                | (
-                    set(runtime.damping_coefficient.dependencies)
-                    if runtime.damping_coefficient is not None
-                    else set()
-                )
-            )
-            & (state_variable_names | dynamic_context_names)
-            for runtime in split_collision_runtimes
-        }
-        state_independent_collision_runtimes = {
-            runtime.name: not (
-                set(runtime.rate_expression.dependencies)
-                | {
-                    dependency
-                    for row in runtime.matrix
-                    for entry in row
-                    for dependency in entry.dependencies
-                }
-                | (
-                    set(runtime.damping_coefficient.dependencies)
-                    if runtime.damping_coefficient is not None
-                    else set()
-                )
-            )
-            & state_dependent_names
-            for runtime in split_collision_runtimes
-        }
         collision_metadata_cache: dict[
             tuple[str, int, float], tuple[float, numpy.ndarray, float | None]
         ] = {}
@@ -3051,6 +3178,8 @@ def _compute_custom_cmb_spectrum_data(
                             k_value=float(k_value),
                             eta_value=float(eta_value),
                             background_scalars=background_scalars,
+                            cache_token=(int(step_index), float(blend)),
+                            resolve_graph=True,
                         )
                     else:
                         scalar_context = _build_scalar_state_context(
@@ -3058,6 +3187,7 @@ def _compute_custom_cmb_spectrum_data(
                             k_value=float(k_value),
                             eta_value=float(eta_value),
                             background_scalars=background_scalars,
+                            cache_token=(int(step_index), float(blend)),
                         )
                     collision_rate = _coerce_numeric_scalar(
                         _evaluate_compiled_expression_noerr(
