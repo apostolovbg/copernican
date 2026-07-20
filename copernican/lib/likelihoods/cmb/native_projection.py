@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
 import numpy
-from scipy.integrate import simpson, solve_ivp
+from scipy.integrate import simpson
+from scipy.interpolate import CubicSpline
 from scipy.linalg import expm
 from scipy.optimize import least_squares
+from scipy.special import gammaln, spherical_jn
 
 from ...cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
@@ -30,6 +32,7 @@ from .native_background import (
     _accuracy_control_value,
     _build_custom_cmb_background,
     _coerce_numeric_scalar,
+    _compute_spherical_bessel_batch,
     _custom_cmb_spectrum_cache_key,
     _CustomCMBPhysicalParameters,
     _DeclaredProjectionKernelBatch,
@@ -324,6 +327,10 @@ def _integrate_power_spectrum(
     log_k_ld = numpy.asarray(log_k_values, dtype=numpy.longdouble)
     primary_ld = numpy.asarray(primary, dtype=numpy.longdouble)
     secondary_ld = numpy.asarray(secondary, dtype=numpy.longdouble)
+    if primary_ld.ndim == 1:
+        primary_ld = primary_ld[numpy.newaxis, :]
+    if secondary_ld.ndim == 1:
+        secondary_ld = secondary_ld[numpy.newaxis, :]
     weighted = primordial_ld[numpy.newaxis, :] * (primary_ld * secondary_ld)
     integrated = (
         4.0 * numpy.longdouble(math.pi) * simpson(weighted, x=log_k_ld, axis=1)
@@ -453,7 +460,11 @@ def _build_projection_k_grid(
     if manifest_summary.get("generated_tensor_hierarchy"):
         k_floor = max(12.0 * k_min, 2.5 * required_k_max)
     else:
-        k_floor = max(12.0 * k_min, 0.08)
+        # Keep scalar quadrature nodes on the requested projection surface.
+        # A fixed 0.08/Mpc floor spends the declared node budget on modes
+        # that cannot project to the requested ell range and leaves the
+        # visibility-scale Bessel oscillations under-resolved.
+        k_floor = max(12.0 * k_min, required_k_max)
     k_max = max(
         required_k_max,
         min(float(numerics.k_max), k_floor),
@@ -531,6 +542,32 @@ def _build_projection_k_grid(
     return numpy.asarray(ordered_nodes, dtype=float)
 
 
+def _projection_ell_limit_for_mode(
+    *,
+    ell_values: numpy.ndarray,
+    x_values: numpy.ndarray,
+) -> int:
+    """Return the non-negligible radial-order limit for one Fourier mode.
+
+    Spherical Bessel functions are exponentially suppressed above ``ell``
+    larger than their largest radial argument.  Leaving those rows at zero
+    avoids evaluating a large high-ell recurrence for low-k modes without
+    changing the line-of-sight integral at floating-point precision relevant
+    to the requested surface.
+    """
+
+    if ell_values.size == 0 or x_values.size == 0:
+        return 0
+    maximum_ell = int(numpy.max(ell_values))
+    maximum_x = float(numpy.max(numpy.abs(x_values)))
+    if not numpy.isfinite(maximum_x):
+        raise ValueError("Projection radial arguments must be finite")
+    radial_limit = int(
+        math.ceil(maximum_x + 32.0 + 8.0 * math.sqrt(max(maximum_x, 0.0)))
+    )
+    return min(maximum_ell, max(int(numpy.min(ell_values)), radial_limit))
+
+
 def _exact_linear_collision_step(
     *,
     operator_matrix: numpy.ndarray,
@@ -545,7 +582,7 @@ def _exact_linear_collision_step(
 
     matrix = numpy.asarray(operator_matrix, dtype=float)
     state = numpy.asarray(target_state, dtype=float)
-    scaled_matrix = matrix * float(dt)
+    scaled_matrix = matrix * float(dt) * float(operator_scale)
     if scaled_matrix.size == 0 or float(dt) == 0.0:
         return numpy.asarray(state, dtype=float)
     if scaled_matrix.shape == (2, 2):
@@ -1546,6 +1583,92 @@ def _compute_custom_cmb_spectrum_data(
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
     }
+    adaptive_k_controls = _resolve_declared_accuracy_controls(
+        contract_or_params
+    ).get("adaptive_k_quadrature")
+    adaptive_k_enabled = isinstance(adaptive_k_controls, Mapping)
+    adaptive_k_min_ell = 0
+    adaptive_k_node_count = 0
+    adaptive_k_window_fraction = 0.0
+    adaptive_k_ell_stride = 1
+    adaptive_k_eta_stride = 1
+    adaptive_k_mode = "transfer"
+    if adaptive_k_enabled:
+        adaptive_k_min_ell = int(
+            _coerce_numeric_scalar(
+                adaptive_k_controls.get("ell_min", 100),
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "adaptive_k_quadrature.ell_min"
+                ),
+            )
+        )
+        adaptive_k_node_count = int(
+            _coerce_numeric_scalar(
+                adaptive_k_controls.get("node_count", 24),
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "adaptive_k_quadrature.node_count"
+                ),
+            )
+        )
+        adaptive_k_window_fraction = float(
+            _coerce_numeric_scalar(
+                adaptive_k_controls.get("window_fraction", 0.2),
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "adaptive_k_quadrature.window_fraction"
+                ),
+            )
+        )
+        adaptive_k_ell_stride = int(
+            _coerce_numeric_scalar(
+                adaptive_k_controls.get("ell_stride", 4),
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "adaptive_k_quadrature.ell_stride"
+                ),
+            )
+        )
+        adaptive_k_eta_stride = int(
+            _coerce_numeric_scalar(
+                adaptive_k_controls.get("eta_stride", 4),
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "adaptive_k_quadrature.eta_stride"
+                ),
+            )
+        )
+        adaptive_k_mode = (
+            str(adaptive_k_controls.get("mode", "transfer")).strip().lower()
+        )
+        if adaptive_k_min_ell < 2:
+            raise ValueError(
+                "adaptive_k_quadrature.ell_min must be at least 2"
+            )
+        if adaptive_k_node_count < 4:
+            raise ValueError(
+                "adaptive_k_quadrature.node_count must be at least 4"
+            )
+        if adaptive_k_ell_stride < 1:
+            raise ValueError(
+                "adaptive_k_quadrature.ell_stride must be positive"
+            )
+        if adaptive_k_eta_stride < 1:
+            raise ValueError(
+                "adaptive_k_quadrature.eta_stride must be positive"
+            )
+        if adaptive_k_mode not in {"source", "transfer"}:
+            raise ValueError(
+                "adaptive_k_quadrature.mode must be 'source' or 'transfer'"
+            )
+        if not 0.0 < adaptive_k_window_fraction <= 1.0:
+            raise ValueError(
+                "adaptive_k_quadrature.window_fraction must be in (0, 1]"
+            )
+    adaptive_source_history_rows: dict[
+        tuple[str, str], list[numpy.ndarray]
+    ] = {}
     eta_integration_weights = _simpson_weights(source_grids["eta"])
     split_collision_runtimes = _compile_split_collision_operator_runtimes(
         perturbation_data=perturbation_data,
@@ -1914,9 +2037,9 @@ def _compute_custom_cmb_spectrum_data(
             keep[-1] = True
             return _limit_eta_grid(
                 numpy.asarray(base_grid[keep], dtype=float),
-                maximum_samples=(
-                    int(numerics.eta_sample_count)
-                    * int(numerics.source_grid_multiplier)
+                maximum_samples=max(
+                    192,
+                    min(256, int(numerics.eta_sample_count)),
                 ),
             )
 
@@ -2295,6 +2418,74 @@ def _compute_custom_cmb_spectrum_data(
             for slot in runtime_spec.state_slots
             if int(slot.order) == 0
         )
+        theta_gamma0_index = state_indices.get("theta_gamma0")
+        theta_gamma1_index = state_indices.get("theta_gamma1")
+        theta_gamma2_index = state_indices.get("theta_gamma2")
+        theta_gamma3_index = state_indices.get("theta_gamma3")
+        e_gamma2_index = state_indices.get("e_gamma2")
+        e_gamma3_index = state_indices.get("e_gamma3")
+        theta_b_index = state_indices.get("theta_b")
+        theta_c_index = state_indices.get("theta_c")
+        theta_nu_index = state_indices.get("theta_nu")
+        sigma_nu_index = state_indices.get("sigma_nu")
+        delta_b_index = state_indices.get("delta_b")
+        delta_c_index = state_indices.get("delta_c")
+        delta_nu_index = state_indices.get("delta_nu")
+        nu_l3_index = state_indices.get("nu_l3")
+        temperature_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    theta_gamma2_index
+                    if int(moment) == 3
+                    else state_indices[f"theta_gamma{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(temperature_indices)
+                    else int(state_indices[f"theta_gamma{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(temperature_indices.items())
+            if int(moment) >= 3
+        )
+        polarization_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    e_gamma2_index
+                    if int(moment) == 3
+                    else state_indices[f"e_gamma{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(polarization_indices)
+                    else int(state_indices[f"e_gamma{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(polarization_indices.items())
+            if int(moment) >= 3
+        )
+        neutrino_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    sigma_nu_index
+                    if int(moment) == 3
+                    else state_indices[f"nu_l{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(neutrino_indices)
+                    else int(state_indices[f"nu_l{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(neutrino_indices.items())
+            if int(moment) >= 3
+        )
         histories = {
             name: numpy.empty(active_grids["eta"].size, dtype=float)
             for name in history_names
@@ -2322,14 +2513,6 @@ def _compute_custom_cmb_spectrum_data(
         H0c_sq = float(physical_params.H0_over_c_Mpc_inv) ** 2
         omega_nu = float(physical_params.Omega_nu0 or 0.0)
         omega_c = float(physical_params.Omega_c0 or 0.0)
-
-        def _value(vector: numpy.ndarray, name: str) -> float:
-            """Return one named scalar state value or zero for absent tails."""
-
-            index = state_indices.get(name)
-            if index is None:
-                return 0.0
-            return float(vector[index])
 
         def _fast_background(
             step_index: int,
@@ -2447,15 +2630,45 @@ def _compute_custom_cmb_spectrum_data(
                 _,
                 _,
             ) = _fast_background(step_index, blend)
-            theta0 = _value(working, "theta_gamma0")
-            theta1 = _value(working, "theta_gamma1")
-            theta2 = _value(working, "theta_gamma2")
-            theta_b = _value(working, "theta_b")
-            theta_c = _value(working, "theta_c")
-            theta_nu = _value(working, "theta_nu")
-            sigma_nu = _value(working, "sigma_nu")
-            delta_b = _value(working, "delta_b")
-            delta_nu = _value(working, "delta_nu")
+            theta0 = (
+                0.0
+                if theta_gamma0_index is None
+                else float(working[theta_gamma0_index])
+            )
+            theta1 = (
+                0.0
+                if theta_gamma1_index is None
+                else float(working[theta_gamma1_index])
+            )
+            theta2 = (
+                0.0
+                if theta_gamma2_index is None
+                else float(working[theta_gamma2_index])
+            )
+            theta_b = (
+                0.0 if theta_b_index is None else float(working[theta_b_index])
+            )
+            theta_c = (
+                0.0 if theta_c_index is None else float(working[theta_c_index])
+            )
+            theta_nu = (
+                0.0
+                if theta_nu_index is None
+                else float(working[theta_nu_index])
+            )
+            sigma_nu = (
+                0.0
+                if sigma_nu_index is None
+                else float(working[sigma_nu_index])
+            )
+            delta_b = (
+                0.0 if delta_b_index is None else float(working[delta_b_index])
+            )
+            delta_nu = (
+                0.0
+                if delta_nu_index is None
+                else float(working[delta_nu_index])
+            )
             radiation_momentum = (
                 (4.0 / 3.0)
                 * float(physical_params.Omega_gamma0)
@@ -2487,147 +2700,86 @@ def _compute_custom_cmb_spectrum_data(
             )
             derivative = numpy.zeros_like(working, dtype=float)
 
-            def _set(name: str, value: float) -> None:
-                """Store one derivative when the declared state contains it."""
-
+            k_squared = float(k_value) ** 2
+            if theta_gamma0_index is not None:
+                derivative[theta_gamma0_index] = (
+                    -float(k_value) * theta1 + phi_tau
+                )
+            if theta_gamma1_index is not None:
+                derivative[theta_gamma1_index] = (
+                    float(k_value) * (theta0 + psi - 2.0 * theta2) / 3.0
+                )
+            theta3 = (
+                0.0
+                if theta_gamma3_index is None
+                else float(working[theta_gamma3_index])
+            )
+            if theta_gamma2_index is not None:
+                derivative[theta_gamma2_index] = (
+                    2.0 * float(k_value) * theta1 / 5.0
+                    - 3.0 * float(k_value) * theta3 / 5.0
+                )
+            polarization_third_moment = (
+                0.0
+                if e_gamma3_index is None
+                else float(working[e_gamma3_index])
+            )
+            for name in ("e_gamma0", "e_gamma1"):
                 index = state_indices.get(name)
                 if index is not None:
-                    derivative[index] = float(value)
-
-            _set("theta_gamma0", -float(k_value) * theta1 + phi_tau)
-            _set(
-                "theta_gamma1",
-                float(k_value) * (theta0 + psi - 2.0 * theta2) / 3.0,
-            )
-            theta3 = _value(working, "theta_gamma3")
-            _set(
-                "theta_gamma2",
-                2.0 * float(k_value) * theta1 / 5.0
-                - 3.0 * float(k_value) * theta3 / 5.0,
-            )
-            polarization_third_moment = _value(working, "e_gamma3")
-            _set("e_gamma0", 0.0)
-            _set("e_gamma1", 0.0)
-            _set(
-                "e_gamma2",
-                -float(k_value) * polarization_third_moment / 3.0,
-            )
-            _set("delta_b", -theta_b + 3.0 * phi_tau)
-            _set(
-                "theta_b",
-                -Hconf * theta_b
-                + baryon_sound_speed_sq * float(k_value) ** 2 * delta_b
-                + float(k_value) ** 2 * psi,
-            )
-            _set("delta_c", -theta_c + 3.0 * phi_tau)
-            _set("theta_c", -Hconf * theta_c + float(k_value) ** 2 * psi)
-            _set("delta_nu", -(4.0 / 3.0) * theta_nu + 4.0 * phi_tau)
-            _set(
-                "theta_nu",
-                float(k_value) ** 2 * (0.25 * delta_nu + psi - sigma_nu),
-            )
-            _set(
-                "sigma_nu",
-                (4.0 / 15.0) * theta_nu
-                - (3.0 / 5.0) * float(k_value) * _value(working, "nu_l3"),
-            )
+                    derivative[index] = 0.0
+            if e_gamma2_index is not None:
+                derivative[e_gamma2_index] = (
+                    -float(k_value) * polarization_third_moment / 3.0
+                )
+            if delta_b_index is not None:
+                derivative[delta_b_index] = -theta_b + 3.0 * phi_tau
+            if theta_b_index is not None:
+                derivative[theta_b_index] = (
+                    -Hconf * theta_b
+                    + baryon_sound_speed_sq * k_squared * delta_b
+                    + k_squared * psi
+                )
+            if delta_c_index is not None:
+                derivative[delta_c_index] = -theta_c + 3.0 * phi_tau
+            if theta_c_index is not None:
+                derivative[theta_c_index] = -Hconf * theta_c + k_squared * psi
+            if delta_nu_index is not None:
+                derivative[delta_nu_index] = (
+                    -(4.0 / 3.0) * theta_nu + 4.0 * phi_tau
+                )
+            if theta_nu_index is not None:
+                derivative[theta_nu_index] = k_squared * (
+                    0.25 * delta_nu + psi - sigma_nu
+                )
+            if sigma_nu_index is not None:
+                nu_l3 = (
+                    0.0 if nu_l3_index is None else float(working[nu_l3_index])
+                )
+                derivative[sigma_nu_index] = (4.0 / 15.0) * theta_nu - (
+                    3.0 / 5.0
+                ) * float(k_value) * nu_l3
             if phi_index is not None:
-                _set(metric_phi_name, phi_tau)
+                derivative[phi_index] = phi_tau
             else:
                 alpha = float(working[sync_alpha_index])
                 alpha_tau = psi - Hconf * alpha
                 eta_tau = phi_tau + Hconf_tau * alpha + Hconf * alpha_tau
-                _set("gauge_shift_alpha", alpha_tau)
-                _set("eta_sync_metric", eta_tau)
-                _set(
-                    "h_sync_metric",
-                    2.0 * float(k_value) ** 2 * alpha - 6.0 * eta_tau,
+                derivative[sync_alpha_index] = alpha_tau
+                derivative[sync_eta_index] = eta_tau
+                derivative[sync_h_index] = (
+                    2.0 * k_squared * alpha - 6.0 * eta_tau
                 )
 
-            def _hierarchy_rhs(
-                index_map: Mapping[int, int],
-                moment: int,
-                *,
-                polarization: bool = False,
-            ) -> float:
-                """Return one declared free-streaming recurrence value."""
-
-                previous_name = (
-                    "theta_gamma2"
-                    if moment == 3 and not polarization
-                    else (
-                        "e_gamma2"
-                        if moment == 3
-                        else (
-                            f"theta_gamma{moment - 1}"
-                            if not polarization
-                            else f"e_gamma{moment - 1}"
-                        )
-                    )
-                )
-                previous = _value(working, previous_name)
-                current = _value(
-                    working,
-                    f"{'e_gamma' if polarization else 'theta_gamma'}{moment}",
-                )
-                if moment == max(index_map):
-                    closure_offset = 3.0 if polarization else 1.0
-                    previous_coefficient = (
-                        float(moment) / float(moment - 2)
-                        if polarization
-                        else 1.0
-                    )
-                    denominator = math.sqrt(
-                        (float(k_value) * eta_value) ** 2
-                        + (float(moment) + closure_offset) ** 2
-                    )
-                    return (
-                        previous_coefficient * float(k_value) * previous
-                        - float(k_value)
-                        * (float(moment) + closure_offset)
-                        * current
-                        / denominator
-                    )
-                next_name = (
-                    f"e_gamma{moment + 1}"
-                    if polarization
-                    else f"theta_gamma{moment + 1}"
-                )
-                next_coefficient = (
-                    (float(moment) + 3.0)
-                    * (float(moment) - 1.0)
-                    / ((2.0 * float(moment) + 1.0) * (float(moment) + 1.0))
-                    if polarization
-                    else (float(moment) + 1.0) / (2.0 * float(moment) + 1.0)
-                )
-                return float(moment) / (2.0 * float(moment) + 1.0) * float(
-                    k_value
-                ) * previous - next_coefficient * float(k_value) * _value(
-                    working,
-                    next_name,
-                )
-
-            for moment, index in temperature_indices.items():
-                if moment >= 3:
-                    derivative[index] = _hierarchy_rhs(
-                        index_map=temperature_indices,
-                        moment=moment,
-                    )
-            for moment, index in polarization_indices.items():
-                if moment >= 3:
-                    derivative[index] = _hierarchy_rhs(
-                        index_map=polarization_indices,
-                        moment=moment,
-                        polarization=True,
-                    )
-            for moment, index in neutrino_indices.items():
-                previous_name = (
-                    "sigma_nu" if moment == 3 else f"nu_l{moment - 1}"
-                )
-                current_name = f"nu_l{moment}"
-                previous = _value(working, previous_name)
-                current = _value(working, current_name)
-                if moment == max(neutrino_indices):
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in temperature_hierarchy:
+                previous = float(working[previous_index])
+                current = float(working[index])
+                if next_index is None:
                     denominator = math.sqrt(
                         (float(k_value) * eta_value) ** 2
                         + (float(moment) + 1.0) ** 2
@@ -2640,19 +2792,94 @@ def _compute_custom_cmb_spectrum_data(
                         / denominator
                     )
                 else:
-                    next_neutrino_multipole = _value(
-                        working, f"nu_l{moment + 1}"
-                    )
-                    derivative[index] = (
+                    coupling = (
                         float(moment)
                         / (2.0 * float(moment) + 1.0)
                         * float(k_value)
                         * previous
-                        - (float(moment) + 1.0)
+                    )
+                    decay = (
+                        (float(moment) + 1.0)
                         / (2.0 * float(moment) + 1.0)
                         * float(k_value)
-                        * next_neutrino_multipole
+                        * float(working[next_index])
                     )
+                    derivative[index] = coupling - decay
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in polarization_hierarchy:
+                previous = float(working[previous_index])
+                current = float(working[index])
+                if next_index is None:
+                    denominator = math.sqrt(
+                        (float(k_value) * eta_value) ** 2
+                        + (float(moment) + 3.0) ** 2
+                    )
+                    derivative[index] = (
+                        float(moment)
+                        / float(moment - 2)
+                        * float(k_value)
+                        * previous
+                        - float(k_value)
+                        * (float(moment) + 3.0)
+                        * current
+                        / denominator
+                    )
+                else:
+                    next_coefficient = (
+                        (float(moment) + 3.0)
+                        * (float(moment) - 1.0)
+                        / ((2.0 * float(moment) + 1.0) * (float(moment) + 1.0))
+                    )
+                    coupling = (
+                        float(moment)
+                        / (2.0 * float(moment) + 1.0)
+                        * float(k_value)
+                        * previous
+                    )
+                    decay = (
+                        next_coefficient
+                        * float(k_value)
+                        * float(working[next_index])
+                    )
+                    derivative[index] = coupling - decay
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in neutrino_hierarchy:
+                previous = float(working[previous_index])
+                current = float(working[index])
+                if next_index is None:
+                    denominator = math.sqrt(
+                        (float(k_value) * eta_value) ** 2
+                        + (float(moment) + 1.0) ** 2
+                    )
+                    derivative[index] = (
+                        float(k_value) * previous
+                        - float(k_value)
+                        * (float(moment) + 1.0)
+                        * current
+                        / denominator
+                    )
+                else:
+                    coupling = (
+                        float(moment)
+                        / (2.0 * float(moment) + 1.0)
+                        * float(k_value)
+                        * previous
+                    )
+                    decay = (
+                        (float(moment) + 1.0)
+                        / (2.0 * float(moment) + 1.0)
+                        * float(k_value)
+                        * float(working[next_index])
+                    )
+                    derivative[index] = coupling - decay
             if tight_coupling_active:
                 for moment, index in temperature_indices.items():
                     if moment >= 2:
@@ -2729,9 +2956,10 @@ def _compute_custom_cmb_spectrum_data(
                 )
                 indices = tuple(int(index) for index in dipole_indices)
                 result[list(indices)] = _exact_linear_collision_step(
-                    operator_matrix=rate * dipole_matrix,
+                    operator_matrix=dipole_matrix,
                     dt=dt,
                     target_state=result[list(indices)],
+                    operator_scale=rate,
                 )
             if not tight_coupling_active:
                 quadrupole_indices = tuple(
@@ -2760,83 +2988,6 @@ def _compute_custom_cmb_spectrum_data(
                 if moment >= 3:
                     result[index] *= damping
             return result
-
-        def _adaptive_tail_rhs(
-            eta_value: float,
-            vector: numpy.ndarray,
-        ) -> numpy.ndarray:
-            """Return the non-stiff post-tight-coupling hierarchy RHS."""
-
-            eta_grid = active_grids["eta"]
-            right_index = int(numpy.searchsorted(eta_grid, eta_value))
-            if right_index <= 0:
-                step_index = 0
-                blend = 0.0
-            elif right_index >= eta_grid.size:
-                step_index = eta_grid.size - 1
-                blend = 0.0
-            else:
-                step_index = right_index - 1
-                interval = float(eta_grid[right_index] - eta_grid[step_index])
-                blend = (
-                    0.0
-                    if interval <= 0.0
-                    else (float(eta_value) - float(eta_grid[step_index]))
-                    / interval
-                )
-            derivative, _ = _rhs(
-                numpy.asarray(vector, dtype=float),
-                step_index=step_index,
-                blend=blend,
-                tight_coupling_active=False,
-            )
-            (
-                _,
-                a_value,
-                _,
-                _,
-                _,
-                collision_rate,
-                _,
-            ) = _fast_background(step_index, blend)
-            rate = max(float(collision_rate), 0.0)
-            if rate <= 1.0e-12:
-                return derivative
-            state_values = numpy.asarray(vector, dtype=float)
-            theta1_index = temperature_indices.get(1)
-            baryon_index = state_indices.get("theta_b")
-            if theta1_index is not None and baryon_index is not None:
-                photon_velocity = float(state_values[theta1_index])
-                baryon_velocity = float(state_values[baryon_index])
-                derivative[theta1_index] += rate * (
-                    -photon_velocity + baryon_velocity / (3.0 * k_value)
-                )
-                derivative[baryon_index] += rate * (
-                    4.0
-                    * float(physical_params.Omega_gamma0)
-                    / (3.0 * float(physical_params.Omega_b0) * a_value)
-                    * (3.0 * k_value * photon_velocity - baryon_velocity)
-                )
-            quadrupole_indices = tuple(
-                int(index)
-                for index in (
-                    temperature_indices.get(2),
-                    polarization_indices.get(2),
-                )
-                if index is not None
-            )
-            if len(quadrupole_indices) == 2:
-                derivative[list(quadrupole_indices)] += rate * (
-                    polarization_matrix
-                    @ state_values[list(quadrupole_indices)]
-                )
-            for moment, index in temperature_indices.items():
-                if moment >= 3:
-                    derivative[index] -= rate * state_values[index]
-            for moment, index in polarization_indices.items():
-                if moment >= 3:
-                    derivative[index] -= rate * state_values[index]
-            return derivative
 
         state = numpy.asarray(initial_state, dtype=float).copy()
         physical_phi = None
@@ -2870,46 +3021,33 @@ def _compute_custom_cmb_spectrum_data(
                 histories[name][step_index] = state[index]
             if step_index == active_grids["eta"].size - 1:
                 break
-            if (
-                int(numerics.source_grid_multiplier) > 1
-                and phi_index is not None
-                and not tight_coupling_active
-            ):
-                tail_grid = numpy.asarray(
-                    active_grids["eta"][step_index:],
-                    dtype=float,
-                )
-                adaptive_solution = solve_ivp(
-                    _adaptive_tail_rhs,
-                    (float(tail_grid[0]), float(tail_grid[-1])),
-                    state,
-                    method="DOP853",
-                    t_eval=tail_grid,
-                    rtol=float(numerics.ode_rtol),
-                    atol=float(numerics.ode_atol),
-                )
-                if not adaptive_solution.success:
-                    raise ValueError(
-                        "Declared scalar adaptive tail failed: "
-                        f"{adaptive_solution.message}"
-                    )
-                for name, index in state_indices.items():
-                    histories[name][step_index:] = adaptive_solution.y[
-                        index,
-                        :,
-                    ]
-                state = numpy.asarray(adaptive_solution.y[:, -1], dtype=float)
-                return histories, state
+            # Use the same explicit stepping for every generated scalar gauge.
+            # Gauge-equivalent contracts must not diverge because one route
+            # selected a different adaptive step sequence for its state basis.
             dt = float(active_grids["eta"][step_index + 1] - eta_value)
             phase_step = 0.5
-            required_substeps = max(
-                1,
-                int(
-                    math.ceil(
-                        abs(float(dt)) * abs(float(k_value)) / phase_step
-                    )
-                ),
+            required_substeps = int(
+                math.ceil(abs(float(dt)) * abs(float(k_value)) / phase_step)
             )
+            if not tight_coupling_active:
+                collision_step = 0.25
+                start_collision_rate = float(
+                    active_grids["collision_rate"][step_index]
+                )
+                end_collision_rate = float(
+                    active_grids["collision_rate"][step_index + 1]
+                )
+                required_substeps = max(
+                    required_substeps,
+                    int(
+                        math.ceil(
+                            abs(float(dt))
+                            * max(start_collision_rate, end_collision_rate)
+                            / collision_step
+                        )
+                    ),
+                )
+            required_substeps = max(1, required_substeps)
             substep_count = 1
             while substep_count < required_substeps:
                 substep_count *= 2
@@ -3254,7 +3392,7 @@ def _compute_custom_cmb_spectrum_data(
                     ],
                     dtype=float,
                 )
-                operator_matrix = float(collision_rate) * collision_matrix
+                operator_matrix = collision_matrix
                 if runtime.integration_strategy == "exact":
                     eigendecomposition = None
                     if static_collision_runtimes.get(runtime.name, False):
@@ -3803,10 +3941,27 @@ def _compute_custom_cmb_spectrum_data(
         return source_histories, source_arrays
 
     log_k_values = numpy.log(k_values)
-    ell_signature = tuple(int(ell_value) for ell_value in ell_arr)
+    projection_ell_batch_size = 128
 
     for k_index, k_value in enumerate(k_values):
         _, source_arrays = _evolve_declared_mode(float(k_value))
+        if adaptive_k_enabled:
+            for (
+                component_name,
+                component_entry,
+            ) in transfer_component_observables.items():
+                for (
+                    role_name,
+                    source_name,
+                ) in component_entry.source_terms.items():
+                    adaptive_source_history_rows.setdefault(
+                        (str(component_name), str(role_name)),
+                        [],
+                    ).append(
+                        numpy.asarray(
+                            source_arrays[str(source_name)], dtype=float
+                        )
+                    )
         x_values = k_value * (eta0 - source_grids["eta"])
         x_signature = hashlib.sha256(
             numpy.asarray(x_values, dtype=float).tobytes()
@@ -3815,40 +3970,73 @@ def _compute_custom_cmb_spectrum_data(
             x_signature,
             numpy.asarray(x_values, dtype=float).copy(),
         )
-        kernel_batch = _get_cached_declared_projection_kernel_batch(
-            ell_signature,
-            x_signature,
+        mode_ell_limit = _projection_ell_limit_for_mode(
+            ell_values=ell_arr,
+            x_values=numpy.asarray(x_values, dtype=float),
         )
-        for (
-            component_name,
-            component_entry,
-        ) in transfer_component_observables.items():
-            component_source_terms = component_entry.source_terms.items()
-            source_histories = {
-                role_name: source_arrays[source_name]
-                for role_name, source_name in component_source_terms
-            }
-            transfer_components[component_name][:, k_index] = (
-                _declared_graph_projection(
-                    projection=str(component_entry.projection or ""),
-                    kernel=(
-                        None
-                        if component_entry.kernel is None
-                        else str(component_entry.kernel)
-                    ),
-                    sector=(
-                        None
-                        if component_entry.sector is None
-                        else str(component_entry.sector)
-                    ),
-                    kernel_batch=kernel_batch,
-                    k_value=float(k_value),
-                    eta_weights=eta_integration_weights,
-                    chi_grid=source_grids["chi"],
-                    source_chi=source_chi,
-                    source_histories=source_histories,
-                )
+        mode_ell_indices = numpy.flatnonzero(ell_arr <= mode_ell_limit)
+        if mode_ell_indices.size == 0:
+            continue
+        mode_ell_signature = tuple(
+            int(ell_value) for ell_value in ell_arr[mode_ell_indices]
+        )
+        projection_bessel_values = _compute_spherical_bessel_batch(
+            mode_ell_signature,
+            numpy.asarray(x_values, dtype=float),
+        )
+        precomputed_projection_bessel = (
+            mode_ell_signature,
+            projection_bessel_values[0],
+            projection_bessel_values[1],
+        )
+        for ell_start in range(0, ell_arr.size, projection_ell_batch_size):
+            ell_stop = min(
+                ell_start + projection_ell_batch_size,
+                ell_arr.size,
             )
+            batch_indices = mode_ell_indices[
+                (mode_ell_indices >= ell_start) & (mode_ell_indices < ell_stop)
+            ]
+            if batch_indices.size == 0:
+                continue
+            ell_signature = tuple(
+                int(ell_value) for ell_value in ell_arr[batch_indices]
+            )
+            kernel_batch = _get_cached_declared_projection_kernel_batch(
+                ell_signature,
+                x_signature,
+                precomputed_bessel=precomputed_projection_bessel,
+            )
+            for (
+                component_name,
+                component_entry,
+            ) in transfer_component_observables.items():
+                component_source_terms = component_entry.source_terms.items()
+                source_histories = {
+                    role_name: source_arrays[source_name]
+                    for role_name, source_name in component_source_terms
+                }
+                transfer_components[component_name][batch_indices, k_index] = (
+                    _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
+                        sector=(
+                            None
+                            if component_entry.sector is None
+                            else str(component_entry.sector)
+                        ),
+                        kernel_batch=kernel_batch,
+                        k_value=float(k_value),
+                        eta_weights=eta_integration_weights,
+                        chi_grid=source_grids["chi"],
+                        source_chi=source_chi,
+                        source_histories=source_histories,
+                    )
+                )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
             raise ValueError(
@@ -3881,6 +4069,642 @@ def _compute_custom_cmb_spectrum_data(
             primary=primary,
             secondary=secondary,
         )
+
+    if adaptive_k_enabled and adaptive_k_mode == "source":
+        """Re-evolve declared modes on the source quadrature grid.
+
+        Interpolating a sparse set of source histories cannot preserve the
+        acoustic oscillations that the line-of-sight kernels resolve.  The
+        source mode therefore uses the declared node budget for actual mode
+        evolution and reserves interpolation for the separate transfer mode.
+        """
+
+        direct_ell_indices = numpy.flatnonzero(
+            ell_arr >= int(adaptive_k_min_ell)
+        )[::adaptive_k_ell_stride]
+        direct_k = numpy.geomspace(
+            float(k_values[0]),
+            float(k_values[-1]),
+            max(32, int(adaptive_k_node_count)),
+            dtype=float,
+        )
+        direct_transfer_components = {
+            name: numpy.zeros(
+                (direct_ell_indices.size, direct_k.size),
+                dtype=float,
+            )
+            for name in transfer_component_observables
+        }
+        direct_envelope = _enforce_runtime_envelope(
+            contract_or_params,
+            ell_count=int(direct_ell_indices.size),
+            k_count=int(direct_k.size),
+            eta_count=int(source_grids["eta"].size),
+            state_slot_count=int(len(runtime_spec.state_slots)),
+            transfer_component_count=int(len(transfer_component_observables)),
+            momentum_point_count=int(
+                sum(runtime.points.size for runtime in momentum_runtimes)
+            ),
+        )
+        direct_envelope["static_graph_preparations"] = 1
+        direct_envelope["dynamic_mode_count"] = int(direct_k.size)
+        for direct_k_index, direct_k_value in enumerate(direct_k):
+            _, direct_source_arrays = _evolve_declared_mode(
+                float(direct_k_value)
+            )
+            x_values = float(direct_k_value) * (eta0 - source_grids["eta"])
+            x_signature = hashlib.sha256(
+                numpy.asarray(x_values, dtype=float).tobytes()
+            ).hexdigest()
+            native_cache.store_bessel_inputs(
+                x_signature,
+                numpy.asarray(x_values, dtype=float).copy(),
+            )
+            mode_ell_values = numpy.asarray(
+                ell_arr[direct_ell_indices],
+                dtype=int,
+            )
+            mode_ell_limit = _projection_ell_limit_for_mode(
+                ell_values=mode_ell_values,
+                x_values=numpy.asarray(x_values, dtype=float),
+            )
+            mode_indices = numpy.flatnonzero(mode_ell_values <= mode_ell_limit)
+            if mode_indices.size == 0:
+                continue
+            mode_signature = tuple(
+                int(value) for value in mode_ell_values[mode_indices]
+            )
+            precomputed_bessel = _compute_spherical_bessel_batch(
+                mode_signature,
+                numpy.asarray(x_values, dtype=float),
+            )
+            for batch_start in range(0, mode_indices.size, 128):
+                batch_stop = min(batch_start + 128, mode_indices.size)
+                batch_indices = mode_indices[batch_start:batch_stop]
+                batch_signature = tuple(
+                    int(value) for value in mode_ell_values[batch_indices]
+                )
+                kernel_batch = _get_cached_declared_projection_kernel_batch(
+                    batch_signature,
+                    x_signature,
+                    precomputed_bessel=(
+                        mode_signature,
+                        precomputed_bessel[0],
+                        precomputed_bessel[1],
+                    ),
+                )
+                for (
+                    component_name,
+                    component_entry,
+                ) in transfer_component_observables.items():
+                    source_histories = {
+                        role_name: direct_source_arrays[source_name]
+                        for role_name, source_name in (
+                            component_entry.source_terms.items()
+                        )
+                    }
+                    projected = _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
+                        sector=(
+                            None
+                            if component_entry.sector is None
+                            else str(component_entry.sector)
+                        ),
+                        kernel_batch=kernel_batch,
+                        k_value=float(direct_k_value),
+                        eta_weights=eta_integration_weights,
+                        chi_grid=source_grids["chi"],
+                        source_chi=source_chi,
+                        source_histories=source_histories,
+                    )
+                    direct_transfer_components[component_name][
+                        batch_indices,
+                        direct_k_index,
+                    ] = projected
+        direct_spectra = {
+            name: numpy.asarray(values, dtype=numpy.longdouble).copy()
+            for name, values in spectra_results.items()
+        }
+        for (
+            observable_name,
+            observable_entry,
+        ) in power_spectrum_observables.items():
+            primary_name = str(observable_entry.primary)
+            secondary_name = str(observable_entry.secondary)
+            if (
+                primary_name not in direct_transfer_components
+                or secondary_name not in direct_transfer_components
+            ):
+                continue
+            primordial_grid = _primordial_power_grid_for_observable(
+                physical_params=physical_params,
+                perturbation_data=perturbation_data,
+                observable_entry=observable_entry,
+                k_values=direct_k,
+            )
+            for row_index, ell_index in enumerate(direct_ell_indices):
+                direct_spectra[observable_name][ell_index] = (
+                    _integrate_power_spectrum(
+                        primordial_grid=primordial_grid,
+                        log_k_values=numpy.log(direct_k),
+                        primary=direct_transfer_components[primary_name][
+                            row_index
+                        ],
+                        secondary=direct_transfer_components[secondary_name][
+                            row_index
+                        ],
+                    )[0]
+                )
+        spectra_results = direct_spectra
+        adaptive_k_enabled = False
+
+    if (
+        adaptive_k_enabled
+        and adaptive_k_mode == "source"
+        and adaptive_source_history_rows
+    ):
+        adaptive_eta_indices = numpy.arange(
+            0,
+            int(source_grids["eta"].size),
+            adaptive_k_eta_stride,
+            dtype=int,
+        )
+        adaptive_eta_grid = numpy.asarray(
+            source_grids["eta"][adaptive_eta_indices],
+            dtype=float,
+        )
+        adaptive_eta_integration_weights = _simpson_weights(adaptive_eta_grid)
+        adaptive_source_histories = {
+            key: numpy.asarray(rows, dtype=float)[:, adaptive_eta_indices]
+            for key, rows in adaptive_source_history_rows.items()
+        }
+        adaptive_source_interpolators = [
+            (
+                history,
+                CubicSpline(
+                    k_values,
+                    history,
+                    axis=0,
+                    bc_type="natural",
+                    extrapolate=False,
+                ),
+            )
+            for history in adaptive_source_histories.values()
+            if k_values.size >= 4
+        ]
+        adaptive_ell_indices = numpy.flatnonzero(
+            ell_arr >= int(adaptive_k_min_ell)
+        )
+        adaptive_ell_indices = adaptive_ell_indices[::adaptive_k_ell_stride]
+        scalar_components = {
+            name
+            for name, entry in transfer_component_observables.items()
+            if str(entry.sector or "scalar") == "scalar"
+        }
+        scalar_components.intersection_update(
+            {
+                "temperature",
+                "polarization_e",
+                "lensing_potential",
+            }
+        )
+
+        def _interpolate_mode_histories(
+            histories: numpy.ndarray,
+            local_k: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Interpolate mode histories onto one local quadrature grid."""
+
+            right_indices = numpy.searchsorted(k_values, local_k, side="left")
+            right_indices = numpy.clip(
+                right_indices,
+                1,
+                int(k_values.size) - 1,
+            )
+            left_indices = right_indices - 1
+            left_k = k_values[left_indices]
+            right_k = k_values[right_indices]
+            fraction = (local_k - left_k) / numpy.maximum(
+                right_k - left_k,
+                1.0e-30,
+            )
+            return (1.0 - fraction[:, numpy.newaxis]) * histories[
+                left_indices
+            ] + fraction[:, numpy.newaxis] * histories[right_indices]
+
+        def _interpolate_mode_history_batch(
+            histories: numpy.ndarray,
+            local_k: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Interpolate several local quadrature windows at once."""
+
+            for cached_history, interpolator in adaptive_source_interpolators:
+                if histories is cached_history:
+                    return numpy.asarray(interpolator(local_k), dtype=float)
+
+            flat_k = numpy.asarray(local_k, dtype=float).reshape(-1)
+            right_indices = numpy.searchsorted(
+                k_values,
+                flat_k,
+                side="left",
+            )
+            right_indices = numpy.clip(
+                right_indices,
+                1,
+                int(k_values.size) - 1,
+            )
+            left_indices = right_indices - 1
+            left_k = k_values[left_indices]
+            right_k = k_values[right_indices]
+            fraction = (flat_k - left_k) / numpy.maximum(
+                right_k - left_k,
+                1.0e-30,
+            )
+            interpolated = (1.0 - fraction[:, numpy.newaxis]) * histories[
+                left_indices
+            ] + fraction[:, numpy.newaxis] * histories[right_indices]
+            return interpolated.reshape(
+                (*local_k.shape, int(histories.shape[-1]))
+            )
+
+        def _adaptive_component_transfer(
+            component_name: str,
+            ell_value: int,
+            local_k: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Project interpolated source histories for one scalar ell."""
+
+            x_values = local_k[:, numpy.newaxis] * (
+                eta0 - source_grids["eta"][numpy.newaxis, :]
+            )
+            inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
+            j_values = spherical_jn(int(ell_value), x_values)
+            j_derivatives = spherical_jn(
+                int(ell_value),
+                x_values,
+                derivative=True,
+            )
+            if component_name == "temperature":
+                j_second = (
+                    float(ell_value * (ell_value + 1)) * inverse_x * inverse_x
+                    - 1.0
+                ) * j_values - 2.0 * inverse_x * j_derivatives
+                projected = numpy.zeros(local_k.size, dtype=float)
+                for role_name, kernel in (
+                    ("monopole", j_values),
+                    ("isw", j_values),
+                    ("additive", j_values),
+                    ("doppler", j_derivatives),
+                    ("additive_derivative", j_second),
+                ):
+                    history = adaptive_source_histories.get(
+                        (component_name, role_name)
+                    )
+                    if history is not None:
+                        projected += numpy.sum(
+                            kernel
+                            * _interpolate_mode_histories(history, local_k)
+                            * eta_integration_weights[numpy.newaxis, :],
+                            axis=1,
+                        )
+                return projected
+            if component_name == "polarization_e":
+                prefactor = math.exp(
+                    0.5
+                    * (
+                        math.lgamma(int(ell_value) + 3)
+                        - math.lgamma(int(ell_value) - 1)
+                    )
+                )
+                kernel = prefactor * j_values * inverse_x * inverse_x
+            elif component_name == "lensing_potential":
+                geometry = numpy.clip(
+                    source_chi - source_grids["chi"],
+                    0.0,
+                    None,
+                ) / (
+                    max(float(source_chi), 1.0e-12)
+                    * numpy.maximum(source_grids["chi"], 1.0e-12)
+                )
+                kernel = 2.0 * j_values * geometry[numpy.newaxis, :]
+            else:
+                raise ValueError(
+                    "Adaptive scalar projection received unsupported "
+                    f"component '{component_name}'"
+                )
+            source_roles = tuple(
+                role_name
+                for (component, role_name) in adaptive_source_histories
+                if component == component_name
+            )
+            projected = numpy.zeros(local_k.size, dtype=float)
+            for role_name in source_roles:
+                history = adaptive_source_histories[
+                    (component_name, role_name)
+                ]
+                projected += numpy.sum(
+                    kernel
+                    * _interpolate_mode_histories(history, local_k)
+                    * eta_integration_weights[numpy.newaxis, :],
+                    axis=1,
+                )
+            return projected
+
+        def _adaptive_component_transfer_batch(
+            component_name: str,
+            ell_values: numpy.ndarray,
+            local_k: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Project a batch of local scalar windows in one Bessel pass."""
+
+            ell_grid = numpy.asarray(ell_values, dtype=int)
+            x_values = local_k[:, :, numpy.newaxis] * (
+                eta0 - adaptive_eta_grid[numpy.newaxis, numpy.newaxis, :]
+            )
+            inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
+            bessel_order = ell_grid[:, numpy.newaxis, numpy.newaxis]
+            j_values = spherical_jn(bessel_order, x_values)
+            j_derivatives = spherical_jn(
+                bessel_order,
+                x_values,
+                derivative=True,
+            )
+            if component_name == "temperature":
+                j_second = (
+                    bessel_order * (bessel_order + 1) * inverse_x * inverse_x
+                    - 1.0
+                ) * j_values - 2.0 * inverse_x * j_derivatives
+                kernels = {
+                    "monopole": j_values,
+                    "isw": j_values,
+                    "additive": j_values,
+                    "doppler": j_derivatives,
+                    "additive_derivative": j_second,
+                }
+            elif component_name == "polarization_e":
+                prefactor = numpy.exp(
+                    0.5 * (gammaln(ell_grid + 3.0) - gammaln(ell_grid - 1.0))
+                )
+                kernels = {
+                    role_name: prefactor[:, numpy.newaxis, numpy.newaxis]
+                    * j_values
+                    * inverse_x
+                    * inverse_x
+                    for (component, role_name) in adaptive_source_histories
+                    if component == component_name
+                }
+            elif component_name == "lensing_potential":
+                geometry = numpy.clip(
+                    source_chi - source_grids["chi"][adaptive_eta_indices],
+                    0.0,
+                    None,
+                ) / (
+                    max(float(source_chi), 1.0e-12)
+                    * numpy.maximum(
+                        source_grids["chi"][adaptive_eta_indices],
+                        1.0e-12,
+                    )
+                )
+                kernels = {
+                    role_name: 2.0 * j_values * geometry[None, None, :]
+                    for (component, role_name) in adaptive_source_histories
+                    if component == component_name
+                }
+            else:
+                raise ValueError(
+                    "Adaptive scalar projection received unsupported "
+                    f"component '{component_name}'"
+                )
+            projected = numpy.zeros(local_k.shape, dtype=float)
+            for role_name, kernel in kernels.items():
+                history = adaptive_source_histories.get(
+                    (component_name, role_name)
+                )
+                if history is None:
+                    continue
+                projected += numpy.sum(
+                    kernel
+                    * _interpolate_mode_history_batch(history, local_k)
+                    * adaptive_eta_integration_weights[None, None, :],
+                    axis=2,
+                )
+            return projected
+
+        adaptive_spectra = {
+            name: numpy.asarray(values, dtype=numpy.longdouble).copy()
+            for name, values in spectra_results.items()
+        }
+        adaptive_batch_size = 8
+        dense_k_count = max(32, int(adaptive_k_node_count))
+        dense_log_k = numpy.linspace(
+            float(numpy.log(k_values[0])),
+            float(numpy.log(k_values[-1])),
+            dense_k_count,
+            dtype=float,
+        )
+        dense_k = numpy.unique(
+            numpy.concatenate(
+                (
+                    numpy.asarray(k_values, dtype=float),
+                    numpy.clip(
+                        numpy.exp(dense_log_k),
+                        float(k_values[0]),
+                        float(k_values[-1]),
+                    ),
+                )
+            )
+        )
+        for batch_start in range(
+            0,
+            int(adaptive_ell_indices.size),
+            adaptive_batch_size,
+        ):
+            batch_indices = adaptive_ell_indices[
+                batch_start : batch_start + adaptive_batch_size
+            ]
+            ell_values = numpy.asarray(ell_arr[batch_indices], dtype=int)
+            local_k = numpy.broadcast_to(
+                dense_k[numpy.newaxis, :],
+                (ell_values.size, dense_k.size),
+            )
+            local_transfers = {
+                name: _adaptive_component_transfer_batch(
+                    name,
+                    ell_values,
+                    local_k,
+                )
+                for name in scalar_components
+            }
+            for (
+                observable_name,
+                observable_entry,
+            ) in power_spectrum_observables.items():
+                primary_name = str(observable_entry.primary)
+                secondary_name = str(observable_entry.secondary)
+                if (
+                    primary_name not in local_transfers
+                    or secondary_name not in local_transfers
+                ):
+                    continue
+                primordial_grid = _primordial_power_grid_for_observable(
+                    physical_params=physical_params,
+                    perturbation_data=perturbation_data,
+                    observable_entry=observable_entry,
+                    k_values=local_k,
+                )
+                primary = local_transfers[primary_name]
+                secondary = local_transfers[secondary_name]
+                for row_index, ell_index in enumerate(batch_indices):
+                    adaptive_spectra[observable_name][ell_index] = (
+                        _integrate_power_spectrum(
+                            primordial_grid=primordial_grid[row_index],
+                            log_k_values=numpy.log(local_k[row_index]),
+                            primary=primary[row_index],
+                            secondary=secondary[row_index],
+                        )
+                    )[0]
+        if adaptive_ell_indices.size >= 2:
+            dense_indices = numpy.flatnonzero(
+                ell_arr >= int(ell_arr[adaptive_ell_indices[0]])
+            )
+            for observable_name, values in adaptive_spectra.items():
+                sampled_values = values[adaptive_ell_indices]
+                values[dense_indices] = numpy.interp(
+                    numpy.asarray(dense_indices, dtype=float),
+                    numpy.asarray(adaptive_ell_indices, dtype=float),
+                    numpy.asarray(sampled_values, dtype=float),
+                )
+        spectra_results = adaptive_spectra
+
+    if adaptive_k_enabled and adaptive_k_mode == "transfer":
+        """Refine the k quadrature from the evolved transfer functions."""
+
+        adaptive_ell_indices = numpy.flatnonzero(
+            ell_arr >= int(adaptive_k_min_ell)
+        )[::adaptive_k_ell_stride]
+        adaptive_spectra = {
+            name: numpy.asarray(values, dtype=numpy.longdouble).copy()
+            for name, values in spectra_results.items()
+        }
+
+        def _interpolate_transfer_batch(
+            component_name: str,
+            ell_indices: numpy.ndarray,
+            local_k: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Evaluate cubic local k interpolants for one component batch."""
+
+            matrix = numpy.asarray(
+                transfer_components[component_name][ell_indices],
+                dtype=float,
+            )
+            right_indices = numpy.searchsorted(
+                k_values,
+                local_k,
+                side="left",
+            )
+            right_indices = numpy.clip(
+                right_indices,
+                2,
+                int(k_values.size) - 2,
+            )
+            first_indices = right_indices - 2
+            node_indices = first_indices[:, :, numpy.newaxis] + numpy.arange(
+                4,
+                dtype=int,
+            )
+            node_values = k_values[node_indices]
+            query_values = local_k[:, :, numpy.newaxis]
+            weights = numpy.ones_like(node_values, dtype=float)
+            for node_index in range(4):
+                other_indices = [
+                    index for index in range(4) if index != node_index
+                ]
+                weights[:, :, node_index] = numpy.prod(
+                    (query_values - node_values[:, :, other_indices])
+                    / (
+                        node_values[:, :, node_index, numpy.newaxis]
+                        - node_values[:, :, other_indices]
+                    ),
+                    axis=2,
+                )
+            row_indices = numpy.arange(matrix.shape[0])[:, None, None]
+            values = matrix[row_indices, node_indices]
+            return numpy.sum(values * weights, axis=2)
+
+        adaptive_batch_size = 64
+        for batch_start in range(
+            0,
+            int(adaptive_ell_indices.size),
+            adaptive_batch_size,
+        ):
+            batch_indices = adaptive_ell_indices[
+                batch_start : batch_start + adaptive_batch_size
+            ]
+            ell_values = numpy.asarray(ell_arr[batch_indices], dtype=int)
+            dense_k = numpy.linspace(
+                float(k_values[0]),
+                float(k_values[-1]),
+                max(256, adaptive_k_node_count),
+                dtype=float,
+            )
+            local_k = numpy.broadcast_to(
+                dense_k[numpy.newaxis, :],
+                (ell_values.size, dense_k.size),
+            )
+            component_names = set(transfer_components)
+            local_transfers = {
+                name: _interpolate_transfer_batch(
+                    name,
+                    batch_indices,
+                    local_k,
+                )
+                for name in component_names
+            }
+            for (
+                observable_name,
+                observable_entry,
+            ) in power_spectrum_observables.items():
+                primary_name = str(observable_entry.primary)
+                secondary_name = str(observable_entry.secondary)
+                if (
+                    primary_name not in local_transfers
+                    or secondary_name not in local_transfers
+                ):
+                    continue
+                primordial_grid = _primordial_power_grid_for_observable(
+                    physical_params=physical_params,
+                    perturbation_data=perturbation_data,
+                    observable_entry=observable_entry,
+                    k_values=local_k,
+                )
+                for row_index, ell_index in enumerate(batch_indices):
+                    adaptive_spectra[observable_name][ell_index] = (
+                        _integrate_power_spectrum(
+                            primordial_grid=primordial_grid[row_index],
+                            log_k_values=numpy.log(local_k[row_index]),
+                            primary=local_transfers[primary_name][row_index],
+                            secondary=local_transfers[secondary_name][
+                                row_index
+                            ],
+                        )
+                    )[0]
+        if adaptive_ell_indices.size >= 2:
+            dense_indices = numpy.flatnonzero(
+                ell_arr >= int(ell_arr[adaptive_ell_indices[0]])
+            )
+            for values in adaptive_spectra.values():
+                values[dense_indices] = numpy.interp(
+                    numpy.asarray(dense_indices, dtype=float),
+                    numpy.asarray(adaptive_ell_indices, dtype=float),
+                    numpy.asarray(values[adaptive_ell_indices], dtype=float),
+                )
+        spectra_results = adaptive_spectra
 
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,

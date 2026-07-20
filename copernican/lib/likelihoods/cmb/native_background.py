@@ -936,76 +936,116 @@ def _compute_spherical_bessel_batch(
     ell_signature: tuple[int, ...],
     x_values: numpy.ndarray,
 ) -> tuple[numpy.ndarray, numpy.ndarray]:
-    """Compute radial Bessel values and derivatives without per-ell calls."""
+    """Compute requested radial Bessel values with bounded work arrays."""
 
     if not ell_signature:
-        empty = numpy.empty((0, x_values.size), dtype=float)
+        empty = numpy.empty((0, numpy.asarray(x_values).size), dtype=float)
         return empty, empty.copy()
-    maximum_ell = max(ell_signature)
-    order_limit = max(maximum_ell, 1)
-    x_array = numpy.asarray(x_values, dtype=float)
-    values = numpy.zeros((order_limit + 1, x_array.size), dtype=float)
-    downward_mask = x_array >= 0.0
-    downward_mask &= x_array <= float(maximum_ell)
-    if numpy.any(downward_mask):
-        downward_x = x_array[downward_mask]
-        safe_x = numpy.maximum(downward_x, 1.0e-300)
-        work = numpy.zeros((order_limit + 1, downward_x.size))
-        scales = numpy.zeros_like(work)
-        current = numpy.ones(downward_x.size)
-        next_value = numpy.zeros(downward_x.size)
-        log_scale = numpy.zeros(downward_x.size)
-        for order in range(order_limit + 64, 0, -1):
-            previous = (2.0 * order + 1.0) / safe_x * current
-            previous -= next_value
-            magnitude = numpy.maximum(
-                numpy.abs(previous),
-                numpy.abs(current),
-            )
-            rescale_mask = (magnitude > 1.0e100) | (
-                (magnitude > 0.0) & (magnitude < 1.0e-100)
-            )
-            factors = numpy.ones(downward_x.size)
-            factors[rescale_mask] = magnitude[rescale_mask]
-            previous[rescale_mask] /= factors[rescale_mask]
-            current[rescale_mask] /= factors[rescale_mask]
-            log_scale[rescale_mask] += numpy.log(factors[rescale_mask])
-            if order - 1 <= order_limit:
-                work[order - 1] = previous
-                scales[order - 1] = log_scale
-            next_value, current = current, previous
-        work *= numpy.exp(scales - scales[0])
-        work *= numpy.sinc(downward_x / math.pi) / work[0]
-        values[:, downward_mask] = work
-    upward_mask = ~downward_mask
-    if numpy.any(upward_mask):
-        upward_x = x_array[upward_mask]
-        work = numpy.zeros((order_limit + 1, upward_x.size))
-        work[0] = numpy.sin(upward_x) / upward_x
-        if maximum_ell >= 1:
-            work[1] = (
-                numpy.sin(upward_x) / upward_x**2
-                - numpy.cos(upward_x) / upward_x
-            )
-        for order in range(1, order_limit):
-            work[order + 1] = (2.0 * order + 1.0) / upward_x * work[
-                order
-            ] - work[order - 1]
-        values[:, upward_mask] = work
-    if numpy.any(x_array < 0.0):
-        negative_mask = x_array < 0.0
-        negative_x = x_array[negative_mask]
-        values[:, negative_mask] = numpy.asarray(
-            spherical_jn(
-                numpy.arange(order_limit + 1)[:, None],
-                negative_x[None, :],
-            ),
-            dtype=float,
-        )
     ell_indices = numpy.asarray(ell_signature, dtype=int)
+    x_array = numpy.asarray(x_values, dtype=float)
+    if numpy.any(x_array < 0.0):
+        x_matrix = x_array[numpy.newaxis, :]
+        return (
+            numpy.asarray(
+                spherical_jn(ell_indices[:, numpy.newaxis], x_matrix),
+                dtype=float,
+            ),
+            numpy.asarray(
+                spherical_jn(
+                    ell_indices[:, numpy.newaxis],
+                    x_matrix,
+                    derivative=True,
+                ),
+                dtype=float,
+            ),
+        )
+
+    maximum_ell = max(int(ell_indices.max()), 1)
+    values = numpy.zeros((maximum_ell + 1, x_array.size), dtype=float)
+    positive_mask = x_array > 0.0
+    zero_mask = ~positive_mask
+    positive_indices = numpy.flatnonzero(positive_mask)
+    if positive_indices.size:
+        positive_x = x_array[positive_mask]
+        downward_mask = positive_x <= float(maximum_ell)
+        if numpy.any(downward_mask):
+            downward_x = positive_x[downward_mask]
+            downward_columns = positive_indices[downward_mask]
+            # For x << ell the high-order tail is exponentially small.  A
+            # fixed ``maximum_ell + 64`` start point is needlessly expensive
+            # for the low-k columns that dominate the large-ell projection.
+            effective_maximum = numpy.minimum(
+                maximum_ell,
+                (
+                    numpy.ceil(
+                        (
+                            downward_x
+                            + 32.0
+                            + 8.0 * numpy.sqrt(numpy.maximum(downward_x, 0.0))
+                        )
+                        / 32.0
+                    ).astype(int)
+                    * 32
+                ),
+            )
+            for local_maximum in numpy.unique(effective_maximum):
+                column_mask = effective_maximum == local_maximum
+                group_x = downward_x[column_mask]
+                group_columns = downward_columns[column_mask]
+                group_maximum = max(int(local_maximum), 1)
+                safe_x = numpy.maximum(group_x, 1.0e-300)
+                work = numpy.zeros((group_maximum + 1, group_x.size))
+                scales = numpy.zeros_like(work)
+                current = numpy.ones(group_x.size)
+                next_value = numpy.zeros(group_x.size)
+                log_scale = numpy.zeros(group_x.size)
+                for order in range(group_maximum + 64, 0, -1):
+                    previous = (2.0 * order + 1.0) / safe_x * current
+                    previous -= next_value
+                    magnitude = numpy.maximum(
+                        numpy.abs(previous),
+                        numpy.abs(current),
+                    )
+                    rescale_mask = (magnitude > 1.0e100) | (
+                        (magnitude > 0.0) & (magnitude < 1.0e-100)
+                    )
+                    factors = numpy.ones(group_x.size)
+                    factors[rescale_mask] = magnitude[rescale_mask]
+                    previous[rescale_mask] /= factors[rescale_mask]
+                    current[rescale_mask] /= factors[rescale_mask]
+                    log_scale[rescale_mask] += numpy.log(factors[rescale_mask])
+                    if order - 1 <= group_maximum:
+                        work[order - 1] = previous
+                        scales[order - 1] = log_scale
+                    next_value, current = current, previous
+                work *= numpy.exp(scales - scales[0])
+                work *= numpy.sinc(group_x / math.pi) / work[0]
+                values[: group_maximum + 1, group_columns] = work
+        upward_mask = ~downward_mask
+        if numpy.any(upward_mask):
+            upward_x = positive_x[upward_mask]
+            upward_values = numpy.zeros((maximum_ell + 1, upward_x.size))
+            upward_values[0] = numpy.sin(upward_x) / upward_x
+            if maximum_ell >= 1:
+                upward_values[1] = (
+                    numpy.sin(upward_x) / upward_x**2
+                    - numpy.cos(upward_x) / upward_x
+                )
+            for order in range(1, maximum_ell):
+                upward_values[order + 1] = (
+                    2.0 * order + 1.0
+                ) / upward_x * upward_values[order] - upward_values[order - 1]
+            values[:, positive_indices[upward_mask]] = upward_values
+    if numpy.any(zero_mask):
+        zero_values, _ = _get_zero_argument_bessel_batch(
+            tuple(range(maximum_ell + 1)),
+            int(numpy.count_nonzero(zero_mask)),
+        )
+        values[:, zero_mask] = zero_values
+
     selected_values = values[ell_indices]
     derivatives = numpy.empty_like(selected_values)
-    safe_x = numpy.maximum(numpy.abs(x_array), 1.0e-300)
+    safe_x = numpy.maximum(x_array, 1.0e-300)
     for row, ell_value in enumerate(ell_indices):
         if ell_value == 0:
             derivatives[row] = -values[1]
@@ -1014,24 +1054,11 @@ def _compute_spherical_bessel_batch(
                 values[ell_value - 1]
                 - (float(ell_value) + 1.0) * values[ell_value] / safe_x
             )
-    if numpy.any(x_array < 0.0):
-        negative_mask = x_array < 0.0
-        negative_x = x_array[negative_mask]
-        derivatives[:, negative_mask] = numpy.asarray(
-            spherical_jn(
-                ell_indices[:, None],
-                negative_x[None, :],
-                derivative=True,
-            ),
-            dtype=float,
-        )
-    zero_mask = x_array == 0.0
     if numpy.any(zero_mask):
-        zero_values, zero_derivatives = _get_zero_argument_bessel_batch(
-            ell_signature,
+        _, zero_derivatives = _get_zero_argument_bessel_batch(
+            tuple(int(value) for value in ell_indices),
             int(numpy.count_nonzero(zero_mask)),
         )
-        selected_values[:, zero_mask] = zero_values
         derivatives[:, zero_mask] = zero_derivatives
     return selected_values, derivatives
 
@@ -1055,6 +1082,10 @@ def _get_zero_argument_bessel_batch(
 def _get_cached_declared_projection_kernel_batch(
     ell_signature: tuple[int, ...],
     x_signature: str,
+    *,
+    precomputed_bessel: (
+        tuple[tuple[int, ...], numpy.ndarray, numpy.ndarray] | None
+    ) = None,
 ) -> _DeclaredProjectionKernelBatch:
     """Return cached ell-batched spherical-Bessel kernels for one x-grid."""
 
@@ -1066,10 +1097,37 @@ def _get_cached_declared_projection_kernel_batch(
     if x_values is None:  # pragma: no cover - projection stores inputs first
         raise KeyError(x_signature)
     shape = (len(ell_signature), x_values.size)
-    j_l_matrix, j_l_derivative_matrix = _compute_spherical_bessel_batch(
-        ell_signature,
-        numpy.asarray(x_values, dtype=float),
-    )
+    if precomputed_bessel is None:
+        j_l_matrix, j_l_derivative_matrix = _compute_spherical_bessel_batch(
+            ell_signature,
+            numpy.asarray(x_values, dtype=float),
+        )
+    else:
+        precomputed_ells, precomputed_values, precomputed_derivatives = (
+            precomputed_bessel
+        )
+        precomputed_index = {
+            int(ell_value): index
+            for index, ell_value in enumerate(precomputed_ells)
+        }
+        try:
+            selected_indices = [
+                precomputed_index[int(ell_value)]
+                for ell_value in ell_signature
+            ]
+        except KeyError as exc:
+            raise ValueError(
+                "Precomputed projection Bessel values do not cover the "
+                "requested ell batch."
+            ) from exc
+        j_l_matrix = numpy.asarray(
+            precomputed_values[selected_indices],
+            dtype=float,
+        )
+        j_l_derivative_matrix = numpy.asarray(
+            precomputed_derivatives[selected_indices],
+            dtype=float,
+        )
     j_l_second_derivative_matrix = numpy.empty(shape, dtype=float)
     e_kernel = numpy.zeros(shape, dtype=float)
     b_kernel = numpy.zeros(shape, dtype=float)
@@ -1102,13 +1160,13 @@ def _get_cached_declared_projection_kernel_batch(
         vector_prefactor = math.sqrt(
             float((int(ell_value) - 1) * (int(ell_value) + 2))
         )
+        spherical_jn_second = (
+            float(ell_value) * float(ell_value + 1) * inverse_x_sq - 1.0
+        ) * j_l - 2.0 * inverse_x * j_l_derivative
         e_kernel[ell_index] = prefactor * j_l * inverse_x_sq
         b_kernel[ell_index] = (
             0.5 * prefactor * (j_l_derivative + 2.0 * j_l * inverse_x)
         )
-        spherical_jn_second = (
-            float(ell_value) * float(ell_value + 1) * inverse_x_sq - 1.0
-        ) * j_l - 2.0 * inverse_x * j_l_derivative
         vector_temperature_1[ell_index] = (
             math.sqrt(float(ell_value * (ell_value + 1)) / 2.0)
             * j_l

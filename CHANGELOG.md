@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-07-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,97 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-20:
+  Change: Consolidated generated scalar gauge evolution on deterministic
+    Runge-Kutta substeps.
+  Why: Gauge-equivalent Newtonian and synchronous routes selected different
+    integration paths and produced divergent spectra.
+  Impact: Preserve one numerical trajectory for scalar gauge observables while
+    preserving the declared synchronous metric state surface.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-07-20:
+  Change: Completed Slice Twelve model migration and added neutral metadata
+    regression coverage.
+  Why: Validated that available CMB models compile from declared species and
+    closures without hidden LCDM perturbation assumptions.
+  Impact: Migrated contracts validate on the native path, unsupported USMF
+    CMB output remains explicit, and bounded native smoke spectra stay finite.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-07-20:
+  Change: Reopened Slice Twelve and restructured the native solver roadmap
+    into architecture, convergence, and acceptance slices.
+  Why: Separated theory migration from the batched runtime and adaptive
+    projection work required for fast, precise native execution.
+  Impact: Defined the new execution sequence and moved scalar, lensing,
+    neutrino, tensor, gauge, cutover, and final-closure dependencies forward.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-20:
+  Change: Corrected native scalar brightness normalization and refined
+    projection quadrature.
+  Why: Aligned the temperature-normalized hierarchy with the
+    independent-reference source convention.
+  Impact: Preserved the declared `5 / 2` and `15 / 2` scalar conversion,
+    while refining scalar k grids and source-mode evolution for
+    visibility-scale acoustic structure.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-20:
+  Change: Corrected scalar source normalization and optimized native projection
+    caches and hierarchy hot loops.
+  Why: Aligned generated scalar source coefficients with the independent
+    Boltzmann reference while addressing repeated runtime allocations.
+  Impact: Scalar sources use declared reference normalization, and native
+    projection work uses bounded cache storage, ell batching, and precomputed
+    hierarchy links.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
 
 - 2026-07-19:
   Change: Completed theory-accurate native migration and optimized execution.

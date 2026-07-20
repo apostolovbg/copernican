@@ -1099,6 +1099,30 @@ class EngineInterfaceTestCase(unittest.TestCase):
             plugin.CMB_PERTURBATION_DATA
         )
 
+    def test_migrated_models_use_theory_neutral_scalar_metadata(self):
+        """Scalar metadata must not smuggle LCDM assumptions into models."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        models_dir = repo_root / "copernican" / "models"
+        forbidden_terms = ("lcdm", "flat", "cold dark matter", "standard")
+        for yaml_path in sorted(models_dir.glob("model_*.yml")):
+            with self.subTest(model_name=yaml_path.name):
+                model_data = yaml.safe_load(
+                    yaml_path.read_text(encoding="utf-8")
+                )
+                cmb_contract = model_data.get("cmb")
+                if not isinstance(cmb_contract, dict):
+                    continue
+                perturbations = cmb_contract.get("perturbations")
+                if not isinstance(perturbations, dict):
+                    continue
+                scalar = perturbations["sectors"]["scalar"]
+                description = scalar["description"].casefold()
+                self.assertFalse(perturbations["standard"])
+                self.assertFalse(
+                    any(term in description for term in forbidden_terms)
+                )
+
     def test_migrated_cmb_models_native_spectrum_smoke(self):
         """Every migrated model must execute a finite native spectrum."""
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Generic, TypeVar
 
 import numpy
@@ -25,11 +25,13 @@ class _NativeCacheSnapshot:
 class _BoundedCacheStore(Generic[_CacheValue]):
     """Keep a bounded LRU cache with explicit lifecycle accounting."""
 
-    def __init__(self, *, limit: int) -> None:
+    def __init__(self, *, limit: int, max_bytes: int | None = None) -> None:
         """Initialize one bounded cache with the requested entry limit."""
 
         self.limit = int(limit)
+        self.max_bytes = None if max_bytes is None else int(max_bytes)
         self._store: OrderedDict[Any, _CacheValue] = OrderedDict()
+        self._bytes = 0
         self.hits = 0
         self.misses = 0
         self.evictions = 0
@@ -48,17 +50,26 @@ class _BoundedCacheStore(Generic[_CacheValue]):
     def set(self, key: Any, value: _CacheValue) -> None:
         """Store ``value`` under ``key`` and evict stale entries if needed."""
 
+        value_bytes = _numpy_payload_bytes(value)
+        if self.max_bytes is not None and value_bytes > self.max_bytes:
+            return
         if key in self._store:
             self._store.move_to_end(key)
+            self._bytes -= _numpy_payload_bytes(self._store[key])
         self._store[key] = value
-        while len(self._store) > self.limit:
-            self._store.popitem(last=False)
+        self._bytes += value_bytes
+        while len(self._store) > self.limit or (
+            self.max_bytes is not None and self._bytes > self.max_bytes
+        ):
+            _, stale_value = self._store.popitem(last=False)
+            self._bytes -= _numpy_payload_bytes(stale_value)
             self.evictions += 1
 
     def clear(self) -> None:
         """Remove every cached entry and reset cache accounting counters."""
 
         self._store.clear()
+        self._bytes = 0
         self.hits = 0
         self.misses = 0
         self.evictions = 0
@@ -86,7 +97,9 @@ class _BoundedCacheStore(Generic[_CacheValue]):
 
         stale_keys = [key for key in self._store if predicate(key)]
         for key in stale_keys:
-            self._store.pop(key, None)
+            stale_value = self._store.pop(key, None)
+            if stale_value is not None:
+                self._bytes -= _numpy_payload_bytes(stale_value)
 
 
 _DECLARED_SYMBOL_PLAN_CACHE = _BoundedCacheStore(limit=256)
@@ -96,7 +109,25 @@ _CUSTOM_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
 _CUSTOM_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
 _CUSTOM_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
 _CUSTOM_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
-_CUSTOM_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(limit=512)
+_CUSTOM_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
+    limit=512,
+    max_bytes=32 * 1024 * 1024,
+)
+_PROJECTION_BATCH_CACHE_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _numpy_payload_bytes(value: Any) -> int:
+    """Return the array storage held by one cache value when measurable."""
+
+    if isinstance(value, numpy.ndarray):
+        return int(value.nbytes)
+    dataclass_fields = getattr(value, "__dataclass_fields__", None)
+    if dataclass_fields is None:
+        return 0
+    return sum(
+        _numpy_payload_bytes(getattr(value, field.name))
+        for field in fields(value)
+    )
 
 
 def get_declared_symbol_plan(cache_key: Any):
@@ -209,6 +240,8 @@ def get_declared_projection_kernel_batch(cache_key: Any):
 def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
     """Store one ell-batched kernel pack."""
 
+    if _numpy_payload_bytes(batch) > _PROJECTION_BATCH_CACHE_MAX_BYTES:
+        return
     _CUSTOM_CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
 
 

@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-07-20
 **Project Version:** 12.0.26
 
 ## Overview
@@ -224,8 +224,11 @@ Vector temperature uses the two flat-space radial families
 `sqrt(l(l+1)/2) j_l(x)/x` and
 `sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
 the corresponding spin-1 radial limits.
-The scalar E-mode line-of-sight source applies the CAMB `15/8` normalization
-to `visibility * polarization_moment` before the native spin-2 projection.
+The scalar E-mode line-of-sight source applies the CAMB `15/2` normalization
+to the temperature-normalized `visibility * polarization_moment` before the
+native spin-2 projection. The factor of four converts the native photon
+quadrupole and polarization amplitudes to the brightness normalization used
+by the independent reference.
 
 ### Tensor States
 The canonical tensor metric amplitude is `h_tensor`, with the explicit
@@ -694,11 +697,16 @@ component does not authorize a substitute source or a standard-backend result.
 The native numerical defaults are `ell_min = 2`, `ell_max = 2500`,
 `k_min = 1.0e-5`, `k_max = 0.4`, `k_sample_count = 64`, and
 `eta_sample_count = 1024`. The photon and massless-neutrino hierarchy caps
-default to eight multipoles. The evolution tolerances default to
-`ode_rtol = 1.0e-6` and `ode_atol = 1.0e-9`; the tight-coupling ratio is
-`50.0`, and `source_grid_multiplier = 2` refines the line-of-sight grid.
-These values are declared through `cmb.perturbations.numerics` and are
-subject to `cmb.perturbations.accuracy_controls` minimums.
+default to eight multipoles. Generated scalar evolution uses deterministic
+explicit Runge-Kutta substeps shared by every supported scalar gauge. The
+substep count follows the declared wave-number phase and collision-rate
+histories, so gauge-equivalent routes do not select different numerical
+trajectories. The tight-coupling ratio is `50.0`, and
+`source_grid_multiplier = 2` refines the line-of-sight grid. Contracts may
+also declare `ode_rtol` and `ode_atol` as numerical-control metadata; those
+values do not select a gauge-specific adaptive trajectory. All values are
+declared through `cmb.perturbations.numerics` and are subject to
+`cmb.perturbations.accuracy_controls` minimums.
 
 Accuracy controls can require minimum ell, k, eta, hierarchy, source-grid,
 and momentum-grid coverage. A declared `runtime_envelope` can also cap
@@ -708,11 +716,48 @@ momentum-grid declaration supplies the q nodes and weights for a massive or
 other momentum-resolved hierarchy; minimum counts are checked against the
 accuracy controls before the grid enters the cache.
 
+The optional `adaptive_k_quadrature` control is an accuracy-tier declaration,
+not a hidden output correction. Its `source` mode re-evolves the declared
+hierarchy on the requested logarithmic k nodes before projection; its
+`transfer` mode refines already-evolved transfer functions. Both modes remain
+inside the runtime envelope and cannot replace unavailable observables.
+
 Numerical controls define a reproducible execution envelope, not scientific
 convergence by themselves. Convergence acceptance requires controlled changes
 to the background, k, eta, hierarchy, q-grid, source-grid, and lensing
 resolutions with stable observables. That evidence belongs to Slice Nineteen
 and must not be inferred from a single successful native run.
+
+## Scalar Absolute Parity
+
+Slice Thirteen defines one fixed native LCDM-family cosmology and an
+independently constructed CAMB reference. The native call is made through the
+production declared-graph route; the reference helper is confined to the
+scientific test module and never calls the production solver. The comparison
+is absolute over the declared multipole surfaces rather than a response ratio
+or a calibrated standard-backend output.
+
+The acceptance surface includes native `TT`, `TE`, and `EE`, the lensing
+potential `PP`, and the declared `TP` and `EP` cross-surfaces. The acceptance
+contract also defines acoustic peak locations and `TE` zero crossings.
+Auto-spectra use fractional median and 90th-percentile errors with a
+reference-relative floor; cross-spectra use RMS errors normalized by the
+independent reference RMS so their sign changes and zero crossings remain
+well-defined.
+
+The scalar source uses the independent-reference coefficients `5 / 2` and
+`15 / 2` for the temperature quadrupole terms and polarization source. The
+native `polarization_moment` is temperature-normalized; the independent
+brightness hierarchy carries four times its photon quadrupole and
+polarization amplitudes. The conversion therefore remains part of the source
+declaration rather than becoming a post-projection scale.
+
+Native projection preparation reuses bounded Bessel and projection-kernel
+caches. Projection kernels are evaluated in ell batches so a high-multipole
+request does not allocate one unbounded ell-by-time work array. The cache
+budget is part of runtime behavior, while the absolute parity thresholds
+remain the scientific acceptance boundary.
+
 
 ## Reference Cosmology And Acceptance Boundary
 

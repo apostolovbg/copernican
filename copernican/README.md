@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-07-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -49,6 +49,14 @@ external Boltzmann backend when CMB output is available. The explicit
 documents the native LambdaCDM contract. Each model's species and source
 closures remain theory-specific; CAMB and CLASS are independent scientific
 reference tools used by tests, not production spectrum engines.
+
+Native projection requests use bounded radial-kernel caches and ell-batched
+work arrays, keeping memory use tied to the declared numerical envelope while
+preserving the model's requested multipole range.
+
+Generated scalar gauges use shared deterministic Runge-Kutta substeps, so
+gauge-equivalent contracts follow the same numerical trajectory rather than
+diverging because of basis-specific adaptive stepping.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

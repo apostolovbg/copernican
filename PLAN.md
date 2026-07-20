@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-19
+**Last Updated:** 2026-07-20
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -130,7 +130,7 @@ The following acceptance areas are not established by the current baseline:
 
 ## Overview
 
-The roadmap divides the target work into nineteen slices.
+The roadmap divides the target work into twenty-two slices.
 
 Slice One locks the physical convention.
 
@@ -160,20 +160,28 @@ Slice Eleven creates the native LCDM model.
 Slice Twelve migrates and audits every CMB model against a species-accurate
 native contract without embedding LCDM assumptions in the shared compiler.
 
-Slice Thirteen establishes native scalar absolute parity.
+Slice Thirteen replaces per-mode native execution with a shared, batched
+runtime architecture.
 
-Slice Fourteen establishes native lensing parity.
+Slice Fourteen establishes adaptive transfer and projection convergence.
 
-Slice Fifteen establishes massive-neutrino absolute parity.
+Slice Fifteen establishes native performance and architecture acceptance.
 
-Slice Sixteen establishes tensor absolute parity.
+Slice Sixteen establishes native scalar absolute parity.
 
-Slice Seventeen establishes gauge and vector absolute parity.
+Slice Seventeen establishes native lensing parity.
 
-Slice Eighteen removes production backend routing and completes the native-
-only cutover.
+Slice Eighteen establishes massive-neutrino absolute parity.
 
-Slice Nineteen establishes convergence and closes the repository truth.
+Slice Nineteen establishes tensor absolute parity.
+
+Slice Twenty establishes gauge and vector absolute parity.
+
+Slice Twenty-One removes production backend routing and completes the
+native-only cutover.
+
+Slice Twenty-Two establishes final convergence and closes the repository
+truth.
 
 Each slice includes its own implementation, tests, documentation, and
 changelog entry. The roadmap contains no cleanup slice.
@@ -193,7 +201,7 @@ changelog entry. The roadmap contains no cleanup slice.
 * Production native code must not import or call CAMB or CLASS.
 * During migration, preserve model physics and public output contracts;
   complete the native replacement before removing the standard route in
-  Slice Eighteen.
+  Slice Twenty-One.
 * Do not add empirical output scales, direct spectrum injections, hidden
   damping, or test-only physical terms.
 * Missing spectra must remain unavailable with a reason.
@@ -900,12 +908,9 @@ Migrate every CMB theory model to the native declared-graph shape without
 turning the native hierarchy compiler into a hidden LCDM solver. Production
 must have one reusable evolution, projection, and lensing infrastructure, but
 each model must declare its actual species, background sources, interactions,
-closures, and available observables.
-
-Treat runtime performance and reusable work as part of this migration. A
-native model is not complete when it is physically declared but requires
-multi-hour spectrum or likelihood evaluation for ordinary development and
-validation workflows.
+closures, and available observables. The shared execution architecture and
+its numerical acceptance budgets are specified in Slices Thirteen through
+Fifteen.
 
 Depends on:
 
@@ -945,20 +950,12 @@ Scope:
   source roles, projections, units, and numerical controls for each model.
 * Reuse the common native evolution, projection, and lensing infrastructure;
   do not add a solver branch or a solver implementation per theory.
-* Compile graph structure, dependency closure, state layouts, collision plans,
-  context layouts, and momentum-grid structure once per native runtime.
-* Move reusable background, collision, momentum, and k-mode preparation out
-  of Runge-Kutta stages and other hot evolution loops.
-* Execute declared expressions through generated generic numeric kernels
-  rather than rebuilding dictionary contexts and resolving the graph at every
-  stage. The kernels remain theory-agnostic and are generated from the model
-  contract.
+* Compile each declared contract into a reusable representation exposing its
+  graph structure, dependency closure, state layouts, collision plans,
+  context layouts, and momentum-grid structure. The execution and cache
+  architecture for that representation is owned by Slice Thirteen.
 * Evolve massive-neutrino q bins through an efficient coupled numeric path
   without removing q-resolved physics or synthesizing aggregate states.
-* Keep requested multipole work separate from unrelated high-multipole
-  accuracy work unless the contract explicitly requests that accuracy tier.
-* Enforce explicit native runtime work limits and fail fast when a declared
-  accuracy tier exceeds its budget.
 * Make hierarchy materialization conditional on the declared species and
   source graph. `cdm`, massive neutrinos, and any other species must not be
   synthesized to satisfy a compiler requirement.
@@ -989,14 +986,6 @@ Tasks:
   observable availability, and finite native spectra.
 * Remove production assumptions that require a standard backend while keeping
   independent backend references in scientific tests.
-* Profile the representative native LCDM contract before and after the
-  runtime refactor, including scalar, interaction, gauge, tensor, vector, and
-  massive-neutrino q-resolved paths.
-* Add counters and bounded benchmarks proving that static preparation does not
-  scale with k modes, Runge-Kutta stages, or repeated parameter proposals.
-* Keep native MCMC smoke coverage on the native path and make its test
-  contract explicitly bounded without replacing it with CAMB or weaker
-  physics.
 * Update model and solver documentation and the changelog.
 
 Done when:
@@ -1012,18 +1001,199 @@ Done when:
   spectrum smoke coverage.
 * No production model requires CAMB or CLASS to produce CMB spectra.
 * Model manifests distinguish unavailable, zero, and unrequested spectra.
-* Static graph, dependency, collision, context, and momentum preparation is
-  reused rather than repeated inside k-mode or Runge-Kutta hot loops.
 * Generated generic numeric kernels preserve reference-interpreter results
   for scalar, interaction, gauge, tensor, vector, and q-resolved contracts.
+* The model migration and species-accurate contract tests pass before the
+  runtime architecture slices are attempted.
+
+### [open] Slice Thirteen - Native runtime architecture and batched execution
+
+Purpose:
+
+Replace repeated per-mode preparation and independent per-`k` adaptive
+evolution with a shared runtime that preserves the complete declared physics.
+This slice changes execution architecture, not model ontology or scientific
+acceptance thresholds.
+
+Depends on:
+
+* Slice Twelve.
+
+Probable affected files:
+
+* `copernican/lib/model_coder.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_background.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_evolution.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_projection.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Separate contract-static, cosmology-static, and request-specific work.
+* Compile graph structure, dependency closure, state layouts, collision
+  plans, context layouts, and momentum-grid structure once per runtime.
+* Build background, recombination, visibility, and collision tables once per
+  bound cosmology and reuse them across mode evolution and projections.
+* Evolve required `k` modes in vectorized batches over a shared controlled
+  conformal-time integration path rather than invoking one adaptive solver per
+  mode.
+* Execute declared expressions through generated numeric kernels without
+  rebuilding dictionary contexts or resolving the graph at every stage.
+* Preserve q-resolved massive-neutrino evolution and all declared scalar,
+  vector, and tensor state variables in the batched path.
+* Cache source histories and transfer tables for reuse across requested
+  observables and repeated parameter proposals.
+* Keep requested multipole work separate from unrelated high-multipole work
+  unless the requested accuracy tier requires it.
+
+Tasks:
+
+* Define explicit runtime objects and cache identities for contract-static,
+  cosmology-static, and request-specific data.
+* Replace per-`k` adaptive evolution calls with a batched hierarchy RHS and a
+  shared step/error-control strategy that remains stable for all modes in a
+  batch.
+* Move background, collision, momentum, and mode preparation out of
+  Runge-Kutta stages and other hot loops.
+* Add counters proving that compilation and static preparation do not scale
+  with k modes, Runge-Kutta stages, or repeated parameter proposals.
+* Add focused tests that reject a per-mode solver invocation and verify cache
+  reuse, deterministic histories, finite states, and declared-sector parity.
+* Keep the runtime generic: no theory-specific solver branch or hidden LCDM
+  source may be introduced to obtain batching.
+
+Done when:
+
+* A fixed declared contract produces finite, deterministic batched histories.
+* Contract compilation, background preparation, and collision preparation
+  are reused at the documented cache boundaries.
+* The execution path contains no independent adaptive ODE invocation for each
+  requested `k` mode.
+* q-resolved, scalar, vector, and tensor state layouts remain declared and
+  physically sourced after batching.
+* Repeated requests reuse compiled and cosmology-static work without
+  changing the result.
+* Runtime counters and focused architecture tests pass without claiming
+  absolute reference-spectrum parity.
+
+### [open] Slice Fourteen - Adaptive transfer and projection convergence
+
+Purpose:
+
+Make `k`, conformal-time, source-history, and line-of-sight refinement respond
+to physical phase and quadrature error rather than fixed sparse-grid choices.
+
+Depends on:
+
+* Slice Thirteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_projection.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Select `k` nodes from requested multipoles, transfer phase, acoustic
+  structure, visibility structure, and a declared refinement error.
+* Refine conformal-time source histories around recombination, reionization,
+  rapid background transitions, and oscillatory source regions.
+* Project transfer histories with adaptive line-of-sight quadrature instead of
+  relying on under-resolved sparse interpolation.
+* Use stable Bessel recurrences or bounded interpolation with an explicit
+  interpolation error estimate for every supported sector.
+* Preserve low-multipole efficiency without paying for unrelated high-
+  multipole accuracy.
+
+Tasks:
+
+* Implement independent refinement criteria for `k`, eta, source histories,
+  and radial kernels.
+* Add convergence ladders comparing successive physical refinements, not only
+  node counts or parameter responses.
+* Add under-resolution failures when a requested accuracy tier cannot be met
+  within its declared work envelope.
+* Verify that refined projections preserve source normalization, parity, and
+  observable availability for scalar, vector, and tensor sectors.
+* Keep reference spectra independent from production execution and reject any
+  direct spectrum injection or empirical correction.
+
+Done when:
+
+* Successive physical refinements converge transfer histories and projected
+  spectra within the declared internal tolerances.
+* Visibility-era acoustic structure and low-multipole behavior remain stable
+  under refinement.
+* Under-resolved requests fail clearly before producing misleading spectra.
+* Projection results remain finite, deterministic, and sector-consistent.
+* Convergence tests exercise physical output rather than only grid activation.
+
+### [open] Slice Fifteen - Native performance and architecture acceptance
+
+Purpose:
+
+Prove that the shared runtime is fast enough for ordinary development while
+retaining bounded work, cache reuse, and the declared numerical controls.
+
+Depends on:
+
+* Slices Thirteen and Fourteen.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/engines/test_engine_mcmc.py`
+* `copernican/docs/cmb_solver.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Benchmark representative native scalar, interaction, gauge, tensor,
+  vector, and q-resolved massive-neutrino paths.
+* Measure compilation, background, evolution, projection, and lensing work
+  separately rather than treating total wall time as the only diagnostic.
+* Prove repeated identical requests reuse compiled, background, and transfer
+  work without changing numerical results.
+* Enforce explicit runtime work limits and fail fast when an accuracy tier
+  exceeds its budget.
+* Run bounded fixed-cosmology scientific smoke coverage before the detailed
+  scalar, lensing, neutrino, tensor, and gauge parity slices.
+
+Required budgets:
+
 * A representative full native LCDM spectrum completes within 180 seconds.
 * A native joint MCMC smoke test completes within 60 seconds.
-* Native runtime work budgets are explicit, measured, and fail fast when
-  exceeded rather than allowing unbounded development runs.
-* The targeted native solver and MCMC performance tests pass before the full
-  repository workflow is attempted.
 
-### [open] Slice Thirteen - Native scalar absolute parity
+Done when:
+
+* The required runtime budgets pass on the managed environment.
+* Runtime counters identify each major phase and demonstrate cache reuse.
+* A repeated request avoids recompilation and repeated cosmology-static work.
+* Work envelopes reject unbounded requests before large runs begin.
+* Focused performance and architecture tests pass before absolute parity work.
+
+### [open] Slice Sixteen - Native scalar absolute parity
 
 Purpose:
 
@@ -1032,7 +1202,7 @@ model at a fixed cosmology against an independent reference.
 
 Depends on:
 
-* Slice Twelve with the species-accurate native contract closed.
+* Slice Fifteen with the species-accurate native runtime accepted.
 
 Probable affected files:
 
@@ -1074,7 +1244,7 @@ Done when:
 * The physical source and hierarchy defects exposed by the comparison are
   fixed at their production roots.
 
-### [open] Slice Fourteen - Native lensing parity
+### [open] Slice Seventeen - Native lensing parity
 
 Purpose:
 
@@ -1083,7 +1253,7 @@ remapper-only tests.
 
 Depends on:
 
-* Slice Thirteen.
+* Slice Sixteen.
 
 Probable affected files:
 
@@ -1114,7 +1284,7 @@ Done when:
 * Full lensed parity passes using native source and native lensing inputs.
 * No direct reference-spectrum injection participates in the production path.
 
-### [open] Slice Fifteen - Massive-neutrino absolute parity
+### [open] Slice Eighteen - Massive-neutrino absolute parity
 
 Purpose:
 
@@ -1123,7 +1293,7 @@ cosmology with absolute native spectra.
 
 Depends on:
 
-* Slice Thirteen.
+* Slice Sixteen.
 
 Probable affected files:
 
@@ -1157,7 +1327,7 @@ Done when:
 * Models without a declared massive-neutrino species remain free of massive-
   neutrino state variables and source terms.
 
-### [open] Slice Sixteen - Tensor absolute parity
+### [open] Slice Nineteen - Tensor absolute parity
 
 Purpose:
 
@@ -1165,7 +1335,7 @@ Establish absolute tensor spectrum parity for the native tensor hierarchy.
 
 Depends on:
 
-* Slice Thirteen.
+* Slice Sixteen.
 
 Probable affected files:
 
@@ -1194,7 +1364,7 @@ Done when:
 * Tensor spectra agree with the independent fixed-cosmology reference.
 * Tensor primordial `BB` survives the native lensing path.
 
-### [open] Slice Seventeen - Gauge and vector absolute parity
+### [open] Slice Twenty - Gauge and vector absolute parity
 
 Purpose:
 
@@ -1203,7 +1373,7 @@ analytic limits and independent fixed-cosmology evidence.
 
 Depends on:
 
-* Slices Thirteen and Sixteen.
+* Slices Sixteen and Nineteen.
 
 Probable affected files:
 
@@ -1235,7 +1405,7 @@ Done when:
 * Gauge routes agree without alias-forced identity.
 * Generated vector output passes its analytic and absolute acceptance tests.
 
-### [open] Slice Eighteen - Native-only production cutover
+### [open] Slice Twenty-One - Native-only production cutover
 
 Purpose:
 
@@ -1244,7 +1414,7 @@ retain CAMB or CLASS solely as independent scientific test references.
 
 Depends on:
 
-* Slices Ten through Seventeen.
+* Slices Ten through Twenty.
 
 Probable affected files:
 
@@ -1297,7 +1467,7 @@ Done when:
 * No production model or user-facing command selects a second CMB solver.
 * No legacy route fallback or deprecated reader remains.
 
-### [open] Slice Nineteen - Numerical convergence and final closure
+### [open] Slice Twenty-Two - Numerical convergence and final closure
 
 Purpose:
 
@@ -1306,7 +1476,7 @@ repository only after all implementation and scientific claims agree.
 
 Depends on:
 
-* Slices Nine through Eighteen.
+* Slices Nine through Twenty-One.
 
 Probable affected files:
 
@@ -1402,7 +1572,7 @@ Done when:
 
 ## Completion Standard
 
-This roadmap is complete only when all nineteen slices are `[closed]`.
+This roadmap is complete only when all twenty-two slices are `[closed]`.
 
 The repository must then truthfully satisfy all of the following:
 
@@ -1422,6 +1592,10 @@ The repository must then truthfully satisfy all of the following:
 * Collision integration is compiled from declared theory metadata.
 * Multiple collision operators can run without silently disabling one
   another.
+* Contract compilation, background preparation, and hierarchy evolution use
+  the shared batched runtime architecture.
+* Transfer and line-of-sight projection use adaptive physical refinement
+  rather than under-resolved fixed sparse grids.
 * Newtonian, synchronous, and gauge-invariant routes are connected by
   explicit transformations or invariant variables.
 * Regular adiabatic, isocurvature, vector, and tensor initial modes are

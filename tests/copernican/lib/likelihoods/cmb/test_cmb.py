@@ -4994,6 +4994,32 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             atol=1.0e-12,
         )
 
+    def test_exact_collision_action_applies_operator_scale_to_two_state_block(
+        self,
+    ) -> None:
+        """Scaled two-state blocks must retain their physical rate."""
+
+        operator_matrix = numpy.asarray(
+            ((-0.9, 0.6), (0.1, -0.4)),
+            dtype=float,
+        )
+        target_state = numpy.asarray((0.35, -0.2), dtype=float)
+        dt = 0.375
+        operator_scale = 0.12
+        actual = native_projection._exact_linear_collision_step(
+            operator_matrix=operator_matrix,
+            dt=dt,
+            target_state=target_state,
+            operator_scale=operator_scale,
+        )
+        expected = expm(operator_matrix * operator_scale * dt) @ target_state
+        numpy.testing.assert_allclose(
+            actual,
+            expected,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
     def test_exact_block_collision_action_matches_matrix_exponential(self):
         """Independent exact collision blocks must retain their action."""
 
