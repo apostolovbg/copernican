@@ -644,11 +644,13 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 `lensed_TT`, `lensed_TE`, `lensed_EE`, and `lensed_BB` stay in the same
 `muK^2` `D_ell` convention as their unlensed counterparts.
 
-Native projection quadrature is fixed by the declared numerical ell range
-and reference multipoles rather than by the subset requested by one caller.
+Native projection quadrature starts from the declared numerical ell range and
+reference multipoles rather than from the subset requested by one caller.
 This keeps a spectrum's k integration stable when callers request a sparse
 surface such as `TT` at selected multipoles or request the complete lensed
-family.
+family. Contracts that need a controlled accuracy tier can enable the
+adaptive transfer, source, and line-of-sight projection surfaces described
+below.
 
 Single-sector native routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
@@ -742,17 +744,51 @@ momentum-grid declaration supplies the q nodes and weights for a massive or
 other momentum-resolved hierarchy; minimum counts are checked against the
 accuracy controls before the grid enters the cache.
 
-The optional `adaptive_k_quadrature` control is an accuracy-tier declaration,
-not a hidden output correction. Its `source` mode re-evolves the declared
-hierarchy on the requested logarithmic k nodes before projection; its
-`transfer` mode refines already-evolved transfer functions. Both modes remain
-inside the runtime envelope and cannot replace unavailable observables.
+Adaptive refinement is opt-in through `accuracy_controls`. The canonical
+sections are `adaptive_transfer`, `adaptive_source`, and
+`adaptive_projection`:
 
-Numerical controls define a reproducible execution envelope, not scientific
-convergence by themselves. Convergence acceptance requires controlled changes
-to the background, k, eta, hierarchy, q-grid, source-grid, and lensing
-resolutions with stable observables. That evidence belongs to Slice Nineteen
-and must not be inferred from a single successful native run.
+```yaml
+accuracy_controls:
+  phase_points_per_cycle: 8
+  adaptive_transfer:
+    minimum_nodes: 32
+    maximum_nodes: 128
+    relative_tolerance: 0.05
+    absolute_tolerance: 1.0e-12
+  adaptive_source:
+    minimum_nodes: 512
+    maximum_nodes: 2048
+    relative_tolerance: 0.05
+    absolute_tolerance: 1.0e-12
+  adaptive_projection:
+    minimum_nodes: 512
+    maximum_nodes: 2048
+    relative_tolerance: 0.05
+    absolute_tolerance: 1.0e-12
+```
+
+Transfer refinement places nodes from the requested radial phase, acoustic
+sound-horizon phase, and declared reference multipoles. Source refinement
+subdivides conformal-time intervals according to the largest requested
+Fourier phase and the visibility peak and shoulders. Projection refinement
+compares the full Simpson line-of-sight result with a lower-order quadrature
+estimate while using the same exact sector kernel. The runtime envelope
+records the three measured errors and refinement levels.
+
+The controls are convergence guards, not output corrections. Each enabled
+surface compares successive physical approximations and raises a named
+under-resolution error when its declared tolerance cannot be met. Set
+`fail_on_nonconvergence: false` only for an exploratory request whose runtime
+envelope explicitly accepts the reported error. Adaptive work remains bounded
+by the declared node and runtime limits; it never replaces unavailable
+observables or introduces an empirical spectrum scale.
+
+Numerical controls define a reproducible execution envelope, and the adaptive
+surfaces provide local convergence evidence for k, source histories, and
+line-of-sight quadrature. Scientific parity still requires controlled changes
+to the background, hierarchy, q-grid, and lensing resolutions with stable
+observables in the later acceptance slices.
 
 ## Scalar Absolute Parity
 

@@ -5546,6 +5546,107 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(baseline_data.runtime_envelope["eta_sample_count"]),
         )
 
+    def test_native_adaptive_surfaces_record_convergence(self) -> None:
+        """Declared transfer, source, and LOS refinement stay observable."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["perturbations"]["accuracy_controls"] = {
+            "adaptive_transfer": {
+                "minimum_nodes": 8,
+                "maximum_nodes": 24,
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "adaptive_source": {
+                "minimum_nodes": 282,
+                "maximum_nodes": 512,
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "adaptive_projection": {
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "phase_points_per_cycle": 8,
+            "fail_on_nonconvergence": True,
+        }
+        contract = _prepare_native_contract(contract)
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+        )
+
+        envelope = spectrum_data.runtime_envelope
+        self.assertTrue(bool(envelope["adaptive_transfer_enabled"]))
+        self.assertTrue(bool(envelope["adaptive_source_enabled"]))
+        self.assertTrue(bool(envelope["adaptive_projection_enabled"]))
+        self.assertGreater(
+            int(envelope["adaptive_transfer_refinement_levels"]), 0
+        )
+        self.assertGreater(
+            int(envelope["adaptive_source_refinement_levels"]), 0
+        )
+        self.assertGreater(
+            int(envelope["adaptive_projection_refinement_levels"]),
+            0,
+        )
+        self.assertLessEqual(
+            float(envelope["adaptive_transfer_relative_error"]),
+            2.0,
+        )
+        self.assertLessEqual(
+            float(envelope["adaptive_source_relative_error"]),
+            2.0,
+        )
+        self.assertLessEqual(
+            float(envelope["adaptive_projection_relative_error"]),
+            2.0,
+        )
+        for values in spectrum_data.spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_native_adaptive_projection_refines_line_of_sight_grid(
+        self,
+    ) -> None:
+        """Projection refinement changes the physical LOS sampling grid."""
+
+        baseline = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
+        refined = _speedup_contract(_analytic_signal_contract())
+        refined["perturbations"]["accuracy_controls"] = {
+            "adaptive_projection": {
+                "minimum_nodes": 282,
+                "maximum_nodes": 512,
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "phase_points_per_cycle": 8,
+        }
+        refined = _prepare_native_contract(refined)
+        ells = numpy.arange(20, 24, dtype=int)
+        baseline_data = native_projection._compute_custom_cmb_spectrum_data(
+            baseline,
+            ells,
+        )
+        refined_data = native_projection._compute_custom_cmb_spectrum_data(
+            refined,
+            ells,
+        )
+
+        self.assertGreater(
+            int(refined_data.runtime_envelope["eta_sample_count"]),
+            int(baseline_data.runtime_envelope["eta_sample_count"]),
+        )
+        self.assertLessEqual(
+            float(
+                refined_data.runtime_envelope[
+                    "adaptive_projection_relative_error"
+                ]
+            ),
+            2.0,
+        )
+
     def test_native_eta_sample_count_changes_background_resolution(
         self,
     ) -> None:

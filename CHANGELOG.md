@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-21:
+  Change: Implemented adaptive native transfer and projection convergence.
+  Why: Fixed sparse k, conformal-time, and line-of-sight grids could hide
+    physical phase and quadrature under-resolution in declared spectra.
+  Impact: Added bounded phase-aware refinement, independent convergence
+    estimates, named under-resolution failures, runtime error reporting, and
+    focused adaptive solver coverage.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_adaptive.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_adaptive.py
+
+- 2026-07-21:
   Change: Updated repository verification metadata and changelog coverage.
   Why: Align the staged Slice Thirteen work with the current gate date and
     record every touched path for reproducible policy verification.

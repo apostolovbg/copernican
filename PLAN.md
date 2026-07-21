@@ -1101,7 +1101,7 @@ Implementation closure:
   histories, cache-identity separation, repeated request reuse, finite output,
   and declared initial-mode execution.
 
-### [open] Slice Fourteen - Adaptive transfer and projection convergence
+### [closed] Slice Fourteen - Adaptive transfer and projection convergence
 
 Purpose:
 
@@ -1159,6 +1159,22 @@ Done when:
 * Under-resolved requests fail clearly before producing misleading spectra.
 * Projection results remain finite, deterministic, and sector-consistent.
 * Convergence tests exercise physical output rather than only grid activation.
+
+Implementation closure:
+
+* `native_adaptive.py` validates independent transfer, source-history, and
+  line-of-sight projection accuracy sections with bounded node budgets,
+  phase-point controls, absolute and relative tolerances, and named
+  under-resolution failures.
+* Transfer nodes respond to radial and acoustic phase and preserve declared
+  multipole anchors. Source-time nodes respond to Fourier phase and visibility
+  structure without reducing the generated scalar history grid.
+* Native projection records independent coarse-source and lower-order
+  line-of-sight estimates. Enabled surfaces expose measured absolute and
+  relative errors and reject non-converged spectra before publication.
+* Focused tests cover control validation, phase-aware k and eta grids,
+  absolute-tolerance handling, under-resolution diagnostics, and an end-to-end
+  adaptive native spectrum with finite transfer output.
 
 ### [open] Slice Fifteen - Native performance and architecture acceptance
 

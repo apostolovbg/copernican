@@ -25,6 +25,14 @@ from ...perturbation_contract import (
     evaluate_compiled_expression,
 )
 from . import native_cache
+from .native_adaptive import (
+    NativeConvergenceEstimate,
+    estimate_convergence,
+    phase_aware_eta_grid,
+    phase_aware_k_grid,
+    require_convergence,
+    resolve_native_adaptive_controls,
+)
 from .native_background import (
     _C_LIGHT_KM_S,
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
@@ -918,6 +926,46 @@ def _declared_graph_projection(
     )
 
 
+def _slice_projection_kernel_batch(
+    kernel_batch: _DeclaredProjectionKernelBatch,
+    indices: numpy.ndarray,
+) -> _DeclaredProjectionKernelBatch:
+    """Return one radial-kernel batch restricted to an eta subset."""
+
+    selected = numpy.asarray(indices, dtype=int)
+    return _DeclaredProjectionKernelBatch(
+        j_l=kernel_batch.j_l[:, selected],
+        j_l_derivative=kernel_batch.j_l_derivative[:, selected],
+        j_l_second_derivative=kernel_batch.j_l_second_derivative[:, selected],
+        e_kernel=kernel_batch.e_kernel[:, selected],
+        b_kernel=kernel_batch.b_kernel[:, selected],
+        vector_temperature_1=kernel_batch.vector_temperature_1[:, selected],
+        vector_temperature_2=kernel_batch.vector_temperature_2[:, selected],
+        vector_e=kernel_batch.vector_e[:, selected],
+        vector_b=kernel_batch.vector_b[:, selected],
+        tensor_temperature=kernel_batch.tensor_temperature[:, selected],
+        tensor_e=kernel_batch.tensor_e[:, selected],
+        tensor_b=kernel_batch.tensor_b[:, selected],
+    )
+
+
+def _trapezoid_weights(grid: numpy.ndarray) -> numpy.ndarray:
+    """Return composite trapezoid weights for a strictly ordered grid."""
+
+    coordinates = numpy.asarray(grid, dtype=float)
+    if coordinates.ndim != 1 or coordinates.size < 2:
+        raise ValueError("A trapezoid grid requires at least two samples")
+    steps = numpy.diff(coordinates)
+    if not numpy.all(numpy.isfinite(coordinates)) or numpy.any(steps <= 0.0):
+        raise ValueError("A trapezoid grid must be finite and increasing")
+    weights = numpy.zeros_like(coordinates, dtype=float)
+    weights[0] = 0.5 * steps[0]
+    weights[-1] = 0.5 * steps[-1]
+    if coordinates.size > 2:
+        weights[1:-1] = 0.5 * (steps[:-1] + steps[1:])
+    return weights
+
+
 def _simpson_weights(grid: numpy.ndarray) -> numpy.ndarray:
     """Return linear weights for nonuniform composite Simpson quadrature."""
 
@@ -1343,7 +1391,49 @@ def _compute_custom_cmb_spectrum_data(
             eta_los_grid,
             minimum_samples=minimum_eta_samples,
         )
-    if generated_scalar_hierarchy and eta_los_refinement > 1:
+    adaptive_controls = resolve_native_adaptive_controls(
+        _resolve_declared_accuracy_controls(contract_or_params),
+        base_k_nodes=int(numerics.k_sample_count),
+        base_eta_nodes=int(eta_los_grid.size),
+    )
+    if adaptive_controls.source_enabled:
+        eta_los_grid = phase_aware_eta_grid(
+            eta_los_grid,
+            visibility=numpy.asarray(
+                background.visibility_of_eta(eta_los_grid),
+                dtype=float,
+            ),
+            k_max=float(numerics.k_max),
+            minimum_nodes=max(
+                int(adaptive_controls.source_minimum_nodes),
+                int(eta_los_grid.size),
+            ),
+            maximum_nodes=int(adaptive_controls.source_maximum_nodes),
+            phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
+        )
+    if (
+        adaptive_controls.projection_enabled
+        and not adaptive_controls.source_enabled
+    ):
+        eta_los_grid = phase_aware_eta_grid(
+            eta_los_grid,
+            visibility=numpy.asarray(
+                background.visibility_of_eta(eta_los_grid),
+                dtype=float,
+            ),
+            k_max=float(numerics.k_max),
+            minimum_nodes=max(
+                int(adaptive_controls.projection_minimum_nodes),
+                int(eta_los_grid.size),
+            ),
+            maximum_nodes=int(adaptive_controls.projection_maximum_nodes),
+            phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
+        )
+    if (
+        generated_scalar_hierarchy
+        and eta_los_refinement > 1
+        and not adaptive_controls.source_enabled
+    ):
         eta_los_grid = _limit_eta_grid(
             eta_los_grid,
             maximum_samples=minimum_eta_samples,
@@ -1503,6 +1593,29 @@ def _compute_custom_cmb_spectrum_data(
         numerics=numerics,
         perturbation_data=perturbation_data,
     )
+    if adaptive_controls.transfer_enabled:
+        eta_rec_distance = max(
+            float(background.eta0) - float(background.eta_rec),
+            1.0,
+        )
+        adaptive_anchors = tuple(
+            float(value)
+            for value in k_values
+            if float(k_values[0]) <= float(value) <= float(k_values[-1])
+        )
+        k_values = phase_aware_k_grid(
+            float(k_values[0]),
+            float(k_values[-1]),
+            minimum_nodes=max(
+                int(adaptive_controls.transfer_minimum_nodes),
+                int(k_values.size),
+            ),
+            maximum_nodes=int(adaptive_controls.transfer_maximum_nodes),
+            phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
+            eta_distance=eta_rec_distance,
+            sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
+            anchors=adaptive_anchors,
+        )
 
     eta0 = background.eta0
     source_chi = float(background.chi_of_eta(background.eta_rec))
@@ -1588,13 +1701,38 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["batch_mode_count"] = 0
     runtime_envelope["batched_rk_stage_count"] = 0
     runtime_envelope["batched_max_substeps"] = 0
+    runtime_envelope["adaptive_transfer_enabled"] = bool(
+        adaptive_controls.transfer_enabled
+    )
+    runtime_envelope["adaptive_source_enabled"] = bool(
+        adaptive_controls.source_enabled
+    )
+    runtime_envelope["adaptive_projection_enabled"] = bool(
+        adaptive_controls.projection_enabled
+    )
+    runtime_envelope["adaptive_phase_points_per_cycle"] = float(
+        adaptive_controls.phase_points_per_cycle
+    )
+    runtime_envelope["adaptive_transfer_refinement_levels"] = 0
+    runtime_envelope["adaptive_source_refinement_levels"] = 0
+    runtime_envelope["adaptive_projection_refinement_levels"] = 0
+    runtime_envelope["adaptive_transfer_relative_error"] = 0.0
+    runtime_envelope["adaptive_source_relative_error"] = 0.0
+    runtime_envelope["adaptive_projection_relative_error"] = 0.0
     transfer_components = {
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
     }
-    adaptive_k_controls = _resolve_declared_accuracy_controls(
+    declared_accuracy_controls = _resolve_declared_accuracy_controls(
         contract_or_params
-    ).get("adaptive_k_quadrature")
+    )
+    adaptive_k_controls = declared_accuracy_controls.get(
+        "adaptive_k_quadrature"
+    )
+    if isinstance(
+        declared_accuracy_controls.get("adaptive_transfer"), Mapping
+    ):
+        adaptive_k_controls = None
     adaptive_k_enabled = isinstance(adaptive_k_controls, Mapping)
     adaptive_k_min_ell = 0
     adaptive_k_node_count = 0
@@ -4799,6 +4937,30 @@ def _compute_custom_cmb_spectrum_data(
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 128
     batched_source_histories = _batch_generated_source_histories(k_values)
+    source_error = 0.0
+    source_absolute_error = 0.0
+    projection_error = 0.0
+    projection_absolute_error = 0.0
+    source_eta_indices = numpy.arange(
+        0,
+        int(source_grids["eta"].size),
+        2,
+        dtype=int,
+    )
+    if source_eta_indices[-1] != source_grids["eta"].size - 1:
+        source_eta_indices = numpy.append(
+            source_eta_indices,
+            int(source_grids["eta"].size - 1),
+        )
+    source_eta_indices = numpy.unique(source_eta_indices)
+    source_coarse_weights = None
+    projection_trapezoid_weights = None
+    if adaptive_controls.source_enabled and source_eta_indices.size >= 3:
+        source_coarse_weights = _simpson_weights(
+            source_grids["eta"][source_eta_indices]
+        )
+    if adaptive_controls.projection_enabled:
+        projection_trapezoid_weights = _trapezoid_weights(source_grids["eta"])
 
     for k_index, k_value in enumerate(k_values):
         batched_mode = batched_source_histories.get(int(k_index))
@@ -4898,6 +5060,91 @@ def _compute_custom_cmb_spectrum_data(
                         source_histories=source_histories,
                     )
                 )
+                projected_values = transfer_components[component_name][
+                    batch_indices,
+                    k_index,
+                ]
+                if source_coarse_weights is not None:
+                    coarse_kernel_batch = _slice_projection_kernel_batch(
+                        kernel_batch,
+                        source_eta_indices,
+                    )
+                    coarse_histories = {
+                        role_name: history[source_eta_indices]
+                        for role_name, history in source_histories.items()
+                    }
+                    coarse_values = _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
+                        sector=(
+                            None
+                            if component_entry.sector is None
+                            else str(component_entry.sector)
+                        ),
+                        kernel_batch=coarse_kernel_batch,
+                        k_value=float(k_value),
+                        eta_weights=source_coarse_weights,
+                        chi_grid=source_grids["chi"][source_eta_indices],
+                        source_chi=source_chi,
+                        source_histories=coarse_histories,
+                    )
+                    estimate = estimate_convergence(
+                        coarse_values,
+                        projected_values,
+                        relative_tolerance=(
+                            adaptive_controls.source_relative_tolerance
+                        ),
+                        absolute_tolerance=(
+                            adaptive_controls.source_absolute_tolerance
+                        ),
+                    )
+                    source_error = max(source_error, estimate.relative_error)
+                    source_absolute_error = max(
+                        source_absolute_error,
+                        estimate.absolute_error,
+                    )
+                if projection_trapezoid_weights is not None:
+                    trapezoid_values = _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
+                        sector=(
+                            None
+                            if component_entry.sector is None
+                            else str(component_entry.sector)
+                        ),
+                        kernel_batch=kernel_batch,
+                        k_value=float(k_value),
+                        eta_weights=projection_trapezoid_weights,
+                        chi_grid=source_grids["chi"],
+                        source_chi=source_chi,
+                        source_histories=source_histories,
+                    )
+                    estimate = estimate_convergence(
+                        trapezoid_values,
+                        projected_values,
+                        relative_tolerance=(
+                            adaptive_controls.projection_relative_tolerance
+                        ),
+                        absolute_tolerance=(
+                            adaptive_controls.projection_absolute_tolerance
+                        ),
+                    )
+                    projection_error = max(
+                        projection_error,
+                        estimate.relative_error,
+                    )
+                    projection_absolute_error = max(
+                        projection_absolute_error,
+                        estimate.absolute_error,
+                    )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
             raise ValueError(
@@ -4929,6 +5176,123 @@ def _compute_custom_cmb_spectrum_data(
             log_k_values=log_k_values,
             primary=primary,
             secondary=secondary,
+        )
+
+    if adaptive_controls.transfer_enabled and k_values.size >= 5:
+        coarse_k_indices = numpy.arange(0, int(k_values.size), 2, dtype=int)
+        if coarse_k_indices[-1] != k_values.size - 1:
+            coarse_k_indices = numpy.append(
+                coarse_k_indices,
+                int(k_values.size - 1),
+            )
+        coarse_k_indices = numpy.unique(coarse_k_indices)
+        transfer_estimates = []
+        for (
+            observable_name,
+            observable_entry,
+        ) in power_spectrum_observables.items():
+            primary = numpy.asarray(
+                transfer_components[str(observable_entry.primary)][
+                    :, coarse_k_indices
+                ],
+                dtype=numpy.longdouble,
+            )
+            secondary = numpy.asarray(
+                transfer_components[str(observable_entry.secondary)][
+                    :, coarse_k_indices
+                ],
+                dtype=numpy.longdouble,
+            )
+            coarse_spectrum = _integrate_power_spectrum(
+                primordial_grid=_primordial_power_grid_for_observable(
+                    physical_params=physical_params,
+                    perturbation_data=perturbation_data,
+                    observable_entry=observable_entry,
+                    k_values=k_values[coarse_k_indices],
+                ),
+                log_k_values=log_k_values[coarse_k_indices],
+                primary=primary,
+                secondary=secondary,
+            )
+            full_spectrum = numpy.asarray(
+                spectra_results[str(observable_name)],
+                dtype=float,
+            )
+            transfer_estimates.append(
+                estimate_convergence(
+                    coarse_spectrum,
+                    full_spectrum,
+                    relative_tolerance=(
+                        adaptive_controls.transfer_relative_tolerance
+                    ),
+                    absolute_tolerance=(
+                        adaptive_controls.transfer_absolute_tolerance
+                    ),
+                )
+            )
+        if transfer_estimates:
+            transfer_estimate = max(
+                transfer_estimates,
+                key=lambda estimate: estimate.relative_error,
+            )
+            runtime_envelope["adaptive_transfer_relative_error"] = float(
+                transfer_estimate.relative_error
+            )
+            runtime_envelope["adaptive_transfer_absolute_error"] = float(
+                transfer_estimate.absolute_error
+            )
+            runtime_envelope["adaptive_transfer_refinement_levels"] = 1
+            require_convergence(
+                transfer_estimate,
+                label="transfer",
+                fail_on_nonconvergence=(
+                    adaptive_controls.fail_on_nonconvergence
+                ),
+            )
+    if adaptive_controls.source_enabled:
+        runtime_envelope["adaptive_source_relative_error"] = float(
+            source_error
+        )
+        runtime_envelope["adaptive_source_absolute_error"] = float(
+            source_absolute_error
+        )
+        runtime_envelope["adaptive_source_refinement_levels"] = 1
+        source_estimate = NativeConvergenceEstimate(
+            absolute_error=source_absolute_error,
+            relative_error=source_error,
+            converged=(
+                source_absolute_error
+                <= adaptive_controls.source_absolute_tolerance
+                or source_error <= adaptive_controls.source_relative_tolerance
+            ),
+        )
+        require_convergence(
+            source_estimate,
+            label="source-history",
+            fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
+        )
+    if adaptive_controls.projection_enabled:
+        runtime_envelope["adaptive_projection_relative_error"] = float(
+            projection_error
+        )
+        runtime_envelope["adaptive_projection_absolute_error"] = float(
+            projection_absolute_error
+        )
+        runtime_envelope["adaptive_projection_refinement_levels"] = 1
+        projection_estimate = NativeConvergenceEstimate(
+            absolute_error=projection_absolute_error,
+            relative_error=projection_error,
+            converged=(
+                projection_absolute_error
+                <= adaptive_controls.projection_absolute_tolerance
+                or projection_error
+                <= adaptive_controls.projection_relative_tolerance
+            ),
+        )
+        require_convergence(
+            projection_estimate,
+            label="line-of-sight projection",
+            fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
         )
 
     if adaptive_k_enabled and adaptive_k_mode == "source":

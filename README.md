@@ -65,6 +65,12 @@ one vectorized hierarchy batch; the runtime envelope records batch counts,
 Runge-Kutta stages, and static-preparation counters. Bounded cache identities
 keep repeated cosmology proposals from rebuilding contract structure.
 
+Native accuracy tiers can opt into phase-aware transfer-node selection,
+visibility-aware source-time refinement, and line-of-sight quadrature checks
+through `adaptive_transfer`, `adaptive_source`, and `adaptive_projection`
+accuracy controls. Each surface reports its measured refinement error and
+fails clearly when the declared tolerance is not met within its node budget.
+
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
 source checkouts and installed copies follow the same launch path.
