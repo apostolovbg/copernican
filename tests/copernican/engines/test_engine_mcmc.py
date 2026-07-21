@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import warnings
 from pathlib import Path
+from time import perf_counter
 from types import SimpleNamespace
 from unittest import mock
 
@@ -672,6 +673,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         cmb_df = pandas.DataFrame({"ell": ells, "Dl_obs": dl_vals})
         cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(len(ells))
 
+        started = perf_counter()
         result = module.fit_cosmology_parameters(
             sne_df,
             plugin,
@@ -682,6 +684,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             pool_size=1,
             burn_in_steps=2,
         )
+        self.assertLess(perf_counter() - started, 60.0)
         components = result.get("chi2_components", {})
         total = sum(components.values())
         self.assertTrue(result["success"])

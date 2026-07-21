@@ -7,6 +7,7 @@ import inspect
 import re
 import unittest
 from pathlib import Path
+from time import perf_counter
 from types import MappingProxyType
 from typing import Mapping, Sequence
 from unittest import mock
@@ -5866,6 +5867,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_runtime_envelope_records_governed_work_units(self) -> None:
         """Native spectra should carry the governed runtime envelope."""
 
+        native_cache.clear_native_cmb_caches()
         contract = _speedup_contract(_analytic_signal_contract())
         contract["perturbations"]["accuracy_controls"] = {
             "runtime_envelope": {
@@ -5888,6 +5890,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertIn("evolution_work_units", spectrum_data.runtime_envelope)
         self.assertIn("projection_work_units", spectrum_data.runtime_envelope)
+        for phase_name in (
+            "compilation",
+            "background",
+            "evolution",
+            "projection",
+            "power_spectrum",
+        ):
+            self.assertGreaterEqual(
+                float(spectrum_data.runtime_envelope[f"{phase_name}_seconds"]),
+                0.0,
+            )
+
+        native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+        )
+        performance = native_cache.native_cmb_performance_stats()
+        self.assertEqual(int(performance["requests"]), 2)
+        self.assertEqual(int(performance["cache_hits"]), 1)
+        self.assertIn("total_seconds", performance["phase_seconds"])
 
     def test_native_runtime_prepares_graph_once_per_spectrum(self) -> None:
         """Static graph preparation must not scale with Fourier modes."""
@@ -5905,6 +5927,68 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["dynamic_mode_count"]),
             int(envelope["k_sample_count"]),
         )
+
+    def test_native_sector_smoke_paths_stay_within_acceptance_budget(self):
+        """Keep representative native sector paths within the budget."""
+
+        cases = (
+            ("scalar", _native_scalar_hierarchy_contract(sum_mnu=0.0)),
+            ("interaction", _custom_contract()),
+            (
+                "gauge",
+                _native_scalar_hierarchy_contract(gauge="synchronous"),
+            ),
+            ("tensor", _native_tensor_hierarchy_contract()),
+            ("vector", _native_vector_hierarchy_contract()),
+            (
+                "massive_neutrino",
+                _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True
+                ),
+            ),
+        )
+        started = perf_counter()
+        for case_name, raw_contract in cases:
+            with self.subTest(case_name=case_name):
+                contract = _prepare_native_contract(
+                    _speedup_contract(raw_contract)
+                )
+                compact_numerics = {
+                    "ell_max": 120,
+                    "k_sample_count": 8,
+                    "eta_sample_count": 64,
+                    "photon_hierarchy_l_max": 4,
+                    "photon_polarization_hierarchy_l_max": 4,
+                    "neutrino_hierarchy_l_max": 3,
+                }
+                contract["numerical"].update(compact_numerics)
+                contract["perturbations"]["numerics"].update(compact_numerics)
+                momentum_grids = contract["perturbations"]["numerics"].get(
+                    "momentum_grids", {}
+                )
+                if "massive_neutrino_default" in momentum_grids:
+                    momentum_grids["massive_neutrino_default"].update(
+                        {"count": 2, "q_min": 0.1, "q_max": 12.0}
+                    )
+                spectrum_data = (
+                    native_projection._compute_custom_cmb_spectrum_data(
+                        contract,
+                        numpy.asarray((20, 40, 80), dtype=int),
+                        requested_spectra=("TT",),
+                    )
+                )
+                self.assertLess(
+                    float(spectrum_data.runtime_envelope["total_seconds"]),
+                    180.0,
+                )
+                self.assertTrue(
+                    numpy.all(
+                        numpy.isfinite(
+                            numpy.asarray(spectrum_data.spectra["TT"])
+                        )
+                    )
+                )
+        self.assertLess(perf_counter() - started, 180.0)
 
     def test_native_generated_modes_use_shared_batched_evolution(self) -> None:
         """Generated modes should expose shared finite batched histories."""

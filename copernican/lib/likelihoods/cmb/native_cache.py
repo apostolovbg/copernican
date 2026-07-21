@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass, fields
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Mapping, TypeVar
 
 import numpy
 
@@ -123,6 +123,9 @@ _CUSTOM_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
     max_bytes=32 * 1024 * 1024,
 )
 _PROJECTION_BATCH_CACHE_MAX_BYTES = 8 * 1024 * 1024
+_NATIVE_PERFORMANCE_PHASE_SECONDS: dict[str, float] = {}
+_NATIVE_PERFORMANCE_REQUESTS = 0
+_NATIVE_PERFORMANCE_CACHE_HITS = 0
 
 
 def _numpy_payload_bytes(value: Any) -> int:
@@ -254,8 +257,54 @@ def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
     _CUSTOM_CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
 
 
+def record_native_cmb_performance(
+    phase_seconds: Mapping[str, float],
+    *,
+    cache_hit: bool = False,
+) -> None:
+    """Record one native request's phase timings and cache outcome."""
+
+    global _NATIVE_PERFORMANCE_REQUESTS
+    global _NATIVE_PERFORMANCE_CACHE_HITS
+    _NATIVE_PERFORMANCE_REQUESTS += 1
+    if cache_hit:
+        _NATIVE_PERFORMANCE_CACHE_HITS += 1
+    for phase_name, elapsed in phase_seconds.items():
+        value = float(elapsed)
+        if value < 0.0 or value != value:
+            raise ValueError("Native performance phase time must be finite")
+        _NATIVE_PERFORMANCE_PHASE_SECONDS[str(phase_name)] = (
+            _NATIVE_PERFORMANCE_PHASE_SECONDS.get(str(phase_name), 0.0) + value
+        )
+
+
+def record_native_cmb_phase(name: str, elapsed_seconds: float) -> None:
+    """Record one native phase measured outside spectrum projection."""
+
+    value = float(elapsed_seconds)
+    if value < 0.0 or value != value:
+        raise ValueError("Native performance phase time must be finite")
+    phase_name = str(name)
+    _NATIVE_PERFORMANCE_PHASE_SECONDS[phase_name] = (
+        _NATIVE_PERFORMANCE_PHASE_SECONDS.get(phase_name, 0.0) + value
+    )
+
+
+def native_cmb_performance_stats() -> dict[str, Any]:
+    """Return aggregate phase timings and native cache-hit accounting."""
+
+    return {
+        "requests": int(_NATIVE_PERFORMANCE_REQUESTS),
+        "cache_hits": int(_NATIVE_PERFORMANCE_CACHE_HITS),
+        "phase_seconds": dict(_NATIVE_PERFORMANCE_PHASE_SECONDS),
+    }
+
+
 def clear_native_cmb_caches() -> None:
     """Clear every bounded cache used by the native declared CMB path."""
+
+    global _NATIVE_PERFORMANCE_REQUESTS
+    global _NATIVE_PERFORMANCE_CACHE_HITS
 
     for cache in (
         _DECLARED_SYMBOL_PLAN_CACHE,
@@ -268,6 +317,9 @@ def clear_native_cmb_caches() -> None:
         _CUSTOM_CMB_BESSEL_BATCH_CACHE,
     ):
         cache.clear()
+    _NATIVE_PERFORMANCE_PHASE_SECONDS.clear()
+    _NATIVE_PERFORMANCE_REQUESTS = 0
+    _NATIVE_PERFORMANCE_CACHE_HITS = 0
 
 
 def native_cmb_cache_stats() -> dict[str, dict[str, int]]:

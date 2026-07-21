@@ -65,6 +65,10 @@ one vectorized hierarchy batch; the runtime envelope records batch counts,
 Runge-Kutta stages, and static-preparation counters. Bounded cache identities
 keep repeated cosmology proposals from rebuilding contract structure.
 
+Native runtime acceptance also records phase timings and enforces the bounded
+180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
+test surface.
+
 Native accuracy tiers can opt into phase-aware transfer-node selection,
 visibility-aware source-time refinement, and line-of-sight quadrature checks
 through `adaptive_transfer`, `adaptive_source`, and `adaptive_projection`

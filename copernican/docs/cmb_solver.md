@@ -713,6 +713,14 @@ per-mode preparation visible to focused runtime tests. q-resolved momentum
 states and declared vector or tensor states retain their existing state-slot
 layouts when their contracts do not use the generated scalar batch.
 
+The envelope also records wall time for `compilation`, `background`,
+`preparation`, `evolution`, `projection`, and `power_spectrum`. Aggregate
+phase totals, including the separate `lensing` phase, are available through
+`native_cmb_performance_stats()`. Cache-hit fields identify whether the graph,
+background, and projection-kernel layers were reused for a fresh request.
+An identical request returns the bounded spectrum cache directly and records a
+cache hit without repeating static or request-specific work.
+
 The pipeline distinguishes declared transfer components from derived angular
 spectra. A transfer component supplies a source role and a projection kernel;
 an angular spectrum combines two compatible transfers. Thus `PP` is a
@@ -743,6 +751,25 @@ those limits before the expensive per-wave-number integration begins. A
 momentum-grid declaration supplies the q nodes and weights for a massive or
 other momentum-resolved hierarchy; minimum counts are checked against the
 accuracy controls before the grid enters the cache.
+
+The `bounded` runtime envelope includes the native performance acceptance
+budgets: 180 seconds for a full native spectrum and 60 seconds for the joint
+MCMC smoke workload. A contract may state the values explicitly when it needs
+to make the acceptance policy visible:
+
+```yaml
+accuracy_controls:
+  runtime_envelope: bounded
+  performance_budget:
+    full_spectrum_seconds: 180
+    joint_mcmc_seconds: 60
+```
+
+Measured full-spectrum time is checked against the declared full-spectrum
+budget after projection. The joint-MCMC limit is applied by its bounded smoke
+benchmark because that workload spans multiple likelihood evaluations. A
+budget overrun raises a named performance error rather than publishing a
+partial or misleading spectrum.
 
 Adaptive refinement is opt-in through `accuracy_controls`. The canonical
 sections are `adaptive_transfer`, `adaptive_source`, and

@@ -107,6 +107,14 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             "batch",
         )
 
+        native_cache.record_native_cmb_performance(
+            {"projection_seconds": 0.25},
+            cache_hit=True,
+        )
+        native_cache.record_native_cmb_phase("lensing", 0.5)
+        self.assertTrue(callable(native_cache.record_native_cmb_performance))
+        self.assertTrue(callable(native_cache.record_native_cmb_phase))
+
         stats = native_cache.native_cmb_cache_stats()
         self.assertEqual(stats["declared_symbol_plan"]["entries"], 1)
         self.assertEqual(
@@ -117,6 +125,14 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             stats["declared_momentum_grid"]["entries"],
             1,
         )
+        performance = native_cache.native_cmb_performance_stats()
+        self.assertEqual(int(performance["requests"]), 1)
+        self.assertEqual(int(performance["cache_hits"]), 1)
+        self.assertEqual(
+            performance["phase_seconds"]["projection_seconds"],
+            0.25,
+        )
+        self.assertEqual(performance["phase_seconds"]["lensing"], 0.5)
 
         native_cache.clear_native_cmb_caches()
         cleared_stats = native_cache.native_cmb_cache_stats()

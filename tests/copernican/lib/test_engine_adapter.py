@@ -9,6 +9,7 @@ import multiprocessing as multiprocessing_module
 import tempfile
 import unittest
 from pathlib import Path
+from time import perf_counter
 from types import SimpleNamespace
 
 import numpy
@@ -1464,6 +1465,29 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         self.assertEqual(
             set(spectra),
             {"TT", "TE", "EE", "PP", "TP", "EP"},
+        )
+        for values in spectra.values():
+            self.assertEqual(values.shape, ell_grid.shape)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_native_lcdm_full_spectrum_meets_performance_budget(self) -> None:
+        """A full native LCDM request must stay within 180 seconds."""
+
+        plugin = self._build_plugin()
+        ell_grid = numpy.arange(2, 2001, dtype=int)
+        started = perf_counter()
+        spectra = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            plugin.INITIAL_GUESSES,
+            ell_grid,
+            spectra=("TT", "TE", "EE", "PP"),
+        )
+        elapsed_seconds = perf_counter() - started
+
+        self.assertLess(elapsed_seconds, 180.0)
+        self.assertEqual(
+            set(spectra),
+            {"TT", "TE", "EE", "PP"},
         )
         for values in spectra.values():
             self.assertEqual(values.shape, ell_grid.shape)

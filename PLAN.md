@@ -1176,7 +1176,7 @@ Implementation closure:
   absolute-tolerance handling, under-resolution diagnostics, and an end-to-end
   adaptive native spectrum with finite transfer output.
 
-### [open] Slice Fifteen - Native performance and architecture acceptance
+### [closed] Slice Fifteen - Native performance and architecture acceptance
 
 Purpose:
 
@@ -1224,6 +1224,19 @@ Done when:
 * A repeated request avoids recompilation and repeated cosmology-static work.
 * Work envelopes reject unbounded requests before large runs begin.
 * Focused performance and architecture tests pass before absolute parity work.
+
+Implementation closure:
+
+* `native_performance.py` owns the 180-second full-spectrum and 60-second
+  joint-MCMC acceptance budgets, named overrun errors, and phase timers.
+* Native runtime envelopes record compilation, background, preparation,
+  evolution, projection, power-spectrum, and total wall times.
+* Native cache telemetry records request counts, exact-result cache hits,
+  aggregate phase time, graph-plan reuse, background reuse, and projection
+  kernel hits without changing numerical results.
+* Focused tests benchmark the full native LCDM surface, representative
+  interaction, gauge, tensor, vector, and q-resolved paths, and the joint
+  likelihood smoke workload.
 
 ### [open] Slice Sixteen - Native scalar absolute parity
 

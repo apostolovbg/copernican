@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any, Iterable, Mapping
 
 import numpy
@@ -70,6 +71,11 @@ from .native_evolution import (
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
     _validate_generated_vector_initial_constraints,
+)
+from .native_performance import (
+    NativePhaseTimer,
+    enforce_native_performance_budget,
+    resolve_native_performance_budget,
 )
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
@@ -1284,6 +1290,8 @@ def _compute_custom_cmb_spectrum_data(
 ) -> CustomCMBSpectrumData:
     """Return transfer functions and spectra for a declared CMB graph."""
 
+    performance_timer = NativePhaseTimer()
+    request_started = perf_counter()
     requested_spectrum_names = None
     if requested_spectra is not None:
         requested_spectrum_names = {
@@ -1297,15 +1305,24 @@ def _compute_custom_cmb_spectrum_data(
     )
     cached_spectrum = native_cache.get_custom_cmb_spectrum(cache_key)
     if cached_spectrum is not None:
+        native_cache.record_native_cmb_performance(
+            {"total_seconds": 0.0},
+            cache_hit=True,
+        )
         return _get_cached_custom_cmb_spectrum_data(cache_key)
 
-    perturbation_data = _compile_declared_perturbation_contract(
-        contract_or_params
-    )
-    if perturbation_data.standard:
-        raise ValueError("Standard perturbation contracts must use CAMB.")
-
-    execution_plan = _compile_declared_graph_execution_plan(perturbation_data)
+    graph_cache_before = native_cache.native_cmb_cache_stats()[
+        "declared_graph_execution_plan"
+    ]
+    with performance_timer.phase("compilation"):
+        perturbation_data = _compile_declared_perturbation_contract(
+            contract_or_params
+        )
+        if perturbation_data.standard:
+            raise ValueError("Standard perturbation contracts must use CAMB.")
+        execution_plan = _compile_declared_graph_execution_plan(
+            perturbation_data
+        )
     value_steps_by_name = {
         str(step.output_name): step for step in execution_plan.value_steps
     }
@@ -1352,17 +1369,21 @@ def _compute_custom_cmb_spectrum_data(
     generated_scalar_hierarchy = bool(
         manifest_summary.get("generated_scalar_hierarchy")
     )
-    physical_params = _resolve_custom_cmb_physical_parameters(
-        contract_or_params,
-        background_provider,
-    )
-    numerics = _resolve_custom_cmb_numerics(contract_or_params)
-    background = _build_custom_cmb_background(
-        contract_or_params,
-        physical_params,
-        numerics,
-        background_provider=background_provider,
-    )
+    background_cache_before = native_cache.native_cmb_cache_stats()[
+        "custom_background"
+    ]
+    with performance_timer.phase("background"):
+        physical_params = _resolve_custom_cmb_physical_parameters(
+            contract_or_params,
+            background_provider,
+        )
+        numerics = _resolve_custom_cmb_numerics(contract_or_params)
+        background = _build_custom_cmb_background(
+            contract_or_params,
+            physical_params,
+            numerics,
+            background_provider=background_provider,
+        )
 
     ell_arr = numpy.asarray(list(ells), dtype=int)
     if ell_arr.size == 0:
@@ -1577,45 +1598,49 @@ def _compute_custom_cmb_spectrum_data(
             coordinate_rate_histories,
         )
 
-    (
-        source_grids,
-        source_declared_background_histories,
-        source_coordinate_rate_histories,
-    ) = _sample_eta_background_grids(eta_los_grid)
+    with performance_timer.phase("preparation"):
+        (
+            source_grids,
+            source_declared_background_histories,
+            source_coordinate_rate_histories,
+        ) = _sample_eta_background_grids(eta_los_grid)
     active_grids = dict(source_grids)
     active_declared_background_histories = source_declared_background_histories
     active_coordinate_rate_histories = source_coordinate_rate_histories
     active_k_value = 0.0
 
-    k_values = _build_projection_k_grid(
-        ell_arr=ell_arr,
-        background=background,
-        numerics=numerics,
-        perturbation_data=perturbation_data,
-    )
-    if adaptive_controls.transfer_enabled:
-        eta_rec_distance = max(
-            float(background.eta0) - float(background.eta_rec),
-            1.0,
+    with performance_timer.phase("preparation"):
+        k_values = _build_projection_k_grid(
+            ell_arr=ell_arr,
+            background=background,
+            numerics=numerics,
+            perturbation_data=perturbation_data,
         )
-        adaptive_anchors = tuple(
-            float(value)
-            for value in k_values
-            if float(k_values[0]) <= float(value) <= float(k_values[-1])
-        )
-        k_values = phase_aware_k_grid(
-            float(k_values[0]),
-            float(k_values[-1]),
-            minimum_nodes=max(
-                int(adaptive_controls.transfer_minimum_nodes),
-                int(k_values.size),
-            ),
-            maximum_nodes=int(adaptive_controls.transfer_maximum_nodes),
-            phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
-            eta_distance=eta_rec_distance,
-            sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
-            anchors=adaptive_anchors,
-        )
+        if adaptive_controls.transfer_enabled:
+            eta_rec_distance = max(
+                float(background.eta0) - float(background.eta_rec),
+                1.0,
+            )
+            adaptive_anchors = tuple(
+                float(value)
+                for value in k_values
+                if float(k_values[0]) <= float(value) <= float(k_values[-1])
+            )
+            k_values = phase_aware_k_grid(
+                float(k_values[0]),
+                float(k_values[-1]),
+                minimum_nodes=max(
+                    int(adaptive_controls.transfer_minimum_nodes),
+                    int(k_values.size),
+                ),
+                maximum_nodes=int(adaptive_controls.transfer_maximum_nodes),
+                phase_points_per_cycle=(
+                    adaptive_controls.phase_points_per_cycle
+                ),
+                eta_distance=eta_rec_distance,
+                sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
+                anchors=adaptive_anchors,
+            )
 
     eta0 = background.eta0
     source_chi = float(background.chi_of_eta(background.eta_rec))
@@ -1701,6 +1726,18 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["batch_mode_count"] = 0
     runtime_envelope["batched_rk_stage_count"] = 0
     runtime_envelope["batched_max_substeps"] = 0
+    graph_cache_after = native_cache.native_cmb_cache_stats()[
+        "declared_graph_execution_plan"
+    ]
+    background_cache_after = native_cache.native_cmb_cache_stats()[
+        "custom_background"
+    ]
+    runtime_envelope["graph_plan_cache_hit"] = bool(
+        graph_cache_after["hits"] > graph_cache_before["hits"]
+    )
+    runtime_envelope["background_cache_hit"] = bool(
+        background_cache_after["misses"] == background_cache_before["misses"]
+    )
     runtime_envelope["adaptive_transfer_enabled"] = bool(
         adaptive_controls.transfer_enabled
     )
@@ -4936,7 +4973,11 @@ def _compute_custom_cmb_spectrum_data(
 
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 128
-    batched_source_histories = _batch_generated_source_histories(k_values)
+    kernel_cache_before = native_cache.native_cmb_cache_stats()[
+        "declared_projection_kernel_batch"
+    ]
+    with performance_timer.phase("evolution"):
+        batched_source_histories = _batch_generated_source_histories(k_values)
     source_error = 0.0
     source_absolute_error = 0.0
     projection_error = 0.0
@@ -4965,7 +5006,8 @@ def _compute_custom_cmb_spectrum_data(
     for k_index, k_value in enumerate(k_values):
         batched_mode = batched_source_histories.get(int(k_index))
         if batched_mode is None:
-            _, source_arrays = _evolve_declared_mode(float(k_value))
+            with performance_timer.phase("evolution"):
+                _, source_arrays = _evolve_declared_mode(float(k_value))
         else:
             _, source_arrays = batched_mode
         if adaptive_k_enabled:
@@ -4985,6 +5027,7 @@ def _compute_custom_cmb_spectrum_data(
                             source_arrays[str(source_name)], dtype=float
                         )
                     )
+        projection_started = perf_counter()
         x_values = k_value * (eta0 - source_grids["eta"])
         x_signature = hashlib.sha256(
             numpy.asarray(x_values, dtype=float).tobytes()
@@ -5145,6 +5188,10 @@ def _compute_custom_cmb_spectrum_data(
                         projection_absolute_error,
                         estimate.absolute_error,
                     )
+        performance_timer.add(
+            "projection",
+            perf_counter() - projection_started,
+        )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
             raise ValueError(
@@ -5153,30 +5200,31 @@ def _compute_custom_cmb_spectrum_data(
             )
 
     spectra_results: dict[str, numpy.ndarray] = {}
-    for (
-        observable_name,
-        observable_entry,
-    ) in power_spectrum_observables.items():
-        primordial_grid = _primordial_power_grid_for_observable(
-            physical_params=physical_params,
-            perturbation_data=perturbation_data,
-            observable_entry=observable_entry,
-            k_values=k_values,
-        )
-        primary = numpy.asarray(
-            transfer_components[str(observable_entry.primary)],
-            dtype=numpy.longdouble,
-        )
-        secondary = numpy.asarray(
-            transfer_components[str(observable_entry.secondary)],
-            dtype=numpy.longdouble,
-        )
-        spectra_results[observable_name] = _integrate_power_spectrum(
-            primordial_grid=primordial_grid,
-            log_k_values=log_k_values,
-            primary=primary,
-            secondary=secondary,
-        )
+    with performance_timer.phase("power_spectrum"):
+        for (
+            observable_name,
+            observable_entry,
+        ) in power_spectrum_observables.items():
+            primordial_grid = _primordial_power_grid_for_observable(
+                physical_params=physical_params,
+                perturbation_data=perturbation_data,
+                observable_entry=observable_entry,
+                k_values=k_values,
+            )
+            primary = numpy.asarray(
+                transfer_components[str(observable_entry.primary)],
+                dtype=numpy.longdouble,
+            )
+            secondary = numpy.asarray(
+                transfer_components[str(observable_entry.secondary)],
+                dtype=numpy.longdouble,
+            )
+            spectra_results[observable_name] = _integrate_power_spectrum(
+                primordial_grid=primordial_grid,
+                log_k_values=log_k_values,
+                primary=primary,
+                secondary=secondary,
+            )
 
     if adaptive_controls.transfer_enabled and k_values.size >= 5:
         coarse_k_indices = numpy.arange(0, int(k_values.size), 2, dtype=int)
@@ -5947,6 +5995,38 @@ def _compute_custom_cmb_spectrum_data(
                     numpy.asarray(values[adaptive_ell_indices], dtype=float),
                 )
         spectra_results = adaptive_spectra
+
+    elapsed_seconds = perf_counter() - request_started
+    kernel_cache_after = native_cache.native_cmb_cache_stats()[
+        "declared_projection_kernel_batch"
+    ]
+    runtime_envelope["projection_kernel_cache_hits"] = int(
+        kernel_cache_after["hits"] - kernel_cache_before["hits"]
+    )
+    performance_budget = resolve_native_performance_budget(
+        declared_accuracy_controls
+    )
+    enforce_native_performance_budget(
+        elapsed_seconds,
+        workload="full_spectrum",
+        budget=performance_budget,
+    )
+    timing_snapshot = performance_timer.snapshot(
+        total_seconds=elapsed_seconds,
+    )
+    runtime_envelope.update(timing_snapshot)
+    if performance_budget is not None:
+        runtime_envelope.update(
+            {
+                "performance_budget_full_spectrum_seconds": float(
+                    performance_budget.full_spectrum_seconds
+                ),
+                "performance_budget_joint_mcmc_seconds": float(
+                    performance_budget.joint_mcmc_seconds
+                ),
+            }
+        )
+    native_cache.record_native_cmb_performance(timing_snapshot)
 
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,

@@ -3,11 +3,13 @@ r"""Native declared-graph CMB solver orchestration helpers."""
 from __future__ import annotations
 
 import math
+from time import perf_counter
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
 from ...model_coder import validate_native_perturbation_execution
+from . import native_cache
 from .native_lensing import lensed_cls as _lensed_cls
 from .native_projection import _compute_custom_cmb_spectrum_data
 
@@ -419,12 +421,19 @@ def _compute_declared_perturbation_spectrum(
         spectra_results[canonical_name] = scale * raw_values
     if needs_lensing:
         lensing_inputs = _normalize_lensing_input_spectra(spectra_results)
-        spectra_results.update(
-            _assemble_exact_lensed_spectra(
-                lensing_inputs,
-                custom_data.ell_grid,
+        lensing_started = perf_counter()
+        try:
+            spectra_results.update(
+                _assemble_exact_lensed_spectra(
+                    lensing_inputs,
+                    custom_data.ell_grid,
+                )
             )
-        )
+        finally:
+            native_cache.record_native_cmb_phase(
+                "lensing",
+                perf_counter() - lensing_started,
+            )
     for spectrum_name, spectrum_values in spectra_results.items():
         if not numpy.all(numpy.isfinite(spectrum_values)):
             raise ValueError(

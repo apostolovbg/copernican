@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-21:
+  Change: Added native runtime performance budgets and phase telemetry.
+  Why: Performance acceptance needed measurable phase boundaries, cache
+    reuse evidence, and fail-fast budget enforcement.
+  Impact: Full native spectra and joint MCMC smoke coverage now verify the
+    bounded runtime targets before absolute parity slices proceed.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-07-21:
   Change: Implemented adaptive native transfer and projection convergence.
   Why: Fixed sparse k, conformal-time, and line-of-sight grids could hide
     physical phase and quadrature under-resolution in declared spectra.
