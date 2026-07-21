@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-20
+**Last Updated:** 2026-07-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1006,7 +1006,7 @@ Done when:
 * The model migration and species-accurate contract tests pass before the
   runtime architecture slices are attempted.
 
-### [open] Slice Thirteen - Native runtime architecture and batched execution
+### [closed] Slice Thirteen - Native runtime architecture and batched execution
 
 Purpose:
 
@@ -1084,6 +1084,22 @@ Done when:
   changing the result.
 * Runtime counters and focused architecture tests pass without claiming
   absolute reference-spectrum parity.
+
+Implementation closure:
+
+* `NativeRuntimeCacheIdentity` separates contract-static, cosmology-static,
+  and request-specific cache keys for background and spectrum work.
+* `_integrate_batched_rk4` provides one finite-checked shared RK4 schedule;
+  generated scalar contracts use the vectorized hierarchy RHS, collision
+  updates, tight-coupling masks, and source-history materialization for every
+  compatible multi-mode grid.
+* Adaptive source-mode requests reuse the same batch preparation, while
+  declared modes that require a distinct hidden-prefix grid retain the
+  existing deterministic declared evolution path.
+* Runtime envelopes expose static-preparation, batch-size, stage, and
+  substep counters. Focused tests cover shared scheduling, deterministic
+  histories, cache-identity separation, repeated request reuse, finite output,
+  and declared initial-mode execution.
 
 ### [open] Slice Fourteen - Adaptive transfer and projection convergence
 

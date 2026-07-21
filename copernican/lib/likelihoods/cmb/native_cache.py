@@ -22,6 +22,15 @@ class _NativeCacheSnapshot:
     evictions: int
 
 
+@dataclass(frozen=True, slots=True)
+class NativeRuntimeCacheIdentity:
+    """Name the static and request-specific portions of a runtime cache key."""
+
+    contract_static: Any
+    cosmology_static: Any
+    request_specific: Any
+
+
 class _BoundedCacheStore(Generic[_CacheValue]):
     """Keep a bounded LRU cache with explicit lifecycle accounting."""
 

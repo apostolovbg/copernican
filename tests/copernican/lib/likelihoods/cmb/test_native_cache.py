@@ -136,6 +136,35 @@ class NativeCacheModuleTestCase(unittest.TestCase):
         source_text = Path(native_cache.__file__).read_text(encoding="utf-8")
         self.assertNotIn("import camb", source_text)
 
+    def test_runtime_cache_identity_separates_static_and_request_work(self):
+        """Runtime identities must keep request work out of static keys."""
+
+        identity = native_cache.NativeRuntimeCacheIdentity(
+            contract_static=("graph", 1),
+            cosmology_static=("cosmology", 2),
+            request_specific=("ells", (20, 30)),
+        )
+        changed_request = native_cache.NativeRuntimeCacheIdentity(
+            contract_static=identity.contract_static,
+            cosmology_static=identity.cosmology_static,
+            request_specific=("ells", (20, 40)),
+        )
+
+        self.assertNotEqual(identity, changed_request)
+        self.assertIs(
+            type(identity),
+            native_cache.NativeRuntimeCacheIdentity,
+        )
+        self.assertEqual(
+            identity.contract_static,
+            changed_request.contract_static,
+        )
+        self.assertEqual(
+            identity.cosmology_static,
+            changed_request.cosmology_static,
+        )
+        self.assertNotEqual(hash(identity), hash(changed_request))
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

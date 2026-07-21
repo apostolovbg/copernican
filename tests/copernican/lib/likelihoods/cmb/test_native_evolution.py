@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy
+
 from copernican.lib.likelihoods.cmb import native_background, native_evolution
 from copernican.lib.perturbation_contract import compile_perturbation_contract
 
@@ -198,6 +200,49 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertNotIn("import camb", source_text)
+
+    def test_batched_rk4_uses_one_shared_schedule(self):
+        """Batched rows share stages and retain deterministic histories."""
+
+        eta_grid = numpy.asarray((0.0, 0.25, 0.5), dtype=float)
+        initial = numpy.asarray(((1.0,), (2.0,)), dtype=float)
+        required_substeps = numpy.asarray(((1, 2), (4, 1)), dtype=int)
+        active = numpy.zeros((2, 2), dtype=bool)
+        calls = []
+
+        def rhs(state, *, step_index, blend, active):
+            """Return a row-independent test derivative."""
+
+            calls.append((int(step_index), float(blend), state.shape))
+            return state
+
+        first = native_evolution._integrate_batched_rk4(
+            initial,
+            eta_grid,
+            required_substeps=required_substeps,
+            active_intervals=active,
+            rhs=rhs,
+        )
+        second = native_evolution._integrate_batched_rk4(
+            initial,
+            eta_grid,
+            required_substeps=required_substeps,
+            active_intervals=active,
+            rhs=lambda state, **kwargs: state,
+        )
+
+        histories, final_states, stats = first
+        self.assertIsInstance(
+            stats,
+            native_evolution.NativeBatchedEvolutionStats,
+        )
+        self.assertEqual(stats.mode_count, 2)
+        self.assertEqual(stats.interval_count, 2)
+        self.assertEqual(stats.maximum_substeps, 4)
+        self.assertEqual(stats.rk_stage_count, 4 * (4 + 2))
+        self.assertEqual(len(calls), stats.rk_stage_count)
+        numpy.testing.assert_allclose(histories, second[0])
+        numpy.testing.assert_allclose(final_states, second[1])
 
 
 if __name__ == "__main__":  # pragma: no cover

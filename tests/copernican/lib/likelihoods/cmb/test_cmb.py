@@ -5805,6 +5805,50 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["k_sample_count"]),
         )
 
+    def test_native_generated_modes_use_shared_batched_evolution(self) -> None:
+        """Generated modes should expose shared finite batched histories."""
+
+        native_cache.clear_native_cmb_caches()
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(
+                initial_mode="cdm_isocurvature",
+            )
+        )
+        ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        envelope = spectrum_data.runtime_envelope
+        self.assertEqual(int(envelope["contract_static_preparations"]), 1)
+        self.assertEqual(int(envelope["cosmology_static_preparations"]), 1)
+        self.assertEqual(int(envelope["request_specific_preparations"]), 1)
+        self.assertGreaterEqual(int(envelope["batch_count"]), 1)
+        self.assertEqual(
+            int(envelope["batch_mode_count"]),
+            int(envelope["k_sample_count"]),
+        )
+        self.assertGreater(int(envelope["batched_rk_stage_count"]), 0)
+        self.assertTrue(
+            numpy.all(
+                numpy.isfinite(numpy.asarray(spectrum_data.spectra["TT"]))
+            )
+        )
+        repeated = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        numpy.testing.assert_array_equal(
+            numpy.asarray(repeated.spectra["TT"]),
+            numpy.asarray(spectrum_data.spectra["TT"]),
+        )
+        self.assertGreater(
+            native_cache.native_cmb_cache_stats()["custom_spectrum"]["hits"],
+            0,
+        )
+
     def test_runtime_envelope_rejects_unbounded_work_units(self) -> None:
         """Declared runtime envelopes should fail before large runs start."""
 

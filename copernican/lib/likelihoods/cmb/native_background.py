@@ -1293,7 +1293,7 @@ def _custom_cmb_background_cache_key(
     physical_params: _CustomCMBPhysicalParameters,
     numerics: _CustomCMBNumerics,
     background_provider: Any | None,
-) -> tuple[Any, ...]:
+) -> native_cache.NativeRuntimeCacheIdentity:
     """Return a cache key for the custom CMB background tables."""
 
     physical_key = tuple(
@@ -1303,12 +1303,18 @@ def _custom_cmb_background_cache_key(
         )
         for field_name in _BACKGROUND_CACHE_PHYSICAL_FIELDS
     )
-    return (
-        _freeze_for_cache(_get_declared_background_section(contract)),
-        _freeze_for_cache(_background_parameter_values_for_cache(contract)),
-        physical_key,
-        astuple(numerics),
-        _custom_cmb_provider_key(background_provider),
+    return native_cache.NativeRuntimeCacheIdentity(
+        contract_static=_freeze_for_cache(
+            _get_declared_background_section(contract)
+        ),
+        cosmology_static=(
+            _freeze_for_cache(
+                _background_parameter_values_for_cache(contract)
+            ),
+            physical_key,
+            _custom_cmb_provider_key(background_provider),
+        ),
+        request_specific=astuple(numerics),
     )
 
 
@@ -1317,7 +1323,7 @@ def _custom_cmb_spectrum_cache_key(
     ells: Iterable[int],
     background_provider: Any | None,
     requested_spectra: Iterable[str] | None = None,
-) -> tuple[Any, ...]:
+) -> native_cache.NativeRuntimeCacheIdentity:
     """Return a cache key for the custom spectrum transfer data."""
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
@@ -1326,11 +1332,12 @@ def _custom_cmb_spectrum_cache_key(
         requested_key = tuple(
             sorted({str(name).upper() for name in requested_spectra})
         )
-    return (
-        _freeze_for_cache(_contract_cache_view(contract_or_params)),
-        ell_key,
-        _custom_cmb_provider_key(background_provider),
-        requested_key,
+    return native_cache.NativeRuntimeCacheIdentity(
+        contract_static=_freeze_for_cache(
+            _contract_cache_view(contract_or_params)
+        ),
+        cosmology_static=_custom_cmb_provider_key(background_provider),
+        request_specific=(ell_key, requested_key),
     )
 
 

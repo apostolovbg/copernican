@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-20
+**Last Updated:** 2026-07-21
 **Project Version:** 12.0.26
 
 ## Overview
@@ -685,6 +685,32 @@ stages:
    outputs are requested. `native_cache.py` stores only results keyed by the
    declared contract and numerical controls.
 
+The runtime has three cache layers. Contract-static work contains the
+compiled graph, dependency closure, state-slot layout, collision plan, and
+momentum-grid structure. Cosmology-static work contains the background,
+recombination, visibility, coordinate-rate, and collision histories for one
+bound cosmology. Request-specific work contains the selected multipoles,
+source histories, transfer matrices, and public spectrum surfaces. The
+`NativeRuntimeCacheIdentity` records those three key portions separately, so a
+new multipole request does not invalidate structural or cosmology-static
+entries.
+
+Generated scalar modes with a common evolution grid use one batched hierarchy
+RHS and one shared explicit Runge-Kutta schedule. The batch state is shaped as
+`(mode, state_slot)`; background values, tight-coupling masks, collision
+updates, and scalar hierarchy links are prepared once per stage and applied
+across all mode rows. The shared schedule selects the next power of two above
+the largest phase or collision requirement in each conformal-time interval.
+This replaces independent adaptive ODE invocation in the batched path while
+preserving finite-state checks and declared gauge-specific state layouts.
+
+`runtime_envelope` exposes `batch_count`, `batch_mode_count`,
+`batched_rk_stage_count`, `batched_max_substeps`, and the three static/request
+preparation counters. These values make repeated-request reuse and accidental
+per-mode preparation visible to focused runtime tests. q-resolved momentum
+states and declared vector or tensor states retain their existing state-slot
+layouts when their contracts do not use the generated scalar batch.
+
 The pipeline distinguishes declared transfer components from derived angular
 spectra. A transfer component supplies a source role and a projection kernel;
 an angular spectrum combines two compatible transfers. Thus `PP` is a
@@ -730,12 +756,12 @@ and must not be inferred from a single successful native run.
 
 ## Scalar Absolute Parity
 
-Slice Thirteen defines one fixed native LCDM-family cosmology and an
-independently constructed CAMB reference. The native call is made through the
-production declared-graph route; the reference helper is confined to the
-scientific test module and never calls the production solver. The comparison
-is absolute over the declared multipole surfaces rather than a response ratio
-or a calibrated standard-backend output.
+The absolute reference contract uses one fixed native LCDM-family cosmology
+and an independently constructed CAMB reference. The native call is made
+through the production declared-graph route; the reference helper is confined
+to the scientific test module and never calls the production solver. The
+comparison is absolute over the declared multipole surfaces rather than a
+response ratio or a calibrated standard-backend output.
 
 The acceptance surface includes native `TT`, `TE`, and `EE`, the lensing
 potential `PP`, and the declared `TP` and `EP` cross-surfaces. The acceptance

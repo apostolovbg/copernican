@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-20
+**Last Updated:** 2026-07-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,48 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-21:
+  Change: Updated repository verification metadata and changelog coverage.
+  Why: Align the staged Slice Thirteen work with the current gate date and
+    record every touched path for reproducible policy verification.
+  Impact: Documentation dates and the gate audit trail remain current without
+    changing native solver behavior.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+
+- 2026-07-20:
+  Change: Implemented explicit native runtime identities and batched scalar
+    hierarchy evolution.
+  Why: Repeated mode preparation and independent stage scheduling obscured
+    cache reuse and made native execution unnecessarily expensive.
+  Impact: Added finite deterministic shared RK4 histories, runtime counters,
+    bounded cache-layer separation, and focused reuse coverage while
+    preserving declared fallback layouts.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
 
 - 2026-07-20:
   Change: Consolidated generated scalar gauge evolution on deterministic

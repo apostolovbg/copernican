@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-20
+**Last Updated:** 2026-07-21
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,13 @@ preserving the model's requested multipole range.
 Generated scalar gauges use shared deterministic Runge-Kutta substeps, so
 gauge-equivalent contracts follow the same numerical trajectory rather than
 diverging because of basis-specific adaptive stepping.
+
+Native CMB execution separates contract-static graph compilation,
+cosmology-static background and collision tables, and request-specific
+projection work. Generated scalar modes that share an evolution grid run in
+one vectorized hierarchy batch; the runtime envelope records batch counts,
+Runge-Kutta stages, and static-preparation counters. Bounded cache identities
+keep repeated cosmology proposals from rebuilding contract structure.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

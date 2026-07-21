@@ -7,7 +7,7 @@ import copy
 import keyword
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 import numpy
 
@@ -137,6 +137,174 @@ class _DeclaredGraphExecutionPlan:
     start_condition_entries: tuple[Any, ...]
     end_condition_entries: tuple[Any, ...]
     equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class NativeBatchedEvolutionStats:
+    """Account for one shared explicit evolution over several modes."""
+
+    mode_count: int
+    interval_count: int
+    rk_stage_count: int
+    substep_count: int
+    maximum_substeps: int
+
+
+def _integrate_batched_rk4(
+    initial_states: numpy.ndarray,
+    eta_grid: numpy.ndarray,
+    *,
+    required_substeps: numpy.ndarray,
+    active_intervals: numpy.ndarray,
+    rhs: Callable[..., numpy.ndarray],
+    pre_step: Callable[..., numpy.ndarray] | None = None,
+    post_step: Callable[..., numpy.ndarray] | None = None,
+    record_step: Callable[..., numpy.ndarray] | None = None,
+) -> tuple[numpy.ndarray, numpy.ndarray, NativeBatchedEvolutionStats]:
+    """Integrate mode rows on a shared grid with a common RK4 schedule.
+
+    ``required_substeps`` may vary by mode, but each interval uses the next
+    power of two above the largest requested mode count.  This removes the
+    per-mode adaptive control path while retaining the declared stiffness
+    budget for every row.  Callbacks operate on all rows at once.
+    """
+
+    states = numpy.asarray(initial_states, dtype=float).copy()
+    if states.ndim != 2:
+        raise ValueError("Batched evolution states must be a two-dimensional")
+    eta_values = numpy.asarray(eta_grid, dtype=float)
+    if eta_values.ndim != 1 or eta_values.size < 1:
+        raise ValueError("Batched evolution requires a one-dimensional grid")
+    mode_count = int(states.shape[0])
+    interval_count = max(int(eta_values.size) - 1, 0)
+    required = numpy.asarray(required_substeps, dtype=int)
+    if required.ndim == 0:
+        required = numpy.full(
+            (mode_count, interval_count),
+            max(int(required), 1),
+            dtype=int,
+        )
+    elif required.ndim == 1:
+        if required.size != interval_count:
+            raise ValueError("Batched substep schedule has the wrong length")
+        required = numpy.broadcast_to(
+            required[numpy.newaxis, :],
+            (mode_count, interval_count),
+        )
+    elif required.shape != (mode_count, interval_count):
+        raise ValueError("Batched substep schedule has the wrong shape")
+    active = numpy.asarray(active_intervals, dtype=bool)
+    if active.shape != (mode_count, interval_count):
+        raise ValueError("Batched active-interval mask has the wrong shape")
+    if not numpy.all(numpy.isfinite(states)):
+        raise ValueError(
+            "Batched evolution received non-finite initial states"
+        )
+    histories = numpy.empty(
+        (mode_count, eta_values.size, states.shape[1]),
+        dtype=float,
+    )
+    if record_step is not None and interval_count:
+        states = record_step(
+            states,
+            step_index=0,
+            blend=0.0,
+            active=active[:, 0],
+        )
+    histories[:, 0, :] = states
+    rk_stage_count = 0
+    total_substep_count = 0
+    maximum_substeps = 0
+    for step_index in range(interval_count):
+        dt = float(eta_values[step_index + 1] - eta_values[step_index])
+        requested = max(int(numpy.max(required[:, step_index])), 1)
+        substep_count = 1
+        while substep_count < requested:
+            substep_count *= 2
+        maximum_substeps = max(maximum_substeps, substep_count)
+        total_substep_count += substep_count
+        interval_active = active[:, step_index]
+        sub_dt = dt / float(substep_count)
+        for substep_index in range(substep_count):
+            blend_start = substep_index / float(substep_count)
+            blend_mid = (substep_index + 0.5) / float(substep_count)
+            blend_end = (substep_index + 1.0) / float(substep_count)
+            if pre_step is not None:
+                states = pre_step(
+                    states,
+                    step_index=step_index,
+                    blend=blend_start,
+                    dt=0.5 * sub_dt,
+                    active=interval_active,
+                )
+            rhs_a = rhs(
+                states,
+                step_index=step_index,
+                blend=blend_start,
+                active=interval_active,
+            )
+            rhs_b = rhs(
+                states + 0.5 * sub_dt * rhs_a,
+                step_index=step_index,
+                blend=blend_mid,
+                active=interval_active,
+            )
+            rhs_c = rhs(
+                states + 0.5 * sub_dt * rhs_b,
+                step_index=step_index,
+                blend=blend_mid,
+                active=interval_active,
+            )
+            rhs_d = rhs(
+                states + sub_dt * rhs_c,
+                step_index=step_index,
+                blend=blend_end,
+                active=interval_active,
+            )
+            rk_stage_count += 4
+            states = states + (sub_dt / 6.0) * (
+                rhs_a + 2.0 * rhs_b + 2.0 * rhs_c + rhs_d
+            )
+            if post_step is not None:
+                states = post_step(
+                    states,
+                    step_index=step_index,
+                    blend=blend_end,
+                    dt=0.5 * sub_dt,
+                    active=interval_active,
+                )
+            if not numpy.all(numpy.isfinite(states)):
+                bad_rows = numpy.flatnonzero(
+                    ~numpy.all(numpy.isfinite(states), axis=1)
+                )
+                bad_row = int(bad_rows[0]) if bad_rows.size else -1
+                raise ValueError(
+                    "Batched CMB evolution produced non-finite state values "
+                    f"at mode_index={bad_row}, step_index={step_index}"
+                )
+        if record_step is not None:
+            if step_index + 1 < interval_count:
+                record_active = active[:, step_index + 1]
+            else:
+                record_active = interval_active
+            states = record_step(
+                states,
+                step_index=step_index + 1,
+                blend=0.0,
+                active=record_active,
+            )
+        histories[:, step_index + 1, :] = states
+    return (
+        histories,
+        states,
+        NativeBatchedEvolutionStats(
+            mode_count=mode_count,
+            interval_count=interval_count,
+            rk_stage_count=rk_stage_count,
+            substep_count=total_substep_count,
+            maximum_substeps=maximum_substeps,
+        ),
+    )
 
 
 @lru_cache(maxsize=256)

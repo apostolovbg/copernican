@@ -54,6 +54,7 @@ from .native_evolution import (
     _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
+    _integrate_batched_rk4,
     _nonuniform_gradient,
     _resolve_declared_graph_context,
     _resolve_declared_graph_context_ordered,
@@ -1494,6 +1495,7 @@ def _compute_custom_cmb_spectrum_data(
     active_grids = dict(source_grids)
     active_declared_background_histories = source_declared_background_histories
     active_coordinate_rate_histories = source_coordinate_rate_histories
+    active_k_value = 0.0
 
     k_values = _build_projection_k_grid(
         ell_arr=ell_arr,
@@ -1578,7 +1580,14 @@ def _compute_custom_cmb_spectrum_data(
         ),
     )
     runtime_envelope["static_graph_preparations"] = 1
+    runtime_envelope["contract_static_preparations"] = 1
+    runtime_envelope["cosmology_static_preparations"] = 1
+    runtime_envelope["request_specific_preparations"] = 1
     runtime_envelope["dynamic_mode_count"] = int(k_values.size)
+    runtime_envelope["batch_count"] = 0
+    runtime_envelope["batch_mode_count"] = 0
+    runtime_envelope["batched_rk_stage_count"] = 0
+    runtime_envelope["batched_max_substeps"] = 0
     transfer_components = {
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
@@ -1811,6 +1820,8 @@ def _compute_custom_cmb_spectrum_data(
     def _scalar_background_context(
         step_index: int,
         blend: float,
+        *,
+        k_value: float | None = None,
     ) -> tuple[float, dict[str, float]]:
         """Return one interpolated scalar background context."""
 
@@ -1905,7 +1916,7 @@ def _compute_custom_cmb_spectrum_data(
         )
         tight_coupling_drag = _compute_tight_coupling_drag(
             collision_rate=collision_rate,
-            k_value=float(k_value),
+            k_value=float(active_k_value if k_value is None else k_value),
             tight_coupling_ratio=float(numerics.tight_coupling_ratio),
         )
         scalar_context["collision_rate"] = float(collision_rate)
@@ -3143,6 +3154,719 @@ def _compute_custom_cmb_spectrum_data(
             )
         return histories, state
 
+    def _integrate_generated_scalar_history_batch(
+        initial_states: numpy.ndarray,
+        *,
+        k_values_batch: numpy.ndarray,
+    ) -> tuple[
+        dict[str, numpy.ndarray],
+        numpy.ndarray,
+        Any,
+    ]:
+        """Integrate generated scalar modes in one vectorized hierarchy."""
+
+        state_indices = {
+            str(slot.variable): int(slot.index)
+            for slot in runtime_spec.state_slots
+            if int(slot.order) == 0
+        }
+        temperature_indices = {
+            int(moment): int(index)
+            for moment, index in scalar_temperature_slot_indices.items()
+        }
+        polarization_indices = {
+            int(moment): int(index)
+            for moment, index in scalar_polarization_slot_indices.items()
+        }
+        neutrino_indices = {
+            int(slot.variable[len("nu_l") :]): int(slot.index)
+            for slot in runtime_spec.state_slots
+            if int(slot.order) == 0
+            and str(slot.variable).startswith("nu_l")
+            and str(slot.variable[len("nu_l") :]).isdigit()
+        }
+        history_names = tuple(
+            str(slot.variable)
+            for slot in runtime_spec.state_slots
+            if int(slot.order) == 0
+        )
+        theta_gamma0_index = state_indices.get("theta_gamma0")
+        theta_gamma1_index = state_indices.get("theta_gamma1")
+        theta_gamma2_index = state_indices.get("theta_gamma2")
+        theta_gamma3_index = state_indices.get("theta_gamma3")
+        e_gamma2_index = state_indices.get("e_gamma2")
+        e_gamma3_index = state_indices.get("e_gamma3")
+        theta_b_index = state_indices.get("theta_b")
+        theta_c_index = state_indices.get("theta_c")
+        theta_nu_index = state_indices.get("theta_nu")
+        sigma_nu_index = state_indices.get("sigma_nu")
+        delta_b_index = state_indices.get("delta_b")
+        delta_c_index = state_indices.get("delta_c")
+        delta_nu_index = state_indices.get("delta_nu")
+        nu_l3_index = state_indices.get("nu_l3")
+        temperature_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    theta_gamma2_index
+                    if int(moment) == 3
+                    else state_indices[f"theta_gamma{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(temperature_indices)
+                    else int(state_indices[f"theta_gamma{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(temperature_indices.items())
+            if int(moment) >= 3
+        )
+        polarization_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    e_gamma2_index
+                    if int(moment) == 3
+                    else state_indices[f"e_gamma{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(polarization_indices)
+                    else int(state_indices[f"e_gamma{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(polarization_indices.items())
+            if int(moment) >= 3
+        )
+        neutrino_hierarchy = tuple(
+            (
+                int(moment),
+                int(index),
+                int(
+                    sigma_nu_index
+                    if int(moment) == 3
+                    else state_indices[f"nu_l{int(moment) - 1}"]
+                ),
+                (
+                    None
+                    if int(moment) == max(neutrino_indices)
+                    else int(state_indices[f"nu_l{int(moment) + 1}"])
+                ),
+            )
+            for moment, index in sorted(neutrino_indices.items())
+            if int(moment) >= 3
+        )
+        state_count = int(initial_states.shape[1])
+        mode_count = int(initial_states.shape[0])
+        k_batch = numpy.asarray(k_values_batch, dtype=float)
+        states = numpy.asarray(initial_states, dtype=float)
+        if states.shape != (mode_count, state_count):
+            raise ValueError("Generated batch initial states have wrong shape")
+        metric_phi_name = "Phi"
+        phi_index = state_indices.get(metric_phi_name)
+        if phi_index is None:
+            metric_phi_name = "Phi_gi"
+            phi_index = state_indices.get(metric_phi_name)
+        sync_gauge = str(getattr(perturbation_data, "gauge", "")) == (
+            "synchronous"
+        )
+        sync_h_index = state_indices.get("h_sync_metric")
+        sync_eta_index = state_indices.get("eta_sync_metric")
+        sync_alpha_index = state_indices.get("gauge_shift_alpha")
+        if phi_index is None and not (
+            sync_gauge
+            and sync_h_index is not None
+            and sync_eta_index is not None
+            and sync_alpha_index is not None
+        ):
+            raise ValueError(
+                "Generated scalar batch requires a declared metric basis"
+            )
+        H0c_sq = float(physical_params.H0_over_c_Mpc_inv) ** 2
+        omega_nu = float(physical_params.Omega_nu0 or 0.0)
+        omega_c = float(physical_params.Omega_c0 or 0.0)
+        omega_gamma = float(physical_params.Omega_gamma0)
+        omega_b = float(physical_params.Omega_b0)
+
+        def _fast_background() -> tuple[float, ...]:
+            """Return common background values for one RK stage."""
+
+            return (
+                float(active_grids["eta"][0]),
+                float(active_grids["a"][0]),
+                float(active_grids["Hconf"][0]),
+                float(active_grids["Hconf_tau"][0]),
+                float(active_grids["baryon_sound_speed_sq"][0]),
+                float(active_grids["collision_rate"][0]),
+                float(active_grids["baryon_loading"][0]),
+            )
+
+        def _background_values(
+            step_index: int,
+            blend: float,
+        ) -> tuple[float, float, float, float, float, float, float]:
+            """Interpolate common background histories once per stage."""
+
+            next_index = min(
+                int(step_index) + 1,
+                active_grids["eta"].size - 1,
+            )
+            current_weight = 1.0 - float(blend)
+            next_weight = float(blend)
+
+            def _value(name: str) -> float:
+                """Interpolate one common background scalar."""
+
+                history = active_grids[name]
+                return float(
+                    current_weight * history[step_index]
+                    + next_weight * history[next_index]
+                )
+
+            return (
+                _value("eta"),
+                _value("a"),
+                _value("Hconf"),
+                _value("Hconf_tau"),
+                _value("baryon_sound_speed_sq"),
+                _value("collision_rate"),
+                _value("baryon_loading"),
+            )
+
+        def _tight_coupling_closure_batch(
+            vector: numpy.ndarray,
+            *,
+            step_index: int,
+            blend: float,
+            active: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Apply tight-coupling moment closure to active mode rows."""
+
+            if theta_gamma1_index is None or not numpy.any(active):
+                return numpy.asarray(vector, dtype=float)
+            (_, _, _, _, _, collision_rate, baryon_loading) = (
+                _background_values(step_index, blend)
+            )
+            if not numpy.isfinite(collision_rate) or collision_rate <= 1.0e-12:
+                return numpy.asarray(vector, dtype=float)
+            closed = numpy.asarray(vector, dtype=float).copy()
+            photon_dipole = closed[:, theta_gamma1_index]
+            if theta_b_index is None:
+                baryon_velocity = 3.0 * k_batch * photon_dipole
+            else:
+                baryon_velocity = closed[:, theta_b_index]
+            loading = max(float(baryon_loading), 1.0e-12)
+            common_dipole = (
+                photon_dipole + loading * baryon_velocity / (3.0 * k_batch)
+            ) / (1.0 + loading)
+            quadrupole = (
+                8.0 / 15.0 * k_batch * common_dipole / float(collision_rate)
+            )
+            octopole = 3.0 / 7.0 * k_batch / float(collision_rate) * quadrupole
+            closed[active, theta_gamma1_index] = common_dipole[active]
+            if theta_b_index is not None:
+                closed[active, theta_b_index] = (
+                    3.0 * k_batch[active] * common_dipole[active]
+                )
+            if theta_gamma2_index is not None:
+                closed[active, theta_gamma2_index] = quadrupole[active]
+            if e_gamma2_index is not None:
+                closed[active, e_gamma2_index] = quadrupole[active] / 4.0
+            for moment, index in temperature_indices.items():
+                if moment >= 3:
+                    closed[active, index] = numpy.where(
+                        int(moment) == 3,
+                        octopole[active],
+                        0.0,
+                    )
+            for moment, index in polarization_indices.items():
+                if moment >= 3:
+                    closed[active, index] = numpy.where(
+                        int(moment) == 3,
+                        octopole[active] / 4.0,
+                        0.0,
+                    )
+            return closed
+
+        physical_phi = None
+        if phi_index is None:
+            _, _, initial_hconf, _, _, _, _ = _fast_background()
+            physical_phi = (
+                states[:, sync_eta_index]
+                - initial_hconf * states[:, sync_alpha_index]
+            )
+            states = numpy.column_stack((states, physical_phi))
+
+        def _rhs_batch(
+            vector: numpy.ndarray,
+            *,
+            step_index: int,
+            blend: float,
+            active: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Return generated hierarchy derivatives for all mode rows."""
+
+            working = _tight_coupling_closure_batch(
+                vector,
+                step_index=step_index,
+                blend=blend,
+                active=active,
+            )
+            (
+                eta_value,
+                a_value,
+                Hconf,
+                Hconf_tau,
+                sound_speed_sq,
+                _,
+                _,
+            ) = _background_values(step_index, blend)
+
+            def _column(index: int | None) -> numpy.ndarray:
+                """Return one state column or a zero mode vector."""
+
+                if index is None:
+                    return numpy.zeros(mode_count, dtype=float)
+                return working[:, int(index)]
+
+            theta0 = _column(theta_gamma0_index)
+            theta1 = _column(theta_gamma1_index)
+            theta2 = _column(theta_gamma2_index)
+            theta3 = _column(theta_gamma3_index)
+            theta_b = _column(theta_b_index)
+            theta_c = _column(theta_c_index)
+            theta_nu = _column(theta_nu_index)
+            sigma_nu = _column(sigma_nu_index)
+            delta_b = _column(delta_b_index)
+            delta_nu = _column(delta_nu_index)
+            radiation_momentum = (
+                (4.0 / 3.0) * omega_gamma * (3.0 * k_batch * theta1)
+                + (4.0 / 3.0) * omega_nu * theta_nu
+            ) / (a_value * a_value)
+            total_momentum = (
+                omega_b * theta_b + omega_c * theta_c
+            ) / a_value + radiation_momentum
+            total_shear = (
+                4.0 * omega_gamma * theta2 + 2.0 * omega_nu * sigma_nu
+            ) / (a_value * a_value)
+            if phi_index is not None:
+                phi = working[:, phi_index]
+            else:
+                phi = vector[:, -1]
+            shear_correction = 3.0 * H0c_sq * total_shear / (k_batch**2)
+            psi = phi - shear_correction
+            phi_tau = (
+                1.5 * H0c_sq * total_momentum / (k_batch**2) - Hconf * psi
+            )
+            derivative = numpy.zeros_like(vector, dtype=float)
+            k_squared = k_batch**2
+            if theta_gamma0_index is not None:
+                derivative[:, theta_gamma0_index] = -k_batch * theta1 + phi_tau
+            if theta_gamma1_index is not None:
+                derivative[:, theta_gamma1_index] = (
+                    k_batch * (theta0 + psi - 2.0 * theta2) / 3.0
+                )
+            if theta_gamma2_index is not None:
+                derivative[:, theta_gamma2_index] = (
+                    2.0 * k_batch * theta1 / 5.0 - 3.0 * k_batch * theta3 / 5.0
+                )
+            polarization_third_moment = _column(e_gamma3_index)
+            for name in ("e_gamma0", "e_gamma1"):
+                index = state_indices.get(name)
+                if index is not None:
+                    derivative[:, index] = 0.0
+            if e_gamma2_index is not None:
+                derivative[:, e_gamma2_index] = (
+                    -k_batch * polarization_third_moment / 3.0
+                )
+            if delta_b_index is not None:
+                derivative[:, delta_b_index] = -theta_b + 3.0 * phi_tau
+            if theta_b_index is not None:
+                derivative[:, theta_b_index] = (
+                    -Hconf * theta_b
+                    + sound_speed_sq * k_squared * delta_b
+                    + k_squared * psi
+                )
+            if delta_c_index is not None:
+                derivative[:, delta_c_index] = -theta_c + 3.0 * phi_tau
+            if theta_c_index is not None:
+                derivative[:, theta_c_index] = (
+                    -Hconf * theta_c + k_squared * psi
+                )
+            if delta_nu_index is not None:
+                derivative[:, delta_nu_index] = (
+                    -(4.0 / 3.0) * theta_nu + 4.0 * phi_tau
+                )
+            if theta_nu_index is not None:
+                derivative[:, theta_nu_index] = k_squared * (
+                    0.25 * delta_nu + psi - sigma_nu
+                )
+            if sigma_nu_index is not None:
+                nu_l3 = _column(nu_l3_index)
+                derivative[:, sigma_nu_index] = (4.0 / 15.0) * theta_nu - (
+                    3.0 / 5.0
+                ) * k_batch * nu_l3
+            if phi_index is not None:
+                derivative[:, phi_index] = phi_tau
+            else:
+                alpha = working[:, sync_alpha_index]
+                alpha_tau = psi - Hconf * alpha
+                eta_tau = phi_tau + Hconf_tau * alpha + Hconf * alpha_tau
+                derivative[:, sync_alpha_index] = alpha_tau
+                derivative[:, sync_eta_index] = eta_tau
+                derivative[:, sync_h_index] = (
+                    2.0 * k_squared * alpha - 6.0 * eta_tau
+                )
+                derivative[:, -1] = phi_tau
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in temperature_hierarchy:
+                previous = working[:, previous_index]
+                current = working[:, index]
+                if next_index is None:
+                    denominator = numpy.sqrt(
+                        (k_batch * eta_value) ** 2 + (float(moment) + 1.0) ** 2
+                    )
+                    derivative[:, index] = (
+                        k_batch * previous
+                        - k_batch
+                        * (float(moment) + 1.0)
+                        * current
+                        / denominator
+                    )
+                else:
+                    derivative[:, index] = (
+                        float(moment)
+                        / (2.0 * float(moment) + 1.0)
+                        * k_batch
+                        * previous
+                        - (float(moment) + 1.0)
+                        / (2.0 * float(moment) + 1.0)
+                        * k_batch
+                        * working[:, next_index]
+                    )
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in polarization_hierarchy:
+                previous = working[:, previous_index]
+                current = working[:, index]
+                if next_index is None:
+                    denominator = numpy.sqrt(
+                        (k_batch * eta_value) ** 2 + (float(moment) + 3.0) ** 2
+                    )
+                    derivative[:, index] = (
+                        float(moment) / float(moment - 2) * k_batch * previous
+                        - k_batch
+                        * (float(moment) + 3.0)
+                        * current
+                        / denominator
+                    )
+                else:
+                    next_coefficient = (
+                        (float(moment) + 3.0)
+                        * (float(moment) - 1.0)
+                        / ((2.0 * float(moment) + 1.0) * (float(moment) + 1.0))
+                    )
+                    derivative[:, index] = (
+                        float(moment)
+                        / (2.0 * float(moment) + 1.0)
+                        * k_batch
+                        * previous
+                        - next_coefficient * k_batch * working[:, next_index]
+                    )
+            for (
+                moment,
+                index,
+                previous_index,
+                next_index,
+            ) in neutrino_hierarchy:
+                previous = working[:, previous_index]
+                current = working[:, index]
+                if next_index is None:
+                    denominator = numpy.sqrt(
+                        (k_batch * eta_value) ** 2 + (float(moment) + 1.0) ** 2
+                    )
+                    derivative[:, index] = (
+                        k_batch * previous
+                        - k_batch
+                        * (float(moment) + 1.0)
+                        * current
+                        / denominator
+                    )
+                else:
+                    derivative[:, index] = (
+                        float(moment)
+                        / (2.0 * float(moment) + 1.0)
+                        * k_batch
+                        * previous
+                        - (float(moment) + 1.0)
+                        / (2.0 * float(moment) + 1.0)
+                        * k_batch
+                        * working[:, next_index]
+                    )
+            if numpy.any(active):
+                active_rows = numpy.flatnonzero(active)
+                for moment, index in temperature_indices.items():
+                    if moment >= 2:
+                        derivative[active_rows, index] = 0.0
+                for moment, index in polarization_indices.items():
+                    if moment >= 2:
+                        derivative[active_rows, index] = 0.0
+            return derivative
+
+        def _exact_two_state_batch(
+            matrix_00: numpy.ndarray,
+            matrix_01: numpy.ndarray,
+            matrix_10: numpy.ndarray,
+            matrix_11: numpy.ndarray,
+            target: numpy.ndarray,
+            *,
+            scale: float,
+        ) -> numpy.ndarray:
+            """Apply a real two-by-two exponential to every mode row."""
+
+            a00 = matrix_00 * float(scale)
+            a01 = matrix_01 * float(scale)
+            a10 = matrix_10 * float(scale)
+            a11 = matrix_11 * float(scale)
+            trace_half = 0.5 * (a00 + a11)
+            centered00 = a00 - trace_half
+            centered11 = a11 - trace_half
+            discriminant = 0.25 * (a00 - a11) ** 2 + a01 * a10
+            delta = numpy.sqrt(discriminant.astype(complex))
+            exp_trace = numpy.exp(trace_half)
+            with numpy.errstate(divide="ignore", invalid="ignore"):
+                coefficient = numpy.where(
+                    numpy.abs(delta) <= 1.0e-14,
+                    exp_trace,
+                    (
+                        numpy.exp(trace_half + delta)
+                        - numpy.exp(trace_half - delta)
+                    )
+                    / delta,
+                )
+            result_0 = 0.5 * (
+                (numpy.exp(trace_half + delta) + numpy.exp(trace_half - delta))
+                * target[:, 0]
+                + coefficient
+                * (centered00 * target[:, 0] + a01 * target[:, 1])
+            )
+            result_1 = 0.5 * (
+                (numpy.exp(trace_half + delta) + numpy.exp(trace_half - delta))
+                * target[:, 1]
+                + coefficient
+                * (a10 * target[:, 0] + centered11 * target[:, 1])
+            )
+            near_zero = numpy.abs(delta) <= 1.0e-14
+            if numpy.any(near_zero):
+                result_0[near_zero] = exp_trace[near_zero] * (
+                    target[near_zero, 0]
+                    + centered00[near_zero] * target[near_zero, 0]
+                    + a01[near_zero] * target[near_zero, 1]
+                )
+                result_1[near_zero] = exp_trace[near_zero] * (
+                    target[near_zero, 1]
+                    + a10[near_zero] * target[near_zero, 0]
+                    + centered11[near_zero] * target[near_zero, 1]
+                )
+            return numpy.asarray(
+                numpy.real_if_close(
+                    numpy.column_stack((result_0, result_1)),
+                    tol=1000,
+                ),
+                dtype=float,
+            )
+
+        polarization_matrix = numpy.asarray(
+            ((-0.9, 0.6), (0.1, -0.4)),
+            dtype=float,
+        )
+        polarization_eigensystem = _cached_collision_eigendecomposition(
+            polarization_matrix,
+            {},
+        )
+
+        def _collision_batch(
+            vector: numpy.ndarray,
+            *,
+            step_index: int,
+            blend: float,
+            dt: float,
+            active: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Apply generated collision blocks to all non-tight rows."""
+
+            if dt == 0.0:
+                return numpy.asarray(vector, dtype=float)
+            if numpy.all(active):
+                return _tight_coupling_closure_batch(
+                    numpy.asarray(vector, dtype=float),
+                    step_index=step_index,
+                    blend=blend,
+                    active=active,
+                )
+            (_, a_value, _, _, _, collision_rate, _) = _background_values(
+                step_index, blend
+            )
+            rate = max(collision_rate, 0.0)
+            if rate <= 1.0e-12:
+                return _tight_coupling_closure_batch(
+                    numpy.asarray(vector, dtype=float),
+                    step_index=step_index,
+                    blend=blend,
+                    active=active,
+                )
+            result = numpy.asarray(vector, dtype=float).copy()
+            inactive = ~active
+            dipole_temperature = temperature_indices.get(1)
+            if dipole_temperature is not None and theta_b_index is not None:
+                target = result[:, (dipole_temperature, theta_b_index)]
+                gamma = 4.0 * omega_gamma / (3.0 * omega_b * a_value)
+                updated = _exact_two_state_batch(
+                    numpy.full(mode_count, -1.0),
+                    1.0 / (3.0 * k_batch),
+                    3.0 * k_batch * gamma,
+                    numpy.full(mode_count, -gamma),
+                    target,
+                    scale=rate * dt,
+                )
+                result[inactive, dipole_temperature] = updated[inactive, 0]
+                result[inactive, theta_b_index] = updated[inactive, 1]
+            temperature_quadrupole = temperature_indices.get(2)
+            polarization_quadrupole = polarization_indices.get(2)
+            if (
+                temperature_quadrupole is not None
+                and polarization_quadrupole is not None
+            ):
+                target = result[
+                    :, (temperature_quadrupole, polarization_quadrupole)
+                ]
+                eigenvalues, eigenvectors, inverse = polarization_eigensystem
+                transformed = (
+                    eigenvectors
+                    @ (
+                        numpy.exp(
+                            numpy.asarray(eigenvalues, dtype=complex)
+                            * rate
+                            * float(dt)
+                        )[:, numpy.newaxis]
+                        * (inverse @ target.T)
+                    )
+                ).T
+                updated = numpy.asarray(
+                    numpy.real_if_close(transformed, tol=1000),
+                    dtype=float,
+                )
+                result[inactive, temperature_quadrupole] = updated[inactive, 0]
+                result[inactive, polarization_quadrupole] = updated[
+                    inactive, 1
+                ]
+            damping = math.exp(-rate * float(dt))
+            for moment, index in temperature_indices.items():
+                if moment >= 3:
+                    result[inactive, index] *= damping
+            for moment, index in polarization_indices.items():
+                if moment >= 3:
+                    result[inactive, index] *= damping
+            if phi_index is None:
+                Hconf = _background_values(step_index, blend)[2]
+                result[:, sync_eta_index] = (
+                    result[:, -1] + Hconf * result[:, sync_alpha_index]
+                )
+            result = _tight_coupling_closure_batch(
+                result,
+                step_index=step_index,
+                blend=blend,
+                active=active,
+            )
+            return result
+
+        def _record_batch(
+            vector: numpy.ndarray,
+            *,
+            step_index: int,
+            blend: float,
+            active: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Apply the declared closure before storing a grid node."""
+
+            return _tight_coupling_closure_batch(
+                vector,
+                step_index=step_index,
+                blend=blend,
+                active=active,
+            )
+
+        eta_values = numpy.asarray(active_grids["eta"], dtype=float)
+        interval_count = max(int(eta_values.size) - 1, 0)
+        active_intervals = numpy.zeros(
+            (mode_count, interval_count),
+            dtype=bool,
+        )
+        for row_index, mode_k in enumerate(k_batch):
+            active_mode = _tight_coupling_is_active(
+                active=False,
+                collision_rate=float(active_grids["collision_rate"][0]),
+                k_value=float(mode_k),
+                tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+            )
+            for step_index in range(interval_count):
+                active_intervals[row_index, step_index] = active_mode
+                active_mode = _tight_coupling_is_active(
+                    active=active_mode,
+                    collision_rate=float(
+                        active_grids["collision_rate"][step_index + 1]
+                    ),
+                    k_value=float(mode_k),
+                    tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+                )
+        dt_values = numpy.diff(eta_values)
+        phase_substeps = numpy.maximum(
+            1,
+            numpy.ceil(
+                numpy.abs(dt_values)[numpy.newaxis, :] * k_batch[:, None] / 0.5
+            ).astype(int),
+        )
+        collision_rates = numpy.maximum(
+            numpy.asarray(active_grids["collision_rate"][:-1], dtype=float),
+            numpy.asarray(active_grids["collision_rate"][1:], dtype=float),
+        )
+        collision_substeps = numpy.ceil(
+            numpy.abs(dt_values)[numpy.newaxis, :] * collision_rates / 0.25
+        ).astype(int)
+        required_substeps = numpy.maximum(phase_substeps, collision_substeps)
+        required_substeps = numpy.where(
+            active_intervals,
+            phase_substeps,
+            required_substeps,
+        )
+        histories, final_states, stats = _integrate_batched_rk4(
+            states,
+            eta_values,
+            required_substeps=required_substeps,
+            active_intervals=active_intervals,
+            rhs=_rhs_batch,
+            pre_step=_collision_batch,
+            post_step=_collision_batch,
+            record_step=_record_batch,
+        )
+        source_histories = {
+            name: histories[:, :, index]
+            for name, index in state_indices.items()
+            if name in history_names
+        }
+        if phi_index is None:
+            final_states = final_states[:, :state_count]
+        return source_histories, final_states, stats
+
     # These dependency classifications depend on the declared graph and the
     # stable background-history names, not on the Fourier mode being evolved.
     state_variable_names = {
@@ -3234,6 +3958,142 @@ def _compute_custom_cmb_spectrum_data(
         for runtime in split_collision_runtimes
     }
 
+    def _prepare_mode_initial_state(
+        mode_k_value: float,
+    ) -> tuple[numpy.ndarray, set[tuple[str, str, int]]]:
+        """Prepare one mode state without entering its evolution path."""
+
+        initial_eta, initial_background = _scalar_background_context(
+            0,
+            0.0,
+            k_value=float(mode_k_value),
+        )
+        initial_context = _build_declared_base_context(
+            perturbation_data=perturbation_data,
+            model_parameters=source_parameters,
+            physical_params=physical_params,
+            numerics=numerics,
+            k_value=float(mode_k_value),
+            eta_value=float(initial_eta),
+            background_scalars=initial_background,
+        )
+        initial_state, assigned_targets = _evaluate_declared_initial_state(
+            perturbation_data=perturbation_data,
+            execution_plan=execution_plan,
+            base_context=initial_context,
+        )
+        state = numpy.asarray(initial_state, dtype=float)
+        initial_state_context = _build_scalar_state_context(
+            state,
+            k_value=float(mode_k_value),
+            eta_value=float(initial_eta),
+            background_scalars=initial_background,
+        )
+        if generated_scalar_hierarchy:
+            velocity_state_indices = tuple(
+                int(slot.index)
+                for slot in runtime_spec.state_slots
+                if slot.order == 0
+                and (
+                    str(slot.variable)
+                    in {
+                        "theta_b",
+                        "theta_c",
+                        "theta_gamma1",
+                        "theta_nu",
+                    }
+                    or str(slot.variable).startswith("theta_nu_massive_q")
+                )
+            )
+            if velocity_state_indices:
+                zero_velocity_state = state.copy()
+                zero_velocity_state[list(velocity_state_indices)] = 0.0
+                zero_velocity_context = _build_scalar_state_context(
+                    zero_velocity_state,
+                    k_value=float(mode_k_value),
+                    eta_value=float(initial_eta),
+                    background_scalars=initial_background,
+                )
+                zero_velocity_residual = float(
+                    zero_velocity_context.get(
+                        "einstein_energy_residual",
+                        0.0,
+                    )
+                )
+                current_velocity_residual = float(
+                    initial_state_context.get(
+                        "einstein_energy_residual",
+                        zero_velocity_residual,
+                    )
+                )
+                residual_slope = (
+                    current_velocity_residual - zero_velocity_residual
+                )
+                if abs(residual_slope) > 1.0e-30:
+                    velocity_factor = -zero_velocity_residual / residual_slope
+                    if (
+                        numpy.isfinite(velocity_factor)
+                        and 0.25 <= float(velocity_factor) <= 4.0
+                    ):
+                        state[list(velocity_state_indices)] *= float(
+                            velocity_factor
+                        )
+                        initial_state_context = _build_scalar_state_context(
+                            state,
+                            k_value=float(mode_k_value),
+                            eta_value=float(initial_eta),
+                            background_scalars=initial_background,
+                        )
+        _validate_generated_scalar_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=initial_state_context,
+            k_value=float(mode_k_value),
+        )
+        _validate_generated_vector_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=initial_state_context,
+            k_value=float(mode_k_value),
+        )
+        return state, assigned_targets
+
+    def _evaluate_source_histories(
+        mode_k_value: float,
+        source_histories: Mapping[str, numpy.ndarray],
+    ) -> dict[str, numpy.ndarray]:
+        """Evaluate declared sources and conservation on source-grid rows."""
+
+        nonlocal active_grids
+        nonlocal active_declared_background_histories
+        nonlocal active_coordinate_rate_histories
+        active_grids = dict(source_grids)
+        active_declared_background_histories = (
+            source_declared_background_histories
+        )
+        active_coordinate_rate_histories = source_coordinate_rate_histories
+        array_context = _build_array_context(
+            source_histories,
+            k_value=float(mode_k_value),
+        )
+        source_arrays = _evaluate_declared_sources(
+            array_context,
+            k_value=float(mode_k_value),
+        )
+        conservation_context = dict(array_context)
+        conservation_context.update(source_arrays)
+        conservation_context = _resolve_declared_graph_context(
+            conservation_context,
+            perturbation_data,
+            allow_partial=True,
+            eta_grid=source_grids["eta"],
+            execution_plan=execution_plan,
+        )
+        _validate_declared_conservation_rules(
+            perturbation_data=perturbation_data,
+            context=conservation_context,
+            k_value=float(mode_k_value),
+        )
+        return source_arrays
+
     def _evolve_declared_mode(
         k_value: float,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
@@ -3243,8 +4103,10 @@ def _compute_custom_cmb_spectrum_data(
         nonlocal active_declared_background_histories
         nonlocal active_coordinate_rate_histories
         nonlocal scalar_base_context_cache
+        nonlocal active_k_value
 
         scalar_base_context_cache = {}
+        active_k_value = float(k_value)
 
         end_boundary_entries = execution_plan.end_condition_entries
         (
@@ -3252,6 +4114,7 @@ def _compute_custom_cmb_spectrum_data(
             active_declared_background_histories,
             active_coordinate_rate_histories,
         ) = _mode_grids_for_k(float(k_value))
+        initial_eta, initial_background = _scalar_background_context(0, 0.0)
 
         collision_metadata_cache: dict[
             tuple[str, int, float], tuple[float, numpy.ndarray, float | None]
@@ -3670,88 +4533,7 @@ def _compute_custom_cmb_spectrum_data(
                 )
             return numpy.asarray(residuals, dtype=float)
 
-        initial_eta, initial_background = _scalar_background_context(0, 0.0)
-        initial_context = _build_declared_base_context(
-            perturbation_data=perturbation_data,
-            model_parameters=source_parameters,
-            physical_params=physical_params,
-            numerics=numerics,
-            k_value=float(k_value),
-            eta_value=float(initial_eta),
-            background_scalars=initial_background,
-        )
-        initial_state, assigned_targets = _evaluate_declared_initial_state(
-            perturbation_data=perturbation_data,
-            execution_plan=execution_plan,
-            base_context=initial_context,
-        )
-        state = numpy.asarray(initial_state, dtype=float)
-        initial_state_context = _build_scalar_state_context(
-            state,
-            k_value=float(k_value),
-            eta_value=float(initial_eta),
-            background_scalars=initial_background,
-        )
-        if generated_scalar_hierarchy:
-            velocity_state_indices = tuple(
-                int(slot.index)
-                for slot in runtime_spec.state_slots
-                if slot.order == 0
-                and (
-                    str(slot.variable)
-                    in {"theta_b", "theta_c", "theta_gamma1", "theta_nu"}
-                    or str(slot.variable).startswith("theta_nu_massive_q")
-                )
-            )
-            if velocity_state_indices:
-                zero_velocity_state = state.copy()
-                zero_velocity_state[list(velocity_state_indices)] = 0.0
-                zero_velocity_context = _build_scalar_state_context(
-                    zero_velocity_state,
-                    k_value=float(k_value),
-                    eta_value=float(initial_eta),
-                    background_scalars=initial_background,
-                )
-                zero_velocity_residual = float(
-                    zero_velocity_context.get(
-                        "einstein_energy_residual",
-                        0.0,
-                    )
-                )
-                current_velocity_residual = float(
-                    initial_state_context.get(
-                        "einstein_energy_residual",
-                        zero_velocity_residual,
-                    )
-                )
-                residual_slope = (
-                    current_velocity_residual - zero_velocity_residual
-                )
-                if abs(residual_slope) > 1.0e-30:
-                    velocity_factor = -zero_velocity_residual / residual_slope
-                    if (
-                        numpy.isfinite(velocity_factor)
-                        and 0.25 <= float(velocity_factor) <= 4.0
-                    ):
-                        state[list(velocity_state_indices)] *= float(
-                            velocity_factor
-                        )
-                        initial_state_context = _build_scalar_state_context(
-                            state,
-                            k_value=float(k_value),
-                            eta_value=float(initial_eta),
-                            background_scalars=initial_background,
-                        )
-        _validate_generated_scalar_initial_constraints(
-            perturbation_data=perturbation_data,
-            context=initial_state_context,
-            k_value=float(k_value),
-        )
-        _validate_generated_vector_initial_constraints(
-            perturbation_data=perturbation_data,
-            context=initial_state_context,
-            k_value=float(k_value),
-        )
+        state, assigned_targets = _prepare_mode_initial_state(float(k_value))
         fast_generated_history = None
         if (
             generated_scalar_hierarchy
@@ -3908,43 +4690,122 @@ def _compute_custom_cmb_spectrum_data(
                 )
                 for name, history in histories.items()
             }
-        active_grids = dict(source_grids)
-        active_declared_background_histories = (
-            source_declared_background_histories
-        )
-        active_coordinate_rate_histories = source_coordinate_rate_histories
-        array_context = _build_array_context(
+        source_arrays = _evaluate_source_histories(
+            float(k_value),
             source_histories,
-            k_value=float(k_value),
-        )
-        source_arrays = _evaluate_declared_sources(
-            array_context,
-            k_value=float(k_value),
-        )
-        conservation_context = dict(array_context)
-        conservation_context.update(source_arrays)
-        # Re-resolve declared value nodes on top of the array histories so
-        # conservation rules always see collision/operator surfaces even when
-        # earlier test runs have populated caches in a different order.
-        conservation_context = _resolve_declared_graph_context(
-            conservation_context,
-            perturbation_data,
-            allow_partial=True,
-            eta_grid=source_grids["eta"],
-            execution_plan=execution_plan,
-        )
-        _validate_declared_conservation_rules(
-            perturbation_data=perturbation_data,
-            context=conservation_context,
-            k_value=float(k_value),
         )
         return source_histories, source_arrays
 
+    def _batch_generated_source_histories(
+        mode_k_values: numpy.ndarray,
+        *,
+        envelope: dict[str, Any] | None = None,
+    ) -> dict[int, tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]]:
+        """Batch generated scalar modes that share one evolution grid."""
+
+        nonlocal active_grids
+        nonlocal active_declared_background_histories
+        nonlocal active_coordinate_rate_histories
+        if envelope is None:
+            envelope = runtime_envelope
+
+        if (
+            not generated_scalar_hierarchy
+            or momentum_runtimes
+            or execution_plan.end_condition_entries
+            or str(getattr(perturbation_data, "gauge", ""))
+            not in {"conformal_newtonian", "synchronous", "gauge_invariant"}
+        ):
+            return {}
+        groups: dict[bytes, dict[str, Any]] = {}
+        for mode_index, mode_k_value in enumerate(
+            numpy.asarray(mode_k_values, dtype=float)
+        ):
+            mode_grids = _mode_grids_for_k(float(mode_k_value))
+            eta_mode = numpy.asarray(mode_grids[0]["eta"], dtype=float)
+            group_key = eta_mode.tobytes()
+            group = groups.setdefault(
+                group_key,
+                {
+                    "indices": [],
+                    "k_values": [],
+                    "grids": mode_grids,
+                },
+            )
+            group["indices"].append(int(mode_index))
+            group["k_values"].append(float(mode_k_value))
+        results: dict[
+            int,
+            tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]],
+        ] = {}
+        for group in groups.values():
+            if len(group["indices"]) < 4:
+                continue
+            (
+                active_grids,
+                active_declared_background_histories,
+                active_coordinate_rate_histories,
+            ) = group["grids"]
+            initial_states = []
+            for mode_k_value in group["k_values"]:
+                state, _ = _prepare_mode_initial_state(mode_k_value)
+                initial_states.append(state)
+            source_histories_batch, _, batch_stats = (
+                _integrate_generated_scalar_history_batch(
+                    numpy.asarray(initial_states, dtype=float),
+                    k_values_batch=numpy.asarray(
+                        group["k_values"],
+                        dtype=float,
+                    ),
+                )
+            )
+            envelope["batch_count"] = int(envelope.get("batch_count", 0)) + 1
+            envelope["batch_mode_count"] = int(
+                envelope.get("batch_mode_count", 0)
+            ) + int(batch_stats.mode_count)
+            envelope["batched_rk_stage_count"] = int(
+                envelope.get("batched_rk_stage_count", 0)
+            ) + int(batch_stats.rk_stage_count)
+            envelope["batched_max_substeps"] = max(
+                int(envelope.get("batched_max_substeps", 0)),
+                int(batch_stats.maximum_substeps),
+            )
+            eta_mode = numpy.asarray(active_grids["eta"], dtype=float)
+            for row_index, mode_index in enumerate(group["indices"]):
+                mode_histories = {
+                    name: numpy.asarray(values[row_index], dtype=float)
+                    for name, values in source_histories_batch.items()
+                }
+                if not numpy.array_equal(eta_mode, source_grids["eta"]):
+                    mode_histories = {
+                        name: numpy.asarray(
+                            numpy.interp(
+                                source_grids["eta"],
+                                eta_mode,
+                                history,
+                            ),
+                            dtype=float,
+                        )
+                        for name, history in mode_histories.items()
+                    }
+                mode_k_value = float(group["k_values"][row_index])
+                mode_sources = _evaluate_source_histories(
+                    mode_k_value,
+                    mode_histories,
+                )
+                results[mode_index] = (mode_histories, mode_sources)
+        return results
+
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 128
+    batched_source_histories = _batch_generated_source_histories(k_values)
 
     for k_index, k_value in enumerate(k_values):
-        _, source_arrays = _evolve_declared_mode(float(k_value))
+        batched_mode = batched_source_histories.get(int(k_index))
+        if batched_mode is None:
+            _, source_arrays = _evolve_declared_mode(float(k_value))
+        else:
+            _, source_arrays = batched_mode
         if adaptive_k_enabled:
             for (
                 component_name,
@@ -4107,11 +4968,28 @@ def _compute_custom_cmb_spectrum_data(
             ),
         )
         direct_envelope["static_graph_preparations"] = 1
+        direct_envelope["contract_static_preparations"] = 1
+        direct_envelope["cosmology_static_preparations"] = 1
+        direct_envelope["request_specific_preparations"] = 1
         direct_envelope["dynamic_mode_count"] = int(direct_k.size)
+        direct_envelope["batch_count"] = 0
+        direct_envelope["batch_mode_count"] = 0
+        direct_envelope["batched_rk_stage_count"] = 0
+        direct_envelope["batched_max_substeps"] = 0
+        direct_batched_source_histories = _batch_generated_source_histories(
+            direct_k,
+            envelope=direct_envelope,
+        )
         for direct_k_index, direct_k_value in enumerate(direct_k):
-            _, direct_source_arrays = _evolve_declared_mode(
-                float(direct_k_value)
+            direct_batched_mode = direct_batched_source_histories.get(
+                int(direct_k_index)
             )
+            if direct_batched_mode is None:
+                _, direct_source_arrays = _evolve_declared_mode(
+                    float(direct_k_value)
+                )
+            else:
+                _, direct_source_arrays = direct_batched_mode
             x_values = float(direct_k_value) * (eta0 - source_grids["eta"])
             x_signature = hashlib.sha256(
                 numpy.asarray(x_values, dtype=float).tobytes()
