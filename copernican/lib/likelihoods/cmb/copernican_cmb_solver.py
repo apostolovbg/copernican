@@ -212,7 +212,7 @@ def _power_spectrum_scale_factor(
             * numpy.longdouble(t_cmb_muK)
         )
     if name in {"TP", "EP"}:
-        return ell_factor * numpy.longdouble(t_cmb_muK)
+        return ell_factor
     if name == "PP":
         return 2.0 * numpy.longdouble(math.pi) * ell_factor * ell_factor
     return (

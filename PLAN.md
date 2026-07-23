@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-21
+**Last Updated:** 2026-07-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -130,7 +130,7 @@ The following acceptance areas are not established by the current baseline:
 
 ## Overview
 
-The roadmap divides the target work into twenty-two slices.
+The roadmap divides the target work into thirty-nine slices.
 
 Slice One locks the physical convention.
 
@@ -167,21 +167,55 @@ Slice Fourteen establishes adaptive transfer and projection convergence.
 
 Slice Fifteen establishes native performance and architecture acceptance.
 
-Slice Sixteen establishes native scalar absolute parity.
+Slice Sixteen establishes the authoritative native scalar runtime and bans
+shortcut implementations.
 
-Slice Seventeen establishes native lensing parity.
+Slice Seventeen establishes scalar metric and species evolution correctness.
 
-Slice Eighteen establishes massive-neutrino absolute parity.
+Slice Eighteen establishes regular scalar initial conditions and mode
+families.
 
-Slice Nineteen establishes tensor absolute parity.
+Slice Nineteen establishes declared tight coupling and hierarchy closure.
 
-Slice Twenty establishes gauge and vector absolute parity.
+Slice Twenty establishes scalar evolution refinement convergence.
 
-Slice Twenty-One removes production backend routing and completes the
-native-only cutover.
+Slice Twenty-One establishes line-of-sight source conventions.
 
-Slice Twenty-Two establishes final convergence and closes the repository
-truth.
+Slice Twenty-Two establishes independent projection kernels.
+
+Slice Twenty-Three establishes scalar projection convergence.
+
+Slice Twenty-Four establishes native scalar absolute parity.
+
+Slice Twenty-Five establishes lensing remapping correctness.
+
+Slice Twenty-Six establishes lensed scalar absolute parity.
+
+Slice Twenty-Seven establishes massive-neutrino q-hierarchy correctness.
+
+Slice Twenty-Eight establishes massive-neutrino absolute parity.
+
+Slice Twenty-Nine establishes tensor hierarchy correctness.
+
+Slice Thirty establishes tensor absolute parity.
+
+Slice Thirty-One establishes gauge-equivalent scalar parity.
+
+Slice Thirty-Two establishes physical vector hierarchy and parity.
+
+Slice Thirty-Three removes native production route branching.
+
+Slice Thirty-Four migrates the model corpus and native model assets.
+
+Slice Thirty-Five completes user-facing native-only cutover.
+
+Slice Thirty-Six isolates scientific references and package artifacts.
+
+Slice Thirty-Seven establishes cross-sector numerical convergence.
+
+Slice Thirty-Eight validates output, cache, and contract consistency.
+
+Slice Thirty-Nine performs final scientific and repository closure.
 
 Each slice includes its own implementation, tests, documentation, and
 changelog entry. The roadmap contains no cleanup slice.
@@ -201,7 +235,7 @@ changelog entry. The roadmap contains no cleanup slice.
 * Production native code must not import or call CAMB or CLASS.
 * During migration, preserve model physics and public output contracts;
   complete the native replacement before removing the standard route in
-  Slice Twenty-One.
+  Slice Thirty-Three.
 * Do not add empirical output scales, direct spectrum injections, hidden
   damping, or test-only physical terms.
 * Missing spectra must remain unavailable with a reason.
@@ -212,6 +246,11 @@ changelog entry. The roadmap contains no cleanup slice.
 * Parameter-response tests do not count as absolute parity tests.
 * Gauge labels do not count as independent gauge implementations.
 * Tagged vector or tensor variables do not count as physical sectors.
+* Every slice must have a targeted verification command with a three-minute
+  wall-clock budget. A timeout is an implementation failure, not a reason
+  to create a hidden chunk.
+* A slice must satisfy every listed physical threshold before it is closed;
+  passing the repository gate alone is not implementation acceptance.
 * Every slice must update its touched documentation and `CHANGELOG.md`.
 * Stage completed slice changes before beginning the next slice.
 * Do not commit or push unless explicitly instructed.
@@ -1238,22 +1277,26 @@ Implementation closure:
   interaction, gauge, tensor, vector, and q-resolved paths, and the joint
   likelihood smoke workload.
 
-### [open] Slice Sixteen - Native scalar absolute parity
+### [closed] Slice Sixteen - Native scalar runtime authority
 
 Purpose:
 
-Establish absolute scalar spectrum parity for the production native LCDM
-model at a fixed cosmology against an independent reference.
+Establish one authoritative native scalar Einstein-Boltzmann runtime before
+absolute spectrum parity work. This slice closes the architectural defect
+that permits a hand-written approximation to diverge from the declared
+graph.
 
 Depends on:
 
-* Slice Fifteen with the species-accurate native runtime accepted.
+* Slice Fifteen with its performance instrumentation retained.
 
 Probable affected files:
 
+* `copernican/lib/perturbation_contract.py`
 * `copernican/lib/likelihoods/cmb/native_evolution.py`
 * `copernican/lib/likelihoods/cmb/native_projection.py`
 * `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `tests/copernican/lib/test_perturbation_contract.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
 * `copernican/docs/cmb_solver.md`
 * `CHANGELOG.md`
@@ -1261,144 +1304,471 @@ Probable affected files:
 
 Scope:
 
-* Establish the LCDM-family baseline only after tests prove that the compiled
-  species and source graph match the model declaration.
+* Make the compiled declared scalar graph the sole production scalar
+  evolution authority.
+* Remove parallel hand-written scalar equations and alternate physics paths.
+* Permit batching and caching only when they execute the same compiled graph
+  or pass an explicit mathematical-equivalence test against it.
+* Keep species, equations, constraints, closures, collision operators,
+  initial conditions, and source roles declaration-driven.
+* Preserve bounded runtime envelopes without reducing physical equations,
+  hierarchy depth, source terms, or requested output surfaces.
+* Keep CAMB and CLASS outside production execution.
+
+Required tests:
+
+* A generated scalar contract and its generic declared execution path produce
+  the same state histories, source histories, transfers, and spectra.
+* Any optimized or batched scalar path is proven equivalent to the generic
+  path at fixed states, grids, and parameters.
+* Production native modules contain no CAMB or CLASS import or call.
+* Production code contains no empirical spectrum scale, direct spectrum
+  injection, hidden damping, reference-output lookup, or shortcut branch.
+* A declared species graph cannot acquire undeclared LCDM species or source
+  terms during compilation or execution.
+* The bounded runtime envelope rejects under-declared or unbounded work
+  rather than silently lowering the requested physical calculation.
+
+Done when:
+
+* One compiled declared scalar runtime is authoritative in production.
+* All alternate scalar physics paths are removed or mechanically proven
+  equivalent by tests.
+* The no-shortcut regression suite passes in under three minutes.
+* Documentation and model declarations describe the authoritative runtime
+  without historical migration wording.
+
+### [open] Slice Seventeen - Scalar metric and species evolution
+
+Purpose:
+
+Validate the physical scalar equations executed by the authoritative runtime
+before adding initial-mode, closure, projection, or parity acceptance.
+
+Depends on:
+
+* Slice Sixteen.
+
+Scope:
+
+* Audit scalar metric, photon, baryon, matter, and massless-neutrino
+  equations against the convention fixed by Slice One.
+* Use time-dependent background density and pressure weights in every metric
+  source.
+* Enforce declared state, source, unit, and species ownership at compile and
+  execution time.
+* Evaluate Einstein energy, momentum, and shear constraints at named
+  evolution anchors.
+* Remove any remaining hard-coded scalar source or state branch.
+
+Required acceptance:
+
+* Constraint residuals stay within their declared tolerances throughout the
+  accepted history.
+* Generated and generic declared executions agree for fixed states, grids,
+  parameters, sources, and transfers.
+* A contract without a species or source does not acquire it implicitly.
+* Finite-state and unit checks fail before projection when violated.
+
+Done when:
+
+* Scalar state histories are physically normalized, constraint-consistent,
+  and entirely declaration-driven.
+
+### [open] Slice Eighteen - Scalar initial conditions and mode families
+
+Purpose:
+
+Complete regular scalar initial conditions independently of tight coupling and
+full-spectrum parity.
+
+Depends on:
+
+* Slice Seventeen.
+
+Scope:
+
+* Implement the regular adiabatic initial series for every declared scalar
+  species and metric state.
+* Implement each supported declared scalar isocurvature family.
+* Seed all gauge routes through explicit transformations or invariant
+  variables rather than forced aliases.
+* Validate early-start and hidden-prefix evolution at fixed modes.
+* Reject an initial mode that violates declared constraints or finiteness.
+
+Required acceptance:
+
+* Initial states satisfy the declared Einstein and collision constraints.
+* Adiabatic and each supported isocurvature mode produce distinct,
+  reproducible source histories where physics requires it.
+* Early-start and hidden-prefix histories agree within `5%` on the accepted
+  comparison surface.
+* Initial-mode tests use absolute states and sources, not response ratios.
+
+Done when:
+
+* All supported scalar initial modes are regular, finite, constrained, and
+  connected to the declared graph.
+
+### [open] Slice Nineteen - Declared tight coupling and hierarchy closure
+
+Purpose:
+
+Complete the declared fast-collision regime and terminal hierarchy behavior
+without a scalar-specific physics path.
+
+Depends on:
+
+* Slice Eighteen.
+
+Scope:
+
+* Implement declared tight-coupling entry and exit conditions.
+* Apply declared exact and implicit collision operators with momentum
+  conservation and their declared fast-manifold targets.
+* Implement the declared first-order temperature and polarization closures.
+* Implement terminal closures for photon and massless-neutrino hierarchies.
+* Preserve collision invariants through every split or implicit step.
+
+Required acceptance:
+
+* Entry and exit use declared hysteresis thresholds and collision metadata.
+* Exact collision matrix limits match independent linear-algebra fixtures.
+* Increasing hierarchy depth changes the terminal surface only within the
+  later convergence tolerance, without changing declared equations.
+* Collision conservation failures stop before evolution proceeds.
+
+Done when:
+
+* Tight coupling and terminal closure are declaration-driven, conserved,
+  finite, and directly tested at their physical limits.
+
+### [open] Slice Twenty - Scalar evolution refinement convergence
+
+Purpose:
+
+Prove convergence of scalar histories and sources after equations, initial
+conditions, collisions, and closures are individually complete.
+
+Depends on:
+
+* Slice Nineteen.
+
+Scope:
+
+* Compare scalar histories under doubled evolution sampling.
+* Compare scalar histories under increased photon and massless-neutrino
+  hierarchy depth.
+* Compare low, recombination, and late-time source anchor regions.
+* Keep runtime-envelope controls explicit and reject under-resolved requests.
+
+Required thresholds:
+
+* Accepted state and source histories change by less than `1%` at each anchor
+  region under the declared refinements.
+* Increasing hierarchy depth changes accepted scalar histories by less than
+  `1%`.
+* The targeted convergence command completes within three minutes.
+
+Done when:
+
+* Scalar evolution convergence is demonstrated with physical output rather
+  than grid-size activation or response-only evidence.
+
+### [open] Slice Twenty-One - Line-of-sight source conventions
+
+Purpose:
+
+Implement and independently validate every scalar line-of-sight source before
+testing radial integration.
+
+Depends on:
+
+* Slice Twenty.
+
+Scope:
+
+* Implement declared temperature, Doppler, ISW, polarization, and
+  lensing-potential sources.
+* Preserve visibility-era source refinement and direct declared histories.
+* Validate temperature and E-mode transfer normalization independently of
+  evolution normalization.
+* Keep source availability tied to declared sectors and source roles.
+
+Required acceptance:
+
+* Analytic source fixtures reproduce each source term and sign.
+* Source histories remain stable under a source-grid refinement.
+* A missing source makes its spectrum unavailable with a reason and does
+  not fabricate zeros or evaluate an unrelated sector.
+
+Done when:
+
+* Scalar line-of-sight sources are canonical, normalized, and declaration-
+  driven before radial projection is assessed.
+
+### [open] Slice Twenty-Two - Independent projection kernels
+
+Purpose:
+
+Validate radial kernels independently of scalar source evolution and
+line-of-sight integration.
+
+Depends on:
+
+* Slice Twenty-One.
+
+Scope:
+
+* Validate spherical-Bessel, derivative, spin-2, tensor, vector, and lensing
+  kernels against analytic or SciPy references.
+* Validate kernel batching at fixed inputs against scalar evaluation.
+* Validate interpolation, endpoint, parity, and zero-crossing behavior.
+* Reject sector-incompatible kernels before projection.
+
+Required thresholds:
+
+* Nonzero kernel reference values agree within `1e-10` relative tolerance.
+* Batched and scalar kernel values agree within `1e-12` at fixed inputs.
+* Kernel tests complete within three minutes without reducing requested
+  multipole or radial ranges.
+
+Done when:
+
+* Every production projection kernel has an independent numerical or
+  analytic acceptance test.
+
+### [open] Slice Twenty-Three - Scalar projection convergence
+
+Purpose:
+
+Prove convergence of scalar transfer functions and unlensed spectra after
+source and kernel correctness are established.
+
+Depends on:
+
+* Slice Twenty-Two.
+
+Scope:
+
+* Refine the k grid, eta grid, source grid, and radial integration together
+  only through explicit accuracy controls.
+* Preserve low-ell, visibility-era, and high-ell projection regions.
+* Compare `TT`, `TE`, `EE`, and `PP` on fixed accepted anchor surfaces.
+* Validate requested-spectrum filtering and output availability.
+
+Required thresholds:
+
+* Doubling k and eta projection resolution changes `TT`, `TE`, and `EE` by
+  less than `1%` on the accepted surface.
+* Source and kernel refinements preserve transfer normalization.
+* A requested projection never evaluates an unrelated sector or fabricates
+  a missing spectrum.
+
+Done when:
+
+* Scalar transfer functions and unlensed spectra converge independently of
+  any external reference spectrum.
+
+### [open] Slice Twenty-Four - Native scalar absolute parity
+
+Purpose:
+
+Establish absolute scalar parity for the native LCDM acceptance model after
+scalar evolution and projection have separately converged.
+
+Depends on:
+
+* Slice Twenty-Three.
+
+Scope:
+
 * Compare native `TT`, `TE`, and `EE` over ell `2..2000`.
-* Compare native `PP` over ell `10..1500`.
-* Compare native `TP` and `EP` over their declared supported ranges.
-* Compare TT and EE acoustic peak locations.
-* Compare TE zero crossings.
+* Compare native `PP` over ell `10..1500` and `TP` and `EP` over their
+  declared supported ranges.
+* Compare acoustic peak locations and TE zero crossings.
 * Generate CAMB or CLASS results only in independent scientific tests.
-* Do not use response ratios or standard-backend output as parity evidence.
+* Prohibit response ratios, empirical scales, injections, and fallback output
+  as parity evidence.
 
 Required thresholds:
 
-* `TT` median and 90th-percentile error at or below `5%` and `10%`.
-* `EE` median and 90th-percentile error at or below `5%` and `10%`.
-* normalized `TE` RMS error at or below `5%`.
-* first three TT and EE peaks within three ell.
-* first three TE zero crossings within three ell.
-* `PP` median and 90th-percentile error at or below `10%` and `20%`.
+* `TT` and `EE` median and 90th-percentile errors are at or below `5%` and
+  `10%`.
+* Normalized `TE` RMS error is at or below `5%`.
+* The first three TT and EE peaks and TE zero crossings are within three
+  ell.
+* `PP` median and 90th-percentile errors are at or below `10%` and `20%`.
 
 Done when:
 
-* Production native scalar output meets every threshold at fixed cosmology.
-* The full-range comparison is absolute and independently generated.
-* The parity fixture proves that no undeclared species or LCDM-only source is
-  present in the compiled production graph.
-* The physical source and hierarchy defects exposed by the comparison are
-  fixed at their production roots.
+* Native scalar output meets every absolute fixed-cosmology threshold and
+  the fixture proves that the production graph has no undeclared LCDM term.
 
-### [open] Slice Seventeen - Native lensing parity
+### [open] Slice Twenty-Five - Lensing remapping correctness
 
 Purpose:
 
-Validate the complete native scalar-to-lensed pipeline independently of the
-remapper-only tests.
+Validate lensing normalization and interpolation independently before
+feeding native scalar spectra through the complete lensed pipeline.
 
 Depends on:
 
-* Slice Sixteen.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+* Slice Twenty-Four.
 
 Scope:
 
-* Validate remapping normalization separately with independent inputs.
-* Validate remapping interpolation separately.
-* Feed native unlensed spectra and native `PP` into the remapper.
-* Compare native-source lensed `TT`, `TE`, `EE`, and `BB` with the reference.
-* Verify declared primordial and generated B-mode sources survive lensing.
+* Validate remapping normalization with independent unlensed inputs.
+* Validate remapping interpolation, quadrature, endpoints, and parity.
+* Validate the declared `PP` convention and lensing-potential dependence.
+* Prohibit Gaussian smoothing, direct spectrum injection, and empirical
+  output scaling.
+
+Required acceptance:
+
+* Analytic remapping fixtures meet their declared normalization tolerance.
+* Independent interpolation fixtures remain finite and converge under radial
+  refinement.
+* Changing `PP` changes the remapped spectrum itself.
+
+Done when:
+
+* The remapper is physically normalized, interpolation-stable, and isolated
+  from production reference output.
+
+### [open] Slice Twenty-Six - Lensed scalar absolute parity
+
+Purpose:
+
+Compare the complete native scalar-to-lensed pipeline with an independent
+reference using native unlensed spectra and native `PP`.
+
+Depends on:
+
+* Slice Twenty-Five.
+
+Scope:
+
+* Compare lensed `TT`, `TE`, `EE`, and `BB` over the declared ell range.
+* Verify primordial and generated B-mode sources survive lensing.
+* Keep lensed and unlensed availability states distinct.
 
 Required thresholds:
 
-* lensed spectra compare over ell `2..2000`.
-* lensed `BB` median fractional error is at or below `15%`.
-* Remapping normalization meets its analytic and reference tolerances.
+* Lensed `TT`, `TE`, and `EE` meet the scalar absolute parity thresholds.
+* Lensed `BB` median fractional error is at or below `15%`.
+* Lensed output changes when native `PP` changes.
 
 Done when:
 
-* Full lensed parity passes using native source and native lensing inputs.
-* No direct reference-spectrum injection participates in the production path.
+* Full lensed scalar parity passes without reference-spectrum participation
+  in the production path.
 
-### [open] Slice Eighteen - Massive-neutrino absolute parity
+### [open] Slice Twenty-Seven - Massive-neutrino q-hierarchy correctness
 
 Purpose:
 
-Validate the authoritative q-resolved massive-neutrino hierarchy at fixed
-cosmology with absolute native spectra.
+Validate the physical q-resolved massive-neutrino hierarchy before absolute
+massive-neutrino spectrum comparison.
 
 Depends on:
 
-* Slice Sixteen.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+* Slice Twenty-Six.
 
 Scope:
 
-* Compare massive-neutrino native spectra at fixed cosmologies.
-* Apply the comparison only to models that explicitly declare a massive-
-  neutrino species and q hierarchy; `sum_mnu: 0` alone does not declare one.
-* Validate q-grid nodes, weights, and thermal momentum factors.
+* Validate q nodes, weights, thermal momentum factors, and quadrature order.
 * Validate density, pressure, momentum, and shear source moments.
 * Validate relativistic-to-nonrelativistic background transitions.
-* Replace response-only neutrino evidence with absolute comparisons.
+* Ensure only contracts that declare a massive-neutrino species receive q
+  states and source terms.
+* Remove any aggregate massive-neutrino state that can drift from q bins.
+
+Required acceptance:
+
+* Fixed-distribution moment fixtures meet independent quadrature tolerances.
+* q refinement changes accepted moments within the final convergence
+  tolerance.
+* Models without a declared massive-neutrino species remain free of q
+  states and massive-neutrino sources.
+
+Done when:
+
+* The resolved q hierarchy is the sole massive-neutrino physical authority.
+
+### [open] Slice Twenty-Eight - Massive-neutrino absolute parity
+
+Purpose:
+
+Compare the q-resolved massive-neutrino native output at fixed cosmologies
+with an independent reference.
+
+Depends on:
+
+* Slice Twenty-Seven.
+
+Scope:
+
+* Compare absolute spectra for models that explicitly declare massive
+  neutrinos and q hierarchies.
+* Use fixed cosmologies rather than response ratios or `sum_mnu` responses.
+* Cover the relativistic and nonrelativistic transition regimes.
 
 Required threshold:
 
-* Massive-neutrino absolute spectrum errors are at or below `10%` for the
-  accepted comparison surface.
+* Accepted massive-neutrino spectrum errors are at or below `10%`.
 
 Done when:
 
-* Native massive-neutrino output agrees with the independent fixed-cosmology
-  reference and remains tied to the resolved q hierarchy.
-* Models without a declared massive-neutrino species remain free of massive-
-  neutrino state variables and source terms.
+* Absolute massive-neutrino parity passes and remains tied to the resolved
+  q hierarchy.
 
-### [open] Slice Nineteen - Tensor absolute parity
+### [open] Slice Twenty-Nine - Tensor hierarchy correctness
 
 Purpose:
 
-Establish absolute tensor spectrum parity for the native tensor hierarchy.
+Complete the physical tensor hierarchy and tensor source normalization before
+absolute tensor parity.
 
 Depends on:
 
-* Slice Sixteen.
+* Slice Twenty-Eight.
 
-Probable affected files:
+Scope:
 
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+* Implement and validate tensor metric, photon, polarization, and neutrino
+  equations from declared tensor roles.
+* Validate tensor amplitude, tilt, initial conditions, and terminal closure.
+* Validate tensor source normalization and tensor radial-kernel selection.
+* Keep tensor physics separate from scalar and vector state names.
+
+Required acceptance:
+
+* Tensor state histories are finite and satisfy declared constraints.
+* Tensor source and radial-kernel fixtures match independent analytic limits.
+* Increasing tensor hierarchy depth changes accepted histories within `1%`.
+
+Done when:
+
+* The tensor sector is physical, converged at its working depth, and
+  declaration-driven.
+
+### [open] Slice Thirty - Tensor absolute parity
+
+Purpose:
+
+Establish absolute tensor spectrum parity using fixed-cosmology independent
+references.
+
+Depends on:
+
+* Slice Twenty-Nine.
 
 Scope:
 
 * Compare native tensor `TT`, `EE`, and `BB` absolutely.
-* Validate tensor amplitude and tilt.
-* Validate photon and neutrino tensor hierarchy contributions.
 * Compare tensor unlensed and lensed outputs.
-* Keep the proof independent of synthetic tensor probes.
+* Keep the proof independent of synthetic tensor probes and response ratios.
 
 Required threshold:
 
@@ -1406,218 +1776,312 @@ Required threshold:
 
 Done when:
 
-* Tensor spectra agree with the independent fixed-cosmology reference.
-* Tensor primordial `BB` survives the native lensing path.
+* Tensor absolute parity passes and tensor primordial `BB` survives native
+  lensing.
 
-### [open] Slice Twenty - Gauge and vector absolute parity
+### [open] Slice Thirty-One - Gauge-equivalent scalar parity
 
 Purpose:
 
-Validate gauge-equivalent scalar output and generated vector output against
-analytic limits and independent fixed-cosmology evidence.
+Validate Newtonian, synchronous, and gauge-invariant scalar routes against
+the same declared theory graph.
 
 Depends on:
 
-* Slices Sixteen and Nineteen.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+* Slice Thirty.
 
 Scope:
 
-* Compare Newtonian, synchronous, and gauge-invariant scalar routes at fixed
-  cosmology.
-* Run gauge comparisons against each model's declared species and source
-  graph rather than importing LCDM matter aliases.
 * Validate explicit gauge transformations and invariant variables.
-* Compare generated vector spectra and analytic flat-space limits.
-* Validate vector source normalization, parity, and radial kernels.
-* Keep sector totals consistent with their scalar, vector, and tensor inputs.
+* Compare gauge routes at fixed cosmology, grids, initial mode, and source
+  roles.
+* Prevent LCDM matter aliases or gauge labels from forcing identity.
+* Compare both histories and final scalar spectra.
+
+Required threshold:
+
+* Gauge-equivalent scalar spectra agree to `0.1%` on the accepted surface.
+
+Done when:
+
+* Gauge routes agree through explicit transformations without alias-forced
+  equality.
+
+### [open] Slice Thirty-Two - Physical vector hierarchy and parity
+
+Purpose:
+
+Complete and validate the physical vector sector independently of scalar and
+tensor acceptance.
+
+Depends on:
+
+* Slice Thirty-One.
+
+Scope:
+
+* Implement vector metric, matter, photon, polarization, and source roles
+  from the declared vector graph.
+* Validate vector parity, normalization, initial conditions, and terminal
+  closure.
+* Compare vector radial kernels and generated vector spectra with analytic
+  flat-space limits.
+* Keep sector totals consistent with their declared inputs.
+
+Required acceptance:
+
+* Vector analytic-limit residuals meet their declared tolerances.
+* Vector source normalization and parity remain stable under refinement.
+* A scalar-only contract does not acquire vector state or source terms.
+
+Done when:
+
+* Generated vector output passes physical analytic and absolute acceptance
+  tests.
+
+### [open] Slice Thirty-Three - Native production route cutover
+
+Purpose:
+
+Remove production solver-route branching from the core model and execution
+contracts after native scalar, lensing, neutrino, tensor, gauge, and vector
+acceptance is complete.
+
+Depends on:
+
+* Slice Thirty-Two.
+
+Scope:
+
+* Remove the production `standard` solver-route boolean and backend fallback
+  from the schema, validator, coder, adapters, cache, and CMB facade.
+* Keep CAMB and CLASS imports confined to independent scientific tests.
+* Remove obsolete compatibility readers, aliases, and bridge paths.
+* Preserve explicit unavailable-spectrum behavior and native cache identity.
+
+Required acceptance:
+
+* Production execution has one native declared-graph route.
+* Negative tests reject removed route flags and backend fallback requests.
+* Production modules contain no CAMB or CLASS import or call.
+
+Done when:
+
+* Core production execution cannot select or fall back to a second CMB
+  solver.
+
+### [open] Slice Thirty-Four - Model contract migration and asset cutover
+
+Purpose:
+
+Migrate every shipped CMB model to the native theory-neutral contract after
+the production route has one authority.
+
+Depends on:
+
+* Slice Thirty-Three.
+
+Scope:
+
+* Remove transitional route metadata and LCDM-only descriptions from every
+  model declaration.
+* Make each model's species, equations, sources, initial modes, and sectors
+  explicit and theory-accurate.
+* Delete the CAMB-style `model_lcdm.yml` and rename
+  `model_lcdm_ccmbs.yml` to `model_lcdm.yml`.
+* Regenerate model caches, manifests, validation fixtures, and references.
+
+Required acceptance:
+
+* Every shipped model validates and executes through the native contract.
+* No model contains undeclared LCDM species, source terms, or historical
+  migration wording.
+* Renamed model assets resolve consistently in tests, manifests, and docs.
+
+Done when:
+
+* The model corpus is native, theory-accurate, and free of transitional
+  route artifacts.
+
+### [open] Slice Thirty-Five - User-facing native-only cutover
+
+Purpose:
+
+Align CLI, GUI, run builders, plot labels, and user documentation with the
+single native production route.
+
+Depends on:
+
+* Slice Thirty-Four.
+
+Scope:
+
+* Remove public CAMB/native solver selection from CLI and GUI.
+* Preserve control-model and test-model selection as the comparison API.
+* Update run summaries, plot footers, cache labels, and error messages to
+  describe native execution and arbitrary control/test model pairs.
+* Update user-facing model and solver documentation without historical
+  migration language.
+
+Required acceptance:
+
+* CLI and GUI expose no second CMB solver choice or backend flag.
+* Control and test model choices remain identical through shared execution
+  code.
+* User-facing labels report the selected model pair rather than LCDM versus
+  an implicitly selected theory.
+
+Done when:
+
+* User-facing workflows truthfully expose one native CMB engine and flexible
+  model comparison.
+
+### [open] Slice Thirty-Six - Scientific reference and package isolation
+
+Purpose:
+
+Separate scientific reference tooling from production packaging and assets
+after the native-only route and model corpus are complete.
+
+Depends on:
+
+* Slice Thirty-Five.
+
+Scope:
+
+* Move CAMB or CLASS to test/development dependency surfaces where packaging
+  permits.
+* Keep independent reference builders and fixtures outside production
+  modules and installed package entry points.
+* Update lockfiles, license reports, manifests, cache identities, and package
+  discovery coherently.
+* Remove obsolete CAMB-style assets without deleting independent references.
+
+Required acceptance:
+
+* A production installation imports and runs native CMB execution without
+  CAMB or CLASS installed.
+* Scientific reference tests still build independently when their dependency
+  is present.
+* Dependency, license, manifest, and cache artifacts are synchronized.
+
+Done when:
+
+* Production and scientific-reference dependency boundaries are explicit and
+  mechanically enforced.
+
+### [open] Slice Thirty-Seven - Cross-sector numerical convergence
+
+Purpose:
+
+Prove final physical-output convergence across sectors and numerical controls
+after native-only production is established.
+
+Depends on:
+
+* Slice Thirty-Six.
+
+Scope:
+
+* Refine background, eta, k, photon, massless-neutrino, massive-neutrino,
+  tensor, and vector hierarchy controls.
+* Refine q grids, source grids, and lensing quadrature.
+* Record the active numerical envelope in validation output.
+* Fail when an accuracy tier is under-resolved instead of silently lowering
+  requested physics.
 
 Required thresholds:
 
-* Gauge-equivalent scalar spectra agree to `0.1%`.
-* Vector analytic-limit residuals meet their declared tolerances.
+* Final refinement changes `TT` and `EE` by less than `1%`.
+* Final refinement changes normalized `TE` by less than `2%` and `PP` by less
+  than `3%`.
+* Final refinement changes lensed `BB` by less than `5%`.
+* q-grid refinement changes accepted massive-neutrino spectra by less than
+  `2%`.
+* Hierarchy refinement changes accepted spectra by less than `1%`.
 
 Done when:
 
-* Gauge routes agree without alias-forced identity.
-* Generated vector output passes its analytic and absolute acceptance tests.
+* Every physical numerical control demonstrates converged output and every
+  requested accuracy tier has an explicit bounded envelope.
 
-### [open] Slice Twenty-One - Native-only production cutover
-
-Purpose:
-
-Make the native declared graph the only production CMB execution path and
-retain CAMB or CLASS solely as independent scientific test references.
-
-Depends on:
-
-* Slices Ten through Twenty.
-
-Probable affected files:
-
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
-* `copernican/lib/engine_adapter.py`
-* `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/likelihoods/cmb/camb_solver.py`
-* `copernican/lib/cli/**`
-* `copernican/lib/gui/**`
-* `copernican/models/*.yml`
-* `pyproject.toml`
-* `requirements.in`
-* `requirements.lock`
-* `copernican/runtime-requirements.lock`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/model_template.yml`
-* `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Remove the production `standard` solver-route boolean.
-* Remove standard-backend production routing and fallback paths.
-* Remove any public CAMB/native solver choice from CLI and GUI.
-* Keep CAMB or CLASS imports confined to scientific tests and fixtures.
-* Move CAMB from production runtime dependencies to test/development
-  dependencies where packaging permits.
-* Remove obsolete compatibility readers, aliases, and bridge paths.
-* Delete the CAMB-style `model_lcdm.yml` and rename
-  `model_lcdm_ccmbs.yml` to `model_lcdm.yml` after migration is complete.
-* Update every manifest, cache, test, documentation, and package asset that
-  references the renamed model.
-* Record native-only execution in manifests, cache identity, and docs.
-
-Tasks:
-
-* Update the model schema, validator, coder, adapters, cache, CLI, and GUI.
-* Update dependency surfaces and license artifacts coherently.
-* Add negative tests for removed route flags and production CAMB imports.
-* Update all user-facing documentation and changelog entries.
-
-Done when:
-
-* Every production CMB execution uses the native declared graph.
-* CAMB and CLASS are available only to independent scientific tests.
-* No production model or user-facing command selects a second CMB solver.
-* No legacy route fallback or deprecated reader remains.
-
-### [open] Slice Twenty-Two - Numerical convergence and final closure
+### [open] Slice Thirty-Eight - Output, cache, and contract consistency
 
 Purpose:
 
-Prove that the completed native solver converges numerically and close the
-repository only after all implementation and scientific claims agree.
+Validate public output availability, cache identity, plotting surfaces, and
+cross-sector consistency before final repository closure.
 
 Depends on:
 
-* Slices Nine through Twenty-One.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
-* `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/plotter.py`
-* `copernican/lib/gui/plot_viewer.py`
-* `copernican/docs/cmb_solver.md`
-* `copernican/docs/model_template.yml`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+* Slice Thirty-Seven.
 
 Scope:
 
-* Demonstrate convergence of background sampling.
-* Demonstrate convergence of eta sampling.
-* Demonstrate convergence of k sampling.
-* Demonstrate convergence of photon hierarchy depth.
-* Demonstrate convergence of massless-neutrino hierarchy depth.
-* Demonstrate convergence of massive-neutrino hierarchy depth.
-* Demonstrate convergence of the q grid.
-* Demonstrate convergence of source refinement.
-* Demonstrate convergence of lensing quadrature.
-* Fail when a requested accuracy tier is under-resolved.
-* Record the active numerical envelope in validation output.
-* Keep output availability explicit.
-* Recheck that refinement does not introduce undeclared species, source terms,
-  or LCDM-only aliases into any compiled model manifest.
-* Keep default plotting limited to `TT`, `TE`, and `EE`.
-* Keep unlensed, lensed, lensing, sector, and diagnostic views separate.
-* Replace weak tests whose names overstate their assertions.
-* Remove obsolete acceptance-only tests.
-* Update all user-facing claims.
-* Run the complete local repository gate.
-* Mark every slice closed only after the final gate succeeds.
+* Keep unavailable, physically zero, and unrequested spectra distinct.
+* Include structure, bound parameters, grids, requested spectra, and
+  accuracy controls in cache identity.
+* Validate repeated and noncontiguous ell in multi-spectrum likelihoods.
+* Keep scalar, vector, tensor, lensed, unlensed, lensing, sector, and
+  diagnostic plotting surfaces separate.
+* Remove acceptance-only tests and replace tests whose names overstate their
+  assertions.
 
-Required convergence thresholds:
+Required acceptance:
 
-* final refinement changes `TT` by less than `1%`;
-* final refinement changes `EE` by less than `1%`;
-* final refinement changes normalized `TE` by less than `2%`;
-* final refinement changes `PP` by less than `3%`;
-* final refinement changes lensed `BB` by less than `5%`;
-* final q-grid refinement changes accepted massive-neutrino spectra by
-  less than `2%`;
-* final hierarchy-depth refinement changes accepted spectra by less than
-  `1%`;
-* gauge-equivalent outputs remain inside their tolerance at every accepted
-  accuracy tier.
-
-Required regression checks:
-
-* Changing `PP` changes the lensed spectra themselves.
-* Primordial `BB` survives lensing.
+* Changing `PP` changes lensed spectra, and primordial `BB` survives
+  lensing.
 * Missing spectra remain unavailable rather than fabricated.
-* Multi-spectrum likelihood rows work for repeated and noncontiguous ell.
-* Cache keys include structure, bound parameters, grids, requested
-  spectra, and accuracy controls.
-* Native production modules do not import or call CAMB or CLASS.
-* Approximate lensing, direct spectrum injection, and empirical output
-  scaling remain absent.
-* Scalar, vector, tensor, and total components remain internally
-  consistent.
-
-Tasks:
-
-* Add actual spectrum-convergence tests.
-* Remove grid-size-only convergence claims.
-* Add under-resolution failure tests.
-* Add final cache-identity tests.
-* Complete spectrum-availability metadata.
-* Complete grouped plotting behavior.
-* Update the model template.
-* Update all CMB documentation.
-* Update the final changelog entry.
-* Run the complete local repository gate.
-* Change every slice marker to `[closed]` only after success.
+* Cache reuse never returns a result for a changed contract or accuracy
+  control.
+* Scalar, vector, tensor, and total components remain internally consistent.
 
 Done when:
 
-* Every numerical control demonstrates convergence of physical output.
-* Every source claim is supported by a scientific or structural test.
-* Source, tests, documentation, public API, and changelog agree.
+* Public APIs, cache behavior, plotting surfaces, and spectrum metadata
+  agree with the native physical graph.
+
+### [open] Slice Thirty-Nine - Final scientific and repository closure
+
+Purpose:
+
+Perform the final end-to-end acceptance and close the roadmap only when every
+implementation, scientific, architectural, and documentation claim agrees.
+
+Depends on:
+
+* Slice Thirty-Eight.
+
+Scope:
+
+* Re-run the complete local repository gate from a clean staged state.
+* Run the complete required workflow tests with bounded diagnostics and
+  inspect their artifacts rather than accepting silent timeouts.
+* Recheck that source, tests, model declarations, public APIs, docs, caches,
+  manifests, dependencies, and changelog entries agree.
+* Recheck that production code has no empirical scales, source injections,
+  hidden fallbacks, reference lookups, or acceptance-only equations.
+* Change every remaining slice marker to `[closed]` only after its own
+  acceptance evidence is present.
+
+Required acceptance:
+
+* All final scientific thresholds from Slices Seventeen through Thirty-Eight
+  remain green together.
+* The complete repository workflow passes from a clean checkout.
+* No slice remains open, deferred, or supported by an unmeasured claim.
+
+Done when:
+
+* Copernican ships a fast, theory-agnostic, declarative native CMB solver
+  with absolute reference parity, demonstrated convergence, native-only
+  production execution, and complete repository acceptance.
 * The full local repository gate passes from a clean checkout.
 * No item from this roadmap remains open or deferred.
 
 ## Completion Standard
 
-This roadmap is complete only when all twenty-two slices are `[closed]`.
+This roadmap is complete only when all thirty-nine slices are `[closed]`.
 
 The repository must then truthfully satisfy all of the following:
 

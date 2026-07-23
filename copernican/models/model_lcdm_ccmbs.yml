@@ -136,9 +136,11 @@ cmb:
     k_max: 0.3
     k_sample_count: 18
     eta_sample_count: 192
+    evolution_eta_sample_count: 192
+    evolution_phase_step: 2.0
     ode_rtol: 1.0e-5
     ode_atol: 1.0e-8
-    tight_coupling_ratio: 80.0
+    tight_coupling_ratio: 1600.0
     a_min: 1.0e-6
     source_grid_multiplier: 2
     initial_redshift: 2.0e4
@@ -311,9 +313,11 @@ cmb:
       k_max: 0.3
       k_sample_count: 18
       eta_sample_count: 192
+      evolution_eta_sample_count: 192
+      evolution_phase_step: 2.0
       ode_rtol: 1.0e-5
       ode_atol: 1.0e-8
-      tight_coupling_ratio: 80.0
+      tight_coupling_ratio: 1600.0
       a_min: 1.0e-6
       source_grid_multiplier: 2
       initial_redshift: 2.0e4

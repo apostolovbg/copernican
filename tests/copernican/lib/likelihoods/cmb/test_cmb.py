@@ -248,6 +248,7 @@ SLICE_NINE_NATIVE_NUMERICAL_CONTROLS = MappingProxyType(
         "k_max": 0.3,
         "k_sample_count": 128,
         "eta_sample_count": 2048,
+        "evolution_eta_sample_count": 2048,
         "ode_rtol": 1.0e-6,
         "ode_atol": 1.0e-9,
         "tight_coupling_ratio": 80.0,
@@ -1751,7 +1752,9 @@ def _resolved_native_scalar_context(
             "sigma_nu": 0.01,
             "nu_l3": 0.004,
             "Phi": 0.02,
+            "Phi_gi": 0.02,
             "Psi": 0.018,
+            "gauge_shift_alpha_tau": 0.0177,
         }
     )
     if state_updates:
@@ -4278,6 +4281,48 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             atol=1.0e-12,
         )
 
+    def test_temperature_derivative_source_uses_second_radial_kernel(
+        self,
+    ) -> None:
+        """The integrated-by-parts source must use the second Bessel path."""
+
+        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+            j_l=numpy.asarray(((1.0, 0.5, 0.25), (0.0, 1.0, 0.5))),
+            j_l_derivative=numpy.zeros((2, 3), dtype=float),
+            j_l_second_derivative=numpy.asarray(
+                ((7.0, 11.0, 13.0), (17.0, 19.0, 23.0)),
+                dtype=float,
+            ),
+            e_kernel=numpy.zeros((2, 3), dtype=float),
+            b_kernel=numpy.zeros((2, 3), dtype=float),
+            vector_temperature_1=numpy.zeros((2, 3), dtype=float),
+            vector_temperature_2=numpy.zeros((2, 3), dtype=float),
+            vector_e=numpy.zeros((2, 3), dtype=float),
+            vector_b=numpy.zeros((2, 3), dtype=float),
+            tensor_temperature=numpy.zeros((2, 3), dtype=float),
+            tensor_e=numpy.zeros((2, 3), dtype=float),
+            tensor_b=numpy.zeros((2, 3), dtype=float),
+        )
+        eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
+        derivative_source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
+        projected = native_projection._declared_graph_projection(
+            projection="line_of_sight_temperature",
+            kernel=None,
+            kernel_batch=kernel_batch,
+            k_value=0.2,
+            eta_weights=eta_weights,
+            chi_grid=numpy.asarray((1.0, 2.0, 4.0), dtype=float),
+            source_chi=8.0,
+            source_histories={"additive_derivative": derivative_source},
+        )
+        numpy.testing.assert_allclose(
+            projected,
+            kernel_batch.j_l_second_derivative
+            @ (eta_weights * derivative_source),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
     def test_tight_coupling_regime_has_explicit_hysteresis(self) -> None:
         """Tight coupling should enter and exit through named thresholds."""
 
@@ -5825,6 +5870,36 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
             )
 
+    def test_native_tensor_k_grid_covers_spin2_tail(self) -> None:
+        """Tensor k sampling must retain the spin-2 projection tail."""
+
+        contract = _prepare_native_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        background = native_background._build_custom_cmb_background(
+            contract,
+            physical_params,
+            numerics,
+        )
+        ells = numpy.asarray((40, 50, 70), dtype=int)
+        k_grid = native_projection._build_projection_k_grid(
+            ell_arr=ells,
+            background=background,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+        )
+        eta_rec_distance = max(
+            float(background.eta0) - float(background.eta_rec),
+            1.0,
+        )
+        required_k_max = 1.5 * (70.0 + 16.0) / eta_rec_distance
+
+        self.assertGreaterEqual(float(k_grid[-1]), 5.0 * required_k_max)
+
     def test_accuracy_controls_reject_underresolved_scalar_numerics(
         self,
     ) -> None:
@@ -5928,6 +6003,32 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["k_sample_count"]),
         )
 
+    def test_native_projection_batches_radial_recurrence_work(self) -> None:
+        """Projection telemetry must show shared radial mode preparation."""
+
+        native_cache.clear_native_cmb_caches()
+        contract = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+            requested_spectra=("TT",),
+        )
+        envelope = spectrum_data.runtime_envelope
+        self.assertGreater(
+            int(envelope["projection_bessel_batch_count"]),
+            0,
+        )
+        self.assertEqual(
+            int(envelope["projection_bessel_mode_count"]),
+            int(envelope["k_sample_count"]),
+        )
+        self.assertLess(
+            int(envelope["projection_bessel_batch_count"]),
+            int(envelope["projection_bessel_mode_count"]),
+        )
+
     def test_native_sector_smoke_paths_stay_within_acceptance_budget(self):
         """Keep representative native sector paths within the budget."""
 
@@ -5990,8 +6091,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
         self.assertLess(perf_counter() - started, 180.0)
 
-    def test_native_generated_modes_use_shared_batched_evolution(self) -> None:
-        """Generated modes should expose shared finite batched histories."""
+    def test_native_generated_modes_use_declared_graph_evolution(self) -> None:
+        """Generated modes should use one finite declared-graph runtime."""
 
         native_cache.clear_native_cmb_caches()
         contract = _prepare_native_contract(
@@ -6009,12 +6110,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(envelope["contract_static_preparations"]), 1)
         self.assertEqual(int(envelope["cosmology_static_preparations"]), 1)
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
-        self.assertGreaterEqual(int(envelope["batch_count"]), 1)
-        self.assertEqual(
-            int(envelope["batch_mode_count"]),
-            int(envelope["k_sample_count"]),
-        )
-        self.assertGreater(int(envelope["batched_rk_stage_count"]), 0)
+        self.assertEqual(int(envelope["batch_count"]), 0)
+        self.assertEqual(int(envelope["batch_mode_count"]), 0)
+        self.assertEqual(int(envelope["batched_rk_stage_count"]), 0)
         self.assertTrue(
             numpy.all(
                 numpy.isfinite(numpy.asarray(spectrum_data.spectra["TT"]))
@@ -6541,6 +6639,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.initial_conditions["e_gamma2_seed"].expression,
             "theta_gamma2 / 4.0",
         )
+        self.assertEqual(
+            perturbation_data.initial_conditions["e_gamma3_seed"].expression,
+            "(3.0 / 28.0) * acoustic_k * theta_gamma2 / collision_rate",
+        )
         self.assertIn(
             "acoustic_k * theta_gamma2 / collision_rate",
             perturbation_data.initial_conditions[
@@ -6573,27 +6675,44 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.equations["evolve_theta_gamma0"].rhs,
             "-acoustic_k * theta_gamma1 + Phi_tau",
         )
+        self.assertIn(
+            "- 0.6 * acoustic_k * nu_l3",
+            perturbation_data.equations["evolve_sigma_nu"].rhs,
+        )
+        self.assertIn(
+            "0.4285714285714285 * acoustic_k * sigma_nu",
+            perturbation_data.equations["evolve_nu_l3"].rhs,
+        )
+        self.assertIn(
+            "scalar_lapse_seed / 15.0",
+            perturbation_data.initial_conditions["sigma_nu_seed"].expression,
+        )
 
-    def test_native_scalar_tight_coupling_uses_first_order_multipoles(
+    def test_native_scalar_tight_coupling_uses_declared_collision_block(
         self,
     ) -> None:
-        """Scalar TCA should seed the CAMB quadrupole and octopole chain."""
+        """Scalar tight coupling must come from declared collision metadata."""
 
-        result = native_projection._generated_scalar_tight_coupling_multipoles(
-            photon_dipole=0.03,
-            baryon_velocity_divergence=0.09,
-            baryon_loading=2.0,
-            k_value=0.1,
-            collision_rate=10.0,
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
         )
-        common_dipole, theta_gamma2, theta_gamma3, e_gamma2, e_gamma3 = result
-        self.assertAlmostEqual(common_dipole, 0.21)
-        expected_theta_gamma2 = (8.0 / 15.0) * 0.1 * common_dipole / 10.0
-        self.assertAlmostEqual(theta_gamma2, expected_theta_gamma2)
-        expected_theta_gamma3 = (3.0 / 7.0) * 0.1 * theta_gamma2 / 10.0
-        self.assertAlmostEqual(theta_gamma3, expected_theta_gamma3)
-        self.assertAlmostEqual(e_gamma2, theta_gamma2 / 4.0)
-        self.assertAlmostEqual(e_gamma3, theta_gamma3 / 4.0)
+        collision = contract["perturbation_data"].collision_operators[
+            "thomson_drag"
+        ]
+        self.assertEqual(collision.integration_strategy, "exact")
+        self.assertEqual(
+            tuple(target.kind for target in collision.exact_form.targets),
+            (
+                "photon_temperature_dipole",
+                "baryon_velocity_divergence",
+                "photon_temperature_quadrupole",
+                "photon_polarization_quadrupole",
+            ),
+        )
+        self.assertEqual(collision.exact_form.matrix[2][2], "-0.9")
+        self.assertEqual(collision.exact_form.matrix[2][3], "0.6")
+        self.assertEqual(collision.exact_form.matrix[3][2], "0.1")
+        self.assertEqual(collision.exact_form.matrix[3][3], "-0.4")
 
     def test_native_vector_hierarchy_materializes_generated_hierarchy(
         self,
@@ -7220,7 +7339,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.equations["evolve_theta_gamma8"].rhs,
-            "acoustic_k * theta_gamma7 - acoustic_k * 9 * theta_gamma8 / "
+            "1 * acoustic_k * theta_gamma7 - acoustic_k * 9 * theta_gamma8 / "
             "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 9 * 9)",
         )
         self.assertEqual(
@@ -7785,7 +7904,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_synchronous_route_evolves_only_synchronous_metric_states(
         self,
     ) -> None:
-        """Synchronous execution must not evolve a hidden Newtonian Phi."""
+        """Synchronous execution must expose explicit gauge metric states."""
 
         contract = _prepare_native_contract(
             _native_scalar_hierarchy_contract(gauge="synchronous")
@@ -7793,12 +7912,17 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         perturbation_data = contract["perturbation_data"]
 
         self.assertNotIn("evolve_Phi", perturbation_data.equations)
+        self.assertIn("evolve_Phi_gi", perturbation_data.equations)
         self.assertIn("evolve_h_sync_metric", perturbation_data.equations)
         self.assertIn("evolve_eta_sync_metric", perturbation_data.equations)
         self.assertIn("evolve_gauge_shift_alpha", perturbation_data.equations)
         self.assertEqual(
             perturbation_data.closures["phi_closure"].target,
             "Phi",
+        )
+        self.assertEqual(
+            perturbation_data.closures["phi_closure"].expression,
+            "Phi_gi",
         )
         self.assertEqual(
             perturbation_data.closures["psi_closure"].target,
@@ -8042,6 +8166,112 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for spectrum in result.values():
             self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
             self.assertEqual(spectrum.shape, (ells.size,))
+
+
+class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
+    """Protect the declared scalar graph from alternate physics engines."""
+
+    def test_scalar_runtime_has_one_compiled_evolution_authority(self) -> None:
+        """The production scalar entry point must use the declared graph."""
+
+        source = inspect.getsource(
+            native_projection._compute_custom_cmb_spectrum_data
+        )
+        self.assertIn("_mode_rhs", source)
+        self.assertIn("_integrate_declared_state_history", source)
+        for forbidden in (
+            "_integrate_generated_scalar_history_fast",
+            "_integrate_generated_scalar_history_batch",
+            "_batch_generated_source_histories",
+        ):
+            self.assertNotIn(forbidden, source)
+
+    def test_fast_collision_projection_uses_declared_linear_algebra(
+        self,
+    ) -> None:
+        """Fast-manifold projection must preserve a declared invariant."""
+
+        wave_number = 0.2
+        baryon_loading = 0.15
+        matrix = numpy.asarray(
+            (
+                (-1.0, 1.0 / (3.0 * wave_number)),
+                (3.0 * wave_number * baryon_loading, -baryon_loading),
+            ),
+            dtype=float,
+        )
+        current = numpy.asarray((0.7, 0.03), dtype=float)
+        result = native_projection._solve_declared_fast_collision_target(
+            matrix,
+            numpy.zeros(2, dtype=float),
+            current,
+            100.0,
+        )
+        invariant = numpy.asarray((3.0 * wave_number * baryon_loading, 1.0))
+        numpy.testing.assert_allclose(
+            float(invariant @ result),
+            float(invariant @ current),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+        numpy.testing.assert_allclose(
+            matrix @ result,
+            numpy.zeros(2, dtype=float),
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
+    def test_declared_scalar_layout_has_no_implicit_state_slots(self) -> None:
+        """Every production state slot must originate in a declared
+        equation."""
+
+        prepared = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        perturbation_data = prepared["perturbation_data"]
+        runtime_spec = native_evolution._prepare_declared_graph_runtime_spec(
+            perturbation_data
+        )
+        equation_variables = {
+            str(entry.lhs.variable)
+            for entry in perturbation_data.equations.values()
+        }
+        state_variables = {
+            str(slot.variable)
+            for slot in runtime_spec.state_slots
+            if int(slot.order) == 0
+        }
+        self.assertEqual(state_variables, equation_variables)
+
+    def test_generated_scalar_execution_compiles_declared_equations(
+        self,
+    ) -> None:
+        """Generated scalar output must execute its compiled equation
+        program."""
+
+        contract = _native_scalar_hierarchy_contract()
+        contract["numerical"].update(
+            {
+                "ell_max": 120,
+                "k_sample_count": 3,
+                "eta_sample_count": 64,
+                "evolution_eta_sample_count": 64,
+            }
+        )
+        prepared = _prepare_native_contract(contract)
+        native_evolution._compile_equation_program.cache_clear()
+        with mock.patch.object(
+            native_projection,
+            "_compile_equation_program",
+            wraps=native_evolution._compile_equation_program,
+        ) as compile_program:
+            spectra = cmb.compute_cmb_spectrum_from_contract(
+                prepared,
+                numpy.arange(20, 25, dtype=int),
+                spectra=("TT",),
+            )
+        self.assertGreaterEqual(compile_program.call_count, 1)
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

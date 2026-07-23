@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-21
+**Last Updated:** 2026-07-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -52,18 +52,26 @@ reference tools used by tests, not production spectrum engines.
 
 Native projection requests use bounded radial-kernel caches and ell-batched
 work arrays, keeping memory use tied to the declared numerical envelope while
-preserving the model's requested multipole range.
+preserving the model's requested multipole range. Compatible Fourier-mode
+grids share radial recurrence work before projection.
 
-Generated scalar gauges use shared deterministic Runge-Kutta substeps, so
-gauge-equivalent contracts follow the same numerical trajectory rather than
-diverging because of basis-specific adaptive stepping.
+Generated scalar gauges use one compiled declared equation graph and shared
+deterministic Runge-Kutta substeps, so gauge-equivalent contracts follow the
+same numerical trajectory rather than diverging because of basis-specific
+adaptive stepping.
 
 Native CMB execution separates contract-static graph compilation,
 cosmology-static background and collision tables, and request-specific
-projection work. Generated scalar modes that share an evolution grid run in
-one vectorized hierarchy batch; the runtime envelope records batch counts,
-Runge-Kutta stages, and static-preparation counters. Bounded cache identities
-keep repeated cosmology proposals from rebuilding contract structure.
+projection work. Every scalar mode uses the same compiled equation program;
+bounded cache identities keep repeated cosmology proposals from rebuilding
+contract structure. Projection kernels may batch only radial-kernel work,
+never scalar physics equations.
+Native numerical contracts may declare `evolution_phase_step` for the
+declaration-driven evolution schedule. Tensor projections reserve their
+spin-2 high-k quadrature tail rather than applying an empirical spectrum
+correction.
+The generated massless-neutrino hierarchy uses an explicit `F_2 / 2`
+anisotropic-stress convention, including its metric source and initial data.
 
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed

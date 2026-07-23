@@ -86,6 +86,44 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
         )
         self.assertNotIn("import camb", source_text)
 
+    def test_mode_bessel_batch_matches_individual_grids(self):
+        """Shared mode radial recurrence must preserve individual values."""
+
+        ell_signature = (2, 7, 20)
+        mode_x = numpy.asarray(
+            (
+                (0.0, 0.2, 1.0, 4.0),
+                (0.0, 0.5, 2.0, 8.0),
+                (0.0, 0.9, 3.0, 12.0),
+            ),
+            dtype=float,
+        )
+        batched_values, batched_derivatives = (
+            native_background._compute_spherical_bessel_mode_batch(
+                ell_signature,
+                mode_x,
+            )
+        )
+        for mode_index, x_values in enumerate(mode_x):
+            values, derivatives = (
+                native_background._compute_spherical_bessel_batch(
+                    ell_signature,
+                    x_values,
+                )
+            )
+            numpy.testing.assert_allclose(
+                batched_values[:, mode_index, :],
+                values,
+                rtol=1.0e-13,
+                atol=1.0e-13,
+            )
+            numpy.testing.assert_allclose(
+                batched_derivatives[:, mode_index, :],
+                derivatives,
+                rtol=1.0e-13,
+                atol=1.0e-13,
+            )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

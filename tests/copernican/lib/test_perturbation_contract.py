@@ -746,7 +746,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             "dimensionless",
         )
         self.assertEqual(compiled.observables["TT"].units, "muK^2")
-        self.assertEqual(compiled.observables["TP"].units, "muK")
+        self.assertEqual(compiled.observables["TP"].units, "dimensionless")
         self.assertEqual(
             compiled.observables["PP"].units,
             "dimensionless",
@@ -1207,7 +1207,7 @@ class PerturbationContractTestCase(unittest.TestCase):
     def test_generated_synchronous_route_materializes_gauge_bridge(
         self,
     ) -> None:
-        """Generated synchronous metadata should expose explicit transforms."""
+        """Generated synchronous metadata should expose stable transforms."""
 
         contract = _scalar_metadata_only_contract()
         contract["gauge"] = "synchronous"
@@ -1216,6 +1216,8 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIn("gauge_shift_alpha", compiled.variables)
         self.assertIn("Phi", compiled.variables)
         self.assertIn("Psi", compiled.variables)
+        self.assertIn("Phi_gi", compiled.variables)
+        self.assertIn("evolve_Phi_gi", compiled.equations)
         self.assertIn("evolve_h_sync_metric", compiled.equations)
         self.assertIn("evolve_eta_sync_metric", compiled.equations)
         self.assertIn("evolve_gauge_shift_alpha", compiled.equations)
@@ -1224,12 +1226,12 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertNotIn("evolve_Phi", compiled.equations)
         self.assertEqual(
             compiled.closures["phi_closure"].expression,
-            "Phi_from_synchronous",
+            "Phi_gi",
         )
         self.assertEqual(compiled.constraints, {})
         self.assertEqual(
             compiled.closures["psi_closure"].expression,
-            "Phi - metric_shear_correction",
+            "Phi_gi - metric_shear_correction",
         )
         self.assertEqual(
             compiled.derived["gauge_shift_alpha_tau"].expression,
@@ -1750,7 +1752,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.equations["evolve_theta_gamma6"].rhs,
-            "acoustic_k * theta_gamma5 - acoustic_k * 7 * theta_gamma6 / "
+            "1 * acoustic_k * theta_gamma5 - acoustic_k * 7 * theta_gamma6 / "
             "sqrt((acoustic_k * eta) * (acoustic_k * eta) + 7 * 7)",
         )
         self.assertEqual(
@@ -1801,6 +1803,10 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             compiled.initial_conditions["e_gamma2_seed"].expression,
             "theta_gamma2 / 4.0",
+        )
+        self.assertEqual(
+            compiled.initial_conditions["e_gamma3_seed"].expression,
+            "(3.0 / 28.0) * acoustic_k * theta_gamma2 / collision_rate",
         )
         self.assertEqual(
             compiled.derived["metric_constraint_scale"].expression,

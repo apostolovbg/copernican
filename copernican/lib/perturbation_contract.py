@@ -750,19 +750,24 @@ def _scalar_hierarchy_recurrence_rhs(
     previous_name: str,
     next_name: str | None,
     collision_term: str | None = None,
+    previous_coefficient: float | None = None,
     use_physical_terminal_closure: bool = False,
 ) -> str:
     """Return one hierarchy recurrence RHS for the generated scalar route."""
 
-    previous_coeff = float(moment) / float((2 * moment) + 1)
+    previous_coeff = (
+        float(moment) / float((2 * moment) + 1)
+        if previous_coefficient is None
+        else float(previous_coefficient)
+    )
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
         if use_physical_terminal_closure:
+            pieces[0] = f"1 * acoustic_k * {previous_name}"
             closure_scale = (
                 "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
                 f"{float(moment + 1):.16g} * {float(moment + 1):.16g})"
             )
-            pieces[0] = f"acoustic_k * {previous_name}"
             pieces.append(
                 f"- acoustic_k * {float(moment + 1):.16g} * {name} / "
                 f"{closure_scale}"
@@ -798,12 +803,12 @@ def _scalar_streaming_hierarchy_recurrence_rhs(
     ]
     if next_name is None:
         if use_physical_terminal_closure:
+            pieces[0] = (
+                f"acoustic_k * {streaming_speed_name} * {previous_name}"
+            )
             closure_scale = (
                 "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
                 f"{float(moment + 1):.16g} * {float(moment + 1):.16g})"
-            )
-            pieces[0] = (
-                f"acoustic_k * {streaming_speed_name} * {previous_name}"
             )
             pieces.append(
                 f"- acoustic_k * {streaming_speed_name} * "
@@ -838,13 +843,13 @@ def _scalar_polarization_recurrence_rhs(
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
         if use_physical_terminal_closure:
-            truncation_coeff = float(moment) / float(moment - 2)
+            pieces[0] = (
+                f"{float(moment) / max(float(moment - 2), 1.0):.16g} * "
+                f"acoustic_k * {previous_name}"
+            )
             closure_scale = (
                 "sqrt((acoustic_k * eta) * (acoustic_k * eta) + "
                 f"{float(moment + 3):.16g} * {float(moment + 3):.16g})"
-            )
-            pieces[0] = (
-                f"{truncation_coeff:.16g} * acoustic_k * {previous_name}"
             )
             pieces.append(
                 f"- acoustic_k * {float(moment + 3):.16g} * {name} / "
@@ -1245,6 +1250,12 @@ def _materialize_native_scalar_hierarchy_contract(
                 "Observable-basis lapse potential.",
                 units=_DIMENSIONLESS_UNITS,
             ),
+            "Phi_gi": _metadata_entry(
+                "gauge_invariant_curvature_potential",
+                "Gauge-invariant curvature potential evolved with the "
+                "synchronous metric states.",
+                units=_DIMENSIONLESS_UNITS,
+            ),
         }
     elif invariant_gauge:
         phi_state_name = "Phi_gi"
@@ -1601,7 +1612,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 },
             }
         )
-    metric_evolution_state_name = None if sync_gauge else phi_state_name
+    metric_evolution_state_name = "Phi_gi" if sync_gauge else phi_state_name
     if metric_evolution_state_name is not None:
         equations[f"evolve_{metric_evolution_state_name}"] = {
             "lhs": {
@@ -2186,10 +2197,13 @@ def _materialize_native_scalar_hierarchy_contract(
             {
                 "eta_sync_metric_tau": {
                     "expression": (
-                        "Phi_tau + Hconf_tau * gauge_shift_alpha + "
-                        "Hconf * gauge_shift_alpha_tau"
+                        "metric_momentum_source_drive + "
+                        "(Hconf_tau - Hconf * Hconf) * gauge_shift_alpha"
                     ),
-                    "description": ("Synchronous-gauge shear evolution eta'."),
+                    "description": (
+                        "Numerically stable synchronous-gauge shear evolution "
+                        "eta'."
+                    ),
                     "units": _INVERSE_MPC_UNITS,
                 },
                 "h_sync_metric_tau": {
@@ -2551,6 +2565,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 {"kind": "photon_polarization_multipole"},
             ],
             "damping_coefficient": "-1.0",
+            "fast_manifold": True,
             "activation_strategy": "always",
         },
     )
@@ -2579,12 +2594,12 @@ def _materialize_native_scalar_hierarchy_contract(
         materialized["closures"] = {
             "phi_closure": {
                 "target": "Phi",
-                "expression": "Phi_from_synchronous",
+                "expression": "Phi_gi",
                 "role": "closure",
             },
             "psi_closure": {
                 "target": "Psi",
-                "expression": psi_closure_expression,
+                "expression": "Phi_gi - metric_shear_correction",
                 "role": "closure",
             },
         }
@@ -2646,7 +2661,8 @@ def _materialize_native_scalar_hierarchy_contract(
             "role": "additive_derivative",
             "description": (
                 "Second-derivative scalar temperature polarization source "
-                "with its derivative transferred to the radial kernel."
+                "projected through the second radial derivative kernel after "
+                "integration by parts."
             ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
@@ -2656,8 +2672,9 @@ def _materialize_native_scalar_hierarchy_contract(
             "description": "Visibility-weighted Doppler source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
             "notes": (
-                "Uses the baryon velocity v_b = theta_b / k and projects "
-                "through the derivative temperature kernel."
+                "Uses the baryon velocity divergence theta_b after the "
+                "line-of-sight derivative is transferred to the radial "
+                "Bessel kernel."
             ),
         },
         "temperature_isw": {
@@ -2688,9 +2705,6 @@ def _materialize_native_scalar_hierarchy_contract(
             "role": "potential",
             "description": "Scalar Weyl-potential source for CMB lensing.",
             "units": _DIMENSIONLESS_UNITS,
-            "notes": (
-                "Feeds the native clpp normalization consumed by lensing."
-            ),
         },
     }
     generated_sources.update(declared_source_definitions)
@@ -2774,20 +2788,22 @@ def _materialize_native_scalar_hierarchy_contract(
             "kind": "angular_power_spectrum",
             "primary": "temperature",
             "secondary": "lensing_potential",
+            "units": "dimensionless",
             "description": "Temperature and lensing-potential cross spectrum.",
             "notes": (
-                "Public solver returns ell(ell+1) C_ell^{Tphi} Tcmb / (2*pi)."
+                "Public solver returns ell(ell+1) C_ell^{Tphi} / (2*pi)."
             ),
         },
         "EP": {
             "kind": "angular_power_spectrum",
             "primary": "polarization_e",
             "secondary": "lensing_potential",
+            "units": "dimensionless",
             "description": (
                 "E-polarization and lensing-potential cross spectrum."
             ),
             "notes": (
-                "Public solver returns ell(ell+1) C_ell^{Ephi} Tcmb / (2*pi)."
+                "Public solver returns ell(ell+1) C_ell^{Ephi} / (2*pi)."
             ),
         },
     }
@@ -4933,6 +4949,7 @@ class PerturbationCollisionLinearFormData:
     compiled_damping_coefficient: PerturbationCompiledExpressionData | None = (
         None
     )
+    fast_manifold: bool = False
     activation_strategy: str = "always"
 
 
@@ -5793,6 +5810,9 @@ def _compile_collision_linear_form(
             f"{label}.activation_strategy must be 'always' or "
             "'tight_coupling'"
         )
+    fast_manifold = linear_form_def.get("fast_manifold", False)
+    if not isinstance(fast_manifold, bool):
+        raise ValueError(f"{label}.fast_manifold must be a boolean")
     return PerturbationCollisionLinearFormData(
         targets=targets,
         matrix=tuple(matrix_rows),
@@ -5802,6 +5822,7 @@ def _compile_collision_linear_form(
         damping_coefficient=damping_coefficient,
         damping_dependencies=damping_dependencies,
         compiled_damping_coefficient=compiled_damping_coefficient,
+        fast_manifold=fast_manifold,
         activation_strategy=activation_strategy,
     )
 

@@ -615,6 +615,8 @@ class _CustomCMBNumerics:
     k_max: float = 0.4
     k_sample_count: int = 64
     eta_sample_count: int = 1024
+    evolution_eta_sample_count: int | None = None
+    evolution_phase_step: float = 0.5
     photon_hierarchy_l_max: int = 8
     neutrino_hierarchy_l_max: int = 8
     ode_rtol: float = 1.0e-6
@@ -1063,6 +1065,46 @@ def _compute_spherical_bessel_batch(
     return selected_values, derivatives
 
 
+def _compute_spherical_bessel_mode_batch(
+    ell_signature: tuple[int, ...],
+    x_values: numpy.ndarray,
+) -> tuple[numpy.ndarray, numpy.ndarray]:
+    """Compute one radial-order batch for several Fourier-mode grids.
+
+    Flattening the mode and conformal-time axes lets the recurrence share its
+    order loop across modes.  The returned axes are ``(ell, mode, eta)`` so
+    projection can retain one cache entry per mode without repeating the
+    expensive radial recurrence.
+    """
+
+    grids = numpy.asarray(x_values, dtype=float)
+    if grids.ndim != 2:
+        raise ValueError("Mode Bessel inputs must have shape (mode, eta)")
+    mode_count, eta_count = grids.shape
+    if mode_count == 0 or eta_count == 0:
+        empty = numpy.empty(
+            (len(ell_signature), mode_count, eta_count),
+            dtype=float,
+        )
+        return empty, empty.copy()
+    values, derivatives = _compute_spherical_bessel_batch(
+        ell_signature,
+        grids.reshape(-1),
+    )
+    return (
+        numpy.asarray(values, dtype=float).reshape(
+            len(ell_signature),
+            mode_count,
+            eta_count,
+        ),
+        numpy.asarray(derivatives, dtype=float).reshape(
+            len(ell_signature),
+            mode_count,
+            eta_count,
+        ),
+    )
+
+
 def _get_zero_argument_bessel_batch(
     ell_signature: tuple[int, ...],
     column_count: int,
@@ -1086,10 +1128,16 @@ def _get_cached_declared_projection_kernel_batch(
     precomputed_bessel: (
         tuple[tuple[int, ...], numpy.ndarray, numpy.ndarray] | None
     ) = None,
+    required_sectors: Iterable[str] | None = None,
 ) -> _DeclaredProjectionKernelBatch:
-    """Return cached ell-batched spherical-Bessel kernels for one x-grid."""
+    """Return cached radial kernels, allocating only declared sectors."""
 
-    cache_key = (ell_signature, x_signature)
+    sector_key = (
+        ("all",)
+        if required_sectors is None
+        else tuple(sorted({str(value) for value in required_sectors}))
+    )
+    cache_key = (ell_signature, x_signature, sector_key)
     cached = native_cache.get_declared_projection_kernel_batch(cache_key)
     if cached is not None:
         return cached
@@ -1131,13 +1179,30 @@ def _get_cached_declared_projection_kernel_batch(
     j_l_second_derivative_matrix = numpy.empty(shape, dtype=float)
     e_kernel = numpy.zeros(shape, dtype=float)
     b_kernel = numpy.zeros(shape, dtype=float)
-    vector_temperature_1 = numpy.zeros(shape, dtype=float)
-    vector_temperature_2 = numpy.zeros(shape, dtype=float)
-    vector_e = numpy.zeros(shape, dtype=float)
-    vector_b = numpy.zeros(shape, dtype=float)
-    tensor_temperature = numpy.zeros(shape, dtype=float)
-    tensor_e = numpy.zeros(shape, dtype=float)
-    tensor_b = numpy.zeros(shape, dtype=float)
+    needs_vector = "all" in sector_key or "vector" in sector_key
+    needs_tensor = "all" in sector_key or "tensor" in sector_key
+    empty_kernel = numpy.empty((0, 0), dtype=float)
+    vector_temperature_1 = (
+        numpy.zeros(shape, dtype=float) if needs_vector else empty_kernel
+    )
+    vector_temperature_2 = (
+        numpy.zeros(shape, dtype=float) if needs_vector else empty_kernel
+    )
+    vector_e = (
+        numpy.zeros(shape, dtype=float) if needs_vector else empty_kernel
+    )
+    vector_b = (
+        numpy.zeros(shape, dtype=float) if needs_vector else empty_kernel
+    )
+    tensor_temperature = (
+        numpy.zeros(shape, dtype=float) if needs_tensor else empty_kernel
+    )
+    tensor_e = (
+        numpy.zeros(shape, dtype=float) if needs_tensor else empty_kernel
+    )
+    tensor_b = (
+        numpy.zeros(shape, dtype=float) if needs_tensor else empty_kernel
+    )
     inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
     inverse_x_sq = inverse_x * inverse_x
     for ell_index, ell_value in enumerate(ell_signature):
@@ -1167,30 +1232,34 @@ def _get_cached_declared_projection_kernel_batch(
         b_kernel[ell_index] = (
             0.5 * prefactor * (j_l_derivative + 2.0 * j_l * inverse_x)
         )
-        vector_temperature_1[ell_index] = (
-            math.sqrt(float(ell_value * (ell_value + 1)) / 2.0)
-            * j_l
-            * inverse_x
-        )
-        vector_temperature_2[ell_index] = math.sqrt(
-            3.0 * float(ell_value * (ell_value + 1)) / 2.0
-        ) * (j_l_derivative * inverse_x - j_l * inverse_x_sq)
-        vector_e[ell_index] = (
-            0.5
-            * vector_prefactor
-            * (j_l * inverse_x_sq + j_l_derivative * inverse_x)
-        )
-        vector_b[ell_index] = 0.5 * vector_prefactor * j_l * inverse_x
-        tensor_temperature[ell_index] = (
-            math.sqrt(3.0 / 8.0) * prefactor * j_l * inverse_x_sq
-        )
-        tensor_e[ell_index] = 0.25 * (
-            -j_l
-            + spherical_jn_second
-            + 2.0 * j_l * inverse_x_sq
-            + 4.0 * j_l_derivative * inverse_x
-        )
-        tensor_b[ell_index] = 0.5 * (j_l_derivative + 2.0 * j_l * inverse_x)
+        if needs_vector:
+            vector_temperature_1[ell_index] = (
+                math.sqrt(float(ell_value * (ell_value + 1)) / 2.0)
+                * j_l
+                * inverse_x
+            )
+            vector_temperature_2[ell_index] = math.sqrt(
+                3.0 * float(ell_value * (ell_value + 1)) / 2.0
+            ) * (j_l_derivative * inverse_x - j_l * inverse_x_sq)
+            vector_e[ell_index] = (
+                0.5
+                * vector_prefactor
+                * (j_l * inverse_x_sq + j_l_derivative * inverse_x)
+            )
+            vector_b[ell_index] = 0.5 * vector_prefactor * j_l * inverse_x
+        if needs_tensor:
+            tensor_temperature[ell_index] = (
+                math.sqrt(3.0 / 8.0) * prefactor * j_l * inverse_x_sq
+            )
+            tensor_e[ell_index] = 0.25 * (
+                -j_l
+                + spherical_jn_second
+                + 2.0 * j_l * inverse_x_sq
+                + 4.0 * j_l_derivative * inverse_x
+            )
+            tensor_b[ell_index] = 0.5 * (
+                j_l_derivative + 2.0 * j_l * inverse_x
+            )
     batch = _DeclaredProjectionKernelBatch(
         j_l=j_l_matrix,
         j_l_derivative=j_l_derivative_matrix,
@@ -1210,11 +1279,16 @@ def _get_cached_declared_projection_kernel_batch(
 
 
 def _custom_cmb_provider_key(background_provider: Any | None) -> int:
-    """Return a stable cache key for a custom-CMB background provider."""
+    """Return the provider-independent native-background cache key.
 
-    if background_provider is None:
-        return 0
-    return object.__hash__(background_provider)
+    Native background construction is wholly defined by the prepared
+    contract and physical parameters; the provider is only the caller's
+    ownership context.  Keeping it out of cache identity lets likelihood and
+    direct-spectrum calls reuse one completed background and spectrum.
+    """
+
+    del background_provider
+    return 0
 
 
 _BACKGROUND_CACHE_PHYSICAL_FIELDS = (
@@ -1346,13 +1420,26 @@ def _contract_cache_view(
 ) -> Mapping[str, Any]:
     """Return the cache-relevant view of a native-runtime contract."""
 
-    if "perturbation_data" not in contract:
-        return contract
-    return {
+    transient_keys = {
+        "background_runtime",
+        "compile_diagnostics",
+        "perturbation_data",
+        "runtime_signature",
+        "value_definitions",
+    }
+    view = {
         key: value
         for key, value in contract.items()
-        if key != "perturbation_data"
+        if key not in transient_keys
     }
+    perturbations = view.get("perturbations")
+    if isinstance(perturbations, Mapping):
+        view["perturbations"] = {
+            key: value
+            for key, value in perturbations.items()
+            if key not in {"backend", "model_name"}
+        }
+    return view
 
 
 def _expression_symbol_name(expression: str) -> str | None:
@@ -1457,6 +1544,30 @@ def _resolve_custom_cmb_numerics(
         32,
         _read_int("eta_sample_count", defaults.eta_sample_count),
     )
+    raw_evolution_eta_sample_count = raw.get(
+        "evolution_eta_sample_count",
+        defaults.evolution_eta_sample_count,
+    )
+    evolution_eta_sample_count = None
+    if raw_evolution_eta_sample_count is not None:
+        numeric_evolution_eta_sample_count = int(
+            _coerce_numeric_scalar(
+                raw_evolution_eta_sample_count,
+                name="evolution_eta_sample_count",
+            )
+        )
+        if numeric_evolution_eta_sample_count < 1:
+            raise ValueError(
+                "cmb.numerical.evolution_eta_sample_count must be positive"
+            )
+        evolution_eta_sample_count = max(
+            32,
+            numeric_evolution_eta_sample_count,
+        )
+    evolution_phase_step = _read_float(
+        "evolution_phase_step",
+        defaults.evolution_phase_step,
+    )
     photon_hierarchy_l_max = max(
         2,
         _read_int(
@@ -1534,6 +1645,19 @@ def _resolve_custom_cmb_numerics(
             "cmb.numerical.eta_sample_count >= "
             f"{minimum_eta_sample_count}"
         )
+    minimum_evolution_eta_sample_count = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_evolution_eta_sample_count",
+    )
+    if minimum_evolution_eta_sample_count is not None and (
+        evolution_eta_sample_count is None
+        or evolution_eta_sample_count < minimum_evolution_eta_sample_count
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.evolution_eta_sample_count >= "
+            f"{minimum_evolution_eta_sample_count}"
+        )
     minimum_source_grid_multiplier = _accuracy_control_positive_int(
         accuracy_controls,
         "minimum_source_grid_multiplier",
@@ -1580,6 +1704,8 @@ def _resolve_custom_cmb_numerics(
         k_max=k_max,
         k_sample_count=k_sample_count,
         eta_sample_count=eta_sample_count,
+        evolution_eta_sample_count=evolution_eta_sample_count,
+        evolution_phase_step=evolution_phase_step,
         photon_hierarchy_l_max=photon_hierarchy_l_max,
         neutrino_hierarchy_l_max=neutrino_hierarchy_l_max,
         ode_rtol=ode_rtol,

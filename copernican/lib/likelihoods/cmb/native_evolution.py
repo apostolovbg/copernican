@@ -1384,8 +1384,14 @@ def _build_declared_base_context(
     k_value: float,
     eta_value: float,
     background_scalars: Mapping[str, float],
+    momentum_grid_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Return scalar runtime values shared by equations and conditions."""
+    """Return scalar runtime values shared by equations and conditions.
+
+    A caller evolving several Fourier modes may provide the cached
+    scale-factor-only momentum context instead of rebuilding it for every
+    equation stage.
+    """
 
     tight_coupling_drag = _compute_tight_coupling_drag(
         collision_rate=float(background_scalars["collision_rate"]),
@@ -1410,14 +1416,14 @@ def _build_declared_base_context(
     context["free_streaming"] = float(background_scalars["free_streaming"])
     context["tight_coupling_drag"] = float(tight_coupling_drag)
     context["tight_coupling_ratio"] = float(numerics.tight_coupling_ratio)
-    context.update(
-        _declared_momentum_grid_context(
+    if momentum_grid_context is None:
+        momentum_grid_context = _declared_momentum_grid_context(
             perturbation_data,
             model_parameters=model_parameters,
             physical_params=physical_params,
             scale_factor=float(background_scalars["a"]),
         )
-    )
+    context.update(momentum_grid_context)
     return context
 
 
