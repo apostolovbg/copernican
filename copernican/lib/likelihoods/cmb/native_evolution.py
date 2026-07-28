@@ -1757,6 +1757,7 @@ def _resolve_declared_graph_context_ordered(
     value_steps: tuple[_DeclaredValueStep, ...] = (),
     suppressed_outputs: Mapping[str, Any] | None = None,
     use_compiled_program: bool = False,
+    compiled_value_program: Any | None = None,
 ) -> dict[str, Any]:
     """Resolve a prepared dependency order without pending-round scans."""
 
@@ -1829,17 +1830,21 @@ def _resolve_declared_graph_context_ordered(
     if use_compiled_program and value_steps:
         suppressed = dict(suppressed_outputs or {})
         context.update(suppressed)
-        value_specs = tuple(
-            (
-                str(step.output_name),
-                str(step.compiled_expression.expression),
+        if compiled_value_program is None:
+            value_specs = tuple(
+                (
+                    str(step.output_name),
+                    str(step.compiled_expression.expression),
+                )
+                for step in value_steps
             )
-            for step in value_steps
-        )
+            compiled_value_program = _compile_ordered_context_program(
+                value_specs
+            )
         try:
             # security-scanner: allow validated declared program execution.
             exec(  # nosec B102 - expressions passed AST validation.
-                _compile_ordered_context_program(value_specs),
+                compiled_value_program,
                 _COMPILED_CONTEXT_GLOBALS,
                 {
                     "context": context,
@@ -2058,6 +2063,41 @@ def _validate_generated_scalar_initial_constraints(
                 "Generated scalar initial data violate the Einstein "
                 f"constraints for {residual_name} at k={k_value} "
                 f"({normalized_residual} > {tolerance})"
+            )
+
+    for operator_name, operator_entry in (
+        getattr(perturbation_data, "collision_operators", {}) or {}
+    ).items():
+        exact_form = getattr(operator_entry, "exact_form", None)
+        if exact_form is None or not bool(exact_form.fast_manifold):
+            continue
+        compiled_expression = getattr(
+            operator_entry,
+            "compiled_expression",
+            None,
+        )
+        if compiled_expression is None:
+            continue
+        collision_value = float(
+            _evaluate_compiled_expression_noerr(
+                compiled_expression,
+                context,
+            )
+        )
+        if not numpy.isfinite(collision_value):
+            raise ValueError(
+                "Generated scalar initial collision constraint produced "
+                f"non-finite values for {operator_name} at k={k_value}"
+            )
+        collision_rate = abs(float(context.get("collision_rate", 0.0)))
+        if collision_rate <= 1.0e-12:
+            continue
+        tolerance = 1.0e-8 * max(1.0, collision_rate)
+        if abs(collision_value) > tolerance:
+            raise ValueError(
+                "Generated scalar initial collision constraint exceeded "
+                f"tolerance for {operator_name} at k={k_value} "
+                f"({abs(collision_value)} > {tolerance})"
             )
 
 

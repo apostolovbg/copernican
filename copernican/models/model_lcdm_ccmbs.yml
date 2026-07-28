@@ -136,7 +136,7 @@ cmb:
     k_max: 0.3
     k_sample_count: 18
     eta_sample_count: 192
-    evolution_eta_sample_count: 192
+    evolution_eta_sample_count: 128
     evolution_phase_step: 2.0
     ode_rtol: 1.0e-5
     ode_atol: 1.0e-8
@@ -305,6 +305,7 @@ cmb:
         einstein_energy_residual: 3.0e-3
         einstein_momentum_residual: 1.0e-6
         einstein_shear_residual: 1.0e-6
+      continuous_collision_solver: true
       runtime_envelope: bounded
     variables: {}
     derived: {}
@@ -322,7 +323,7 @@ cmb:
       k_max: 0.3
       k_sample_count: 18
       eta_sample_count: 192
-      evolution_eta_sample_count: 192
+      evolution_eta_sample_count: 128
       evolution_phase_step: 2.0
       ode_rtol: 1.0e-5
       ode_atol: 1.0e-8

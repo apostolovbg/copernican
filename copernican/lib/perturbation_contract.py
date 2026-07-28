@@ -377,8 +377,6 @@ def _has_explicit_native_runtime_graph(
         "constraints",
         "closures",
         "observables",
-        "initial_conditions",
-        "boundary_conditions",
     ):
         if contract.get(section_name):
             return True
@@ -543,6 +541,18 @@ def _select_standard_initial_mode(
     return None
 
 
+def _standard_initial_mode_names(
+    family_defs: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """Return supported standard modes declared by one family mapping."""
+
+    return tuple(
+        family_name
+        for family_name in _SCALAR_HIERARCHY_STANDARD_INITIAL_MODES
+        if family_name in family_defs
+    )
+
+
 def _select_standard_vector_initial_mode(
     family_defs: Mapping[str, Any],
 ) -> str | None:
@@ -595,6 +605,11 @@ def _scalar_hierarchy_base_seed_expressions(
     neutrino_velocity_divergence = "acoustic_k * seed"
     neutrino_velocity_dipole = "seed / 3.0"
     neutrino_velocity_quadrupole = f"({k_eta} / 6.0) * seed"
+    neutrino_velocity_density_constraint = (
+        "-(acoustic_k_sq * Phi + 3.0 * Hconf * "
+        "metric_momentum_constraint) * a * a / "
+        "(6.0 * einstein_gravity_strength * Omega_gamma0)"
+    )
     adiabatic_seed = "scalar_lapse_seed"
     adiabatic_k_eta = "acoustic_k * scalar_initial_conformal_time"
     adiabatic_k_eta_sq = f"({adiabatic_k_eta}) * ({adiabatic_k_eta})"
@@ -658,6 +673,8 @@ def _scalar_hierarchy_base_seed_expressions(
             "delta_b": "-0.75 * seed",
             "delta_c": "-0.75 * seed",
             "theta_gamma1": compensated_brightness_dipole,
+            "theta_b": isocurvature_velocity,
+            "theta_c": isocurvature_velocity,
             "theta_nu": isocurvature_velocity,
             "sigma_nu": f"{k_eta_sq} * seed / 15.0",
             "delta_nu_massive": "seed",
@@ -665,6 +682,7 @@ def _scalar_hierarchy_base_seed_expressions(
             "sigma_nu_massive": f"{k_eta_sq} * seed / 15.0",
         },
         "neutrino_velocity_isocurvature": {
+            "theta_gamma0": neutrino_velocity_density_constraint,
             "theta_gamma1": neutrino_velocity_dipole,
             "theta_b": neutrino_velocity_divergence,
             "theta_c": neutrino_velocity_divergence,
@@ -1084,6 +1102,12 @@ def _materialize_native_scalar_hierarchy_contract(
         return contract, False
     if not _SCALAR_HIERARCHY_REQUIRED_FAMILIES.issubset(hierarchy_families):
         return contract, False
+    declared_modes = _standard_initial_mode_names(initial_condition_families)
+    if len(declared_modes) > 1:
+        raise ValueError(
+            "Declare at most one auto-generated initial-condition family "
+            "per perturbation contract: " + ", ".join(declared_modes)
+        )
     initial_mode = _select_standard_initial_mode(initial_condition_families)
     if initial_mode is None:
         return contract, False
@@ -1734,6 +1758,10 @@ def _materialize_native_scalar_hierarchy_contract(
                 "role": "hierarchy",
             }
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
+        mode_seed_expressions = _scalar_hierarchy_base_seed_expressions(
+            initial_mode,
+            gauge=gauge,
+        )
         for q_index in range(massive_neutrino_grid_count):
             q_streaming_speed_name = (
                 _scalar_massive_neutrino_q_streaming_speed_name(q_index)
@@ -2807,41 +2835,55 @@ def _materialize_native_scalar_hierarchy_contract(
             ),
         },
     }
-    initial_conditions: dict[str, Any] = {}
+    initial_conditions = copy.deepcopy(
+        dict(materialized.get("initial_conditions", {}) or {})
+    )
     for variable_name, expression in sorted(
         _scalar_hierarchy_base_seed_expressions(
             initial_mode,
             gauge=gauge,
         ).items()
     ):
-        if variable_name not in variables:
+        if variable_name not in variables or variable_name in {
+            "theta_gamma2",
+            "e_gamma2",
+        }:
             continue
-        initial_conditions[f"{variable_name}_seed"] = {
+        initial_conditions.setdefault(
+            f"{variable_name}_seed",
+            {
+                "target": {
+                    "variable": variable_name,
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": expression,
+            },
+        )
+    initial_conditions.setdefault(
+        "theta_gamma2_seed",
+        {
             "target": {
-                "variable": variable_name,
+                "variable": "theta_gamma2",
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": expression,
-        }
-    initial_conditions["theta_gamma2_seed"] = {
-        "target": {
-            "variable": "theta_gamma2",
-            "wrt": "tau",
-            "order": 0,
+            "expression": (
+                "(8.0 / 15.0) * acoustic_k * theta_gamma1 / " "collision_rate"
+            ),
         },
-        "expression": (
-            "(8.0 / 15.0) * acoustic_k * theta_gamma1 / " "collision_rate"
-        ),
-    }
-    initial_conditions["e_gamma2_seed"] = {
-        "target": {
-            "variable": "e_gamma2",
-            "wrt": "tau",
-            "order": 0,
+    )
+    initial_conditions.setdefault(
+        "e_gamma2_seed",
+        {
+            "target": {
+                "variable": "e_gamma2",
+                "wrt": "tau",
+                "order": 0,
+            },
+            "expression": "theta_gamma2 / 4.0",
         },
-        "expression": "theta_gamma2 / 4.0",
-    }
+    )
     if metric_evolution_state_name is not None:
         initial_conditions[f"{metric_evolution_state_name}_seed"] = {
             "target": {
@@ -2963,15 +3005,41 @@ def _materialize_native_scalar_hierarchy_contract(
                 q_index,
                 2,
             )
+            if initial_mode == "adiabatic_scalar":
+                q_delta_expression = (
+                    f"0.5 * scalar_lapse_seed * {q_log_derivative_name}"
+                )
+                q_theta_expression = (
+                    "-(acoustic_k * scalar_initial_conformal_time / 8.0) "
+                    "* scalar_lapse_seed * "
+                    f"{q_log_derivative_name}"
+                )
+                q_sigma_expression = (
+                    "-(acoustic_k * scalar_initial_conformal_time) * "
+                    "(acoustic_k * scalar_initial_conformal_time) * "
+                    "scalar_lapse_seed / 60.0 * "
+                    f"{q_log_derivative_name}"
+                )
+            else:
+                q_delta_expression = mode_seed_expressions.get(
+                    "delta_nu_massive",
+                    "0.0",
+                )
+                q_theta_expression = mode_seed_expressions.get(
+                    "theta_nu_massive",
+                    "0.0",
+                )
+                q_sigma_expression = mode_seed_expressions.get(
+                    "sigma_nu_massive",
+                    "0.0",
+                )
             initial_conditions[f"{q_delta_name}_seed"] = {
                 "target": {
                     "variable": q_delta_name,
                     "wrt": "tau",
                     "order": 0,
                 },
-                "expression": (
-                    f"0.5 * scalar_lapse_seed * " f"{q_log_derivative_name}"
-                ),
+                "expression": q_delta_expression,
             }
             initial_conditions[f"{q_theta_name}_seed"] = {
                 "target": {
@@ -2979,11 +3047,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "wrt": "tau",
                     "order": 0,
                 },
-                "expression": (
-                    "-(acoustic_k * scalar_initial_conformal_time / 8.0) "
-                    f"* scalar_lapse_seed * "
-                    f"{q_log_derivative_name}"
-                ),
+                "expression": q_theta_expression,
             }
             initial_conditions[f"{q_sigma_name}_seed"] = {
                 "target": {
@@ -2991,12 +3055,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "wrt": "tau",
                     "order": 0,
                 },
-                "expression": (
-                    "-(acoustic_k * scalar_initial_conformal_time) * "
-                    "(acoustic_k * scalar_initial_conformal_time) * "
-                    "scalar_lapse_seed / 60.0 * "
-                    f"{q_log_derivative_name}"
-                ),
+                "expression": q_sigma_expression,
             }
             for moment in range(3, massive_neutrino_l_max + 1):
                 q_name = _scalar_massive_neutrino_q_name(

@@ -60,6 +60,10 @@ deterministic Runge-Kutta substeps, so gauge-equivalent contracts follow the
 same numerical trajectory rather than diverging because of basis-specific
 adaptive stepping.
 
+Scalar model declarations may select one regular adiabatic or isocurvature
+initial-mode family. The native runtime validates the absolute starting
+state and declared collision constraints before it evolves that mode.
+
 Native CMB execution separates contract-static graph compilation,
 cosmology-static background and collision tables, and request-specific
 projection work. Every scalar mode uses the same compiled equation program;

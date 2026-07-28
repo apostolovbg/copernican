@@ -353,9 +353,21 @@ tau` scaling, and the generated synchronous bridge seeds `h`, `eta`,
 `alpha`, and `Phi_gi` from the same observable-basis metric constraint
 surface.
 
+One metadata-only contract selects exactly one auto-generated scalar family.
+Declaring multiple automatic families is rejected rather than silently
+choosing one. A contract may provide explicit start expressions alongside
+the family declaration; those expressions override generated seeds for the
+named state while the remaining hierarchy seeds are materialized normally.
+Massive-neutrino momentum bins use the thermal distribution derivative for
+the adiabatic family and the selected isocurvature series for each
+isocurvature family, so q-resolved states do not inherit an unrelated
+adiabatic seed.
+
 Before integrating one generated scalar mode, the native runtime
 evaluates the starting Einstein energy, momentum, and shear residuals and
-rejects non-finite or out-of-tolerance initial data.
+the declared fast-manifold collision expressions. It also evaluates the
+declared conservation rules at the start surface. Non-finite or
+out-of-tolerance initial data are rejected before evolution.
 
 ## Regular Tensor Initial Mode
 The generated tensor route materializes the regular `tensor_mode` family.
@@ -804,6 +816,14 @@ those limits before the expensive per-wave-number integration begins. A
 momentum-grid declaration supplies the q nodes and weights for a massive or
 other momentum-resolved hierarchy; minimum counts are checked against the
 accuracy controls before the grid enters the cache.
+
+Split collision operators use the declaration-driven staged integrator by
+default. A contract may opt into the continuous stiff collision integrator
+with `continuous_collision_solver: true` when all declared collision blocks
+are exact or implicit and the hierarchy has no momentum-resolved massive
+neutrino family. The option is an explicit numerical control, not a change
+to the equations or collision declarations; contracts that omit it retain
+the staged route and its gauge-equivalent trajectory behavior.
 
 The `bounded` runtime envelope includes the native performance acceptance
 budgets: 180 seconds for a full native spectrum and 60 seconds for the joint

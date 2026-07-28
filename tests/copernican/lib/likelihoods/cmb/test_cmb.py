@@ -4590,8 +4590,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             theta_gamma0_history[support] - reference_interp[support]
         ) / numpy.maximum(numpy.abs(reference_interp[support]), 1.0e-12)
 
-        self.assertLess(float(numpy.median(relative_error)), 0.27)
-        self.assertLess(float(numpy.max(relative_error)), 0.27)
+        self.assertLess(float(numpy.median(relative_error)), 0.05)
+        self.assertLess(float(numpy.max(relative_error)), 0.05)
 
     def test_native_scalar_source_grid_preserves_visibility_refinement(
         self,
@@ -7830,6 +7830,135 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             .expression,
             "-1.5 * scalar_lapse_seed",
         )
+
+    def test_native_scalar_hierarchy_modes_seed_all_supported_families(
+        self,
+    ) -> None:
+        """Every supported scalar mode should expose absolute seeds."""
+
+        modes = (
+            "adiabatic_scalar",
+            "baryon_isocurvature",
+            "cdm_isocurvature",
+            "neutrino_density_isocurvature",
+            "neutrino_velocity_isocurvature",
+        )
+        seed_expressions = {}
+        for mode in modes:
+            contract = _prepare_native_contract(
+                _native_scalar_hierarchy_contract(
+                    initial_mode=mode,
+                    include_massive_neutrino=True,
+                )
+            )
+            initial_conditions = contract[
+                "perturbation_data"
+            ].initial_conditions
+            seed_expressions[mode] = {
+                name: initial_conditions[name].expression
+                for name in (
+                    "delta_b_seed",
+                    "delta_c_seed",
+                    "delta_nu_seed",
+                    "delta_nu_massive_q0_seed",
+                    "theta_nu_massive_q0_seed",
+                )
+            }
+
+        self.assertIn(
+            "distribution_log_derivative",
+            seed_expressions["adiabatic_scalar"]["delta_nu_massive_q0_seed"],
+        )
+        for mode in modes[1:]:
+            self.assertNotIn(
+                "distribution_log_derivative",
+                seed_expressions[mode]["delta_nu_massive_q0_seed"],
+            )
+        self.assertEqual(
+            seed_expressions["neutrino_velocity_isocurvature"][
+                "delta_nu_massive_q0_seed"
+            ],
+            "0.0",
+        )
+        self.assertEqual(
+            seed_expressions["neutrino_velocity_isocurvature"][
+                "theta_nu_massive_q0_seed"
+            ],
+            "acoustic_k * seed",
+        )
+        self.assertEqual(
+            len(
+                {tuple(values.items()) for values in seed_expressions.values()}
+            ),
+            len(modes),
+        )
+
+    def test_native_scalar_hierarchy_rejects_initial_collision_violation(
+        self,
+    ) -> None:
+        """Fast-manifold initial states must satisfy collision constraints."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["perturbations"]["initial_conditions"] = {
+            "theta_b_seed": {
+                "target": {
+                    "variable": "theta_b",
+                    "wrt": "tau",
+                    "order": 0,
+                },
+                "expression": "0.0",
+            }
+        }
+        contract = _prepare_native_contract(_speedup_contract(contract_data))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "initial collision constraint exceeded tolerance",
+        ):
+            native_projection._compute_custom_cmb_spectrum_data(
+                contract,
+                numpy.arange(20, 24, dtype=int),
+            )
+
+    def test_native_scalar_hierarchy_modes_generate_distinct_source_histories(
+        self,
+    ) -> None:
+        """Supported scalar modes should produce distinct histories."""
+
+        modes = (
+            "adiabatic_scalar",
+            "baryon_isocurvature",
+            "cdm_isocurvature",
+            "neutrino_density_isocurvature",
+            "neutrino_velocity_isocurvature",
+        )
+        histories = {}
+        for mode in modes:
+            contract_data = _native_scalar_hierarchy_contract(
+                initial_mode=mode
+            )
+            contract_data["numerical"].update(
+                {
+                    "k_min": 0.02,
+                    "k_max": 0.02,
+                    "k_sample_count": 1,
+                    "eta_sample_count": 16,
+                    "source_grid_multiplier": 1,
+                    "initial_redshift": 2.0e4,
+                }
+            )
+            contract = _prepare_native_contract(contract_data)
+            _, history = _capture_visible_scalar_monopole_history(contract)
+            self.assertTrue(numpy.all(numpy.isfinite(history)))
+            histories[mode] = history
+
+        reference = histories["adiabatic_scalar"]
+        for mode in modes[1:]:
+            self.assertGreater(
+                float(numpy.max(numpy.abs(histories[mode] - reference))),
+                1.0e-8,
+                msg=f"mode {mode} collapsed to the adiabatic history",
+            )
 
     def test_native_scalar_hierarchy_massive_neutrino_response(
         self,

@@ -122,7 +122,7 @@ cmb:
     k_max: 0.3
     k_sample_count: 18
     eta_sample_count: 192
-    evolution_eta_sample_count: 192
+    evolution_eta_sample_count: 128
     evolution_phase_step: 2.0
     ode_rtol: 1.0e-05
     ode_atol: 1.0e-08
@@ -305,7 +305,7 @@ cmb:
       k_max: 0.3
       k_sample_count: 18
       eta_sample_count: 192
-      evolution_eta_sample_count: 192
+      evolution_eta_sample_count: 128
       evolution_phase_step: 2.0
       ode_rtol: 1.0e-05
       ode_atol: 1.0e-08

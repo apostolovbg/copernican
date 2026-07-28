@@ -1124,6 +1124,23 @@ class PerturbationContractTestCase(unittest.TestCase):
             contract_data.initial_conditions,
         )
 
+    def test_standard_initial_condition_family_rejects_multiple_modes(
+        self,
+    ) -> None:
+        """A generated graph must select exactly one scalar mode."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["initial_condition_families"]["cdm_isocurvature"] = {
+            "sector": "scalar",
+            "members": [],
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "at most one auto-generated initial-condition family",
+        ):
+            self._compile(contract)
+
     def test_metric_role_initial_conditions_follow_physical_series(
         self,
     ) -> None:

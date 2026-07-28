@@ -1378,7 +1378,7 @@ Done when:
   maxima, while generated scalar state and diagnostic units are checked
   before projection.
 
-### [open] Slice Eighteen - Scalar initial conditions and mode families
+### [closed] Slice Eighteen - Scalar initial conditions and mode families
 
 Purpose:
 
@@ -1412,6 +1412,15 @@ Done when:
 
 * All supported scalar initial modes are regular, finite, constrained, and
   connected to the declared graph.
+* Automatic mode selection rejects multiple families instead of choosing a
+  hidden priority order.
+* Explicit start expressions remain authoritative when layered onto a
+  metadata-only hierarchy declaration.
+* Massive-neutrino q-bin seeds follow the selected scalar family rather than
+  reusing adiabatic expressions for isocurvature modes.
+* Absolute source-history tests cover adiabatic and every supported
+  isocurvature family, with the hidden-prefix comparison below the declared
+  five-percent threshold.
 
 ### [open] Slice Nineteen - Declared tight coupling and hierarchy closure
 

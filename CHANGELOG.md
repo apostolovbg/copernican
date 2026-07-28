@@ -80,6 +80,27 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-28:
+  Change: Implemented regular scalar mode-family seeds, q-bin handling,
+    initial constraint validation, and native runtime optimizations.
+  Why: Prevented invalid starting states and repeated collision and graph
+    compilation work from entering native evolution.
+  Impact: Ensured declared histories remain finite and collision-consistent
+    while reference LCDM workloads stay within the native performance budget.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-28:
   Change: Reverified the staged scalar-runtime implementation through the
     managed gate workflow.
   Why: Applied the current UTC documentation date and refreshed changelog

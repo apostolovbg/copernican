@@ -60,6 +60,7 @@ from .native_evolution import (
     _compile_declared_graph_execution_plan,
     _compile_declared_perturbation_contract,
     _compile_equation_program,
+    _compile_ordered_context_program,
     _compute_tight_coupling_drag,
     _declared_momentum_grid_context,
     _declared_runtime_seed,
@@ -724,29 +725,46 @@ def _structured_collision_action(
         return None
     if scaled_matrix.shape[0] != scaled_matrix.shape[1]:
         return None
-    if (
-        scaled_matrix.shape == (4, 4)
-        and numpy.all(scaled_matrix[:2, 2:] == 0.0)
-        and numpy.all(scaled_matrix[2:, :2] == 0.0)
-    ):
-        first = _exact_linear_collision_step(
-            operator_matrix=scaled_matrix[:2, :2],
-            dt=1.0,
-            target_state=state[:2],
-        )
-        second = _exact_linear_collision_step(
-            operator_matrix=scaled_matrix[2:, 2:],
-            dt=1.0,
-            target_state=state[2:],
-        )
-        result = numpy.concatenate((first, second))
-        if numpy.all(numpy.isfinite(result)):
-            return result
+    components = _structured_collision_components(scaled_matrix)
+    if components is None:
         return None
-    adjacency = scaled_matrix != 0.0
+    evolved = numpy.asarray(state, dtype=float).copy()
+    for component in components:
+        indices = numpy.asarray(component, dtype=int)
+        block = scaled_matrix[numpy.ix_(indices, indices)]
+        if indices.size == 1:
+            evolved[indices[0]] = numpy.exp(block[0, 0]) * state[indices[0]]
+            continue
+        evolved[indices] = _exact_linear_collision_step(
+            operator_matrix=block,
+            dt=1.0,
+            target_state=state[indices],
+        )
+    if not numpy.all(numpy.isfinite(evolved)):
+        return None
+    return evolved
+
+
+def _structured_collision_components(
+    matrix: numpy.ndarray,
+) -> tuple[tuple[int, ...], ...] | None:
+    """Return collision blocks that can use scalar or two-state actions."""
+
+    normalized = numpy.asarray(matrix, dtype=float)
+    if normalized.ndim != 2 or normalized.shape[0] <= 2:
+        return None
+    if normalized.shape[0] != normalized.shape[1]:
+        return None
+    if (
+        normalized.shape == (4, 4)
+        and numpy.all(normalized[:2, 2:] == 0.0)
+        and numpy.all(normalized[2:, :2] == 0.0)
+    ):
+        return ((0, 1), (2, 3))
+    adjacency = normalized != 0.0
     numpy.fill_diagonal(adjacency, False)
     components: list[tuple[int, ...]] = []
-    unseen = set(range(scaled_matrix.shape[0]))
+    unseen = set(range(normalized.shape[0]))
     while unseen:
         start = min(unseen)
         component = {start}
@@ -764,21 +782,7 @@ def _structured_collision_action(
         components.append(tuple(sorted(component)))
     if any(len(component) > 2 for component in components):
         return None
-    evolved = numpy.asarray(state, dtype=float).copy()
-    for component in components:
-        indices = numpy.asarray(component, dtype=int)
-        block = scaled_matrix[numpy.ix_(indices, indices)]
-        if indices.size == 1:
-            evolved[indices[0]] = numpy.exp(block[0, 0]) * state[indices[0]]
-            continue
-        evolved[indices] = _exact_linear_collision_step(
-            operator_matrix=block,
-            dt=1.0,
-            target_state=state[indices],
-        )
-    if not numpy.all(numpy.isfinite(evolved)):
-        return None
-    return evolved
+    return tuple(components)
 
 
 def _cached_collision_eigendecomposition(
@@ -2520,6 +2524,11 @@ def _compute_custom_cmb_spectrum_data(
                         if graph_value_steps is None
                         else graph_value_steps
                     ),
+                    compiled_value_program=(
+                        full_context_program
+                        if graph_value_steps is None
+                        else state_independent_context_program
+                    ),
                 )
             scalar_base_context_cache[base_context_key] = base_context
         return base_context
@@ -2569,6 +2578,11 @@ def _compute_custom_cmb_spectrum_data(
             ),
             suppressed_outputs=suppressed_collision_outputs,
             use_compiled_program=True,
+            compiled_value_program=(
+                state_dependent_context_program
+                if generated_scalar_hierarchy
+                else stage_context_program
+            ),
         )
 
     def _build_array_context(
@@ -2689,6 +2703,7 @@ def _compute_custom_cmb_spectrum_data(
         blend: float,
         k_value: float,
         tight_coupling_active: bool,
+        include_split_collision_outputs: bool = False,
     ) -> numpy.ndarray:
         """Return the state derivative for one RK stage."""
 
@@ -2697,17 +2712,20 @@ def _compute_custom_cmb_spectrum_data(
             step_index,
             blend,
         )
-        suppressed_collision_outputs = {
-            runtime.name: 0.0
-            for runtime in split_collision_runtimes
-            if (
-                runtime.activation_strategy == "always"
-                or (
-                    runtime.activation_strategy == "tight_coupling"
-                    and tight_coupling_active
+        if include_split_collision_outputs:
+            suppressed_collision_outputs = None
+        else:
+            suppressed_collision_outputs = {
+                runtime.name: 0.0
+                for runtime in split_collision_runtimes
+                if (
+                    runtime.activation_strategy == "always"
+                    or (
+                        runtime.activation_strategy == "tight_coupling"
+                        and tight_coupling_active
+                    )
                 )
-            )
-        }
+            }
         scalar_context = _build_scalar_state_context(
             effective_state_vector,
             k_value=float(k_value),
@@ -2825,6 +2843,30 @@ def _compute_custom_cmb_spectrum_data(
         for step in execution_plan.value_steps
         if step not in state_dependent_value_steps
     )
+
+    def _compile_value_program(value_steps: tuple[Any, ...]) -> Any | None:
+        """Compile one reusable direct-assignment context program."""
+
+        if not value_steps:
+            return None
+        return _compile_ordered_context_program(
+            tuple(
+                (
+                    str(step.output_name),
+                    str(step.compiled_expression.expression),
+                )
+                for step in value_steps
+            )
+        )
+
+    full_context_program = _compile_value_program(execution_plan.value_steps)
+    state_independent_context_program = _compile_value_program(
+        state_independent_value_steps
+    )
+    state_dependent_context_program = _compile_value_program(
+        state_dependent_value_steps
+    )
+    stage_context_program = _compile_value_program(stage_value_steps)
     static_collision_runtimes = {
         runtime.name: not (
             set(runtime.rate_expression.dependencies)
@@ -2887,6 +2929,11 @@ def _compute_custom_cmb_spectrum_data(
             base_context=initial_context,
         )
         state = numpy.asarray(initial_state, dtype=float)
+        if not numpy.all(numpy.isfinite(state)):
+            raise ValueError(
+                "Declared initial state is non-finite before evolution: "
+                f"k={float(mode_k_value)}"
+            )
         initial_state_context = _build_scalar_state_context(
             state,
             k_value=float(mode_k_value),
@@ -2898,6 +2945,12 @@ def _compute_custom_cmb_spectrum_data(
             context=initial_state_context,
             k_value=float(mode_k_value),
         )
+        if generated_scalar_hierarchy:
+            _validate_declared_conservation_rules(
+                perturbation_data=perturbation_data,
+                context=initial_state_context,
+                k_value=float(mode_k_value),
+            )
         _validate_generated_vector_initial_constraints(
             perturbation_data=perturbation_data,
             context=initial_state_context,
@@ -3289,8 +3342,11 @@ def _compute_custom_cmb_spectrum_data(
                 operator_matrix = collision_matrix
                 if runtime.integration_strategy == "exact":
                     eigendecomposition = None
-                    if state_independent_collision_runtimes.get(
-                        runtime.name, False
+                    if (
+                        state_independent_collision_runtimes.get(
+                            runtime.name, False
+                        )
+                        and _structured_collision_components(matrix) is None
                     ):
                         eigendecomposition = (
                             _cached_collision_eigendecomposition(
@@ -3503,7 +3559,27 @@ def _compute_custom_cmb_spectrum_data(
                 if slot.order == 0
             }
             state = numpy.asarray(initial_state, dtype=float).copy()
-            if not split_collision_runtimes:
+            continuous_collision_control = declared_accuracy_controls.get(
+                "continuous_collision_solver"
+            )
+            if continuous_collision_control is not None and not isinstance(
+                continuous_collision_control, bool
+            ):
+                raise ValueError(
+                    "cmb.perturbations.accuracy_controls."
+                    "continuous_collision_solver must be a boolean"
+                )
+            continuous_collision_solver = bool(
+                continuous_collision_control
+                and split_collision_runtimes
+                and "massive_neutrino"
+                not in set(manifest_summary.get("hierarchy_family_names", ()))
+                and all(
+                    runtime.integration_strategy in {"exact", "implicit"}
+                    for runtime in split_collision_runtimes
+                )
+            )
+            if not split_collision_runtimes or continuous_collision_solver:
                 eta_values = numpy.asarray(active_grids["eta"], dtype=float)
 
                 def _continuous_rhs(
@@ -3535,6 +3611,9 @@ def _compute_custom_cmb_spectrum_data(
                         blend=float(blend),
                         k_value=float(k_value),
                         tight_coupling_active=False,
+                        include_split_collision_outputs=(
+                            continuous_collision_solver
+                        ),
                     )
 
                 solution = solve_ivp(
