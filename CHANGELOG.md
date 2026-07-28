@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,75 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-28:
+  Change: Reverified the staged scalar-runtime implementation through the
+    managed gate workflow.
+  Why: Applied the current UTC documentation date and refreshed changelog
+    coverage for the verification session.
+  Impact: Keeps the staged native solver changes traceable and gate-ready.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-27:
+  Change: Completed scalar constraint diagnostics and resolution-aware
+    acceptance for the native runtime.
+  Why: Prevented under-resolved smoke grids and migrated contracts from
+    being rejected by reference-resolution tolerances.
+  Impact: Preserves finite native scalar spectra while reference-resolution
+    contracts retain explicit residual enforcement and diagnostics.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-23:
+  Change: Closed Slice Seventeen by validating generated scalar constraints,
+    physical units, and named evolution anchors before native projection.
+  Why: Enforced scalar metric and species correctness across the accepted
+    history while keeping diagnostics visible in runtime envelopes.
+  Impact: Added declaration-driven scalar acceptance, regression coverage,
+    model controls, and solver documentation for the completed slice.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-23:
   Change: Optimized declared scalar evolution and expanded tensor projection

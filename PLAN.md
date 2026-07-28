@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1338,7 +1338,7 @@ Done when:
 * Documentation and model declarations describe the authoritative runtime
   without historical migration wording.
 
-### [open] Slice Seventeen - Scalar metric and species evolution
+### [closed] Slice Seventeen - Scalar metric and species evolution
 
 Purpose:
 
@@ -1374,6 +1374,9 @@ Done when:
 
 * Scalar state histories are physically normalized, constraint-consistent,
   and entirely declaration-driven.
+* Runtime envelopes record named scalar constraint anchors and full-history
+  maxima, while generated scalar state and diagnostic units are checked
+  before projection.
 
 ### [open] Slice Eighteen - Scalar initial conditions and mode families
 

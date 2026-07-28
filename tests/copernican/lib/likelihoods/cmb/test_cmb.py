@@ -8,7 +8,7 @@ import re
 import unittest
 from pathlib import Path
 from time import perf_counter
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Mapping, Sequence
 from unittest import mock
 
@@ -7510,6 +7510,87 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 contract,
                 numpy.arange(20, 25, dtype=int),
                 spectra=("TT",),
+            )
+
+    def test_native_scalar_hierarchy_records_constraint_anchor_diagnostics(
+        self,
+    ) -> None:
+        """Accepted scalar histories should expose full-history diagnostics."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_native_scalar_hierarchy_contract())
+        )
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        diagnostics = spectrum_data.runtime_envelope[
+            "scalar_constraint_diagnostics"
+        ]
+        self.assertEqual(
+            set(diagnostics),
+            {
+                "einstein_energy_residual",
+                "einstein_momentum_residual",
+                "einstein_shear_residual",
+            },
+        )
+        for metrics in diagnostics.values():
+            self.assertGreater(int(metrics["mode_count"]), 0)
+            self.assertGreater(int(metrics["sample_count"]), 0)
+            self.assertEqual(
+                set(metrics["anchors"]),
+                {"early", "recombination", "late"},
+            )
+            self.assertLessEqual(
+                float(metrics["maximum_absolute"]),
+                float(metrics["tolerance"]),
+            )
+
+    def test_scalar_constraint_acceptance_is_resolution_aware(
+        self,
+    ) -> None:
+        """Reference tolerances apply only to sufficiently resolved grids."""
+
+        context = {
+            "einstein_energy_residual": numpy.full(8, 5.0e-3),
+        }
+        controls = {
+            "scalar_constraint_reference_eta_samples": 16,
+            "scalar_constraint_tolerances": {
+                "einstein_energy_residual": 1.0e-3,
+            },
+        }
+        diagnostics = native_projection._validate_scalar_constraint_histories(
+            perturbation_data=SimpleNamespace(conservation_rules={}),
+            context=context,
+            eta_grid=numpy.arange(8, dtype=float),
+            accuracy_controls=controls,
+            k_value=0.1,
+        )
+
+        self.assertFalse(diagnostics["einstein_energy_residual"]["enforced"])
+        self.assertFalse(
+            diagnostics["einstein_energy_residual"]["reference_resolution_met"]
+        )
+        self.assertGreater(
+            float(diagnostics["einstein_energy_residual"]["maximum_absolute"]),
+            float(diagnostics["einstein_energy_residual"]["tolerance"]),
+        )
+
+        controls["scalar_constraint_reference_eta_samples"] = 8
+        with self.assertRaisesRegex(
+            ValueError,
+            "Scalar Einstein constraint exceeded tolerance",
+        ):
+            native_projection._validate_scalar_constraint_histories(
+                perturbation_data=SimpleNamespace(conservation_rules={}),
+                context=context,
+                eta_grid=numpy.arange(8, dtype=float),
+                accuracy_controls=controls,
+                k_value=0.1,
             )
 
     def test_native_power_spectrum_scale_factor_is_physical(

@@ -6981,6 +6981,29 @@ def compile_perturbation_contract(
             ),
         )
 
+    if materialized_scalar_hierarchy:
+        expected_scalar_units = {
+            "einstein_energy_residual": _INVERSE_MPC_SQUARED_UNITS,
+            "einstein_momentum_residual": _INVERSE_MPC_CUBED_UNITS,
+            "einstein_shear_residual": _INVERSE_MPC_SQUARED_UNITS,
+        }
+        for variable_name, variable_entry in variable_entries.items():
+            expected_units = (
+                _INVERSE_MPC_UNITS
+                if (
+                    "velocity_divergence" in variable_entry.kind
+                    or "visibility_weighted_source_moment"
+                    in variable_entry.kind
+                )
+                else _DIMENSIONLESS_UNITS
+            )
+            if variable_entry.units != expected_units:
+                raise ValueError(
+                    "Generated scalar variable "
+                    f"'{variable_name}' must declare units "
+                    f"'{expected_units}'"
+                )
+
     allowed_name_pool: set[str] = set(parameter_name_set)
     allowed_name_pool.update(background_reference_set)
     allowed_name_pool.update(_SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES)
@@ -7159,6 +7182,21 @@ def compile_perturbation_contract(
             ),
         )
         expression_derived_names.append(name)
+
+    if materialized_scalar_hierarchy:
+        for derived_name, expected_units in expected_scalar_units.items():
+            derived_entry = derived_entries.get(derived_name)
+            if derived_entry is None:
+                raise ValueError(
+                    "Generated scalar hierarchy must declare derived "
+                    f"diagnostic '{derived_name}'"
+                )
+            if derived_entry.units != expected_units:
+                raise ValueError(
+                    "Generated scalar diagnostic "
+                    f"'{derived_name}' must declare units "
+                    f"'{expected_units}'"
+                )
 
     expression_names = {
         name

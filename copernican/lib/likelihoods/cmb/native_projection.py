@@ -1347,6 +1347,176 @@ def _validate_declared_conservation_rules(
                 )
 
 
+_SCALAR_CONSTRAINT_RESIDUALS = (
+    "einstein_energy_residual",
+    "einstein_momentum_residual",
+    "einstein_shear_residual",
+)
+_DEFAULT_SCALAR_CONSTRAINT_ANCHORS = {
+    "early": 0.05,
+    "recombination": 0.50,
+    "late": 0.95,
+}
+_DEFAULT_SCALAR_CONSTRAINT_TOLERANCES = {
+    "einstein_energy_residual": 1.0e-3,
+    "einstein_momentum_residual": 1.0e-6,
+    "einstein_shear_residual": 1.0e-6,
+}
+
+
+def _validate_scalar_constraint_histories(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    eta_grid: numpy.ndarray,
+    accuracy_controls: Mapping[str, Any],
+    k_value: float,
+) -> dict[str, dict[str, Any]]:
+    """Validate generated Einstein residuals and return anchor metrics."""
+
+    residual_names = tuple(
+        name for name in _SCALAR_CONSTRAINT_RESIDUALS if name in context
+    )
+    if not residual_names:
+        return {}
+    eta_values = numpy.asarray(eta_grid, dtype=float)
+    if eta_values.ndim != 1 or eta_values.size == 0:
+        raise ValueError("Scalar constraint validation requires an eta grid")
+    raw_reference_count = accuracy_controls.get(
+        "scalar_constraint_reference_eta_samples"
+    )
+    if raw_reference_count is None:
+        reference_count = int(eta_values.size)
+    else:
+        reference_count = int(
+            _coerce_numeric_scalar(
+                raw_reference_count,
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    "scalar_constraint_reference_eta_samples"
+                ),
+            )
+        )
+        if reference_count < 1:
+            raise ValueError(
+                "Scalar constraint reference eta samples must be positive"
+            )
+    reference_resolution_met = eta_values.size >= reference_count
+
+    raw_anchors = accuracy_controls.get("scalar_constraint_anchors")
+    if raw_anchors is None:
+        anchors = dict(_DEFAULT_SCALAR_CONSTRAINT_ANCHORS)
+    elif isinstance(raw_anchors, Mapping):
+        anchors = {}
+        for anchor_name, raw_fraction in raw_anchors.items():
+            fraction = _coerce_numeric_scalar(
+                raw_fraction,
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    f"scalar_constraint_anchors.{anchor_name}"
+                ),
+            )
+            if not 0.0 <= fraction <= 1.0:
+                raise ValueError(
+                    "Scalar constraint anchor fractions must lie in [0, 1]"
+                )
+            anchors[str(anchor_name)] = float(fraction)
+    else:
+        raise ValueError(
+            "cmb.perturbations.accuracy_controls."
+            "scalar_constraint_anchors must be a mapping"
+        )
+    if not anchors:
+        raise ValueError("Scalar constraint anchors must not be empty")
+
+    tolerances = dict(_DEFAULT_SCALAR_CONSTRAINT_TOLERANCES)
+    rule_enforced_residual_names: set[str] = set()
+    for _rule_name, rule_entry in (
+        getattr(perturbation_data, "conservation_rules", {}) or {}
+    ).items():
+        expression = str(getattr(rule_entry, "expression", ""))
+        if expression in tolerances:
+            tolerances[expression] = float(rule_entry.tolerance)
+            rule_enforced_residual_names.add(expression)
+    accuracy_enforced_residual_names: set[str] = set()
+    raw_tolerances = accuracy_controls.get("scalar_constraint_tolerances")
+    if raw_tolerances is not None:
+        if not isinstance(raw_tolerances, Mapping):
+            raise ValueError(
+                "cmb.perturbations.accuracy_controls."
+                "scalar_constraint_tolerances must be a mapping"
+            )
+        for residual_name, raw_tolerance in raw_tolerances.items():
+            residual_key = str(residual_name)
+            if residual_key not in tolerances:
+                raise ValueError(
+                    "Unknown scalar constraint tolerance: " f"{residual_key}"
+                )
+            tolerance = _coerce_numeric_scalar(
+                raw_tolerance,
+                name=(
+                    "cmb.perturbations.accuracy_controls."
+                    f"scalar_constraint_tolerances.{residual_key}"
+                ),
+            )
+            if tolerance <= 0.0:
+                raise ValueError(
+                    "Scalar constraint tolerances must be positive"
+                )
+            tolerances[residual_key] = float(tolerance)
+            accuracy_enforced_residual_names.add(residual_key)
+
+    diagnostics: dict[str, dict[str, Any]] = {}
+    for residual_name in residual_names:
+        values = numpy.asarray(context[residual_name], dtype=float)
+        if values.ndim == 0:
+            values = numpy.full_like(eta_values, float(values), dtype=float)
+        if values.shape != eta_values.shape:
+            raise ValueError(
+                "Scalar Einstein residual has an invalid eta-grid shape: "
+                f"{residual_name} at k={k_value}"
+            )
+        if not numpy.all(numpy.isfinite(values)):
+            raise ValueError(
+                "Scalar Einstein residual is non-finite: "
+                f"{residual_name} at k={k_value}"
+            )
+        absolute_values = numpy.abs(values)
+        tolerance = tolerances[residual_name]
+        max_abs = float(numpy.max(absolute_values))
+        enforcement_active = residual_name in rule_enforced_residual_names or (
+            residual_name in accuracy_enforced_residual_names
+            and reference_resolution_met
+        )
+        anchor_values = {
+            anchor_name: float(
+                absolute_values[
+                    min(
+                        int(round(fraction * (eta_values.size - 1))),
+                        eta_values.size - 1,
+                    )
+                ]
+            )
+            for anchor_name, fraction in anchors.items()
+        }
+        if enforcement_active and max_abs > tolerance:
+            raise ValueError(
+                "Scalar Einstein constraint exceeded tolerance: "
+                f"{residual_name} at k={k_value} "
+                f"({max_abs} > {tolerance})"
+            )
+        diagnostics[residual_name] = {
+            "maximum_absolute": max_abs,
+            "tolerance": float(tolerance),
+            "enforced": enforcement_active,
+            "reference_eta_samples": int(reference_count),
+            "reference_resolution_met": bool(reference_resolution_met),
+            "anchors": anchor_values,
+            "sample_count": int(values.size),
+        }
+    return diagnostics
+
+
 def _compute_custom_cmb_spectrum_data(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -1847,6 +2017,7 @@ def _compute_custom_cmb_spectrum_data(
     declared_accuracy_controls = _resolve_declared_accuracy_controls(
         contract_or_params
     )
+    scalar_constraint_diagnostics: dict[str, dict[str, Any]] = {}
     adaptive_k_controls = declared_accuracy_controls.get(
         "adaptive_k_quadrature"
     )
@@ -2743,6 +2914,7 @@ def _compute_custom_cmb_spectrum_data(
         nonlocal active_grids
         nonlocal active_declared_background_histories
         nonlocal active_coordinate_rate_histories
+        nonlocal scalar_constraint_diagnostics
         active_grids = dict(source_grids)
         active_declared_background_histories = (
             source_declared_background_histories
@@ -2765,6 +2937,37 @@ def _compute_custom_cmb_spectrum_data(
             eta_grid=source_grids["eta"],
             execution_plan=execution_plan,
         )
+        mode_constraint_diagnostics = _validate_scalar_constraint_histories(
+            perturbation_data=perturbation_data,
+            context=conservation_context,
+            eta_grid=source_grids["eta"],
+            accuracy_controls=declared_accuracy_controls,
+            k_value=float(mode_k_value),
+        )
+        for residual_name, mode_metrics in mode_constraint_diagnostics.items():
+            aggregate = scalar_constraint_diagnostics.setdefault(
+                residual_name,
+                {
+                    "maximum_absolute": 0.0,
+                    "tolerance": float(mode_metrics["tolerance"]),
+                    "anchors": {},
+                    "mode_count": 0,
+                    "sample_count": 0,
+                },
+            )
+            aggregate["maximum_absolute"] = max(
+                float(aggregate["maximum_absolute"]),
+                float(mode_metrics["maximum_absolute"]),
+            )
+            aggregate["mode_count"] = int(aggregate["mode_count"]) + 1
+            aggregate["sample_count"] = int(aggregate["sample_count"]) + int(
+                mode_metrics["sample_count"]
+            )
+            for anchor_name, anchor_value in mode_metrics["anchors"].items():
+                aggregate["anchors"][anchor_name] = max(
+                    float(aggregate["anchors"].get(anchor_name, 0.0)),
+                    float(anchor_value),
+                )
         _validate_declared_conservation_rules(
             perturbation_data=perturbation_data,
             context=conservation_context,
@@ -4921,6 +5124,9 @@ def _compute_custom_cmb_spectrum_data(
         spectra_results = adaptive_spectra
 
     elapsed_seconds = perf_counter() - request_started
+    runtime_envelope["scalar_constraint_diagnostics"] = (
+        scalar_constraint_diagnostics
+    )
     kernel_cache_after = native_cache.native_cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]

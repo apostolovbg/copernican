@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-28
 **Project Version:** 12.0.26
 
 ## Overview
@@ -823,6 +823,18 @@ budget after projection. The joint-MCMC limit is applied by its bounded smoke
 benchmark because that workload spans multiple likelihood evaluations. A
 budget overrun raises a named performance error rather than publishing a
 partial or misleading spectrum.
+
+Generated scalar contracts validate Einstein energy, momentum, and shear
+residuals across the accepted evolution history. `scalar_constraint_anchors`
+maps names such as `early`, `recombination`, and `late` to normalized
+evolution-grid positions for diagnostics; `scalar_constraint_tolerances`
+sets residual tolerances by residual name. Set
+`scalar_constraint_reference_eta_samples` to the eta-grid size associated
+with those tolerances. Under-resolved grids report diagnostics without
+claiming reference-resolution acceptance, while explicitly declared
+conservation rules remain enforced. Runtime envelopes expose
+`scalar_constraint_diagnostics` with full-history maxima and anchor values.
+Generated state and residual units are checked before projection.
 
 Adaptive refinement is opt-in through `accuracy_controls`. The canonical
 sections are `adaptive_transfer`, `adaptive_source`, and

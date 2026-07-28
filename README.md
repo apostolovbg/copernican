@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-23
+**Last Updated:** 2026-07-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -76,6 +76,11 @@ anisotropic-stress convention, including its metric source and initial data.
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
 test surface.
+
+Generated scalar contracts validate Einstein energy, momentum, and shear
+residuals across the accepted evolution history and expose named anchor
+diagnostics in the runtime envelope. State and residual units are checked
+before projection.
 
 Native accuracy tiers can opt into phase-aware transfer-node selection,
 visibility-aware source-time refinement, and line-of-sight quadrature checks

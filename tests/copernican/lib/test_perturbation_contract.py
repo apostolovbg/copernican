@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import unittest
+from unittest import mock
 
 import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
@@ -767,6 +769,36 @@ class PerturbationContractTestCase(unittest.TestCase):
             ],
             "potential_power",
         )
+
+    def test_generated_scalar_unit_mismatch_fails_before_execution(
+        self,
+    ) -> None:
+        """Generated scalar state units must remain physically typed."""
+
+        original_materializer = getattr(
+            perturbation_contract_module,
+            "_materialize_native_scalar_hierarchy_contract",
+        )
+
+        def malformed_materializer(
+            contract: dict[str, object],
+        ) -> tuple[dict[str, object], bool]:
+            materialized, generated = original_materializer(contract)
+            malformed = copy.deepcopy(materialized)
+            malformed["variables"]["delta_b"]["units"] = "1/Mpc"
+            return malformed, generated
+
+        with mock.patch.object(
+            perturbation_contract_module,
+            "_materialize_native_scalar_hierarchy_contract",
+            side_effect=malformed_materializer,
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "Generated scalar variable 'delta_b' must declare units "
+                "'dimensionless'",
+            ):
+                self._compile(_scalar_metadata_only_contract())
 
     def test_compiled_expression_evaluator_returns_numeric_result(self):
         """Compiled expression plans should evaluate without AST reparse."""
