@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-28
+**Last Updated:** 2026-07-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,46 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-29:
+  Change: Updated Slice Nineteen documentation and changelog metadata.
+  Why: Align touched documentation with the current UTC date after the
+    gate session crossed midnight.
+  Impact: Preserved forward-only repository records and gate traceability.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-07-28:
+  Change: Implemented declared tight-coupling hysteresis, collision
+    invariant checks, and hierarchy terminal-closure selection.
+  Why: Ensured fast-collision updates and terminal ladders use declared
+    metadata instead of hidden thresholds or fallback closures.
+  Impact: Closed Slice Nineteen with conserved, finite, directly tested
+    tight-coupling and hierarchy-closure behavior.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm_ccmbs.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-07-28:
   Change: Implemented regular scalar mode-family seeds, q-bin handling,

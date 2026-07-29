@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-28
+**Last Updated:** 2026-07-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -63,6 +63,11 @@ adaptive stepping.
 Scalar model declarations may select one regular adiabatic or isocurvature
 initial-mode family. The native runtime validates the absolute starting
 state and declared collision constraints before it evolves that mode.
+
+Native tight-coupling thresholds, terminal hierarchy closures, and collision
+conservation checks are declared in each perturbation contract. Exact and
+implicit collision updates validate their attached invariants before the
+state reaches projection.
 
 Native CMB execution separates contract-static graph compilation,
 cosmology-static background and collision tables, and request-specific

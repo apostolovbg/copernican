@@ -141,6 +141,7 @@ cmb:
     ode_rtol: 1.0e-5
     ode_atol: 1.0e-8
     tight_coupling_ratio: 1600.0
+    tight_coupling_exit_ratio: 0.1
     a_min: 1.0e-6
     source_grid_multiplier: 2
     initial_redshift: 2.0e4
@@ -328,6 +329,7 @@ cmb:
       ode_rtol: 1.0e-5
       ode_atol: 1.0e-8
       tight_coupling_ratio: 1600.0
+      tight_coupling_exit_ratio: 0.1
       a_min: 1.0e-6
       source_grid_multiplier: 2
       initial_redshift: 2.0e4

@@ -622,6 +622,7 @@ class _CustomCMBNumerics:
     ode_rtol: float = 1.0e-6
     ode_atol: float = 1.0e-9
     tight_coupling_ratio: float = 50.0
+    tight_coupling_exit_ratio: float = 0.1
     a_min: float = 1.0e-8
     source_grid_multiplier: int = 2
     initial_redshift: float = 1.0e5
@@ -1588,6 +1589,14 @@ def _resolve_custom_cmb_numerics(
         "tight_coupling_ratio",
         defaults.tight_coupling_ratio,
     )
+    tight_coupling_exit_ratio = _read_float(
+        "tight_coupling_exit_ratio",
+        defaults.tight_coupling_exit_ratio,
+    )
+    if tight_coupling_exit_ratio >= 1.0:
+        raise ValueError(
+            "cmb.numerical.tight_coupling_exit_ratio must be below 1"
+        )
     a_min = _read_float("a_min", defaults.a_min)
     source_grid_multiplier = max(
         1,
@@ -1711,6 +1720,7 @@ def _resolve_custom_cmb_numerics(
         ode_rtol=ode_rtol,
         ode_atol=ode_atol,
         tight_coupling_ratio=tight_coupling_ratio,
+        tight_coupling_exit_ratio=tight_coupling_exit_ratio,
         a_min=a_min,
         source_grid_multiplier=source_grid_multiplier,
         initial_redshift=initial_redshift,

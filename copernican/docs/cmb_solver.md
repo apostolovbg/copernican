@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-28
+**Last Updated:** 2026-07-29
 **Project Version:** 12.0.26
 
 ## Overview
@@ -534,7 +534,14 @@ fast-manifold projection:
 collision_rate >= k * tight_coupling_ratio
 ```
 
-with hysteretic exit at `collision_rate <= 0.1 * k * tight_coupling_ratio`.
+with hysteretic exit at
+`collision_rate <= k * tight_coupling_ratio * tight_coupling_exit_ratio`.
+
+The entry multiplier is `cmb.perturbations.numerics.tight_coupling_ratio`;
+the exit multiplier is the separately declared
+`cmb.perturbations.numerics.tight_coupling_exit_ratio`, which must be
+strictly between zero and one. The native runtime does not infer an exit
+threshold from a hidden scalar constant.
 
 Within and outside the fast-manifold regime,
 `copernican/lib/perturbation_contract.py` and
@@ -564,8 +571,18 @@ compiled split block with `integration_strategy: exact` and a declared
 Several compiled collision blocks may run in the same evolution interval, and
 the native solver suppresses only the selected split-operator outputs
 instead of zeroing shared symbols such as `collision_rate`.
+After every exact, implicit, or fast-manifold update, the runtime evaluates
+the conservation rules attached to that collision block. A non-finite or
+out-of-tolerance invariant aborts the mode before the updated state can
+reach projection.
 Unsupported exact or implicit declarations therefore fail before evolution
 instead of being silently ignored.
+
+Generated scalar hierarchy families must declare
+`closure: free_streaming_scalar`. The materializer uses that declaration for
+the horizon-aware terminal temperature, polarization, massless-neutrino, and
+q-resolved massive-neutrino closures; an unknown closure name fails during
+contract preparation rather than selecting a hidden fallback.
 
 ## Line-Of-Sight Source Convention
 The canonical scalar source decomposition is:
@@ -789,8 +806,10 @@ default to eight multipoles. Generated scalar evolution uses deterministic
 explicit Runge-Kutta substeps shared by every supported scalar gauge. The
 substep count follows the declared wave-number phase and collision-rate
 histories, so gauge-equivalent routes do not select different numerical
-trajectories. The tight-coupling ratio is `50.0`, and
-`source_grid_multiplier = 2` refines the line-of-sight grid. The optional
+trajectories. The tight-coupling entry ratio is `50.0`, and the exit ratio
+defaults to `0.1`; both are declared numerical controls. The
+`source_grid_multiplier = 2` setting refines the line-of-sight grid. The
+optional
 `evolution_eta_sample_count` controls the maximum number of conformal-time
 samples used by generated hierarchy evolution independently of source-grid
 refinement; leaving it undeclared retains the bounded default evolution

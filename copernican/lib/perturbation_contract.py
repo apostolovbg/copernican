@@ -1683,6 +1683,20 @@ def _materialize_native_scalar_hierarchy_contract(
                 },
             }
         )
+
+    def _uses_scalar_terminal_closure(family_name: str) -> bool:
+        """Validate and select the declared scalar hierarchy closure."""
+
+        family_entry = hierarchy_families.get(family_name, {})
+        closure_name = str(family_entry.get("closure", "")).strip()
+        if closure_name != "free_streaming_scalar":
+            raise ValueError(
+                "Native scalar hierarchy family "
+                f"'{family_name}' must declare the supported terminal "
+                "closure 'free_streaming_scalar'"
+            )
+        return True
+
     for moment in range(3, photon_l_max + 1):
         name = _scalar_temperature_name(moment)
         next_name = None
@@ -1700,7 +1714,9 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=_scalar_temperature_name(moment - 1),
                 next_name=next_name,
-                use_physical_terminal_closure=True,
+                use_physical_terminal_closure=_uses_scalar_terminal_closure(
+                    "photon_temperature"
+                ),
             ),
             "role": "hierarchy",
         }
@@ -1726,7 +1742,9 @@ def _materialize_native_scalar_hierarchy_contract(
                 moment=moment,
                 previous_name=previous_name,
                 next_name=next_name,
-                use_physical_terminal_closure=True,
+                use_physical_terminal_closure=_uses_scalar_terminal_closure(
+                    "photon_polarization_e"
+                ),
             ),
             "role": "polarization",
         }
@@ -1753,7 +1771,9 @@ def _materialize_native_scalar_hierarchy_contract(
                     moment=moment,
                     previous_name=previous_name,
                     next_name=next_name,
-                    use_physical_terminal_closure=True,
+                    use_physical_terminal_closure=(
+                        _uses_scalar_terminal_closure("massless_neutrino")
+                    ),
                 ),
                 "role": "hierarchy",
             }
@@ -1863,7 +1883,9 @@ def _materialize_native_scalar_hierarchy_contract(
                         previous_name=previous_name,
                         next_name=next_name,
                         streaming_speed_name=q_streaming_speed_name,
-                        use_physical_terminal_closure=True,
+                        use_physical_terminal_closure=(
+                            _uses_scalar_terminal_closure("massive_neutrino")
+                        ),
                     ),
                     "role": "hierarchy",
                 }

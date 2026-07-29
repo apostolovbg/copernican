@@ -2117,6 +2117,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             "collision_rate",
             compiled.equations["evolve_e_gamma2"].rhs,
         )
+
         self.assertNotIn(
             "e_gamma1",
             compiled.equations["evolve_e_gamma2"].rhs,
@@ -2204,6 +2205,28 @@ class PerturbationContractTestCase(unittest.TestCase):
             "collision_rate",
             compiled.equations["evolve_e_gamma3"].rhs,
         )
+
+    def test_scalar_hierarchy_requires_declared_terminal_closures(
+        self,
+    ) -> None:
+        """Generated scalar ladders must honor their closure declarations."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        self.assertIn(
+            "sqrt((acoustic_k * eta) * (acoustic_k * eta)",
+            compiled.equations["evolve_theta_gamma6"].rhs,
+        )
+
+        contract = _scalar_metadata_only_contract()
+        photon_temperature_family = contract["hierarchy_families"][
+            "photon_temperature"
+        ]
+        photon_temperature_family["closure"] = "unsupported_scalar_closure"
+        with self.assertRaisesRegex(
+            ValueError,
+            "must declare the supported terminal closure",
+        ):
+            self._compile(contract)
 
     def test_extended_runtime_physical_scalars_compile(self) -> None:
         """Native graphs may reference the documented physical scalars."""

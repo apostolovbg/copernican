@@ -1240,8 +1240,9 @@ def _validate_declared_conservation_rules(
     perturbation_data: Any,
     context: Mapping[str, Any],
     k_value: float,
+    rule_names: Iterable[str] | None = None,
 ) -> None:
-    """Raise when one declared conservation rule exceeds its tolerance."""
+    """Raise when selected declared conservation rules exceed tolerance."""
 
     def _resolve_rule_dependency(
         dependency_name: str,
@@ -1313,8 +1314,16 @@ def _validate_declared_conservation_rules(
     if not rule_entries:
         return
     resolved_context = dict(context)
+    selected_rule_names = (
+        None if rule_names is None else {str(name) for name in rule_names}
+    )
     with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
         for rule_name, rule_entry in rule_entries.items():
+            if (
+                selected_rule_names is not None
+                and str(rule_name) not in selected_rule_names
+            ):
+                continue
             rule_kind = str(rule_entry.kind or "absolute_max")
             if rule_kind != "absolute_max":
                 raise ValueError(
@@ -3170,6 +3179,35 @@ def _compute_custom_cmb_spectrum_data(
                 )
             return metadata
 
+        def _validate_collision_invariants(
+            state_vector: numpy.ndarray,
+            *,
+            runtime: _CompiledCollisionOperatorRuntime,
+            step_index: int,
+            blend: float,
+            k_value: float,
+        ) -> None:
+            """Validate one operator's conservation rules after its update."""
+
+            if not runtime.conservation_rule_names:
+                return
+            eta_value, background_scalars = _scalar_background_context(
+                step_index,
+                blend,
+            )
+            context = _build_scalar_state_context(
+                state_vector,
+                k_value=float(k_value),
+                eta_value=float(eta_value),
+                background_scalars=background_scalars,
+            )
+            _validate_declared_conservation_rules(
+                perturbation_data=perturbation_data,
+                context=context,
+                k_value=float(k_value),
+                rule_names=runtime.conservation_rule_names,
+            )
+
         def _project_declared_fast_collision_state(
             state_vector: numpy.ndarray,
             *,
@@ -3260,6 +3298,13 @@ def _compute_custom_cmb_spectrum_data(
                         damping_state,
                     ):
                         projected[slot_index] = float(value)
+                _validate_collision_invariants(
+                    projected,
+                    runtime=runtime,
+                    step_index=step_index,
+                    blend=blend,
+                    k_value=float(k_value),
+                )
             if not numpy.all(numpy.isfinite(projected)):
                 raise ValueError(
                     "Declared fast collision projection produced non-finite "
@@ -3400,6 +3445,13 @@ def _compute_custom_cmb_spectrum_data(
                     )
                     for slot_index in runtime.damping_slot_indices:
                         relaxed[slot_index] *= damping
+                _validate_collision_invariants(
+                    relaxed,
+                    runtime=runtime,
+                    step_index=step_index,
+                    blend=blend,
+                    k_value=float(k_value),
+                )
             return relaxed
 
         def _advance_declared_interval(
@@ -3655,6 +3707,7 @@ def _compute_custom_cmb_spectrum_data(
                 collision_rate=float(active_grids["collision_rate"][0]),
                 k_value=float(k_value),
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+                exit_ratio=float(numerics.tight_coupling_exit_ratio),
             )
             for step_index, eta_value in enumerate(active_grids["eta"]):
                 state = _project_declared_fast_collision_state(
@@ -3686,6 +3739,7 @@ def _compute_custom_cmb_spectrum_data(
                     collision_rate=end_collision_rate,
                     k_value=float(k_value),
                     tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+                    exit_ratio=float(numerics.tight_coupling_exit_ratio),
                 )
             return histories, state
 

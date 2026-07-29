@@ -4361,6 +4361,48 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
 
+        declared_exit_ratio = 0.25
+        declared_exit_rate = native_evolution._tight_coupling_exit_rate(
+            k_value=0.2,
+            tight_coupling_ratio=50.0,
+            exit_ratio=declared_exit_ratio,
+        )
+        self.assertAlmostEqual(
+            declared_exit_rate,
+            declared_exit_ratio * entry_rate,
+        )
+        self.assertTrue(
+            native_evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.5 * (declared_exit_rate + entry_rate),
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+                exit_ratio=declared_exit_ratio,
+            )
+        )
+        self.assertFalse(
+            native_evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.99 * declared_exit_rate,
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+                exit_ratio=declared_exit_ratio,
+            )
+        )
+
+    def test_tight_coupling_exit_ratio_must_be_below_entry(self) -> None:
+        """A hysteresis exit threshold must remain below entry."""
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"tight-coupling exit ratio must be in \(0, 1\)",
+        ):
+            native_evolution._tight_coupling_exit_rate(
+                k_value=0.2,
+                tight_coupling_ratio=50.0,
+                exit_ratio=1.0,
+            )
+
     def test_source_file_does_not_contain_fake_or_legacy_hacks(self) -> None:
         """The production module should not contain old compatibility code."""
 

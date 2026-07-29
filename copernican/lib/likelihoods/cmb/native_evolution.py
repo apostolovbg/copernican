@@ -1523,10 +1523,13 @@ def _tight_coupling_exit_rate(
     *,
     k_value: float,
     tight_coupling_ratio: float,
+    exit_ratio: float = 0.1,
 ) -> float:
     """Return the collision rate below which tight coupling is disabled."""
 
-    return 0.1 * _tight_coupling_entry_rate(
+    if not 0.0 < float(exit_ratio) < 1.0:
+        raise ValueError("tight-coupling exit ratio must be in (0, 1)")
+    return float(exit_ratio) * _tight_coupling_entry_rate(
         k_value=k_value,
         tight_coupling_ratio=tight_coupling_ratio,
     )
@@ -1538,6 +1541,7 @@ def _tight_coupling_is_active(
     collision_rate: float,
     k_value: float,
     tight_coupling_ratio: float,
+    exit_ratio: float = 0.1,
 ) -> bool:
     """Return the updated tight-coupling regime with hysteresis."""
 
@@ -1547,6 +1551,7 @@ def _tight_coupling_is_active(
         return collision_rate > _tight_coupling_exit_rate(
             k_value=k_value,
             tight_coupling_ratio=tight_coupling_ratio,
+            exit_ratio=exit_ratio,
         )
     return collision_rate >= _tight_coupling_entry_rate(
         k_value=k_value,
