@@ -13,6 +13,7 @@ class DeclaredProjectionKernelSpec:
     name: str
     kind: str
     description: str | None = None
+    allowed_sectors: tuple[str, ...] = ("scalar", "vector", "tensor")
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,7 @@ class DeclaredProjectionSpec:
     allows_custom_source_roles: bool = False
     required_projection_roles: tuple[str, ...] = ()
     requires_odd_parity_source: bool = False
+    allowed_sectors: tuple[str, ...] = ("scalar", "vector", "tensor")
 
 
 _DECLARED_PROJECTION_KERNEL_SPECS = {
@@ -38,6 +40,7 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
         name="temperature_mixed_window",
         kind="temperature_mixed",
         description="Mixed scalar temperature line-of-sight kernel.",
+        allowed_sectors=("scalar",),
     ),
     "spherical_bessel_window": DeclaredProjectionKernelSpec(
         name="spherical_bessel_window",
@@ -48,6 +51,7 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
         name="spherical_bessel_derivative_window",
         kind="spherical_bessel_derivative",
         description="Derivative spherical-Bessel line-of-sight kernel.",
+        allowed_sectors=("scalar",),
     ),
     "spherical_bessel_second_derivative_window": DeclaredProjectionKernelSpec(
         name="spherical_bessel_second_derivative_window",
@@ -55,6 +59,7 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
         description=(
             "Second-derivative spherical-Bessel line-of-sight kernel."
         ),
+        allowed_sectors=("scalar",),
     ),
     "spin2_e_window": DeclaredProjectionKernelSpec(
         name="spin2_e_window",
@@ -70,6 +75,7 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
         name="lensing_potential_window",
         kind="lensing_potential",
         description="Scalar lensing-potential projection kernel.",
+        allowed_sectors=("scalar",),
     ),
 }
 _CUSTOM_LINE_OF_SIGHT_KERNELS = (
@@ -89,6 +95,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="lensing_potential_window",
         supported_kernels=("lensing_potential_window",),
+        allowed_sectors=("scalar",),
     ),
     "line_of_sight_polarization_e": DeclaredProjectionSpec(
         name="line_of_sight_polarization_e",
@@ -99,6 +106,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spin2_e_window",
         supported_kernels=("spin2_e_window",),
+        allowed_sectors=("scalar",),
     ),
     "line_of_sight_temperature": DeclaredProjectionSpec(
         name="line_of_sight_temperature",
@@ -125,6 +133,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="temperature_mixed_window",
         supported_kernels=("temperature_mixed_window",),
+        allowed_sectors=("scalar",),
     ),
     "line_of_sight_vector_temperature": DeclaredProjectionSpec(
         name="line_of_sight_vector_temperature",
@@ -135,6 +144,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
+        allowed_sectors=("vector",),
     ),
     "line_of_sight_vector_polarization_e": DeclaredProjectionSpec(
         name="line_of_sight_vector_polarization_e",
@@ -145,6 +155,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
+        allowed_sectors=("vector",),
     ),
     "line_of_sight_vector_polarization_b": DeclaredProjectionSpec(
         name="line_of_sight_vector_polarization_b",
@@ -155,6 +166,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
+        allowed_sectors=("vector",),
     ),
     "line_of_sight_signal": DeclaredProjectionSpec(
         name="line_of_sight_signal",
@@ -175,6 +187,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spherical_bessel_derivative_window",
         supported_kernels=("spherical_bessel_derivative_window",),
+        allowed_sectors=("scalar",),
     ),
     "line_of_sight_potential": DeclaredProjectionSpec(
         name="line_of_sight_potential",
@@ -185,6 +198,7 @@ _DECLARED_PROJECTION_SPECS = {
         transfer_units="dimensionless",
         default_kernel="spherical_bessel_window",
         supported_kernels=("spherical_bessel_window",),
+        allowed_sectors=("scalar",),
     ),
     "spin2_b_mode": DeclaredProjectionSpec(
         name="spin2_b_mode",
@@ -311,6 +325,7 @@ def _resolve_projection_spec(
             allows_custom_source_roles=base_spec.allows_custom_source_roles,
             required_projection_roles=required_projection_roles,
             requires_odd_parity_source=requires_odd_parity_source,
+            allowed_sectors=base_spec.allowed_sectors,
         )
     try:
         return _DECLARED_PROJECTION_SPECS[projection]
@@ -409,6 +424,43 @@ def resolve_declared_projection_kernel(
     return kernel_name
 
 
+def validate_declared_projection_sector(
+    projection: str,
+    sector: str | None,
+    *,
+    observable_name: str,
+    kernel: str | None = None,
+    extensions: Mapping[str, Any] | None = None,
+) -> None:
+    """Reject projection kernels that cannot represent ``sector``."""
+
+    if sector is None:
+        return
+    sector_name = str(sector)
+    spec = get_declared_projection_spec(
+        projection,
+        extensions=extensions,
+    )
+    if sector_name not in spec.allowed_sectors:
+        allowed = ", ".join(spec.allowed_sectors)
+        raise ValueError(
+            f"Perturbation observable '{observable_name}' projection "
+            f"'{projection}' is incompatible with sector '{sector_name}'; "
+            f"allowed sectors: {allowed}"
+        )
+    if kernel is None:
+        return
+    kernel_name = str(kernel)
+    kernel_spec = get_declared_projection_kernel_spec(kernel_name)
+    if sector_name not in kernel_spec.allowed_sectors:
+        allowed = ", ".join(kernel_spec.allowed_sectors)
+        raise ValueError(
+            f"Perturbation observable '{observable_name}' kernel "
+            f"'{kernel_name}' is incompatible with sector '{sector_name}'; "
+            f"allowed sectors: {allowed}"
+        )
+
+
 def validate_declared_projection_source_roles(
     projection: str,
     *,
@@ -476,5 +528,6 @@ __all__ = [
     "get_declared_projection_spec",
     "resolve_declared_source_kernel",
     "resolve_declared_projection_kernel",
+    "validate_declared_projection_sector",
     "validate_declared_projection_source_roles",
 ]

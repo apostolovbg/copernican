@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-29:
+  Change: Validated independent radial projection kernels and sector
+    compatibility.
+  Why: Prevent endpoint, signed-parity, and sector-dispatch errors from
+    entering line-of-sight integration.
+  Impact: Closed Slice Twenty-Two with finite analytic limits, SciPy-backed
+    Bessel references, bounded kernel batching, and early incompatibility
+    failures.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_cmb_projection_contract.py
+
+- 2026-07-29:
   Change: Added independent source-history refinement comparison on the
     declared line-of-sight grid.
   Why: Detect source-history interpolation error separately from projection

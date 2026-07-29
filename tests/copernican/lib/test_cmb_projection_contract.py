@@ -13,6 +13,7 @@ from copernican.lib.cmb_projection_contract import (
     get_declared_projection_spec,
     resolve_declared_projection_kernel,
     resolve_declared_source_kernel,
+    validate_declared_projection_sector,
     validate_declared_projection_source_roles,
 )
 
@@ -162,6 +163,34 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertEqual(spec.transfer_units, "dimensionless")
         self.assertEqual(spec.default_kernel, "spin2_b_window")
         self.assertTrue(spec.requires_odd_parity_source)
+
+    def test_projection_sector_contract_rejects_incompatible_dispatch(self):
+        """Projection dispatch should reject sector-incompatible kernels."""
+
+        with self.assertRaisesRegex(ValueError, "incompatible with sector"):
+            validate_declared_projection_sector(
+                "line_of_sight_temperature",
+                "tensor",
+                observable_name="tensor_temperature",
+                kernel="temperature_mixed_window",
+            )
+
+        with self.assertRaisesRegex(ValueError, "incompatible with sector"):
+            validate_declared_projection_sector(
+                "line_of_sight_vector_temperature",
+                "scalar",
+                observable_name="scalar_temperature",
+                kernel="spherical_bessel_window",
+            )
+
+        self.assertIsNone(
+            validate_declared_projection_sector(
+                "spin2_e_mode",
+                "tensor",
+                observable_name="tensor_e",
+                kernel="spin2_e_window",
+            )
+        )
 
     def test_temperature_source_roles_select_reviewed_kernels(self) -> None:
         """Temperature roles retain their declared radial conventions."""

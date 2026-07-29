@@ -20,6 +20,8 @@ from .cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_spec,
     resolve_declared_projection_kernel,
+    resolve_declared_source_kernel,
+    validate_declared_projection_sector,
     validate_declared_projection_source_roles,
 )
 from .engine_adapter import (
@@ -8079,6 +8081,27 @@ def compile_perturbation_contract(
                 kernel=kernel,
                 source_term_refs=source_term_refs,
             )
+            validate_declared_projection_sector(
+                declared_projection,
+                sector,
+                observable_name=name,
+                kernel=kernel,
+                extensions=projection_extension_entries,
+            )
+            for role_name in source_term_refs:
+                source_kernel = resolve_declared_source_kernel(
+                    declared_projection,
+                    role_name,
+                    kernel=kernel,
+                    extensions=projection_extension_entries,
+                )
+                validate_declared_projection_sector(
+                    declared_projection,
+                    sector,
+                    observable_name=name,
+                    kernel=source_kernel,
+                    extensions=projection_extension_entries,
+                )
             if observable_units is None:
                 observable_units = _projection_transfer_units(
                     declared_projection

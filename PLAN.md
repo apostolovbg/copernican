@@ -1532,7 +1532,7 @@ Done when:
   the shared kernel contract, finite source histories are reported, and
   missing histories fail with an explicit availability error.
 
-### [open] Slice Twenty-Two - Independent projection kernels
+### [closed] Slice Twenty-Two - Independent projection kernels
 
 Purpose:
 
@@ -1562,6 +1562,12 @@ Done when:
 
 * Every production projection kernel has an independent numerical or
   analytic acceptance test.
+* Spherical-Bessel values and derivatives agree with SciPy at positive,
+  negative, and zero arguments, including the signed parity limits.
+* Batched scalar, spin-2, vector, and tensor kernels remain finite at the
+  zero-argument endpoint and agree with their analytic limits.
+* Projection contracts reject incompatible sector and kernel combinations
+  before line-of-sight integration.
 
 ### [open] Slice Twenty-Three - Scalar projection convergence
 

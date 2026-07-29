@@ -5,7 +5,11 @@ from pathlib import Path
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import native_background
+from copernican.lib.likelihoods.cmb import (
+    native_background,
+    native_cache,
+    native_projection,
+)
 
 
 class NativeBackgroundModuleTestCase(unittest.TestCase):
@@ -122,6 +126,147 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
                 derivatives,
                 rtol=1.0e-13,
                 atol=1.0e-13,
+            )
+
+    def test_bessel_batch_matches_reference_at_zero_and_negative_arguments(
+        self,
+    ):
+        """Radial values and derivatives preserve endpoint parity limits."""
+
+        ell_signature = (0, 1, 2, 5, 12)
+        x_values = numpy.asarray((-2.5, -0.4, 0.0, 0.4, 2.5))
+        values, derivatives = (
+            native_background._compute_spherical_bessel_batch(
+                ell_signature,
+                x_values,
+            )
+        )
+        ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
+        positive_x = numpy.abs(x_values)
+        expected_values = native_background.spherical_jn(
+            ell_array,
+            positive_x[None, :],
+        )
+        expected_derivatives = native_background.spherical_jn(
+            ell_array,
+            positive_x[None, :],
+            derivative=True,
+        )
+        negative_mask = x_values < 0.0
+        value_parity = numpy.where(ell_array % 2 == 0, 1.0, -1.0)
+        derivative_parity = -value_parity
+        expected_values[:, negative_mask] *= value_parity
+        expected_derivatives[:, negative_mask] *= derivative_parity
+        numpy.testing.assert_allclose(
+            values,
+            expected_values,
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            derivatives,
+            expected_derivatives,
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        )
+
+    def test_projection_kernels_preserve_signed_parity_and_zero_limits(self):
+        """All sector kernels remain finite and parity-consistent at ends."""
+
+        x_values = numpy.asarray((-1.25, 0.0, 1.25), dtype=float)
+        x_signature = "slice-twenty-two-kernel-endpoints"
+        native_cache.store_bessel_inputs(x_signature, x_values)
+        kernel_batch = (
+            native_background._get_cached_declared_projection_kernel_batch(
+                (2, 3),
+                x_signature,
+                required_sectors=("vector", "tensor"),
+            )
+        )
+        for array in (
+            kernel_batch.j_l_second_derivative,
+            kernel_batch.e_kernel,
+            kernel_batch.b_kernel,
+            kernel_batch.vector_temperature_1,
+            kernel_batch.vector_temperature_2,
+            kernel_batch.vector_e,
+            kernel_batch.vector_b,
+            kernel_batch.tensor_temperature,
+            kernel_batch.tensor_e,
+            kernel_batch.tensor_b,
+        ):
+            self.assertTrue(numpy.all(numpy.isfinite(array)))
+        self.assertAlmostEqual(
+            float(kernel_batch.j_l_second_derivative[0, 1]),
+            2.0 / 15.0,
+        )
+        self.assertAlmostEqual(
+            float(kernel_batch.e_kernel[0, 1]),
+            numpy.sqrt(24.0) / 15.0,
+        )
+        self.assertAlmostEqual(
+            float(kernel_batch.vector_temperature_2[0, 1]),
+            1.0 / 5.0,
+        )
+        self.assertAlmostEqual(
+            float(kernel_batch.vector_e[0, 1]),
+            numpy.sqrt(8.0) / 10.0,
+        )
+        self.assertAlmostEqual(
+            float(kernel_batch.tensor_temperature[0, 1]),
+            1.0 / 5.0,
+        )
+        self.assertAlmostEqual(
+            float(kernel_batch.tensor_e[0, 1]),
+            1.0 / 15.0,
+        )
+        parity = numpy.ones(2, dtype=float)
+        numpy.testing.assert_allclose(
+            kernel_batch.e_kernel[0, (0, 2)],
+            kernel_batch.e_kernel[0, 2] * parity,
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.b_kernel[0, (0, 2)],
+            kernel_batch.b_kernel[0, 2] * numpy.asarray((-1.0, 1.0)),
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            kernel_batch.tensor_e[0, (0, 2)],
+            kernel_batch.tensor_e[0, 2] * parity,
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        )
+
+    def test_projection_rejects_incompatible_sector_before_integration(self):
+        """The projector must reject a sector before multiplying histories."""
+
+        x_signature = "slice-twenty-two-sector-rejection"
+        native_cache.store_bessel_inputs(
+            x_signature,
+            numpy.asarray((0.5, 1.0), dtype=float),
+        )
+        kernel_batch = (
+            native_background._get_cached_declared_projection_kernel_batch(
+                (2,),
+                x_signature,
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "incompatible with sector"):
+            native_projection._declared_graph_projection(
+                projection="line_of_sight_vector_temperature",
+                kernel="spherical_bessel_window",
+                sector="scalar",
+                kernel_batch=kernel_batch,
+                k_value=1.0,
+                eta_weights=numpy.ones(2, dtype=float),
+                chi_grid=numpy.zeros(2, dtype=float),
+                source_chi=1.0,
+                source_histories={
+                    "signal": numpy.ones(2, dtype=float),
+                },
             )
 
 

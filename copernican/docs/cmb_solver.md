@@ -615,6 +615,23 @@ histories. E polarization uses the declared spin-2 E kernel, while a
 potential role uses the signed lensing-potential geometry. This keeps source
 normalization and radial-kernel selection separate from the evolution code.
 
+## Independent Projection Kernels
+
+The radial projection layer evaluates each declared kernel independently of
+source evolution. Its bounded batches expose ordinary spherical-Bessel
+values, first and second radial derivatives, scalar spin-2 E/B windows,
+vector temperature and spin-2 windows, tensor temperature and spin-2
+windows, and the signed lensing-potential geometry. A batch shares the
+spherical-Bessel recurrence for fixed ell and radial inputs, then derives
+the sector kernels from those values without re-evolving a mode.
+
+The kernel acceptance surface includes SciPy comparisons for nonzero values,
+analytic zero-argument limits, signed-argument parity, and equality between
+mode-batched and scalar radial evaluations. Projection declarations carry
+allowed sector metadata. The compiler and runtime reject an incompatible
+sector or radial kernel before line-of-sight integration rather than
+silently using a scalar window for a vector or tensor source.
+
 Every transfer component must bind a non-empty set of declared source terms.
 The runtime resolves those bindings before projection and raises an
 availability error when a referenced history is absent. It never replaces a

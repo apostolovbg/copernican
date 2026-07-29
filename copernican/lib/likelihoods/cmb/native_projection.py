@@ -19,6 +19,7 @@ from ...cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_kernel_spec,
     resolve_declared_source_kernel,
+    validate_declared_projection_sector,
 )
 from ...engine_adapter import FrozenMapping
 from ...perturbation_contract import (
@@ -880,6 +881,12 @@ def _declared_graph_projection(
     e_kernel = kernel_batch.e_kernel
     b_kernel = kernel_batch.b_kernel
     sector_name = "" if sector is None else str(sector)
+    validate_declared_projection_sector(
+        projection,
+        sector_name or None,
+        observable_name=projection,
+        kernel=kernel,
+    )
 
     if sector_name == "vector":
         temperature_kernel = kernel_batch.vector_temperature_1
@@ -952,6 +959,12 @@ def _declared_graph_projection(
                 projection,
                 role_name,
                 kernel=kernel,
+            )
+            validate_declared_projection_sector(
+                projection,
+                sector_name or None,
+                observable_name=projection,
+                kernel=source_kernel,
             )
             projected += _project_history(
                 _apply_kernel(source_kernel),

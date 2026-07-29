@@ -947,21 +947,21 @@ def _compute_spherical_bessel_batch(
     ell_indices = numpy.asarray(ell_signature, dtype=int)
     x_array = numpy.asarray(x_values, dtype=float)
     if numpy.any(x_array < 0.0):
-        x_matrix = x_array[numpy.newaxis, :]
-        return (
-            numpy.asarray(
-                spherical_jn(ell_indices[:, numpy.newaxis], x_matrix),
-                dtype=float,
-            ),
-            numpy.asarray(
-                spherical_jn(
-                    ell_indices[:, numpy.newaxis],
-                    x_matrix,
-                    derivative=True,
-                ),
-                dtype=float,
-            ),
+        positive_x_array = numpy.abs(x_array)
+        positive_bessel = _compute_spherical_bessel_batch(
+            ell_signature,
+            positive_x_array,
         )
+        positive_values = positive_bessel[0]
+        positive_derivatives = positive_bessel[1]
+        value_parity = numpy.where(ell_indices % 2 == 0, 1.0, -1.0)
+        derivative_parity = -value_parity
+        negative_mask = x_array < 0.0
+        values = positive_values.copy()
+        derivatives = positive_derivatives.copy()
+        values[:, negative_mask] *= value_parity[:, numpy.newaxis]
+        derivatives[:, negative_mask] *= derivative_parity[:, numpy.newaxis]
+        return values, derivatives
 
     maximum_ell = max(int(ell_indices.max()), 1)
     values = numpy.zeros((maximum_ell + 1, x_array.size), dtype=float)
@@ -1204,7 +1204,13 @@ def _get_cached_declared_projection_kernel_batch(
     tensor_b = (
         numpy.zeros(shape, dtype=float) if needs_tensor else empty_kernel
     )
-    inverse_x = 1.0 / numpy.maximum(numpy.abs(x_values), 1.0e-12)
+    zero_mask = numpy.asarray(x_values == 0.0, dtype=bool)
+    safe_x = numpy.where(
+        zero_mask,
+        1.0,
+        numpy.asarray(x_values, dtype=float),
+    )
+    inverse_x = 1.0 / safe_x
     inverse_x_sq = inverse_x * inverse_x
     for ell_index, ell_value in enumerate(ell_signature):
         j_l = j_l_matrix[ell_index]
@@ -1261,6 +1267,30 @@ def _get_cached_declared_projection_kernel_batch(
             tensor_b[ell_index] = 0.5 * (
                 j_l_derivative + 2.0 * j_l * inverse_x
             )
+    if numpy.any(zero_mask):
+        zero_indices = numpy.flatnonzero(zero_mask)
+        for ell_index, ell_value in enumerate(ell_signature):
+            if int(ell_value) == 0:
+                zero_second_derivative = -1.0 / 3.0
+                zero_slice = (ell_index, zero_indices)
+                j_l_second_derivative_matrix[zero_slice] = (
+                    zero_second_derivative
+                )
+            elif int(ell_value) == 2:
+                zero_second_derivative = 2.0 / 15.0
+                zero_slice = (ell_index, zero_indices)
+                j_l_second_derivative_matrix[zero_slice] = (
+                    zero_second_derivative
+                )
+                prefactor = math.sqrt(24.0)
+                e_kernel[zero_slice] = prefactor / 15.0
+                if needs_vector:
+                    vector_temperature_2[zero_slice] = 1.0 / 5.0
+                    zero_vector_e = math.sqrt(8.0) / 10.0
+                    vector_e[zero_slice] = zero_vector_e
+                if needs_tensor:
+                    tensor_temperature[zero_slice] = 1.0 / 5.0
+                    tensor_e[zero_slice] = 1.0 / 15.0
     batch = _DeclaredProjectionKernelBatch(
         j_l=j_l_matrix,
         j_l_derivative=j_l_derivative_matrix,

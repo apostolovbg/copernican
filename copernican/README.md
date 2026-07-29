@@ -110,6 +110,13 @@ each accepted request. A
 missing declared source fails with an availability reason rather than
 producing a zero transfer or borrowing another sector.
 
+Projection kernels are independently validated radial operators. The native
+batch evaluates spherical-Bessel values, first and second derivatives, spin-2
+E/B windows, vector windows, tensor windows, and lensing geometry from one
+bounded radial grid. Signed arguments preserve each kernel's parity, exact
+zero-argument limits remain finite, and projection contracts reject a sector
+that the selected kernel cannot represent before integration begins.
+
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
 source checkouts and installed copies follow the same launch path.
