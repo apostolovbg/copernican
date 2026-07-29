@@ -9,7 +9,9 @@ import numpy
 from copernican.lib.likelihoods.cmb.native_adaptive import (
     NativeAdaptiveControls,
     NativeConvergenceEstimate,
+    NativeHistoryConvergence,
     estimate_convergence,
+    estimate_history_convergence,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     require_convergence,
@@ -36,6 +38,11 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
             NativeConvergenceEstimate.__name__,
             "NativeConvergenceEstimate",
         )
+        self.assertEqual(
+            NativeHistoryConvergence.__name__,
+            "NativeHistoryConvergence",
+        )
+        self.assertTrue(callable(estimate_history_convergence))
 
     def test_controls_resolve_the_three_refinement_surfaces(self) -> None:
         """Transfer, source, and projection sections resolve independently."""
@@ -66,6 +73,26 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
         self.assertEqual(controls.transfer_maximum_nodes, 24)
         self.assertEqual(controls.source_maximum_nodes, 48)
         self.assertEqual(controls.phase_points_per_cycle, 6.0)
+
+    def test_controls_resolve_scalar_evolution_bounds(self) -> None:
+        """Scalar evolution refinement keeps explicit node bounds."""
+
+        controls = resolve_native_adaptive_controls(
+            {
+                "adaptive_evolution": {
+                    "minimum_nodes": 64,
+                    "maximum_nodes": 256,
+                    "relative_tolerance": 1.0e-2,
+                }
+            },
+            base_k_nodes=8,
+            base_eta_nodes=128,
+            base_evolution_nodes=128,
+        )
+        self.assertTrue(controls.evolution_enabled)
+        self.assertEqual(controls.evolution_minimum_nodes, 64)
+        self.assertEqual(controls.evolution_maximum_nodes, 256)
+        self.assertAlmostEqual(controls.evolution_relative_tolerance, 1.0e-2)
 
     def test_phase_aware_k_grid_tracks_acoustic_and_radial_phase(self) -> None:
         """The transfer grid adds physical phase nodes within its bounds."""
@@ -142,6 +169,37 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
             absolute_tolerance=1.0e-12,
         )
         self.assertTrue(estimate.converged)
+
+    def test_history_convergence_checks_physical_anchor_regions(self) -> None:
+        """State histories compare independently at all declared anchors."""
+
+        coarse_eta = numpy.asarray((0.0, 0.5, 1.0))
+        fine_eta = numpy.linspace(0.0, 1.0, 9)
+        coarse = {"theta": numpy.square(coarse_eta)}
+        fine = {"theta": numpy.square(fine_eta) + 2.0e-2}
+        estimate = estimate_history_convergence(
+            coarse_eta,
+            coarse,
+            fine_eta,
+            fine,
+            relative_tolerance=1.0e-2,
+            absolute_tolerance=1.0e-12,
+        )
+        self.assertEqual(
+            set(estimate.anchor_relative_errors),
+            {"early", "recombination", "late"},
+        )
+        self.assertFalse(estimate.converged)
+        with self.assertRaisesRegex(ValueError, "history refinement"):
+            require_convergence(
+                NativeConvergenceEstimate(
+                    absolute_error=estimate.absolute_error,
+                    relative_error=estimate.relative_error,
+                    converged=estimate.converged,
+                ),
+                label="history refinement",
+                fail_on_nonconvergence=True,
+            )
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -92,10 +92,23 @@ diagnostics in the runtime envelope. State and residual units are checked
 before projection.
 
 Native accuracy tiers can opt into phase-aware transfer-node selection,
-visibility-aware source-time refinement, and line-of-sight quadrature checks
-through `adaptive_transfer`, `adaptive_source`, and `adaptive_projection`
-accuracy controls. Each surface reports its measured refinement error and
-fails clearly when the declared tolerance is not met within its node budget.
+visibility-aware source-time refinement, line-of-sight quadrature checks, and
+scalar state/source history comparisons through `adaptive_transfer`,
+`adaptive_source`, `adaptive_projection`, and `adaptive_evolution` accuracy
+controls. Evolution refinement compares early, recombination, and late
+physical anchors and charges both integrations to the runtime envelope. Each
+surface reports its measured refinement error and fails clearly when the
+declared tolerance is not met within its node budget.
+
+Declared scalar line-of-sight components bind source names to reviewed roles
+through the shared projection contract. Temperature monopole, ISW, and
+additive sources use the ordinary spherical-Bessel kernel; Doppler uses its
+first derivative; and the integrated temperature quadrupole derivative uses
+the second derivative. Native runtime envelopes report the source-role set,
+grid size, finite-history status, and source-history convergence data for
+each accepted request. A
+missing declared source fails with an availability reason rather than
+producing a zero transfer or borrowing another sector.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

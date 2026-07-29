@@ -4323,6 +4323,76 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             atol=1.0e-12,
         )
 
+    def test_declared_projection_rejects_missing_source_histories(
+        self,
+    ) -> None:
+        """A projection must not publish fabricated zero transfer values."""
+
+        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+            j_l=numpy.ones((1, 2), dtype=float),
+            j_l_derivative=numpy.ones((1, 2), dtype=float),
+            j_l_second_derivative=numpy.ones((1, 2), dtype=float),
+            e_kernel=numpy.ones((1, 2), dtype=float),
+            b_kernel=numpy.ones((1, 2), dtype=float),
+            vector_temperature_1=numpy.ones((1, 2), dtype=float),
+            vector_temperature_2=numpy.ones((1, 2), dtype=float),
+            vector_e=numpy.ones((1, 2), dtype=float),
+            vector_b=numpy.ones((1, 2), dtype=float),
+            tensor_temperature=numpy.ones((1, 2), dtype=float),
+            tensor_e=numpy.ones((1, 2), dtype=float),
+            tensor_b=numpy.ones((1, 2), dtype=float),
+        )
+        with self.assertRaisesRegex(ValueError, "no available source"):
+            native_projection._declared_graph_projection(
+                projection="line_of_sight_temperature",
+                kernel="temperature_mixed_window",
+                kernel_batch=kernel_batch,
+                k_value=0.2,
+                eta_weights=numpy.asarray((0.5, 0.5), dtype=float),
+                chi_grid=numpy.asarray((1.0, 2.0), dtype=float),
+                source_chi=8.0,
+                source_histories={},
+            )
+
+    def test_lensing_projection_uses_declared_potential_source(self) -> None:
+        """Lensing projection applies the declared Weyl-source sign."""
+
+        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+            j_l=numpy.asarray(((1.0, 0.5, 0.25),), dtype=float),
+            j_l_derivative=numpy.zeros((1, 3), dtype=float),
+            j_l_second_derivative=numpy.zeros((1, 3), dtype=float),
+            e_kernel=numpy.zeros((1, 3), dtype=float),
+            b_kernel=numpy.zeros((1, 3), dtype=float),
+            vector_temperature_1=numpy.zeros((1, 3), dtype=float),
+            vector_temperature_2=numpy.zeros((1, 3), dtype=float),
+            vector_e=numpy.zeros((1, 3), dtype=float),
+            vector_b=numpy.zeros((1, 3), dtype=float),
+            tensor_temperature=numpy.zeros((1, 3), dtype=float),
+            tensor_e=numpy.zeros((1, 3), dtype=float),
+            tensor_b=numpy.zeros((1, 3), dtype=float),
+        )
+        chi_grid = numpy.asarray((1.0, 2.0, 4.0), dtype=float)
+        eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
+        source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
+        geometry = numpy.asarray((0.875, 0.375, 0.125), dtype=float)
+        projected = native_projection._declared_graph_projection(
+            projection="line_of_sight_lensing_potential",
+            kernel="lensing_potential_window",
+            kernel_batch=kernel_batch,
+            k_value=0.2,
+            eta_weights=eta_weights,
+            chi_grid=chi_grid,
+            source_chi=8.0,
+            source_histories={"potential": source},
+        )
+        expected = -kernel_batch.j_l @ (eta_weights * geometry * source)
+        numpy.testing.assert_allclose(
+            projected,
+            expected,
+            rtol=1.0e-12,
+            atol=1.0e-12,
+        )
+
     def test_tight_coupling_regime_has_explicit_hysteresis(self) -> None:
         """Tight coupling should enter and exit through named thresholds."""
 
@@ -5668,6 +5738,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertTrue(bool(envelope["adaptive_transfer_enabled"]))
         self.assertTrue(bool(envelope["adaptive_source_enabled"]))
         self.assertTrue(bool(envelope["adaptive_projection_enabled"]))
+        self.assertEqual(
+            tuple(envelope["declared_source_history_roles"]),
+            ("signal_transfer:signal",),
+        )
+        self.assertEqual(
+            int(envelope["declared_source_history_sample_count"]),
+            int(envelope["eta_sample_count"]),
+        )
+        self.assertGreater(
+            int(envelope["declared_source_history_mode_count"]),
+            0,
+        )
+        self.assertTrue(bool(envelope["declared_source_history_finite"]))
+        self.assertTrue(
+            numpy.isfinite(
+                float(
+                    envelope["declared_source_history_max_abs"][
+                        "signal_transfer:signal"
+                    ]
+                )
+            )
+        )
+        history_convergence = envelope["declared_source_history_convergence"]
+        self.assertGreater(
+            int(history_convergence["refinement_mode_count"]),
+            0,
+        )
+        self.assertLessEqual(
+            float(history_convergence["relative_error"]),
+            2.0,
+        )
         self.assertGreater(
             int(envelope["adaptive_transfer_refinement_levels"]), 0
         )
@@ -5692,6 +5793,132 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         for values in spectrum_data.spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_native_scalar_evolution_refinement_reports_anchor_errors(
+        self,
+    ) -> None:
+        """Scalar state and source refinements report physical anchors."""
+
+        contract = _speedup_contract(
+            _native_scalar_hierarchy_contract(sum_mnu=0.0)
+        )
+        contract["model_name"] = "NativeScalarEvolutionRefinement"
+        contract["numerical"].update(
+            {
+                "k_sample_count": 1,
+                "eta_sample_count": 64,
+                "evolution_eta_sample_count": 64,
+                "ell_max": 24,
+            }
+        )
+        contract["perturbations"]["numerics"] = dict(contract["numerical"])
+        contract["perturbations"]["accuracy_controls"] = {
+            "adaptive_evolution": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 128,
+                "relative_tolerance": 1.0e-2,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "runtime_envelope": "bounded",
+            "fail_on_nonconvergence": False,
+        }
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            _prepare_native_contract(contract),
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
+        self.assertGreater(int(report["mode_count"]), 0)
+        self.assertGreater(
+            int(report["fine_sample_count"]),
+            int(report["coarse_sample_count"]),
+        )
+        self.assertEqual(
+            set(report["anchor_relative_errors"]),
+            {"early", "recombination", "late"},
+        )
+        self.assertGreater(float(report["relative_error"]), 1.0e-2)
+        self.assertTrue(numpy.isfinite(float(report["absolute_error"])))
+
+    def test_declared_scalar_evolution_converges_at_physical_anchors(
+        self,
+    ) -> None:
+        """A declared scalar history meets the one-percent anchor bound."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["model_name"] = "DeclaredScalarEvolutionConvergence"
+        contract["numerical"].update(
+            {
+                "k_sample_count": 1,
+                "eta_sample_count": 64,
+                "evolution_eta_sample_count": 64,
+                "ell_max": 24,
+            }
+        )
+        contract["perturbations"]["numerics"] = dict(contract["numerical"])
+        contract["perturbations"]["accuracy_controls"] = {
+            "adaptive_evolution": {
+                "minimum_nodes": 32,
+                "maximum_nodes": 128,
+                "relative_tolerance": 1.0e-2,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "runtime_envelope": "bounded",
+        }
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            _prepare_native_contract(contract),
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
+        self.assertLessEqual(float(report["relative_error"]), 1.0e-2)
+        self.assertLessEqual(
+            max(report["anchor_relative_errors"].values()),
+            1.0e-2,
+        )
+        self.assertTrue(numpy.all(numpy.isfinite(spectrum_data.spectra["TT"])))
+
+    def test_native_scalar_hierarchy_depth_converges_at_anchor_surface(
+        self,
+    ) -> None:
+        """Increasing scalar hierarchy depth changes TT by under one
+        percent.
+        """
+
+        spectra = []
+        for depth in (6, 8):
+            contract = _speedup_contract(
+                _native_scalar_hierarchy_contract(sum_mnu=0.0)
+            )
+            contract["model_name"] = f"NativeScalarHierarchyDepth{depth}"
+            contract["numerical"].update(
+                {
+                    "k_sample_count": 6,
+                    "eta_sample_count": 128,
+                    "photon_hierarchy_l_max": depth,
+                    "neutrino_hierarchy_l_max": max(3, depth - 3),
+                    "ell_max": 120,
+                }
+            )
+            contract["perturbations"]["numerics"].update(contract["numerical"])
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 60, 120), dtype=int),
+                    requested_spectra=("TT",),
+                )
+            )
+            spectra.append(
+                numpy.asarray(spectrum_data.spectra["TT"], dtype=float)
+            )
+
+        relative_error = numpy.max(
+            numpy.abs(spectra[0] - spectra[1])
+            / numpy.maximum(numpy.abs(spectra[1]), 1.0e-30)
+        )
+        self.assertLess(float(relative_error), 1.0e-2)
 
     def test_native_adaptive_projection_refines_line_of_sight_grid(
         self,

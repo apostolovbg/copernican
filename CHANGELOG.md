@@ -80,6 +80,56 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-29:
+  Change: Added independent source-history refinement comparison on the
+    declared line-of-sight grid.
+  Why: Detect source-history interpolation error separately from projection
+    quadrature error before accepting a native spectrum.
+  Impact: Slice Twenty-One reports fine/coarse source samples and measured
+    source-history errors under adaptive source controls.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-29:
+  Change: Implemented declaration-driven scalar line-of-sight source
+    dispatch and finite source-history diagnostics.
+  Why: Keep source normalization, radial-kernel selection, and availability
+    tied to explicit source roles before projection.
+  Impact: Closed Slice Twenty-One with canonical temperature, polarization,
+    and lensing source validation and explicit missing-source failures.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/test_cmb_projection_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-29:
+  Change: Implemented scalar evolution-history refinement and hierarchy-depth
+    convergence diagnostics for native CMB contracts.
+  Why: Compare physical state and source histories at named anchors and reject
+    under-resolved evolution before publishing spectra.
+  Impact: Closed Slice Twenty with bounded adaptive evolution controls and
+    documented convergence evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_adaptive.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_adaptive.py
+
+- 2026-07-29:
   Change: Updated Slice Nineteen documentation and changelog metadata.
   Why: Align touched documentation with the current UTC date after the
     gate session crossed midnight.

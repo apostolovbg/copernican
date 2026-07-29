@@ -22,6 +22,7 @@ class DeclaredProjectionSpec:
     name: str
     required_roles: tuple[str, ...]
     allowed_roles: tuple[str, ...]
+    source_kernels: tuple[tuple[str, str], ...] = ()
     description: str | None = None
     output_role: str = "signal"
     transfer_units: str | None = None
@@ -47,6 +48,13 @@ _DECLARED_PROJECTION_KERNEL_SPECS = {
         name="spherical_bessel_derivative_window",
         kind="spherical_bessel_derivative",
         description="Derivative spherical-Bessel line-of-sight kernel.",
+    ),
+    "spherical_bessel_second_derivative_window": DeclaredProjectionKernelSpec(
+        name="spherical_bessel_second_derivative_window",
+        kind="spherical_bessel_second_derivative",
+        description=(
+            "Second-derivative spherical-Bessel line-of-sight kernel."
+        ),
     ),
     "spin2_e_window": DeclaredProjectionKernelSpec(
         name="spin2_e_window",
@@ -101,6 +109,16 @@ _DECLARED_PROJECTION_SPECS = {
             "doppler",
             "isw",
             "monopole",
+        ),
+        source_kernels=(
+            ("monopole", "spherical_bessel_window"),
+            ("doppler", "spherical_bessel_derivative_window"),
+            ("isw", "spherical_bessel_window"),
+            ("additive", "spherical_bessel_window"),
+            (
+                "additive_derivative",
+                "spherical_bessel_second_derivative_window",
+            ),
         ),
         description="Temperature line-of-sight transfer component.",
         output_role="temperature",
@@ -287,6 +305,7 @@ def _resolve_projection_spec(
             description=base_spec.description,
             output_role=base_spec.output_role,
             transfer_units=base_spec.transfer_units,
+            source_kernels=base_spec.source_kernels,
             default_kernel=kernel or base_spec.default_kernel,
             supported_kernels=supported_kernels,
             allows_custom_source_roles=base_spec.allows_custom_source_roles,
@@ -323,6 +342,41 @@ def get_declared_projection_kernel_spec(
         raise ValueError(
             f"Declared observable requests unsupported kernel '{kernel}'"
         ) from exc
+
+
+def resolve_declared_source_kernel(
+    projection: str,
+    role: str,
+    *,
+    kernel: str | None = None,
+    extensions: Mapping[str, Any] | None = None,
+) -> str:
+    """Return the reviewed radial kernel for one declared source role."""
+
+    spec = get_declared_projection_spec(
+        projection,
+        extensions=extensions,
+    )
+    role_name = str(role)
+    role_kernels = dict(spec.source_kernels)
+    if role_kernels:
+        try:
+            return role_kernels[role_name]
+        except KeyError as exc:
+            allowed = ", ".join(sorted(role_kernels))
+            raise ValueError(
+                f"Declared projection '{projection}' does not define "
+                f"source role '{role_name}'; allowed roles: {allowed}"
+            ) from exc
+    if kernel is not None:
+        get_declared_projection_kernel_spec(kernel)
+        return str(kernel)
+    if spec.default_kernel is None:
+        raise ValueError(
+            f"Declared projection '{projection}' has no kernel for source "
+            f"role '{role_name}'"
+        )
+    return str(spec.default_kernel)
 
 
 def resolve_declared_projection_kernel(
@@ -420,6 +474,7 @@ __all__ = [
     "DeclaredProjectionSpec",
     "get_declared_projection_kernel_spec",
     "get_declared_projection_spec",
+    "resolve_declared_source_kernel",
     "resolve_declared_projection_kernel",
     "validate_declared_projection_source_roles",
 ]

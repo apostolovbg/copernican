@@ -30,6 +30,12 @@ class NativeAdaptiveControls:
     projection_minimum_nodes: int = 0
     projection_maximum_nodes: int = 0
     projection_maximum_refinements: int = 1
+    evolution_enabled: bool = False
+    evolution_relative_tolerance: float = 1.0e-2
+    evolution_absolute_tolerance: float = 1.0e-12
+    evolution_minimum_nodes: int = 0
+    evolution_maximum_nodes: int = 0
+    evolution_maximum_refinements: int = 1
     phase_points_per_cycle: float = 8.0
     fail_on_nonconvergence: bool = True
 
@@ -40,6 +46,17 @@ class NativeConvergenceEstimate:
 
     absolute_error: float
     relative_error: float
+    converged: bool
+
+
+@dataclass(frozen=True, slots=True)
+class NativeHistoryConvergence:
+    """Convergence errors for state or source histories at physical anchors."""
+
+    absolute_error: float
+    relative_error: float
+    anchor_absolute_errors: Mapping[str, float]
+    anchor_relative_errors: Mapping[str, float]
     converged: bool
 
 
@@ -137,6 +154,7 @@ def resolve_native_adaptive_controls(
     *,
     base_k_nodes: int,
     base_eta_nodes: int,
+    base_evolution_nodes: int | None = None,
 ) -> NativeAdaptiveControls:
     """Validate the adaptive accuracy sections of a native contract.
 
@@ -160,6 +178,7 @@ def resolve_native_adaptive_controls(
     transfer_values = (False, 5.0e-2, 1.0e-12, 0, 0, 1)
     source_values = (False, 5.0e-2, 1.0e-12, 0, 0, 1)
     projection_values = (False, 5.0e-2, 1.0e-12, 0, 0, 1)
+    evolution_values = (False, 1.0e-2, 1.0e-12, 0, 0, 1)
     if transfer is not None:
         transfer_values = _read_section_values(
             transfer,
@@ -220,6 +239,30 @@ def resolve_native_adaptive_controls(
                 ),
             ),
         )
+    evolution = _section(
+        controls,
+        "adaptive_evolution",
+        aliases=("scalar_evolution_convergence",),
+    )
+    if evolution is not None:
+        evolution_values = _read_section_values(
+            evolution,
+            name=("cmb.perturbations.accuracy_controls." "adaptive_evolution"),
+            base_nodes=int(
+                base_eta_nodes
+                if base_evolution_nodes is None
+                else base_evolution_nodes
+            ),
+            default_maximum_nodes=max(
+                2
+                * int(
+                    base_eta_nodes
+                    if base_evolution_nodes is None
+                    else base_evolution_nodes
+                ),
+                256,
+            ),
+        )
     phase_points = _positive_float(
         controls.get("phase_points_per_cycle", 8.0),
         name=("cmb.perturbations.accuracy_controls.phase_points_per_cycle"),
@@ -244,6 +287,12 @@ def resolve_native_adaptive_controls(
         projection_minimum_nodes=int(projection_values[3]),
         projection_maximum_nodes=int(projection_values[4]),
         projection_maximum_refinements=int(projection_values[5]),
+        evolution_enabled=bool(evolution_values[0]),
+        evolution_relative_tolerance=float(evolution_values[1]),
+        evolution_absolute_tolerance=float(evolution_values[2]),
+        evolution_minimum_nodes=int(evolution_values[3]),
+        evolution_maximum_nodes=int(evolution_values[4]),
+        evolution_maximum_refinements=int(evolution_values[5]),
         phase_points_per_cycle=phase_points,
         fail_on_nonconvergence=fail_on_nonconvergence,
     )
@@ -431,6 +480,99 @@ def estimate_convergence(
         absolute_error=absolute_error,
         relative_error=relative_error,
         converged=converged,
+    )
+
+
+def estimate_history_convergence(
+    coarse_eta: numpy.ndarray,
+    coarse_histories: Mapping[str, numpy.ndarray],
+    fine_eta: numpy.ndarray,
+    fine_histories: Mapping[str, numpy.ndarray],
+    *,
+    relative_tolerance: float,
+    absolute_tolerance: float,
+    anchors: Mapping[str, float] | None = None,
+) -> NativeHistoryConvergence:
+    """Compare history values at early, recombination, and late anchors."""
+
+    coarse_grid = numpy.asarray(coarse_eta, dtype=float)
+    fine_grid = numpy.asarray(fine_eta, dtype=float)
+    for label, grid in (("coarse", coarse_grid), ("fine", fine_grid)):
+        if grid.ndim != 1 or grid.size < 2:
+            raise ValueError(f"{label} eta grid must contain two samples")
+        if not numpy.all(numpy.isfinite(grid)) or numpy.any(
+            numpy.diff(grid) <= 0.0
+        ):
+            raise ValueError(f"{label} eta grid must be finite and increasing")
+    if not coarse_histories or set(coarse_histories) != set(fine_histories):
+        raise ValueError("History comparisons require matching named states")
+    anchor_positions = anchors or {
+        "early": 0.05,
+        "recombination": 0.50,
+        "late": 0.95,
+    }
+    absolute_errors: dict[str, float] = {}
+    relative_errors: dict[str, float] = {}
+    for anchor_name, position in anchor_positions.items():
+        fraction = float(position)
+        if not 0.0 <= fraction <= 1.0:
+            raise ValueError(
+                f"History anchor '{anchor_name}' must be in [0, 1]"
+            )
+        coarse_eta_value = float(
+            coarse_grid[0] + fraction * (coarse_grid[-1] - coarse_grid[0])
+        )
+        fine_eta_value = float(
+            fine_grid[0] + fraction * (fine_grid[-1] - fine_grid[0])
+        )
+        anchor_absolute = 0.0
+        anchor_relative = 0.0
+        for name in coarse_histories:
+            coarse_values = numpy.asarray(coarse_histories[name], dtype=float)
+            fine_values = numpy.asarray(fine_histories[name], dtype=float)
+            if coarse_values.shape != coarse_grid.shape or (
+                fine_values.shape != fine_grid.shape
+            ):
+                raise ValueError(
+                    f"History '{name}' does not match its eta grid"
+                )
+            if not numpy.all(numpy.isfinite(coarse_values)) or not numpy.all(
+                numpy.isfinite(fine_values)
+            ):
+                raise ValueError(
+                    f"History '{name}' contains non-finite values"
+                )
+            coarse_value = float(
+                numpy.interp(coarse_eta_value, coarse_grid, coarse_values)
+            )
+            fine_value = float(
+                numpy.interp(fine_eta_value, fine_grid, fine_values)
+            )
+            difference = abs(fine_value - coarse_value)
+            anchor_absolute = max(anchor_absolute, difference)
+            history_scale = max(
+                float(numpy.max(numpy.abs(fine_values), initial=0.0)),
+                float(absolute_tolerance),
+            )
+            anchor_relative = max(
+                anchor_relative,
+                difference / history_scale,
+            )
+        absolute_errors[str(anchor_name)] = anchor_absolute
+        relative_errors[str(anchor_name)] = anchor_relative
+    absolute_error = max(absolute_errors.values(), default=0.0)
+    relative_error = max(relative_errors.values(), default=0.0)
+    converged = all(
+        absolute_errors[name] <= float(absolute_tolerance)
+        or relative_errors[name] <= float(relative_tolerance)
+        for name in absolute_errors
+    )
+    return NativeHistoryConvergence(
+        absolute_error=float(absolute_error),
+        relative_error=float(relative_error),
+        anchor_absolute_errors=absolute_errors,
+        anchor_relative_errors=relative_errors,
+        converged=bool(converged),
     )
 
 

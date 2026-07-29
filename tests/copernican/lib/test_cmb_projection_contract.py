@@ -12,6 +12,7 @@ from copernican.lib.cmb_projection_contract import (
     get_declared_projection_kernel_spec,
     get_declared_projection_spec,
     resolve_declared_projection_kernel,
+    resolve_declared_source_kernel,
     validate_declared_projection_source_roles,
 )
 
@@ -42,6 +43,10 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         )
         self.assertIn(
             "spin2_b_window",
+            SUPPORTED_DECLARED_TRANSFER_PROJECTION_KERNELS,
+        )
+        self.assertIn(
+            "spherical_bessel_second_derivative_window",
             SUPPORTED_DECLARED_TRANSFER_PROJECTION_KERNELS,
         )
 
@@ -157,6 +162,44 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertEqual(spec.transfer_units, "dimensionless")
         self.assertEqual(spec.default_kernel, "spin2_b_window")
         self.assertTrue(spec.requires_odd_parity_source)
+
+    def test_temperature_source_roles_select_reviewed_kernels(self) -> None:
+        """Temperature roles retain their declared radial conventions."""
+
+        self.assertEqual(
+            resolve_declared_source_kernel(
+                "line_of_sight_temperature",
+                "monopole",
+                kernel="temperature_mixed_window",
+            ),
+            "spherical_bessel_window",
+        )
+        self.assertEqual(
+            resolve_declared_source_kernel(
+                "line_of_sight_temperature",
+                "doppler",
+                kernel="temperature_mixed_window",
+            ),
+            "spherical_bessel_derivative_window",
+        )
+        self.assertEqual(
+            resolve_declared_source_kernel(
+                "line_of_sight_temperature",
+                "additive_derivative",
+                kernel="temperature_mixed_window",
+            ),
+            "spherical_bessel_second_derivative_window",
+        )
+
+    def test_temperature_source_role_rejects_undeclared_role(self) -> None:
+        """Temperature projection cannot silently ignore a source role."""
+
+        with self.assertRaisesRegex(ValueError, "does not define source role"):
+            resolve_declared_source_kernel(
+                "line_of_sight_temperature",
+                "unclassified",
+                kernel="temperature_mixed_window",
+            )
 
     def test_projection_extension_inherits_and_overrides_kernel(self) -> None:
         """Declared projection extensions should expose the resolved spec."""

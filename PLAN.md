@@ -1455,7 +1455,7 @@ Done when:
 * Tight coupling and terminal closure are declaration-driven, conserved,
   finite, and directly tested at their physical limits.
 
-### [open] Slice Twenty - Scalar evolution refinement convergence
+### [closed] Slice Twenty - Scalar evolution refinement convergence
 
 Purpose:
 
@@ -1473,6 +1473,8 @@ Scope:
   hierarchy depth.
 * Compare low, recombination, and late-time source anchor regions.
 * Keep runtime-envelope controls explicit and reject under-resolved requests.
+* Record independent state-history and source-history errors for every enabled
+  evolution refinement.
 
 Required thresholds:
 
@@ -1486,8 +1488,11 @@ Done when:
 
 * Scalar evolution convergence is demonstrated with physical output rather
   than grid-size activation or response-only evidence.
+* Declared evolution controls expose fine/coarse sample counts, anchor errors,
+  and bounded work accounting; strict requests reject under-resolved history
+  comparisons before publishing an accepted spectrum.
 
-### [open] Slice Twenty-One - Line-of-sight source conventions
+### [closed] Slice Twenty-One - Line-of-sight source conventions
 
 Purpose:
 
@@ -1506,6 +1511,10 @@ Scope:
 * Validate temperature and E-mode transfer normalization independently of
   evolution normalization.
 * Keep source availability tied to declared sectors and source roles.
+* Resolve each declared source role through the shared projection contract,
+  including the second-derivative temperature kernel.
+* Record finite source-role coverage, sample counts, and history convergence
+  diagnostics in the runtime envelope.
 
 Required acceptance:
 
@@ -1513,11 +1522,15 @@ Required acceptance:
 * Source histories remain stable under a source-grid refinement.
 * A missing source makes its spectrum unavailable with a reason and does
   not fabricate zeros or evaluate an unrelated sector.
+* The targeted source-contract and projection tests complete within three
+  minutes.
 
 Done when:
 
 * Scalar line-of-sight sources are canonical, normalized, and declaration-
-  driven before radial projection is assessed.
+  driven before radial projection is assessed. Temperature source roles use
+  the shared kernel contract, finite source histories are reported, and
+  missing histories fail with an explicit availability error.
 
 ### [open] Slice Twenty-Two - Independent projection kernels
 

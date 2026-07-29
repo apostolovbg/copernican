@@ -606,6 +606,25 @@ normalization as the declared reference hierarchy. The generated scalar
 source uses the factors above, and the photon contribution to the Einstein
 shear source is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
 
+The source-role contract is the authoritative dispatch table for these
+terms. Monopole, ISW, and additive roles use the ordinary spherical-Bessel
+window. Doppler uses the first radial derivative, and additive_derivative
+uses the second radial derivative. The temperature projection does not
+infer a role from a source name and does not combine unbound source
+histories. E polarization uses the declared spin-2 E kernel, while a
+potential role uses the signed lensing-potential geometry. This keeps source
+normalization and radial-kernel selection separate from the evolution code.
+
+Every transfer component must bind a non-empty set of declared source terms.
+The runtime resolves those bindings before projection and raises an
+availability error when a referenced history is absent. It never replaces a
+missing source with zero or evaluates an unrelated sector. The runtime
+envelope records the resolved component-role set, source-grid sample count,
+number of evolved modes, finite-history status, per-role maximum magnitude,
+and the source-history convergence estimate. Source-grid refinement therefore
+audits the histories that feed projection rather than only the final power
+arrays.
+
 The generated scalar Doppler source uses the baryon velocity
 `v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
 Bessel kernel. The temperature polarization-quadrupole source is split into
@@ -876,8 +895,8 @@ conservation rules remain enforced. Runtime envelopes expose
 Generated state and residual units are checked before projection.
 
 Adaptive refinement is opt-in through `accuracy_controls`. The canonical
-sections are `adaptive_transfer`, `adaptive_source`, and
-`adaptive_projection`:
+sections are `adaptive_transfer`, `adaptive_source`, `adaptive_projection`,
+and `adaptive_evolution`:
 
 ```yaml
 accuracy_controls:
@@ -897,6 +916,11 @@ accuracy_controls:
     maximum_nodes: 2048
     relative_tolerance: 0.05
     absolute_tolerance: 1.0e-12
+  adaptive_evolution:
+    minimum_nodes: 64
+    maximum_nodes: 256
+    relative_tolerance: 0.01
+    absolute_tolerance: 1.0e-12
 ```
 
 Transfer refinement places nodes from the requested radial phase, acoustic
@@ -904,8 +928,18 @@ sound-horizon phase, and declared reference multipoles. Source refinement
 subdivides conformal-time intervals according to the largest requested
 Fourier phase and the visibility peak and shoulders. Projection refinement
 compares the full Simpson line-of-sight result with a lower-order quadrature
-estimate while using the same exact sector kernel. The runtime envelope
-records the three measured errors and refinement levels.
+estimate while using the same exact sector kernel. Evolution refinement
+re-runs declared scalar state and source histories at half the declared
+evolution sample count, then compares finite values at early, recombination,
+and late anchor regions. The runtime envelope records the measured errors,
+anchor values, sample counts, and refinement levels for all enabled surfaces.
+
+`adaptive_evolution` requires `evolution_eta_sample_count` and a declared
+scalar evolution graph. Its node bounds apply to the declared fine history,
+and the runtime envelope charges both the fine and coarse integrations. A
+strict request raises a named under-resolution error when any physical anchor
+fails the declared absolute or relative tolerance; it never substitutes a
+grid-size response or an empirical spectrum correction.
 
 The controls are convergence guards, not output corrections. Each enabled
 surface compares successive physical approximations and raises a named

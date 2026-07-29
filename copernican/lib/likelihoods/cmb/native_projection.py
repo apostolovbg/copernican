@@ -18,6 +18,7 @@ from scipy.special import gammaln, spherical_jn
 from ...cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_kernel_spec,
+    resolve_declared_source_kernel,
 )
 from ...engine_adapter import FrozenMapping
 from ...perturbation_contract import (
@@ -29,6 +30,7 @@ from . import native_cache
 from .native_adaptive import (
     NativeConvergenceEstimate,
     estimate_convergence,
+    estimate_history_convergence,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     require_convergence,
@@ -866,6 +868,12 @@ def _declared_graph_projection(
 ) -> numpy.ndarray:
     """Return projected transfer component values for every ell."""
 
+    if not source_histories:
+        raise ValueError(
+            f"Declared projection '{projection}' has no available source "
+            "histories"
+        )
+
     j_l = kernel_batch.j_l
     j_l_derivative = kernel_batch.j_l_derivative
     j_l_second_derivative = kernel_batch.j_l_second_derivative
@@ -909,6 +917,8 @@ def _declared_graph_projection(
             return temperature_kernel
         if kernel_spec.kind == "spherical_bessel_derivative":
             return j_l_derivative
+        if kernel_spec.kind == "spherical_bessel_second_derivative":
+            return j_l_second_derivative
         if kernel_spec.kind == "spin2_e":
             return e_projection_kernel
         if kernel_spec.kind == "spin2_b":
@@ -935,71 +945,56 @@ def _declared_graph_projection(
             dtype=float,
         )
 
-    def _sum_projected_sources(kernel_name: str) -> numpy.ndarray:
-        """Project every declared source through one shared kernel."""
-
-        kernel_values = _apply_kernel(kernel_name)
-        source = numpy.zeros_like(eta_weights, dtype=float)
-        for history in source_histories.values():
-            source += history
-        return _project_history(kernel_values, source)
-
-    if projection == "line_of_sight_temperature":
+    if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
         projected = numpy.zeros(j_l.shape[0], dtype=float)
-        if "monopole" in source_histories:
-            projected += _project_history(
-                j_l,
-                source_histories["monopole"],
+        for role_name, history in source_histories.items():
+            source_kernel = resolve_declared_source_kernel(
+                projection,
+                role_name,
+                kernel=kernel,
             )
-        if "doppler" in source_histories:
             projected += _project_history(
-                j_l_derivative,
-                source_histories["doppler"],
-            )
-        if "isw" in source_histories:
-            projected += _project_history(
-                j_l,
-                source_histories["isw"],
-            )
-        if "additive" in source_histories:
-            projected += _project_history(
-                j_l,
-                source_histories["additive"],
-            )
-        if "additive_derivative" in source_histories:
-            projected += _project_history(
-                j_l_second_derivative,
-                source_histories["additive_derivative"],
+                _apply_kernel(source_kernel),
+                history,
             )
         return projected
-    if projection in {
-        "line_of_sight_polarization_e",
-        "line_of_sight_signal",
-        "line_of_sight_signal_derivative",
-        "line_of_sight_vector_polarization_b",
-        "line_of_sight_vector_polarization_e",
-        "line_of_sight_vector_temperature",
-        "spin2_e_mode",
-        "spin2_b_mode",
-        "line_of_sight_potential",
-        "line_of_sight_lensing_potential",
-        "custom_line_of_sight",
-    }:
-        if kernel is None:
-            raise ValueError(
-                f"Declared observable projection '{projection}' did not "
-                "resolve a kernel."
-            )
-        return _sum_projected_sources(kernel)
-    if projection in SUPPORTED_DECLARED_TRANSFER_PROJECTIONS:
-        raise ValueError(
-            "Declared observable projection dispatch is incomplete for "
-            f"'{projection}'"
-        )
     raise ValueError(
         "Declared observable requests unsupported projection "
         f"'{projection}'"
     )
+
+
+def _bind_declared_source_histories(
+    *,
+    component_name: str,
+    component_entry: Any,
+    source_arrays: Mapping[str, numpy.ndarray],
+) -> dict[str, numpy.ndarray]:
+    """Resolve a component's declared roles without fabricating sources."""
+
+    source_terms = {
+        str(role_name): str(source_name)
+        for role_name, source_name in component_entry.source_terms.items()
+    }
+    missing = sorted(
+        source_name
+        for source_name in source_terms.values()
+        if source_name not in source_arrays
+    )
+    if missing:
+        raise ValueError(
+            f"Declared transfer component '{component_name}' source "
+            "histories unavailable: " + ", ".join(missing)
+        )
+    if not source_terms:
+        raise ValueError(
+            f"Declared transfer component '{component_name}' has no "
+            "declared source histories"
+        )
+    return {
+        role_name: numpy.asarray(source_arrays[source_name], dtype=float)
+        for role_name, source_name in source_terms.items()
+    }
 
 
 def _slice_projection_kernel_batch(
@@ -1175,10 +1170,13 @@ def _enforce_runtime_envelope(
     state_slot_count: int,
     transfer_component_count: int,
     momentum_point_count: int,
+    evolution_multiplier: int = 1,
 ) -> dict[str, int]:
     """Return and validate the declared runtime envelope for one run."""
 
-    evolution_work_units = int(k_count * eta_count * max(state_slot_count, 1))
+    evolution_work_units = int(
+        evolution_multiplier * k_count * eta_count * max(state_slot_count, 1)
+    )
     projection_work_units = int(
         ell_count * k_count * eta_count * max(transfer_component_count, 1)
     )
@@ -1665,7 +1663,19 @@ def _compute_custom_cmb_spectrum_data(
         _resolve_declared_accuracy_controls(contract_or_params),
         base_k_nodes=int(numerics.k_sample_count),
         base_eta_nodes=int(eta_los_grid.size),
+        base_evolution_nodes=numerics.evolution_eta_sample_count,
     )
+    if adaptive_controls.evolution_enabled:
+        if numerics.evolution_eta_sample_count is None:
+            raise ValueError(
+                "adaptive_evolution requires declared "
+                "evolution_eta_sample_count"
+            )
+        if int(numerics.evolution_eta_sample_count) < 64:
+            raise ValueError(
+                "adaptive_evolution requires evolution_eta_sample_count "
+                "of at least 64"
+            )
     if adaptive_controls.source_enabled:
         eta_los_grid = phase_aware_eta_grid(
             eta_los_grid,
@@ -1961,6 +1971,45 @@ def _compute_custom_cmb_spectrum_data(
             or name in required_transfer_components
         )
     }
+    declared_source_history_roles = tuple(
+        f"{component_name}:{role_name}"
+        for component_name, component_entry in (
+            transfer_component_observables.items()
+        )
+        for role_name in component_entry.source_terms
+    )
+    source_history_max_abs = {
+        role_name: 0.0 for role_name in declared_source_history_roles
+    }
+    source_history_mode_count = 0
+
+    def _record_source_history_diagnostics(
+        source_arrays: Mapping[str, numpy.ndarray],
+    ) -> None:
+        """Record finite declared source histories without copying them."""
+
+        nonlocal source_history_mode_count
+        for (
+            component_name,
+            component_entry,
+        ) in transfer_component_observables.items():
+            histories = _bind_declared_source_histories(
+                component_name=str(component_name),
+                component_entry=component_entry,
+                source_arrays=source_arrays,
+            )
+            for role_name, history in histories.items():
+                if not numpy.all(numpy.isfinite(history)):
+                    raise ValueError(
+                        f"Declared source history '{component_name}:"
+                        f"{role_name}' is non-finite"
+                    )
+                source_history_max_abs[f"{component_name}:{role_name}"] = max(
+                    source_history_max_abs[f"{component_name}:{role_name}"],
+                    float(numpy.max(numpy.abs(history), initial=0.0)),
+                )
+        source_history_mode_count += 1
+
     declared_projection_sectors = {
         str(getattr(entry, "sector", "") or "scalar")
         for entry in transfer_component_observables.values()
@@ -1983,6 +2032,7 @@ def _compute_custom_cmb_spectrum_data(
         momentum_point_count=int(
             sum(runtime.points.size for runtime in momentum_runtimes)
         ),
+        evolution_multiplier=(2 if adaptive_controls.evolution_enabled else 1),
     )
     runtime_envelope["static_graph_preparations"] = 1
     runtime_envelope["contract_static_preparations"] = 1
@@ -2014,15 +2064,29 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["adaptive_projection_enabled"] = bool(
         adaptive_controls.projection_enabled
     )
+    runtime_envelope["adaptive_evolution_enabled"] = bool(
+        adaptive_controls.evolution_enabled
+    )
     runtime_envelope["adaptive_phase_points_per_cycle"] = float(
         adaptive_controls.phase_points_per_cycle
     )
     runtime_envelope["adaptive_transfer_refinement_levels"] = 0
     runtime_envelope["adaptive_source_refinement_levels"] = 0
     runtime_envelope["adaptive_projection_refinement_levels"] = 0
+    runtime_envelope["adaptive_evolution_refinement_levels"] = 0
     runtime_envelope["adaptive_transfer_relative_error"] = 0.0
     runtime_envelope["adaptive_source_relative_error"] = 0.0
     runtime_envelope["adaptive_projection_relative_error"] = 0.0
+    runtime_envelope["adaptive_evolution_relative_error"] = 0.0
+    runtime_envelope["adaptive_evolution_absolute_error"] = 0.0
+    runtime_envelope["declared_source_history_roles"] = (
+        declared_source_history_roles
+    )
+    runtime_envelope["declared_source_history_sample_count"] = int(
+        source_grids["eta"].size
+    )
+    runtime_envelope["declared_source_history_mode_count"] = 0
+    runtime_envelope["declared_source_history_finite"] = True
     transfer_components = {
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
@@ -2349,6 +2413,8 @@ def _compute_custom_cmb_spectrum_data(
 
     def _mode_grids_for_k(
         k_value: float,
+        *,
+        evolution_sample_count_override: int | None = None,
     ) -> tuple[
         dict[str, numpy.ndarray],
         dict[str, numpy.ndarray],
@@ -2357,6 +2423,20 @@ def _compute_custom_cmb_spectrum_data(
         """Return the evolution grids used for one Fourier mode."""
 
         if not generated_scalar_hierarchy:
+            if evolution_sample_count_override is not None:
+                requested_samples = int(evolution_sample_count_override)
+                eta_grid = numpy.asarray(source_grids["eta"], dtype=float)
+                if eta_grid.size <= requested_samples:
+                    eta_grid = _densify_eta_grid(
+                        eta_grid,
+                        minimum_samples=requested_samples,
+                    )
+                else:
+                    eta_grid = _limit_eta_grid(
+                        eta_grid,
+                        maximum_samples=requested_samples,
+                    )
+                return _sample_eta_background_grids(eta_grid)
             return (
                 source_grids,
                 source_declared_background_histories,
@@ -2386,13 +2466,16 @@ def _compute_custom_cmb_spectrum_data(
 
         nonlocal shared_generated_mode_grids
         if (
-            shared_generated_mode_grids_enabled
+            evolution_sample_count_override is None
+            and shared_generated_mode_grids_enabled
             and shared_generated_mode_grids is not None
         ):
             return shared_generated_mode_grids
 
         def _evolution_eta_grid(
             eta_floor: float,
+            *,
+            sample_count_override: int | None = None,
         ) -> numpy.ndarray:
             """Build a controlled hierarchy grid without coupling it to LOS.
 
@@ -2406,7 +2489,11 @@ def _compute_custom_cmb_spectrum_data(
                 background.eta_grid[background.eta_grid >= float(eta_floor)],
                 dtype=float,
             )
-            requested_samples = numerics.evolution_eta_sample_count
+            requested_samples = (
+                numerics.evolution_eta_sample_count
+                if sample_count_override is None
+                else int(sample_count_override)
+            )
             if requested_samples is None:
                 if int(numerics.source_grid_multiplier) <= 1:
                     return base_grid
@@ -2415,7 +2502,12 @@ def _compute_custom_cmb_spectrum_data(
                     min(256, int(numerics.eta_sample_count)),
                 )
             if base_grid.size <= int(requested_samples):
-                return base_grid
+                if sample_count_override is None:
+                    return base_grid
+                return _densify_eta_grid(
+                    base_grid,
+                    minimum_samples=int(requested_samples),
+                )
             base_indices = numpy.flatnonzero(
                 background.eta_grid >= float(eta_floor)
             )
@@ -2453,12 +2545,26 @@ def _compute_custom_cmb_spectrum_data(
             ],
             dtype=float,
         )
+        requested_evolution_samples = (
+            numerics.evolution_eta_sample_count
+            if evolution_sample_count_override is None
+            else int(evolution_sample_count_override)
+        )
+        post_source_sample_count = None
+        if requested_evolution_samples is not None:
+            post_source_sample_count = max(
+                16,
+                int(requested_evolution_samples) - int(eta_prefix.size),
+            )
         eta_mode_grid = numpy.unique(
             numpy.concatenate(
                 (
                     numpy.asarray((eta_target,), dtype=float),
                     eta_prefix,
-                    _evolution_eta_grid(source_eta_start),
+                    _evolution_eta_grid(
+                        source_eta_start,
+                        sample_count_override=post_source_sample_count,
+                    ),
                 )
             )
         )
@@ -2970,6 +3076,9 @@ def _compute_custom_cmb_spectrum_data(
     def _evaluate_source_histories(
         mode_k_value: float,
         source_histories: Mapping[str, numpy.ndarray],
+        *,
+        collect_diagnostics: bool = True,
+        source_grid_indices: numpy.ndarray | None = None,
     ) -> dict[str, numpy.ndarray]:
         """Evaluate declared sources and conservation on source-grid rows."""
 
@@ -2977,13 +3086,36 @@ def _compute_custom_cmb_spectrum_data(
         nonlocal active_declared_background_histories
         nonlocal active_coordinate_rate_histories
         nonlocal scalar_constraint_diagnostics
-        active_grids = dict(source_grids)
-        active_declared_background_histories = (
-            source_declared_background_histories
-        )
-        active_coordinate_rate_histories = source_coordinate_rate_histories
+        if source_grid_indices is None:
+            active_grids = dict(source_grids)
+            active_declared_background_histories = (
+                source_declared_background_histories
+            )
+            active_coordinate_rate_histories = source_coordinate_rate_histories
+            evaluation_histories = source_histories
+        else:
+            indices = numpy.asarray(source_grid_indices, dtype=int)
+            active_grids = {
+                name: numpy.asarray(values)[indices]
+                for name, values in source_grids.items()
+            }
+            active_declared_background_histories = {
+                name: numpy.asarray(values)[indices]
+                for (
+                    name,
+                    values,
+                ) in source_declared_background_histories.items()
+            }
+            active_coordinate_rate_histories = {
+                name: numpy.asarray(values)[indices]
+                for name, values in source_coordinate_rate_histories.items()
+            }
+            evaluation_histories = {
+                name: numpy.asarray(history, dtype=float)[indices]
+                for name, history in source_histories.items()
+            }
         array_context = _build_array_context(
-            source_histories,
+            evaluation_histories,
             k_value=float(mode_k_value),
         )
         source_arrays = _evaluate_declared_sources(
@@ -3006,30 +3138,36 @@ def _compute_custom_cmb_spectrum_data(
             accuracy_controls=declared_accuracy_controls,
             k_value=float(mode_k_value),
         )
-        for residual_name, mode_metrics in mode_constraint_diagnostics.items():
-            aggregate = scalar_constraint_diagnostics.setdefault(
+        if collect_diagnostics:
+            for (
                 residual_name,
-                {
-                    "maximum_absolute": 0.0,
-                    "tolerance": float(mode_metrics["tolerance"]),
-                    "anchors": {},
-                    "mode_count": 0,
-                    "sample_count": 0,
-                },
-            )
-            aggregate["maximum_absolute"] = max(
-                float(aggregate["maximum_absolute"]),
-                float(mode_metrics["maximum_absolute"]),
-            )
-            aggregate["mode_count"] = int(aggregate["mode_count"]) + 1
-            aggregate["sample_count"] = int(aggregate["sample_count"]) + int(
-                mode_metrics["sample_count"]
-            )
-            for anchor_name, anchor_value in mode_metrics["anchors"].items():
-                aggregate["anchors"][anchor_name] = max(
-                    float(aggregate["anchors"].get(anchor_name, 0.0)),
-                    float(anchor_value),
+                mode_metrics,
+            ) in mode_constraint_diagnostics.items():
+                aggregate = scalar_constraint_diagnostics.setdefault(
+                    residual_name,
+                    {
+                        "maximum_absolute": 0.0,
+                        "tolerance": float(mode_metrics["tolerance"]),
+                        "anchors": {},
+                        "mode_count": 0,
+                        "sample_count": 0,
+                    },
                 )
+                aggregate["maximum_absolute"] = max(
+                    float(aggregate["maximum_absolute"]),
+                    float(mode_metrics["maximum_absolute"]),
+                )
+                aggregate["mode_count"] = int(aggregate["mode_count"]) + 1
+                aggregate["sample_count"] = int(
+                    aggregate["sample_count"]
+                ) + int(mode_metrics["sample_count"])
+                for anchor_name, anchor_value in mode_metrics[
+                    "anchors"
+                ].items():
+                    aggregate["anchors"][anchor_name] = max(
+                        float(aggregate["anchors"].get(anchor_name, 0.0)),
+                        float(anchor_value),
+                    )
         _validate_declared_conservation_rules(
             perturbation_data=perturbation_data,
             context=conservation_context,
@@ -3039,6 +3177,10 @@ def _compute_custom_cmb_spectrum_data(
 
     def _evolve_declared_mode(
         k_value: float,
+        *,
+        evolution_sample_count_override: int | None = None,
+        history_sink: dict[str, Any] | None = None,
+        collect_diagnostics: bool = True,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
         """Integrate one Fourier mode through the declared graph."""
 
@@ -3058,7 +3200,10 @@ def _compute_custom_cmb_spectrum_data(
             active_grids,
             active_declared_background_histories,
             active_coordinate_rate_histories,
-        ) = _mode_grids_for_k(float(k_value))
+        ) = _mode_grids_for_k(
+            float(k_value),
+            evolution_sample_count_override=evolution_sample_count_override,
+        )
         initial_eta, initial_background = _scalar_background_context(0, 0.0)
 
         collision_metadata_cache: dict[
@@ -3906,6 +4051,15 @@ def _compute_custom_cmb_spectrum_data(
                 "after integration."
             )
         source_histories = histories
+        if history_sink is not None:
+            history_sink["evolution_eta"] = numpy.asarray(
+                active_grids["eta"],
+                dtype=float,
+            ).copy()
+            history_sink["evolution_histories"] = {
+                name: numpy.asarray(history, dtype=float).copy()
+                for name, history in histories.items()
+            }
         if active_grids["eta"].shape != source_grids[
             "eta"
         ].shape or not numpy.array_equal(
@@ -3926,7 +4080,17 @@ def _compute_custom_cmb_spectrum_data(
         source_arrays = _evaluate_source_histories(
             float(k_value),
             source_histories,
+            collect_diagnostics=collect_diagnostics,
         )
+        if history_sink is not None:
+            history_sink["source_eta"] = numpy.asarray(
+                source_grids["eta"],
+                dtype=float,
+            ).copy()
+            history_sink["source_histories"] = {
+                name: numpy.asarray(history, dtype=float).copy()
+                for name, history in source_histories.items()
+            }
         return source_histories, source_arrays
 
     log_k_values = numpy.log(k_values)
@@ -3936,8 +4100,26 @@ def _compute_custom_cmb_spectrum_data(
     ]
     source_error = 0.0
     source_absolute_error = 0.0
+    source_history_error = 0.0
+    source_history_absolute_error = 0.0
+    source_history_refinement_mode_count = 0
     projection_error = 0.0
     projection_absolute_error = 0.0
+    evolution_anchor_errors: dict[str, float] = {
+        "early": 0.0,
+        "recombination": 0.0,
+        "late": 0.0,
+    }
+    evolution_anchor_absolute_errors: dict[str, float] = {
+        "early": 0.0,
+        "recombination": 0.0,
+        "late": 0.0,
+    }
+    evolution_error = 0.0
+    evolution_absolute_error = 0.0
+    evolution_mode_count = 0
+    evolution_fine_sample_count = 0
+    evolution_coarse_sample_count = 0
     source_eta_indices = numpy.arange(
         0,
         int(source_grids["eta"].size),
@@ -4057,6 +4239,7 @@ def _compute_custom_cmb_spectrum_data(
             for k_index, k_value in enumerate(k_values):
                 with performance_timer.phase("evolution"):
                     _, source_arrays = _evolve_declared_mode(float(k_value))
+                _record_source_history_diagnostics(source_arrays)
                 mode_source_arrays[int(k_index)] = source_arrays
 
             for work_group in bessel_work_groups.values():
@@ -4153,12 +4336,13 @@ def _compute_custom_cmb_spectrum_data(
                                 component_name,
                                 component_entry,
                             ) in transfer_component_observables.items():
-                                source_histories = {
-                                    role_name: source_arrays[source_name]
-                                    for role_name, source_name in (
-                                        component_entry.source_terms.items()
+                                source_histories = (
+                                    _bind_declared_source_histories(
+                                        component_name=str(component_name),
+                                        component_entry=component_entry,
+                                        source_arrays=source_arrays,
                                     )
-                                }
+                                )
                                 transfer_components[component_name][
                                     batch_indices, k_index
                                 ] = _declared_graph_projection(
@@ -4280,8 +4464,149 @@ def _compute_custom_cmb_spectrum_data(
     for k_index, k_value in enumerate(k_values):
         if use_streaming_projection:
             continue
+        base_history_sink = (
+            {}
+            if (
+                adaptive_controls.evolution_enabled
+                or adaptive_controls.source_enabled
+            )
+            else None
+        )
         with performance_timer.phase("evolution"):
-            _, source_arrays = _evolve_declared_mode(float(k_value))
+            _, source_arrays = _evolve_declared_mode(
+                float(k_value),
+                history_sink=base_history_sink,
+            )
+            _record_source_history_diagnostics(source_arrays)
+            if adaptive_controls.source_enabled:
+                if base_history_sink is None:
+                    raise RuntimeError(
+                        "Source refinement requires a source-history sink"
+                    )
+                coarse_source_arrays = _evaluate_source_histories(
+                    float(k_value),
+                    {
+                        name: numpy.asarray(history, dtype=float)
+                        for name, history in base_history_sink[
+                            "source_histories"
+                        ].items()
+                    },
+                    collect_diagnostics=False,
+                    source_grid_indices=source_eta_indices,
+                )
+                coarse_eta = source_grids["eta"][source_eta_indices]
+                for source_name, fine_values in source_arrays.items():
+                    coarse_values = coarse_source_arrays[source_name]
+                    interpolated_values = numpy.interp(
+                        source_grids["eta"],
+                        coarse_eta,
+                        coarse_values,
+                    )
+                    estimate = estimate_convergence(
+                        interpolated_values,
+                        fine_values,
+                        relative_tolerance=(
+                            adaptive_controls.source_relative_tolerance
+                        ),
+                        absolute_tolerance=(
+                            adaptive_controls.source_absolute_tolerance
+                        ),
+                    )
+                    source_history_error = max(
+                        source_history_error,
+                        estimate.relative_error,
+                    )
+                    source_history_absolute_error = max(
+                        source_history_absolute_error,
+                        estimate.absolute_error,
+                    )
+                source_history_refinement_mode_count += 1
+            if adaptive_controls.evolution_enabled:
+                fine_sample_count = int(numerics.evolution_eta_sample_count)
+                if not (
+                    adaptive_controls.evolution_minimum_nodes
+                    <= fine_sample_count
+                    <= adaptive_controls.evolution_maximum_nodes
+                ):
+                    raise ValueError(
+                        "evolution_eta_sample_count must be within the "
+                        "adaptive_evolution node bounds"
+                    )
+                coarse_sample_count = max(32, fine_sample_count // 2)
+                if coarse_sample_count >= fine_sample_count:
+                    raise ValueError(
+                        "adaptive_evolution requires a refinable "
+                        "evolution_eta_sample_count"
+                    )
+                coarse_history_sink: dict[str, Any] = {}
+                _evolve_declared_mode(
+                    float(k_value),
+                    evolution_sample_count_override=coarse_sample_count,
+                    history_sink=coarse_history_sink,
+                    collect_diagnostics=False,
+                )
+                state_estimate = estimate_history_convergence(
+                    coarse_history_sink["evolution_eta"],
+                    coarse_history_sink["evolution_histories"],
+                    base_history_sink["evolution_eta"],
+                    base_history_sink["evolution_histories"],
+                    relative_tolerance=(
+                        adaptive_controls.evolution_relative_tolerance
+                    ),
+                    absolute_tolerance=(
+                        adaptive_controls.evolution_absolute_tolerance
+                    ),
+                )
+                source_estimate = estimate_history_convergence(
+                    coarse_history_sink["source_eta"],
+                    coarse_history_sink["source_histories"],
+                    base_history_sink["source_eta"],
+                    base_history_sink["source_histories"],
+                    relative_tolerance=(
+                        adaptive_controls.evolution_relative_tolerance
+                    ),
+                    absolute_tolerance=(
+                        adaptive_controls.evolution_absolute_tolerance
+                    ),
+                )
+                for anchor_name in evolution_anchor_errors:
+                    evolution_anchor_errors[anchor_name] = max(
+                        evolution_anchor_errors[anchor_name],
+                        float(
+                            state_estimate.anchor_relative_errors[anchor_name]
+                        ),
+                        float(
+                            source_estimate.anchor_relative_errors[anchor_name]
+                        ),
+                    )
+                    evolution_anchor_absolute_errors[anchor_name] = max(
+                        evolution_anchor_absolute_errors[anchor_name],
+                        float(
+                            state_estimate.anchor_absolute_errors[anchor_name]
+                        ),
+                        float(
+                            source_estimate.anchor_absolute_errors[anchor_name]
+                        ),
+                    )
+                evolution_error = max(
+                    evolution_error,
+                    state_estimate.relative_error,
+                    source_estimate.relative_error,
+                )
+                evolution_absolute_error = max(
+                    evolution_absolute_error,
+                    state_estimate.absolute_error,
+                    source_estimate.absolute_error,
+                )
+                evolution_mode_count += 1
+                evolution_fine_sample_count = max(
+                    evolution_fine_sample_count,
+                    int(base_history_sink["evolution_eta"].size),
+                )
+                evolution_coarse_sample_count = max(
+                    evolution_coarse_sample_count,
+                    int(coarse_history_sink["evolution_eta"].size),
+                )
         if adaptive_k_enabled:
             for (
                 component_name,
@@ -4336,11 +4661,11 @@ def _compute_custom_cmb_spectrum_data(
                 component_name,
                 component_entry,
             ) in transfer_component_observables.items():
-                component_source_terms = component_entry.source_terms.items()
-                source_histories = {
-                    role_name: source_arrays[source_name]
-                    for role_name, source_name in component_source_terms
-                }
+                source_histories = _bind_declared_source_histories(
+                    component_name=str(component_name),
+                    component_entry=component_entry,
+                    source_arrays=source_arrays,
+                )
                 transfer_components[component_name][batch_indices, k_index] = (
                     _declared_graph_projection(
                         projection=str(component_entry.projection or ""),
@@ -4610,6 +4935,46 @@ def _compute_custom_cmb_spectrum_data(
             fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
         )
 
+    if adaptive_controls.evolution_enabled:
+        runtime_envelope["adaptive_evolution_relative_error"] = float(
+            evolution_error
+        )
+        runtime_envelope["adaptive_evolution_absolute_error"] = float(
+            evolution_absolute_error
+        )
+        runtime_envelope["adaptive_evolution_refinement_levels"] = 1
+        runtime_envelope["scalar_evolution_convergence"] = {
+            "relative_error": float(evolution_error),
+            "absolute_error": float(evolution_absolute_error),
+            "anchor_relative_errors": dict(evolution_anchor_errors),
+            "anchor_absolute_errors": dict(evolution_anchor_absolute_errors),
+            "mode_count": int(evolution_mode_count),
+            "fine_sample_count": int(evolution_fine_sample_count),
+            "coarse_sample_count": int(evolution_coarse_sample_count),
+            "relative_tolerance": float(
+                adaptive_controls.evolution_relative_tolerance
+            ),
+            "absolute_tolerance": float(
+                adaptive_controls.evolution_absolute_tolerance
+            ),
+        }
+        evolution_estimate = NativeConvergenceEstimate(
+            absolute_error=float(evolution_absolute_error),
+            relative_error=float(evolution_error),
+            converged=all(
+                evolution_anchor_absolute_errors[name]
+                <= adaptive_controls.evolution_absolute_tolerance
+                or evolution_anchor_errors[name]
+                <= adaptive_controls.evolution_relative_tolerance
+                for name in evolution_anchor_errors
+            ),
+        )
+        require_convergence(
+            evolution_estimate,
+            label="scalar evolution history",
+            fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
+        )
+
     if adaptive_k_enabled and adaptive_k_mode == "source":
         """Re-evolve declared modes on the source quadrature grid.
 
@@ -4645,6 +5010,9 @@ def _compute_custom_cmb_spectrum_data(
             momentum_point_count=int(
                 sum(runtime.points.size for runtime in momentum_runtimes)
             ),
+            evolution_multiplier=(
+                2 if adaptive_controls.evolution_enabled else 1
+            ),
         )
         direct_envelope["static_graph_preparations"] = 1
         direct_envelope["contract_static_preparations"] = 1
@@ -4659,6 +5027,7 @@ def _compute_custom_cmb_spectrum_data(
             _, direct_source_arrays = _evolve_declared_mode(
                 float(direct_k_value)
             )
+            _record_source_history_diagnostics(direct_source_arrays)
             x_values = float(direct_k_value) * (eta0 - source_grids["eta"])
             x_signature = hashlib.sha256(
                 numpy.asarray(x_values, dtype=float).tobytes()
@@ -4704,12 +5073,11 @@ def _compute_custom_cmb_spectrum_data(
                     component_name,
                     component_entry,
                 ) in transfer_component_observables.items():
-                    source_histories = {
-                        role_name: direct_source_arrays[source_name]
-                        for role_name, source_name in (
-                            component_entry.source_terms.items()
-                        )
-                    }
+                    source_histories = _bind_declared_source_histories(
+                        component_name=str(component_name),
+                        component_entry=component_entry,
+                        source_arrays=direct_source_arrays,
+                    )
                     projected = _declared_graph_projection(
                         projection=str(component_entry.projection or ""),
                         kernel=(
@@ -4822,6 +5190,71 @@ def _compute_custom_cmb_spectrum_data(
             }
         )
 
+        def _adaptive_scalar_kernel(
+            component_name: str,
+            role_name: str,
+            *,
+            ell_value: int,
+            j_values: numpy.ndarray,
+            j_derivatives: numpy.ndarray,
+            inverse_x: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Return the canonical kernel for one adaptive source role."""
+
+            component_entry = transfer_component_observables[component_name]
+            projection_name = str(component_entry.projection or "")
+            kernel_name = resolve_declared_source_kernel(
+                projection_name,
+                role_name,
+                kernel=(
+                    None
+                    if component_entry.kernel is None
+                    else str(component_entry.kernel)
+                ),
+            )
+            kernel_kind = get_declared_projection_kernel_spec(kernel_name).kind
+            if kernel_kind == "spherical_bessel":
+                return j_values
+            if kernel_kind == "spherical_bessel_derivative":
+                return j_derivatives
+            if kernel_kind == "spherical_bessel_second_derivative":
+                return (
+                    float(ell_value * (ell_value + 1)) * inverse_x * inverse_x
+                    - 1.0
+                ) * j_values - 2.0 * inverse_x * j_derivatives
+            if kernel_kind == "spin2_e":
+                prefactor = math.exp(
+                    0.5
+                    * (
+                        math.lgamma(int(ell_value) + 3)
+                        - math.lgamma(int(ell_value) - 1)
+                    )
+                )
+                return prefactor * j_values * inverse_x * inverse_x
+            if kernel_kind == "spin2_b":
+                prefactor = math.exp(
+                    0.5
+                    * (
+                        math.lgamma(int(ell_value) + 3)
+                        - math.lgamma(int(ell_value) - 1)
+                    )
+                )
+                return prefactor * j_values * inverse_x * inverse_x
+            if kernel_kind == "lensing_potential":
+                geometry = numpy.clip(
+                    source_chi - source_grids["chi"],
+                    0.0,
+                    None,
+                ) / (
+                    max(float(source_chi), 1.0e-12)
+                    * numpy.maximum(source_grids["chi"], 1.0e-12)
+                )
+                return -j_values * geometry[numpy.newaxis, :]
+            raise ValueError(
+                f"Adaptive scalar projection does not support kernel "
+                f"'{kernel_name}'"
+            )
+
         def _interpolate_mode_histories(
             histories: numpy.ndarray,
             local_k: numpy.ndarray,
@@ -4897,64 +5330,21 @@ def _compute_custom_cmb_spectrum_data(
                 x_values,
                 derivative=True,
             )
-            if component_name == "temperature":
-                j_second = (
-                    float(ell_value * (ell_value + 1)) * inverse_x * inverse_x
-                    - 1.0
-                ) * j_values - 2.0 * inverse_x * j_derivatives
-                projected = numpy.zeros(local_k.size, dtype=float)
-                for role_name, kernel in (
-                    ("monopole", j_values),
-                    ("isw", j_values),
-                    ("additive", j_values),
-                    ("doppler", j_derivatives),
-                    ("additive_derivative", j_second),
-                ):
-                    history = adaptive_source_histories.get(
-                        (component_name, role_name)
-                    )
-                    if history is not None:
-                        projected += numpy.sum(
-                            kernel
-                            * _interpolate_mode_histories(history, local_k)
-                            * eta_integration_weights[numpy.newaxis, :],
-                            axis=1,
-                        )
-                return projected
-            if component_name == "polarization_e":
-                prefactor = math.exp(
-                    0.5
-                    * (
-                        math.lgamma(int(ell_value) + 3)
-                        - math.lgamma(int(ell_value) - 1)
-                    )
-                )
-                kernel = prefactor * j_values * inverse_x * inverse_x
-            elif component_name == "lensing_potential":
-                geometry = numpy.clip(
-                    source_chi - source_grids["chi"],
-                    0.0,
-                    None,
-                ) / (
-                    max(float(source_chi), 1.0e-12)
-                    * numpy.maximum(source_grids["chi"], 1.0e-12)
-                )
-                kernel = -j_values * geometry[numpy.newaxis, :]
-            else:
-                raise ValueError(
-                    "Adaptive scalar projection received unsupported "
-                    f"component '{component_name}'"
-                )
-            source_roles = tuple(
-                role_name
-                for (component, role_name) in adaptive_source_histories
-                if component == component_name
-            )
             projected = numpy.zeros(local_k.size, dtype=float)
-            for role_name in source_roles:
+            for component, role_name in adaptive_source_histories:
+                if component != component_name:
+                    continue
                 history = adaptive_source_histories[
                     (component_name, role_name)
                 ]
+                kernel = _adaptive_scalar_kernel(
+                    component_name,
+                    role_name,
+                    ell_value=ell_value,
+                    j_values=j_values,
+                    j_derivatives=j_derivatives,
+                    inverse_x=inverse_x,
+                )
                 projected += numpy.sum(
                     kernel
                     * _interpolate_mode_histories(history, local_k)
@@ -4982,59 +5372,72 @@ def _compute_custom_cmb_spectrum_data(
                 x_values,
                 derivative=True,
             )
-            if component_name == "temperature":
-                j_second = (
-                    bessel_order * (bessel_order + 1) * inverse_x * inverse_x
-                    - 1.0
-                ) * j_values - 2.0 * inverse_x * j_derivatives
-                kernels = {
-                    "monopole": j_values,
-                    "isw": j_values,
-                    "additive": j_values,
-                    "doppler": j_derivatives,
-                    "additive_derivative": j_second,
-                }
-            elif component_name == "polarization_e":
-                prefactor = numpy.exp(
-                    0.5 * (gammaln(ell_grid + 3.0) - gammaln(ell_grid - 1.0))
-                )
-                kernels = {
-                    role_name: prefactor[:, numpy.newaxis, numpy.newaxis]
-                    * j_values
-                    * inverse_x
-                    * inverse_x
-                    for (component, role_name) in adaptive_source_histories
-                    if component == component_name
-                }
-            elif component_name == "lensing_potential":
-                geometry = numpy.clip(
-                    source_chi - source_grids["chi"][adaptive_eta_indices],
-                    0.0,
-                    None,
-                ) / (
-                    max(float(source_chi), 1.0e-12)
-                    * numpy.maximum(
-                        source_grids["chi"][adaptive_eta_indices],
-                        1.0e-12,
-                    )
-                )
-                kernels = {
-                    role_name: -j_values * geometry[None, None, :]
-                    for (component, role_name) in adaptive_source_histories
-                    if component == component_name
-                }
-            else:
-                raise ValueError(
-                    "Adaptive scalar projection received unsupported "
-                    f"component '{component_name}'"
-                )
             projected = numpy.zeros(local_k.shape, dtype=float)
-            for role_name, kernel in kernels.items():
+            for component, role_name in adaptive_source_histories:
+                if component != component_name:
+                    continue
                 history = adaptive_source_histories.get(
                     (component_name, role_name)
                 )
                 if history is None:
                     continue
+                component_entry = transfer_component_observables[
+                    component_name
+                ]
+                projection_name = str(component_entry.projection or "")
+                kernel_name = resolve_declared_source_kernel(
+                    projection_name,
+                    role_name,
+                    kernel=(
+                        None
+                        if component_entry.kernel is None
+                        else str(component_entry.kernel)
+                    ),
+                )
+                kernel_kind = get_declared_projection_kernel_spec(
+                    kernel_name
+                ).kind
+                if kernel_kind == "spherical_bessel":
+                    kernel = j_values
+                elif kernel_kind == "spherical_bessel_derivative":
+                    kernel = j_derivatives
+                elif kernel_kind == "spherical_bessel_second_derivative":
+                    kernel = (
+                        bessel_order
+                        * (bessel_order + 1)
+                        * inverse_x
+                        * inverse_x
+                        - 1.0
+                    ) * j_values - 2.0 * inverse_x * j_derivatives
+                elif kernel_kind in {"spin2_e", "spin2_b"}:
+                    prefactor = numpy.exp(
+                        0.5
+                        * (gammaln(ell_grid + 3.0) - gammaln(ell_grid - 1.0))
+                    )
+                    kernel = (
+                        prefactor[:, numpy.newaxis, numpy.newaxis]
+                        * j_values
+                        * inverse_x
+                        * inverse_x
+                    )
+                elif kernel_kind == "lensing_potential":
+                    geometry = numpy.clip(
+                        source_chi - source_grids["chi"][adaptive_eta_indices],
+                        0.0,
+                        None,
+                    ) / (
+                        max(float(source_chi), 1.0e-12)
+                        * numpy.maximum(
+                            source_grids["chi"][adaptive_eta_indices],
+                            1.0e-12,
+                        )
+                    )
+                    kernel = -j_values * geometry[None, None, :]
+                else:
+                    raise ValueError(
+                        f"Adaptive scalar projection does not support kernel "
+                        f"'{kernel_name}'"
+                    )
                 projected += numpy.sum(
                     kernel
                     * _interpolate_mode_history_batch(history, local_k)
@@ -5260,6 +5663,28 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["scalar_constraint_diagnostics"] = (
         scalar_constraint_diagnostics
     )
+    runtime_envelope["declared_source_history_mode_count"] = int(
+        source_history_mode_count
+    )
+    runtime_envelope["declared_source_history_max_abs"] = dict(
+        source_history_max_abs
+    )
+    runtime_envelope["declared_source_history_convergence"] = {
+        "sample_count": int(source_grids["eta"].size),
+        "coarse_sample_count": int(source_eta_indices.size),
+        "mode_count": int(source_history_mode_count),
+        "refinement_mode_count": int(source_history_refinement_mode_count),
+        "roles": declared_source_history_roles,
+        "finite": True,
+        "relative_error": float(source_history_error),
+        "absolute_error": float(source_history_absolute_error),
+        "tolerance_relative": float(
+            adaptive_controls.source_relative_tolerance
+        ),
+        "tolerance_absolute": float(
+            adaptive_controls.source_absolute_tolerance
+        ),
+    }
     kernel_cache_after = native_cache.native_cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]
