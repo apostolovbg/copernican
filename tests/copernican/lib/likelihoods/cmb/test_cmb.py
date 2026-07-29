@@ -5962,6 +5962,154 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             2.0,
         )
 
+    def test_adaptive_projection_compares_coarsened_eta_surface(self) -> None:
+        """Projection convergence compares distinct radial resolutions."""
+
+        contract = _speedup_contract(_analytic_signal_contract())
+        contract["model_name"] = "AdaptiveProjectionCoarsenedEtaSurface"
+        contract["perturbations"]["accuracy_controls"] = {
+            "adaptive_projection": {
+                "minimum_nodes": 282,
+                "maximum_nodes": 512,
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "phase_points_per_cycle": 8,
+        }
+        prepared = _prepare_native_contract(contract)
+        eta_sizes: list[int] = []
+        original_projection = native_projection._declared_graph_projection
+
+        def _record_projection(*args: object, **kwargs: object) -> object:
+            """Record the radial resolution used by each projection."""
+
+            kernel_batch = kwargs["kernel_batch"]
+            eta_sizes.append(int(kernel_batch.j_l.shape[1]))
+            return original_projection(*args, **kwargs)
+
+        with mock.patch.object(
+            native_projection,
+            "_declared_graph_projection",
+            side_effect=_record_projection,
+        ):
+            native_projection._compute_custom_cmb_spectrum_data(
+                prepared,
+                numpy.asarray((20, 23), dtype=int),
+                requested_spectra=("TT",),
+            )
+
+        self.assertGreater(len(eta_sizes), 1)
+        self.assertLess(min(eta_sizes), max(eta_sizes))
+
+    def test_requested_unknown_spectrum_fails_before_runtime(self) -> None:
+        """Unknown requested spectra fail instead of returning an empty set."""
+
+        contract = _speedup_contract(_custom_contract())
+        contract["model_name"] = "UnknownRequestedSpectrum"
+        with self.assertRaisesRegex(
+            ValueError,
+            "does not provide requested spectra: XX",
+        ):
+            native_projection._compute_custom_cmb_spectrum_data(
+                _prepare_native_contract(contract),
+                numpy.asarray((20, 23), dtype=int),
+                requested_spectra=("XX",),
+            )
+
+    def test_requested_spectrum_filters_unrelated_source_evaluation(
+        self,
+    ) -> None:
+        """A TT request does not evaluate an unused lensing source."""
+
+        contract = _speedup_contract(_custom_contract(include_lensing=True))
+        contract["model_name"] = "RequestedSpectrumSourceFiltering"
+        evaluated_expressions: list[str] = []
+        original_evaluator = (
+            native_projection._evaluate_compiled_expression_noerr
+        )
+
+        def _record_expression(
+            expression_data: object,
+            env: Mapping[str, object],
+        ) -> object:
+            """Record source expressions evaluated by the native graph."""
+
+            evaluated_expressions.append(
+                str(getattr(expression_data, "expression", ""))
+            )
+            return original_evaluator(expression_data, env)
+
+        with mock.patch.object(
+            native_projection,
+            "_evaluate_compiled_expression_noerr",
+            side_effect=_record_expression,
+        ):
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 23), dtype=int),
+                    requested_spectra=("TT",),
+                )
+            )
+
+        self.assertEqual(set(spectrum_data.spectra), {"TT"})
+        self.assertNotIn("exp(-tau) * (Phi + Psi)", evaluated_expressions)
+
+    def test_scalar_unlensed_surfaces_converge_within_one_percent(
+        self,
+    ) -> None:
+        """Scalar TT, TE, EE, and PP surfaces meet the accuracy bound."""
+
+        contract = _speedup_contract(_custom_contract(include_lensing=True))
+        contract["model_name"] = "ScalarUnlensedSurfaceConvergence"
+        contract["numerical"].update(
+            {
+                "k_sample_count": 64,
+                "eta_sample_count": 512,
+                "ell_max": 40,
+            }
+        )
+        contract["perturbations"]["accuracy_controls"] = {
+            "adaptive_transfer": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 128,
+                "relative_tolerance": 1.0e-2,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "adaptive_source": {
+                "minimum_nodes": 1133,
+                "maximum_nodes": 4096,
+                "relative_tolerance": 1.0e-2,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "adaptive_projection": {
+                "minimum_nodes": 1133,
+                "maximum_nodes": 4096,
+                "relative_tolerance": 1.0e-2,
+                "absolute_tolerance": 1.0e-12,
+            },
+            "phase_points_per_cycle": 8,
+            "fail_on_nonconvergence": True,
+        }
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            _prepare_native_contract(contract),
+            numpy.asarray((20, 30, 40), dtype=int),
+            requested_spectra=("TT", "TE", "EE", "PP"),
+        )
+
+        self.assertEqual(
+            set(spectrum_data.spectra),
+            {"TT", "TE", "EE", "PP"},
+        )
+        envelope = spectrum_data.runtime_envelope
+        for surface in ("transfer", "source", "projection"):
+            self.assertLessEqual(
+                float(envelope[f"adaptive_{surface}_relative_error"]),
+                1.0e-2,
+            )
+        for values in spectrum_data.spectra.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
     def test_native_eta_sample_count_changes_background_resolution(
         self,
     ) -> None:

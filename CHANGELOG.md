@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-07-29:
+  Change: Closed Slice Twenty-Three with nested scalar projection
+    convergence and requested-spectrum dependency filtering.
+  Why: Verify transfer, source-history, and radial projection accuracy on
+    fixed native surfaces without consulting an external spectrum.
+  Impact: Native requests compare one-percent scalar surfaces, reuse one
+    coarsened Simpson projection for source and projection diagnostics, and
+    reject unavailable or unrelated work before evolution.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-29:
   Change: Validated independent radial projection kernels and sector
     compatibility.
   Why: Prevent endpoint, signed-parity, and sector-dispatch errors from

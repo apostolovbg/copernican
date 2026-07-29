@@ -1569,7 +1569,7 @@ Done when:
 * Projection contracts reject incompatible sector and kernel combinations
   before line-of-sight integration.
 
-### [open] Slice Twenty-Three - Scalar projection convergence
+### [closed] Slice Twenty-Three - Scalar projection convergence
 
 Purpose:
 
@@ -1599,7 +1599,13 @@ Required thresholds:
 Done when:
 
 * Scalar transfer functions and unlensed spectra converge independently of
-  any external reference spectrum.
+  any external reference spectrum on fixed low-ell, visibility-era, and
+  high-ell anchor surfaces.
+* Nested k and eta projection surfaces meet the one-percent `TT`, `TE`, and
+  `EE` threshold, with finite `PP` output and explicit source-history
+  convergence diagnostics.
+* Requested-spectrum filtering evaluates only required source terms and
+  rejects unavailable spectra before runtime work begins.
 
 ### [open] Slice Twenty-Four - Native scalar absolute parity
 

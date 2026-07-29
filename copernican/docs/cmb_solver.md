@@ -944,12 +944,19 @@ Transfer refinement places nodes from the requested radial phase, acoustic
 sound-horizon phase, and declared reference multipoles. Source refinement
 subdivides conformal-time intervals according to the largest requested
 Fourier phase and the visibility peak and shoulders. Projection refinement
-compares the full Simpson line-of-sight result with a lower-order quadrature
-estimate while using the same exact sector kernel. Evolution refinement
+compares the full Simpson line-of-sight result with a coarsened Simpson
+surface while using the same exact sector kernel and declared source
+histories. Evolution refinement
 re-runs declared scalar state and source histories at half the declared
 evolution sample count, then compares finite values at early, recombination,
 and late anchor regions. The runtime envelope records the measured errors,
 anchor values, sample counts, and refinement levels for all enabled surfaces.
+
+The native projection request resolves the dependency closure of the selected
+`requested_spectra`. It evaluates only the transfer components and source
+terms needed by those spectra. An unavailable requested spectrum raises an
+explicit availability error before evolution rather than returning an empty
+surface or borrowing another sector.
 
 `adaptive_evolution` requires `evolution_eta_sample_count` and a declared
 scalar evolution graph. Its node bounds apply to the declared fine history,

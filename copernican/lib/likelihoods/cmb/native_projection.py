@@ -1951,6 +1951,19 @@ def _compute_custom_cmb_spectrum_data(
         for name, entry in perturbation_data.observables.items()
         if entry.kind == "angular_power_spectrum"
     }
+    if requested_spectrum_names is not None:
+        if not requested_spectrum_names:
+            raise ValueError(
+                "Requested native spectra must contain at least one name"
+            )
+        unavailable_spectra = sorted(
+            requested_spectrum_names - set(all_power_spectrum_observables)
+        )
+        if unavailable_spectra:
+            raise ValueError(
+                "Declared CMB graph does not provide requested spectra: "
+                + ", ".join(unavailable_spectra)
+            )
     if requested_spectrum_names is None:
         power_spectrum_observables = all_power_spectrum_observables
         required_transfer_components = {
@@ -1983,6 +1996,11 @@ def _compute_custom_cmb_spectrum_data(
             requested_spectrum_names is None
             or name in required_transfer_components
         )
+    }
+    required_source_names = {
+        str(source_name)
+        for component_entry in transfer_component_observables.values()
+        for source_name in component_entry.source_terms.values()
     }
     declared_source_history_roles = tuple(
         f"{component_name}:{role_name}"
@@ -2791,12 +2809,18 @@ def _compute_custom_cmb_spectrum_data(
         context: Mapping[str, Any],
         *,
         k_value: float,
+        required_source_names: set[str] | None = None,
     ) -> dict[str, numpy.ndarray]:
         """Return source arrays keyed by source-term name."""
 
         source_arrays: dict[str, numpy.ndarray] = {}
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
             for source_step in execution_plan.source_steps:
+                if (
+                    required_source_names is not None
+                    and source_step.output_name not in required_source_names
+                ):
+                    continue
                 value = numpy.asarray(
                     _evaluate_compiled_expression_noerr(
                         source_step.compiled_expression,
@@ -3092,6 +3116,7 @@ def _compute_custom_cmb_spectrum_data(
         *,
         collect_diagnostics: bool = True,
         source_grid_indices: numpy.ndarray | None = None,
+        required_source_names: set[str] | None = None,
     ) -> dict[str, numpy.ndarray]:
         """Evaluate declared sources and conservation on source-grid rows."""
 
@@ -3134,6 +3159,7 @@ def _compute_custom_cmb_spectrum_data(
         source_arrays = _evaluate_declared_sources(
             array_context,
             k_value=float(mode_k_value),
+            required_source_names=required_source_names,
         )
         conservation_context = dict(array_context)
         conservation_context.update(source_arrays)
@@ -4094,6 +4120,7 @@ def _compute_custom_cmb_spectrum_data(
             float(k_value),
             source_histories,
             collect_diagnostics=collect_diagnostics,
+            required_source_names=required_source_names,
         )
         if history_sink is not None:
             history_sink["source_eta"] = numpy.asarray(
@@ -4146,13 +4173,15 @@ def _compute_custom_cmb_spectrum_data(
         )
     source_eta_indices = numpy.unique(source_eta_indices)
     source_coarse_weights = None
-    projection_trapezoid_weights = None
+    projection_coarse_weights = None
     if adaptive_controls.source_enabled and source_eta_indices.size >= 3:
         source_coarse_weights = _simpson_weights(
             source_grids["eta"][source_eta_indices]
         )
-    if adaptive_controls.projection_enabled:
-        projection_trapezoid_weights = _trapezoid_weights(source_grids["eta"])
+    if adaptive_controls.projection_enabled and source_eta_indices.size >= 3:
+        projection_coarse_weights = _simpson_weights(
+            source_grids["eta"][source_eta_indices]
+        )
 
     mode_projection_metadata: dict[
         int,
@@ -4506,6 +4535,7 @@ def _compute_custom_cmb_spectrum_data(
                     },
                     collect_diagnostics=False,
                     source_grid_indices=source_eta_indices,
+                    required_source_names=required_source_names,
                 )
                 coarse_eta = source_grids["eta"][source_eta_indices]
                 for source_name, fine_values in source_arrays.items():
@@ -4704,7 +4734,11 @@ def _compute_custom_cmb_spectrum_data(
                     batch_indices,
                     k_index,
                 ]
-                if source_coarse_weights is not None:
+                coarse_values = None
+                if (
+                    source_coarse_weights is not None
+                    or projection_coarse_weights is not None
+                ):
                     coarse_kernel_batch = _slice_projection_kernel_batch(
                         kernel_batch,
                         source_eta_indices,
@@ -4713,6 +4747,11 @@ def _compute_custom_cmb_spectrum_data(
                         role_name: history[source_eta_indices]
                         for role_name, history in source_histories.items()
                     }
+                    coarse_weights = (
+                        source_coarse_weights
+                        if source_coarse_weights is not None
+                        else projection_coarse_weights
+                    )
                     coarse_values = _declared_graph_projection(
                         projection=str(component_entry.projection or ""),
                         kernel=(
@@ -4727,7 +4766,7 @@ def _compute_custom_cmb_spectrum_data(
                         ),
                         kernel_batch=coarse_kernel_batch,
                         k_value=float(k_value),
-                        eta_weights=source_coarse_weights,
+                        eta_weights=coarse_weights,
                         chi_grid=source_grids["chi"][source_eta_indices],
                         source_chi=source_chi,
                         source_histories=coarse_histories,
@@ -4747,28 +4786,13 @@ def _compute_custom_cmb_spectrum_data(
                         source_absolute_error,
                         estimate.absolute_error,
                     )
-                if projection_trapezoid_weights is not None:
-                    trapezoid_values = _declared_graph_projection(
-                        projection=str(component_entry.projection or ""),
-                        kernel=(
-                            None
-                            if component_entry.kernel is None
-                            else str(component_entry.kernel)
-                        ),
-                        sector=(
-                            None
-                            if component_entry.sector is None
-                            else str(component_entry.sector)
-                        ),
-                        kernel_batch=kernel_batch,
-                        k_value=float(k_value),
-                        eta_weights=projection_trapezoid_weights,
-                        chi_grid=source_grids["chi"],
-                        source_chi=source_chi,
-                        source_histories=source_histories,
-                    )
+                if projection_coarse_weights is not None:
+                    if coarse_values is None:
+                        raise RuntimeError(
+                            "Projection convergence surface was not built"
+                        )
                     estimate = estimate_convergence(
-                        trapezoid_values,
+                        coarse_values,
                         projected_values,
                         relative_tolerance=(
                             adaptive_controls.projection_relative_tolerance

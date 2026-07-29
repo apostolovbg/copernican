@@ -100,6 +100,11 @@ physical anchors and charges both integrations to the runtime envelope. Each
 surface reports its measured refinement error and fails clearly when the
 declared tolerance is not met within its node budget.
 
+Requested spectra resolve only the declared transfer and source dependencies;
+unavailable spectra fail before evolution. The detailed convergence controls
+and projection conventions are documented in
+[`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
+
 Declared scalar line-of-sight components bind source names to reviewed roles
 through the shared projection contract. Temperature monopole, ISW, and
 additive sources use the ordinary spherical-Bessel kernel; Doppler uses its
