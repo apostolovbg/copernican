@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-07-31
 **Project Version:** 12.0.26
 
 ## Overview
@@ -732,6 +732,9 @@ lensing-potential reference returned without a CMB-unit conversion.
 When exact lensing is requested, any declared unlensed `BB` input remains in
 the remapping basis. The vector `polarization_b` transfer therefore survives
 through `lensed_BB` instead of being dropped before the remapper runs.
+If no odd-parity transfer is declared, the remapper uses a zero unlensed `BB`
+baseline and still generates lensing-induced `lensed_BB` from the declared
+E-mode and lensing-potential spectra.
 
 For `PP`, the public solver returns the exact `clpp` normalization consumed
 by the native curved-sky remapper:

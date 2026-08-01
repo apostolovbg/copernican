@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-07-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -114,6 +114,10 @@ grid size, finite-history status, and source-history convergence data for
 each accepted request. A
 missing declared source fails with an availability reason rather than
 producing a zero transfer or borrowing another sector.
+
+Exact lensed requests preserve a declared unlensed `BB` transfer when one is
+available; otherwise the native remapper uses the physical zero-parity base
+and derives lensing-induced `lensed_BB` from `EE` and `PP`.
 
 Projection kernels are independently validated radial operators. The native
 batch evaluates spherical-Bessel values, first and second derivatives, spin-2

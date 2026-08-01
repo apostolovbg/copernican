@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-29
+**Last Updated:** 2026-07-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,50 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-07-31:
+  Change: Fixed lensed-spectrum dependency handling for optional unlensed BB.
+  Why: Ensure exact remapping can generate lensing-induced BB without a
+    declared primordial or sourced odd-parity transfer.
+  Impact: Lensed requests accept the zero unlensed-BB baseline while retaining
+    declared BB transfers and sparse-grid remapping behavior.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-31:
+  Change: Updated repository documentation dates and gate coverage.
+  Why: Align touched documentation and changelog records with the current
+    verification session.
+  Impact: The repository documentation set and gate audit remain current.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-07-30:
+  Change: Verified generated scalar initial-mode regression coverage.
+  Why: Reproduce the reported Einstein-constraint failures at focused mode
+    surfaces before accepting the native solver state.
+  Impact: The three reported generated-mode tests and exact failing-wave
+    number probes pass on the committed solver without external fallback.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-07-29:
   Change: Closed Slice Twenty-Three with nested scalar projection

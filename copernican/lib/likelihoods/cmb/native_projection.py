@@ -1959,6 +1959,14 @@ def _compute_custom_cmb_spectrum_data(
         unavailable_spectra = sorted(
             requested_spectrum_names - set(all_power_spectrum_observables)
         )
+        if (
+            unavailable_spectra == ["BB"]
+            and {"TT", "TE", "EE", "BB", "PP"} <= requested_spectrum_names
+        ):
+            # Exact lensing remapping accepts an absent unlensed BB input as
+            # the physical zero-parity baseline and generates lensed BB from
+            # the declared E-mode and lensing-potential spectra.
+            unavailable_spectra = []
         if unavailable_spectra:
             raise ValueError(
                 "Declared CMB graph does not provide requested spectra: "
