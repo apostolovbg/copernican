@@ -15,6 +15,33 @@ from scipy.special import lpn
 _GAUSS_LEGENDRE_CACHE: dict[int, tuple[numpy.ndarray, numpy.ndarray]] = {}
 
 
+def _validate_remapping_inputs(
+    cls: numpy.ndarray,
+    clpp: numpy.ndarray,
+    *,
+    lmax: int,
+    lmax_lensed: int | None = None,
+) -> None:
+    """Validate finite, compatible surfaces before curved-sky remapping."""
+
+    if cls.ndim != 2 or cls.shape[1] != 4:
+        raise ValueError("Unlensed cls must have shape (ell, 4)")
+    if clpp.ndim != 1:
+        raise ValueError("Lensing clpp must be one-dimensional")
+    if lmax < 2:
+        raise ValueError("Lensing remapping requires lmax >= 2")
+    if cls.shape[0] <= lmax or clpp.size <= lmax:
+        raise ValueError(
+            "Unlensed cls and lensing clpp must cover every ell through lmax"
+        )
+    if not numpy.all(numpy.isfinite(cls)):
+        raise ValueError("Unlensed cls must contain only finite values")
+    if not numpy.all(numpy.isfinite(clpp)):
+        raise ValueError("Lensing clpp must contain only finite values")
+    if lmax_lensed is not None and not 0 <= int(lmax_lensed) <= lmax:
+        raise ValueError("lmax_lensed must lie between 0 and lmax")
+
+
 def legendrep(degree: int, cosine_theta: float):
     """Return Legendre polynomials and derivatives up to ``degree``."""
 
@@ -126,6 +153,23 @@ def lensed_correlations(
     xvals = numpy.asarray(tuple(xvals), dtype=float)
     if lmax is None:
         lmax = int(cls.shape[0] - 1)
+    _validate_remapping_inputs(cls, clpp, lmax=int(lmax))
+    if xvals.ndim != 1 or xvals.size == 0:
+        raise ValueError("Remapping quadrature nodes must be non-empty")
+    if not numpy.all(numpy.isfinite(xvals)) or numpy.any(
+        (xvals <= -1.0) | (xvals >= 1.0)
+    ):
+        raise ValueError(
+            "Remapping quadrature nodes must lie strictly in (-1, 1)"
+        )
+    if numpy.any(numpy.diff(xvals) < 0.0):
+        raise ValueError("Remapping quadrature nodes must be ordered")
+    if weights is not None:
+        weights = numpy.asarray(weights, dtype=numpy.longdouble)
+        if weights.shape != xvals.shape or not numpy.all(
+            numpy.isfinite(weights)
+        ):
+            raise ValueError("Remapping quadrature weights must match xvals")
     ell_values = numpy.arange(0, int(lmax) + 1, dtype=numpy.longdouble)
     ell_factors = ell_values * (ell_values + 1.0)
     ell_factors_all = ell_factors.copy()
@@ -345,6 +389,15 @@ def lensed_cls(
     clpp = numpy.asarray(clpp, dtype=numpy.longdouble)
     if lmax is None:
         lmax = int(cls.shape[0] - 1)
+    lmax = int(lmax)
+    if not numpy.isfinite(float(sampling_factor)) or sampling_factor < 1.0:
+        raise ValueError("sampling_factor must be finite and at least 1")
+    _validate_remapping_inputs(
+        cls,
+        clpp,
+        lmax=lmax,
+        lmax_lensed=lmax_lensed,
+    )
     npoints = int(sampling_factor * int(lmax)) + 1
     if leggaus:
         xvals, weights = _cached_gauss_legendre(npoints, cache=cache)
@@ -361,7 +414,7 @@ def lensed_cls(
         clpp,
         xvals,
         weights,
-        lmax=int(lmax),
+        lmax=lmax,
         delta=True,
         theta_max=theta_max,
         apodize_point_width=int(apodize_point_width * sampling_factor),

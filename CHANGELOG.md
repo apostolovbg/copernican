@@ -80,6 +80,22 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-01:
+  Change: Hardened native curved-sky lensing validation and interpolation
+  controls.
+  Why: Complete Slice Twenty-Five with explicit remapping input, endpoint,
+  normalization, and refinement guarantees.
+  Impact: Lensing rejects incompatible surfaces before work, preserves the
+  declared PP convention, and records stable bounded remapping behavior.
+  Files:
+  PLAN.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_lensing.py
+  tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+  README.md
+  copernican/README.md
+  CHANGELOG.md
+
+- 2026-08-01:
   Change: Restored bounded default k-grid convergence and isolated phase-aware
   scalar quadrature behind its declared control.
   Why: Prevent the new phase-node selection from degrading established scalar

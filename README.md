@@ -122,6 +122,11 @@ Exact lensed requests preserve a declared unlensed `BB` transfer when one is
 available; otherwise the native remapper uses the physical zero-parity base
 and derives lensing-induced `lensed_BB` from `EE` and `PP`.
 
+The native curved-sky remapper validates finite compatible `cls` and `clpp`
+surfaces before work begins. Its bounded Gauss-Legendre sampling can be
+refined through `sampling_factor`, with interpolation stability covered by
+the native lensing tests.
+
 Projection kernels are independently validated radial operators. The native
 batch evaluates spherical-Bessel values, first and second derivatives, spin-2
 E/B windows, vector windows, tensor windows, and lensing geometry from one

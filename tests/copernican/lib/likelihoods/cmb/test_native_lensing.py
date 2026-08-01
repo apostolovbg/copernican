@@ -99,6 +99,72 @@ class NativeLensingTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(lensed_cls)))
         numpy.testing.assert_allclose(lensed_cls, unlensed_cls)
 
+    def test_remapping_sampling_refinement_is_stable(self) -> None:
+        """Increasing curved-sky quadrature remains interpolation-stable."""
+
+        ell_count = 33
+        ell_grid = numpy.arange(ell_count, dtype=float)
+        unlensed_cls = numpy.zeros((ell_count, 4), dtype=numpy.longdouble)
+        unlensed_cls[:, 0] = 1.0e-5 / numpy.sqrt(ell_grid + 1.0)
+        unlensed_cls[:, 1] = 2.0e-6 / (ell_grid + 1.0) ** 0.3
+        unlensed_cls[:, 2] = 1.0e-7 / (ell_grid + 1.0) ** 0.2
+        unlensed_cls[:, 3] = 3.0e-6 / (ell_grid + 1.0) ** 0.4
+        lensing_potential_cls = numpy.zeros(ell_count, dtype=numpy.longdouble)
+        lensing_potential_cls[2:] = 1.0e-7 / (
+            ell_grid[2:] * (ell_grid[2:] + 1.0)
+        )
+
+        coarse = remap_lensed_cls(
+            unlensed_cls,
+            lensing_potential_cls,
+            lmax=ell_count - 1,
+            lmax_lensed=ell_count - 1,
+            sampling_factor=1.4,
+        )
+        refined = remap_lensed_cls(
+            unlensed_cls,
+            lensing_potential_cls,
+            lmax=ell_count - 1,
+            lmax_lensed=ell_count - 1,
+            sampling_factor=2.2,
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(refined)))
+        numpy.testing.assert_allclose(
+            coarse,
+            refined,
+            rtol=1.0e-7,
+            atol=1.0e-14,
+        )
+
+    def test_remapping_rejects_incompatible_surfaces(self) -> None:
+        """Invalid remapping surfaces fail before numerical work begins."""
+
+        cls = numpy.zeros((8, 4), dtype=float)
+        clpp = numpy.zeros(8, dtype=float)
+        with self.assertRaisesRegex(ValueError, r"shape \(ell, 4\)"):
+            remap_lensed_cls(
+                cls[:, :3],
+                clpp,
+                lmax=7,
+                lmax_lensed=7,
+            )
+        with self.assertRaisesRegex(ValueError, "cover every ell"):
+            remap_lensed_cls(
+                cls,
+                clpp[:-1],
+                lmax=7,
+                lmax_lensed=7,
+            )
+        with self.assertRaisesRegex(ValueError, "sampling_factor"):
+            remap_lensed_cls(
+                cls,
+                clpp,
+                lmax=7,
+                lmax_lensed=7,
+                sampling_factor=0.5,
+            )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

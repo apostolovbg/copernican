@@ -1655,7 +1655,7 @@ Implementation record:
   terms once, while split collision outputs remain suppressed from the
   generated equation graph.
 
-### [open] Slice Twenty-Five - Lensing remapping correctness
+### [closed] Slice Twenty-Five - Lensing remapping correctness
 
 Purpose:
 
@@ -1685,6 +1685,15 @@ Done when:
 
 * The remapper is physically normalized, interpolation-stable, and isolated
   from production reference output.
+
+Implementation record:
+
+* Curved-sky remapping validates finite compatible `cls` and `clpp` surfaces,
+  ordered interior quadrature nodes, and the declared sampling envelope before
+  numerical work begins.
+* Zero-deflection identity and sampling-refinement fixtures cover analytic
+  normalization and interpolation stability without reference-spectrum
+  participation.
 
 ### [open] Slice Twenty-Six - Lensed scalar absolute parity
 

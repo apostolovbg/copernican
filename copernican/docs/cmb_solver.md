@@ -748,6 +748,13 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 `lensed_TT`, `lensed_TE`, `lensed_EE`, and `lensed_BB` stay in the same
 `muK^2` `D_ell` convention as their unlensed counterparts.
 
+The remapper consumes a finite four-column unlensed surface in the order
+`TT`, `EE`, `BB`, `TE`, together with `clpp` in the declared `PP` convention.
+It rejects incomplete or non-finite surfaces and requires ordered interior
+Gauss-Legendre nodes. Its `sampling_factor` is a declared quadrature control;
+raising it refines interpolation without changing spectrum normalization or
+injecting a reference output.
+
 Native projection quadrature starts from the declared numerical ell range and
 reference multipoles rather than from the subset requested by one caller.
 This keeps a spectrum's k integration stable when callers request a sparse
