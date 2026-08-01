@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-31
+**Last Updated:** 2026-08-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1607,7 +1607,7 @@ Done when:
 * Requested-spectrum filtering evaluates only required source terms and
   rejects unavailable spectra before runtime work begins.
 
-### [open] Slice Twenty-Four - Native scalar absolute parity
+### [closed] Slice Twenty-Four - Native scalar absolute parity
 
 Purpose:
 
@@ -1641,6 +1641,19 @@ Done when:
 
 * Native scalar output meets every absolute fixed-cosmology threshold and
   the fixture proves that the production graph has no undeclared LCDM term.
+
+Implementation record:
+
+* The fixed scalar acceptance surface uses the native declared graph for
+  `TT`, `TE`, `EE`, `PP`, `TP`, and `EP`; CAMB remains an independent test
+  reference.
+* Scalar k quadrature retains declared multipole, conformal-distance, and
+  sound-horizon phase anchors inside the bounded node budget.
+* Phase-aware k quadrature is explicitly enabled by the acceptance contract;
+  other contracts retain the bounded anchor-and-gap grid unless they opt in.
+* Continuous exact collision blocks apply their compiled matrix and damping
+  terms once, while split collision outputs remain suppressed from the
+  generated equation graph.
 
 ### [open] Slice Twenty-Five - Lensing remapping correctness
 

@@ -571,60 +571,70 @@ def _build_projection_k_grid(
             for ell_value in anchor_ells
         ),
     }
-    if sample_count >= 256 and k_max > k_min:
-        low_k_max = min(
-            k_max,
-            max(
-                k_min * 64.0,
-                0.02,
-            ),
+    accuracy_controls = (
+        getattr(
+            perturbation_data,
+            "accuracy_controls",
+            {},
         )
-        low_node_count = max(16, sample_count // 8)
-        k_nodes.update(
-            float(value)
-            for value in numpy.geomspace(
-                k_min,
-                low_k_max,
-                num=low_node_count,
-                dtype=float,
-            )
-        )
-    ordered_nodes = sorted(k_nodes)
-    if len(ordered_nodes) > sample_count:
-        interior_nodes = ordered_nodes[1:-1]
-        interior_budget = max(0, sample_count - 2)
-        if len(interior_nodes) > interior_budget:
-            selected_indices = numpy.linspace(
-                0,
-                len(interior_nodes) - 1,
-                num=interior_budget,
-                dtype=int,
-            )
-            interior_nodes = [
-                interior_nodes[index]
-                for index in sorted(
-                    set(int(index) for index in selected_indices)
+        or {}
+    )
+    if accuracy_controls.get("phase_aware_k_quadrature") is not True:
+        ordered_nodes = sorted(k_nodes)
+        if len(ordered_nodes) > sample_count:
+            interior_nodes = ordered_nodes[1:-1]
+            interior_budget = max(0, sample_count - 2)
+            if len(interior_nodes) > interior_budget:
+                selected_indices = numpy.linspace(
+                    0,
+                    len(interior_nodes) - 1,
+                    num=interior_budget,
+                    dtype=int,
                 )
+                interior_nodes = [
+                    interior_nodes[index]
+                    for index in sorted(
+                        set(int(index) for index in selected_indices)
+                    )
+                ]
+            ordered_nodes = [
+                ordered_nodes[0],
+                *interior_nodes,
+                ordered_nodes[-1],
             ]
-        ordered_nodes = [ordered_nodes[0], *interior_nodes, ordered_nodes[-1]]
-    while len(ordered_nodes) < sample_count:
-        linear_nodes = numpy.asarray(ordered_nodes, dtype=float)
-        widest_gap_index = int(numpy.argmax(numpy.diff(linear_nodes)))
-        midpoint = float(
-            0.5
-            * (
-                linear_nodes[widest_gap_index]
-                + linear_nodes[widest_gap_index + 1]
+        while len(ordered_nodes) < sample_count:
+            linear_nodes = numpy.asarray(ordered_nodes, dtype=float)
+            widest_gap_index = int(numpy.argmax(numpy.diff(linear_nodes)))
+            midpoint = float(
+                0.5
+                * (
+                    linear_nodes[widest_gap_index]
+                    + linear_nodes[widest_gap_index + 1]
+                )
             )
-        )
-        if (
-            not numpy.isfinite(midpoint)
-            or midpoint <= ordered_nodes[widest_gap_index]
-            or midpoint >= ordered_nodes[widest_gap_index + 1]
-        ):
-            break
-        ordered_nodes.insert(widest_gap_index + 1, float(midpoint))
-    return numpy.asarray(ordered_nodes, dtype=float)
+            if (
+                not numpy.isfinite(midpoint)
+                or midpoint <= ordered_nodes[widest_gap_index]
+                or midpoint >= ordered_nodes[widest_gap_index + 1]
+            ):
+                break
+            ordered_nodes.insert(widest_gap_index + 1, midpoint)
+        return numpy.asarray(ordered_nodes, dtype=float)
+    anchor_nodes = tuple(sorted(float(value) for value in k_nodes))
+    phase_points_per_cycle = float(
+        _accuracy_control_value(accuracy_controls, "phase_points_per_cycle")
+        or 8.0
+    )
+    return phase_aware_k_grid(
+        k_min,
+        k_max,
+        minimum_nodes=sample_count,
+        maximum_nodes=sample_count,
+        phase_points_per_cycle=phase_points_per_cycle,
+        eta_distance=eta_rec_distance,
+        sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
+        anchors=anchor_nodes,
+    )
 
 
 def _projection_ell_limit_for_mode(
@@ -2148,6 +2158,7 @@ def _compute_custom_cmb_spectrum_data(
     adaptive_k_ell_stride = 1
     adaptive_k_eta_stride = 1
     adaptive_k_mode = "transfer"
+    direct_source_quadrature = False
     if adaptive_k_enabled:
         adaptive_k_min_ell = int(
             _coerce_numeric_scalar(
@@ -2196,6 +2207,9 @@ def _compute_custom_cmb_spectrum_data(
         )
         adaptive_k_mode = (
             str(adaptive_k_controls.get("mode", "transfer")).strip().lower()
+        )
+        direct_source_quadrature = bool(
+            adaptive_k_controls.get("direct_source_quadrature", False)
         )
         if adaptive_k_min_ell < 2:
             raise ValueError(
@@ -2873,12 +2887,30 @@ def _compute_custom_cmb_spectrum_data(
             blend,
         )
         if include_split_collision_outputs:
-            suppressed_collision_outputs = None
+            suppressed_collision_outputs = {
+                output_name: 0.0
+                for runtime in split_collision_runtimes
+                for output_name in (
+                    runtime.name,
+                    runtime.counterpart,
+                )
+                if output_name is not None
+                and runtime.target_slot_indices
+                and (
+                    runtime.activation_strategy != "tight_coupling"
+                    or tight_coupling_active
+                )
+            }
         else:
             suppressed_collision_outputs = {
-                runtime.name: 0.0
+                output_name: 0.0
                 for runtime in split_collision_runtimes
-                if (
+                for output_name in (
+                    runtime.name,
+                    runtime.counterpart,
+                )
+                if output_name is not None
+                and (
                     runtime.activation_strategy == "always"
                     or (
                         runtime.activation_strategy == "tight_coupling"
@@ -2929,6 +2961,77 @@ def _compute_custom_cmb_spectrum_data(
                     "Declared CMB equation result must be finite; "
                     f"evaluation failed at eta={eta_value}, k={k_value}"
                 ) from exc
+        if include_split_collision_outputs:
+            # Continuous evolution must include the complete declared exact
+            # collision block.  Its scalar expression is suppressed above
+            # for the same reason that split evolution suppresses it: the
+            # matrix is the authoritative operator for every selected state.
+            for runtime in split_collision_runtimes:
+                if runtime.activation_strategy == "tight_coupling":
+                    if not tight_coupling_active:
+                        continue
+                if not runtime.target_slot_indices:
+                    continue
+                collision_rate = _coerce_numeric_scalar(
+                    _evaluate_compiled_expression_noerr(
+                        runtime.rate_expression,
+                        scalar_context,
+                    ),
+                    name=f"collision operator '{runtime.name}' rate",
+                )
+                matrix = numpy.asarray(
+                    [
+                        [
+                            _coerce_numeric_scalar(
+                                _evaluate_compiled_expression_noerr(
+                                    entry,
+                                    scalar_context,
+                                ),
+                                name=(
+                                    f"collision operator '{runtime.name}' "
+                                    "matrix entry"
+                                ),
+                            )
+                            for entry in row
+                        ]
+                        for row in runtime.matrix
+                    ],
+                    dtype=float,
+                )
+                damping_coefficient = None
+                if runtime.damping_coefficient is not None:
+                    damping_coefficient = _coerce_numeric_scalar(
+                        _evaluate_compiled_expression_noerr(
+                            runtime.damping_coefficient,
+                            scalar_context,
+                        ),
+                        name=(
+                            f"collision operator '{runtime.name}' "
+                            "damping coefficient"
+                        ),
+                    )
+                if not numpy.isfinite(collision_rate):
+                    raise ValueError(
+                        "Declared collision operator produced a non-finite "
+                        f"rate during continuous evolution: {runtime.name}"
+                    )
+                target_indices = tuple(runtime.target_slot_indices)
+                target_state = effective_state_vector[list(target_indices)]
+                derivative[list(target_indices)] += float(collision_rate) * (
+                    numpy.asarray(matrix, dtype=float) @ target_state
+                )
+                if runtime.damping_slot_indices:
+                    if damping_coefficient is None:
+                        raise ValueError(
+                            "Declared exact collision operator omitted a "
+                            f"damping coefficient: {runtime.name}"
+                        )
+                    damping_indices = tuple(runtime.damping_slot_indices)
+                    derivative[list(damping_indices)] += (
+                        float(collision_rate)
+                        * float(damping_coefficient)
+                        * effective_state_vector[list(damping_indices)]
+                    )
         if not numpy.all(numpy.isfinite(derivative)):
             bad_indices = numpy.flatnonzero(~numpy.isfinite(derivative))
             bad_index = int(bad_indices[0]) if bad_indices.size else -1
@@ -5020,7 +5123,11 @@ def _compute_custom_cmb_spectrum_data(
             fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
         )
 
-    if adaptive_k_enabled and adaptive_k_mode == "source":
+    if (
+        adaptive_k_enabled
+        and adaptive_k_mode == "source"
+        and direct_source_quadrature
+    ):
         """Re-evolve declared modes on the source quadrature grid.
 
         Interpolating a sparse set of source histories cannot preserve the

@@ -327,6 +327,7 @@ def _slice_nine_native_acceptance_contract() -> dict[str, object]:
     perturbations["numerics"] = copy.deepcopy(numerical)
     accuracy_controls = dict(perturbations.get("accuracy_controls", {}))
     accuracy_controls["scalar_reference_ells"] = [2, 2000]
+    accuracy_controls["phase_aware_k_quadrature"] = True
     accuracy_controls["runtime_envelope"] = "bounded"
     perturbations["accuracy_controls"] = accuracy_controls
     return contract
@@ -2806,6 +2807,51 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertFalse(numpy.array_equal(low_ell_grid, full_ell_grid))
         self.assertTrue(
             bool(numpy.all(low_ell_grid <= float(numpy.max(full_ell_grid))))
+        )
+
+    def test_native_scalar_absolute_parity_surface_is_fixed(self) -> None:
+        """The scalar parity fixture must use one native declared graph."""
+
+        prepared = _prepare_native_contract(
+            _slice_nine_native_acceptance_contract()
+        )
+        perturbation_data = prepared["perturbation_data"]
+        manifest = perturbation_data.manifest_summary
+        route = manifest["execution_route"]
+
+        self.assertEqual(route["route_id"], "native_declared_graph")
+        self.assertTrue(route["uses_native_declared_graph"])
+        self.assertFalse(route["uses_camb_prediction"])
+        self.assertFalse(route["uses_backend_standard_perturbations"])
+        self.assertEqual(
+            set(manifest["angular_power_spectrum_targets"]),
+            {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
+        )
+        self.assertEqual(
+            set(manifest["transfer_component_contracts"]),
+            {
+                "temperature",
+                "polarization_e",
+                "polarization_b",
+                "lensing_potential",
+            },
+        )
+        self.assertEqual(
+            tuple(manifest["validity_regimes"]),
+            ("linear", "native_scalar_hierarchy"),
+        )
+        self.assertTrue(
+            prepared["perturbations"]["accuracy_controls"][
+                "phase_aware_k_quadrature"
+            ]
+        )
+        self.assertEqual(
+            SLICE_NINE_ACCEPTANCE_RANGES["scalar_ell"],
+            (2, 2000),
+        )
+        self.assertEqual(
+            SLICE_NINE_ACCEPTANCE_RANGES["potential_ell"],
+            (10, 1500),
         )
 
     def test_camb_reference_is_test_only_and_independent(self) -> None:

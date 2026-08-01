@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-31
+**Last Updated:** 2026-08-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -53,7 +53,10 @@ reference tools used by tests, not production spectrum engines.
 Native projection requests use bounded radial-kernel caches and ell-batched
 work arrays, keeping memory use tied to the declared numerical envelope while
 preserving the model's requested multipole range. Compatible Fourier-mode
-grids share radial recurrence work before projection.
+grids share radial recurrence work before projection. The scalar k quadrature
+uses declared multipole anchors and phase-aware distance and sound-horizon
+nodes, so acoustic oscillations remain part of the bounded quadrature rather
+than being post-processed.
 
 Generated scalar gauges use one compiled declared equation graph and shared
 deterministic Runge-Kutta substeps, so gauge-equivalent contracts follow the

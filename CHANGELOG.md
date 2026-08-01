@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-07-31
+**Last Updated:** 2026-08-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,38 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-01:
+  Change: Restored bounded default k-grid convergence and isolated phase-aware
+  scalar quadrature behind its declared control.
+  Why: Prevent the new phase-node selection from degrading established scalar
+  hierarchy, surface, and tensor convergence checks.
+  Impact: Existing contracts retain their converged anchor-and-gap grid while
+  the Slice Twenty-Four acceptance contract opts into phase-aware coverage.
+  Files:
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  copernican/docs/cmb_solver.md
+  README.md
+  copernican/README.md
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-08-01:
+  Change: Implemented phase-aware scalar projection quadrature and exact
+  collision evolution.
+  Why: Align native scalar absolute-parity preparation with declared phase
+  coverage and preserve collision physics in continuous evolution.
+  Impact: Added fixed native scalar acceptance coverage and documented the
+  bounded parity surface.
+  Files:
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  CHANGELOG.md
 
 - 2026-07-31:
   Change: Fixed lensed-spectrum dependency handling for optional unlensed BB.

@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-07-31
+**Last Updated:** 2026-08-01
 **Project Version:** 12.0.26
 
 ## Overview
@@ -756,12 +756,13 @@ family. Contracts that need a controlled accuracy tier can enable the
 adaptive transfer, source, and line-of-sight projection surfaces described
 below.
 
-For high-resolution scalar requests, the fixed k envelope combines a
-logarithmic low-k segment with a linear high-k segment. The low-k segment
-resolves reionization and the first acoustic scales; the linear segment
-resolves the rapidly oscillating high-ell radial kernels. The declared node
-count remains exact. Reference-ell anchors are retained and the remaining
-nodes are inserted into the widest physical k gaps.
+For high-resolution scalar requests, a contract can enable
+`phase_aware_k_quadrature`. The fixed k envelope then uses the phase-aware
+quadrature helper from declared multipole anchors, conformal distance, and
+sound-horizon scales. The helper keeps acoustic phase coverage inside the
+declared node budget instead of adding an unbounded high-k tail. Reference-ell
+anchors remain explicit inputs to the bounded grid. Contracts without this
+control retain the bounded anchor-and-gap grid.
 
 Single-sector native routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
@@ -921,6 +922,7 @@ and `adaptive_evolution`:
 ```yaml
 accuracy_controls:
   phase_points_per_cycle: 8
+  phase_aware_k_quadrature: true
   adaptive_transfer:
     minimum_nodes: 32
     maximum_nodes: 128
@@ -949,7 +951,9 @@ subdivides conformal-time intervals according to the largest requested
 Fourier phase and the visibility peak and shoulders. Projection refinement
 compares the full Simpson line-of-sight result with a coarsened Simpson
 surface while using the same exact sector kernel and declared source
-histories. Evolution refinement
+histories. Source history interpolation remains the bounded default; a
+contract may set `adaptive_source.direct_source_quadrature: true` when it
+explicitly budgets re-evolution on the refined k surface. Evolution refinement
 re-runs declared scalar state and source histories at half the declared
 evolution sample count, then compares finite values at early, recombination,
 and late anchor regions. The runtime envelope records the measured errors,
