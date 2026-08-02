@@ -2985,6 +2985,142 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             0.0,
         )
 
+    def test_massive_neutrino_absolute_source_spectra_match_reference(
+        self,
+    ) -> None:
+        """Fixed q hierarchies must match absolute physical source moments."""
+
+        def _reference_moments(
+            *,
+            q_min: float,
+            q_max: float,
+            mass_ratio_today: float,
+            scale_factors: numpy.ndarray,
+        ) -> dict[str, numpy.ndarray]:
+            def _occupation(log_q: float) -> float:
+                q_value = float(numpy.exp(log_q))
+                return float(1.0 / (1.0 + numpy.exp(q_value)))
+
+            def _moment(
+                scale_factor: float,
+                power: float,
+                denominator: str,
+            ) -> float:
+                mass_ratio = float(scale_factor) * mass_ratio_today
+
+                def _integrand(log_q: float) -> float:
+                    q_value = float(numpy.exp(log_q))
+                    epsilon = float(
+                        numpy.sqrt(q_value * q_value + mass_ratio**2)
+                    )
+                    if denominator == "epsilon":
+                        factor = epsilon
+                    elif denominator == "three_epsilon":
+                        factor = 1.0 / (3.0 * epsilon)
+                    elif denominator == "inverse_epsilon":
+                        factor = 1.0 / epsilon
+                    else:  # pragma: no cover - fixture-only guard
+                        raise AssertionError(denominator)
+                    return (
+                        _occupation(log_q) * numpy.exp(power * log_q) * factor
+                    )
+
+                return float(
+                    scipy_quad(
+                        _integrand,
+                        numpy.log(q_min),
+                        numpy.log(q_max),
+                        epsabs=1.0e-11,
+                        epsrel=1.0e-11,
+                    )[0]
+                )
+
+            density_today = _moment(1.0, 3.0, "epsilon")
+            result: dict[str, numpy.ndarray] = {}
+            for name, power, denominator in (
+                ("density_fraction", 3.0, "epsilon"),
+                ("pressure_fraction", 5.0, "three_epsilon"),
+                ("momentum_fraction", 3.0, "epsilon"),
+                ("shear_fraction", 5.0, "inverse_epsilon"),
+            ):
+                moment_values = numpy.asarray(
+                    [
+                        _moment(float(a_value), power, denominator)
+                        for a_value in scale_factors
+                    ],
+                    dtype=float,
+                )
+                result[name] = moment_values / density_today
+            return result
+
+        fixed_cosmologies = (
+            (1.0e-6, numpy.asarray((0.01, 0.02, 0.05))),
+            (60.0, numpy.asarray((0.25, 0.5, 1.0))),
+        )
+        for sum_mnu, scale_factors in fixed_cosmologies:
+            with self.subTest(sum_mnu=sum_mnu):
+                raw_contract = _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True,
+                    sum_mnu=sum_mnu,
+                )
+                raw_contract["numerical"]["momentum_grids"][
+                    "massive_neutrino_default"
+                ]["count"] = 12
+                contract = _prepare_native_contract(raw_contract)
+                physical_params = (
+                    native_background._resolve_custom_cmb_physical_parameters(
+                        contract
+                    )
+                )
+                runtime = (
+                    native_evolution._resolve_declared_momentum_grid_runtimes(
+                        contract["perturbation_data"],
+                        model_parameters=contract["param_map"],
+                        physical_params=physical_params,
+                    )[0]
+                )
+                context = native_evolution._declared_momentum_grid_context(
+                    contract["perturbation_data"],
+                    model_parameters=contract["param_map"],
+                    physical_params=physical_params,
+                    scale_factor=scale_factors,
+                )
+                mass_ratio_today = float(
+                    context["massive_neutrino_mass_eV"]
+                ) / float(context["neutrino_temperature_eV"])
+                reference = _reference_moments(
+                    q_min=float(runtime.points[0]),
+                    q_max=float(runtime.points[-1]),
+                    mass_ratio_today=mass_ratio_today,
+                    scale_factors=scale_factors,
+                )
+                omega_nu = sum_mnu / (
+                    93.14 * float(physical_params.hubble_ratio) ** 2
+                )
+                for name in reference:
+                    expected = (
+                        omega_nu
+                        * numpy.power(
+                            scale_factors,
+                            -4.0,
+                        )
+                        * reference[name]
+                    )
+                    actual = numpy.asarray(
+                        context[f"massive_neutrino_{name}"],
+                        dtype=float,
+                    )
+                    numpy.testing.assert_allclose(
+                        actual,
+                        expected,
+                        rtol=0.10,
+                        atol=1.0e-30,
+                        err_msg=(
+                            f"absolute {name} mismatch for sum_mnu="
+                            f"{sum_mnu}"
+                        ),
+                    )
+
     def test_batched_projection_bessel_values_match_reference(self) -> None:
         """Batched radial kernels must preserve SciPy reference values."""
 
@@ -7794,16 +7930,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "massive_neutrino_metric_shear_q0"
             ].expression,
         )
-        self.assertIn(
+        self.assertNotIn(
             "massive_neutrino_q0_streaming_speed",
             perturbation_data.equations["evolve_delta_nu_massive_q0"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_streaming_speed",
+            perturbation_data.equations["evolve_theta_nu_massive_q0"].rhs,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_streaming_speed * "
+            "massive_neutrino_q0_streaming_speed",
+            perturbation_data.equations["evolve_theta_nu_massive_q0"].rhs,
         )
         self.assertNotIn(
-            "massive_neutrino_q0_velocity_ratio",
-            perturbation_data.equations["evolve_delta_nu_massive_q0"].rhs,
-        )
-        self.assertIn(
-            "massive_neutrino_q0_streaming_speed",
+            "1.0 / massive_neutrino_q0_streaming_speed",
             perturbation_data.equations["evolve_theta_nu_massive_q0"].rhs,
         )
         self.assertNotIn(

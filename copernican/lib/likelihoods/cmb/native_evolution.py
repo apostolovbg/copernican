@@ -1101,7 +1101,7 @@ def _prepare_declared_momentum_static_terms(
     density_weight_base = quadrature_weights * numpy.power(points, 3.0)
     pressure_weight_base = quadrature_weights * numpy.power(points, 5.0)
     momentum_weight_raw = quadrature_weights * numpy.power(points, 4.0)
-    momentum_weights, background_momentum_moment = (
+    base_momentum_weights, base_momentum_moment = (
         _normalize_declared_momentum_weights(momentum_weight_raw)
     )
     epsilon_today = numpy.sqrt(
@@ -1117,8 +1117,8 @@ def _prepare_declared_momentum_static_terms(
         quadrature_weights,
         density_weight_base,
         pressure_weight_base,
-        momentum_weights,
-        float(background_momentum_moment),
+        base_momentum_weights,
+        float(base_momentum_moment),
         epsilon_today,
         max(float(density_moment_today), 1.0e-300),
     )
@@ -1204,7 +1204,7 @@ def _declared_momentum_grid_context(
             quadrature_weights,
             density_weight_base,
             pressure_weight_base,
-            momentum_weights,
+            base_momentum_weights,
             background_momentum_moment,
             epsilon_today,
             density_moment_today,
@@ -1245,6 +1245,17 @@ def _declared_momentum_grid_context(
             * background_density_moment
             / density_moment_today
         )
+        # The evolved dipole is v(q,a) * Psi_1.  Its metric moment therefore
+        # uses q^4 f_0 / v, which remains finite as a bin becomes
+        # non-relativistic while avoiding a singular dipole equation.
+        momentum_weight_raw = (
+            quadrature_weights
+            * numpy.power(runtime.points, 4.0)
+            / numpy.maximum(q_velocity_ratio, 1.0e-30)
+        )
+        momentum_weights, background_momentum_moment = (
+            _normalize_declared_momentum_weights(momentum_weight_raw)
+        )
         pressure_fraction = (
             massive_omega0
             * numpy.power(scale_factor_array, -4.0)
@@ -1264,7 +1275,7 @@ def _declared_momentum_grid_context(
             / density_moment_today
         )
         velocity_ratio = numpy.sum(
-            momentum_weights * q_velocity_ratio,
+            base_momentum_weights * q_velocity_ratio,
             axis=-1,
         )
         pressure_ratio = numpy.divide(

@@ -1805,6 +1805,9 @@ def _materialize_native_scalar_hierarchy_contract(
                 q_index,
                 2,
             )
+            q_streaming_speed_name = (
+                _scalar_massive_neutrino_q_streaming_speed_name(q_index)
+            )
             q_l3_name = _scalar_massive_neutrino_q_name(
                 q_index,
                 3,
@@ -1817,7 +1820,7 @@ def _materialize_native_scalar_hierarchy_contract(
                     "order": 1,
                 },
                 "rhs": (
-                    f"-acoustic_k * {q_streaming_speed_name} * {q_theta_name} "
+                    f"-acoustic_k * {q_theta_name} "
                     f"- Phi_tau * {q_log_derivative_name}"
                 ),
                 "role": "continuity",
@@ -1830,10 +1833,13 @@ def _materialize_native_scalar_hierarchy_contract(
                     "order": 1,
                 },
                 "rhs": (
-                    f"(acoustic_k / 3.0) * {q_streaming_speed_name} * "
+                    f"- Hconf * (1.0 - {q_streaming_speed_name} * "
+                    f"{q_streaming_speed_name}) * {q_theta_name} + "
+                    f"(acoustic_k / 3.0) * "
+                    f"{q_streaming_speed_name} * {q_streaming_speed_name} * "
                     f"({q_delta_name} - 2.0 * {q_sigma_name}) - "
                     f"(acoustic_k / 3.0) * "
-                    f"(1.0 / {q_streaming_speed_name}) * Psi * "
+                    f"Psi * "
                     f"{q_log_derivative_name}"
                 ),
                 "role": "euler",
@@ -1847,7 +1853,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 },
                 "rhs": (
                     f"{2.0 / 5.0:.16g} * acoustic_k * "
-                    f"{q_streaming_speed_name} * {q_theta_name} "
+                    f"{q_theta_name} "
                     f"- {3.0 / 5.0:.16g} * acoustic_k * "
                     f"{q_streaming_speed_name} * {q_l3_name}"
                 ),
@@ -3036,7 +3042,8 @@ def _materialize_native_scalar_hierarchy_contract(
                 q_theta_expression = (
                     "-(acoustic_k * scalar_initial_conformal_time / 8.0) "
                     "* scalar_lapse_seed * "
-                    f"{q_log_derivative_name}"
+                    f"{q_log_derivative_name} * "
+                    f"{q_streaming_speed_name}"
                 )
                 q_sigma_expression = (
                     "-(acoustic_k * scalar_initial_conformal_time) * "

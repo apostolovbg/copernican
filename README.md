@@ -87,7 +87,12 @@ anisotropic-stress convention, including its metric source and initial data.
 Massive-neutrino hierarchies use validated q-resolved states and distinct
 physical density, pressure, momentum, and shear moments. Their logarithmic
 q-grid rejects invalid nodes or weights before caching, and remains inactive
-when a contract declares no massive-neutrino species.
+when a contract declares no massive-neutrino species. The evolved q dipole
+uses the regularized physical variable `v(q,a) Psi_1`, and the matching
+q-integrated momentum source uses `q^4 f_0 / v`; this avoids a
+nonrelativistic singularity without collapsing the resolved hierarchy.
+Fixed relativistic and nonrelativistic source spectra are checked against
+independent log-q quadrature at a ten-percent absolute tolerance.
 
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed

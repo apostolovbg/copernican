@@ -206,9 +206,11 @@ The authoritative evolved states are the q-resolved hierarchy members:
 - `nu_massive_q<i>_l<j>`
 
 All q-resolved hierarchy amplitudes are dimensionless. The q-resolved
-`theta_nu_massive_q<i>` members are momentum-bin dipoles, and the
-physical velocity-divergence source only appears after the matching
-q-integrated momentum weight multiplies them by `k`.
+`theta_nu_massive_q<i>` members store the regularized physical dipoles
+`v(q,a) Psi_1`. The physical velocity-divergence source appears after the
+matching q-integrated momentum weight multiplies them by `k`; this keeps the
+nonrelativistic limit finite instead of evolving a singular `1 / v` source
+term.
 
 The aggregate names
 `delta_nu_massive`, `theta_nu_massive`, `sigma_nu_massive`,
@@ -219,7 +221,9 @@ drifting evolution path.
 The runtime also exports physical density, pressure, momentum, and shear
 fractions for each q family. These fractions follow the background
 `Omega_nu(a)` scaling and feed the Einstein source with the required `a^2`
-factor; the momentum source carries the relativistic `4/3` inertial factor.
+factor. Because the stored dipole includes `v(q,a)`, the momentum fraction
+uses `q^4 f_0 / v(q,a)`; the momentum source still carries the relativistic
+`4/3` inertial factor.
 The declared q surface uses a second-order composite trapezoid rule in
 `log(q)`. The runtime rejects non-finite or non-monotonic nodes, non-positive
 weights, invalid bounds, and unsupported quadrature orders before caching the
@@ -1009,7 +1013,10 @@ Numerical controls define a reproducible execution envelope, and the adaptive
 surfaces provide local convergence evidence for k, source histories, and
 line-of-sight quadrature. Scientific parity still requires controlled changes
 to the background, hierarchy, q-grid, and lensing resolutions with stable
-observables in the later acceptance slices.
+observables in the later acceptance slices. The massive-neutrino acceptance
+surface compares absolute density, pressure, momentum, and shear source
+spectra at fixed relativistic and nonrelativistic cosmologies against direct
+log-q quadrature; it does not use a mass response ratio.
 
 ## Scalar Absolute Parity
 

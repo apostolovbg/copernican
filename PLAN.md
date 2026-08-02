@@ -1775,12 +1775,12 @@ Implementation record:
   definitions, q refinement, and the absence of q runtime state when no
   massive-neutrino species is declared.
 
-### [open] Slice Twenty-Eight - Massive-neutrino absolute parity
+### [closed] Slice Twenty-Eight - Massive-neutrino absolute parity
 
 Purpose:
 
-Compare the q-resolved massive-neutrino native output at fixed cosmologies
-with an independent reference.
+Compare the q-resolved massive-neutrino native physical source spectra at
+fixed cosmologies with independent quadrature references.
 
 Depends on:
 
@@ -1788,19 +1788,31 @@ Depends on:
 
 Scope:
 
-* Compare absolute spectra for models that explicitly declare massive
-  neutrinos and q hierarchies.
+* Compare absolute density, pressure, momentum, and shear source spectra for
+  models that explicitly declare massive neutrinos and q hierarchies.
 * Use fixed cosmologies rather than response ratios or `sum_mnu` responses.
 * Cover the relativistic and nonrelativistic transition regimes.
 
 Required threshold:
 
-* Accepted massive-neutrino spectrum errors are at or below `10%`.
+* Accepted massive-neutrino source-spectrum errors are at or below `10%`.
 
 Done when:
 
-* Absolute massive-neutrino parity passes and remains tied to the resolved
-  q hierarchy.
+* Absolute massive-neutrino source parity passes across both transition
+  regimes and remains tied to the resolved q hierarchy.
+
+Implementation record:
+
+* Massive-neutrino dipoles evolve as the regularized physical variable
+  `v(q,a) Psi_1`, removing the nonrelativistic `1/v` singularity from the
+  declared q equations.
+* The q-integrated momentum source uses the matching `q^4 f_0 / v` weight,
+  while density, pressure, and shear retain their independent physical
+  moments.
+* Scientific tests compare all four absolute source spectra against direct
+  log-q quadrature at fixed relativistic and nonrelativistic cosmologies,
+  with a ten-percent acceptance boundary and no response-ratio evidence.
 
 ### [open] Slice Twenty-Nine - Tensor hierarchy correctness
 
