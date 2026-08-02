@@ -1697,6 +1697,53 @@ def _capture_visible_scalar_monopole_history(
     return captured[0]
 
 
+def _capture_tensor_source_histories(
+    contract: dict[str, object],
+) -> dict[tuple[str, float], numpy.ndarray]:
+    """Return tensor source histories keyed by source name and k mode."""
+
+    native_cache.clear_native_cmb_caches()
+    perturbation_data = contract["perturbation_data"]
+    expression_names = {
+        entry.expression: str(name)
+        for name, entry in perturbation_data.sources.items()
+    }
+    captured: dict[tuple[str, float], numpy.ndarray] = {}
+    original = native_projection._evaluate_compiled_expression_noerr
+
+    def _capture_source_history(
+        expression_data: object,
+        env: Mapping[str, object],
+    ) -> object:
+        """Record each evaluated tensor source history once."""
+
+        value = original(expression_data, env)
+        expression = getattr(expression_data, "expression", "")
+        values = numpy.asarray(value)
+        if expression in expression_names and values.ndim == 1:
+            key = (
+                expression_names[expression],
+                round(float(env["k"]), 15),
+            )
+            captured.setdefault(key, numpy.asarray(values, dtype=float).copy())
+        return value
+
+    with mock.patch.object(
+        native_projection,
+        "_evaluate_compiled_expression_noerr",
+        side_effect=_capture_source_history,
+    ):
+        native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((40,), dtype=int),
+            requested_spectra=("TT", "EE", "BB"),
+        )
+
+    if not captured:
+        raise AssertionError("Expected tensor source histories")
+    return captured
+
+
 def _resolved_native_scalar_context(
     contract: dict[str, object],
     *,
@@ -7613,6 +7660,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertIn("h_tensor", perturbation_data.variables)
         self.assertIn("h_tensor_tau", perturbation_data.variables)
+        self.assertNotIn("delta_gamma_tensor", perturbation_data.variables)
+        self.assertNotIn("theta_gamma_tensor", perturbation_data.variables)
+        self.assertNotIn("delta_nu_tensor", perturbation_data.variables)
+        self.assertNotIn("theta_nu_tensor", perturbation_data.variables)
+        self.assertNotIn("e_gamma_t0", perturbation_data.variables)
+        self.assertNotIn("e_gamma_t1", perturbation_data.variables)
         self.assertIn("theta_gamma_t8", perturbation_data.variables)
         self.assertIn("e_gamma_t8", perturbation_data.variables)
         self.assertIn("b_gamma_t8", perturbation_data.variables)
@@ -7623,6 +7676,245 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.observables["polarization_b"].parity,
             "odd",
         )
+
+    def test_native_tensor_initial_series_satisfies_declared_constraints(
+        self,
+    ) -> None:
+        """Tensor initial data should satisfy the regular series."""
+
+        contract = _prepare_native_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+        self.assertEqual(
+            set(perturbation_data.constraints),
+            {
+                "tensor_initial_collision_constraint",
+                "tensor_initial_metric_constraint",
+                "tensor_initial_neutrino_constraint",
+            },
+        )
+        self.assertEqual(
+            perturbation_data.derived[
+                "tensor_initial_series_denominator"
+            ].expression,
+            "15.0 + 4.0 * tensor_free_streaming_fraction",
+        )
+        validator = getattr(
+            native_evolution,
+            "_validate_generated_tensor_initial_constraints",
+            None,
+        )
+        self.assertIsNotNone(validator)
+
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        model_parameters = {
+            **contract["param_map"],
+            **contract["model_parameters"],
+        }
+        k_value = 0.02
+        eta_value = 1.0e-3
+        base_context = native_evolution._build_declared_base_context(
+            perturbation_data=perturbation_data,
+            model_parameters=model_parameters,
+            physical_params=physical_params,
+            numerics=numerics,
+            k_value=k_value,
+            eta_value=eta_value,
+            background_scalars={
+                "a": 1.0e-8,
+                "z": 1.0e8 - 1.0,
+                "eta": eta_value,
+                "Hconf": 1.0 / eta_value,
+                "collision_rate": 1.0e8,
+                "free_streaming": 0.0,
+                "sound_horizon": eta_value / numpy.sqrt(3.0),
+                "sound_speed_sq": 1.0 / 3.0,
+            },
+        )
+        execution_plan = (
+            native_evolution._compile_declared_graph_execution_plan(
+                perturbation_data
+            )
+        )
+        initial_state, _ = native_evolution._evaluate_declared_initial_state(
+            perturbation_data=perturbation_data,
+            execution_plan=execution_plan,
+            base_context=base_context,
+        )
+        context = dict(base_context)
+        for slot in execution_plan.runtime_spec.state_slots:
+            value = float(initial_state[slot.index])
+            if slot.order == 0:
+                context[slot.variable] = value
+            else:
+                context[f"__d{slot.order}_{slot.variable}_{slot.wrt}"] = value
+        context = native_evolution._resolve_declared_graph_context(
+            context,
+            perturbation_data,
+            allow_partial=True,
+            eta_grid=None,
+            execution_plan=execution_plan,
+        )
+        validator(
+            perturbation_data=perturbation_data,
+            context=context,
+            k_value=k_value,
+        )
+        broken_context = dict(context)
+        broken_context["tensor_initial_metric_residual"] = 1.0
+        with self.assertRaisesRegex(
+            ValueError,
+            "tensor_initial_metric_residual",
+        ):
+            validator(
+                perturbation_data=perturbation_data,
+                context=broken_context,
+                k_value=k_value,
+            )
+
+    def test_native_tensor_sources_match_independent_normalization(
+        self,
+    ) -> None:
+        """Tensor source expressions should match the analytic convention."""
+
+        contract = _prepare_native_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+        context = {
+            "tau": 0.4,
+            "visibility": 0.03,
+            "h_tensor_tau": -0.2,
+            "pi_gamma_tensor": 0.05,
+            "e_gamma_t2": -0.01,
+            "b_gamma_t2": 0.02,
+        }
+        polarization_moment = (
+            0.1 * context["pi_gamma_tensor"] + 0.6 * context["e_gamma_t2"]
+        )
+        context["tensor_polarization_moment"] = polarization_moment
+        expected = {
+            "tensor_temperature_source": (
+                -numpy.exp(-context["tau"]) * context["h_tensor_tau"]
+                + (15.0 / 8.0) * context["visibility"] * polarization_moment
+            ),
+            "tensor_polarization_e_source": (
+                (15.0 / 2.0)
+                * numpy.sqrt(3.0 / 8.0)
+                * context["visibility"]
+                * polarization_moment
+            ),
+            "tensor_polarization_b_source": (
+                (15.0 / 2.0)
+                * numpy.sqrt(3.0 / 8.0)
+                * context["visibility"]
+                * polarization_moment
+            ),
+        }
+        for name, expected_value in expected.items():
+            actual = native_evolution._evaluate_compiled_expression_noerr(
+                perturbation_data.sources[name].compiled_expression,
+                context,
+            )
+            self.assertAlmostEqual(float(actual), float(expected_value))
+
+    def test_native_tensor_terminal_closures_match_analytic_limits(
+        self,
+    ) -> None:
+        """Tensor hierarchy terminals should use the flat-space limits."""
+
+        contract = _prepare_native_contract(
+            _native_tensor_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+        context = {
+            "acoustic_k": 0.2,
+            "tensor_eta_safe": 10.0,
+            "theta_gamma_t7": 0.3,
+            "theta_gamma_t8": 0.1,
+            "nu_t4": 0.25,
+            "nu_t5": 0.08,
+            "e_gamma_t7": 0.2,
+            "e_gamma_t8": 0.07,
+            "b_gamma_t7": -0.1,
+            "b_gamma_t8": 0.04,
+        }
+        temperature = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_theta_gamma_t8"].compiled_rhs,
+            context,
+        )
+        self.assertAlmostEqual(
+            float(temperature),
+            0.2 * 8.0 / 6.0 * 0.3 - 11.0 * 0.1 / 10.0,
+        )
+        neutrino = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_nu_t5"].compiled_rhs,
+            context,
+        )
+        self.assertAlmostEqual(
+            float(neutrino),
+            0.2 * 5.0 / 3.0 * 0.25 - 8.0 * 0.08 / 10.0,
+        )
+        e_terminal = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_e_gamma_t8"].compiled_rhs,
+            context,
+        )
+        b_terminal = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_b_gamma_t8"].compiled_rhs,
+            context,
+        )
+        self.assertAlmostEqual(
+            float(e_terminal),
+            8.0 / 17.0 * 0.2 * 0.2 + 4.0 / (8.0 * 9.0) * 0.2 * 0.04,
+        )
+        self.assertAlmostEqual(
+            float(b_terminal),
+            8.0 / 17.0 * 0.2 * -0.1 - 4.0 / (8.0 * 9.0) * 0.2 * 0.07,
+        )
+
+    def test_native_tensor_hierarchy_depth_converges_source_histories(
+        self,
+    ) -> None:
+        """Deeper tensor hierarchies should change sources by under 1%."""
+
+        contracts = []
+        for photon_depth, polarization_depth, neutrino_depth in (
+            (8, 8, 5),
+            (10, 10, 7),
+        ):
+            raw_contract = _speedup_contract(
+                _native_tensor_hierarchy_contract()
+            )
+            controls = {
+                "k_sample_count": 8,
+                "photon_hierarchy_l_max": photon_depth,
+                "photon_polarization_hierarchy_l_max": polarization_depth,
+                "neutrino_hierarchy_l_max": neutrino_depth,
+            }
+            raw_contract["numerical"].update(controls)
+            raw_contract["perturbations"]["numerics"].update(controls)
+            contracts.append(_prepare_native_contract(raw_contract))
+
+        baseline = _capture_tensor_source_histories(contracts[0])
+        refined = _capture_tensor_source_histories(contracts[1])
+        self.assertEqual(set(baseline), set(refined))
+        for key in sorted(baseline):
+            scale = max(
+                float(numpy.max(numpy.abs(refined[key]))),
+                1.0e-30,
+            )
+            relative_error = float(
+                numpy.max(numpy.abs(baseline[key] - refined[key])) / scale
+            )
+            self.assertLessEqual(
+                relative_error,
+                0.01,
+                msg=f"{key} hierarchy-depth error: {relative_error}",
+            )
 
     def test_native_tensor_hierarchy_transfer_payloads_are_finite(
         self,

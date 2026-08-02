@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-02:
+  Change: Completed the physical tensor hierarchy and source normalization.
+  Why: Removed nonphysical low-order tensor placeholders, corrected the
+  free-streaming initial series, and enforced declared tensor constraints.
+  Impact: Validated tensor metric, photon, polarization, and neutrino
+  histories use spin-2 equations, analytic sources, kernels, and depth
+  closure.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-02:
   Change: Completed massive-neutrino absolute source-spectrum parity.
   Why: Replace singular nonrelativistic dipole evolution with a regularized
   q-resolved physical source surface and independent fixed-cosmology checks.

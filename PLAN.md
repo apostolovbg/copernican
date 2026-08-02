@@ -1814,7 +1814,7 @@ Implementation record:
   log-q quadrature at fixed relativistic and nonrelativistic cosmologies,
   with a ten-percent acceptance boundary and no response-ratio evidence.
 
-### [open] Slice Twenty-Nine - Tensor hierarchy correctness
+### [closed] Slice Twenty-Nine - Tensor hierarchy correctness
 
 Purpose:
 
@@ -1843,6 +1843,20 @@ Done when:
 
 * The tensor sector is physical, converged at its working depth, and
   declaration-driven.
+
+Implementation record:
+
+* The generated tensor graph evolves the metric wave, photon and neutrino
+  spin-2 temperature moments, and photon E/B polarization moments without
+  scalar-style monopole, dipole, or low-order polarization placeholders.
+* Regular superhorizon metric, neutrino-stress, and photon-collision
+  constraints use the radiation free-streaming fraction and are validated
+  before each tensor mode evolves.
+* Independent fixtures validate tensor temperature and polarization source
+  normalization, spin-2 radial-kernel selection, and every terminal closure.
+* Fixed source-history comparisons show that increasing the photon,
+  polarization, and neutrino hierarchy depths changes accepted tensor
+  histories by less than one percent.
 
 ### [open] Slice Thirty - Tensor absolute parity
 

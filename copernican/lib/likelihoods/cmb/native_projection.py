@@ -74,6 +74,7 @@ from .native_evolution import (
     _resolve_declared_momentum_grid_runtimes,
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
+    _validate_generated_tensor_initial_constraints,
     _validate_generated_vector_initial_constraints,
 )
 from .native_performance import (
@@ -1611,6 +1612,13 @@ def _compute_custom_cmb_spectrum_data(
             "total_momentum_source",
             "total_shear_source",
         }
+    )
+    stage_required_names.update(
+        str(entry.target)
+        for entry in (
+            getattr(perturbation_data, "constraints", {}) or {}
+        ).values()
+        if str(getattr(entry, "role", "")) == "initial_series"
     )
     pending_required_names = list(stage_required_names)
     while pending_required_names:
@@ -3215,6 +3223,11 @@ def _compute_custom_cmb_spectrum_data(
                 k_value=float(mode_k_value),
             )
         _validate_generated_vector_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=initial_state_context,
+            k_value=float(mode_k_value),
+        )
+        _validate_generated_tensor_initial_constraints(
             perturbation_data=perturbation_data,
             context=initial_state_context,
             k_value=float(mode_k_value),

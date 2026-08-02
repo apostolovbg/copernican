@@ -94,6 +94,15 @@ nonrelativistic singularity without collapsing the resolved hierarchy.
 Fixed relativistic and nonrelativistic source spectra are checked against
 independent log-q quadrature at a ten-percent absolute tolerance.
 
+Generated tensor contracts evolve only physical spin-2 states: the tensor
+metric wave and derivative, photon and massless-neutrino temperature moments
+from the quadrupole upward, and photon E/B polarization moments from
+`l = 2`. Regular superhorizon initial data satisfy declared metric,
+neutrino-stress, and Thomson-collision constraints before evolution. Tensor
+temperature and polarization sources use independently checked normalization
+and sector-specific radial kernels, and accepted source histories change by
+less than one percent when the working hierarchy depth is increased.
+
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
 test surface.

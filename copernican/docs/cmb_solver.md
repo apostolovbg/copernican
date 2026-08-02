@@ -272,28 +272,63 @@ conformal-time derivative `h_tensor_tau = d h_tensor / d eta`.
 
 The native tensor radiation states are:
 
-- `delta_gamma_tensor`, `theta_gamma_tensor`, `pi_gamma_tensor`
-  Photon tensor temperature monopole, dipole, and shear. Units:
-  dimensionless, dimensionless, and dimensionless respectively.
-- `delta_nu_tensor`, `theta_nu_tensor`, `pi_nu_tensor`
-  Massless-neutrino tensor monopole, dipole, and shear. Units:
+- `pi_gamma_tensor`, `pi_nu_tensor`
+  Photon and massless-neutrino tensor temperature quadrupoles. Units:
   dimensionless.
 - `theta_gamma_t3`, `theta_gamma_t4`, ...
   Higher photon tensor temperature multipoles. Units: dimensionless.
-- `e_gamma_t0`, `e_gamma_t1`, `e_gamma_t2`, ...
+- `e_gamma_t2`, `e_gamma_t3`, ...
   Tensor even-parity polarization multipoles. Units: dimensionless.
 - `b_gamma_t2`, `b_gamma_t3`, ...
   Tensor odd-parity polarization multipoles. Units: dimensionless.
 - `nu_t3`, `nu_t4`, ...
   Higher massless-neutrino tensor multipoles. Units: dimensionless.
 
-The generated tensor route also carries the full Thomson polarization source
-moment
-`-(delta_gamma_tensor / 10 + 2 pi_gamma_tensor / 7 +
-3 theta_gamma_t4 / 70 - 3 e_gamma_t0 / 5 + 6 e_gamma_t2 / 7 -
-3 e_gamma_t4 / 70) / sqrt(6)`.
-Odd-parity transfer content remains odd and even-parity transfer content
-remains even.
+Tensor intensity and polarization are spin-2 hierarchies, so no tensor
+temperature monopole or dipole and no tensor E-polarization `l = 0` or
+`l = 1` state exists. The metric wave obeys
+
+```text
+h_tensor' = h_tensor_tau
+h_tensor_tau' = -2 Hconf h_tensor_tau - k^2 h_tensor
+                + 3 (H0/c)^2 tensor_total_shear_source / a^2
+```
+
+Photon and massless-neutrino temperature moments use the spin-2 free-streaming
+recurrence. Photon E/B moments use the coupled spin-2 polarization recurrence,
+with Thomson scattering supplied by the declared exact collision operator.
+The final temperature and neutrino moments use the flat-space outgoing-wave
+closure. The final E/B moments set the unavailable `l + 1` moment to zero
+while retaining their parity coupling.
+
+The regular superhorizon series uses
+
+```text
+R_nu = Omega_nu0 / (Omega_gamma0 + Omega_nu0)
+D_tensor = 15 + 4 R_nu
+h_tensor_tau = -5 k^2 eta h_tensor / D_tensor
+pi_nu_tensor = 4 k^2 eta^2 h_tensor / (3 D_tensor)
+collision_rate pi_gamma_tensor = -(32/45) h_tensor_tau
+```
+
+These three relations are declared as named initial constraints and are
+evaluated before each generated tensor mode enters the integrator. The tensor
+Thomson source moment is
+`tensor_polarization_moment = 0.1 pi_gamma_tensor + 0.6 e_gamma_t2`.
+The line-of-sight sources are
+
+```text
+S_T = -exp(-tau) h_tensor_tau
+      + (15/8) visibility tensor_polarization_moment
+S_E = (15/2) sqrt(3/8) visibility tensor_polarization_moment
+S_B = (15/2) sqrt(3/8) visibility tensor_polarization_moment
+```
+
+Temperature, E, and B sources use their tensor radial kernels rather than
+scalar or vector windows. Signed-kernel parity and zero-argument limits are
+finite and independently tested. Increasing the generated photon,
+polarization, and neutrino hierarchy depths from the working depth changes
+accepted tensor source histories by less than one percent.
 
 ## Optical Depth And Visibility
 The native optical-depth convention is:

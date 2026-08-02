@@ -4102,22 +4102,6 @@ def _materialize_native_tensor_hierarchy_contract(
     materialized["sectors"]["tensor"] = tensor_sector
 
     variables: dict[str, Any] = {
-        "delta_gamma_tensor": _metadata_entry(
-            "photon_tensor_density",
-            "Photon tensor temperature monopole.",
-            units=_DIMENSIONLESS_UNITS,
-            tensor_character="tensor_like",
-            parity="even",
-            spin=2.0,
-        ),
-        "theta_gamma_tensor": _metadata_entry(
-            "photon_tensor_velocity",
-            "Photon tensor temperature dipole.",
-            units=_DIMENSIONLESS_UNITS,
-            tensor_character="tensor_like",
-            parity="even",
-            spin=2.0,
-        ),
         "h_tensor": _metadata_entry(
             "tensor_metric_wave",
             "Tensor metric-wave amplitude.",
@@ -4142,22 +4126,6 @@ def _materialize_native_tensor_hierarchy_contract(
             parity="even",
             spin=2.0,
         ),
-        "delta_nu_tensor": _metadata_entry(
-            "massless_neutrino_tensor_density",
-            "Massless-neutrino tensor temperature monopole.",
-            units=_DIMENSIONLESS_UNITS,
-            tensor_character="tensor_like",
-            parity="even",
-            spin=2.0,
-        ),
-        "theta_nu_tensor": _metadata_entry(
-            "massless_neutrino_tensor_velocity",
-            "Massless-neutrino tensor temperature dipole.",
-            units=_DIMENSIONLESS_UNITS,
-            tensor_character="tensor_like",
-            parity="even",
-            spin=2.0,
-        ),
         "pi_nu_tensor": _metadata_entry(
             "massless_neutrino_tensor_anisotropic_stress",
             "Massless-neutrino tensor anisotropic-stress amplitude.",
@@ -4176,7 +4144,7 @@ def _materialize_native_tensor_hierarchy_contract(
             parity="even",
             spin=2.0,
         )
-    for moment in range(0, polarization_l_max + 1):
+    for moment in range(2, polarization_l_max + 1):
         variables[_tensor_polarization_e_name(moment)] = _metadata_entry(
             "photon_tensor_polarization_e_multipole",
             f"Photon tensor E-polarization multipole at l={int(moment)}.",
@@ -4240,16 +4208,8 @@ def _materialize_native_tensor_hierarchy_contract(
             ),
             "units": _DIMENSIONLESS_UNITS,
         },
-        "tensor_free_streaming_ratio": {
-            "expression": "Omega_nu0 / (Omega_gamma0 + 1.0e-30)",
-            "description": (
-                "Radiation-era neutrino-to-photon density ratio used by "
-                "tensor initial conditions."
-            ),
-            "units": _DIMENSIONLESS_UNITS,
-        },
         "tensor_initial_series_denominator": {
-            "expression": ("15.0 + 4.0 * tensor_free_streaming_ratio"),
+            "expression": ("15.0 + 4.0 * tensor_free_streaming_fraction"),
             "description": (
                 "Regular tensor initial-series denominator including "
                 "free-streaming neutrino stress."
@@ -4293,26 +4253,6 @@ def _materialize_native_tensor_hierarchy_contract(
     materialized["derived"] = derived_entries
 
     equations: dict[str, Any] = {
-        "evolve_delta_gamma_tensor": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "delta_gamma_tensor",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_hierarchy",
-        },
-        "evolve_theta_gamma_tensor": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "theta_gamma_tensor",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_hierarchy",
-        },
         "evolve_h_tensor": {
             "lhs": {
                 "kind": "derivative",
@@ -4346,26 +4286,6 @@ def _materialize_native_tensor_hierarchy_contract(
             ),
             "role": "tensor_hierarchy",
         },
-        "evolve_delta_nu_tensor": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "delta_nu_tensor",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_hierarchy",
-        },
-        "evolve_theta_nu_tensor": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "theta_nu_tensor",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_hierarchy",
-        },
         "evolve_pi_nu_tensor": {
             "lhs": {
                 "kind": "derivative",
@@ -4378,26 +4298,6 @@ def _materialize_native_tensor_hierarchy_contract(
                 "(8.0 / 15.0) * acoustic_k * tensor_shear"
             ),
             "role": "tensor_hierarchy",
-        },
-        "evolve_e_gamma_t0": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "e_gamma_t0",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_polarization",
-        },
-        "evolve_e_gamma_t1": {
-            "lhs": {
-                "kind": "derivative",
-                "variable": "e_gamma_t1",
-                "wrt": "tau",
-                "order": 1,
-            },
-            "rhs": "0.0",
-            "role": "tensor_polarization",
         },
         "evolve_e_gamma_t2": {
             "lhs": {
@@ -4560,7 +4460,39 @@ def _materialize_native_tensor_hierarchy_contract(
     materialized["conservation_rules"] = dict(
         materialized.get("conservation_rules", {}) or {}
     )
-    materialized["constraints"] = {}
+    materialized["constraints"] = {
+        "tensor_initial_metric_constraint": {
+            "target": "tensor_initial_metric_residual",
+            "expression": (
+                "h_tensor_tau + 5.0 * acoustic_k_sq * eta * h_tensor / "
+                "tensor_initial_series_denominator"
+            ),
+            "role": "initial_series",
+            "description": (
+                "Regular superhorizon tensor metric-series residual."
+            ),
+        },
+        "tensor_initial_neutrino_constraint": {
+            "target": "tensor_initial_neutrino_residual",
+            "expression": (
+                "pi_nu_tensor - 4.0 * acoustic_k_sq * eta * eta * "
+                "h_tensor / (3.0 * tensor_initial_series_denominator)"
+            ),
+            "role": "initial_series",
+            "description": (
+                "Regular superhorizon tensor neutrino-stress residual."
+            ),
+        },
+        "tensor_initial_collision_constraint": {
+            "target": "tensor_initial_collision_residual",
+            "expression": (
+                "collision_rate * pi_gamma_tensor + "
+                "(32.0 / 45.0) * h_tensor_tau"
+            ),
+            "role": "initial_series",
+            "description": ("Tensor photon tight-collision initial residual."),
+        },
+    }
     materialized["closures"] = {}
     materialized["sources"] = {
         "tensor_temperature_source": {
@@ -4641,22 +4573,6 @@ def _materialize_native_tensor_hierarchy_contract(
     }
 
     initial_conditions: dict[str, Any] = {
-        "delta_gamma_tensor_seed": {
-            "target": {
-                "variable": "delta_gamma_tensor",
-                "wrt": "tau",
-                "order": 0,
-            },
-            "expression": "0.0",
-        },
-        "theta_gamma_tensor_seed": {
-            "target": {
-                "variable": "theta_gamma_tensor",
-                "wrt": "tau",
-                "order": 0,
-            },
-            "expression": "0.0",
-        },
         "h_tensor_seed": {
             "target": {
                 "variable": "h_tensor",
@@ -4686,22 +4602,6 @@ def _materialize_native_tensor_hierarchy_contract(
                 "-(32.0 / 45.0) * h_tensor_tau / " "(collision_rate + 1.0e-30)"
             ),
         },
-        "delta_nu_tensor_seed": {
-            "target": {
-                "variable": "delta_nu_tensor",
-                "wrt": "tau",
-                "order": 0,
-            },
-            "expression": "0.0",
-        },
-        "theta_nu_tensor_seed": {
-            "target": {
-                "variable": "theta_nu_tensor",
-                "wrt": "tau",
-                "order": 0,
-            },
-            "expression": "0.0",
-        },
         "pi_nu_tensor_seed": {
             "target": {
                 "variable": "pi_nu_tensor",
@@ -4710,7 +4610,7 @@ def _materialize_native_tensor_hierarchy_contract(
             },
             "expression": (
                 "4.0 * acoustic_k_sq * eta_initial * eta_initial * seed / "
-                "(3.0 * (15.0 + 4.0 * tensor_free_streaming_ratio))"
+                "(3.0 * tensor_initial_series_denominator)"
             ),
         },
     }
@@ -4723,7 +4623,7 @@ def _materialize_native_tensor_hierarchy_contract(
             },
             "expression": "0.0",
         }
-    for moment in range(0, polarization_l_max + 1):
+    for moment in range(2, polarization_l_max + 1):
         initial_conditions[f"{_tensor_polarization_e_name(moment)}_seed"] = {
             "target": {
                 "variable": _tensor_polarization_e_name(moment),

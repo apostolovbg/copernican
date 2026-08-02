@@ -2277,3 +2277,76 @@ def _validate_generated_vector_initial_constraints(
             f"constraint for {residual_name} at k={k_value} "
             f"({normalized_residual} > {tolerance})"
         )
+
+
+def _validate_generated_tensor_initial_constraints(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    k_value: float,
+) -> None:
+    """Raise when generated tensor data violate their regular series."""
+
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    if not manifest_summary.get("generated_tensor_hierarchy"):
+        return
+
+    denominator = float(context["tensor_initial_series_denominator"])
+    metric_series = (
+        5.0
+        * float(context["acoustic_k_sq"])
+        * float(context["eta"])
+        * float(context["h_tensor"])
+        / denominator
+    )
+    neutrino_series = (
+        4.0
+        * float(context["acoustic_k_sq"])
+        * float(context["eta"])
+        * float(context["eta"])
+        * float(context["h_tensor"])
+        / (3.0 * denominator)
+    )
+    collision_series = (32.0 / 45.0) * float(context["h_tensor_tau"])
+    residual_specs = (
+        (
+            "tensor_initial_metric_residual",
+            max(abs(float(context["h_tensor_tau"])), abs(metric_series)),
+        ),
+        (
+            "tensor_initial_neutrino_residual",
+            max(abs(float(context["pi_nu_tensor"])), abs(neutrino_series)),
+        ),
+        (
+            "tensor_initial_collision_residual",
+            max(
+                abs(
+                    float(context["collision_rate"])
+                    * float(context["pi_gamma_tensor"])
+                ),
+                abs(collision_series),
+            ),
+        ),
+    )
+    tolerance = 1.0e-8
+    for residual_name, scale in residual_specs:
+        if residual_name not in context:
+            raise ValueError(
+                "Generated tensor initial data omitted declared constraint "
+                f"{residual_name} at k={k_value}"
+            )
+        normalized_residual = abs(float(context[residual_name])) / max(
+            float(scale),
+            1.0e-30,
+        )
+        if not numpy.isfinite(normalized_residual):
+            raise ValueError(
+                "Generated tensor initial data produced non-finite "
+                f"diagnostics for {residual_name} at k={k_value}"
+            )
+        if normalized_residual > tolerance:
+            raise ValueError(
+                "Generated tensor initial data violate the regular-series "
+                f"constraint for {residual_name} at k={k_value} "
+                f"({normalized_residual} > {tolerance})"
+            )
