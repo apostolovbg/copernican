@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-08-02
 **Project Version:** 12.0.26
 
 ## Overview
@@ -220,6 +220,11 @@ The runtime also exports physical density, pressure, momentum, and shear
 fractions for each q family. These fractions follow the background
 `Omega_nu(a)` scaling and feed the Einstein source with the required `a^2`
 factor; the momentum source carries the relativistic `4/3` inertial factor.
+The declared q surface uses a second-order composite trapezoid rule in
+`log(q)`. The runtime rejects non-finite or non-monotonic nodes, non-positive
+weights, invalid bounds, and unsupported quadrature orders before caching the
+grid. A momentum-grid declaration remains inert unless the contract declares
+the massive-neutrino species and hierarchy family.
 
 ### Vector States
 The canonical vector metric amplitude is `sigma_vector`, the transverse shear
@@ -747,6 +752,12 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 
 `lensed_TT`, `lensed_TE`, `lensed_EE`, and `lensed_BB` stay in the same
 `muK^2` `D_ell` convention as their unlensed counterparts.
+
+Lensed public requests are expanded to one contiguous zero-based analysis
+surface before remapping. The exact lensed assembler passes only native
+unlensed `TT`, `TE`, `EE`, optional `BB`, and native `PP` into the remapper;
+it then selects the requested multipoles. Sparse requests therefore cannot
+change the remapping calculation or bypass declared odd-parity input.
 
 The remapper consumes a finite four-column unlensed surface in the order
 `TT`, `EE`, `BB`, `TE`, together with `clpp` in the declared `PP` convention.

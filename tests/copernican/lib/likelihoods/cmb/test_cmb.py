@@ -14,6 +14,7 @@ from unittest import mock
 
 import numpy
 import pandas
+from scipy.integrate import quad as scipy_quad
 from scipy.linalg import expm
 
 try:
@@ -6735,6 +6736,164 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.arange(20, 24, dtype=int),
                 spectra=("TT",),
             )
+
+    def test_massive_neutrino_q_moments_match_independent_quadrature(
+        self,
+    ) -> None:
+        """Resolved q moments should match an independent log-q integral."""
+
+        contract_data = _native_scalar_hierarchy_contract(
+            include_massive_neutrino=True,
+            sum_mnu=0.5,
+        )
+        contract_data["numerical"]["momentum_grids"][
+            "massive_neutrino_default"
+        ].update(
+            {
+                "quadrature_order": 2,
+            }
+        )
+        contract = _prepare_native_contract(contract_data)
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        runtime = native_evolution._resolve_declared_momentum_grid_runtimes(
+            contract["perturbation_data"],
+            model_parameters=contract["param_map"],
+            physical_params=physical_params,
+        )[0]
+        self.assertEqual(runtime.quadrature_order, 2)
+        self.assertTrue(numpy.all(numpy.diff(runtime.points) > 0.0))
+        self.assertTrue(numpy.all(runtime.weights > 0.0))
+        self.assertAlmostEqual(
+            float(numpy.sum(runtime.weights)),
+            float(numpy.log(runtime.points[-1] / runtime.points[0])),
+            places=12,
+        )
+
+        scale_factor = 0.7
+        context = native_evolution._declared_momentum_grid_context(
+            contract["perturbation_data"],
+            model_parameters=contract["param_map"],
+            physical_params=physical_params,
+            scale_factor=scale_factor,
+        )
+        neutrino_temperature = float(context["neutrino_temperature_eV"])
+        mass_eV = float(context["massive_neutrino_mass_eV"])
+        mass_ratio = scale_factor * mass_eV / neutrino_temperature
+        log_q_min = float(numpy.log(runtime.points[0]))
+        log_q_max = float(numpy.log(runtime.points[-1]))
+
+        def _occupation(log_q: float) -> float:
+            q_value = float(numpy.exp(log_q))
+            return float(1.0 / (1.0 + numpy.exp(q_value)))
+
+        def _energy(log_q: float) -> float:
+            q_value = float(numpy.exp(log_q))
+            return float(numpy.sqrt(q_value * q_value + mass_ratio**2))
+
+        reference_density = scipy_quad(
+            lambda log_q: _occupation(log_q)
+            * numpy.exp(3.0 * log_q)
+            * _energy(log_q),
+            log_q_min,
+            log_q_max,
+            epsabs=1.0e-11,
+            epsrel=1.0e-11,
+        )[0]
+        reference_pressure = scipy_quad(
+            lambda log_q: _occupation(log_q)
+            * numpy.exp(5.0 * log_q)
+            / (3.0 * _energy(log_q)),
+            log_q_min,
+            log_q_max,
+            epsabs=1.0e-11,
+            epsrel=1.0e-11,
+        )[0]
+        measured_density = float(
+            context["massive_neutrino_background_density_moment"]
+        )
+        measured_pressure = float(
+            context["massive_neutrino_background_pressure_moment"]
+        )
+        self.assertLess(
+            abs(measured_density / reference_density - 1.0),
+            2.0e-3,
+        )
+        self.assertLess(
+            abs(
+                measured_pressure / measured_density
+                - reference_pressure / reference_density
+            ),
+            2.0e-3,
+        )
+
+    def test_massive_neutrino_q_grid_rejects_invalid_definition(self) -> None:
+        """Invalid q bounds, counts, and rules must fail before evolution."""
+
+        for invalid_definition, message in (
+            ({"count": 1}, "count must be an integer >= 2"),
+            ({"q_min": 0.0}, "requires 0 < q_min < q_max"),
+            ({"q_max": 0.01}, "requires 0 < q_min < q_max"),
+            ({"quadrature_order": 4}, "quadrature_order must be 2"),
+        ):
+            with self.subTest(invalid_definition=invalid_definition):
+                contract_data = _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True,
+                )
+                contract_data["numerical"]["momentum_grids"][
+                    "massive_neutrino_default"
+                ].update(invalid_definition)
+                contract = _prepare_native_contract(contract_data)
+                physical_params = (
+                    native_background._resolve_custom_cmb_physical_parameters(
+                        contract
+                    )
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    native_evolution._declared_momentum_grid_context(
+                        contract["perturbation_data"],
+                        model_parameters=contract["param_map"],
+                        physical_params=physical_params,
+                        scale_factor=0.5,
+                    )
+
+    def test_non_massive_contract_has_no_q_runtime(self) -> None:
+        """Momentum grids must stay inert without a massive species."""
+
+        contract_data = _native_scalar_hierarchy_contract()
+        contract_data["numerical"]["momentum_grids"] = {
+            "unused_grid": {
+                "count": 8,
+                "q_min": 0.05,
+                "q_max": 18.0,
+            }
+        }
+        contract_data["perturbations"]["hierarchy_families"][
+            "photon_temperature"
+        ]["momentum_grid"] = "unused_grid"
+        contract_data["perturbations"]["numerics"]["momentum_grids"] = {
+            "unused_grid": {
+                "count": 8,
+                "q_min": 0.05,
+                "q_max": 18.0,
+            }
+        }
+        contract = _prepare_native_contract(contract_data)
+        perturbation_data = contract["perturbation_data"]
+        self.assertFalse(
+            any("_q" in name for name in perturbation_data.variables)
+        )
+        physical_params = (
+            native_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        context = native_evolution._declared_momentum_grid_context(
+            perturbation_data,
+            model_parameters=contract["param_map"],
+            physical_params=physical_params,
+            scale_factor=0.5,
+        )
+        self.assertEqual(context, {})
 
     def test_background_pressure_and_curvature_symbols_change_outputs(
         self,

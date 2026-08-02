@@ -128,6 +128,18 @@ def _assemble_exact_lensed_spectra(
 ) -> dict[str, numpy.ndarray]:
     """Return exact curved-sky lensed spectra from unlensed inputs."""
 
+    ell_values = numpy.asarray(ell_grid, dtype=int)
+    if ell_values.ndim != 1 or ell_values.size == 0:
+        raise ValueError(
+            "Native lensed spectra require a one-dimensional ell grid"
+        )
+    lmax = int(numpy.max(ell_values))
+    expected_ell_grid = numpy.arange(lmax + 1, dtype=int)
+    if not numpy.array_equal(ell_values[: lmax + 1], expected_ell_grid):
+        raise ValueError(
+            "Native lensed spectra require a contiguous ell grid beginning "
+            "at zero"
+        )
     missing = sorted(
         required
         for required in ("PP", "TT", "TE", "EE")
@@ -138,7 +150,6 @@ def _assemble_exact_lensed_spectra(
             "Native lensed spectra require declared TT, TE, EE, and PP "
             f"spectra: {', '.join(missing)}"
         )
-    lmax = int(numpy.max(numpy.asarray(ell_grid, dtype=int)))
     tt_spectrum = numpy.asarray(scaled_spectra["TT"], dtype=numpy.longdouble)
     te_spectrum = numpy.asarray(scaled_spectra["TE"], dtype=numpy.longdouble)
     ee_spectrum = numpy.asarray(scaled_spectra["EE"], dtype=numpy.longdouble)

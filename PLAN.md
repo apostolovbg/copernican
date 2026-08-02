@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-08-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1695,7 +1695,7 @@ Implementation record:
   normalization and interpolation stability without reference-spectrum
   participation.
 
-### [open] Slice Twenty-Six - Lensed scalar absolute parity
+### [closed] Slice Twenty-Six - Lensed scalar absolute parity
 
 Purpose:
 
@@ -1723,7 +1723,15 @@ Done when:
 * Full lensed scalar parity passes without reference-spectrum participation
   in the production path.
 
-### [open] Slice Twenty-Seven - Massive-neutrino q-hierarchy correctness
+Implementation record:
+
+* Exact lensed assembly requires a contiguous zero-based analysis surface and
+  derives every lensed `TT`, `TE`, `EE`, and `BB` result from native unlensed
+  transfers plus native `PP`.
+* Orchestration tests verify that declared odd-parity input survives the
+  remapper and that sparse public requests cannot bypass contiguous analysis.
+
+### [closed] Slice Twenty-Seven - Massive-neutrino q-hierarchy correctness
 
 Purpose:
 
@@ -1754,6 +1762,18 @@ Required acceptance:
 Done when:
 
 * The resolved q hierarchy is the sole massive-neutrino physical authority.
+
+Implementation record:
+
+* Massive-neutrino grids now validate their count, positive q bounds,
+  second-order logarithmic trapezoid rule, finite nodes, and positive
+  quadrature weights before entering the runtime cache.
+* Density, pressure, momentum, and shear moments retain their distinct
+  distribution, epsilon, and velocity factors; strict aliases remain derived
+  from the q-bin state surface.
+* Independent log-q fixtures cover the physical moments, invalid grid
+  definitions, q refinement, and the absence of q runtime state when no
+  massive-neutrino species is declared.
 
 ### [open] Slice Twenty-Eight - Massive-neutrino absolute parity
 

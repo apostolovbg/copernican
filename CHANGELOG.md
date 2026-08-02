@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-08-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,54 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-02:
+  Change: Completed massive-neutrino q-hierarchy validation and moment
+  quadrature checks.
+  Why: Ensure q-resolved states remain the sole physical authority with
+  independently verified thermal moments and strict grid definitions.
+  Impact: Enforced native massive-neutrino density, pressure, momentum, and
+  shear sources to reject invalid grids and remain inactive without a declared
+  species.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-02:
+  Change: Verified and refreshed the Slice 26 native lensing assembly.
+  Why: Align staged implementation and documentation metadata with the
+  current verification session.
+  Impact: Gate tracking records the current native lensing implementation,
+  tests, plan, and documentation surfaces.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+
+- 2026-08-01:
+  Change: Completed native lensed scalar assembly from contiguous declared
+  unlensed and PP surfaces.
+  Why: Prevent sparse requests or unavailable parity inputs from bypassing
+  the exact lensed pipeline.
+  Impact: Lensed TT, TE, EE, and BB orchestration now validates its analysis
+  grid and preserves native odd-parity transfers.
+  Files:
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+  PLAN.md
+  copernican/docs/cmb_solver.md
+  CHANGELOG.md
 
 - 2026-08-01:
   Change: Hardened native curved-sky lensing validation and interpolation

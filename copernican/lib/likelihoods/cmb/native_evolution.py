@@ -433,6 +433,7 @@ class _DeclaredMomentumGridRuntime:
     name: str
     points: numpy.ndarray
     weights: numpy.ndarray
+    quadrature_order: int
     mass_eV: float
     family_names: tuple[str, ...]
 
@@ -442,7 +443,14 @@ def _thermal_fermi_dirac_distribution(
 ) -> numpy.ndarray:
     """Return the thermal Fermi-Dirac occupation for one q grid."""
 
-    exp_neg_q = numpy.exp(-numpy.asarray(q_points, dtype=float))
+    points = numpy.asarray(q_points, dtype=float)
+    if points.ndim != 1 or points.size == 0:
+        raise ValueError("Massive-neutrino q nodes must be a non-empty vector")
+    if not numpy.all(numpy.isfinite(points)) or numpy.any(points <= 0.0):
+        raise ValueError(
+            "Massive-neutrino q nodes must be finite and strictly positive"
+        )
+    exp_neg_q = numpy.exp(-points)
     return numpy.asarray(exp_neg_q / (1.0 + exp_neg_q), dtype=float)
 
 
@@ -452,17 +460,65 @@ def _normalize_declared_momentum_weights(
     """Return normalized weights and their summed physical moments."""
 
     raw = numpy.asarray(raw_weights, dtype=float)
+    if raw.ndim == 0 or not numpy.all(numpy.isfinite(raw)):
+        raise ValueError("Massive-neutrino quadrature weights must be finite")
+    if numpy.any(raw < 0.0):
+        raise ValueError(
+            "Massive-neutrino quadrature weights must be non-negative"
+        )
     totals = numpy.sum(raw, axis=-1, keepdims=True)
-    safe_totals = numpy.where(
-        numpy.abs(totals) > 1.0e-300,
-        totals,
-        1.0e-300,
-    )
-    normalized = numpy.asarray(raw / safe_totals, dtype=float)
+    if numpy.any(totals <= 0.0):
+        raise ValueError(
+            "Massive-neutrino quadrature moments must be positive"
+        )
+    normalized = numpy.asarray(raw / totals, dtype=float)
     return normalized, numpy.asarray(
         numpy.squeeze(totals, axis=-1),
         dtype=float,
     )
+
+
+def _validate_declared_momentum_grid_definition(
+    grid_name: str,
+    grid_def: Mapping[str, Any],
+) -> tuple[int, float, float, int]:
+    """Validate one logarithmic q-grid definition before materialization."""
+
+    count_value = _coerce_numeric_scalar(
+        grid_def.get("count", 8),
+        name=f"momentum grid '{grid_name}' count",
+    )
+    count = int(count_value)
+    if count != count_value or count < 2:
+        raise ValueError(
+            f"momentum grid '{grid_name}' count must be an integer >= 2"
+        )
+    q_min = _coerce_numeric_scalar(
+        grid_def.get("q_min", 0.05),
+        name=f"momentum grid '{grid_name}' q_min",
+    )
+    q_max = _coerce_numeric_scalar(
+        grid_def.get("q_max", 15.0),
+        name=f"momentum grid '{grid_name}' q_max",
+    )
+    if not numpy.isfinite(q_min) or not numpy.isfinite(q_max):
+        raise ValueError(
+            f"momentum grid '{grid_name}' q bounds must be finite"
+        )
+    if q_min <= 0.0 or q_max <= q_min:
+        raise ValueError(
+            f"momentum grid '{grid_name}' requires 0 < q_min < q_max"
+        )
+    quadrature_order_value = _coerce_numeric_scalar(
+        grid_def.get("quadrature_order", 2),
+        name=f"momentum grid '{grid_name}' quadrature_order",
+    )
+    quadrature_order = int(quadrature_order_value)
+    if quadrature_order != quadrature_order_value or quadrature_order != 2:
+        raise ValueError(
+            f"momentum grid '{grid_name}' quadrature_order must be 2"
+        )
+    return count, q_min, q_max, quadrature_order
 
 
 def _prepare_declared_graph_runtime_spec(
@@ -826,6 +882,13 @@ def _resolve_declared_momentum_grid_runtimes(
         family_name,
         family_entry,
     ) in perturbation_data.hierarchy_families.items():
+        family_species = set(getattr(family_entry, "species", ()))
+        declared_species = getattr(perturbation_data, "species", {})
+        if (
+            "massive_neutrino" not in family_species
+            or "massive_neutrino" not in declared_species
+        ):
+            continue
         grid_name = str(family_entry.momentum_grid or "").strip()
         if not grid_name:
             continue
@@ -957,7 +1020,9 @@ def _resolve_declared_momentum_grid_runtimes(
                 "cmb.perturbations.numerics.momentum_grids."
                 f"{grid_name} must be a mapping"
             )
-        count = max(int(grid_def.get("count", 8)), 4)
+        count, q_min, q_max, quadrature_order = (
+            _validate_declared_momentum_grid_definition(grid_name, grid_def)
+        )
         minimum_count = minimum_momentum_counts.get(grid_name)
         if minimum_count is not None:
             required_count = int(
@@ -980,9 +1045,13 @@ def _resolve_declared_momentum_grid_runtimes(
                     "cmb.perturbations.numerics.momentum_grids."
                     f"{grid_name}.count >= {required_count}"
                 )
-        q_min = max(float(grid_def.get("q_min", 0.05)), 1.0e-4)
-        q_max = max(float(grid_def.get("q_max", 15.0)), q_min * 1.01)
         points = numpy.geomspace(q_min, q_max, count, dtype=float)
+        if not numpy.all(numpy.isfinite(points)) or not numpy.all(
+            numpy.diff(points) > 0.0
+        ):
+            raise ValueError(
+                f"momentum grid '{grid_name}' produced invalid q nodes"
+            )
         log_points = numpy.log(points)
         weights = numpy.empty_like(points)
         if points.size == 1:
@@ -994,11 +1063,16 @@ def _resolve_declared_momentum_grid_runtimes(
             if points.size > 2:
                 weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
         weights = numpy.asarray(weights, dtype=float)
+        if not numpy.all(numpy.isfinite(weights)) or numpy.any(weights <= 0.0):
+            raise ValueError(
+                f"momentum grid '{grid_name}' produced invalid q weights"
+            )
         runtimes.append(
             _DeclaredMomentumGridRuntime(
                 name=str(grid_name),
                 points=points,
                 weights=weights,
+                quadrature_order=quadrature_order,
                 mass_eV=_grid_mass_eV(str(grid_name), grid_def),
                 family_names=tuple(sorted(str(name) for name in family_names)),
             )
@@ -1034,6 +1108,11 @@ def _prepare_declared_momentum_static_terms(
         points_squared + float(mass_ratio_today) * float(mass_ratio_today)
     )
     density_moment_today = numpy.sum(density_weight_base * epsilon_today)
+    if not numpy.isfinite(density_moment_today) or density_moment_today <= 0.0:
+        raise ValueError(
+            "Massive-neutrino density quadrature must produce a positive "
+            "finite moment"
+        )
     return (
         quadrature_weights,
         density_weight_base,
@@ -1204,6 +1283,7 @@ def _declared_momentum_grid_context(
             runtime.weights,
             dtype=float,
         )
+        context[f"{prefix}_quadrature_order"] = int(runtime.quadrature_order)
         context[f"{prefix}_distribution_weights"] = quadrature_weights
         context[f"{prefix}_mass_eV"] = float(runtime.mass_eV)
         context[f"{prefix}_background_density_moment"] = _context_value(

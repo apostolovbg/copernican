@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-01
+**Last Updated:** 2026-08-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -84,6 +84,10 @@ spin-2 high-k quadrature tail rather than applying an empirical spectrum
 correction.
 The generated massless-neutrino hierarchy uses an explicit `F_2 / 2`
 anisotropic-stress convention, including its metric source and initial data.
+Massive-neutrino hierarchies use validated q-resolved states and distinct
+physical density, pressure, momentum, and shear moments. Their logarithmic
+q-grid rejects invalid nodes or weights before caching, and remains inactive
+when a contract declares no massive-neutrino species.
 
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
@@ -121,6 +125,12 @@ producing a zero transfer or borrowing another sector.
 Exact lensed requests preserve a declared unlensed `BB` transfer when one is
 available; otherwise the native remapper uses the physical zero-parity base
 and derives lensing-induced `lensed_BB` from `EE` and `PP`.
+
+The lensed assembler expands every request to one contiguous zero-based
+analysis surface before remapping. It passes the native unlensed TT, TE, EE,
+and BB surfaces together with the native PP surface to the remapper, then
+selects the requested lensed outputs. Sparse public requests therefore cannot
+change interpolation or bypass an available odd-parity transfer.
 
 The native curved-sky remapper validates finite compatible `cls` and `clpp`
 surfaces before work begins. Its bounded Gauss-Legendre sampling can be
