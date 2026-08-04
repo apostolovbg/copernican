@@ -479,14 +479,14 @@ def _slice_nine_camb_reference_spectra(
     return outputs
 
 
-def _slice_nine_camb_tensor_reference_spectra(
+def _slice_thirty_camb_tensor_reference_spectra(
     ells: Sequence[int] | numpy.ndarray,
     *,
     sum_mnu: float = 0.0,
     tensor_ratio: float = 0.1,
     tensor_tilt: float = 0.0,
 ) -> dict[str, numpy.ndarray]:
-    """Return direct CAMB tensor TT, EE, and BB spectra."""
+    """Return direct CAMB unlensed and lensed tensor spectra."""
 
     ell_grid = numpy.asarray(tuple(ells), dtype=int)
     if ell_grid.size == 0 or numpy.any(ell_grid < 2):
@@ -499,20 +499,40 @@ def _slice_nine_camb_tensor_reference_spectra(
         tensor_ratio=float(tensor_ratio),
         tensor_tilt=float(tensor_tilt),
     )
+    results = camb.get_results(params)
     tensor_cls = numpy.asarray(
-        camb.get_results(params).get_tensor_cls(
+        results.get_tensor_cls(
             lmax=lmax,
             CMB_unit="muK",
         ),
         dtype=numpy.longdouble,
     )
-    return {
+    total_cls = numpy.asarray(
+        results.get_total_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=numpy.longdouble,
+    )
+    lensed_scalar_cls = numpy.asarray(
+        results.get_lensed_scalar_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=numpy.longdouble,
+    )
+    lensed_tensor_cls = total_cls - lensed_scalar_cls
+    outputs = {
         name: numpy.asarray(
             tensor_cls[ell_grid, column],
             dtype=numpy.longdouble,
         )
         for name, column in (("TT", 0), ("EE", 1), ("BB", 2))
     }
+    outputs.update(
+        {
+            f"lensed_{name}": numpy.asarray(
+                lensed_tensor_cls[ell_grid, column],
+                dtype=numpy.longdouble,
+            )
+            for name, column in (("TT", 0), ("EE", 1), ("BB", 2))
+        }
+    )
+    return outputs
 
 
 def _rename_declared_contract_tokens(
@@ -2946,44 +2966,103 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
     """CAMB-backed scientific reference checks for the CMB surface."""
 
     def test_camb_tensor_reference_returns_absolute_cls(self) -> None:
-        """Tensor references must expose absolute TT, EE, and BB spectra."""
+        """Tensor references must expose unlensed and lensed spectra."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
 
-        reference = _slice_nine_camb_tensor_reference_spectra(
-            numpy.asarray((20, 60, 120), dtype=int),
+        reference = _slice_thirty_camb_tensor_reference_spectra(
+            numpy.asarray((40, 50, 70), dtype=int),
         )
-        self.assertEqual(set(reference), {"TT", "EE", "BB"})
+        self.assertEqual(
+            set(reference),
+            {
+                "TT",
+                "EE",
+                "BB",
+                "lensed_TT",
+                "lensed_EE",
+                "lensed_BB",
+            },
+        )
         for values in reference.values():
             self.assertEqual(values.shape, (3,))
             self.assertTrue(numpy.all(numpy.isfinite(values)))
         self.assertGreater(float(numpy.max(reference["TT"])), 0.0)
         self.assertGreater(float(numpy.max(reference["EE"])), 0.0)
         self.assertGreater(float(numpy.max(reference["BB"])), 0.0)
+        source = inspect.getsource(_slice_thirty_camb_tensor_reference_spectra)
+        self.assertIn("get_tensor_cls", source)
+        self.assertIn("get_total_cls", source)
+        self.assertIn("get_lensed_scalar_cls", source)
+        self.assertNotIn("native_projection", source)
+        self.assertNotIn("compute_cmb_spectrum", source)
 
     def test_native_tensor_spectra_match_absolute_camb_anchors(self) -> None:
-        """Native tensor TT, EE, and BB must match fixed CAMB anchors."""
+        """Native tensor spectra must match fixed CAMB anchors."""
 
         if camb is None:
             self.skipTest("CAMB is not installed")
 
         ells = numpy.asarray((40, 50, 70), dtype=int)
+        analysis_ells = numpy.arange(int(numpy.max(ells)) + 1, dtype=int)
         tensor_contract = _native_tensor_hierarchy_contract()
-        tensor_contract["numerical"]["k_sample_count"] = 64
-        native = _raw_native_public_spectra(
+        tensor_contract["numerical"]["k_sample_count"] = 96
+        native_tensor = _raw_native_public_spectra(
             _prepare_native_contract(tensor_contract),
-            ells,
-            spectra=("TT", "EE", "BB"),
+            analysis_ells,
+            spectra=("TT", "TE", "EE", "BB"),
         )
-        reference = _slice_nine_camb_tensor_reference_spectra(ells)
+        scalar_contract = _speedup_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        native_lensing = _raw_native_public_spectra(
+            _prepare_native_contract(scalar_contract),
+            analysis_ells,
+            spectra=("PP",),
+        )
+        lensed_tensor = native_cmb_solver._assemble_exact_lensed_spectra(
+            {
+                **native_tensor,
+                "PP": native_lensing["PP"],
+            },
+            analysis_ells,
+        )
+        reference = _slice_thirty_camb_tensor_reference_spectra(ells)
+        native = {
+            spectrum_name: numpy.asarray(values)[ells]
+            for spectrum_name, values in {
+                **native_tensor,
+                **lensed_tensor,
+            }.items()
+            if spectrum_name
+            in {
+                "TT",
+                "EE",
+                "BB",
+                "lensed_TT",
+                "lensed_EE",
+                "lensed_BB",
+            }
+        }
+        compared_spectra = (
+            "TT",
+            "EE",
+            "BB",
+            "lensed_TT",
+            "lensed_EE",
+            "lensed_BB",
+        )
+        for spectrum_name in compared_spectra:
+            self.assertEqual(native[spectrum_name].shape, (3,))
+            self.assertTrue(numpy.all(numpy.isfinite(native[spectrum_name])))
         metrics = _slice_nine_spectrum_metrics(
             native,
             reference,
-            spectra=("TT", "EE", "BB"),
+            spectra=compared_spectra,
             auto_spectrum_floor=1.0e-6,
         )
-        for spectrum_name in ("TT", "EE", "BB"):
+        for spectrum_name in compared_spectra:
             self.assertLessEqual(
                 metrics[spectrum_name]["median_fractional"],
                 float(
@@ -2993,6 +3072,10 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 ),
                 msg=f"{spectrum_name} metrics: {metrics[spectrum_name]}",
             )
+        self.assertGreater(
+            float(numpy.max(numpy.asarray(native["lensed_BB"]))),
+            0.0,
+        )
 
     def test_camb_massive_neutrino_references_are_fixed_cosmologies(
         self,

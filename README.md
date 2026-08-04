@@ -103,6 +103,13 @@ temperature and polarization sources use independently checked normalization
 and sector-specific radial kernels, and accepted source histories change by
 less than one percent when the working hierarchy depth is increased.
 
+Tensor absolute acceptance uses a fixed `r = 0.1`, `nt = 0` cosmology and
+independent CAMB references confined to the scientific test surface. Native
+unlensed and lensed tensor `TT`, `EE`, and `BB` meet a ten-percent median
+fractional-error boundary at the declared reference multipoles. Lensing uses
+the native scalar `PP` surface and retains finite positive primordial tensor
+`BB` through the exact remapper.
+
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
 test surface.

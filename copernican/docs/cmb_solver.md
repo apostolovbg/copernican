@@ -417,7 +417,7 @@ out-of-tolerance initial data are rejected before evolution.
 The generated tensor route materializes the regular `tensor_mode` family.
 It seeds `h_tensor` from the declared primordial tensor amplitude, seeds
 `h_tensor_tau` from the leading `k^2 tau` super-horizon series corrected by
-the free-streaming neutrino fraction, and seeds the neutrino tensor monopole
+the free-streaming neutrino fraction, and seeds the neutrino tensor quadrupole
 from the matching `k^2 tau^2` term. Photon shear and all polarization
 multipoles begin on the regular tight-coupling surface.
 
@@ -748,8 +748,9 @@ temperature coefficient is the native tensor polarization-moment conversion
 used by the transfer convention. The photon quadrupole and E/B hierarchy
 coefficients follow the tensor equations used by CAMB, including the exact
 two-state Thomson block for `pi_gamma_tensor` and `E_gamma,2`. The terminal
-vector temperature recurrence uses the physical `l/(l-1)` closure, while
-terminal vector polarization multipoles are held at zero as in the reference
+tensor temperature recurrence uses the physical `l/(l-2)` closure, while
+terminal tensor polarization multipoles omit the unavailable `l + 1` term
+as in the reference
 hierarchy.
 
 ## Public Spectrum Convention
@@ -1091,6 +1092,29 @@ request, while mixed-sector requests retain the complete sector kernel set.
 This keeps projection memory proportional to the active mode batch rather
 than to every sector and every Fourier mode in the request.
 
+## Tensor Absolute Parity
+
+The tensor acceptance surface uses the fixed reference cosmology with
+`r = 0.1`, `nt = 0`, and massless neutrinos. Native tensor evolution and
+projection run through the production declared graph with 96 k nodes on the
+contiguous `ell = 0..70` remapping surface. Absolute comparisons use the
+declared reference multipoles `ell = 40, 50, 70`; they are not tensor-amplitude
+responses or synthetic source probes.
+
+The independent test helper constructs CAMB directly and reads unlensed
+tensor `TT`, `EE`, and `BB` from `get_tensor_cls`. CAMB 1.6 defines its total
+CMB surface as lensed scalar plus tensor. The tensor contribution to that
+lensed total is therefore isolated as
+`get_total_cls - get_lensed_scalar_cls`. The helper neither imports the native
+projection layer nor calls the production CMB facade.
+
+The native lensed comparison remaps tensor-only `TT`, `TE`, `EE`, and `BB`
+with the independently evolved native scalar `PP` surface. Every native
+unlensed and lensed tensor auto-spectrum has a median fractional error at or
+below ten percent against its independent CAMB surface. The accepted
+`lensed_BB` remains finite and positive, so exact remapping cannot discard the
+declared primordial tensor B-mode.
+
 
 ## Reference Cosmology And Acceptance Boundary
 
@@ -1105,12 +1129,12 @@ The accepted background-reference limits are conformal age and sound-horizon
 relative error at `0.2%`, visibility-peak redshift error at `0.5%`, visibility
 width error at `3%`, recombination median and 90th-percentile electron-fraction
 errors at `2%` and `5%`, and reionization optical-depth error at `1%`.
-The implemented reference surface also contains independent CAMB fixtures,
-projection-kernel limits, exact-remapper normalization checks, and narrow
-native tensor anchor checks. Those checks do not establish the full native
-scalar, lensing, massive-neutrino, gauge, or vector absolute-parity thresholds
-listed in PLAN.md. Numerical convergence of native outputs is a separate
-Slice Nineteen requirement.
+The reference surface also contains independent CAMB fixtures,
+projection-kernel limits, and exact-remapper normalization checks. The tensor
+fixture establishes the native unlensed and lensed `TT`, `EE`, and `BB`
+ten-percent median boundary. Scalar, lensing-potential, massive-neutrino,
+gauge, and vector acceptance use their own declared surfaces and thresholds
+in `PLAN.md`.
 
 ## References
 The canonical meanings and target equations above follow the standard

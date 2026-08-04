@@ -1858,7 +1858,7 @@ Implementation record:
   polarization, and neutrino hierarchy depths changes accepted tensor
   histories by less than one percent.
 
-### [open] Slice Thirty - Tensor absolute parity
+### [closed] Slice Thirty - Tensor absolute parity
 
 Purpose:
 
@@ -1883,6 +1883,19 @@ Done when:
 
 * Tensor absolute parity passes and tensor primordial `BB` survives native
   lensing.
+
+Implementation record:
+
+* The fixed tensor acceptance cosmology uses `r = 0.1`, `nt = 0`, and the
+  native declared tensor hierarchy on a contiguous projection surface.
+* Independent CAMB calls provide absolute tensor `TT`, `EE`, and `BB`; the
+  tensor contribution to CAMB's lensed total is isolated from its lensed
+  scalar surface without calling production native code.
+* Native unlensed and remapped tensor `TT`, `EE`, and `BB` pass the
+  ten-percent median fractional-error boundary at the declared reference
+  multipoles.
+* The native remapper retains finite positive primordial tensor `BB` while
+  using the independently evolved native scalar lensing potential.
 
 ### [open] Slice Thirty-One - Gauge-equivalent scalar parity
 

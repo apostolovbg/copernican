@@ -80,6 +80,21 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-02:
+  Change: Completed absolute tensor spectrum parity for unlensed and lensed
+  outputs.
+  Why: Compare native tensor predictions with fixed-cosmology independent
+  CAMB surfaces instead of synthetic probes or response ratios.
+  Impact: Validated native tensor `TT`, `EE`, and `BB` within the ten-percent
+  median boundary and preserved primordial `BB` through exact remapping.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-02:
   Change: Completed the physical tensor hierarchy and source normalization.
   Why: Removed nonphysical low-order tensor placeholders, corrected the
   free-streaming initial series, and enforced declared tensor constraints.
