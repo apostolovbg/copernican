@@ -7630,6 +7630,49 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "odd",
         )
 
+    def test_native_vector_manifest_records_physical_sector_roles(
+        self,
+    ) -> None:
+        """Vector manifests must identify physical roles and parity kernels."""
+
+        vector = _prepare_native_contract(_native_vector_hierarchy_contract())
+        vector_summary = vector["perturbation_data"].manifest_summary[
+            "vector_hierarchy"
+        ]
+        self.assertTrue(vector_summary["implemented"])
+        self.assertEqual(vector_summary["sector"], "vector")
+        self.assertEqual(vector_summary["metric_state"], "sigma_vector")
+        self.assertEqual(vector_summary["closure"], "free_streaming_vector")
+        self.assertEqual(vector_summary["parity"], ("even", "odd"))
+        self.assertEqual(
+            vector_summary["radial_kernels"],
+            (
+                "vector_temperature_1",
+                "vector_temperature_2",
+                "vector_e",
+                "vector_b",
+            ),
+        )
+        self.assertTrue(vector_summary["temperature_states"])
+        self.assertTrue(vector_summary["polarization_e_states"])
+        self.assertTrue(vector_summary["polarization_b_states"])
+        self.assertTrue(vector_summary["neutrino_states"])
+
+        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
+        scalar_summary = scalar["perturbation_data"].manifest_summary[
+            "vector_hierarchy"
+        ]
+        self.assertFalse(scalar_summary["implemented"])
+        self.assertEqual(scalar_summary["sector"], None)
+        self.assertEqual(scalar_summary["radial_kernels"], ())
+        scalar_manifest = scalar["perturbation_data"].manifest_summary
+        self.assertFalse(
+            any("vector" in name for name in scalar_manifest["variable_names"])
+        )
+        self.assertFalse(
+            any("vector" in name for name in scalar_manifest["source_names"])
+        )
+
     def test_native_vector_hierarchy_transfer_payloads_are_finite(
         self,
     ) -> None:

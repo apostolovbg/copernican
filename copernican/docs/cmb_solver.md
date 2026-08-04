@@ -265,6 +265,29 @@ to the declared `visibility * polarization_moment` before the native spin-2
 projection. The scalar radial window carries the standard spin-2 factorial
 prefactor and `j_l / x^2`.
 
+### Vector Hierarchy Acceptance
+
+The vector graph is a physical transverse Einstein-Boltzmann sector, not a
+generic variable family. `sigma_vector` supplies the metric shear, while
+matter vorticity, photon heat flux and anisotropic stress, massless-neutrino
+moments, and photon E/B multipoles provide the declared state roles. Thomson
+vector drag carries the momentum exchange between photons and baryons, and
+each vector hierarchy uses its declared free-streaming terminal closure.
+
+The compiled manifest identifies these roles through `vector_hierarchy`. It
+records the metric state, vector hierarchy state groups, even/odd parity, the
+free-streaming closure, and the four radial kernels
+`vector_temperature_1`, `vector_temperature_2`, `vector_e`, and `vector_b`.
+The vector transfer payload exposes temperature, E, and B components, and
+the public vector `TT`, `TE`, `EE`, and `BB` surfaces are formed from those
+components without scalar source substitution.
+
+Vector acceptance uses independent flat-space radial-kernel limits, finite
+transfer and spectrum checks, and exact-remapper checks for primordial
+odd-parity `BB`. The manifest test also compiles a scalar-only contract and
+requires its vector role summary, state names, source names, and radial
+kernels to remain empty.
+
 ### Tensor States
 The canonical tensor metric amplitude is `h_tensor`, with the explicit
 conformal-time derivative `h_tensor_tau = d h_tensor / d eta`.

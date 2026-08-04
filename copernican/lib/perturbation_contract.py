@@ -6598,6 +6598,54 @@ def _build_gauge_equivalence_summary(gauge: str) -> dict[str, Any]:
     }
 
 
+def _build_vector_hierarchy_summary(
+    *,
+    generated_vector_hierarchy: bool,
+    variables: tuple[str, ...],
+) -> dict[str, Any]:
+    """Describe vector state roles and analytic projection kernels."""
+
+    if not generated_vector_hierarchy:
+        return {
+            "implemented": False,
+            "sector": None,
+            "metric_state": None,
+            "closure": None,
+            "parity": (),
+            "radial_kernels": (),
+            "temperature_states": (),
+            "polarization_e_states": (),
+            "polarization_b_states": (),
+            "neutrino_states": (),
+        }
+    variable_names = tuple(str(name) for name in variables)
+    return {
+        "implemented": True,
+        "sector": "vector",
+        "metric_state": "sigma_vector",
+        "closure": "free_streaming_vector",
+        "parity": ("even", "odd"),
+        "radial_kernels": (
+            "vector_temperature_1",
+            "vector_temperature_2",
+            "vector_e",
+            "vector_b",
+        ),
+        "temperature_states": tuple(
+            name for name in variable_names if name.startswith("theta_gamma_v")
+        ),
+        "polarization_e_states": tuple(
+            name for name in variable_names if name.startswith("e_gamma_v")
+        ),
+        "polarization_b_states": tuple(
+            name for name in variable_names if name.startswith("b_gamma_v")
+        ),
+        "neutrino_states": tuple(
+            name for name in variable_names if name.startswith("nu_v")
+        ),
+    }
+
+
 def _build_manifest_summary(
     *,
     model_name: str,
@@ -6708,6 +6756,10 @@ def _build_manifest_summary(
         "generated_scalar_hierarchy": generated_scalar_hierarchy,
         "generated_vector_hierarchy": generated_vector_hierarchy,
         "generated_tensor_hierarchy": generated_tensor_hierarchy,
+        "vector_hierarchy": _build_vector_hierarchy_summary(
+            generated_vector_hierarchy=generated_vector_hierarchy,
+            variables=variables,
+        ),
         "transfer_component_contracts": {
             str(name): {
                 str(key): value for key, value in contract_data.items()

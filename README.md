@@ -117,6 +117,13 @@ metric states, and explicit bridge expressions. Visible source histories and
 all scalar spectra must agree within the declared `0.1%` boundary without
 making the routes identical through aliases.
 
+Physical vector acceptance declares `sigma_vector`, matter vorticity, photon
+and neutrino vector moments, even and odd photon polarization, collision
+conservation, and free-streaming closure. Independent flat-space checks cover
+the vector temperature, E, and B radial kernels. Generated vector transfers
+are finite and retain odd-parity `BB`; scalar-only contracts do not acquire
+vector state, source, or kernel names.
+
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
 test surface.

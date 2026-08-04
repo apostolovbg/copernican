@@ -80,6 +80,21 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-04:
+  Change: Completed physical vector hierarchy and parity acceptance.
+  Why: Validate declared vector metric, matter, radiation, polarization,
+  and radial-kernel roles independently of scalar and tensor sectors.
+  Impact: Expose vector role metadata, finite vector transfer surfaces, and
+  scalar isolation checks for the native CMB solver.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-04:
   Change: Completed gauge-equivalent scalar parity and manifest bridges.
   Why: Validate distinct Newtonian, synchronous, and Bardeen-invariant
   graphs against shared histories and scalar spectrum surfaces.

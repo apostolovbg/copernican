@@ -1939,7 +1939,7 @@ Implementation record:
   and `Psi_from_synchronous`; invariant spectra are checked through the
   declared `Phi_gi` and `Psi_gi` states.
 
-### [open] Slice Thirty-Two - Physical vector hierarchy and parity
+### [closed] Slice Thirty-Two - Physical vector hierarchy and parity
 
 Purpose:
 
@@ -1970,6 +1970,25 @@ Done when:
 
 * Generated vector output passes physical analytic and absolute acceptance
   tests.
+
+Implementation record:
+
+* The generated vector graph evolves the transverse metric shear
+  `sigma_vector`, baryon and optional CDM vorticity, photon heat flux and
+  anisotropic stress, massless-neutrino vector moments, and photon E/B
+  polarization hierarchies. Thomson vector drag and free-streaming terminal
+  closure remain declaration-driven.
+* The compiled manifest records the physical vector metric state, hierarchy
+  role groups, even/odd parity, free-streaming closure, and all four vector
+  radial kernels. Scalar-only manifests report no vector states, sources, or
+  kernels.
+* Independent flat-space fixtures validate vector temperature, E, and B
+  radial kernels and their signed parity limits. Finite transfer and
+  spectrum checks cover vector `TT`, `TE`, `EE`, and `BB`, and exact lensing
+  retains declared vector primordial `BB`.
+* The vector acceptance tests verify nonzero odd-parity output, physical
+  source normalization, terminal hierarchy materialization, and isolation
+  from scalar-sector contracts.
 
 ### [open] Slice Thirty-Three - Native production route cutover
 
