@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-02
+**Last Updated:** 2026-08-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -109,6 +109,13 @@ unlensed and lensed tensor `TT`, `EE`, and `BB` meet a ten-percent median
 fractional-error boundary at the declared reference multipoles. Lensing uses
 the native scalar `PP` surface and retains finite positive primordial tensor
 `BB` through the exact remapper.
+
+Gauge-equivalent scalar acceptance fixes the cosmology, grids, initial mode,
+and source roles while comparing conformal-Newtonian, synchronous, and
+Bardeen-invariant routes. Compiled manifests expose the observable basis,
+metric states, and explicit bridge expressions. Visible source histories and
+all scalar spectra must agree within the declared `0.1%` boundary without
+making the routes identical through aliases.
 
 Native runtime acceptance also records phase timings and enforces the bounded
 180-second full-spectrum and 60-second joint-MCMC budgets used by the managed

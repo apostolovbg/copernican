@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-02
+**Last Updated:** 2026-08-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,21 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-04:
+  Change: Completed gauge-equivalent scalar parity and manifest bridges.
+  Why: Validate distinct Newtonian, synchronous, and Bardeen-invariant
+  graphs against shared histories and scalar spectrum surfaces.
+  Impact: Exposed explicit gauge transformations and validated the `0.1%`
+  equivalence boundary without alias-forced equality.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-08-02:
   Change: Completed absolute tensor spectrum parity for unlensed and lensed

@@ -6545,6 +6545,59 @@ def _topological_evaluation_order(
     return tuple(order)
 
 
+def _build_gauge_equivalence_summary(gauge: str) -> dict[str, Any]:
+    """Describe the explicit scalar gauge bridge in a compiled manifest."""
+
+    normalized_gauge = str(gauge or "unspecified")
+    if normalized_gauge == "synchronous":
+        return {
+            "route": normalized_gauge,
+            "observable_basis": "newtonian",
+            "transformation": "scalar_first_order",
+            "explicit": True,
+            "metric_state_names": (
+                "h_sync_metric",
+                "eta_sync_metric",
+                "gauge_shift_alpha",
+                "Phi_gi",
+            ),
+            "observable_state_names": ("Phi", "Psi"),
+            "derived_transform_names": (
+                "Phi_from_synchronous",
+                "Psi_from_synchronous",
+            ),
+        }
+    if normalized_gauge == "gauge_invariant":
+        return {
+            "route": normalized_gauge,
+            "observable_basis": "newtonian",
+            "transformation": "bardeen_invariant",
+            "explicit": True,
+            "metric_state_names": ("Phi_gi", "Psi_gi"),
+            "observable_state_names": ("Phi", "Psi"),
+            "derived_transform_names": (),
+        }
+    if normalized_gauge == "conformal_newtonian":
+        return {
+            "route": normalized_gauge,
+            "observable_basis": "newtonian",
+            "transformation": "observable_identity",
+            "explicit": True,
+            "metric_state_names": ("Phi", "Psi"),
+            "observable_state_names": ("Phi", "Psi"),
+            "derived_transform_names": (),
+        }
+    return {
+        "route": normalized_gauge,
+        "observable_basis": None,
+        "transformation": "declared_custom",
+        "explicit": False,
+        "metric_state_names": (),
+        "observable_state_names": (),
+        "derived_transform_names": (),
+    }
+
+
 def _build_manifest_summary(
     *,
     model_name: str,
@@ -6596,6 +6649,7 @@ def _build_manifest_summary(
         "contract_version": contract_version,
         "standard": standard,
         "gauge": gauge,
+        "gauge_equivalence": _build_gauge_equivalence_summary(gauge),
         "variable_names": variables,
         "derived_names": derived,
         "equation_names": equations,

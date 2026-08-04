@@ -8900,6 +8900,109 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-10,
             )
 
+    def test_native_scalar_gauge_routes_preserve_history_and_manifest(
+        self,
+    ) -> None:
+        """Gauge routes must expose explicit bridges and shared observables."""
+
+        threshold = float(
+            SLICE_NINE_ACCEPTANCE_THRESHOLDS["gauge_equivalent_fractional"]
+        )
+        ells = numpy.asarray((20, 30, 40), dtype=int)
+        spectra = SLICE_NINE_ACCEPTANCE_SPECTRA
+        routes = (
+            "conformal_newtonian",
+            "synchronous",
+            "gauge_invariant",
+        )
+        prepared_routes = {
+            gauge: _prepare_native_contract(
+                _speedup_contract(
+                    _native_scalar_hierarchy_contract(gauge=gauge)
+                )
+            )
+            for gauge in routes
+        }
+        manifests = {
+            gauge: prepared["perturbation_data"].manifest_summary
+            for gauge, prepared in prepared_routes.items()
+        }
+        self.assertEqual(
+            manifests["conformal_newtonian"]["gauge_equivalence"][
+                "transformation"
+            ],
+            "observable_identity",
+        )
+        self.assertEqual(
+            manifests["synchronous"]["gauge_equivalence"]["transformation"],
+            "scalar_first_order",
+        )
+        self.assertEqual(
+            manifests["gauge_invariant"]["gauge_equivalence"][
+                "transformation"
+            ],
+            "bardeen_invariant",
+        )
+        for gauge in routes:
+            equivalence = manifests[gauge]["gauge_equivalence"]
+            self.assertEqual(equivalence["observable_basis"], "newtonian")
+            self.assertTrue(equivalence["explicit"])
+            self.assertTrue(
+                set(equivalence["metric_state_names"]).issubset(
+                    set(manifests[gauge]["variable_names"])
+                )
+            )
+            self.assertTrue(
+                set(equivalence["derived_transform_names"]).issubset(
+                    set(manifests[gauge]["derived_names"])
+                )
+            )
+        self.assertNotEqual(
+            manifests["conformal_newtonian"]["variable_names"],
+            manifests["synchronous"]["variable_names"],
+        )
+        self.assertNotEqual(
+            manifests["synchronous"]["variable_names"],
+            manifests["gauge_invariant"]["variable_names"],
+        )
+
+        histories = {
+            gauge: _capture_visible_scalar_monopole_history(prepared)
+            for gauge, prepared in prepared_routes.items()
+        }
+        baseline_eta, baseline_monopole = histories[routes[0]]
+        for gauge in routes[1:]:
+            eta_grid, monopole = histories[gauge]
+            numpy.testing.assert_array_equal(eta_grid, baseline_eta)
+            self.assertLess(
+                _max_relative_delta(baseline_monopole, monopole),
+                threshold,
+            )
+
+        spectra_by_gauge = {
+            gauge: cmb.compute_cmb_spectrum_from_contract(
+                prepared,
+                ells,
+                spectra=spectra,
+            )
+            for gauge, prepared in prepared_routes.items()
+        }
+        baseline = spectra_by_gauge[routes[0]]
+        for gauge in routes[1:]:
+            metrics = _slice_nine_spectrum_metrics(
+                spectra_by_gauge[gauge],
+                baseline,
+                spectra=spectra,
+            )
+            for spectrum_name in spectra:
+                metric = metrics[spectrum_name]
+                error = (
+                    metric["median_fractional"]
+                    if "median_fractional" in metric
+                    else metric["normalized_rms"]
+                )
+                self.assertLess(error, threshold, spectrum_name)
+
     def test_native_scalar_hierarchy_sync_transform_matches_observables(
         self,
     ) -> None:

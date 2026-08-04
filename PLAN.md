@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-02
+**Last Updated:** 2026-08-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1897,7 +1897,7 @@ Implementation record:
 * The native remapper retains finite positive primordial tensor `BB` while
   using the independently evolved native scalar lensing potential.
 
-### [open] Slice Thirty-One - Gauge-equivalent scalar parity
+### [closed] Slice Thirty-One - Gauge-equivalent scalar parity
 
 Purpose:
 
@@ -1924,6 +1924,20 @@ Done when:
 
 * Gauge routes agree through explicit transformations without alias-forced
   equality.
+
+Implementation record:
+
+* Compiled perturbation manifests expose the scalar gauge-equivalence route,
+  Newtonian observable basis, metric state names, and derived bridge nodes.
+* Conformal-Newtonian, synchronous, and Bardeen-invariant contracts retain
+  distinct compiled metric state graphs rather than passing through labels or
+  LCDM aliases.
+* A fixed-cosmology acceptance test compares visible source histories and
+  scalar `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, `EP`, and lensed surfaces across
+  all three routes at the `0.1%` boundary.
+* Synchronous transformations are checked through `Phi_from_synchronous`
+  and `Psi_from_synchronous`; invariant spectra are checked through the
+  declared `Phi_gi` and `Psi_gi` states.
 
 ### [open] Slice Thirty-Two - Physical vector hierarchy and parity
 

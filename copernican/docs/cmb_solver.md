@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-02
+**Last Updated:** 2026-08-04
 **Project Version:** 12.0.26
 
 ## Overview
@@ -378,6 +378,26 @@ the Newtonian branch.
 Custom declared graphs may supply their own gauge bridge when the
 standard first-order transform above does not apply, but gauge labels
 alone do not satisfy this contract.
+
+### Gauge Equivalence Acceptance
+
+The compiled perturbation manifest records `gauge_equivalence` for every
+scalar route. Its `observable_basis` is the Newtonian observable basis, and
+its `transformation` identifies one of the explicit bridges:
+
+- `observable_identity` for the conformal-Newtonian route;
+- `scalar_first_order` for synchronous `h`, `eta`, and `alpha` states;
+- `bardeen_invariant` for the gauge-invariant `Phi_gi` and `Psi_gi` states.
+
+The manifest also names the metric and derived transformation nodes, so a
+gauge label cannot claim equivalence without a corresponding compiled graph.
+The fixed scalar acceptance surface uses one cosmology, grid, regular
+adiabatic mode, and source-role set for all three routes. Visible source
+histories and `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, `EP`, and lensed scalar
+surfaces must agree to `0.1%`. The synchronous route is checked through
+the explicit first-order transformation, while the invariant route is
+checked through its Bardeen states. The test surface rejects agreement that
+comes only from shared aliases or gauge labels.
 
 ## Regular Scalar Initial Modes
 The generated scalar route materializes the following regular scalar
