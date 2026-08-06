@@ -3,11 +3,9 @@
 
 """Shared statistical helpers for cosmological engines.
 
-This module now delegates dataset-specific likelihood calculations to
-:mod:`copernican.lib.likelihoods`. The thin wrappers exposed here preserve the
-public API while the new package stores the covariance-aware implementations
-used by all engines. CAMB spectrum helpers remain available for backward
-compatibility.
+This module delegates dataset-specific likelihood calculations to
+:mod:`copernican.lib.likelihoods`. The package stores the covariance-aware
+implementations used by all engines.
 """
 
 from __future__ import annotations
@@ -22,11 +20,9 @@ from copernican.lib.likelihoods import (
     BAOLike,
     CMBLike,
     SNeLike,
-    compute_camb_background_observables,
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_contract,
-    compute_cmb_spectrum_from_legacy_params_for_tests,
 )
 
 __all__ = [
@@ -37,7 +33,6 @@ __all__ = [
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_contract",
-    "compute_cmb_spectrum_from_legacy_params_for_tests",
 ]
 
 
@@ -127,145 +122,16 @@ def calculate_bao_observables(
         param_str,
     )
 
-    z_array = bao_pred_df["redshift"].to_numpy(dtype=float)
-    observable_types = bao_pred_df["observable_type"].to_numpy(dtype=object)
-    mask_dm = observable_types == "DM_over_rs"
-    mask_dh = observable_types == "DH_over_rs"
-    mask_dv = observable_types == "DV_over_rs"
-
     z_smooth_arr = None
     if z_smooth is not None:
         z_smooth_arr = numpy.asarray(z_smooth, dtype=float)
         if z_smooth_arr.size == 0:
             z_smooth_arr = None
 
-    background = None
-    smooth_background = None
-    camb_params = None
-    get_camb_contract = getattr(model_plugin, "get_camb_contract", None)
-    if get_camb_contract is not None:
-        try:
-            camb_params = get_camb_contract(cosmo_params)
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.warning(
-                "Failed to obtain CAMB contract for BAO predictions: %s",
-                exc,
-            )
-
-    def _load_background(redshifts):
-        """Return CAMB background values for a set of redshifts."""
-
-        if camb_params is None or redshifts is None or redshifts.size == 0:
-            return None
-        try:
-            return compute_camb_background_observables(
-                camb_params,
-                redshifts,
-            )
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:  # pragma: no cover - CAMB errors are logged
-            logger.warning(
-                "Failed to compute CAMB background for BAO plots: %s",
-                exc,
-            )
-            return None
-
-    background = _load_background(z_array)
-    if z_smooth_arr is not None:
-        smooth_background = _load_background(z_smooth_arr)
-
-    rs_mpc = float("nan")
-    if background is not None:
-        rs_candidate = background.get("rs_drag", float("nan"))
-        if numpy.isfinite(rs_candidate) and rs_candidate > 0:
-            rs_mpc = float(rs_candidate)
-
-    def _fill_from_background() -> bool:
-        """Populate BAO predictions from the CAMB background table."""
-        if background is None or not numpy.isfinite(rs_mpc):
-            return False
-        try:
-            dm_vals = numpy.asarray(background["DM"], dtype=float)
-            dh_vals = numpy.asarray(background["DH"], dtype=float)
-            dv_vals = numpy.asarray(background["DV"], dtype=float)
-        except KeyError as exc:
-            logger.warning(
-                "CAMB background missing %s for %s.",
-                exc,
-                model_name,
-            )
-            return False
-        if (
-            dm_vals.shape != z_array.shape
-            or dh_vals.shape != z_array.shape
-            or dv_vals.shape != z_array.shape
-        ):
-            logger.warning(
-                "CAMB background shape mismatch for %s BAO data.",
-                model_name,
-            )
-            return False
-
-        if numpy.any(mask_dm):
-            bao_pred_df.loc[mask_dm, "model_prediction"] = (
-                dm_vals[mask_dm] / rs_mpc
-            )
-        if numpy.any(mask_dh):
-            bao_pred_df.loc[mask_dh, "model_prediction"] = (
-                dh_vals[mask_dh] / rs_mpc
-            )
-        if numpy.any(mask_dv):
-            bao_pred_df.loc[mask_dv, "model_prediction"] = (
-                dv_vals[mask_dv] / rs_mpc
-            )
-        return True
-
-    def _smooth_from_background() -> dict[str, numpy.ndarray] | None:
-        """Return the smoothed CAMB observables for plotting."""
-        if (
-            smooth_background is None
-            or z_smooth_arr is None
-            or not numpy.isfinite(rs_mpc)
-        ):
-            return None
-        try:
-            dm_smooth = numpy.asarray(smooth_background["DM"], dtype=float)
-            dh_smooth = numpy.asarray(smooth_background["DH"], dtype=float)
-            dv_smooth = numpy.asarray(smooth_background["DV"], dtype=float)
-        except KeyError as exc:
-            logger.warning(
-                "CAMB background missing smooth BAO observable %s for %s.",
-                exc,
-                model_name,
-            )
-            return None
-        return {
-            "z": z_smooth_arr,
-            "dm_over_rs": dm_smooth / rs_mpc,
-            "dh_over_rs": dh_smooth / rs_mpc,
-            "dv_over_rs": dv_smooth / rs_mpc,
-        }
-
-    smooth_predictions = None
-    background_used = _fill_from_background()
-
     def _fill_from_plugin(
         rs_guess: float,
     ) -> tuple[float, dict[str, numpy.ndarray] | None]:
-        """Fallback to plugin-supplied BAO predictions when available."""
+        """Return plugin-supplied BAO predictions when available."""
         try:
             get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
             get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
@@ -421,11 +287,7 @@ def calculate_bao_observables(
                 )
         return rs_value, smooth_preds
 
-    if not background_used:
-        bao_pred_df["model_prediction"] = numpy.nan
-        rs_mpc, smooth_predictions = _fill_from_plugin(rs_mpc)
-    else:
-        smooth_predictions = _smooth_from_background()
+    rs_mpc, smooth_predictions = _fill_from_plugin(float("nan"))
 
     if not (numpy.isfinite(rs_mpc) and rs_mpc > 0):
         return bao_pred_df, float("nan"), None

@@ -596,7 +596,6 @@ def _declared_graph_execution_plan_cache_token(
         None,
     )
     structural_view = {
-        "backend": getattr(perturbation_data, "backend", ""),
         "closures": {
             name: (
                 getattr(entry, "target", None),

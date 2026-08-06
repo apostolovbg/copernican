@@ -1,4 +1,6 @@
 # Run Manifest
+**Project Version:** 12.0.26
+
 The suite writes a YAML manifest for every evaluation under the run's output
 folder. The file is named `run_manifest_<timestamp>.yml`, where the timestamp
 matches the start-of-run label used by the output directory and per-run log,
@@ -37,14 +39,11 @@ when output directories change.
  files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
  treated as statistically separate when building the joint posterior.
-- CMB adapter metadata summarising the backend contract plus the perturbation
- contract summary, including the contract version, gauge, standard flag,
- declared symbol names, interaction, conservation-rule, and
- projection-extension names, source and observable names, equation,
- constraint, closure, and source counts, transfer-path summary, backend
- mapping details, declared projection contracts, declared background and
- recombination provenance, and the selected production execution route for
- each CMB-capable model.
+- Native CMB metadata summarising the contract version, gauge, declared
+ symbol names, interactions, conservation rules, projection extensions,
+ sources, observables, equation and constraint counts, transfer contracts,
+ background and recombination provenance, execution engine, runtime
+ signature, and compiler diagnostics for each CMB-capable model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
  burn-in, production steps, pool/core hints and nested-sampling parameters
  stay tied to the manifest that produced a run.
@@ -102,20 +101,20 @@ The manifest is intentionally human readable so it can be archived in lab
 notebooks or cited in publications. Recording the suite version makes it clear
 which behaviour and documentation set applied to the run, especially when a
 development branch has diverged from the last tagged release.
-For `standard: false` models the manifest carries three complementary CMB
-truth surfaces under each `camb.models[*]` entry:
+For CMB-capable models the manifest carries three complementary truth
+surfaces under each `cmb.models[*]` entry:
 - `custom_cmb_graph_manifest_summary` for the declared graph identity and
  observable contracts, including each transfer component's
  `declared_projection` entry.
 - `custom_cmb_background_manifest_summary` for declared background aliases,
  reionization calibration, and recombination runtime provenance, including
  the declared recombination quantity names when custom hooks are present.
-- `custom_cmb_runtime_manifest_summary` for the selected production execution
- route and numerical settings.
+- `custom_cmb_runtime_manifest_summary` for native execution provenance and
+ numerical settings.
 That split keeps graph structure, physical background provenance, and runtime
-route proof separate. The route block is the place to verify whether a run
-used backend-standard CAMB perturbations or the native declared graph; the
-manifest does not rely on `standard: false` alone to make that claim. The
+proof separate. The route block identifies the sole native declared-graph
+engine and its compiled runtime signature. Backend and standard-route keys
+are invalid and cannot be recorded. The
 per-model `perturbation_*_names` lists expose declared interactions,
 conservation rules, and projection extensions so audits can check theory
 extensions without diffing the original model file.

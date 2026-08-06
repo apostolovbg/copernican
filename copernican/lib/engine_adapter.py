@@ -4,20 +4,17 @@
 """Runtime adapter utilities for engine integrations.
 
 This module builds :class:`EnginePlugin` instances from parsed model
-metadata, validates the required callables, and evaluates structured CAMB
-adapter contracts. The adapter keeps model metadata, priors, distance
-helpers, and CAMB contract state in a picklable dataclass so engines and run
+metadata, validates the required callables, and evaluates structured native
+CMB contracts. The adapter keeps model metadata, priors, distance helpers,
+and compiled CMB runtime state in a picklable dataclass so engines and run
 manifest code can share the same object without a package-level plugin layer.
-It also validates the declared CMB perturbation contract and exposes the
-backend capability registry used by the likelihood layer to reject unsupported
-non-standard perturbation declarations.
 
 The module exposes the main adapter entry points:
 
 ``build_engine_plugin``
     Normalises parsed YAML metadata and generated callables into an
     :class:`EnginePlugin`. The builder eagerly converts lists into tuples to
-    encourage immutability and caches a picklable CAMB expression evaluator for
+    encourage immutability and caches a picklable CMB expression evaluator for
     models that expose ``cmb.param_map`` definitions.
 
 ``build_plugin``
@@ -49,7 +46,7 @@ from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 import numpy
 
 from . import priors as prior_lib
-from .model_coder import CMB_BACKEND_CAPABILITIES, compile_native_cmb_runtime
+from .model_coder import compile_native_cmb_runtime
 from .posterior import PosteriorEvaluator, make_logposterior
 
 LOGGER = logging.getLogger(__name__)
@@ -78,7 +75,6 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "CMB_CONTRACT",
     "CMB_PARAM_MAP",
     "CMB_PERTURBATION_CONTRACT",
-    "CMB_PERTURBATION_STANDARD",
     "CMB_PERTURBATION_DATA",
     "CMB_NATIVE_RUNTIME",
 ]
@@ -117,12 +113,11 @@ _BIN_OPS = {
     ast.Pow: numpy.power,
 }
 _UNARY_OPS = {ast.UAdd: lambda x: x, ast.USub: numpy.negative}
-_SUPPORTED_CMB_BACKEND = "camb"
 _SUPPORTED_CMB_CALL_METHODS = {
     "set_dark_energy",
     "set_dark_energy_w_a",
 }
-_SUPPORTED_CMB_PARAM_KEYS = {
+_SUPPORTED_CMB_PARAMETER_KEYS = {
     "AccuracyBoost",
     "Alens",
     "As",
@@ -148,7 +143,6 @@ _SUPPORTED_CMB_PARAM_KEYS = {
     "theta_H0_range",
 }
 _REQUIRED_CMB_CONTRACT_KEYS = {
-    "backend",
     "calls",
     "grids",
     "param_map",
@@ -172,7 +166,6 @@ _SUPPORTED_CMB_GRID_KEYS = {
 _SUPPORTED_CMB_VALUE_KEYS = {"expression", "grid"}
 _SUPPORTED_CMB_CALL_KEYS = {"args", "kwargs", "method"}
 _SUPPORTED_CMB_PERTURBATION_KEYS = {
-    "backend_mapping",
     "boundary_conditions",
     "closures",
     "constraints",
@@ -185,7 +178,6 @@ _SUPPORTED_CMB_PERTURBATION_KEYS = {
     "numerics",
     "observables",
     "sources",
-    "standard",
     "validity",
     "variables",
 }
@@ -434,12 +426,12 @@ def _build_parameter_replacements(
     return replacements
 
 
-def _validate_camb_contract_definition(
+def _validate_cmb_contract_definition(
     contract: Mapping[str, Any],
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
 ) -> None:
-    """Validate the declared CAMB adapter contract."""
+    """Validate the declared native CMB contract."""
 
     if not isinstance(contract, Mapping):
         raise ValueError("CMB_CONTRACT must be a mapping")
@@ -454,9 +446,6 @@ def _validate_camb_contract_definition(
         invalid_str = ", ".join(sorted(invalid_contract_keys))
         raise ValueError(f"Unknown CMB contract key(s): {invalid_str}")
 
-    if contract.get("backend") != _SUPPORTED_CMB_BACKEND:
-        raise ValueError("cmb.backend must be 'camb'")
-
     param_map = contract.get("param_map")
     if not isinstance(param_map, Mapping):
         raise ValueError("cmb.param_map must be a mapping")
@@ -466,12 +455,12 @@ def _validate_camb_contract_definition(
         key for key in param_map_keys if _MNU_PATTERN.match(key) is not None
     }
     invalid_param_keys = (
-        param_map_keys - _SUPPORTED_CMB_PARAM_KEYS - dynamic_mass_keys
+        param_map_keys - _SUPPORTED_CMB_PARAMETER_KEYS - dynamic_mass_keys
     )
     if invalid_param_keys:
         invalid_str = ", ".join(sorted(invalid_param_keys))
         raise ValueError(
-            f"Unsupported CAMB parameter(s) in cmb.param_map: {invalid_str}"
+            f"Unsupported CMB parameter(s) in cmb.param_map: {invalid_str}"
         )
     if "mnu" in param_map_keys and "sum_mnu" in param_map_keys:
         raise ValueError("'mnu' and 'sum_mnu' are mutually exclusive")
@@ -543,7 +532,7 @@ def _validate_camb_contract_definition(
             )
         if symbol in param_map_keys:
             raise ValueError(
-                f"Grid symbol '{symbol}' collides with a CAMB key"
+                f"Grid symbol '{symbol}' collides with a CMB parameter key"
             )
         if symbol in grid_symbols.values():
             raise ValueError(
@@ -632,7 +621,7 @@ def _validate_camb_contract_definition(
             )
         method = call_def.get("method")
         if method not in _SUPPORTED_CMB_CALL_METHODS:
-            raise ValueError(f"Unsupported CAMB call method: {method!r}")
+            raise ValueError(f"Unsupported CMB call method: {method!r}")
 
         args = call_def.get("args", {}) or {}
         kwargs = call_def.get("kwargs", {}) or {}
@@ -723,7 +712,6 @@ def _validate_camb_contract_definition(
     compile_perturbation_contract(
         perturbations,
         model_name=str(contract.get("model_name", "unknown model")),
-        backend=_SUPPORTED_CMB_BACKEND,
         parameter_names=parameter_names,
         latex_names=latex_names,
         background_reference_names=tuple(background_reference_names),
@@ -744,7 +732,6 @@ def _validate_cmb_perturbation_definition(
     compile_perturbation_contract(
         perturbations,
         model_name="unknown model",
-        backend=_SUPPORTED_CMB_BACKEND,
         parameter_names=parameter_names,
         latex_names=latex_names,
         background_reference_names=tuple(background_reference_names),
@@ -786,7 +773,7 @@ def _evaluate_contract_payload(
 
 
 @dataclass(slots=True)
-class CAMBParameterEvaluator:
+class CMBParameterEvaluator:
     """Safe evaluator for ``cmb.param_map`` expressions."""
 
     parameter_names: tuple[str, ...]
@@ -831,8 +818,8 @@ class CAMBParameterEvaluator:
 
 
 @dataclass(slots=True)
-class CAMBContractEvaluator:
-    """Evaluate a full CAMB adapter contract for a plugin."""
+class CMBContractEvaluator:
+    """Evaluate a full native CMB contract for a plugin."""
 
     parameter_names: tuple[str, ...]
     latex_names: tuple[str, ...]
@@ -840,7 +827,7 @@ class CAMBContractEvaluator:
     logger_name: str = field(default="copernican.lib.engine_adapter")
     _logger: logging.Logger = field(init=False, repr=False)
     _replacements: dict[str, str] = field(init=False, repr=False)
-    _param_evaluator: CAMBParameterEvaluator = field(init=False, repr=False)
+    _param_evaluator: CMBParameterEvaluator = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Prepare helpers and validate the contract structure."""
@@ -856,7 +843,7 @@ class CAMBContractEvaluator:
                 self.latex_names,
             ),
         )
-        _validate_camb_contract_definition(
+        _validate_cmb_contract_definition(
             self.contract,
             self.parameter_names,
             self.latex_names,
@@ -864,7 +851,7 @@ class CAMBContractEvaluator:
         object.__setattr__(
             self,
             "_param_evaluator",
-            CAMBParameterEvaluator(
+            CMBParameterEvaluator(
                 self.parameter_names,
                 self.latex_names,
                 self.contract.get("param_map", {}),
@@ -947,12 +934,12 @@ class CAMBContractEvaluator:
         }
 
     def evaluate_param_map(self, values: Sequence[float]) -> dict[str, float]:
-        """Return the evaluated scalar CAMB parameter map."""
+        """Return the evaluated scalar CMB parameter map."""
 
         return self._param_evaluator(values)
 
     def __call__(self, values: Sequence[float]) -> dict[str, Any]:
-        """Return the fully evaluated CAMB adapter contract."""
+        """Return the fully evaluated native CMB contract."""
 
         param_map = self.evaluate_param_map(values)
         model_env = {
@@ -961,7 +948,6 @@ class CAMBContractEvaluator:
         }
         evaluated: dict[str, Any] = {
             "model_name": self.contract.get("model_name"),
-            "backend": self.contract.get("backend", _SUPPORTED_CMB_BACKEND),
             "param_map": param_map,
             "grids": {},
             "values": {},
@@ -1051,7 +1037,7 @@ class FrozenMapping(Mapping[str, Any]):
 
 @dataclass(slots=True)
 class EnginePlugin:
-    """Container describing a generated model and CAMB contracts."""
+    """Container describing a generated model and native CMB contract."""
 
     MODEL_NAME: str
     MODEL_DESCRIPTION: str
@@ -1071,7 +1057,6 @@ class EnginePlugin:
     CMB_CONTRACT: Mapping[str, Any]
     CMB_PARAM_MAP: Mapping[str, Any]
     CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
-    CMB_PERTURBATION_STANDARD: bool
     CMB_PERTURBATION_DATA: Any
     CMB_NATIVE_RUNTIME: Any
     LIKELIHOOD_CONFIG: Mapping[str, Any]
@@ -1088,12 +1073,10 @@ class EnginePlugin:
     compute_cmb_spectrum: Callable[..., Any] | None
     compute_cmb_spectrum_from_contract: Callable[..., Any] | None
     extras: Mapping[str, Any] = field(default_factory=dict)
-    _camb_evaluator: CAMBContractEvaluator | None = field(
-        init=False, repr=False
-    )
+    _cmb_evaluator: CMBContractEvaluator | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Normalise extras and prepare the CAMB evaluators."""
+        """Normalise extras and prepare the native CMB evaluator."""
 
         self.extras = FrozenMapping(self.extras)
         self.CMB_CONTRACT = copy.deepcopy(self.CMB_CONTRACT or {})
@@ -1101,19 +1084,15 @@ class EnginePlugin:
         self.CMB_PERTURBATION_CONTRACT = copy.deepcopy(
             self.CMB_PERTURBATION_CONTRACT or {}
         )
-        self.CMB_PERTURBATION_STANDARD = self.CMB_PERTURBATION_CONTRACT.get(
-            "standard",
-            False,
-        )
         if self.valid_for_cmb and self.CMB_CONTRACT:
-            evaluator = CAMBContractEvaluator(
+            evaluator = CMBContractEvaluator(
                 self.PARAMETER_NAMES,
                 self.PARAMETER_LATEX_NAMES,
                 self.CMB_CONTRACT,
             )
-            object.__setattr__(self, "_camb_evaluator", evaluator)
+            object.__setattr__(self, "_cmb_evaluator", evaluator)
         else:
-            object.__setattr__(self, "_camb_evaluator", None)
+            object.__setattr__(self, "_cmb_evaluator", None)
 
     def __getattr__(self, name: str) -> Any:
         """Delegate attribute lookups to the extras mapping when missing."""
@@ -1138,25 +1117,22 @@ class EnginePlugin:
         default.update(self.extras.keys())
         return sorted(default)
 
-    def get_camb_params(self, values: Sequence[float]) -> dict[str, float]:
-        """Return CAMB parameters derived from ``values``."""
+    def get_cmb_params(self, values: Sequence[float]) -> dict[str, float]:
+        """Return native CMB parameters derived from ``values``."""
 
-        evaluator = getattr(self, "_camb_evaluator", None)
+        evaluator = getattr(self, "_cmb_evaluator", None)
         if evaluator is None:
             return {}
         return evaluator.evaluate_param_map(values)
 
-    def get_camb_contract(self, values: Sequence[float]) -> dict[str, Any]:
-        """Return the fully evaluated CAMB adapter contract."""
+    def get_cmb_contract(self, values: Sequence[float]) -> dict[str, Any]:
+        """Return the fully evaluated native CMB contract."""
 
-        evaluator = getattr(self, "_camb_evaluator", None)
+        evaluator = getattr(self, "_cmb_evaluator", None)
         if evaluator is None:
-            raise ValueError("Model does not declare a CAMB contract")
+            raise ValueError("Model does not declare a CMB contract")
         evaluated = evaluator(values)
-        evaluated["model_parameters"] = {
-            name: float(value)
-            for name, value in zip(self.PARAMETER_NAMES, values, strict=False)
-        }
+        evaluated["model_parameters"] = self._bind_cmb_model_parameters(values)
         evaluated["value_definitions"] = copy.deepcopy(
             self.CMB_CONTRACT.get("values", {}) or {}
         )
@@ -1167,9 +1143,6 @@ class EnginePlugin:
             self.CMB_CONTRACT.get("numerical", {}) or {}
         )
         evaluated["model_name"] = self.MODEL_NAME
-        evaluated["backend"] = self.CMB_CONTRACT.get(
-            "backend", _SUPPORTED_CMB_BACKEND
-        )
         return evaluated
 
     def get_cmb_perturbation_contract(
@@ -1184,9 +1157,6 @@ class EnginePlugin:
             )
         contract = copy.deepcopy(self.CMB_PERTURBATION_CONTRACT)
         contract["model_name"] = self.MODEL_NAME
-        contract["backend"] = self.CMB_CONTRACT.get(
-            "backend", _SUPPORTED_CMB_BACKEND
-        )
         return contract
 
     def get_cmb_perturbation_data(self, values: Sequence[float]) -> Any:
@@ -1206,15 +1176,42 @@ class EnginePlugin:
         runtime = getattr(self, "CMB_NATIVE_RUNTIME", None)
         if runtime is None:
             raise ValueError("Model does not declare a native CMB runtime")
-        model_parameters = {
-            name: float(value)
-            for name, value in zip(self.PARAMETER_NAMES, values, strict=False)
-        }
-        param_map = self.get_camb_params(values)
+        model_parameters = self._bind_cmb_model_parameters(values)
+        param_map = self.get_cmb_params(values)
         return runtime.build_contract(
             model_parameters=model_parameters,
             param_map=param_map,
         )
+
+    def _bind_cmb_model_parameters(
+        self, values: Sequence[float]
+    ) -> dict[str, float]:
+        """Merge declared constants with sampled model parameters."""
+
+        declared = self.CMB_CONTRACT.get("model_parameters", {}) or {}
+        if not isinstance(declared, Mapping):
+            raise ValueError("cmb.model_parameters must be a mapping")
+        model_parameters: dict[str, float] = {}
+        for name, value in declared.items():
+            if isinstance(value, bool) or not isinstance(
+                value,
+                (int, float, numpy.integer, numpy.floating),
+            ):
+                raise ValueError(
+                    f"cmb.model_parameters.{name} must be a numeric scalar"
+                )
+            model_parameters[str(name)] = float(value)
+        model_parameters.update(
+            {
+                name: float(value)
+                for name, value in zip(
+                    self.PARAMETER_NAMES,
+                    values,
+                    strict=False,
+                )
+            }
+        )
+        return model_parameters
 
 
 def sanitize_equation(equation_line: str) -> str:
@@ -1316,7 +1313,6 @@ def build_engine_plugin(
     if model_data.get("valid_for_cmb", True):
         native_cmb_runtime = compile_native_cmb_runtime(
             model_name=model_data.get("model_name", "GeneratedModel"),
-            backend=cmb_contract.get("backend", _SUPPORTED_CMB_BACKEND),
             parameter_names=names,
             latex_names=latex_names,
             cmb_contract=cmb_contract,
@@ -1359,7 +1355,6 @@ def build_engine_plugin(
         CMB_CONTRACT=cmb_contract,
         CMB_PARAM_MAP=cmb_contract.get("param_map", {}),
         CMB_PERTURBATION_CONTRACT=perturbation_contract,
-        CMB_PERTURBATION_STANDARD=perturbation_contract.get("standard", False),
         CMB_PERTURBATION_DATA=perturbation_data,
         CMB_NATIVE_RUNTIME=native_cmb_runtime,
         LIKELIHOOD_CONFIG=likelihood_config,
@@ -1399,14 +1394,14 @@ def build_plugin(
 
 
 def _validate_plugin_cmb_contract(plugin: EnginePlugin) -> None:
-    """Validate the plugin's declared CAMB adapter contract."""
+    """Validate the plugin's declared native CMB contract."""
 
     if not getattr(plugin, "valid_for_cmb", True):
         return
     contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
     if not isinstance(contract, Mapping):
         raise ValueError("CMB_CONTRACT must be a mapping")
-    _validate_camb_contract_definition(
+    _validate_cmb_contract_definition(
         contract,
         getattr(plugin, "PARAMETER_NAMES", ()),
         getattr(plugin, "PARAMETER_LATEX_NAMES", ()),
@@ -1443,8 +1438,8 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
     if getattr(plugin, "valid_for_cmb", True):
         required_funcs.extend(
             [
-                "get_camb_params",
-                "get_camb_contract",
+                "get_cmb_params",
+                "get_cmb_contract",
                 "get_cmb_native_runtime",
                 "get_cmb_perturbation_contract",
                 "get_cmb_perturbation_data",
@@ -1472,11 +1467,6 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
         )
         if not isinstance(perturbation_contract, Mapping):
             errors.append("CMB_PERTURBATION_CONTRACT must be a mapping")
-        if not isinstance(
-            getattr(plugin, "CMB_PERTURBATION_STANDARD", None),
-            bool,
-        ):
-            errors.append("CMB_PERTURBATION_STANDARD must be boolean")
         if getattr(plugin, "CMB_PERTURBATION_DATA", None) is None:
             errors.append("CMB_PERTURBATION_DATA must be present")
         if getattr(plugin, "CMB_NATIVE_RUNTIME", None) is None:
@@ -1502,10 +1492,9 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
 
 
 __all__ = [
-    "CMB_BACKEND_CAPABILITIES",
     "EnginePlugin",
-    "CAMBParameterEvaluator",
-    "CAMBContractEvaluator",
+    "CMBParameterEvaluator",
+    "CMBContractEvaluator",
     "FrozenMapping",
     "PluginValidationError",
     "REQUIRED_ATTRIBUTES",

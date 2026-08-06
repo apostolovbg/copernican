@@ -1,11 +1,11 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-06
 **Project Version:** 12.0.26
 
 ## Overview
 This document is the canonical physical convention for Copernican's native
-CMB solver path. Every bundled production CMB model uses
-`cmb.perturbations.standard: false` and the declared native graph.
+CMB solver path. Every bundled production CMB model uses one route-neutral
+declared graph with no solver selector or backend fallback.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
@@ -20,28 +20,47 @@ convention used by the declared graph compiler and the native line-of-sight
 integrator.
 
 ## Native Model Declarations
-`copernican/models/model_lcdm_ccmbs.yml` is the production native LambdaCDM
+`copernican/models/model_lcdm.yml` is the canonical native LambdaCDM
 declaration. It defines the background and recombination inputs, scalar
 species and hierarchy families, Thomson coupling, adiabatic initial data,
 projection typing, and a bounded numerical envelope. The model compiles its
 generated scalar hierarchy through the same native runtime described below.
 
-Its perturbation contract uses `standard: false` and marks the `camb` mapping
-as `native_solver_required`. The `backend: camb` value names the adapter
-mapping in the model schema; it does not select a production backend. The
-production output is the native declared-graph result and does not call CAMB
-or CLASS.
+Its perturbation contract contains physical declarations only. Keys such as
+`backend`, `standard`, and `backend_mapping` are rejected rather than used to
+select another solver. Production output comes from the native declared graph
+and does not call CAMB or CLASS.
 
 Available bundled CMB models use the same contract shape. Their model files
 preserve theory-specific parameters, priors, distance equations, sound-
 horizon expressions, and declared background functions. Each file declares a
 scalar sector, its physical species, hierarchy families, Thomson coupling,
 conservation rule, regular adiabatic initial family, projection typing, and
-native mapping. The compiler materializes the common scalar hierarchy from
-this metadata, so model-specific background expressions feed one solver
-without a standard-backend branch. USMF declares its physical species and
+numerical controls. The compiler materializes the common scalar hierarchy
+from this metadata, so model-specific background expressions feed one solver
+without a backend branch. USMF declares its physical species and
 native contract but marks CMB output unavailable until its shrinking-matter
 perturbation closure is specified.
+
+The bundled ontology is explicit at the model boundary:
+
+* LambdaCDM declares photons, baryons, cold dark matter, and massless
+  neutrinos.
+* LambdaCDM+Mnu and the Planck reference add a q-resolved massive-neutrino
+  family.
+* wCDM, w0waCDM, QAUC, and TOG retain their declared cold-matter and neutrino
+  species while replacing only their theory-specific background expansion.
+* QRSF and TORG declare photons, baryons, and neutrinos without a CDM species.
+  Their named matter-density, matter-momentum, and baryon-Euler closures
+  provide baryon-locked relational sources.
+* USMF declares photons, baryons, and massless neutrinos but reports CMB
+  output as unavailable because it has no linear shrinking-matter closure.
+
+The compiler materializes equations, common line-of-sight sources,
+observables, and regular initial data only for those declared species and
+hierarchy families. It does not create `omch2`, `Omega_c0`, `delta_c`, or
+`theta_c` for a contract without CDM, and it does not create q-resolved
+massive-neutrino states for a contract without that family.
 
 For a non-radiation-dominated early background, the generated regular scalar
 series scales its leading time powers with the local conformal-Hubble time.
@@ -879,8 +898,9 @@ the same state.
 The native route is a declared-graph execution path with five physical
 stages:
 
-1. `copernican/lib/likelihoods/cmb/cmb.py` selects native execution for
-   `standard: false` and validates the contract before any spectrum is built.
+1. `copernican/lib/likelihoods/cmb/cmb.py` accepts only a prepared native
+   runtime or a route-neutral declared contract and validates it before any
+   spectrum is built.
 2. `native_background.py` resolves the expansion, conformal-time, optical-
    depth, visibility, recombination, and sound-horizon tables. The table
    carries interpolation functions for the quantities sampled by evolution
@@ -1161,7 +1181,7 @@ declared primordial tensor B-mode.
 
 ## Reference Cosmology And Acceptance Boundary
 
-The native absolute-reference checks use a neutral `standard: false` contract
+The native absolute-reference checks use a route-neutral declared contract
 with the following cosmological inputs: `H0 = 67.4`, `ombh2 = 0.02237`,
 `omch2 = 0.12`, `Tcmb = 2.7255 K`, `YHe = 0.245`, `Neff = 3.046`,
 `As = 2.1e-9`, `ns = 0.965`, and `tau = 0.054`. CAMB is constructed only

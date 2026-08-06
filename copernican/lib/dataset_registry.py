@@ -223,7 +223,7 @@ TRUSTED_PARSER_DIGESTS = {
         "ba7bed0930321dc1a8e0d1fe80c8497b9ccf20dcfb39aef57e6433abb9ca331e"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "cbd858c8efa73d730e18ea1d4abcb318cc533aa3608cce18af71c71eab81df5a"
+        "7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
         "01014c45e0548c13b97327f2232cf8aa7b9aacea974f922f9f2956cc9c52e7e1"

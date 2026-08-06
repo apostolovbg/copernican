@@ -22,9 +22,9 @@ import copernican.lib.dataset_registry as dataset_registry
 import copernican.lib.engine_adapter as engine_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
-from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.run_pipeline import extract_cosmological_param_vector
 from tests.project import filesystem_helpers
+from tests.project.lib import camb_reference
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
@@ -102,17 +102,16 @@ class FunctionalTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.isfinite(chi2_bao))
 
-        camb_params = self.plugin.get_camb_contract(params)
-        camb_params["perturbations"] = (
-            self.plugin.get_cmb_perturbation_contract(params)
-        )
+        native_contract = self.plugin.get_cmb_native_runtime(params)
         chi2_cmb = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         spec = engine.compute_cmb_spectrum(
-            camb_params, cmb_df["ell"].values, spectra=("TT", "TE", "EE")
+            native_contract,
+            cmb_df["ell"].values,
+            spectra=("TT",),
         )
         self.assertTrue(numpy.isfinite(chi2_cmb))
-        self.assertIn("TT", spec)
-        self.assertEqual(len(spec["TT"]), len(cmb_df))
+        self.assertTrue(numpy.all(numpy.isfinite(spec)))
+        self.assertEqual(len(spec), len(cmb_df))
 
     def test_mcmc_fit_returns_expected_fields(self):
         """Return posterior diagnostics and χ² totals.
@@ -182,20 +181,19 @@ class FunctionalTestCase(unittest.TestCase):
         )
 
     def test_cmb_spectrum_is_d_ell(self):
-        """Ensure the CAMB adapter returns spectra in Dl convention."""
+        """Ensure the CAMB reference returns spectra in Dl convention."""
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         ells = cmb_df["ell"].values[:5]
-        camb_params = self.plugin.get_camb_contract(
-            self.plugin.INITIAL_GUESSES
-        )
-        result = camb_solver.compute_cmb_spectrum_from_camb_contract(
+        camb_params = self.plugin.get_cmb_contract(self.plugin.INITIAL_GUESSES)
+        camb_params["backend"] = "camb"
+        result = camb_reference.compute_cmb_spectrum_from_camb_contract(
             camb_params,
             ells,
         )
 
         # Mirror the adapter's CAMB parameter construction so the comparison
         # exercises the same neutrino-sector mapping used by the reference.
-        params = camb_solver._make_camb_params(
+        params = camb_reference._make_camb_params(
             camb_params,
             lmax=int(numpy.max(ells)),
         )
@@ -220,7 +218,6 @@ class FunctionalTestCase(unittest.TestCase):
 
         contract = {
             "model_name": "InstalledSmokeNativeCMB",
-            "backend": "camb",
             "param_map": {
                 "H0": 67.4,
                 "ombh2": 0.02237,
@@ -300,7 +297,6 @@ class FunctionalTestCase(unittest.TestCase):
             },
             "perturbations": {
                 "contract_version": 2,
-                "standard": False,
                 "gauge": "conformal_newtonian",
                 "variables": {
                     "signal_mode": {
@@ -358,12 +354,6 @@ class FunctionalTestCase(unittest.TestCase):
                 "boundary_conditions": {},
                 "validity": {
                     "regimes": ["installed_smoke"],
-                },
-                "backend_mapping": {
-                    "camb": {
-                        "implemented": True,
-                        "native_solver_required": True,
-                    }
                 },
             },
         }

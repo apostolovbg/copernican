@@ -1,8 +1,4 @@
-"""Public CMB likelihood entrypoint.
-
-This module owns the public CMB surface and dispatches between the standard
-CAMB-backed solver and the native declared-graph solver.
-"""
+"""Public native declared-graph CMB likelihood entrypoint."""
 
 from __future__ import annotations
 
@@ -15,53 +11,22 @@ import pandas
 
 from ...model_coder import prepare_native_cmb_execution_contract
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
-from .camb_solver import (
-    compute_camb_background_observables,
-    compute_cmb_spectrum_from_camb_contract,
-    compute_cmb_spectrum_from_legacy_params_for_tests,
-    describe_camb_configuration,
-)
-from .copernican_cmb_solver import (
-    _combine_camb_contracts,
-    _compute_declared_perturbation_spectrum,
-    _is_structured_camb_contract,
-    _validate_camb_perturbation_execution,
-)
+from .copernican_cmb_solver import _compute_declared_perturbation_spectrum
 
 
 def _resolve_plugin_cmb_contract(
     plugin: Any,
     cosmo_params: Sequence[float],
-) -> tuple[Mapping[str, Any], Mapping[str, Any] | None]:
-    """Return the runtime CMB contract and optional perturbation metadata."""
+) -> Mapping[str, Any]:
+    """Return the plugin's required native CMB runtime contract."""
 
     get_native_runtime = getattr(plugin, "get_cmb_native_runtime", None)
-    if callable(get_native_runtime):
-        native_runtime = get_native_runtime(cosmo_params)
-        perturbations = native_runtime.get("perturbations", {}) or {}
-        if (
-            isinstance(perturbations, Mapping)
-            and perturbations.get("standard") is False
-        ):
-            return native_runtime, perturbations
-
-    get_contract = getattr(plugin, "get_camb_contract", None)
-    if not callable(get_contract):
-        raise ValueError("Model plugin does not expose a CAMB contract")
-    camb_contract = get_contract(cosmo_params)
-
-    perturbation_contract: Mapping[str, Any] | None = None
-    get_perturbation_contract = getattr(
-        plugin, "get_cmb_perturbation_contract", None
-    )
-    if callable(get_perturbation_contract):
-        perturbation_contract = get_perturbation_contract(cosmo_params)
-        if perturbation_contract:
-            camb_contract = _combine_camb_contracts(
-                camb_contract,
-                perturbation_contract,
-            )
-    return camb_contract, perturbation_contract
+    if not callable(get_native_runtime):
+        raise ValueError("Model plugin does not expose a native CMB runtime")
+    native_runtime = get_native_runtime(cosmo_params)
+    if not isinstance(native_runtime, Mapping):
+        raise ValueError("Model native CMB runtime must be a mapping")
+    return native_runtime
 
 
 def _with_extra_params(
@@ -92,30 +57,10 @@ def compute_cmb_spectrum_from_contract(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
-    prepared_contract = contract_or_params
-    perturbations = contract_or_params.get("perturbations", {}) or {}
-    if isinstance(perturbations, Mapping) and (
-        perturbations.get("standard") is False
-    ):
-        prepared_contract = prepare_native_cmb_execution_contract(
-            contract_or_params
-        )
-
-    if not _is_structured_camb_contract(prepared_contract):
-        raise ValueError("Structured CMB contracts must include perturbations")
-
-    _validate_camb_perturbation_execution(prepared_contract)
-    perturbations = prepared_contract.get("perturbations", {}) or {}
-    if (
-        isinstance(perturbations, Mapping)
-        and perturbations.get("standard") is False
-    ):
-        return _compute_declared_perturbation_spectrum(
-            prepared_contract,
-            ells,
-            spectra=spectra,
-        )
-    return compute_cmb_spectrum_from_camb_contract(
+    prepared_contract = prepare_native_cmb_execution_contract(
+        contract_or_params
+    )
+    return _compute_declared_perturbation_spectrum(
         prepared_contract,
         ells,
         spectra=spectra,
@@ -131,25 +76,16 @@ def compute_cmb_spectrum_cached(
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
-    camb_contract, perturbation_contract = _resolve_plugin_cmb_contract(
+    native_contract = _resolve_plugin_cmb_contract(
         plugin,
         cosmo_params,
     )
-    if isinstance(perturbation_contract, Mapping) and (
-        perturbation_contract.get("standard") is False
-    ):
-        camb_contract = prepare_native_cmb_execution_contract(camb_contract)
-        _validate_camb_perturbation_execution(camb_contract)
-        return _compute_declared_perturbation_spectrum(
-            camb_contract,
-            ells,
-            spectra=spectra,
-            background_provider=plugin,
-        )
-    return compute_cmb_spectrum_from_contract(
-        camb_contract,
+    prepared_contract = prepare_native_cmb_execution_contract(native_contract)
+    return _compute_declared_perturbation_spectrum(
+        prepared_contract,
         ells,
         spectra=spectra,
+        background_provider=plugin,
     )
 
 
@@ -285,16 +221,13 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        perturbation_contract: Mapping[str, Any] | None = None
         try:
-            camb_contract, perturbation_contract = (
-                _resolve_plugin_cmb_contract(
-                    self.plugin,
-                    params,
-                )
+            native_contract = _resolve_plugin_cmb_contract(
+                self.plugin,
+                params,
             )
-            camb_contract = _with_extra_params(
-                camb_contract,
+            native_contract = _with_extra_params(
+                native_contract,
                 self._extra_params_cached,
             )
         except (
@@ -309,30 +242,21 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if not isinstance(camb_contract, Mapping):
+        if not isinstance(native_contract, Mapping):
             self._state = LikelihoodState()
             return float("-inf")
 
         requested_spectra = self._observed_spectra or ("TT",)
         try:
-            if isinstance(perturbation_contract, Mapping) and (
-                perturbation_contract.get("standard") is False
-            ):
-                camb_contract = prepare_native_cmb_execution_contract(
-                    camb_contract
-                )
-                theory = _compute_declared_perturbation_spectrum(
-                    camb_contract,
-                    self._ells,
-                    spectra=requested_spectra,
-                    background_provider=self.plugin,
-                )
-            else:
-                theory = compute_cmb_spectrum_from_contract(
-                    camb_contract,
-                    self._ells,
-                    spectra=requested_spectra,
-                )
+            native_contract = prepare_native_cmb_execution_contract(
+                native_contract
+            )
+            theory = _compute_declared_perturbation_spectrum(
+                native_contract,
+                self._ells,
+                spectra=requested_spectra,
+                background_provider=self.plugin,
+            )
         except (
             AttributeError,
             ImportError,
@@ -418,10 +342,7 @@ class CMBLike(LikelihoodProtocol):
 
 __all__ = [
     "CMBLike",
-    "compute_camb_background_observables",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_contract",
-    "compute_cmb_spectrum_from_legacy_params_for_tests",
-    "describe_camb_configuration",
 ]

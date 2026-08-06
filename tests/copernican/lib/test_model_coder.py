@@ -412,9 +412,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
                 },
             },
             "numerical": {"ell_max": 64},
-            "perturbations": {
-                "standard": False,
-            },
+            "perturbations": {},
         }
 
         with mock.patch(
@@ -424,7 +422,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         ) as compile_contract:
             runtime = model_coder.compile_native_cmb_runtime(
                 model_name="TemplateModel",
-                backend="camb",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
                 cmb_contract=cmb_contract,
@@ -459,7 +456,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         compile_contract.assert_called_once_with(
             cmb_contract["perturbations"],
             model_name="TemplateModel",
-            backend="camb",
             parameter_names=("Omega_m0",),
             latex_names=(r"\Omega_m",),
             background_reference_names=(
@@ -483,9 +479,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "background": {},
             "numerical": {},
             "calls": [],
-            "perturbations": {
-                "standard": False,
-            },
+            "perturbations": {},
         }
 
         with mock.patch(
@@ -495,14 +489,12 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         ) as compile_contract:
             first = model_coder.compile_native_cmb_runtime(
                 model_name="CachedTemplateModel",
-                backend="camb",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
                 cmb_contract=cmb_contract,
             )
             second = model_coder.compile_native_cmb_runtime(
                 model_name="CachedTemplateModel",
-                backend="camb",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
                 cmb_contract=cmb_contract,
@@ -527,7 +519,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "calls": [],
             "perturbations": {
                 "contract_version": 2,
-                "standard": False,
                 "gauge": "conformal_newtonian",
                 "variables": {
                     "delta_x": {"kind": "density_contrast"},
@@ -577,12 +568,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
                 },
                 "boundary_conditions": {},
                 "validity": {"regimes": ["synthetic"]},
-                "backend_mapping": {
-                    "camb": {
-                        "native_solver_required": True,
-                        "implemented": True,
-                    }
-                },
             },
         }
         second_contract = copy.deepcopy(first_contract)
@@ -597,14 +582,12 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         ) as compile_contract:
             first = model_coder.compile_native_cmb_runtime(
                 model_name="StructuralCacheModel",
-                backend="camb",
                 parameter_names=("H0", "ombh2", "Tcmb_K"),
                 latex_names=("H_0", "\\omega_b", "T_{cmb}"),
                 cmb_contract=first_contract,
             )
             second = model_coder.compile_native_cmb_runtime(
                 model_name="StructuralCacheModel",
-                backend="camb",
                 parameter_names=("H0", "ombh2", "Tcmb_K"),
                 latex_names=("H_0", "\\omega_b", "T_{cmb}"),
                 cmb_contract=second_contract,
@@ -618,8 +601,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
 
         runtime = model_coder.NativeCMBRuntime(
             model_name="TemplateModel",
-            backend="camb",
-            perturbation_contract={"standard": False},
+            perturbation_contract={"gauge": "conformal_newtonian"},
             background={"density": {"expression": "Omega_m0"}},
             numerical={"ell_max": 64},
             perturbation_data={"compiled": True},
@@ -650,7 +632,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         )
 
         self.assertEqual(contract["model_name"], "TemplateModel")
-        self.assertEqual(contract["backend"], "camb")
+        self.assertNotIn("backend", contract)
         self.assertEqual(runtime.build_contract.__name__, "build_contract")
         self.assertEqual(contract["model_parameters"], {"Omega_m0": 0.3})
         self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
@@ -680,14 +662,17 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         contract["background"]["density"]["expression"] = "Omega_b0"
         contract["numerical"]["ell_max"] = 128
         contract["calls"][0]["method"] = "set_classes"
-        contract["perturbations"]["standard"] = True
+        contract["perturbations"]["gauge"] = "synchronous"
         self.assertEqual(
             runtime.background["density"]["expression"],
             "Omega_m0",
         )
         self.assertEqual(runtime.numerical["ell_max"], 64)
         self.assertEqual(runtime.calls[0]["method"], "set_cosmology")
-        self.assertFalse(runtime.perturbation_contract["standard"])
+        self.assertEqual(
+            runtime.perturbation_contract["gauge"],
+            "conformal_newtonian",
+        )
 
     def test_prepare_native_cmb_execution_contract_binds_precompiled_data(
         self,
@@ -697,7 +682,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         compile_result = object()
         cmb_contract = {
             "model_name": "PreparedModel",
-            "backend": "camb",
             "param_map": {"H0": 67.4, "ombh2": 0.02237},
             "model_parameters": {"Tcmb_K": 2.7255},
             "background": {
@@ -709,7 +693,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "numerical": {},
             "perturbations": {
                 "contract_version": 2,
-                "standard": False,
                 "gauge": "conformal_newtonian",
                 "variables": {"delta_x": {"kind": "density_contrast"}},
                 "derived": {},
@@ -761,12 +744,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
                 "projection_typing": {},
                 "accuracy_controls": {},
                 "validity": {"regimes": ["synthetic"]},
-                "backend_mapping": {
-                    "camb": {
-                        "native_solver_required": True,
-                        "implemented": True,
-                    }
-                },
             },
         }
 
@@ -786,15 +763,46 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         )
         self.assertIsNotNone(prepared["compile_diagnostics"])
 
-    def test_prepare_native_strips_runtime_metadata_from_perturbations(
+    def test_prepare_native_contract_needs_no_solver_route_metadata(
         self,
     ) -> None:
-        """Outer runtime metadata must not enter the graph compiler."""
+        """Native preparation should compile a route-neutral CMB contract."""
 
         compile_result = object()
         cmb_contract = {
-            "model_name": "MetadataModel",
-            "backend": "camb",
+            "model_name": "RouteNeutralModel",
+            "param_map": {"H0": 67.4},
+            "model_parameters": {},
+            "background": {},
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "numerical": {},
+            "perturbations": {
+                "contract_version": 2,
+                "gauge": "conformal_newtonian",
+            },
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ):
+            prepared = model_coder.prepare_native_cmb_execution_contract(
+                cmb_contract
+            )
+
+        self.assertIs(prepared["perturbation_data"], compile_result)
+        self.assertNotIn("backend", prepared)
+        self.assertNotIn("standard", prepared["perturbations"])
+        self.assertNotIn("backend_mapping", prepared["perturbations"])
+
+    def test_prepare_native_contract_rejects_removed_route_keys(self) -> None:
+        """Removed solver selectors must fail before graph compilation."""
+
+        base_contract = {
+            "model_name": "RouteNeutralModel",
             "param_map": {},
             "model_parameters": {},
             "background": {},
@@ -804,9 +812,50 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "numerical": {},
             "perturbations": {
                 "contract_version": 2,
-                "standard": False,
+                "gauge": "conformal_newtonian",
+            },
+        }
+        removed_entries = (
+            ("backend", "camb"),
+            ("standard", False),
+            ("backend_mapping", {"camb": {"implemented": True}}),
+        )
+
+        for key, value in removed_entries:
+            with self.subTest(key=key):
+                contract = copy.deepcopy(base_contract)
+                target = (
+                    contract if key == "backend" else contract["perturbations"]
+                )
+                target[key] = value
+                with self.assertRaisesRegex(ValueError, "removed route key"):
+                    model_coder.prepare_native_cmb_execution_contract(contract)
+                with self.assertRaisesRegex(ValueError, "removed route key"):
+                    model_coder.compile_native_cmb_runtime(
+                        model_name="RouteNeutralModel",
+                        parameter_names=(),
+                        latex_names=(),
+                        cmb_contract=contract,
+                    )
+
+    def test_prepare_native_strips_model_metadata_from_perturbations(
+        self,
+    ) -> None:
+        """Outer model metadata must not enter the graph compiler."""
+
+        compile_result = object()
+        cmb_contract = {
+            "model_name": "MetadataModel",
+            "param_map": {},
+            "model_parameters": {},
+            "background": {},
+            "grids": {},
+            "values": {},
+            "calls": [],
+            "numerical": {},
+            "perturbations": {
+                "contract_version": 2,
                 "model_name": "MetadataModel",
-                "backend": "camb",
             },
         }
 
@@ -819,7 +868,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
 
         compiled_contract = compile_contract.call_args.args[0]
         self.assertNotIn("model_name", compiled_contract)
-        self.assertNotIn("backend", compiled_contract)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):
@@ -839,47 +887,22 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(transformed))
 
 
-class CMBBackendCapabilityTestCase(unittest.TestCase):
-    """Cover the backend capability helpers exposed by model_coder."""
+class NativeCMBRouteTestCase(unittest.TestCase):
+    """Cover the single native route exposed by model_coder."""
 
-    def test_declared_backend_capabilities_are_accessible(self) -> None:
-        """The declared CAMB capabilities should be available by name."""
+    def test_removed_backend_capability_api_is_absent(self) -> None:
+        """Core code must not expose a second solver capability surface."""
 
-        capabilities = model_coder.get_backend_capabilities("camb")
-        self.assertTrue(capabilities["scalar_param_map"])
-        self.assertTrue(capabilities["grids_values_calls"])
-        self.assertTrue(capabilities["standard_perturbations"])
-        self.assertTrue(capabilities["native_nonstandard_perturbations"])
-        self.assertTrue(
-            model_coder.backend_supports_standard_perturbations("camb")
+        removed_names = (
+            "CMB_BACKEND_CAPABILITIES",
+            "get_backend_capabilities",
+            "backend_supports_standard_perturbations",
+            "backend_supports_native_nonstandard_perturbations",
+            "validate_native_perturbation_execution",
         )
-        self.assertTrue(
-            model_coder.backend_supports_native_nonstandard_perturbations(
-                "camb"
-            )
-        )
-
-    def test_nonstandard_execution_helper_enforces_capabilities(self) -> None:
-        """Unsupported declarative execution should fail clearly."""
-
-        with self.assertRaisesRegex(
-            ValueError, "generic declarative executor is required"
-        ):
-            model_coder.validate_native_perturbation_execution(
-                model_name="TemplateModel",
-                backend="camb",
-                standard=False,
-                implemented=False,
-            )
-
-        self.assertIsNone(
-            model_coder.validate_native_perturbation_execution(
-                model_name="TemplateModel",
-                backend="camb",
-                standard=True,
-                implemented=False,
-            )
-        )
+        for name in removed_names:
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(model_coder, name))
 
     def test_compile_native_runtime_accepts_declared_background_symbols(
         self,
@@ -905,7 +928,6 @@ class CMBBackendCapabilityTestCase(unittest.TestCase):
             "numerical": {},
             "perturbations": {
                 "contract_version": 2,
-                "standard": False,
                 "gauge": "conformal_newtonian",
                 "variables": {
                     "delta_x": {"kind": "density_contrast"},
@@ -992,19 +1014,12 @@ class CMBBackendCapabilityTestCase(unittest.TestCase):
                 },
                 "boundary_conditions": {},
                 "validity": {"regimes": ["linear"]},
-                "backend_mapping": {
-                    "camb": {
-                        "native_solver_required": True,
-                        "implemented": True,
-                    }
-                },
                 "numerics": {},
             },
         }
 
         runtime = model_coder.compile_native_cmb_runtime(
             model_name="TemplateModel",
-            backend="camb",
             parameter_names=("expansion_rate_today",),
             latex_names=("H_0",),
             cmb_contract=cmb_contract,

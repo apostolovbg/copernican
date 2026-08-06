@@ -16,7 +16,7 @@ import numpy
 import yaml
 
 from copernican import validation as validation_module
-from copernican.lib import camb_contract
+from copernican.lib import cmb_contract
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.engine_adapter import PluginValidationError
@@ -155,29 +155,25 @@ class TestEngineAdapterExports(unittest.TestCase):
         self.assertTrue(callable(engine_plugin_validation.validate_plugin))
         self.assertTrue(hasattr(engine_plugin_validation, "EnginePlugin"))
         self.assertTrue(
-            hasattr(engine_plugin_validation, "CAMBContractEvaluator")
+            hasattr(engine_plugin_validation, "CMBContractEvaluator")
         )
         self.assertTrue(
-            hasattr(engine_plugin_validation, "CAMBParameterEvaluator")
+            hasattr(engine_plugin_validation, "CMBParameterEvaluator")
         )
         self.assertTrue(hasattr(engine_plugin_validation, "FrozenMapping"))
         self.assertTrue(
             hasattr(engine_plugin_validation, "PluginValidationError")
         )
         self.assertTrue(callable(engine_plugin_validation.sanitize_equation))
+        contract_evaluator = engine_plugin_validation.CMBContractEvaluator
+        self.assertTrue(hasattr(contract_evaluator, "evaluate_param_map"))
         self.assertTrue(
-            hasattr(
-                engine_plugin_validation.CAMBContractEvaluator,
-                "evaluate_param_map",
-            )
-        )
-        self.assertTrue(
-            hasattr(engine_plugin_validation.EnginePlugin, "get_camb_params")
+            hasattr(engine_plugin_validation.EnginePlugin, "get_cmb_params")
         )
         self.assertTrue(
             hasattr(
                 engine_plugin_validation.EnginePlugin,
-                "get_camb_contract",
+                "get_cmb_contract",
             )
         )
         self.assertTrue(
@@ -198,26 +194,22 @@ class TestEngineAdapterExports(unittest.TestCase):
                 "get_cmb_perturbation_data",
             )
         )
-        self.assertTrue(
+        self.assertFalse(
             hasattr(engine_plugin_validation, "CMB_BACKEND_CAPABILITIES")
-        )
-        self.assertIs(
-            engine_plugin_validation.CMB_BACKEND_CAPABILITIES,
-            model_coder.CMB_BACKEND_CAPABILITIES,
         )
         self.assertIn("EnginePlugin", engine_plugin_validation.__all__)
         self.assertIn("validate_plugin", engine_plugin_validation.__all__)
         self.assertIs(
-            camb_contract.CAMBContractEvaluator,
-            engine_plugin_validation.CAMBContractEvaluator,
+            cmb_contract.CMBContractEvaluator,
+            engine_plugin_validation.CMBContractEvaluator,
         )
         self.assertIs(
-            camb_contract.CAMBParameterEvaluator,
-            engine_plugin_validation.CAMBParameterEvaluator,
+            cmb_contract.CMBParameterEvaluator,
+            engine_plugin_validation.CMBParameterEvaluator,
         )
         self.assertIs(
-            camb_contract._validate_camb_contract_definition,
-            engine_plugin_validation._validate_camb_contract_definition,
+            cmb_contract._validate_cmb_contract_definition,
+            engine_plugin_validation._validate_cmb_contract_definition,
         )
 
     def test_public_helpers_behave_as_expected(self) -> None:
@@ -225,39 +217,12 @@ class TestEngineAdapterExports(unittest.TestCase):
             {"alpha": 1, "beta": [2, 3]}
         )
         self.assertEqual(frozen.to_dict(), {"alpha": 1, "beta": [2, 3]})
-        evaluator = engine_plugin_validation.CAMBContractEvaluator(
+        evaluator = engine_plugin_validation.CMBParameterEvaluator(
             ("x",),
             ("x",),
-            {
-                "backend": "camb",
-                "param_map": {"H0": "x"},
-                "grids": {},
-                "values": {},
-                "calls": [],
-                "perturbations": {
-                    "contract_version": 2,
-                    "standard": True,
-                    "gauge": "unspecified",
-                    "variables": {},
-                    "derived": {},
-                    "equations": {},
-                    "constraints": {},
-                    "closures": {},
-                    "sources": {},
-                    "observables": {},
-                    "initial_conditions": {},
-                    "boundary_conditions": {},
-                    "numerics": {},
-                    "validity": {"regimes": ["standard_camb"]},
-                    "backend_mapping": {
-                        "camb": {
-                            "uses_standard_perturbations": True,
-                        }
-                    },
-                },
-            },
+            {"H0": "x"},
         )
-        self.assertEqual(evaluator.evaluate_param_map((4.0,))["H0"], 4.0)
+        self.assertEqual(evaluator((4.0,))["H0"], 4.0)
         self.assertIsInstance(
             engine_plugin_validation.PluginValidationError("boom"),
             RuntimeError,
@@ -287,43 +252,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "sum_mnu": 0.06,
         }
         self.base_cmb_contract = {
-            "backend": "camb",
             "param_map": self.base_param_map,
             "grids": {},
             "values": {},
             "calls": [],
-            "perturbations": {
-                "contract_version": 2,
-                "standard": True,
-                "gauge": "unspecified",
-                "variables": {},
-                "derived": {},
-                "equations": {},
-                "constraints": {},
-                "closures": {},
-                "sources": {},
-                "observables": {},
-                "initial_conditions": {},
-                "boundary_conditions": {},
-                "numerics": {},
-                "validity": {
-                    "regimes": ["standard_camb"],
-                    "notes": (
-                        "Uses the backend standard perturbation machinery."
-                    ),
-                },
-                "backend_mapping": {
-                    "camb": {
-                        "uses_standard_perturbations": True,
-                    }
-                },
-                "notes": (
-                    "This model declares that its CMB perturbations are "
-                    "represented by the selected backend's standard "
-                    "perturbation system."
-                ),
-            },
         }
+        self.base_cmb_contract["perturbations"] = (
+            self._make_native_perturbations()
+        )
         self.model_data = {
             "model_name": "Dummy",
             "description": "desc",
@@ -345,36 +281,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
         build_plugin = engine_plugin_validation.build_plugin
         self.plugin = build_plugin(self.model_data, funcs)
 
-    def _make_standard_perturbations(
-        self, *, background_adapter: bool = False
-    ) -> dict[str, object]:
-        """Return a standard CAMB perturbation contract for tests."""
-
-        perturbations = copy.deepcopy(self.base_cmb_contract["perturbations"])
-        if background_adapter:
-            perturbations["validity"]["regimes"] = [
-                "standard_camb_with_declared_background_adapter"
-            ]
-            perturbations["validity"]["notes"] = (
-                "Uses standard backend perturbations with the model's "
-                "declared background adapter contract."
-            )
-            perturbations["notes"] = (
-                "Native non-standard perturbation equations are not "
-                "declared in this model file."
-            )
-        return perturbations
-
-    def _make_nonstandard_perturbations(
+    def _make_native_perturbations(
         self,
         *,
-        implemented: bool = False,
+        background_adapter: bool = False,
     ) -> dict[str, object]:
-        """Return a fully declared non-standard perturbation contract."""
+        """Return a fully declared native perturbation contract."""
 
-        return {
+        perturbations = {
             "contract_version": 2,
-            "standard": False,
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -495,14 +410,13 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 "regimes": ["linear", "scalar"],
                 "notes": "Declared for first-order scalar perturbations.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": implemented,
-                }
-            },
             "notes": "Native perturbation mathematics are declared here.",
         }
+        if background_adapter:
+            perturbations["validity"]["regimes"].append(
+                "declared_background_adapter"
+            )
+        return perturbations
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
@@ -516,20 +430,20 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 engine_plugin_validation.validate_plugin(bad)
         self.assertIn("Plugin validation issue", "".join(captured_logs.output))
 
-    def test_get_camb_params_expression(self):
+    def test_get_cmb_params_expression(self):
         """LaTeX expressions in ``cmb.param_map`` evaluate correctly."""
-        camb = self.plugin.get_camb_params([70.0])
-        self.assertEqual(camb["H0"], 70.0)
-        self.assertAlmostEqual(camb["ombh2"], 0.022)
+        cmb_params = self.plugin.get_cmb_params([70.0])
+        self.assertEqual(cmb_params["H0"], 70.0)
+        self.assertAlmostEqual(cmb_params["ombh2"], 0.022)
 
-    def test_empty_calls_preserve_scalar_camb_params(self):
-        """An explicit empty call list keeps scalar CAMB mapping intact."""
+    def test_empty_calls_preserve_scalar_cmb_params(self):
+        """An explicit empty call list keeps the scalar mapping intact."""
 
-        camb = self.plugin.get_camb_params([70.0])
-        self.assertEqual(camb["Neff"], 3.044)
-        self.assertEqual(camb["sum_mnu"], 0.06)
+        cmb_params = self.plugin.get_cmb_params([70.0])
+        self.assertEqual(cmb_params["Neff"], 3.044)
+        self.assertEqual(cmb_params["sum_mnu"], 0.06)
 
-    def test_get_camb_contract_preserves_strings_and_arrays(self):
+    def test_get_cmb_contract_preserves_strings_and_arrays(self):
         """Structured contracts keep arrays and string kwargs intact."""
 
         model_data = copy.deepcopy(self.model_data)
@@ -541,8 +455,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
             }
         )
         model_data["cmb"] = {
-            "backend": "camb",
             "param_map": copy.deepcopy(self.base_param_map),
+            "model_parameters": {"Tcmb_K": 2.7255},
             "grids": {
                 "a_grid": {
                     "symbol": "a",
@@ -568,14 +482,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
-            "perturbations": self._make_standard_perturbations(
+            "perturbations": self._make_native_perturbations(
                 background_adapter=True
             ),
         }
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
-        contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
-        self.assertEqual(contract["backend"], "camb")
+        contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
+        self.assertNotIn("backend", contract)
         self.assertEqual(contract["param_map"]["H0"], 70.0)
+        self.assertEqual(contract["model_parameters"]["Tcmb_K"], 2.7255)
         self.assertTrue(numpy.all(numpy.isfinite(contract["grids"]["a_grid"])))
         self.assertTrue(
             numpy.all(numpy.diff(contract["grids"]["a_grid"]) > 0.0)
@@ -590,6 +505,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
             contract["calls"][0]["kwargs"]["dark_energy_model"],
             "ppf",
         )
+        native_runtime = plugin.get_cmb_native_runtime(
+            plugin.INITIAL_GUESSES
+        )
+        self.assertEqual(native_runtime["model_parameters"]["Tcmb_K"], 2.7255)
         self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
         self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
 
@@ -603,60 +522,55 @@ class EngineInterfaceTestCase(unittest.TestCase):
             self.plugin.INITIAL_GUESSES
         )
         self.assertEqual(contract["model_name"], self.plugin.MODEL_NAME)
-        self.assertEqual(contract["backend"], "camb")
-        self.assertTrue(contract["standard"])
-        self.assertEqual(contract["gauge"], "unspecified")
-        self.assertEqual(
-            contract["backend_mapping"]["camb"]["uses_standard_perturbations"],
-            True,
-        )
+        self.assertNotIn("backend", contract)
+        self.assertNotIn("standard", contract)
+        self.assertNotIn("backend_mapping", contract)
+        self.assertEqual(contract["gauge"], "conformal_newtonian")
         perturbation_data = self.plugin.get_cmb_perturbation_data(
             self.plugin.INITIAL_GUESSES
         )
         self.assertIsInstance(perturbation_data, PerturbationContractData)
-        self.assertTrue(perturbation_data.standard)
         native_runtime = self.plugin.get_cmb_native_runtime(
             self.plugin.INITIAL_GUESSES
         )
         self.assertEqual(native_runtime["model_name"], self.plugin.MODEL_NAME)
-        self.assertEqual(native_runtime["backend"], "camb")
+        self.assertNotIn("backend", native_runtime)
         self.assertIn("param_map", native_runtime)
         self.assertIn("model_parameters", native_runtime)
         self.assertIn("perturbation_data", native_runtime)
         self.assertIs(native_runtime["perturbation_data"], perturbation_data)
 
-    def test_get_camb_params_rejects_malicious_expression(self):
+    def test_get_cmb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
         bad_expression = "np.__class__.__mro__[2].__subclasses__()"
         self.plugin.CMB_CONTRACT["param_map"]["bad"] = bad_expression
         with self.assertRaises(ValueError):
-            self.plugin.get_camb_params([70.0])
+            self.plugin.get_cmb_params([70.0])
 
-    def test_get_camb_params_rejects_recursion_depth(self):
+    def test_get_cmb_params_rejects_recursion_depth(self):
         """Deeply nested calls exceed the evaluator's recursion limit."""
         expr = "exp(" * 30 + "1" + ")" * 30
         self.plugin.CMB_CONTRACT["param_map"]["deep"] = expr
         with self.assertRaises(ValueError):
-            self.plugin.get_camb_params([70.0])
+            self.plugin.get_cmb_params([70.0])
 
-    def test_get_camb_params_rejects_node_blowup(self):
+    def test_get_cmb_params_rejects_node_blowup(self):
         """Expressions with too many nodes trigger a ``ValueError``."""
         expr = "+".join(["1"] * 200)
         self.plugin.CMB_CONTRACT["param_map"]["wide"] = expr
         with self.assertRaises(ValueError):
-            self.plugin.get_camb_params([70.0])
+            self.plugin.get_cmb_params([70.0])
 
     def test_cmb_param_map_rejects_invalid_keys(self):
-        """Engine interface should reject unsupported CAMB parameters."""
+        """Engine interface should reject unsupported CMB parameters."""
 
         bad_model = dict(self.model_data)
         bad_model["cmb"] = {
-            "backend": "camb",
             "param_map": {"H0": "H_0", "bad_key": 1},
             "grids": {},
             "values": {},
             "calls": [],
-            "perturbations": self._make_standard_perturbations(),
+            "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
@@ -666,7 +580,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         clash = dict(self.model_data)
         clash["cmb"] = {
-            "backend": "camb",
             "param_map": {
                 "H0": "H_0",
                 "ombh2": 0.022,
@@ -677,17 +590,17 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
-            "perturbations": self._make_standard_perturbations(),
+            "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(clash, self.funcs)
 
-    def test_cmb_valid_model_without_backend_fails(self):
-        """A CMB-capable model must declare its backend."""
+    def test_cmb_backend_selector_fails(self):
+        """A CMB-capable model must reject a backend selector."""
 
         bad_model = copy.deepcopy(self.model_data)
-        del bad_model["cmb"]["backend"]
-        with self.assertRaises(ValueError):
+        bad_model["cmb"]["backend"] = "external"
+        with self.assertRaisesRegex(ValueError, "removed route key.*backend"):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_valid_model_without_calls_fails(self):
@@ -706,12 +619,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
-    def test_cmb_valid_model_without_perturbation_standard_fails(self):
-        """The perturbation contract must declare the standard flag."""
+    def test_cmb_perturbation_route_flag_fails(self):
+        """The perturbation contract must reject a route flag."""
 
         bad_model = copy.deepcopy(self.model_data)
-        del bad_model["cmb"]["perturbations"]["standard"]
-        with self.assertRaises(ValueError):
+        bad_model["cmb"]["perturbations"]["standard"] = False
+        with self.assertRaisesRegex(
+            ValueError,
+            "removed route key.*standard",
+        ):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_valid_model_with_invalid_perturbation_gauge_fails(self):
@@ -722,16 +638,16 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
-    def test_standard_false_perturbation_contract_validates(self):
-        """A non-standard perturbation contract validates when declared."""
+    def test_native_perturbation_contract_validates(self):
+        """A native perturbation contract validates when declared."""
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = (
-            self._make_nonstandard_perturbations()
+            self._make_native_perturbations()
         )
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertTrue(plugin.valid_for_cmb)
-        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        self.assertFalse(hasattr(plugin, "CMB_PERTURBATION_STANDARD"))
         self.assertEqual(
             plugin.CMB_PERTURBATION_CONTRACT["gauge"],
             "conformal_newtonian",
@@ -747,19 +663,18 @@ class EngineInterfaceTestCase(unittest.TestCase):
         native_runtime = plugin.get_cmb_native_runtime(
             plugin.INITIAL_GUESSES
         )
-        self.assertFalse(native_runtime["perturbations"]["standard"])
+        self.assertNotIn("standard", native_runtime["perturbations"])
         self.assertIs(
             native_runtime["perturbation_data"],
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
         )
 
-    def test_standard_false_perturbation_contract_without_math_fails(self):
-        """Non-standard perturbations need declared mathematical content."""
+    def test_native_perturbation_contract_without_math_fails(self):
+        """Native perturbations need declared mathematical content."""
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = {
             "contract_version": 2,
-            "standard": False,
             "gauge": "conformal_newtonian",
             "variables": {
                 "delta_x": {
@@ -779,12 +694,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 "regimes": ["linear"],
                 "notes": "Declared but incomplete.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": False,
-                }
-            },
             "notes": "Missing mathematical content.",
         }
         with self.assertRaisesRegex(
@@ -793,14 +702,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
         ):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_standard_true_rejects_non_empty_math_sections(self):
-        """Standard perturbations must keep the math sections empty."""
+    def test_standard_route_flag_is_rejected(self):
+        """Removed standard-route declarations must fail validation."""
 
         model_data = copy.deepcopy(self.model_data)
-        model_data["cmb"]["perturbations"]["variables"] = {
-            "delta_x": {"kind": "density_contrast"}
-        }
-        with self.assertRaises(ValueError):
+        model_data["cmb"]["perturbations"]["standard"] = True
+        with self.assertRaisesRegex(
+            ValueError,
+            "removed route key.*standard",
+        ):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_free_text_equation_lhs_fails(self):
@@ -808,7 +718,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = (
-            self._make_nonstandard_perturbations()
+            self._make_native_perturbations()
         )
         model_data["cmb"]["perturbations"]["equations"]["continuity_x"][
             "lhs"
@@ -820,7 +730,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Perturbation expressions must not reference undeclared symbols."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["derived"]["density_drive"]["expression"] = "unknown_x"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
@@ -830,7 +740,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Unsafe perturbation expressions are rejected."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["sources"]["poisson"]["expression"] = "delta_x.__class__"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
@@ -840,37 +750,37 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Unknown perturbation contract keys are rejected."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["unexpected"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_nonstandard_variables_fails(self):
-        """Non-standard perturbations must declare variables."""
+    def test_missing_native_variables_fails(self):
+        """Native perturbations must declare variables."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["variables"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_nonstandard_equations_fail(self):
-        """Non-standard perturbations must declare equations."""
+    def test_missing_native_equations_fail(self):
+        """Native perturbations must declare equations."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["equations"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaisesRegex(ValueError, "must declare equations"):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_nonstandard_initial_conditions_fail(self):
-        """Non-standard perturbations must declare initial conditions."""
+    def test_missing_native_initial_conditions_fail(self):
+        """Native perturbations must declare initial conditions."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["initial_conditions"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaisesRegex(
@@ -879,27 +789,24 @@ class EngineInterfaceTestCase(unittest.TestCase):
         ):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_nonstandard_backend_mapping_fails(self):
-        """Non-standard perturbations must declare backend mapping."""
+    def test_backend_mapping_fails(self):
+        """Native perturbations must reject backend mappings."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["backend_mapping"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_nonstandard_standard_mapping_fails(self):
-        """Non-standard perturbations cannot declare standard support."""
+    def test_backend_mapping_selector_fails(self):
+        """Backend mapping selectors cannot enter native contracts."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
-        perturbations["backend_mapping"]["camb"]["native_solver_required"] = (
-            True
-        )
-        perturbations["backend_mapping"]["camb"][
-            "uses_standard_perturbations"
-        ] = True
+        perturbations = self._make_native_perturbations()
+        perturbations["backend_mapping"] = {
+            "external": {"theory_selector": "default"}
+        }
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
@@ -908,7 +815,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """Derived perturbation expressions must not cycle."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_nonstandard_perturbations()
+        perturbations = self._make_native_perturbations()
         perturbations["derived"]["alpha"] = {"expression": "beta"}
         perturbations["derived"]["beta"] = {"expression": "alpha"}
         model_data["cmb"]["perturbations"] = perturbations
@@ -926,14 +833,13 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.assertEqual(plugin.CMB_CONTRACT, {})
         self.assertIsNone(plugin.CMB_PERTURBATION_DATA)
 
-    def test_migrated_cmb_models_validate(self):
-        """All migrated CMB models should build and validate cleanly."""
+    def test_native_cmb_models_validate(self):
+        """All CMB-capable model assets must expose their exact ontology."""
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
         model_names = [
             "model_lcdm.yml",
-            "model_lcdm_ccmbs.yml",
             "model_lcdm_mnu.yml",
             "model_ref_planck2018.yml",
             "model_tog.yml",
@@ -945,13 +851,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
         ]
         expected_species = {
             "model_lcdm.yml": {
-                "baryon",
-                "cdm",
-                "massless_neutrino",
-                "massive_neutrino",
-                "photon",
-            },
-            "model_lcdm_ccmbs.yml": {
                 "baryon",
                 "cdm",
                 "massless_neutrino",
@@ -1024,6 +923,16 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 "torg_baryon_euler",
             },
         }
+        common_sources = {
+            "lensing_potential",
+            "polarization_b_source",
+            "polarization_source",
+            "temperature_doppler",
+            "temperature_isw",
+            "temperature_monopole",
+            "temperature_quadrupole",
+            "temperature_quadrupole_derivative",
+        }
         for model_name in model_names:
             with self.subTest(model_name=model_name):
                 yaml_path = models_dir / model_name
@@ -1038,43 +947,105 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 plugin = engine_plugin_validation.build_plugin(parsed, funcs)
                 validate_plugin = engine_plugin_validation.validate_plugin
                 self.assertTrue(validate_plugin(plugin))
-                contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
-                self.assertEqual(contract["backend"], "camb")
+                contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
+                self.assertNotIn("backend", contract)
                 self.assertIsNotNone(
                     plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
                 )
                 self.assertIsNotNone(
                     plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
                 )
-                self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+                self.assertFalse(
+                    hasattr(plugin, "CMB_PERTURBATION_STANDARD")
+                )
                 summary = plugin.get_cmb_perturbation_data(
                     plugin.INITIAL_GUESSES
                 ).manifest_summary
                 self.assertTrue(summary["execution_route"][
                     "uses_native_declared_graph"
                 ])
-                self.assertFalse(summary["execution_route"][
-                    "uses_camb_prediction"
-                ])
+                self.assertEqual(
+                    summary["execution_route"]["route_id"],
+                    "native_declared_graph",
+                )
                 self.assertEqual(
                     set(summary["species_names"]),
                     expected_species[model_name],
                 )
-                if model_name in {"model_qrsf.yml", "model_torg.yml"}:
-                    source_names = set(summary["source_names"])
-                    self.assertTrue(
-                        expected_source_closures[model_name].issubset(
-                            source_names
-                        )
-                    )
-                self.assertIn(
-                    "adiabatic_scalar",
-                    summary["initial_condition_family_names"],
+                self.assertEqual(set(summary["sector_names"]), {"scalar"})
+                self.assertEqual(
+                    set(summary["initial_condition_family_names"]),
+                    {"adiabatic_scalar"},
+                )
+                self.assertEqual(
+                    set(summary["source_names"]),
+                    common_sources
+                    | expected_source_closures.get(model_name, set()),
                 )
                 self.assertEqual(
                     set(summary["angular_power_spectrum_targets"]),
                     {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
                 )
+                self.assertTrue(summary["equation_names"])
+                self.assertTrue(summary["initial_condition_names"])
+                equation_names = set(summary["equation_names"])
+                initial_names = set(summary["initial_condition_names"])
+                has_cdm = "cdm" in expected_species[model_name]
+                self.assertEqual("evolve_delta_c" in equation_names, has_cdm)
+                self.assertEqual("delta_c_seed" in initial_names, has_cdm)
+
+    def test_native_model_asset_cutover_is_complete(self):
+        """The model corpus must contain one canonical native LCDM asset."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        models_dir = repo_root / "copernican" / "models"
+        expected_names = {
+            "model_lcdm.yml",
+            "model_lcdm_mnu.yml",
+            "model_qauc.yml",
+            "model_qrsf.yml",
+            "model_ref_planck2018.yml",
+            "model_tog.yml",
+            "model_torg.yml",
+            "model_usmf2.yml",
+            "model_w0wa.yml",
+            "model_wcdm.yml",
+        }
+        self.assertEqual(
+            {path.name for path in models_dir.glob("model_*.yml")},
+            expected_names,
+        )
+        forbidden_text = {
+            "backend:",
+            "backend_mapping",
+            "ccmbs",
+            "fallback integration",
+            "legacy inference",
+            "migration artifact",
+            "standard:",
+        }
+        for yaml_path in sorted(models_dir.glob("model_*.yml")):
+            with self.subTest(model_name=yaml_path.name):
+                source_text = yaml_path.read_text(encoding="utf-8").casefold()
+                for term in forbidden_text:
+                    self.assertNotIn(term, source_text)
+
+                model_data = yaml.safe_load(source_text)
+                perturbations = model_data["cmb"]["perturbations"]
+                declared_species = set(perturbations["species"])
+                scalar_species = set(
+                    perturbations["sectors"]["scalar"]["species"]
+                )
+                self.assertEqual(scalar_species, declared_species)
+
+                param_map = model_data["cmb"]["param_map"]
+                background = model_data["cmb"]["background"]["derived"]
+                if "cdm" not in declared_species:
+                    self.assertNotIn("omch2", param_map)
+                    self.assertNotIn("omega_c0", background)
+                if "massive_neutrino" not in declared_species:
+                    self.assertNotIn("sum_mnu", param_map)
+                    self.assertNotIn("num_massive_neutrinos", param_map)
 
     def test_model_without_perturbation_closure_is_explicitly_unavailable(
         self,
@@ -1093,14 +1064,15 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         self.assertFalse(plugin.valid_for_cmb)
         perturbations = parsed["cmb"]["perturbations"]
-        self.assertFalse(perturbations["standard"])
+        self.assertNotIn("standard", perturbations)
+        self.assertNotIn("backend_mapping", perturbations)
         self.assertNotIn("cdm", perturbations["species"])
         self.assertIsNone(plugin.CMB_NATIVE_RUNTIME)
         self.assertIsNone(
             plugin.CMB_PERTURBATION_DATA
         )
 
-    def test_migrated_models_use_theory_neutral_scalar_metadata(self):
+    def test_native_models_use_theory_neutral_scalar_metadata(self):
         """Scalar metadata must not smuggle LCDM assumptions into models."""
 
         repo_root = Path(__file__).resolve().parents[3]
@@ -1119,19 +1091,19 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     continue
                 scalar = perturbations["sectors"]["scalar"]
                 description = scalar["description"].casefold()
-                self.assertFalse(perturbations["standard"])
+                self.assertNotIn("standard", perturbations)
+                self.assertNotIn("backend_mapping", perturbations)
                 self.assertFalse(
                     any(term in description for term in forbidden_terms)
                 )
 
-    def test_migrated_cmb_models_native_spectrum_smoke(self):
-        """Every migrated model must execute a finite native spectrum."""
+    def test_native_cmb_models_spectrum_smoke(self):
+        """Every CMB-capable model must execute a finite native spectrum."""
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
         model_names = [
             "model_lcdm.yml",
-            "model_lcdm_ccmbs.yml",
             "model_lcdm_mnu.yml",
             "model_ref_planck2018.yml",
             "model_tog.yml",
@@ -1197,7 +1169,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             engine_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_unknown_call_method_fails(self):
-        """Unsupported CAMB methods are rejected."""
+        """Unsupported CMB contract methods are rejected."""
 
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"]["calls"] = [{"method": "set_unknown"}]
@@ -1209,7 +1181,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"] = {
-            "backend": "camb",
             "param_map": copy.deepcopy(self.base_param_map),
             "grids": {
                 "a_grid": {
@@ -1236,7 +1207,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
-            "perturbations": self._make_standard_perturbations(
+            "perturbations": self._make_native_perturbations(
                 background_adapter=True
             ),
         }
@@ -1255,7 +1226,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
             }
         )
         model_data["cmb"] = {
-            "backend": "camb",
             "param_map": copy.deepcopy(self.base_param_map),
             "grids": {
                 "a_grid": {
@@ -1273,10 +1243,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
-            "perturbations": self._make_standard_perturbations(),
+            "perturbations": self._make_native_perturbations(),
         }
         plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
-        contract = plugin.get_camb_contract(plugin.INITIAL_GUESSES)
+        contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
         self.assertIn("x", contract["values"])
 
     def test_undeclared_value_parameter_fails(self):
@@ -1284,7 +1254,6 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"] = {
-            "backend": "camb",
             "param_map": copy.deepcopy(self.base_param_map),
             "grids": {
                 "a_grid": {
@@ -1302,7 +1271,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
-            "perturbations": self._make_standard_perturbations(),
+            "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(model_data, self.funcs)
@@ -1415,7 +1384,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             Path(__file__).resolve().parents[3]
             / "copernican"
             / "models"
-            / "model_lcdm_ccmbs.yml"
+            / "model_lcdm.yml"
         )
         with tempfile.TemporaryDirectory() as cache_dir:
             cache_path = model_spec_validator.validate_and_cache_model(
@@ -1437,9 +1406,9 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         summary = perturbation_data.manifest_summary
         route = summary["execution_route"]
 
-        self.assertFalse(plugin.CMB_PERTURBATION_STANDARD)
+        self.assertFalse(hasattr(plugin, "CMB_PERTURBATION_STANDARD"))
         self.assertTrue(route["uses_native_declared_graph"])
-        self.assertFalse(route["uses_camb_prediction"])
+        self.assertEqual(route["route_id"], "native_declared_graph")
         self.assertTrue(route["route_ready_for_execution"])
         self.assertIn("evolve_theta_gamma0", summary["equation_names"])
         self.assertIn(
@@ -1502,15 +1471,14 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             SimpleNamespace(__name__="native_test", ENGINE_VERSION="test"),
             [],
         )
-        model_entry = manifest["camb"]["models"][0]
+        model_entry = manifest["cmb"]["models"][0]
         route = model_entry["custom_cmb_execution_route"]
 
-        self.assertFalse(model_entry["perturbation_standard"])
-        self.assertTrue(
-            model_entry["perturbation_backend_native_solver_required"]
+        self.assertEqual(
+            model_entry["execution_engine"],
+            "native_declared_graph",
         )
         self.assertTrue(route["uses_native_declared_graph"])
-        self.assertFalse(route["uses_camb_prediction"])
         self.assertEqual(
             model_entry["custom_cmb_numerical_settings"]["ell_max"],
             2000,

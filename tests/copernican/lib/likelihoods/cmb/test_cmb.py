@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import inspect
 import re
@@ -24,7 +25,6 @@ except ImportError:  # pragma: no cover - optional external reference
 
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
-from copernican.lib.likelihoods.cmb import camb_solver
 from copernican.lib.likelihoods.cmb import (
     copernican_cmb_solver as native_cmb_solver,
 )
@@ -34,6 +34,7 @@ from copernican.lib.likelihoods.cmb import (
     native_evolution,
     native_projection,
 )
+from tests.project.lib import camb_reference
 
 
 def _named_limit_message(
@@ -705,7 +706,6 @@ def _declared_graph_perturbations(
 
     perturbations: dict[str, object] = {
         "contract_version": 2,
-        "standard": False,
         "gauge": "conformal_newtonian",
         "variables": {
             "theta_gamma0": {
@@ -1222,12 +1222,6 @@ def _declared_graph_perturbations(
             "regimes": ["linear", "scalar_like"],
             "notes": "Synthetic declared graph for runtime tests.",
         },
-        "backend_mapping": {
-            "camb": {
-                "native_solver_required": True,
-                "implemented": True,
-            }
-        },
     }
     if include_bb:
         perturbations["variables"]["tensor_b"] = {
@@ -1412,7 +1406,6 @@ def _base_custom_cmb_contract(
 
     return {
         "model_name": "SyntheticCustomCMB",
-        "backend": "camb",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -1450,13 +1443,13 @@ def _base_custom_cmb_contract(
     }
 
 
-def _base_standard_cmb_contract() -> dict[str, object]:
-    """Return a standard CAMB contract used for reference comparisons."""
+def _camb_reference_contract(
+    param_map: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Return an explicit test-only CAMB reference contract."""
 
-    return {
-        "model_name": "SyntheticLCDM",
-        "backend": "camb",
-        "param_map": {
+    reference_params = (
+        {
             "H0": 67.4,
             "ombh2": 0.02237,
             "omch2": 0.12,
@@ -1465,33 +1458,16 @@ def _base_standard_cmb_contract() -> dict[str, object]:
             "ns": 0.965,
             "Neff": 3.046,
             "YHe": 0.245,
-        },
+        }
+        if param_map is None
+        else dict(param_map)
+    )
+    return {
+        "backend": "camb",
+        "param_map": reference_params,
         "grids": {},
         "values": {},
         "calls": [],
-        "perturbations": {
-            "contract_version": 2,
-            "standard": True,
-            "gauge": "unspecified",
-            "variables": {},
-            "derived": {},
-            "equations": {},
-            "constraints": {},
-            "closures": {},
-            "sources": {},
-            "observables": {},
-            "initial_conditions": {},
-            "boundary_conditions": {},
-            "validity": {
-                "regimes": ["standard_camb"],
-                "notes": "Uses backend standard perturbations.",
-            },
-            "backend_mapping": {
-                "camb": {
-                    "uses_standard_perturbations": True,
-                }
-            },
-        },
     }
 
 
@@ -1878,12 +1854,6 @@ def _resolved_native_scalar_context(
     )
 
 
-def _standard_contract() -> dict[str, object]:
-    """Return a deep-copied standard CAMB fixture."""
-
-    return copy.deepcopy(_base_standard_cmb_contract())
-
-
 def _native_scalar_hierarchy_contract(
     *,
     gauge: str = "conformal_newtonian",
@@ -2044,7 +2014,6 @@ def _native_scalar_hierarchy_contract(
         background["derived"] = background_derived
     return {
         "model_name": "NativeScalarHierarchy",
-        "backend": "camb",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2067,7 +2036,6 @@ def _native_scalar_hierarchy_contract(
         "numerical": dict(numerics),
         "perturbations": {
             "contract_version": 2,
-            "standard": False,
             "gauge": gauge,
             "variables": {},
             "derived": {},
@@ -2135,12 +2103,6 @@ def _native_scalar_hierarchy_contract(
                 "regimes": ["linear", "native_scalar_hierarchy"],
                 "notes": "Metadata-only native scalar hierarchy route.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": True,
-                }
-            },
         },
     }
 
@@ -2179,7 +2141,6 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
     ]
     return {
         "model_name": "NativeVectorHierarchy",
-        "backend": "camb",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2202,7 +2163,6 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
         "numerical": dict(numerics),
         "perturbations": {
             "contract_version": 2,
-            "standard": False,
             "gauge": "conformal_newtonian",
             "variables": {},
             "derived": {},
@@ -2293,12 +2253,6 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
                 "regimes": ["linear", "native_vector_hierarchy"],
                 "notes": "Metadata-only native vector hierarchy route.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": True,
-                }
-            },
         },
     }
 
@@ -2331,7 +2285,6 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
     ]
     return {
         "model_name": "NativeTensorHierarchy",
-        "backend": "camb",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2356,7 +2309,6 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
         "numerical": dict(numerics),
         "perturbations": {
             "contract_version": 2,
-            "standard": False,
             "gauge": "conformal_newtonian",
             "variables": {},
             "derived": {},
@@ -2437,12 +2389,6 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
                 "regimes": ["linear", "native_tensor_hierarchy"],
                 "notes": "Metadata-only native tensor hierarchy route.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "native_solver_required": True,
-                    "implemented": True,
-                }
-            },
         },
     }
 
@@ -2515,7 +2461,6 @@ def _analytic_signal_contract(
     )
     contract["perturbations"] = {
         "contract_version": 2,
-        "standard": False,
         "gauge": "conformal_newtonian",
         "variables": {
             "signal_mode": {
@@ -2573,12 +2518,6 @@ def _analytic_signal_contract(
         "boundary_conditions": {},
         "validity": {
             "regimes": ["analytic_signal"],
-        },
-        "backend_mapping": {
-            "camb": {
-                "implemented": True,
-                "native_solver_required": True,
-            }
         },
     }
     return contract
@@ -2737,10 +2676,10 @@ class _CustomCMBPlugin:
         1090.0,
     )
 
-    def get_camb_contract(self, _params):
-        """Return the structured CAMB contract used by the helper."""
+    def get_cmb_contract(self, _params):
+        """Reject the unprepared contract path during native execution."""
 
-        raise AssertionError("native runtime should bypass get_camb_contract")
+        raise AssertionError("native runtime should bypass get_cmb_contract")
 
     def get_cmb_native_runtime(self, _params):
         """Return the synthetic native-runtime contract used by the helper."""
@@ -2748,20 +2687,31 @@ class _CustomCMBPlugin:
         return _speedup_contract(_custom_contract())
 
     def get_cmb_perturbation_contract(self, _params):
-        """Return the synthetic non-standard perturbation graph."""
+        """Return the synthetic declared perturbation graph."""
 
         return _custom_perturbations()
+
+
+class _ContractFallbackOnlyPlugin:
+    """Expose only the removed unprepared-contract path."""
+
+    def get_cmb_contract(self, _params):
+        """Fail if native resolution attempts the removed fallback."""
+
+        raise AssertionError("removed backend fallback was called")
 
 
 class SliceNineReferenceContractTestCase(unittest.TestCase):
     """Exercise the fixed Slice Nine independent-reference surface."""
 
     def test_neutral_cosmology_is_fixed_and_native(self) -> None:
-        """The acceptance fixture must be one non-standard native contract."""
+        """The acceptance fixture must be one route-neutral native contract."""
 
         contract = _slice_nine_native_acceptance_contract()
 
-        self.assertFalse(contract["perturbations"]["standard"])
+        self.assertNotIn("backend", contract)
+        self.assertNotIn("standard", contract["perturbations"])
+        self.assertNotIn("backend_mapping", contract["perturbations"])
         self.assertEqual(contract["model_name"], "SliceNineNeutralNative")
         cosmology = dict(contract["param_map"])
         cosmology.update(contract["model_parameters"])
@@ -2770,6 +2720,16 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             contract["numerical"],
             dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS),
         )
+
+    def test_plugin_resolution_requires_native_runtime(self) -> None:
+        """Plugin resolution must not call an unprepared contract fallback."""
+
+        with self.assertRaisesRegex(ValueError, "native CMB runtime"):
+            cmb.compute_cmb_spectrum_cached(
+                _ContractFallbackOnlyPlugin(),
+                (),
+                (20,),
+            )
 
     def test_acceptance_ranges_and_thresholds_are_explicit(self) -> None:
         """Reference ranges and PLAN thresholds must be machine-readable."""
@@ -2887,10 +2847,19 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         manifest = perturbation_data.manifest_summary
         route = manifest["execution_route"]
 
-        self.assertEqual(route["route_id"], "native_declared_graph")
-        self.assertTrue(route["uses_native_declared_graph"])
-        self.assertFalse(route["uses_camb_prediction"])
-        self.assertFalse(route["uses_backend_standard_perturbations"])
+        self.assertEqual(
+            route,
+            {
+                "route_id": "native_declared_graph",
+                "prediction_engine": "copernican_native_declared_graph",
+                "transfer_function_path": (
+                    "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
+                ),
+                "solver": "declared_math_graph",
+                "route_ready_for_execution": True,
+                "uses_native_declared_graph": True,
+            },
+        )
         self.assertEqual(
             set(manifest["angular_power_spectrum_targets"]),
             {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
@@ -3812,166 +3781,21 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             ),
         )
 
-    def test_standard_lcdm_reference_features_match_camb(self) -> None:
-        """Standard-path scalar spectra should preserve CAMB features."""
+    def test_camb_reference_contract_cannot_enter_production(self) -> None:
+        """Test-only CAMB contracts must fail at the production boundary."""
 
-        if camb is None:
-            self.skipTest("CAMB is not installed")
-
-        standard_contract = _standard_contract()
-        ells = numpy.arange(2, 801, dtype=int)
-        actual = cmb.compute_cmb_spectrum_from_contract(
-            standard_contract,
-            ells,
-            spectra=("TT", "TE", "EE"),
-        )
-
-        params = camb_solver._make_camb_params(
-            standard_contract,
-            lmax=int(ells.max()),
-        )
-        results = camb.get_results(params)
-        reference = results.get_unlensed_scalar_cls(
-            lmax=int(ells.max()),
-            CMB_unit="muK",
-        )
-
-        for spectrum_name, column_index in (("TT", 0), ("EE", 1), ("TE", 3)):
-            actual_values = numpy.asarray(actual[spectrum_name], dtype=float)
-            reference_values = numpy.asarray(
-                reference[:, column_index][ells],
-                dtype=float,
-            )
-            numpy.testing.assert_allclose(
-                actual_values,
-                reference_values,
-                rtol=1.0e-5,
-                atol=1.0e-5,
-                err_msg=(
-                    f"{spectrum_name} reference mismatch across "
-                    "ell=2..800 for the standard CAMB route."
-                ),
-            )
-            low_ell_mask = ells <= 30
-            numpy.testing.assert_allclose(
-                actual_values[low_ell_mask],
-                reference_values[low_ell_mask],
-                rtol=1.0e-5,
-                atol=1.0e-5,
-                err_msg=(
-                    f"{spectrum_name} low-ell reference mismatch for the "
-                    "standard CAMB route."
-                ),
+        reference_contract = _camb_reference_contract()
+        with self.assertRaisesRegex(ValueError, "removed route key"):
+            cmb.compute_cmb_spectrum_from_contract(
+                reference_contract,
+                (20,),
             )
 
-        tt_actual_peaks = _local_extrema_ells(
-            ells,
-            numpy.asarray(actual["TT"], dtype=float),
-            kind="max",
-            ell_min=150,
-            ell_max=650,
+        params = camb_reference._make_camb_params(
+            reference_contract,
+            lmax=20,
         )
-        tt_reference_peaks = _local_extrema_ells(
-            ells,
-            numpy.asarray(reference[:, 0][ells], dtype=float),
-            kind="max",
-            ell_min=150,
-            ell_max=650,
-        )
-        self.assertGreaterEqual(len(tt_actual_peaks), 2)
-        self.assertGreaterEqual(len(tt_reference_peaks), 2)
-        self.assertLessEqual(
-            abs(tt_actual_peaks[0] - tt_reference_peaks[0]),
-            1,
-            (
-                "TT first acoustic peak mismatch: "
-                f"actual={tt_actual_peaks[0]}, "
-                f"reference={tt_reference_peaks[0]}"
-            ),
-        )
-        self.assertLessEqual(
-            abs(tt_actual_peaks[1] - tt_reference_peaks[1]),
-            1,
-            (
-                "TT second acoustic peak mismatch: "
-                f"actual={tt_actual_peaks[1]}, "
-                f"reference={tt_reference_peaks[1]}"
-            ),
-        )
-        actual_tt_spacing = tt_actual_peaks[1] - tt_actual_peaks[0]
-        reference_tt_spacing = tt_reference_peaks[1] - tt_reference_peaks[0]
-        self.assertLessEqual(
-            abs(actual_tt_spacing - reference_tt_spacing),
-            1,
-            (
-                "TT acoustic peak spacing mismatch: "
-                f"actual={actual_tt_spacing}, "
-                f"reference={reference_tt_spacing}"
-            ),
-        )
-
-        ee_actual_peaks = _local_extrema_ells(
-            ells,
-            numpy.asarray(actual["EE"], dtype=float),
-            kind="max",
-            ell_min=50,
-            ell_max=450,
-        )
-        ee_reference_peaks = _local_extrema_ells(
-            ells,
-            numpy.asarray(reference[:, 1][ells], dtype=float),
-            kind="max",
-            ell_min=50,
-            ell_max=450,
-        )
-        self.assertGreaterEqual(len(ee_actual_peaks), 2)
-        self.assertGreaterEqual(len(ee_reference_peaks), 2)
-        self.assertLessEqual(
-            abs(ee_actual_peaks[0] - ee_reference_peaks[0]),
-            1,
-            (
-                "EE first peak mismatch: "
-                f"actual={ee_actual_peaks[0]}, "
-                f"reference={ee_reference_peaks[0]}"
-            ),
-        )
-        self.assertLessEqual(
-            abs(ee_actual_peaks[1] - ee_reference_peaks[1]),
-            1,
-            (
-                "EE second peak mismatch: "
-                f"actual={ee_actual_peaks[1]}, "
-                f"reference={ee_reference_peaks[1]}"
-            ),
-        )
-
-        te_actual_zero_crossings = _zero_crossing_ells(
-            ells,
-            numpy.asarray(actual["TE"], dtype=float),
-            ell_min=30,
-            ell_max=650,
-        )
-        te_reference_zero_crossings = _zero_crossing_ells(
-            ells,
-            numpy.asarray(reference[:, 3][ells], dtype=float),
-            ell_min=30,
-            ell_max=650,
-        )
-        self.assertGreaterEqual(len(te_actual_zero_crossings), 3)
-        self.assertGreaterEqual(len(te_reference_zero_crossings), 3)
-        for index in range(3):
-            self.assertLessEqual(
-                abs(
-                    te_actual_zero_crossings[index]
-                    - te_reference_zero_crossings[index]
-                ),
-                1,
-                (
-                    "TE zero-crossing mismatch at index "
-                    f"{index}: actual={te_actual_zero_crossings[index]}, "
-                    f"reference={te_reference_zero_crossings[index]}"
-                ),
-            )
+        self.assertIsInstance(params, camb.CAMBparams)
 
     def test_native_scalar_hierarchy_amplitude_response_tracks_camb(
         self,
@@ -4000,12 +3824,18 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             spectra=("TT", "TE", "EE"),
         )
 
-        base_params = camb_solver._make_camb_params(
-            base_contract,
+        base_reference_contract = _camb_reference_contract(
+            base_contract["param_map"]
+        )
+        shifted_reference_contract = _camb_reference_contract(
+            shifted_contract["param_map"]
+        )
+        base_params = camb_reference._make_camb_params(
+            base_reference_contract,
             lmax=int(ells.max()),
         )
-        shifted_params = camb_solver._make_camb_params(
-            shifted_contract,
+        shifted_params = camb_reference._make_camb_params(
+            shifted_reference_contract,
             lmax=int(ells.max()),
         )
         base_reference = camb.get_results(base_params).get_unlensed_scalar_cls(
@@ -7442,12 +7272,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         plugin = _CustomCMBPlugin()
         ells = numpy.arange(20, 35, dtype=int)
         with mock.patch.object(
-            camb_solver,
+            camb_reference,
             "_compute_cmb_spectrum_direct",
             side_effect=AssertionError("standard CAMB path should not run"),
         ):
             with mock.patch.object(
-                camb_solver.camb,
+                camb_reference.camb,
                 "get_results",
                 side_effect=AssertionError(
                     "CAMB prediction path should not run"
@@ -9624,7 +9454,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.arange(20, 60, dtype=int)
         with mock.patch.object(
-            camb_solver.camb,
+            camb_reference.camb,
             "get_results",
             side_effect=AssertionError(
                 "native scalar hierarchy should not call CAMB"
@@ -9646,7 +9476,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 35, dtype=int)
         with mock.patch.object(
-            camb_solver.camb,
+            camb_reference.camb,
             "get_results",
             side_effect=AssertionError("CAMB prediction path should not run"),
         ):
@@ -9778,23 +9608,20 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
             set(cmb.__all__),
             {
                 "CMBLike",
-                "compute_camb_background_observables",
                 "compute_cmb_spectrum",
                 "compute_cmb_spectrum_cached",
                 "compute_cmb_spectrum_from_contract",
-                "compute_cmb_spectrum_from_legacy_params_for_tests",
-                "describe_camb_configuration",
             },
         )
         self.assertTrue(hasattr(cmb, "CMBLike"))
         self.assertTrue(callable(cmb.compute_cmb_spectrum))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_from_contract))
-        self.assertTrue(callable(cmb.compute_camb_background_observables))
-        self.assertTrue(
-            callable(cmb.compute_cmb_spectrum_from_legacy_params_for_tests)
+        self.assertFalse(hasattr(cmb, "compute_camb_background_observables"))
+        self.assertFalse(
+            hasattr(cmb, "compute_cmb_spectrum_from_legacy_params_for_tests")
         )
-        self.assertTrue(callable(cmb.describe_camb_configuration))
+        self.assertFalse(hasattr(cmb, "describe_camb_configuration"))
         self.assertFalse(hasattr(cmb, "_CustomCMBBackgroundData"))
         self.assertFalse(hasattr(cmb, "_make_camb_params"))
         self.assertFalse(hasattr(cmb, "camb"))
@@ -9806,6 +9633,30 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(cmb.CMBLike.loglike))
         self.assertTrue(hasattr(cmb.CMBLike.state, "__get__"))
 
+    def test_production_package_has_no_reference_solver_imports(self) -> None:
+        """Production modules must not import CAMB or CLASS."""
+
+        package_root = Path(cmb.__file__).resolve().parents[3]
+        forbidden_modules = {"camb", "classy"}
+        violations = []
+        for source_path in sorted(package_root.rglob("*.py")):
+            tree = ast.parse(source_path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                imported_modules = ()
+                if isinstance(node, ast.Import):
+                    imported_modules = tuple(
+                        alias.name.split(".", maxsplit=1)[0]
+                        for alias in node.names
+                    )
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    imported_modules = (node.module.split(".", maxsplit=1)[0],)
+                if forbidden_modules.intersection(imported_modules):
+                    relative_path = source_path.relative_to(package_root)
+                    violations.append(f"{relative_path}:{node.lineno}")
+        self.assertEqual(violations, [])
+        removed_solver = package_root / "lib/likelihoods/cmb/camb_solver.py"
+        self.assertFalse(removed_solver.exists())
+
 
 class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
     """Exercise the public CMB likelihood surface on spectrum blocks."""
@@ -9814,15 +9665,20 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
         """Block spectra should flatten into one consistent likelihood."""
 
         class _BlockSpectrumPlugin:
-            """Return a minimal structured CAMB contract for testing."""
+            """Return a prepared native runtime for likelihood testing."""
 
-            def get_camb_contract(self, _params):
+            def get_cmb_native_runtime(self, _params):
                 return {
-                    "backend": "camb",
+                    "background": {},
+                    "background_runtime": object(),
                     "calls": [],
                     "grids": {},
+                    "model_name": "BlockSpectrum",
+                    "model_parameters": {},
+                    "numerical": {},
                     "param_map": {},
-                    "perturbations": {"standard": True},
+                    "perturbation_data": object(),
+                    "perturbations": {},
                     "values": {},
                 }
 
@@ -9841,7 +9697,7 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
         with mock.patch(
             (
                 "copernican.lib.likelihoods.cmb.cmb."
-                "compute_cmb_spectrum_from_contract"
+                "_compute_declared_perturbation_spectrum"
             ),
             return_value=theory,
         ):

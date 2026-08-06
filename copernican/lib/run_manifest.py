@@ -4,8 +4,8 @@ The manifest records critical information required to reproduce a run. It
 captures the Copernican version, model and engine details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
-back unambiguously. CMB entries now include both the background adapter
-summary and the perturbation-contract metadata declared on each model.
+back unambiguously. CMB entries include the native background and compiled
+perturbation-contract metadata declared on each model.
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ import yaml
 from copernican import version as version_module
 
 from . import utils
-from .likelihoods import cmb as cmb_module
 from .likelihoods.cmb.native_background import (
     _summarize_declared_background_manifest_summary,
 )
@@ -81,29 +80,21 @@ def _git_info() -> dict:
     return {"commit": commit, "dirty": dirty}
 
 
-def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
-    """Return CAMB metadata for models that supply a CMB mapping."""
+def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
+    """Return native runtime metadata for CMB-capable models."""
 
-    camb_models: list[object] = []
+    cmb_models: list[object] = []
     for plugin, _ in models:
         if getattr(plugin, "valid_for_cmb", True) is False:
             continue
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
         if contract:
-            camb_models.append(plugin)
-    if not camb_models:
+            cmb_models.append(plugin)
+    if not cmb_models:
         return None
 
-    try:  # pragma: no cover - graceful when CAMB absent in minimal envs
-        import camb  # type: ignore
-
-        version = getattr(camb, "__version__", "unknown")
-    except ImportError:
-        version = "unavailable"
-
-    configuration = cmb_module.describe_camb_configuration()
     models_meta: list[dict[str, Any]] = []
-    for plugin in camb_models:
+    for plugin in cmb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
         perturbations = getattr(plugin, "CMB_PERTURBATION_CONTRACT", {}) or {}
         perturbation_data = getattr(plugin, "CMB_PERTURBATION_DATA", None)
@@ -119,14 +110,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 if isinstance(manifest_summary, dict)
                 else {}
             )
-        )
-        backend_mapping_data = getattr(
-            perturbation_data, "backend_mapping", {}
-        )
-        backend_mapping_camb = (
-            backend_mapping_data.get("camb", {})
-            if hasattr(backend_mapping_data, "get")
-            else {}
         )
         param_map = contract.get("param_map", {}) or {}
         grids = contract.get("grids", {}) or {}
@@ -165,7 +148,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         models_meta.append(
             {
                 "model": getattr(plugin, "MODEL_NAME", "unknown"),
-                "backend": contract.get("backend", "unknown"),
+                "execution_engine": "native_declared_graph",
                 "param_map_keys": sorted(str(key) for key in param_map),
                 "call_methods": [
                     str(call.get("method"))
@@ -176,11 +159,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                 "value_names": [str(key) for key in values],
                 "perturbation_contract_version": getattr(
                     perturbation_data, "contract_version", None
-                ),
-                "perturbation_standard": getattr(
-                    perturbation_data,
-                    "standard",
-                    perturbations.get("standard"),
                 ),
                 "perturbation_gauge": getattr(
                     perturbation_data, "gauge", perturbations.get("gauge")
@@ -370,41 +348,6 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         dependency_summary, "evaluation_order", ()
                     )
                 ],
-                "perturbation_backend": getattr(
-                    perturbation_data, "backend", contract.get("backend")
-                ),
-                "perturbation_backend_implemented": getattr(
-                    backend_mapping_camb, "implemented", None
-                ),
-                "perturbation_backend_uses_standard_perturbations": getattr(
-                    backend_mapping_camb,
-                    "uses_standard_perturbations",
-                    None,
-                ),
-                "perturbation_backend_native_solver_required": getattr(
-                    backend_mapping_camb, "native_solver_required", None
-                ),
-                "perturbation_backend_mapping_summary": {
-                    str(backend_name): (
-                        {
-                            "keys": sorted(
-                                str(key) for key in backend_mapping.keys()
-                            ),
-                            "implemented": backend_mapping.get("implemented"),
-                            "native_solver_required": backend_mapping.get(
-                                "native_solver_required"
-                            ),
-                            "uses_standard_perturbations": backend_mapping.get(
-                                "uses_standard_perturbations"
-                            ),
-                        }
-                        if isinstance(backend_mapping, dict)
-                        else backend_mapping
-                    )
-                    for backend_name, backend_mapping in (
-                        perturbations.get("backend_mapping", {}) or {}
-                    ).items()
-                },
                 "custom_cmb_execution_route": {
                     str(key): value for key, value in execution_route.items()
                 },
@@ -507,22 +450,11 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         )
                     ),
                 },
-                "custom_cmb_reference_validation_status": (
-                    configuration.get("reference_validation_status")
-                    if isinstance(configuration, dict)
-                    else None
-                ),
-                "custom_cmb_validation_status": (
-                    configuration.get("reference_validation_status")
-                    if isinstance(configuration, dict)
-                    else None
-                ),
             }
         )
 
     return {
-        "version": version,
-        "configuration": configuration,
+        "execution_engine": "native_declared_graph",
         "models": models_meta,
     }
 
@@ -680,9 +612,9 @@ def build_manifest(
             "test_model": comparison.test_model.name,
         }
 
-    camb_details = _camb_info(model_records)
-    if camb_details is not None:
-        manifest["camb"] = camb_details
+    cmb_details = _cmb_info(model_records)
+    if cmb_details is not None:
+        manifest["cmb"] = cmb_details
 
     return manifest
 

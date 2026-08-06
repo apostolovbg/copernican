@@ -1,9 +1,8 @@
 """Compile declared CMB graph contracts into immutable runtime data.
 
-`standard: false` contracts describe one declared-math graph rather than
-selecting a hard-coded solver family. The compiler validates symbols,
-dependencies, observables, and runtime requirements before the numerical CMB
-engine evolves the system.
+Each contract describes one declared mathematical graph. The compiler
+validates symbols, dependencies, observables, and runtime requirements before
+the numerical CMB engine evolves the system.
 """
 
 from __future__ import annotations
@@ -120,7 +119,6 @@ _RUNTIME_REFERENCE_NAMES = {
 
 _SUPPORTED_PERTURBATION_KEYS = {
     "accuracy_controls",
-    "backend_mapping",
     "boundary_conditions",
     "conservation_rules",
     "collision_operators",
@@ -142,7 +140,6 @@ _SUPPORTED_PERTURBATION_KEYS = {
     "sectors",
     "species",
     "sources",
-    "standard",
     "validity",
     "variables",
 }
@@ -224,7 +221,6 @@ _SUPPORTED_CONDITION_KEYS = {
 }
 _SUPPORTED_CONDITION_TARGET_KEYS = {"order", "variable", "wrt"}
 _SUPPORTED_VALIDITY_KEYS = {"notes", "regimes"}
-_SUPPORTED_BACKEND_KEYS = {"camb"}
 _SUPPORTED_SECTOR_KEYS = {
     "description",
     "hierarchy_families",
@@ -1076,8 +1072,6 @@ def _materialize_native_scalar_hierarchy_contract(
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated scalar hierarchy contract when metadata is enough."""
 
-    if contract.get("standard") is not False:
-        return contract, False
     if _has_explicit_native_runtime_graph(contract):
         return contract, False
 
@@ -3117,8 +3111,6 @@ def _materialize_native_vector_hierarchy_contract(
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated vector hierarchy contract when metadata is enough."""
 
-    if contract.get("standard") is not False:
-        return contract, False
     if _has_explicit_native_runtime_graph(contract):
         return contract, False
 
@@ -4007,8 +3999,6 @@ def _materialize_native_tensor_hierarchy_contract(
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated tensor hierarchy contract when metadata is enough."""
 
-    if contract.get("standard") is not False:
-        return contract, False
     if _has_explicit_native_runtime_graph(contract):
         return contract, False
 
@@ -4658,11 +4648,6 @@ def _materialize_native_tensor_hierarchy_contract(
     return materialized, True
 
 
-_STANDARD_BACKEND_KEYS = {"uses_standard_perturbations"}
-_NONSTANDARD_BACKEND_KEYS = {
-    "implemented",
-    "native_solver_required",
-}
 _SUPPORTED_GAUGES = {
     "conformal_newtonian",
     "gauge_invariant",
@@ -4858,16 +4843,6 @@ class PerturbationValidityData:
 
     regimes: tuple[str, ...] = ()
     notes: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class PerturbationBackendMappingData:
-    """Immutable backend execution metadata."""
-
-    backend: str
-    uses_standard_perturbations: bool | None = None
-    native_solver_required: bool | None = None
-    implemented: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -5072,9 +5047,7 @@ class PerturbationContractData:
     """Immutable internal representation of a declared CMB graph."""
 
     model_name: str
-    backend: str
     contract_version: int
-    standard: bool
     gauge: str
     variables: FrozenMapping
     derived: FrozenMapping
@@ -5087,7 +5060,6 @@ class PerturbationContractData:
     boundary_conditions: FrozenMapping
     numerics: FrozenMapping
     validity: PerturbationValidityData
-    backend_mapping: FrozenMapping
     dependency_graph_summary: PerturbationDependencyGraphSummaryData
     manifest_summary: FrozenMapping
     sectors: FrozenMapping = field(default_factory=FrozenMapping)
@@ -6649,9 +6621,7 @@ def _build_vector_hierarchy_summary(
 def _build_manifest_summary(
     *,
     model_name: str,
-    backend: str,
     contract_version: int,
-    standard: bool,
     gauge: str,
     variables: tuple[str, ...],
     derived: tuple[str, ...],
@@ -6674,7 +6644,6 @@ def _build_manifest_summary(
     validity: PerturbationValidityData,
     numerics: Mapping[str, Any],
     accuracy_controls: Mapping[str, Any],
-    backend_mapping: PerturbationBackendMappingData,
     dependency_summary: PerturbationDependencyGraphSummaryData,
     generated_scalar_hierarchy: bool,
     generated_vector_hierarchy: bool,
@@ -6686,16 +6655,9 @@ def _build_manifest_summary(
 ) -> dict[str, Any]:
     """Return a manifest-friendly summary of the compiled graph."""
 
-    execution_route = _build_execution_route_summary(
-        backend=backend,
-        standard=standard,
-        backend_mapping=backend_mapping,
-    )
     return {
         "model_name": model_name,
-        "backend": backend,
         "contract_version": contract_version,
-        "standard": standard,
         "gauge": gauge,
         "gauge_equivalence": _build_gauge_equivalence_summary(gauge),
         "variable_names": variables,
@@ -6722,13 +6684,6 @@ def _build_manifest_summary(
         "accuracy_control_keys": tuple(
             sorted(str(key) for key in accuracy_controls)
         ),
-        "backend_implemented": backend_mapping.implemented,
-        "backend_native_solver_required": (
-            backend_mapping.native_solver_required
-        ),
-        "backend_uses_standard_perturbations": (
-            backend_mapping.uses_standard_perturbations
-        ),
         "independent_variables_used": (
             dependency_summary.independent_variables_used
         ),
@@ -6745,7 +6700,7 @@ def _build_manifest_summary(
             str(name): str(anchor_name)
             for name, anchor_name in boundary_condition_anchors.items()
         },
-        "execution_route": execution_route,
+        "execution_route": _build_execution_route_summary(),
         "compilation_ownership": {
             "compiler": (
                 "copernican.lib.model_coder.compile_native_cmb_runtime"
@@ -6775,52 +6730,18 @@ def _build_manifest_summary(
     }
 
 
-def _build_execution_route_summary(
-    *,
-    backend: str,
-    standard: bool,
-    backend_mapping: PerturbationBackendMappingData,
-) -> dict[str, Any]:
-    """Return manifest-friendly execution-route metadata."""
+def _build_execution_route_summary() -> dict[str, Any]:
+    """Return the single native execution-route metadata surface."""
 
-    if standard:
-        route_id = "backend_standard_perturbations"
-        prediction_engine = backend
-        transfer_function_path = f"{backend}.standard"
-        solver = f"{backend}_standard"
-    else:
-        route_id = "native_declared_graph"
-        prediction_engine = "copernican_native_declared_graph"
-        transfer_function_path = (
-            "copernican.lib.likelihoods.cmb.copernican_cmb_solver"
-        )
-        solver = "declared_math_graph"
-    uses_camb_prediction = bool(
-        standard and str(backend).strip().lower() == "camb"
-    )
     return {
-        "route_id": route_id,
-        "prediction_engine": prediction_engine,
-        "transfer_function_path": transfer_function_path,
-        "solver": solver,
-        "route_ready_for_execution": bool(
-            standard
-            or (
-                backend_mapping.native_solver_required is True
-                and backend_mapping.implemented is True
-            )
+        "route_id": "native_declared_graph",
+        "prediction_engine": "copernican_native_declared_graph",
+        "transfer_function_path": (
+            "copernican.lib.likelihoods.cmb.copernican_cmb_solver"
         ),
-        "uses_backend_standard_perturbations": bool(standard),
-        "uses_native_declared_graph": bool(not standard),
-        "uses_camb_prediction": uses_camb_prediction,
-        "uses_camb_standard_perturbations": uses_camb_prediction,
-        "backend_mapping_implemented": backend_mapping.implemented,
-        "backend_mapping_native_solver_required": (
-            backend_mapping.native_solver_required
-        ),
-        "backend_mapping_uses_standard_perturbations": (
-            backend_mapping.uses_standard_perturbations
-        ),
+        "solver": "declared_math_graph",
+        "route_ready_for_execution": True,
+        "uses_native_declared_graph": True,
     }
 
 
@@ -6828,7 +6749,6 @@ def compile_perturbation_contract(
     contract: Mapping[str, Any],
     *,
     model_name: str,
-    backend: str,
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
     background_reference_names: Sequence[str],
@@ -6850,7 +6770,6 @@ def compile_perturbation_contract(
     cache_key = (
         _freeze_for_cache(contract),
         str(model_name),
-        str(backend),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
         tuple(str(name) for name in background_reference_names),
@@ -6861,10 +6780,8 @@ def compile_perturbation_contract(
 
     contract_keys = {str(key) for key in contract.keys()}
     required_sections = {
-        "backend_mapping",
         "contract_version",
         "gauge",
-        "standard",
         "validity",
     }
     missing_keys = required_sections - contract_keys
@@ -6885,17 +6802,9 @@ def compile_perturbation_contract(
         contract_version, int
     ):
         raise ValueError("cmb.perturbations.contract_version must be an int")
-    standard = contract.get("standard")
-    if not isinstance(standard, bool):
-        raise ValueError("cmb.perturbations.standard must be boolean")
-    if standard:
-        if contract_version not in {1, 2}:
-            raise ValueError(
-                "Standard perturbations must declare contract_version 1 or 2"
-            )
-    elif contract_version != 2:
+    if contract_version != 2:
         raise ValueError(
-            "Non-standard perturbations must declare contract_version: 2"
+            "Native perturbations must declare contract_version: 2"
         )
 
     gauge = _validate_string(
@@ -6932,7 +6841,6 @@ def compile_perturbation_contract(
         "projection_extensions": contract.get("projection_extensions", {}),
         "projection_typing": contract.get("projection_typing", {}),
         "validity": contract.get("validity", {}),
-        "backend_mapping": contract.get("backend_mapping"),
         "numerics": contract.get("numerics", {}),
     }
     for section_name, section_value in sections.items():
@@ -6956,52 +6864,6 @@ def compile_perturbation_contract(
         parameter_names,
         latex_names,
     )
-
-    backend_keys = {str(key) for key in sections["backend_mapping"].keys()}
-    invalid_backend_keys = backend_keys - _SUPPORTED_BACKEND_KEYS
-    if invalid_backend_keys:
-        invalid_str = ", ".join(sorted(invalid_backend_keys))
-        raise ValueError(f"Unknown perturbation backend(s): {invalid_str}")
-    backend_contract = sections["backend_mapping"].get(backend)
-    if not isinstance(backend_contract, Mapping):
-        raise ValueError(
-            f"cmb.perturbations.backend_mapping must include {backend}"
-        )
-    backend_contract_keys = {str(key) for key in backend_contract.keys()}
-    if standard:
-        invalid_standard_keys = backend_contract_keys - _STANDARD_BACKEND_KEYS
-        if invalid_standard_keys:
-            invalid_str = ", ".join(sorted(invalid_standard_keys))
-            raise ValueError(
-                "Standard perturbation mappings may only declare "
-                f"uses_standard_perturbations: {invalid_str}"
-            )
-        if backend_contract.get("uses_standard_perturbations") is not True:
-            raise ValueError(
-                "cmb.perturbations.backend_mapping.camb must declare "
-                "uses_standard_perturbations: true"
-            )
-    else:
-        invalid_nonstandard_keys = (
-            backend_contract_keys - _NONSTANDARD_BACKEND_KEYS
-        )
-        if invalid_nonstandard_keys:
-            invalid_str = ", ".join(sorted(invalid_nonstandard_keys))
-            raise ValueError(
-                "Non-standard perturbation mappings may only declare "
-                f"native_solver_required, implemented: {invalid_str}"
-            )
-        if backend_contract.get("native_solver_required") is not True:
-            raise ValueError(
-                "cmb.perturbations.backend_mapping.camb must declare "
-                "native_solver_required: true"
-            )
-        implemented = backend_contract.get("implemented")
-        if not isinstance(implemented, bool):
-            raise ValueError(
-                "cmb.perturbations.backend_mapping.camb.implemented must be "
-                "boolean"
-            )
 
     variable_entries: dict[str, PerturbationVariableData] = {}
     for variable_name, variable_def in sections["variables"].items():
@@ -8706,54 +8568,19 @@ def compile_perturbation_contract(
                 f"operators: {unknown_str}"
             )
 
-    if standard:
-        for section_name in (
-            "variables",
-            "derived",
-            "equations",
-            "constraints",
-            "closures",
-            "conservation_rules",
-            "collision_operators",
-            "interactions",
-            "sources",
-            "observables",
-            "initial_conditions",
-            "initial_condition_families",
-            "boundary_conditions",
-            "sectors",
-            "species",
-            "hierarchy_families",
-            "projection_extensions",
-            "projection_typing",
-            "accuracy_controls",
-        ):
-            if sections[section_name]:
-                raise ValueError(
-                    f"Standard perturbations require {section_name}: {{}}"
-                )
-    else:
-        if not variable_entries:
-            raise ValueError(
-                "Non-standard perturbations must declare variables"
-            )
-        if not equation_entries:
-            raise ValueError(
-                "Non-standard perturbations must declare equations"
-            )
-        if not initial_condition_entries and not boundary_condition_entries:
-            raise ValueError(
-                "Non-standard perturbations must declare initial_conditions "
-                "or boundary_conditions"
-            )
-        if not observable_entries:
-            raise ValueError(
-                "Non-standard perturbations must declare observables"
-            )
-        if not sections["validity"]:
-            raise ValueError(
-                "Non-standard perturbations must declare validity"
-            )
+    if not variable_entries:
+        raise ValueError("Native perturbations must declare variables")
+    if not equation_entries:
+        raise ValueError("Native perturbations must declare equations")
+    if not initial_condition_entries and not boundary_condition_entries:
+        raise ValueError(
+            "Native perturbations must declare initial_conditions or "
+            "boundary_conditions"
+        )
+    if not observable_entries:
+        raise ValueError("Native perturbations must declare observables")
+    if not sections["validity"]:
+        raise ValueError("Native perturbations must declare validity")
 
     validity_notes = _validate_optional_string(
         sections["validity"].get("notes"),
@@ -8763,10 +8590,8 @@ def compile_perturbation_contract(
     regimes = ()
     if validity_regimes is not None:
         regimes = _validate_regimes(validity_regimes)
-    elif not standard:
-        raise ValueError(
-            "Non-standard perturbations must declare validity.regimes"
-        )
+    else:
+        raise ValueError("Native perturbations must declare validity.regimes")
     validity_data = PerturbationValidityData(
         regimes=regimes,
         notes=validity_notes,
@@ -8898,7 +8723,7 @@ def compile_perturbation_contract(
             for variable, wrt, order in missing_initial_targets
         )
         raise ValueError(
-            "Non-standard perturbations are missing required initial "
+            "Native perturbations are missing required initial "
             f"conditions: {readable}"
         )
 
@@ -9076,14 +8901,6 @@ def compile_perturbation_contract(
         evaluation_order=evaluation_order,
     )
 
-    backend_data = PerturbationBackendMappingData(
-        backend=backend,
-        uses_standard_perturbations=backend_contract.get(
-            "uses_standard_perturbations"
-        ),
-        native_solver_required=backend_contract.get("native_solver_required"),
-        implemented=backend_contract.get("implemented"),
-    )
     transfer_component_contracts = {
         name: {
             "declared_projection": str(
@@ -9128,9 +8945,7 @@ def compile_perturbation_contract(
     manifest_summary = FrozenMapping(
         _build_manifest_summary(
             model_name=model_name,
-            backend=backend,
             contract_version=contract_version,
-            standard=standard,
             gauge=gauge,
             variables=dependency_summary.variable_names,
             derived=dependency_summary.derived_names,
@@ -9155,7 +8970,6 @@ def compile_perturbation_contract(
             validity=validity_data,
             numerics=numerics_mapping,
             accuracy_controls=accuracy_controls_mapping,
-            backend_mapping=backend_data,
             dependency_summary=dependency_summary,
             generated_scalar_hierarchy=materialized_scalar_hierarchy,
             generated_vector_hierarchy=materialized_vector_hierarchy,
@@ -9175,9 +8989,7 @@ def compile_perturbation_contract(
 
     compiled = PerturbationContractData(
         model_name=model_name,
-        backend=backend,
         contract_version=contract_version,
-        standard=standard,
         gauge=gauge,
         variables=FrozenMapping(variable_entries),
         derived=FrozenMapping(derived_entries),
@@ -9190,7 +9002,6 @@ def compile_perturbation_contract(
         boundary_conditions=FrozenMapping(boundary_condition_entries),
         numerics=numerics_mapping,
         validity=validity_data,
-        backend_mapping=FrozenMapping({backend: backend_data}),
         dependency_graph_summary=dependency_summary,
         manifest_summary=manifest_summary,
         sectors=FrozenMapping(sector_entries),
@@ -9211,7 +9022,6 @@ def compile_perturbation_contract(
 
 
 __all__ = [
-    "PerturbationBackendMappingData",
     "PerturbationCollisionLinearFormData",
     "PerturbationCollisionOperatorData",
     "PerturbationCollisionTargetSelectorData",

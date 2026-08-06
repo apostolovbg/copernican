@@ -171,7 +171,7 @@ def parse_planck2018lite(data_dir, **kwargs):
         spectrum_df.attrs["is_cmb"] = True
         # Metadata including dataset name and citation is attached by
         # ``load_cmb_data`` after this function returns.
-        # Map the order of CAMB parameters used by the engine
+        # Preserve the physical parameter order used by CMB likelihoods.
         spectrum_df.attrs["param_names"] = [
             "H0",
             "ombh2",

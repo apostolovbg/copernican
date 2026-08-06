@@ -11,6 +11,7 @@ import numpy
 from copernican.lib import chain_io, console_output, csv_writer, diagnostics
 from copernican.lib import logger as log_mod
 from copernican.lib import plotter, result_writer, utils
+from copernican.lib.likelihoods import compute_cmb_spectrum_cached
 from copernican.lib.model_selection import (
     ComparisonRequest,
     build_comparison_request,
@@ -499,47 +500,15 @@ def execute_run_pipeline(
             )
             summary["chi2_cmb"] = float("inf")
             return summary
-        get_camb_contract = getattr(model_plugin, "get_camb_contract", None)
-        try:
-            if callable(get_camb_contract):
-                camb_params = get_camb_contract(cosmo_params)
-            else:
-                raise AttributeError(
-                    "Model plugin does not expose a CAMB contract"
-                )
-            get_perturbation_contract = getattr(
-                model_plugin,
-                "get_cmb_perturbation_contract",
-                None,
-            )
-            if callable(get_perturbation_contract):
-                perturbation_contract = get_perturbation_contract(cosmo_params)
-                if perturbation_contract:
-                    camb_params = dict(camb_params)
-                    camb_params["perturbations"] = perturbation_contract
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.warning(
-                "%s failed to build CAMB parameters: %s",
-                model_plugin.MODEL_NAME,
-                exc,
-            )
-            summary["chi2_cmb"] = float("inf")
-            return summary
         components = ["TT"]
         if "Dl_te_obs" in cmb_data_df.columns:
             components.append("TE")
         if "Dl_ee_obs" in cmb_data_df.columns:
             components.append("EE")
         try:
-            theory = engine_module.compute_cmb_spectrum(
-                camb_params,
+            theory = compute_cmb_spectrum_cached(
+                model_plugin,
+                cosmo_params,
                 cmb_data_df["ell"].values,
                 spectra=tuple(components),
             )

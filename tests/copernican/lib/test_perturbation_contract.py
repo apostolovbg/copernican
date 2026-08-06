@@ -8,7 +8,6 @@ from unittest import mock
 
 import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
-    PerturbationBackendMappingData,
     PerturbationClosureData,
     PerturbationCollisionLinearFormData,
     PerturbationCollisionOperatorData,
@@ -44,7 +43,6 @@ def _base_nonstandard_contract() -> dict[str, object]:
 
     return {
         "contract_version": 2,
-        "standard": False,
         "gauge": "conformal_newtonian",
         "variables": {
             "delta_x": {
@@ -239,12 +237,6 @@ def _base_nonstandard_contract() -> dict[str, object]:
         "validity": {
             "regimes": ["linear", "synthetic"],
             "notes": "Synthetic declared graph for compiler tests.",
-        },
-        "backend_mapping": {
-            "camb": {
-                "native_solver_required": True,
-                "implemented": True,
-            }
         },
     }
 
@@ -552,7 +544,6 @@ class PerturbationContractTestCase(unittest.TestCase):
         return compile_perturbation_contract(
             contract,
             model_name="TemplateModel",
-            backend="camb",
             parameter_names=("H0",),
             latex_names=("H_0",),
             background_reference_names=("H0",),
@@ -571,7 +562,6 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         compiled = self._compile(_scalar_metadata_only_contract())
 
-        self.assertFalse(compiled.standard)
         self.assertIn("theta_gamma0", compiled.variables)
         self.assertIn("theta_gamma6", compiled.variables)
         self.assertIn("e_gamma6", compiled.variables)
@@ -820,66 +810,28 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         self.assertEqual(result, 2.5)
 
-    def test_standard_contract_compiles(self) -> None:
-        """Standard contracts should compile into immutable data."""
+    def test_removed_route_keys_are_rejected(self) -> None:
+        """The graph compiler must reject removed solver selectors."""
 
-        standard_contract_data = self._compile(
-            {
-                "contract_version": 2,
-                "standard": True,
-                "gauge": "unspecified",
-                "variables": {},
-                "derived": {},
-                "equations": {},
-                "constraints": {},
-                "closures": {},
-                "sources": {},
-                "observables": {},
-                "initial_conditions": {},
-                "boundary_conditions": {},
-                "numerics": {},
-                "validity": {
-                    "regimes": ["standard_camb"],
-                    "notes": "Uses standard backend perturbations.",
-                },
-                "backend_mapping": {
-                    "camb": {"uses_standard_perturbations": True}
-                },
-            }
-        )
+        for key, value in (
+            ("standard", False),
+            ("backend", "external"),
+            ("backend_mapping", {"external": {}}),
+        ):
+            with self.subTest(key=key):
+                contract = _base_nonstandard_contract()
+                contract[key] = value
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "Unknown perturbation contract key",
+                ):
+                    self._compile(contract)
 
-        self.assertIsInstance(standard_contract_data, PerturbationContractData)
-        self.assertTrue(standard_contract_data.standard)
-        self.assertEqual(standard_contract_data.gauge, "unspecified")
-        self.assertTrue(
-            standard_contract_data.backend_mapping[
-                "camb"
-            ].uses_standard_perturbations
-        )
-        self.assertEqual(
-            standard_contract_data.manifest_summary["execution_route"],
-            {
-                "route_id": "backend_standard_perturbations",
-                "prediction_engine": "camb",
-                "transfer_function_path": "camb.standard",
-                "solver": "camb_standard",
-                "route_ready_for_execution": True,
-                "uses_backend_standard_perturbations": True,
-                "uses_native_declared_graph": False,
-                "uses_camb_prediction": True,
-                "uses_camb_standard_perturbations": True,
-                "backend_mapping_implemented": None,
-                "backend_mapping_native_solver_required": None,
-                "backend_mapping_uses_standard_perturbations": True,
-            },
-        )
-
-    def test_nonstandard_contract_compiles(self) -> None:
-        """Non-standard contracts should preserve graph metadata."""
+    def test_native_contract_compiles(self) -> None:
+        """Native contracts should preserve graph metadata."""
 
         contract_data = self._compile(_base_nonstandard_contract())
 
-        self.assertFalse(contract_data.standard)
         self.assertEqual(contract_data.contract_version, 2)
         self.assertEqual(
             contract_data.equations["evolve_delta_x"].lhs.variable,
@@ -969,10 +921,6 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(
             contract_data.validity,
             PerturbationValidityData,
-        )
-        self.assertIsInstance(
-            contract_data.backend_mapping["camb"],
-            PerturbationBackendMappingData,
         )
         self.assertIsInstance(
             contract_data.sectors["scalar"],
@@ -1066,13 +1014,7 @@ class PerturbationContractTestCase(unittest.TestCase):
                 ),
                 "solver": "declared_math_graph",
                 "route_ready_for_execution": True,
-                "uses_backend_standard_perturbations": False,
                 "uses_native_declared_graph": True,
-                "uses_camb_prediction": False,
-                "uses_camb_standard_perturbations": False,
-                "backend_mapping_implemented": True,
-                "backend_mapping_native_solver_required": True,
-                "backend_mapping_uses_standard_perturbations": None,
             },
         )
 
@@ -2377,15 +2319,15 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
-    def test_hidden_backend_selectors_are_rejected(self) -> None:
-        """Non-standard backend mappings should stay selector-free."""
+    def test_backend_mapping_is_rejected(self) -> None:
+        """Declared graphs should not accept a backend mapping."""
 
         contract = _base_nonstandard_contract()
-        contract["backend_mapping"]["camb"]["theory_selector"] = "lcdm_like"
+        contract["backend_mapping"] = {"external": {}}
 
         with self.assertRaisesRegex(
             ValueError,
-            "Non-standard perturbation mappings may only declare",
+            "Unknown perturbation contract key",
         ):
             self._compile(contract)
 
@@ -2889,11 +2831,6 @@ class PerturbationContractTestCase(unittest.TestCase):
             regimes=("linear", "synthetic"),
             notes="Synthetic graph.",
         )
-        backend_mapping_data = PerturbationBackendMappingData(
-            backend="camb",
-            native_solver_required=True,
-            implemented=True,
-        )
         sector_data = PerturbationSectorData(name="scalar")
         species_data = PerturbationSpeciesData(
             name="photon",
@@ -3028,11 +2965,6 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIsInstance(condition_data, PerturbationConditionData)
         self.assertEqual(validity_data.regimes, ("linear", "synthetic"))
         self.assertIsInstance(validity_data, PerturbationValidityData)
-        self.assertTrue(backend_mapping_data.implemented)
-        self.assertIsInstance(
-            backend_mapping_data,
-            PerturbationBackendMappingData,
-        )
         self.assertEqual(
             dependency_summary.evaluation_order,
             ("equation:evolve_delta_x",),

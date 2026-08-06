@@ -962,18 +962,23 @@ def fit_cosmology_parameters(
         "ess_bulk": {},
         "ess_tail": {},
     }
-    if arviz_module is not None:
+    if arviz_module is not None and active_indices.size:
         try:
             # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
             # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``,
-            # so swap the leading axes before building the ``InferenceData``
-            # container.
+            # so swap the leading axes. Fixed coordinates are excluded from
+            # rank diagnostics because their zero variance makes R-hat
+            # undefined.
+            active_names = [names[int(index)] for index in active_indices]
+            active_chain = chain[:, :, active_indices]
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 inference_data = arviz_module.from_dict(
-                    posterior={"parameters": numpy.swapaxes(chain, 0, 1)},
-                    coords={"parameter": list(names)},
+                    posterior={
+                        "parameters": numpy.swapaxes(active_chain, 0, 1)
+                    },
+                    coords={"parameter": active_names},
                     dims={"parameters": ["parameter"]},
                 )
                 rhat_dataset = arviz_module.rhat(inference_data, method="rank")
@@ -997,6 +1002,18 @@ def fit_cosmology_parameters(
                 "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
                 "ess_tail": _dataset_to_dict(ess_tail_dataset),
             }
+            total_draws = float(n_effective_walkers * n_production)
+            for fixed_index in fixed_indices:
+                fixed_name = names[int(fixed_index)]
+                diagnostics["rhat"][fixed_name] = 1.0
+                diagnostics["ess_bulk"][fixed_name] = total_draws
+                diagnostics["ess_tail"][fixed_name] = total_draws
+            if any(
+                not math.isfinite(value)
+                for values in diagnostics.values()
+                for value in values.values()
+            ):
+                raise ValueError("ArviZ returned non-finite diagnostics")
             if diagnostics["rhat"]:
                 rhat_values = numpy.fromiter(
                     diagnostics["rhat"].values(),
@@ -1041,10 +1058,11 @@ def fit_cosmology_parameters(
                 chain, names, logger=logger
             )
     else:
-        logger.warning(
-            "ArviZ is unavailable; computing conservative diagnostics without "
-            "it."
-        )
+        if arviz_module is None:
+            logger.warning(
+                "ArviZ is unavailable; computing conservative diagnostics "
+                "without it."
+            )
         diagnostics = _compute_basic_diagnostics(chain, names, logger=logger)
 
     logger.info(

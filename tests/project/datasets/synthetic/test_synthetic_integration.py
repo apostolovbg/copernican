@@ -27,7 +27,7 @@ _EXPECTED_HASHES = {
         "75eeaa66c50c836a6aa5b86294b6fee2bd5122efd7e019902b78d1ef1bfb6083"
     ),
     "model.yml": (
-        "4244f273d80e6456352c62ce877a3a5bfd2d4fb9fb3c491695aa8d1323aa656c"
+        "858e9bd5cad8a2737bc74bbd8526a7324705dccea6c3990bddec10413903c81f"
     ),
     "metadata_synthetic.yml": (
         "61a268cc1df54bc1f901c13d4dc083d8c862977c2cd2fc199403a6d27daa2c47"

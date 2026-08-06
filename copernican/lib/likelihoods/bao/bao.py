@@ -1,8 +1,6 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-Native model plugins provide their own background distances and sound
-horizon. CAMB background evaluation remains available only for the older
-standard reference route and defensive fixtures.
+Model plugins provide their own background distances and sound horizon.
 """
 
 from __future__ import annotations
@@ -14,7 +12,6 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy
 
 from ...model_coder import SoundHorizonComputationError
-from ..cmb import compute_camb_background_observables
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
 
 
@@ -45,10 +42,6 @@ class BAOLike(LikelihoodProtocol):
     _mask_dv: numpy.ndarray = field(init=False, repr=False)
     _prediction_buffer: numpy.ndarray = field(init=False, repr=False)
     _residual_buffer: numpy.ndarray = field(init=False, repr=False)
-    _get_camb_contract: (
-        Callable[[Sequence[float]], Mapping[str, Any]] | None
-    ) = field(init=False, repr=False)
-    _use_native_background: bool = field(init=False, repr=False)
     _fallback_dm: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_hz: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_dv: Callable[..., Any] | None = field(init=False, repr=False)
@@ -87,25 +80,6 @@ class BAOLike(LikelihoodProtocol):
         self._prediction_buffer.fill(numpy.nan)
         self._residual_buffer = numpy.empty_like(self._observed, dtype=float)
 
-        self._get_camb_contract = getattr(
-            self.model_plugin, "get_camb_contract", None
-        )
-        self._use_native_background = (
-            callable(
-                getattr(self.model_plugin, "get_cmb_native_runtime", None)
-            )
-            and getattr(
-                self.model_plugin,
-                "CMB_PERTURBATION_STANDARD",
-                True,
-            )
-            is False
-        )
-        if self._get_camb_contract is None:
-            self._setup_error = (
-                "(bao_like): Model plugin does not expose a CAMB contract."
-            )
-
         if self._z_values.size == 0:
             self._setup_error = "(bao_like): BAO redshift array is empty."
 
@@ -136,50 +110,10 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        background = None
-        camb_params: Mapping[str, Any] | None = None
-        get_camb_contract = self._get_camb_contract
-        if get_camb_contract is not None and not self._use_native_background:
-            try:
-                camb_params = get_camb_contract(params)
-            except (
-                AttributeError,
-                ImportError,
-                OSError,
-                RuntimeError,
-                TypeError,
-                ValueError,
-            ) as exc:
-                logger.warning(
-                    "(bao_like): Failed to obtain CAMB contract; %s",
-                    exc,
-                )
-
-        if camb_params is not None:
-            try:
-                background = compute_camb_background_observables(
-                    camb_params,
-                    self._z_values,
-                )
-            except (
-                AttributeError,
-                ImportError,
-                OSError,
-                RuntimeError,
-                TypeError,
-                ValueError,
-            ) as exc:
-                logger.warning(
-                    "(bao_like): CAMB background failed; falling back "
-                    "to model distances: %s",
-                    exc,
-                )
-
+        background = self._compute_plugin_background(params)
         if background is None:
-            background = self._compute_plugin_background(params)
-            if background is None:
-                self._state = LikelihoodState()
-                return float("-inf")
+            self._state = LikelihoodState()
+            return float("-inf")
 
         rs_mpc = self._rs_override
         if rs_mpc is None:

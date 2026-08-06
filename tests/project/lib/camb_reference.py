@@ -1,8 +1,7 @@
-"""Standard CAMB-backed CMB solver helpers.
+"""Independent CAMB reference helpers for scientific tests.
 
-These helpers keep the standard backend path isolated from the native
-declared-graph executor. The native public entrypoint dispatches here only for
-contracts that intentionally remain on the CAMB route.
+Nothing in the production package imports this module. Its calculations
+provide an external comparison surface for native solver acceptance tests.
 """
 
 from __future__ import annotations
@@ -55,25 +54,6 @@ def _coerce_numeric_array(value: Any, *, name: str) -> numpy.ndarray:
     return array_value
 
 
-def _normalise_camb_contract(
-    contract_or_params: Mapping[str, Any],
-) -> Mapping[str, Any]:
-    """Return a structured CAMB contract from legacy or new inputs."""
-
-    keys = {str(key) for key in contract_or_params.keys()}
-    if {"backend", "param_map", "grids", "values", "calls"}.issubset(keys):
-        return contract_or_params
-    if keys.intersection({"backend", "param_map", "grids", "values", "calls"}):
-        return contract_or_params
-    return {
-        "backend": "camb",
-        "param_map": dict(contract_or_params),
-        "grids": {},
-        "values": {},
-        "calls": [],
-    }
-
-
 def _is_structured_camb_background_contract(
     contract_or_params: Mapping[str, Any],
 ) -> bool:
@@ -87,9 +67,14 @@ def _is_structured_camb_background_contract(
 def _make_camb_params(
     contract_or_params: Mapping[str, Any], *, lmax: int | None = None
 ) -> camb.CAMBparams:
-    """Return CAMB parameters from a structured contract or legacy mapping."""
+    """Return CAMB parameters from a structured reference contract."""
 
-    contract = _normalise_camb_contract(contract_or_params)
+    contract = contract_or_params
+    if not _is_structured_camb_background_contract(contract):
+        raise ValueError(
+            "Structured CAMB reference contracts must include backend, "
+            "param_map, grids, values and calls"
+        )
     if contract.get("backend") != "camb":
         raise ValueError("Only the CAMB backend is supported")
 
@@ -456,38 +441,6 @@ def compute_cmb_spectrum_from_camb_contract(
         raise
 
 
-def compute_cmb_spectrum_from_legacy_params_for_tests(
-    param_dict: Mapping[str, Any],
-    ells: Iterable[int],
-    *,
-    spectra: Sequence[str] = ("TT",),
-) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
-    """Test-only legacy helper that accepts flat CAMB parameter mappings."""
-
-    try:
-        ell_arr = numpy.asarray(list(ells), dtype=int)
-        if ell_arr.size == 0:
-            raise ValueError("ells must not be empty")
-        legacy_contract = _normalise_camb_contract(param_dict)
-        return _compute_cmb_spectrum_direct(
-            legacy_contract,
-            ell_arr,
-            spectra=spectra,
-        )
-    except (
-        AttributeError,
-        ImportError,
-        OSError,
-        RuntimeError,
-        TypeError,
-        ValueError,
-    ) as exc:
-        logging.getLogger().error(
-            "(compute_cmb_spectrum_from_legacy_params_for_tests): %s", exc
-        )
-        raise
-
-
 def compute_camb_background_observables(
     contract_or_params: Mapping[str, Any], redshifts: Sequence[float]
 ) -> dict[str, numpy.ndarray]:
@@ -526,6 +479,5 @@ def describe_camb_configuration() -> dict[str, Any]:
 __all__ = [
     "compute_camb_background_observables",
     "compute_cmb_spectrum_from_camb_contract",
-    "compute_cmb_spectrum_from_legacy_params_for_tests",
     "describe_camb_configuration",
 ]

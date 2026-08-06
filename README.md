@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -43,12 +43,11 @@ documented in
 
 All bundled CMB model manifests, including
 [`model_lcdm.yml`](copernican/models/model_lcdm.yml), declare
-`standard: false` and execute through the native graph route without using an
-external Boltzmann backend when CMB output is available. The explicit
-[`model_lcdm_ccmbs.yml`](copernican/models/model_lcdm_ccmbs.yml) artifact
-documents the native LambdaCDM contract. Each model's species and source
-closures remain theory-specific; CAMB and CLASS are independent scientific
-reference tools used by tests, not production spectrum engines.
+one route-neutral perturbation graph and execute through the native solver
+when CMB output is available. `model_lcdm.yml` is the canonical native
+LambdaCDM declaration. Each model's species and source closures remain
+theory-specific; CAMB and CLASS are independent scientific reference tools
+used by tests, not production spectrum engines.
 
 Native projection requests use bounded radial-kernel caches and ell-batched
 work arrays, keeping memory use tied to the declared numerical envelope while
@@ -351,6 +350,13 @@ selection; and the Start Run action renames the workspace to
 `copernican-run_<timestamp>` before launching the worker. The Run Settings
 panel mirrors the CLI prompts for walkers, burn-in, production steps, and pool
 size so GUI runs and CLI runs use the same run metadata.
+
+Sampler convergence diagnostics are evaluated over sampled coordinates.
+Parameters locked by equal lower and upper bounds remain in posterior outputs
+with deterministic diagnostics: R-hat is `1.0`, and bulk and tail effective
+sample sizes equal the retained draw count. If ArviZ cannot produce finite
+diagnostics for a sampled coordinate, the engine uses its conservative
+internal finite estimator.
 
 The manifest stores one comparison request containing both model identities.
 Compatibility checks cover declared observables, units, multipole grids, and

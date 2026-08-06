@@ -1,3 +1,6 @@
+# Design Overview
+**Project Version:** 12.0.26
+
 This document expands on the high-level summary in the README by tracing
 how the Copernican organises its architecture. The command-line launcher
 (`python -m copernican`) steers each run, the `copernican/lib/` package
@@ -46,11 +49,10 @@ described throughout this document.
  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
  ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
  unavailable the code falls back to a conservative Gelman–Rubin summary while
- logging the downgrade. Standard CMB contracts keep using CAMB, while
- `standard: false` contracts use the declared-math graph engine in
- `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public
- likelihood surface, `camb_solver.py` owns the standard backend route, and
- `copernican_cmb_solver.py` owns the native internal orchestration layer.
+ logging the downgrade. CMB contracts use the declared-math graph engine in
+ `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public likelihood
+ surface and `copernican_cmb_solver.py` owns native internal orchestration.
+ Production code has no external solver route.
  `native_background.py`, `native_evolution.py`,
  `native_projection.py`, and `native_cache.py` split the native path
  into background tables, declared evolution, line-of-sight projection,
@@ -62,7 +64,8 @@ described throughout this document.
  :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
  can reconstruct Stage 2 state deterministically. Adapter validation allows
  only vetted attributes and functions and preserves constants, transforms,
- priors and structured CAMB contracts exactly as written in the model file.
+ priors and structured native CMB contracts exactly as written in the model
+ file.
 * `copernican/datasets/` curates vetted catalogues with parser code and
  metadata that record citations, licensing information and SHA256
  digests. Loaders validate the digests before the observations flow
@@ -88,9 +91,9 @@ described throughout this document.
  view metadata files or revalidate trusted parser hashes. Manifest files can
  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
  pre-fills model, dataset and engine selections for iterative experiments.
-## Custom CMB Engine
-`standard: false` CMB contracts use the declared-math graph engine in
-`copernican/lib/likelihoods/cmb/`.
+## Native CMB Engine
+CMB contracts use the declared-math graph engine in
+`copernican/lib/likelihoods/cmb/` without a solver selector.
 * One immutable graph carries variables, derived quantities,
  differential equations, algebraic constraints, closures, source terms,
  initial conditions, observable mappings, validity notes, and numerical
@@ -171,7 +174,8 @@ Stage 1 focuses on reproducibility and validation:
  :mod:`copernican.lib.model_spec_validator` and compiles the expressions into
  NumPy-ready callables through :mod:`copernican.lib.model_coder`. Engine
  adapters built with :func:`copernican.lib.engine_adapter.build_plugin`
- collect bounds, priors, transforms and optional structured CAMB contracts.
+ collect bounds, priors, transforms, and optional structured native CMB
+ contracts.
  Validation errors are aggregated and displayed as bullet points before the
  user is asked whether to restart Stage 1 or exit entirely.
 * Engine selection is dynamic: any file matching
@@ -247,8 +251,9 @@ includes required attributes and functions listed in
 :mod:`copernican.lib.engine_adapter`; validation errors identify missing hooks
 and incompatible contracts, preventing engines from receiving incomplete
 models. The perturbation compiler produces a typed IR that records the
-declared derivative equations, derived symbols and backend mapping before any
-scientific execution begins. Posterior evaluation routes through
+declared derivative equations, derived symbols, dependencies, and native
+execution summary before any scientific execution begins. Posterior
+evaluation routes through
 :func:`copernican.lib.posterior.make_logposterior`, which merges priors,
 transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.

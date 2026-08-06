@@ -25,7 +25,7 @@ import yaml
 from jsonschema import ValidationError, validate
 
 from . import error_handler, file_io, latex_utils, priors
-from .camb_contract import _validate_camb_contract_definition
+from .cmb_contract import _validate_cmb_contract_definition
 
 
 def _sanitise_name_to_var(name: str) -> str:
@@ -232,7 +232,7 @@ def validate_and_cache_model(path, cache_dir):
             raise ValueError("valid_for_cmb models must declare cmb")
         cmb_block.setdefault("model_parameters", {})
         cmb_block.setdefault("value_definitions", {})
-        _validate_camb_contract_definition(
+        _validate_cmb_contract_definition(
             cmb_block,
             [
                 param.get("python_var", param.get("name", ""))

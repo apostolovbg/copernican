@@ -16,7 +16,6 @@ def _compiled_graph_fixture():
 
     contract = {
         "contract_version": 2,
-        "standard": False,
         "gauge": "conformal_newtonian",
         "variables": {
             "delta_x": {"kind": "density_contrast"},
@@ -102,17 +101,10 @@ def _compiled_graph_fixture():
         "boundary_conditions": {},
         "numerics": {},
         "validity": {"regimes": ["linear"]},
-        "backend_mapping": {
-            "camb": {
-                "native_solver_required": True,
-                "implemented": True,
-            }
-        },
     }
     return compile_perturbation_contract(
         contract,
         model_name="TemplateModel",
-        backend="camb",
         parameter_names=("seed",),
         latex_names=("seed",),
         background_reference_names=("Hconf", "k", "seed", "visibility"),

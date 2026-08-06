@@ -9,7 +9,6 @@ from types import SimpleNamespace
 import yaml
 
 from copernican.lib import run_manifest, utils
-from copernican.lib.perturbation_contract import PerturbationContractData
 from copernican.version import get_version
 
 
@@ -37,7 +36,6 @@ def _dummy_plugin():
         PARAMETER_PRIORS=[{"type": "uniform", "lower": 0, "upper": 1}],
         valid_for_cmb=True,
         CMB_CONTRACT={
-            "backend": "camb",
             "param_map": {
                 "H0": "p1",
                 "ombh2": 0.022,
@@ -90,8 +88,7 @@ def _dummy_plugin():
         },
         CMB_PERTURBATION_CONTRACT={
             "contract_version": 2,
-            "standard": True,
-            "gauge": "unspecified",
+            "gauge": "conformal_newtonian",
             "variables": {},
             "derived": {},
             "equations": {},
@@ -102,28 +99,16 @@ def _dummy_plugin():
             "initial_conditions": {},
             "boundary_conditions": {},
             "validity": {
-                "regimes": ["standard_camb"],
-                "notes": "Uses the backend standard perturbation machinery.",
+                "regimes": ["linear"],
+                "notes": "Uses the native declared graph.",
             },
-            "backend_mapping": {
-                "camb": {
-                    "uses_standard_perturbations": True,
-                }
-            },
-            "notes": (
-                "This model declares that its CMB perturbations are "
-                "represented by the selected backend's standard "
-                "perturbation system."
-            ),
+            "notes": "Native declared graph manifest fixture.",
         },
-        CMB_PERTURBATION_STANDARD=True,
         CMB_NATIVE_RUNTIME=_dummy_native_runtime(),
-        CMB_PERTURBATION_DATA=PerturbationContractData(
+        CMB_PERTURBATION_DATA=SimpleNamespace(
             model_name="DummyModel",
-            backend="camb",
             contract_version=2,
-            standard=True,
-            gauge="unspecified",
+            gauge="conformal_newtonian",
             variables={
                 "delta_x": object(),
             },
@@ -152,16 +137,12 @@ def _dummy_plugin():
             boundary_conditions={},
             numerics={},
             validity=SimpleNamespace(
-                regimes=("standard_camb",),
-                notes="Uses standard backend.",
+                regimes=("linear",),
+                notes="Uses native declared graph.",
             ),
-            backend_mapping={
-                "camb": SimpleNamespace(
-                    uses_standard_perturbations=True,
-                    native_solver_required=None,
-                    implemented=None,
-                )
-            },
+            interactions={"photon_baryon_drag": object()},
+            conservation_rules={"density_balance": object()},
+            projection_extensions={"signal_derivative_alias": object()},
             dependency_graph_summary=SimpleNamespace(
                 independent_variables_used=("tau",),
                 model_parameters_used=("p1",),
@@ -171,18 +152,15 @@ def _dummy_plugin():
             manifest_summary={
                 "observable_names": ("temperature", "TT"),
                 "execution_route": {
-                    "route_id": "backend_standard_perturbations",
-                    "prediction_engine": "camb",
-                    "transfer_function_path": "camb.standard",
-                    "solver": "camb_standard",
+                    "route_id": "native_declared_graph",
+                    "prediction_engine": "copernican_native_declared_graph",
+                    "transfer_function_path": (
+                        "copernican.lib.likelihoods.cmb."
+                        "copernican_cmb_solver"
+                    ),
+                    "solver": "declared_math_graph",
                     "route_ready_for_execution": True,
-                    "uses_backend_standard_perturbations": True,
-                    "uses_native_declared_graph": False,
-                    "uses_camb_prediction": True,
-                    "uses_camb_standard_perturbations": True,
-                    "backend_mapping_implemented": None,
-                    "backend_mapping_native_solver_required": None,
-                    "backend_mapping_uses_standard_perturbations": True,
+                    "uses_native_declared_graph": True,
                 },
                 "transfer_component_contracts": {
                     "temperature": {
@@ -205,94 +183,6 @@ def _dummy_plugin():
             },
         ),
     )
-
-
-def _dummy_nonstandard_plugin():
-    """Return a native declared-graph plugin fixture."""
-
-    plugin = _dummy_plugin()
-    plugin.CMB_PERTURBATION_STANDARD = False
-    plugin.CMB_PERTURBATION_CONTRACT["standard"] = False
-    plugin.CMB_NATIVE_RUNTIME = _dummy_native_runtime()
-    plugin.CMB_PERTURBATION_CONTRACT["backend_mapping"]["camb"] = {
-        "native_solver_required": True,
-        "implemented": True,
-    }
-    plugin.CMB_PERTURBATION_DATA = PerturbationContractData(
-        model_name="DummyModel",
-        backend="camb",
-        contract_version=2,
-        standard=False,
-        gauge="conformal_newtonian",
-        variables={"delta_x": object()},
-        derived={"density_drive": object()},
-        equations={"continuity_x": object()},
-        constraints={"poisson_phi": object()},
-        closures={"psi_equals_phi": object()},
-        sources={"monopole_source": object()},
-        observables={"temperature": object(), "TT": object()},
-        initial_conditions={"delta_seed": object()},
-        boundary_conditions={},
-        numerics={"ode_rtol": 1.0e-5},
-        validity=SimpleNamespace(
-            regimes=("linear",),
-            notes="Uses native declared graph.",
-        ),
-        backend_mapping={
-            "camb": SimpleNamespace(
-                uses_standard_perturbations=None,
-                native_solver_required=True,
-                implemented=True,
-            )
-        },
-        interactions={"photon_baryon_drag": object()},
-        conservation_rules={"density_balance": object()},
-        projection_extensions={"signal_derivative_alias": object()},
-        dependency_graph_summary=SimpleNamespace(
-            independent_variables_used=("tau",),
-            model_parameters_used=("p1",),
-            background_references_used=("H0",),
-            evaluation_order=("equation:continuity_x",),
-        ),
-        manifest_summary={
-            "observable_names": ("temperature", "TT"),
-            "execution_route": {
-                "route_id": "native_declared_graph",
-                "prediction_engine": "copernican_native_declared_graph",
-                "transfer_function_path": (
-                    "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
-                ),
-                "solver": "declared_math_graph",
-                "route_ready_for_execution": True,
-                "uses_backend_standard_perturbations": False,
-                "uses_native_declared_graph": True,
-                "uses_camb_prediction": False,
-                "uses_camb_standard_perturbations": False,
-                "backend_mapping_implemented": True,
-                "backend_mapping_native_solver_required": True,
-                "backend_mapping_uses_standard_perturbations": None,
-            },
-            "transfer_component_contracts": {
-                "temperature": {
-                    "declared_projection": "line_of_sight_temperature",
-                    "projection": "line_of_sight_temperature",
-                    "kernel": "temperature_mixed_window",
-                    "source_term_roles": ("monopole",),
-                    "source_term_names": {
-                        "monopole": "monopole_source",
-                    },
-                    "required_projection_roles": (),
-                },
-            },
-            "angular_power_spectrum_targets": {
-                "TT": {
-                    "primary": "temperature",
-                    "secondary": "temperature",
-                },
-            },
-        },
-    )
-    return plugin
 
 
 class TestRunManifest(unittest.TestCase):
@@ -345,12 +235,18 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(loaded["selection"]["datasets"], ["ds"])
             self.assertEqual(len(loaded["git"]["commit"]), 40)
             self.assertIn("dirty", loaded["git"])
-            self.assertIn("camb", loaded)
-            camb_entry = loaded["camb"]
-            self.assertIn("version", camb_entry)
-            model_entry = camb_entry["models"][0]
+            self.assertIn("cmb", loaded)
+            cmb_entry = loaded["cmb"]
+            self.assertEqual(
+                cmb_entry["execution_engine"],
+                "native_declared_graph",
+            )
+            model_entry = cmb_entry["models"][0]
             self.assertEqual(model_entry["model"], "DummyModel")
-            self.assertEqual(model_entry["backend"], "camb")
+            self.assertEqual(
+                model_entry["execution_engine"],
+                "native_declared_graph",
+            )
             self.assertEqual(
                 model_entry["param_map_keys"],
                 ["H0", "Neff", "ombh2", "omch2"],
@@ -359,8 +255,10 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(model_entry["grids"], {})
             self.assertEqual(model_entry["value_names"], [])
             self.assertEqual(model_entry["perturbation_contract_version"], 2)
-            self.assertTrue(model_entry["perturbation_standard"])
-            self.assertEqual(model_entry["perturbation_gauge"], "unspecified")
+            self.assertEqual(
+                model_entry["perturbation_gauge"],
+                "conformal_newtonian",
+            )
             self.assertEqual(
                 model_entry["perturbation_variable_names"],
                 ["delta_x"],
@@ -383,11 +281,11 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertEqual(
                 model_entry["perturbation_interaction_names"],
-                [],
+                ["photon_baryon_drag"],
             )
             self.assertEqual(
                 model_entry["perturbation_conservation_rule_names"],
-                [],
+                ["density_balance"],
             )
             self.assertEqual(
                 model_entry["perturbation_source_names"],
@@ -403,7 +301,7 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertEqual(
                 model_entry["perturbation_projection_extension_names"],
-                [],
+                ["signal_derivative_alias"],
             )
             self.assertEqual(model_entry["perturbation_equation_count"], 1)
             self.assertEqual(model_entry["perturbation_constraint_count"], 1)
@@ -430,28 +328,12 @@ class TestRunManifest(unittest.TestCase):
                 model_entry["perturbation_evaluation_order"],
                 ["equation:continuity_x"],
             )
-            self.assertEqual(model_entry["perturbation_backend"], "camb")
-            self.assertIsNone(model_entry["perturbation_backend_implemented"])
-            self.assertTrue(
-                model_entry["perturbation_backend_uses_standard_perturbations"]
-            )
-            self.assertIsNone(
-                model_entry["perturbation_backend_native_solver_required"]
-            )
             self.assertEqual(
                 model_entry["custom_cmb_execution_route"]["route_id"],
-                "backend_standard_perturbations",
+                "native_declared_graph",
             )
-            self.assertTrue(
-                model_entry["custom_cmb_execution_route"][
-                    "uses_camb_prediction"
-                ]
-            )
-            self.assertTrue(
-                model_entry["custom_cmb_execution_route"][
-                    "uses_camb_standard_perturbations"
-                ]
-            )
+            self.assertNotIn("backend", model_entry)
+            self.assertNotIn("perturbation_standard", model_entry)
             self.assertEqual(model_entry["custom_cmb_constraint_count"], 1)
             self.assertEqual(model_entry["custom_cmb_observable_count"], 2)
             self.assertEqual(
@@ -502,9 +384,6 @@ class TestRunManifest(unittest.TestCase):
                     "peebles_c",
                 ],
             )
-            self.assertIn(
-                "camb", model_entry["perturbation_backend_mapping_summary"]
-            )
             self.assertEqual(
                 model_entry["custom_cmb_graph_manifest_summary"][
                     "transfer_component_contracts"
@@ -521,7 +400,7 @@ class TestRunManifest(unittest.TestCase):
                 model_entry["custom_cmb_runtime_manifest_summary"][
                     "execution_route"
                 ]["solver"],
-                "camb_standard",
+                "declared_math_graph",
             )
             self.assertEqual(
                 model_entry["custom_cmb_runtime_manifest_summary"][
@@ -535,17 +414,17 @@ class TestRunManifest(unittest.TestCase):
             )
 
     def test_manifest_records_native_execution_route(self) -> None:
-        """Native declared runs should record a non-CAMB prediction route."""
+        """Native declared runs should record the sole prediction route."""
 
         manifest = run_manifest.build_manifest(
-            models=[(_dummy_nonstandard_plugin(), "1.0")],
+            models=[(_dummy_plugin(), "1.0")],
             engine_module=SimpleNamespace(
                 __name__="engine", ENGINE_VERSION="0.0"
             ),
             datasets=[],
         )
 
-        model_entry = manifest["camb"]["models"][0]
+        model_entry = manifest["cmb"]["models"][0]
         self.assertEqual(
             model_entry["custom_cmb_execution_route"]["route_id"],
             "native_declared_graph",
@@ -567,8 +446,9 @@ class TestRunManifest(unittest.TestCase):
             model_entry["perturbation_projection_extension_names"],
             ["signal_derivative_alias"],
         )
-        self.assertFalse(
-            model_entry["custom_cmb_execution_route"]["uses_camb_prediction"]
+        self.assertNotIn(
+            "uses_camb_prediction",
+            model_entry["custom_cmb_execution_route"],
         )
         self.assertEqual(
             model_entry["custom_cmb_runtime_manifest_summary"][

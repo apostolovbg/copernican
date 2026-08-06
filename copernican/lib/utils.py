@@ -164,9 +164,8 @@ def set_random_seed(seed: int = 0) -> None:
     """Seed global RNGs and record the selected value.
 
     Engines call this helper so optimisation results can be reproduced
-    when the same seed is provided.  The Python ``random`` module and
-    optional engine libraries such as CAMB are seeded when available.
-    The chosen seed is stored for later retrieval by
+    when the same seed is provided. The Python ``random`` module and NumPy
+    receive the same seed. The chosen seed is stored for later retrieval by
     :func:`get_random_seed` so the run manifest and logs can access it
     without threading the value through multiple functions.
     """
@@ -176,14 +175,6 @@ def set_random_seed(seed: int = 0) -> None:
     numpy.random.seed(seed)
     random.seed(seed)
     logger = logging.getLogger()
-    try:  # pragma: no cover - CAMB is optional
-        import camb  # type: ignore
-
-        if hasattr(camb, "set_random_seed"):
-            camb.set_random_seed(seed)
-            logger.info("CAMB RNG seed set to %s", seed)
-    except ImportError:
-        logger.debug("CAMB RNG seeding unavailable", exc_info=True)
     logger.info("Global RNG seed set to %s", seed)
 
 

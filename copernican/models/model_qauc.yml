@@ -4,7 +4,7 @@ description: >-
   Quantum Attractor Unified Cosmology (QAUC) extends \LambdaCDM with a dark
   energy sector that oscillates around an exponential attractor. The ansatz is
   lightweight yet demonstrates how YAML models can combine damped waves and
-  standard density scalings.
+  declared density scalings.
 abstract: >-
   The model keeps matter and radiation terms explicit while an attractor
   envelope modulates the dark-energy contribution. Adjustable amplitude,
@@ -56,7 +56,7 @@ parameters:
     unit: ''
     latex_name: \Omega_{\gamma0}
     python_var: Omega_gamma
-    definition: Photon density used for r_s fallback integration.
+    definition: Photon density used by the declared sound-horizon integral.
     prior:
       type: uniform
       lower: 1.0e-06
@@ -152,7 +152,6 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -221,7 +220,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -368,13 +366,9 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for QuantumAttractorUnifiedCosmology;
-      the model background remains theory-specific.
+      notes: QAUC spectra use the declared attractor background and scalar hierarchy.
+    notes: The scalar graph couples the declared matter and radiation species
+      to the oscillatory attractor background.
 notes: >-
   Provide explicit sound-horizon integrals so BAO fits remain physically
   consistent with the Quasi-Accelerating Unified Cosmology background. The

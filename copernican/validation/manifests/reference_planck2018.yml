@@ -1,6 +1,10 @@
 copernican:
-  version: 11.0.1
+  version: 12.0.26
 models:
+- name: LambdaCDM
+  version: '1.0'
+  filename: model_lcdm.yml
+  priors: {}
 - name: Planck 2018 Reference LambdaCDM
   version: '1.0'
   filename: model_ref_planck2018.yml
@@ -15,8 +19,8 @@ datasets:
     version: '2025.1'
     path: copernican/datasets/sne/union3
     hashes:
-      cosmo_parser_union3.py: 5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa
-      metadata_union3.yml: 74ac21fa162fcc1c58319726abe35560573ec3c5204aa263195cd2d1a3c3dcdd
+      cosmo_parser_union3.py: 557da7ad280b54256107aa13e73f142f718ef03cf1d281b8a356d3e5739d0616
+      metadata_union3.yml: 1ae7de8e0158233207188a14664392cde41c6311dedd3b407eb8b0e48022c7b1
       mu_mat_union3_cosmo=2_mu.fits: ef98b7dde1025ee7134f3242aaea3f1f0ed3f2b29a718458c550a8e4e24d0349
     independence:
     - Type Ia supernova distance moduli are treated as statistically independent from
@@ -33,9 +37,8 @@ datasets:
       BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
       BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
       BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
-      cosmo_parser_compound.py: d125f0fc6e9ce1d8c6f27466660a4a3d00386e01132274a8c880c4cf1cf975a5
-      compound.yml: 13d8a665a340e1b8596d4f65ce0133cd159836a2e2ecb149f7fcabf2c29ce8b2
-      metadata_compound.yml: dfa973d365beaed6dda5169da1d55b2c2086e6fce5b2665913467a92de85d402
+      cosmo_parser_bossdr12.py: e4ff86153e53bf0ffc0e4de8c16bf1d4c9c0d36d437595207cda2c543ee71d5f
+      metadata_bossdr12.yml: b8ded49f98618f0752b067d66abb4ffc925b8d47cb97d4e4fbc53f37131029fc
     independence:
     - BAO distance measurements are assumed independent of SNe and CMB datasets because
       overlapping systematics are negligible at the current precision level.
@@ -48,8 +51,8 @@ datasets:
     hashes:
       c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
-      cosmo_parser_cmb_planck2018lite.py: 7c5d70d7b63b921bfffe4d910b334a490b81155d93c9a60de481278f3605352d
-      metadata_planck2018lite.yml: 37d799a9f0f5aa97dce6b2c0bef0f08f09de9527561209ebc835c19c1f75fcd0
+      cosmo_parser_cmb_planck2018lite.py: 7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637
+      metadata_planck2018lite.yml: fe61749d16ea01c8e4544eac26bb6d02f5eaa05b55db4b7ea563e1c32d6202a2
     independence:
     - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
       cross-covariances are ignored consistently with published likelihood treatments.
@@ -60,7 +63,17 @@ status:
   outputs: unprepared
 selection:
   models:
+  - model_lcdm
   - model_ref_planck2018
+  comparison:
+    control:
+      name: LambdaCDM
+      filename: model_lcdm.yml
+    test:
+      name: Planck 2018 Reference LambdaCDM
+      filename: model_ref_planck2018.yml
+  control_model: LambdaCDM
+  test_model: Planck 2018 Reference LambdaCDM
   engine:
     name: copernican.engines.engine_mcmc
     version: validation
@@ -70,7 +83,17 @@ selection:
   - planck_2018_lite
 configuration:
   models:
+  - model_lcdm
   - model_ref_planck2018
+  comparison:
+    control:
+      name: LambdaCDM
+      filename: model_lcdm.yml
+    test:
+      name: Planck 2018 Reference LambdaCDM
+      filename: model_ref_planck2018.yml
+  control_model: LambdaCDM
+  test_model: Planck 2018 Reference LambdaCDM
   engine:
     name: copernican.engines.engine_mcmc
     version: validation
@@ -78,7 +101,7 @@ configuration:
   - union3_2025
   - boss_dr12_bao
   - planck_2018_lite
-  notes: Reference validation manifest for Planck 2018 base-ΛCDM.
+  notes: Native LambdaCDM control and fixed Planck 2018 reference validation.
   run_settings:
     engine_kind: mcmc
     n_steps: 50

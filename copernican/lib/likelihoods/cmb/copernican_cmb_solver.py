@@ -8,7 +8,6 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
-from ...model_coder import validate_native_perturbation_execution
 from . import native_cache
 from .native_lensing import lensed_cls as _lensed_cls
 from .native_projection import _compute_custom_cmb_spectrum_data
@@ -297,72 +296,6 @@ def _resolve_available_spectrum_name(
     return None
 
 
-def _is_structured_camb_contract(
-    contract_or_params: Mapping[str, Any],
-) -> bool:
-    """Return ``True`` for structured CMB contracts."""
-
-    keys = {str(key) for key in contract_or_params.keys()}
-    required = {
-        "backend",
-        "calls",
-        "grids",
-        "param_map",
-        "perturbations",
-        "values",
-    }
-    return required.issubset(keys)
-
-
-def _combine_camb_contracts(
-    background_contract: Mapping[str, Any],
-    perturbation_contract: Mapping[str, Any] | None,
-) -> dict[str, Any]:
-    """Return a structured CAMB contract with perturbation metadata."""
-
-    combined = dict(background_contract)
-    if perturbation_contract:
-        combined["perturbations"] = dict(perturbation_contract)
-    return combined
-
-
-def _validate_camb_perturbation_execution(
-    contract: Mapping[str, Any],
-) -> None:
-    """Reject unsupported perturbation declarations before CAMB runs."""
-
-    perturbations = contract.get("perturbations")
-    if perturbations is None:
-        raise ValueError("Structured CAMB contract is missing perturbations")
-    if not isinstance(perturbations, Mapping):
-        raise ValueError("cmb.perturbations must be a mapping")
-
-    model_name = contract.get("model_name", "unknown model")
-    backend = str(contract.get("backend", "camb"))
-
-    standard = perturbations.get("standard")
-    if not isinstance(standard, bool):
-        raise ValueError("cmb.perturbations.standard must be boolean")
-    if standard:
-        return
-
-    backend_mapping = perturbations.get("backend_mapping", {})
-    backend_entry = {}
-    if isinstance(backend_mapping, Mapping):
-        backend_entry = backend_mapping.get(backend, {}) or {}
-
-    implemented = None
-    if isinstance(backend_entry, Mapping):
-        implemented = backend_entry.get("implemented")
-
-    validate_native_perturbation_execution(
-        model_name=str(model_name),
-        backend=backend,
-        standard=standard,
-        implemented=implemented if isinstance(implemented, bool) else None,
-    )
-
-
 def _compute_declared_perturbation_spectrum(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -371,7 +304,7 @@ def _compute_declared_perturbation_spectrum(
     background_payload: Mapping[str, Any] | None = None,
     background_provider: Any | None = None,
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
-    """Return spectra from a declared non-standard perturbation contract."""
+    """Return spectra from a declared native perturbation contract."""
 
     del background_payload
     perturbation_data = contract_or_params.get("perturbation_data")

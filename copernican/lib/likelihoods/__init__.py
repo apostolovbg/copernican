@@ -17,12 +17,9 @@ from __future__ import annotations
 from .bao import BAOLike
 from .cmb import (
     CMBLike,
-    compute_camb_background_observables,
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_contract,
-    compute_cmb_spectrum_from_legacy_params_for_tests,
-    describe_camb_configuration,
 )
 from .likelihoods import JointLike, LikelihoodProtocol, LikelihoodState
 from .sne import SNeLike
@@ -34,10 +31,7 @@ __all__ = [
     "LikelihoodProtocol",
     "LikelihoodState",
     "SNeLike",
-    "compute_camb_background_observables",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_contract",
-    "compute_cmb_spectrum_from_legacy_params_for_tests",
-    "describe_camb_configuration",
 ]

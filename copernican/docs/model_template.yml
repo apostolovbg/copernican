@@ -22,13 +22,10 @@ description: |
     `rs_expression`. This keeps BAO plots, CSV exports, likelihood calls,
     and native CMB backgrounds aligned while letting relativistic species
     float.
-  * The `cmb` block is the structured native execution contract. The current
-    `backend: camb` value names the historical adapter namespace; native
-    execution is selected by `standard: false` and
-    `native_solver_required: true` in the backend mapping. Keep scalar
-    reference inputs in `param_map`, declare numerical grids in `grids`, put
-    evaluated expressions in `values`, list adapter calls in `calls`, and
-    define the native background and perturbation graph in the same block.
+  * The `cmb` block is the structured native execution contract. Keep scalar
+    inputs in `param_map`, declare numerical grids in `grids`, put evaluated
+    expressions in `values`, list reviewed graph calls in `calls`, and define
+    the native background and perturbation graph in the same block.
   * `cmb.numerical` declares native runtime controls such as ell and k bounds,
     sampling counts, ODE tolerances, tight-coupling settings, and the initial
     redshift. Repeat the controls under `cmb.perturbations.numerics` when the
@@ -36,7 +33,7 @@ description: |
   * `valid_for_cmb: true` requires a complete structured contract. A native
     model uses `calls: []` unless it declares reviewed adapter metadata, and
     its perturbation contract must provide typed graph metadata, physical
-    sources, projections, initial conditions, validity, and native mapping.
+    sources, projections, initial conditions, and validity metadata.
   * A metadata-generated scalar hierarchy materializes only the species and
     hierarchy families listed in `species` and `hierarchy_families`. It never
     adds CDM or neutrino states to complete a compiler requirement.
@@ -48,10 +45,9 @@ description: |
     perturbation closure. Keep the native contract descriptive, and expose
     CMB output as unavailable rather than substituting a standard model or
     returning fabricated zero spectra.
-  * `standard: true` is reserved for independent reference fixtures.
-    Every bundled production CMB model uses `standard: false` with a
-    compiled declared graph. The `camb` backend key is a historical schema
-    namespace; `native_solver_required: true` selects production execution.
+  * Production contracts do not select a solver. Route keys such as
+    `backend`, `standard`, and `backend_mapping` are invalid because every
+    accepted CMB contract executes through the native declared graph.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -168,7 +164,6 @@ valid_for_bao: true
 valid_for_distance_metrics: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -177,6 +172,9 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+    YHe: 0.245
   model_parameters:
     Tcmb_K: 2.7255
   grids: {}
@@ -246,7 +244,6 @@ cmb:
           * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     variables:
       delta_x:
@@ -285,7 +282,7 @@ cmb:
           variable: delta_x
           wrt: tau
           order: 1
-        rhs: -theta_x + phi_aux
+        rhs: -theta_x
         role: continuity
       euler_x:
         lhs:
@@ -359,14 +356,9 @@ cmb:
         - linear
         - scalar_like
       notes: Template declared-math perturbation graph.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: false
     notes: >-
       This template demonstrates the forward-only declared-math graph
-      contract. It is not executable until the backend mapping marks the
-      generic declarative implementation as available.
+      contract executed by the native CMB solver.
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV
@@ -384,7 +376,7 @@ notes: |
   * Review the compiled species and source names against the theory before
     enabling CMB output. A native graph is valid only when every emitted
     state and source has an explicit physical origin.
-  * Non-standard perturbation expressions can use the declared variables, the
+  * Declared perturbation expressions can use the declared variables, the
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
     `sound_speed_sq`, `baryon_sound_speed_sq`, `collision_rate`,
@@ -394,7 +386,7 @@ notes: |
     unit-normalized transfer seed unless the contract overrides it, and
     relation targets such as `Phi` or `Psi` only become available when the
     declared equations, constraints, or closures solve them.
-  * Non-standard perturbation equations may mix `tau`, `eta`, `a`, `z`, or
+  * Declared perturbation equations may mix `tau`, `eta`, `a`, `z`, or
     other monotonic declared background coordinates on their typed `lhs`.
     End boundary conditions are supported when they replace the missing
     start-state slots for the declared solver.
@@ -406,8 +398,8 @@ notes: |
     contracts.
   * `cmb.background.derived` may expose expansion, density, pressure,
     equation-of-state, or curvature quantities directly. The native solver
-    consumes those declared outputs first and only derives the required
-    physically required scalars when the contract makes that possible.
+    consumes those declared outputs first and only derives required physical
+    scalars when the contract makes that possible.
     `cmb.background.recombination.quantities` may also override the native
     hydrogen recombination hook, but when present it must define
     `hydrogen_temperature_K`, `hydrogen_alpha_B`, `beta_continuum`, and
@@ -430,10 +422,9 @@ notes: |
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance
     stays honest.
-  * Run manifests record the declared graph summary, background and
-    recombination provenance, and the selected production CMB execution route.
-    Treat those manifest blocks as the execution proof surface; `standard:
-    false` alone is not the whole provenance story.
+  * Run manifests record the declared graph summary plus background,
+    recombination, and native execution provenance. Treat those manifest
+    blocks as the execution proof surface.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.

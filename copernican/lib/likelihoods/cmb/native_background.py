@@ -1468,7 +1468,7 @@ def _contract_cache_view(
         view["perturbations"] = {
             key: value
             for key, value in perturbations.items()
-            if key not in {"backend", "model_name"}
+            if key != "model_name"
         }
     return view
 
@@ -1766,18 +1766,11 @@ def _resolve_custom_cmb_physical_parameters(
     del background_provider
     prepared_contract = contract
     if prepared_contract.get("background_runtime") is None:
-        perturbations = prepared_contract.get("perturbations", {}) or {}
-        if (
-            isinstance(perturbations, Mapping)
-            and perturbations.get("standard") is False
-        ):
-            from ... import model_coder
+        from ... import model_coder
 
-            prepared_contract = (
-                model_coder.prepare_native_cmb_execution_contract(
-                    prepared_contract
-                )
-            )
+        prepared_contract = model_coder.prepare_native_cmb_execution_contract(
+            prepared_contract
+        )
     background_scalar_context = _resolve_declared_background_context(
         prepared_contract,
         a_values=1.0,

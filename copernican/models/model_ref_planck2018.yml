@@ -3,9 +3,8 @@ version: '1.0'
 description: >-
   Reference base-ΛCDM parameter set pinned to the Planck 2018
   TT,TE,EE+lowE best-fit values reported in Planck Collaboration VI
-  (2018, Table 2). All cosmological degrees of freedom are fixed so
-  runs reproduce the legacy inference that validated the Copernican
-  likelihood implementations.
+  (2018, Table 2). All cosmological degrees of freedom are fixed for
+  reproducible validation of the Copernican likelihood implementations.
 abstract: >-
   Fixed-parameter ΛCDM calibrated to Planck 2018. This model anchors the
   validation manifests and is not intended for exploration; every parameter is
@@ -97,7 +96,6 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H_0
     ombh2: Omega_b * (H_0/100)**2
@@ -167,7 +165,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -314,13 +311,9 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for Planck 2018 Reference LambdaCDM;
-      the model background remains theory-specific.
+      notes: Reference spectra use the fixed Planck 2018 parameter values.
+    notes: The scalar graph couples the fixed LambdaCDM species and regular
+      adiabatic initial data to the Planck 2018 reference background.
 notes: >-
   Every parameter is anchored to Planck Collaboration VI (2018) Table 2
   (TT,TE,EE+lowE) base-ΛCDM best-fit values. These priors are declared as

@@ -2,13 +2,13 @@
 **Doc ID:** ABOUT
 **Doc Type:** repo-about
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-08-06
 
 ## Overview
 Copernican is a Python toolkit for evaluating cosmological models against
 SNe Ia, BAO, and CMB observations. It includes a manifest-driven CLI and GUI,
 trusted datasets, sampler engines, validation manifests, and a native CMB
-route for declared `standard: false` theories.
+solver for route-neutral declared theory graphs.
 
 The project is maintained as a packaged application, with source and installed
 copies kept in sync so the same docs and workflow apply in both places.

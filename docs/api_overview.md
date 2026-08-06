@@ -1,3 +1,6 @@
+# API Overview
+**Project Version:** 12.0.26
+
 Copernican exposes a lightweight API intended for advanced scripting. Most
 functionality lives in the ``copernican.lib`` package which can be imported
 directly without using the command-line interface. The core modules are:
@@ -7,12 +10,12 @@ directly without using the command-line interface. The core modules are:
  into Python callables.
 - `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
  :class:`copernican.lib.engine_adapter.EnginePlugin` instance with dataset
- toggles, priors, bounds, distance functions and structured CAMB background
- and perturbation contracts ready for engine consumption.
+ toggles, priors, bounds, distance functions, and a compiled native CMB
+ runtime ready for engine consumption.
 - `copernican.lib.engine_adapter` – home of the picklable adapter dataclass,
  `EnginePlugin.CMB_CONTRACT`, `EnginePlugin.CMB_PERTURBATION_CONTRACT`,
- `EnginePlugin.CMB_PERTURBATION_STANDARD`, `EnginePlugin.CMB_PERTURBATION_IR`,
- `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`. Import it when building
+ `EnginePlugin.CMB_PERTURBATION_DATA`, `EnginePlugin.CMB_NATIVE_RUNTIME`,
+ `REQUIRED_ATTRIBUTES`, and `REQUIRED_FUNCTIONS`. Import it when building
  custom tooling that needs to confirm interface compliance.
 - `copernican.lib.progress` – shared progress reporting helpers. Engines import
  `BatchProgressBar` so CLI runs log simple counters such as “Burn-in stage
@@ -51,10 +54,9 @@ directly without using the command-line interface. The core modules are:
  layers. The helpers expose SNe chi-squared evaluations that always return
  finite values for physically meaningful proposals so MCMC reseeding can fall
  back to them reliably. Structured CMB contracts are required in the
- production path. `standard: false` contracts route to the declared-math
- graph engine, while unsupported or incomplete graphs raise clear errors
- instead of falling back to a toy spectrum. The explicit legacy helper
- remains reserved for tests.
+ production path. Every accepted contract routes to the declared-math graph
+ engine, while solver selectors and incomplete graphs raise clear errors
+ instead of selecting a fallback implementation.
  - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
  `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
  interactive prompt lists the human readable `dataset_name` and description,
@@ -100,23 +102,22 @@ execution route or an output-label assumption. Plotting functions require the
 comparison request, while `analysis.plot_posterior` resolves it from the
 saved run manifest or accepts it explicitly.
 ## CMB Likelihood Helpers
-The helpers in `copernican.lib.likelihoods.cmb` keep the standard and
-non-standard paths separate. The package-level `cmb.py` entrypoint dispatches
-to `camb_solver.py` for standard CAMB contracts and to
-internal helpers in `copernican_cmb_solver.py` for native declared-graph
-execution. `native_background.py` owns the declared background,
+The helpers in `copernican.lib.likelihoods.cmb` expose one native production
+path. The package-level `cmb.py` entrypoint validates a prepared runtime or a
+route-neutral contract and delegates to `copernican_cmb_solver.py` for native
+declared-graph execution. `native_background.py` owns the declared background,
 recombination, and reionization tables; `native_evolution.py` owns the
 compiled declared-graph evolution plan; `native_projection.py` owns the
 line-of-sight transfer and spectrum assembly; and `native_cache.py` owns
 bounded cache state plus reset and diagnostics helpers.
-`engine_adapter.py` hands the precompiled native runtime into that
-package directly, so non-standard contracts avoid rebuilding a
-CAMB-style contract before the declared solver evolves graph variables,
+`engine_adapter.py` hands the precompiled native runtime into that package
+directly, so repeated calls avoid rebuilding static graph structure
+before the declared solver evolves graph variables,
 rebuilds the recombination visibility function, integrates the declared
 reionization history, and projects the declared transfer components into
 spectra such as `TT`, `TE`, `EE`, `BB`, or custom outputs when the
 required observable mappings exist.
-The non-standard contract is a single graph declaration. It exposes
+The native contract is a single graph declaration. It exposes
 variables, derived quantities, equations, constraints, closures, source
 terms, initial conditions, boundary conditions, observables, validity
 domains, and numerical requirements without a solver-family selector.
@@ -199,7 +200,7 @@ helpers assume this step has succeeded, so validation should occur
 once before any iterative evaluation begins. Engines expect the attributes
 listed in ``copernican.lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
 :class:`EnginePlugin` exposes distance functions, CMB helpers, initial
-parameter guesses, the structured CAMB contract derived from the model YAML
+parameter guesses, the structured native contract derived from the model YAML
 and the compiled perturbation IR while remaining fully picklable for
 multiprocessing workloads.
 ## Table of Contents

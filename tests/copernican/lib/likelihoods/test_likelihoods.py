@@ -134,12 +134,11 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(cmb_like.loglike(params)))
         self.assertTrue(numpy.isfinite(cmb_like.state["chi2"]))
 
-    def test_bao_loglike_uses_native_background_for_native_model(self):
-        """Native BAO evaluation must not invoke the CAMB background path."""
+    def test_bao_loglike_uses_model_background_helpers(self):
+        """BAO evaluation must not invoke the CMB runtime."""
 
         class TrackingPlugin:
-            """Proxy raising the structured CAMB contract and tracking
-            fallbacks."""
+            """Proxy rejecting CMB access and tracking distance helpers."""
 
             def __init__(self, base_plugin):
                 self._base = base_plugin
@@ -148,8 +147,8 @@ class LikelihoodTestCase(unittest.TestCase):
             def __getattr__(self, name):
                 return getattr(self._base, name)
 
-            def get_camb_contract(self, *_args, **_kwargs):
-                raise RuntimeError("CAMB unavailable for test fallback path")
+            def get_cmb_native_runtime(self, *_args, **_kwargs):
+                raise AssertionError("BAO must not query the CMB runtime")
 
             def get_comoving_distance_Mpc(self, *args, **kwargs):
                 self.calls["dm"] += 1
@@ -175,22 +174,22 @@ class LikelihoodTestCase(unittest.TestCase):
 
         params = self.plugin.INITIAL_GUESSES
         bao_df = self._prepare_bao()
-        fallback_plugin = TrackingPlugin(self.plugin)
+        tracking_plugin = TrackingPlugin(self.plugin)
         bao_like = likelihoods.BAOLike(
             redshifts=bao_df["redshift"].to_numpy(dtype=float),
             observable_types=bao_df["observable_type"].to_numpy(),
             observable_values=bao_df["value"].to_numpy(dtype=float),
             observable_errors=bao_df["error"].to_numpy(dtype=float),
-            model_plugin=fallback_plugin,
+            model_plugin=tracking_plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
         )
 
         loglike = bao_like.loglike(params)
 
         self.assertTrue(numpy.isfinite(loglike))
-        self.assertGreater(fallback_plugin.calls["dm"], 0)
-        self.assertGreater(fallback_plugin.calls["hz"], 0)
-        self.assertGreater(fallback_plugin.calls["rs"], 0)
+        self.assertGreater(tracking_plugin.calls["dm"], 0)
+        self.assertGreater(tracking_plugin.calls["hz"], 0)
+        self.assertGreater(tracking_plugin.calls["rs"], 0)
 
     def test_bao_loglike_rejects_divergent_sound_horizon(self):
         """Divergent sound-horizon integrals must abort BAO predictions."""
@@ -212,8 +211,8 @@ class LikelihoodTestCase(unittest.TestCase):
             def __getattr__(self, name):
                 return getattr(self._base, name)
 
-            def get_camb_contract(self, *_args, **_kwargs):
-                raise RuntimeError("CAMB disabled to exercise fallback path")
+            def get_cmb_native_runtime(self, *_args, **_kwargs):
+                raise AssertionError("BAO must not query the CMB runtime")
 
             def get_sound_horizon_rs_Mpc(self, *params):
                 return divergent_helper(*params)

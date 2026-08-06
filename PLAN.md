@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -851,7 +851,7 @@ Probable affected files:
 Scope:
 
 * Add a control-model field with the current LCDM model as its default.
-* Use `copernican/models/model_lcdm.yml` as that transitional default.
+* Use `copernican/models/model_lcdm.yml` as the default.
 * Keep the existing test-model page and selection as the test-model field.
 * Add a control-model page immediately before the existing test-model page.
 * Reuse the existing model-choice page behavior and validation in the new
@@ -899,7 +899,7 @@ Depends on:
 
 Probable affected files:
 
-* `copernican/models/model_lcdm_ccmbs.yml`
+* `copernican/models/model_lcdm.yml`
 * `copernican/docs/model_template.yml`
 * `docs/model_template.yml`
 * `copernican/lib/model_spec_validator.py`
@@ -925,8 +925,7 @@ Scope:
 Tasks:
 
 * Create a real native LCDM model file.
-* Name the native migration artifact
-  `copernican/models/model_lcdm_ccmbs.yml`.
+* Keep the native declaration at `copernican/models/model_lcdm.yml`.
 * Validate its schema, units, source roles, and graph compilation.
 * Add an end-to-end native LCDM smoke test.
 * Remove any dependency on the documentation-only template for execution.
@@ -1990,7 +1989,7 @@ Implementation record:
   source normalization, terminal hierarchy materialization, and isolation
   from scalar-sector contracts.
 
-### [open] Slice Thirty-Three - Native production route cutover
+### [closed] Slice Thirty-Three - Native production route cutover
 
 Purpose:
 
@@ -2021,7 +2020,25 @@ Done when:
 * Core production execution cannot select or fall back to a second CMB
   solver.
 
-### [open] Slice Thirty-Four - Model contract migration and asset cutover
+Implementation record:
+
+* The schema, compiler, model adapter, cache identity, likelihood facade,
+  run pipeline, and run manifest expose one native declared-graph route.
+  Removed `backend`, `standard`, and `backend_mapping` selectors fail before
+  graph compilation.
+* Production CMB, BAO, statistics, and utility modules contain no CAMB or
+  CLASS imports or calls. The independent CAMB reference helper resides in
+  the scientific test package and cannot be imported through the production
+  package.
+* Model declarations, documentation templates, and synthetic integration
+  fixtures use the route-neutral contract. Native runtime preparation owns
+  parameter binding, unavailable spectra remain explicit, and cache
+  signatures retain compiled native graph identity.
+* Targeted contract, adapter, likelihood, manifest, model-template,
+  integration, packaging, and production-import-isolation tests pass within
+  their three-minute command budgets.
+
+### [closed] Slice Thirty-Four - Model contract migration and asset cutover
 
 Purpose:
 
@@ -2038,8 +2055,8 @@ Scope:
   model declaration.
 * Make each model's species, equations, sources, initial modes, and sectors
   explicit and theory-accurate.
-* Delete the CAMB-style `model_lcdm.yml` and rename
-  `model_lcdm_ccmbs.yml` to `model_lcdm.yml`.
+* Keep one canonical native LambdaCDM declaration at `model_lcdm.yml` and
+  remove the duplicate model asset.
 * Regenerate model caches, manifests, validation fixtures, and references.
 
 Required acceptance:
@@ -2053,6 +2070,20 @@ Done when:
 
 * The model corpus is native, theory-accurate, and free of transitional
   route artifacts.
+
+Implementation record:
+
+* The model library contains one canonical `model_lcdm.yml` native asset.
+  Model discovery, tests, manifests, and documentation resolve that filename.
+* Every CMB-capable model compiles non-empty equations, sources, observables,
+  and regular initial data from its declared scalar sector, species, hierarchy
+  families, collision rules, and model-specific source closures.
+* QRSF, TORG, and USMF contain no CDM parameter or background alias. QRSF and
+  TORG compile their baryon-locked relational source closures; USMF keeps CMB
+  output explicitly unavailable.
+* Corpus validation records exact species and source inventories, rejects
+  route metadata and developmental wording, and executes finite native smoke
+  spectra for every model that declares CMB availability.
 
 ### [open] Slice Thirty-Five - User-facing native-only cutover
 

@@ -145,7 +145,6 @@ valid_for_distance_metrics: true
 valid_for_cmb: true
 
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0 / 100)**2
@@ -215,7 +214,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -362,20 +360,14 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for Temporal Opposition Geometry; the
-      model background remains theory-specific.
+      notes: TOG spectra use the declared temporal-opposition background.
+    notes: The scalar graph couples declared matter and radiation species to
+      the volume-activated temporal-opposition expansion law.
 notes: >-
   This model uses the TOG volume-activation law. The background temporal
   factor is A(a) = [1 - exp(-(a / a_T)**3)] /
-  [1 - exp(-(1 / a_T)**3)]. The native CMB solver contract evaluates the derived
-  w(a) table on a scale-factor grid and forwards it to native CMB solver through
-  set_dark_energy_w_a using the declared native background and perturbation graph.
-  representation for the declared w(a) table; it is not a Copernican
-  theory class.
+  [1 - exp(-(1 / a_T)**3)]. The native CMB contract evaluates the derived
+  expansion law directly through its declared background and perturbation
+  graph.
 
 date: '2026-05-25'

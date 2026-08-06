@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,254 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-06:
+  Change: Corrected MCMC convergence diagnostics for fixed parameters.
+  Why: Excluded zero-variance locked coordinates from ArviZ rank statistics
+  and assigned their deterministic diagnostic convention explicitly.
+  Impact: Ensured sampler results contain finite R-hat and effective sample
+  size values for mixed sampled and fixed parameter vectors.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/engines/engine_mcmc.py
+  tests/copernican/engines/test_engine_mcmc.py
+
+- 2026-08-06:
+  Change: Completed native model-contract migration and canonical asset
+  cutover.
+  Why: Replaced duplicate and transitional declarations with exact
+  theory-specific species, equations, sources, and availability.
+  Impact: Ensured every shipped model resolves through the canonical native
+  corpus with synchronized validation assets, documentation, and tests.
+  Files:
+  ABOUT.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/datasets/cmb/planck2018lite/\
+    cosmo_parser_cmb_planck2018lite.py
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/docs/run_manifest.md
+  copernican/lib/camb_contract.py
+  copernican/lib/cmb_contract.py
+  copernican/lib/dataset_registry.py
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/camb_solver.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/lib/statistics.py
+  copernican/lib/utils.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/design_overview.md
+  docs/model_template.yml
+  docs/run_manifest.md
+  tests/copernican/datasets/bao/bossdr12/\
+    test_cosmo_parser_bossdr12.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_camb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_camb_contract.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/validation/test_runner.py
+  tests/project/datasets/synthetic/model.yml
+  tests/project/datasets/synthetic/model_plugin.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_model_template.py
+
+- 2026-08-05:
+  Change: Corrected native-only route-cutover scientific and negative tests.
+  Why: Aligned outdated CAMB-route fixtures and manifest assertions with the
+  single native production contract.
+  Impact: Ensured workflow tests use explicit independent references and
+  verify removed-key errors without a production fallback.
+  Files:
+  ABOUT.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/docs/run_manifest.md
+  copernican/datasets/cmb/planck2018lite/\
+    cosmo_parser_cmb_planck2018lite.py
+  copernican/lib/camb_contract.py
+  copernican/lib/cmb_contract.py
+  copernican/lib/dataset_registry.py
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/camb_solver.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/lib/statistics.py
+  copernican/lib/utils.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/design_overview.md
+  docs/model_template.yml
+  docs/run_manifest.md
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_camb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_camb_contract.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/project/datasets/synthetic/model.yml
+  tests/project/datasets/synthetic/model_plugin.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_model_template.py
+
+- 2026-08-04:
+  Change: Removed production solver-route branching and external solver
+  imports from the application runtime.
+  Why: Enforced one native declared-graph execution authority after scalar,
+  lensing, neutrino, tensor, gauge, and vector acceptance.
+  Impact: Ensured removed selectors fail early while native manifests,
+  caches, likelihoods, and model fixtures share one route.
+  Files:
+  ABOUT.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/ABOUT.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/model_template.yml
+  copernican/docs/run_manifest.md
+  copernican/datasets/cmb/planck2018lite/\
+    cosmo_parser_cmb_planck2018lite.py
+  copernican/lib/camb_contract.py
+  copernican/lib/cmb_contract.py
+  copernican/lib/dataset_registry.py
+  copernican/lib/engine_adapter.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/camb_solver.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/lib/statistics.py
+  copernican/lib/utils.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_ccmbs.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/api_overview.md
+  docs/architecture.md
+  docs/design_overview.md
+  docs/model_template.yml
+  docs/run_manifest.md
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_camb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_camb_contract.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/project/datasets/synthetic/model.yml
+  tests/project/datasets/synthetic/model_plugin.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_model_template.py
 
 - 2026-08-04:
   Change: Completed physical vector hierarchy and parity acceptance.

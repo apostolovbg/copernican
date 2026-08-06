@@ -411,16 +411,16 @@ description: |-
 
   relational response perturbation, and derived effective quantities.
 
-  The simplest first closure is baryon-locked relational inertia:
+  The declared scalar closure is baryon-locked relational inertia:
 
       delta_R = delta_b + delta_X_r / X_r
 
-  The first native TORG closure sets the relational response perturbation
+  The native TORG closure sets the relational response perturbation
   to track baryonic perturbations at linear order by taking:
 
       delta_X_r = 0
 
-  as a first closure, giving:
+  under the baryon-locked relation, giving:
 
       delta rho_R = X_r rho_b delta_b
 
@@ -428,7 +428,7 @@ description: |-
 
       delta rho_eff = rho_b (1 + X_r) delta_b
 
-  This is the first serious TORG perturbation ansatz.
+  This is the declared TORG perturbation ansatz.
 
   It says that the relational component has no independent particle
   perturbation. It is locked to baryonic structure because it is a
@@ -447,14 +447,14 @@ description: |-
   This remains the standard baryonic continuity equation in conformal
   Newtonian gauge.
 
-  The relational response does not get a separate continuity equation at
-  first closure. Its perturbation is algebraically tied to baryonic
+  The relational response does not get a separate continuity equation under
+  this closure. Its perturbation is algebraically tied to the baryonic
   perturbation:
 
       delta rho_R = X_r rho_b delta_b
 
-  For a higher-order theory, delta_X_r can become dynamic. The
-  first native version keeps it constrained.
+  A higher-order extension may make delta_X_r dynamic; this contract keeps
+  it constrained.
 
   Euler equation and photon-drag dilution
 
@@ -472,7 +472,7 @@ description: |-
 
       1 / [1 + X_r(a, k)]
 
-  A first native Euler equation is:
+  The native Euler equation is:
 
       theta_b'
       =
@@ -483,9 +483,8 @@ description: |-
   where R_gamma represents the usual photon-baryon coupling strength in
   the chosen convention.
 
-  The exact native CMB solver convention will require the optical-depth factor and
-  baryon-photon inertia ratio in native CMB solver's native notation, but the physical
-  rule is fixed:
+  The native CMB solver expresses this term through its declared optical-depth
+  factor and baryon-photon inertia ratio. The physical rule is:
 
       photon drag acceleration proportional to 1 / (1 + X_r)
 
@@ -530,7 +529,7 @@ description: |-
 
   Slip and anisotropic stress
 
-  At first closure, TORG introduces no new anisotropic stress:
+  Under the declared closure, TORG introduces no new anisotropic stress:
 
       sigma_R = 0
 
@@ -539,15 +538,14 @@ description: |-
 
       Phi - Psi = standard radiation/neutrino contribution
 
-  This is the cleanest first native version. It avoids inventing
-  unnecessary tensor structure.
+  This minimal native closure avoids inventing unnecessary tensor structure.
 
   If data demand a geometric slip term, it must be derived from
   R_{mu nu}, not inserted as a phenomenological patch.
 
   Native perturbation contract
 
-  The first TORG native perturbation contract contains these declarations:
+  The TORG native perturbation contract contains these declarations:
 
       variables:
         delta_b, theta_b, delta_gamma, theta_gamma, Phi, Psi
@@ -794,7 +792,7 @@ description: |-
   locally through screening and aims to recover CMB structure without
   independent cold dark matter.
 notes: |-
-  This model file is the first formal TORG model carrier.
+  This model file is the formal TORG model carrier.
 
   The prose description intentionally carries the complete theory text.
   It is not merely metadata. It is intended to preserve the ontology,
@@ -807,8 +805,8 @@ notes: |-
 
   The CMB perturbation block declares the perturbation mathematics
   directly. Copernican compiles those equations into its generic
-  declarative perturbation executor instead of falling back to standard
-  native CMB solver perturbations.
+  declarative perturbation executor, which does not supply undeclared
+  perturbations.
 
 parameters:
   - name: Hubble constant
@@ -1070,11 +1068,9 @@ likelihood:
     D_V: "((c_km_s * z * comoving_distance_Mpc**2 / H_z))**(1.0 / 3.0)"
     r_s: sound_horizon_Mpc
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Ob0 * (H0 / 100.0)**2
-    omch2: 0.0
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -1108,12 +1104,10 @@ cmb:
       Tcmb: Tcmb_K
       YHe: 0.245
       Omega_b0: ombh2 / (h * h)
-      Omega_c0: omch2 / (h * h)
       Omega_gamma0: 2.469e-5 * ((Tcmb_K / 2.7255) ** 4) / (h * h)
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
       Omega_r0: Or0
-      Omega_m0: Omega_b0 + Omega_c0
-      Omega_de0: 1.0 - Or0 - Omega_m0 - Omega_k0
+      Omega_m0: Omega_b0
       torg_z_a: 1.0 / a
       torg_transition: 1.0 / (1.0 + (torg_z_a / (1.0 + zt)) ** beta)
       torg_transition_today: 1.0 / (1.0 + (1.0 / (1.0 + zt)) ** beta)
@@ -1146,7 +1140,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -1305,13 +1298,9 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for Temporal Opposing Relational Geometry;
-      the model background remains theory-specific.
+      notes: TORG spectra use baryon-locked relational inertia sources.
+    notes: The scalar graph contains photons, baryons, and neutrinos; the
+      torg_matter_factor source closures replace an independent CDM species.
 validation:
   expected_limits:
     local_newtonian:

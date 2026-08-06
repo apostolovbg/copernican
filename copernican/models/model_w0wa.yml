@@ -15,7 +15,7 @@ description: >-
   The Hubble expansion used by the likelihoods incorporates curvature,
   baryon density and radiation support while the CPL factors enter only
   through the dark-energy density. High-redshift physics stays intact
-  thanks to the standard photon term, and the H(z) expression below
+  through the declared photon term, and the H(z) expression below
   keeps Omega_de coupled explicitly to w₀ and wₐ so the manifest
   documents the exact functional form the pipelines use during
   bootstrapping.
@@ -28,9 +28,8 @@ description: >-
 abstract: >-
   The CPL (Chevallier-Polarski-Linder) expansion governs the dark-energy
   density while flat or mildly curved geometries keep the matter and
-  radiation terms standard. Including both w₀ and wₐ lets the sampler
-  match the subtle tilt seen in the latest joint SNe+BAO data without
-  losing contact with the native CMB solver-run CMB predictions.
+  radiation terms explicit. Including both w₀ and wₐ lets the sampler
+  match joint SNe+BAO data while retaining native CMB predictions.
 parameters:
   - name: Hubble constant
     python_var: H0
@@ -161,7 +160,6 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -232,7 +230,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -379,13 +376,9 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for w0waCDM; the model background remains
-      theory-specific.
+      notes: w0waCDM spectra use the declared CPL background.
+    notes: The scalar graph couples declared matter and radiation species to
+      the time-dependent CPL dark-energy expansion law.
 notes: >-
   The CPL dark-energy density multiplies the derived dark-energy
   density so the manifest records the evaluated CPL values along with

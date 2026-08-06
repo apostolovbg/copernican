@@ -140,7 +140,6 @@ def _build_short_chain_plugin():
         CMB_CONTRACT={},
         CMB_PARAM_MAP={},
         CMB_PERTURBATION_CONTRACT={},
-        CMB_PERTURBATION_STANDARD=False,
         CMB_PERTURBATION_DATA=None,
         CMB_NATIVE_RUNTIME=None,
         LIKELIHOOD_CONFIG={},
@@ -241,6 +240,11 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                     math.isfinite(value) for value in diagnostics[key].values()
                 )
             )
+        fixed_name = "Tcmb_K"
+        total_draws = float(res["production_steps"] * res["n_walkers"])
+        self.assertEqual(diagnostics["rhat"][fixed_name], 1.0)
+        self.assertEqual(diagnostics["ess_bulk"][fixed_name], total_draws)
+        self.assertEqual(diagnostics["ess_tail"][fixed_name], total_draws)
 
     def test_legacy_fit_alias_warns_and_runs(self) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
@@ -634,7 +638,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
 
     def test_joint_fit_component_chi2_totals(self) -> None:
         plugin = _build_model_plugin(
-            "model_lcdm_ccmbs.yml",
+            "model_lcdm.yml",
             compact_native=True,
             fixed_native=True,
         )
@@ -660,9 +664,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         bao_df.attrs["covariance_matrix_inv"] = numpy.eye(1)
 
         ells = numpy.arange(30, 34)
-        camb_contract = plugin.get_camb_contract(initial)
+        cmb_contract = plugin.get_cmb_contract(initial)
         perturbation_contract = plugin.get_cmb_perturbation_contract(initial)
-        structured_contract = dict(camb_contract)
+        structured_contract = dict(cmb_contract)
         structured_contract["perturbations"] = perturbation_contract
         dl_vals = module.compute_cmb_spectrum(
             structured_contract,

@@ -3,11 +3,11 @@ version: '1.0'
 description: >-
   ### LambdaCDM with variable neutrino mass
 
-  This sample keeps the flat ΛCDM background but promotes the summed
-  neutrino mass to a sampled quantity instead of a fixed heritage value.
+  This sample keeps the flat ΛCDM background and treats the summed
+  neutrino mass as a sampled quantity.
   Supernovae and BAO distances remain governed by the same H(z)
-  expression while the native CMB solver-based CMB likelihood uses the explicit
-  nummerical contribution through Omnus. Elevating m_ν lets the
+  expression while the native CMB likelihood evolves the explicit
+  q-resolved massive-neutrino hierarchy. Elevating m_ν lets the
   manifest capture the neutrino signature shown by galaxy clustering
   without rewriting the BAO or SNe integrals.
 
@@ -19,11 +19,10 @@ description: >-
   downstream validators compare the manifest entry against the cached
   neutrino density metadata.
 abstract: >-
-  LambdaCDM+Mnu keeps the classic expansion law but learns the neutrino sector.
-  The total matter density still sources the Friedmann equation, and the sound
-  horizon uses the standard radiation term; only the CMB mapping picks up a
-  varying omnuh2 to match the declared sum_mnu so the pipeline knows which
-  neutrino density to forward to native CMB solver.
+  LambdaCDM+Mnu keeps the LambdaCDM expansion law while sampling the neutrino
+  sector. The total matter density sources the Friedmann equation, and the
+  native CMB contract maps the declared sum_mnu into q-resolved neutrino
+  states.
 parameters:
   - name: Hubble constant
     python_var: H0
@@ -130,7 +129,6 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -201,7 +199,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -348,18 +345,15 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for LambdaCDM+Mnu; the model background
-      remains theory-specific.
+      notes: LambdaCDM+Mnu spectra use the declared massive-neutrino hierarchy.
+    notes: The scalar graph couples the LambdaCDM species to q-resolved
+      massive-neutrino equations and regular adiabatic initial data.
 notes: >-
   The neutrino contribution enters only through omnuh2, which is
   derived from the declared sum_mnu. The radiation term multiplies
   Omega_gamma by (1 + 0.2271 * Neff) so the BAO integral mirrors the
-  same effective relativistic density that native CMB solver uses alongside the
+  same effective relativistic density that the native CMB background uses
+  alongside the
   explicit neutrino mass information. The matter density Omch2
   subtracts the neutrino density so cold dark matter carries the
   remaining mass.

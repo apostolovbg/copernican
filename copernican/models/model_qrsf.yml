@@ -211,12 +211,9 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H_star
     ombh2: Omega_b * (H_star/100)**2
-    omch2: Omega_b * xi_high * (H_star/100)**2
-    omnuh2: Omega_gamma * (1 + 0.2271 * Neff) * (H_star/100)**2
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -250,11 +247,10 @@ cmb:
       Tcmb: Tcmb_K
       YHe: 0.245
       Omega_b0: ombh2 / (h * h)
-      Omega_c0: omch2 / (h * h)
       Omega_gamma0: Omega_gamma
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
       Omega_r0: Omega_gamma0 + Omega_nu0
-      Omega_m0: Omega_b0 + Omega_c0
+      Omega_m0: Omega_b0 * (1.0 + xi_high)
       w0: w_rel0
       wa: w_rel_a
       qrsf_transition_ratio: ((1 / a) / (1 + z_trans)) ** n_trans
@@ -262,7 +258,6 @@ cmb:
         / (1 + qrsf_transition_ratio)
       qrsf_rel_factor: (1 / a) ** (3 * (1 + w_rel0 + w_rel_a)) * exp(-3 * w_rel_a
         * (1 - a))
-      Omega_de0: 1.0 - Omega_m0 - Omega_r0 - Omega_k0
       H: H0 * sqrt(Omega_b * (1 / a) ** 3 * qrsf_matter_factor + Omega_gamma * (1
         + 0.2271 * Neff) * (1 / a) ** 4 + Omega_rel0 * qrsf_rel_factor)
     reionization:
@@ -290,7 +285,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -449,13 +443,9 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for QRSF; the model background remains
-      theory-specific.
+      notes: QRSF spectra use baryon-locked relational inertia sources.
+    notes: The scalar graph contains photons, baryons, and neutrinos; the
+      qrsf_matter_factor source closures replace an independent CDM species.
 notes: >-
   The entanglement enhancement saturates to xi_high at early times and relaxes
   toward xi_low today, so CMB-era inertia matches a cold-matter analogue while

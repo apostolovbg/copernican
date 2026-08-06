@@ -1,4 +1,6 @@
 # Copernican Architecture
+**Project Version:** 12.0.26
+
 The Copernican splits functionality across orchestration, data, model
 adapters, engines, and presentation layers. This document captures how these
 layers work together, describes the manifest lifecycle, and highlights key
@@ -35,7 +37,8 @@ guardrails such as policy enforcement and dataset validation.
  models, cache sanitized copies, convert equations into callables, and
  assemble picklable engine adapters compliant with the expected interface.
 - `engine_adapter` – ensures adapters declare required functions, structured
- CAMB contracts and dataset compatibility before any engine consumes them.
+ native CMB contracts, and dataset compatibility before any engine consumes
+ them.
 - `posterior`, `statistics`, `chain_io`, `csv_writer`, `result_writer` –
  provide shared likelihoods, chi-squared helpers, NetCDF/CSV writers, and
  summary serialization that every engine reuses.

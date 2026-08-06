@@ -5,10 +5,12 @@
 The validation suite runs *real* manifests through the same pipeline that
 the GUI and CLI use for ordinary analyses. The manifest files live under
 `copernican/validation/manifests/`, and the canonical manifest
-`reference_planck2018.yml` evaluates the fixed-parameter
-`copernican/models/model_ref_planck2018.yml` against the publicly
-released Union Through UNITY 2000 SNe, BOSS DR12 BAO and Planck 2018 Lite
-datasets.
+`reference_planck2018.yml` compares the canonical native
+`copernican/models/model_lcdm.yml` control with the fixed-parameter
+`copernican/models/model_ref_planck2018.yml` test model against the publicly
+released Union Through UNITY 2000 SNe, BOSS DR12 BAO, and Planck 2018 Lite
+datasets. The manifest records both model roles and current hashes for every
+dataset asset consumed by the validation run.
 
 ## Reference model
 `copernican/models/model_ref_planck2018.yml` fixes the Hubble constant,

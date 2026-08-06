@@ -52,70 +52,30 @@ _LOGISTIC_SUPPORT_POINTS = (
     0.96875,
 )
 
-CMB_BACKEND_CAPABILITIES: dict[str, dict[str, bool]] = {
-    "camb": {
-        "scalar_param_map": True,
-        "grids_values_calls": True,
-        "standard_perturbations": True,
-        "native_nonstandard_perturbations": True,
-    }
-}
+_REMOVED_CMB_ROUTE_KEYS = frozenset({"backend"})
+_REMOVED_PERTURBATION_ROUTE_KEYS = frozenset(
+    {"backend", "backend_mapping", "standard"}
+)
 
 
-def get_backend_capabilities(backend: str) -> Mapping[str, bool]:
-    """Return the declared capability mapping for ``backend``."""
+def _reject_removed_cmb_route_keys(contract: Mapping[str, Any]) -> None:
+    """Reject every removed production solver selector."""
 
-    return CMB_BACKEND_CAPABILITIES.get(backend, {})
-
-
-def backend_supports_standard_perturbations(backend: str) -> bool:
-    """Return ``True`` when ``backend`` supports standard perturbations."""
-
-    return bool(
-        get_backend_capabilities(backend).get("standard_perturbations")
+    removed_outer_keys = _REMOVED_CMB_ROUTE_KEYS.intersection(contract)
+    if removed_outer_keys:
+        removed = ", ".join(sorted(removed_outer_keys))
+        raise ValueError(f"CMB contract uses removed route key(s): {removed}")
+    perturbations = contract.get("perturbations", {}) or {}
+    if not isinstance(perturbations, Mapping):
+        raise ValueError("Structured CMB contracts must include perturbations")
+    removed_perturbation_keys = _REMOVED_PERTURBATION_ROUTE_KEYS.intersection(
+        perturbations
     )
-
-
-def backend_supports_native_nonstandard_perturbations(
-    backend: str,
-) -> bool:
-    """Return ``True`` when ``backend`` supports native non-standard modes."""
-
-    return bool(
-        get_backend_capabilities(backend).get(
-            "native_nonstandard_perturbations"
-        )
-    )
-
-
-def validate_native_perturbation_execution(
-    *,
-    model_name: str,
-    backend: str,
-    standard: bool,
-    implemented: bool | None,
-) -> None:
-    """Raise ``ValueError`` when non-standard execution is unsupported."""
-
-    if standard:
-        return
-
-    if not backend_supports_native_nonstandard_perturbations(backend):
+    if removed_perturbation_keys:
+        removed = ", ".join(sorted(removed_perturbation_keys))
         raise ValueError(
-            "Model "
-            f"'{model_name}' declares non-standard perturbations for "
-            f"backend '{backend}' (standard={standard}), but the backend "
-            "capability registry does not support native non-standard "
-            "perturbations. A generic declarative executor is required."
-        )
-
-    if implemented is not True:
-        raise ValueError(
-            "Model "
-            f"'{model_name}' declares non-standard perturbations for "
-            f"backend '{backend}' (standard={standard}), but the backend "
-            "mapping does not mark a generic declarative implementation "
-            "as available. A generic declarative executor is required."
+            "CMB perturbation contract uses removed route key(s): "
+            f"{removed}"
         )
 
 
@@ -146,7 +106,7 @@ class NativeCMBCompileDiagnostics:
 class NativeCMBRuntime:
     """Immutable native CMB runtime payload carried by engine plugins.
 
-    The native backend needs a compiled perturbation graph together with the
+    The native solver needs a compiled perturbation graph together with the
     static background and numerical declarations from the model contract.
     Building that payload once in :mod:`model_coder` keeps compilation
     ownership upstream and lets the runtime hot path bind only the varying
@@ -154,7 +114,6 @@ class NativeCMBRuntime:
     """
 
     model_name: str
-    backend: str
     perturbation_contract: Mapping[str, Any]
     background: Mapping[str, Any]
     numerical: Mapping[str, Any]
@@ -176,7 +135,6 @@ class NativeCMBRuntime:
 
         return {
             "model_name": self.model_name,
-            "backend": self.backend,
             "model_parameters": dict(model_parameters),
             "param_map": dict(param_map),
             "background": copy.deepcopy(self.background),
@@ -212,7 +170,6 @@ def _freeze_native_runtime_structure(
 
     structural_view = {
         "background": cmb_contract.get("background", {}) or {},
-        "backend": cmb_contract.get("backend", "camb"),
         "calls": cmb_contract.get("calls", []) or [],
         "grids": cmb_contract.get("grids", {}) or {},
         "model_name": cmb_contract.get("model_name", ""),
@@ -290,11 +247,7 @@ def prepare_native_cmb_execution_contract(
 
     if not isinstance(contract, Mapping):
         raise ValueError("Structured CMB contracts must be mappings")
-    perturbations = contract.get("perturbations", {}) or {}
-    if not isinstance(perturbations, Mapping):
-        raise ValueError("Structured CMB contracts must include perturbations")
-    if perturbations.get("standard") is not False:
-        return contract
+    _reject_removed_cmb_route_keys(contract)
     if (
         contract.get("perturbation_data") is not None
         and contract.get("background_runtime") is not None
@@ -304,7 +257,6 @@ def prepare_native_cmb_execution_contract(
     parameter_names = _infer_native_runtime_parameter_names(contract)
     runtime = compile_native_cmb_runtime(
         model_name=str(contract.get("model_name", "PreparedNativeCMB")),
-        backend=str(contract.get("backend", "camb")),
         parameter_names=parameter_names,
         latex_names=tuple("" for _ in parameter_names),
         cmb_contract=contract,
@@ -326,16 +278,16 @@ def prepare_native_cmb_execution_contract(
 def compile_native_cmb_runtime(
     *,
     model_name: str,
-    backend: str,
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
     cmb_contract: Mapping[str, Any],
 ) -> NativeCMBRuntime:
     """Compile the static native CMB runtime carried by a model plugin."""
 
+    _reject_removed_cmb_route_keys(cmb_contract)
+
     cache_key = (
         str(model_name),
-        str(backend),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
         _freeze_native_runtime_structure(cmb_contract),
@@ -410,7 +362,6 @@ def compile_native_cmb_runtime(
         (cmb_contract.get("perturbations", {}) or {})
     )
     perturbation_contract.pop("model_name", None)
-    perturbation_contract.pop("backend", None)
     background_section = cmb_contract.get("background", {}) or {}
     recombination_section = (
         background_section.get("recombination", {}) or {}
@@ -482,14 +433,12 @@ def compile_native_cmb_runtime(
     perturbation_data = compile_perturbation_contract(
         perturbation_contract,
         model_name=model_name,
-        backend=backend,
         parameter_names=tuple(parameter_names),
         latex_names=tuple(latex_names),
         background_reference_names=background_reference_names_tuple,
     )
     runtime = NativeCMBRuntime(
         model_name=model_name,
-        backend=backend,
         perturbation_contract=perturbation_contract,
         background=copy.deepcopy(cmb_contract.get("background", {}) or {}),
         grids=copy.deepcopy(cmb_contract.get("grids", {}) or {}),

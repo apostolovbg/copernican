@@ -1589,8 +1589,6 @@ def _compute_custom_cmb_spectrum_data(
         perturbation_data = _compile_declared_perturbation_contract(
             contract_or_params
         )
-        if perturbation_data.standard:
-            raise ValueError("Standard perturbation contracts must use CAMB.")
         execution_plan = _compile_declared_graph_execution_plan(
             perturbation_data
         )

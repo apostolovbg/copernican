@@ -152,7 +152,6 @@ skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
-  backend: camb
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
@@ -224,7 +223,6 @@ cmb:
           * hard_source * quasar_helium_hardness
   perturbations:
     contract_version: 2
-    standard: false
     gauge: conformal_newtonian
     sectors:
       scalar:
@@ -371,17 +369,13 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: Production spectra use the Copernican native hierarchy.
-    backend_mapping:
-      camb:
-        native_solver_required: true
-        implemented: true
-    notes: Native declared scalar hierarchy for wCDM; the model background remains
-      theory-specific.
+      notes: wCDM spectra use the declared constant-w background.
+    notes: The scalar graph couples declared matter and radiation species to
+      the constant-w dark-energy expansion law.
 notes: >-
   The constant-w dark energy couples to the same densities that feed
   the BAO and CMB integrals; deviations from -1 show up both in the
-  H(z) polynomial and in the native CMB solver dark-energy call. Curvature and w_de
+  H(z) polynomial and in the declared native background. Curvature and w_de
   share the same redshift leverage, which exposes the degeneracy
   between curvature and running dark energy while keeping the matter
   density anchored to the baryon fraction. The radiation term
