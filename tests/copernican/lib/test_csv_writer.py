@@ -8,6 +8,7 @@ import numpy
 import pandas
 
 from copernican.lib import csv_writer as module
+from copernican.lib.model_selection import build_comparison_request
 
 
 class TestImportModule(unittest.TestCase):
@@ -32,15 +33,20 @@ class SNeCsvWriterRegressionTestCase(unittest.TestCase):
     def test_save_sne_results_detailed_csv_marginalizes_intercept(
         self,
     ) -> None:
-        class DummyPlugin:
+        class ReferencePlugin:
             """Minimal plugin exposing the API the CSV writer expects."""
 
-            MODEL_NAME = "Dummy Model"
+            MODEL_NAME = "Reference Model"
 
             @staticmethod
             def distance_modulus_model(z_values, *params):
                 baseline = numpy.array([10.0, 11.0, 12.0], dtype=float)
                 return baseline[: z_values.shape[0]].copy()
+
+        class CandidatePlugin(ReferencePlugin):
+            """Second model role with the same deterministic prediction."""
+
+            MODEL_NAME = "Candidate Model"
 
         observations = pandas.DataFrame(
             {
@@ -64,10 +70,14 @@ class SNeCsvWriterRegressionTestCase(unittest.TestCase):
                 observations,
                 fit_results,
                 fit_results,
-                DummyPlugin,
-                DummyPlugin,
+                ReferencePlugin,
+                CandidatePlugin,
                 csv_dir=tmpdir,
                 timestamp="20260528_000000",
+                comparison=build_comparison_request(
+                    "Reference Model",
+                    "Candidate Model",
+                ),
             )
 
             csv_files = list(Path(tmpdir).glob("*.csv"))
@@ -75,17 +85,26 @@ class SNeCsvWriterRegressionTestCase(unittest.TestCase):
 
             output_df = pandas.read_csv(csv_files[0])
             self.assertTrue(
-                numpy.allclose(output_df["residual_lcdm"].to_numpy(), 0.0)
+                numpy.allclose(
+                    output_df["residual_Reference_Model"].to_numpy(),
+                    0.0,
+                )
             )
-            alt_residual_columns = [
+            residual_columns = [
                 col for col in output_df.columns if col.startswith("residual_")
             ]
-            self.assertGreaterEqual(len(alt_residual_columns), 2)
-            alt_column = next(
-                col for col in alt_residual_columns if col != "residual_lcdm"
+            self.assertEqual(
+                residual_columns,
+                [
+                    "residual_Reference_Model",
+                    "residual_Candidate_Model",
+                ],
             )
             self.assertTrue(
-                numpy.allclose(output_df[alt_column].to_numpy(), 0.0)
+                numpy.allclose(
+                    output_df["residual_Candidate_Model"].to_numpy(),
+                    0.0,
+                )
             )
 
 

@@ -4,20 +4,18 @@
 """Utilities for saving parameter fit summaries.
 
 The Copernican Suite evaluates cosmological models and often produces
-parameter estimates alongside their uncertainties.  This module serialises
-those results to both JSON and YAML so that external tools can ingest the
-numbers without depending on the full code base.  The writer accepts a
-mapping of model names to engine result dictionaries.  Each entry should
-contain ``fitted_cosmological_params`` with best-fit values, optional
+parameter estimates alongside their uncertainties. This module serialises
+the control and test results to both JSON and YAML so external tools can
+ingest the numbers without depending on the full code base. Each role entry
+contains its selected model identity, ``fitted_cosmological_params`` with
+best-fit values, optional
 ``parameter_errors`` describing 1σ uncertainties and an optional
 ``covariance_matrix``.  Starting with version 7.1.0 the summary also embeds
 the sampler configuration—production steps, burn-in length, walker count and
 worker pool size—so output files mirror the interactive configuration menu.
-Version 7.7.1 polishes this metadata by reflowing nested-sampling helpers for
-lint compliance, documenting the adjustments and retaining the live-point and
-evidence tolerance fields so both backends emit comparable records. NumPy
-arrays are converted to plain Python lists to keep the output fully
-serialisable.
+NumPy arrays are converted to plain Python lists to keep the output fully
+serialisable. Role keys preserve both records when the control and test model
+names are identical.
 """
 
 from __future__ import annotations
@@ -29,6 +27,7 @@ from typing import Any, Dict, Mapping
 import numpy
 import yaml
 
+from .model_selection import ComparisonRequest, comparison_slug
 from .utils import get_timestamp
 
 
@@ -48,19 +47,20 @@ def _to_serialisable(payload: Any) -> Any:
 
 
 def save_summary(
-    results: Mapping[str, Mapping[str, Any]],
+    control_results: Mapping[str, Any],
+    test_results: Mapping[str, Any],
     output_dir: str | Path,
     *,
+    comparison: ComparisonRequest,
     timestamp: str | None = None,
-    comparison_slug: str | None = None,
 ) -> tuple[Path, Path]:
-    """Write parameter summaries for one or more models.
+    """Write role-preserving parameter summaries for one comparison.
 
     Parameters
     ----------
-    results : mapping
-        Mapping of model name to dictionaries containing fit information.  At
-        minimum each entry should provide ``fitted_cosmological_params``.
+    control_results, test_results : mapping
+        Fit information for the selected control and test models. At minimum,
+        each entry should provide ``fitted_cosmological_params``.
     output_dir : path-like
         Directory where the summary files will be written.
     timestamp : str, optional
@@ -79,7 +79,11 @@ def save_summary(
     summary_timestamp = timestamp or get_timestamp()
 
     summary: Dict[str, Dict[str, Any]] = {}
-    for model_name, res in results.items():
+    role_results = (
+        ("control", comparison.control_model.name, control_results),
+        ("test", comparison.test_model.name, test_results),
+    )
+    for role, model_name, res in role_results:
         params = res.get("fitted_cosmological_params") or {}
         errors = res.get("parameter_errors") or {}
         cov = res.get("covariance_matrix")
@@ -112,7 +116,8 @@ def save_summary(
             if sampling_entry is None:
                 sampling_entry = {}
             sampling_entry[out_key] = _to_serialisable(sampling_value)
-        summary[model_name] = {
+        summary[role] = {
+            "model": model_name,
             "parameters": {k: _to_serialisable(v) for k, v in params.items()},
             "errors_1sigma": (
                 {k: _to_serialisable(v) for k, v in errors.items()}
@@ -123,7 +128,7 @@ def save_summary(
             "sampling": sampling_entry,
         }
 
-    pair_token = f"_{comparison_slug}" if comparison_slug else ""
+    pair_token = f"_{comparison_slug(comparison)}"
     base_name = f"parameter-summary{pair_token}_{summary_timestamp}"
     json_path = out_path / f"{base_name}.json"
     yaml_path = out_path / f"{base_name}.yml"

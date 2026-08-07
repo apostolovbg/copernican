@@ -19,6 +19,7 @@ from matplotlib.colors import ListedColormap
 from copernican import version as version_module
 
 from . import latex_utils
+from .cmb_identity import NATIVE_CMB_ENGINE_LABEL
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .model_selection import ComparisonRequest, comparison_slug
@@ -30,7 +31,7 @@ _ = plt.get_backend()
 
 try:  # pragma: no cover - coverage uses the environment-installed backend
     import arviz as arviz_module
-except ModuleNotFoundError:  # pragma: no cover - pytest installs ArviZ already
+except ModuleNotFoundError:  # pragma: no cover - tests provide ArviZ
     arviz_module = None
 
 # ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
@@ -61,10 +62,6 @@ def _latex_model_name(name: str) -> str:
     return name.replace("_", r"\_")
 
 
-# NOTE: ``_prepare_corner_inputs`` used to be spelled
-# ``_validate_corner_inputs``.  The new name emphasises that the helper both
-# validates and flattens the raw sampler output.  A backwards-compatibility
-# alias keeps Stage 5 imports functional for older automation.
 def _prepare_corner_inputs(
     posterior_samples: numpy.ndarray,
     parameter_names: list[str],
@@ -78,9 +75,7 @@ def _prepare_corner_inputs(
     or tries to index missing parameters.  Stage 2 runs can emit millions of
     draws, so the helper also thins dense chains deterministically to at most
     :data:`MAX_CORNER_SAMPLES` rows.  Returning basic statistics allows the
-    caller to report how much data the figure contains. The
-    ``legacy_validator`` flag surfaces whether compatibility mode derived those
-    statistics.
+    caller to report how much data the figure contains.
     """
 
     samples = numpy.asarray(posterior_samples, dtype=float)
@@ -132,28 +127,6 @@ def _prepare_corner_inputs(
 
     stats["downsampled"] = stats["processed_count"] < stats["finite_count"]
     return clean_samples, parameter_names[:n_params], stats
-
-
-# Backwards compatibility --------------------------------------------------
-#
-# Stage 5 previously imported ``_validate_corner_inputs`` directly.  Retain the
-# public spelling by delegating to :func:`_prepare_corner_inputs` so legacy
-# imports keep working while linters still see a real function definition.
-def _validate_corner_inputs(
-    posterior_samples: numpy.ndarray,
-    parameter_names: list[str],
-) -> tuple[numpy.ndarray, list[str], dict[str, int | bool]]:
-    """Compatibility wrapper for callers expecting the historic helper name.
-
-    Older automation accessed :func:`_validate_corner_inputs` directly.  The
-    renamed :func:`_prepare_corner_inputs` performs the actual work, so this
-    wrapper simply forwards the call without altering the return signature.
-    Keeping the function definition—rather than a plain assignment—avoids
-    the ``flake8`` ``F811`` redefinition warning while preserving runtime
-    behaviour.
-    """
-
-    return _prepare_corner_inputs(posterior_samples, parameter_names)
 
 
 def _info_box_layout(right: float) -> tuple[float, float]:
@@ -334,7 +307,7 @@ _CORNER_BASE_LINE_HEIGHT = 0.015
 # first footer line.  Stage 5 draws bold text here, so we budget extra vertical
 # breathing room to mirror the rest of the plotting suite.
 _CORNER_FOOTER_PADDING = 0.038
-# ``_CORNER_FOOTER_CLEARANCE`` now tracks the minimum spacing between the
+# ``_CORNER_FOOTER_CLEARANCE`` tracks the minimum spacing between the
 # lowest footer baseline and the figure edge.  Guarding this distance stops
 # exported PDFs from clipping the text block even when downstream helpers add
 # extra diagnostic lines.
@@ -580,8 +553,6 @@ def _format_corner_footer_stats(
     processed = int(stats.get("processed_count", finite))
     stride = int(stats.get("stride", 1))
     downsampled = bool(stats.get("downsampled", False))
-    legacy = bool(stats.get("legacy_validator", False))
-
     lines: list[tuple[str, bool]] = []
     lines.append(
         (
@@ -614,14 +585,6 @@ def _format_corner_footer_stats(
             ),
         )
 
-    if legacy:
-        lines.append(
-            (
-                "Legacy validator output detected; statistics inferred.",
-                False,
-            ),
-        )
-
     return lines
 
 
@@ -648,7 +611,7 @@ def _build_arviz_inference_data(
     return inference_data, var_names
 
 
-def _render_corner_grid_legacy(
+def _render_corner_grid_matplotlib(
     axes: numpy.ndarray,
     n_params: int,
     samples: numpy.ndarray,
@@ -658,7 +621,7 @@ def _render_corner_grid_legacy(
     percentile_lines: tuple[float, float, float],
     contour_levels: tuple[float, float],
 ) -> None:
-    """Draw the original Matplotlib-based corner grid."""
+    """Draw the Matplotlib-based corner grid."""
 
     for row in range(n_params):
         for col in range(n_params):
@@ -896,7 +859,6 @@ def _render_single_param_arviz(
 
 
 def build_footer_lines(
-    alt_model_plugin: Any,
     data_attrs: dict,
     timestamp: str | None = None,
     *,
@@ -1064,10 +1026,10 @@ def format_model_summary_text(
 
 def plot_hubble_diagram(
     sne_data_df: Any,
-    lcdm_fit_results: Any,
-    alt_model_fit_results: Any,
-    lcdm_plugin: Any,
-    alt_model_plugin: Any,
+    control_fit_results: Any,
+    test_fit_results: Any,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
     *,
@@ -1095,10 +1057,10 @@ def plot_hubble_diagram(
 
     if "mu_obs" not in sne_data_df.columns:
         fit_res_for_mu = (
-            alt_model_fit_results
-            if alt_model_fit_results
-            and alt_model_fit_results.get("fitted_nuisance_params")
-            else lcdm_fit_results
+            test_fit_results
+            if test_fit_results
+            and test_fit_results.get("fitted_nuisance_params")
+            else control_fit_results
         )
         if (
             sne_data_df.attrs.get("fit_style") == "h2_fit_nuisance"
@@ -1165,7 +1127,6 @@ def plot_hubble_diagram(
     )
 
     footer_lines = build_footer_lines(
-        alt_model_plugin,
         sne_data_df.attrs,
         timestamp,
         comparison=comparison,
@@ -1195,28 +1156,32 @@ def plot_hubble_diagram(
         zorder=1,
     )
 
-    if lcdm_fit_results and lcdm_fit_results.get("success"):
-        p_lcdm = list(lcdm_fit_results["fitted_cosmological_params"].values())
-        mu_model_lcdm_smooth = lcdm_plugin.distance_modulus_model(
-            z_plot_smooth, *p_lcdm
+    if control_fit_results and control_fit_results.get("success"):
+        p_control = list(
+            control_fit_results["fitted_cosmological_params"].values()
         )
-        mu_model_lcdm_points = lcdm_plugin.distance_modulus_model(
+        mu_model_control_smooth = control_model_plugin.distance_modulus_model(
+            z_plot_smooth, *p_control
+        )
+        mu_model_control_points = control_model_plugin.distance_modulus_model(
             z_data,
-            *p_lcdm,
+            *p_control,
         )
-        res_lcdm = _apply_sne_intercept(mu_obs_data - mu_model_lcdm_points)
-        chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', numpy.nan):.2f}"
+        res_control = _apply_sne_intercept(
+            mu_obs_data - mu_model_control_points
+        )
+        chi2_control = f"{control_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,
-            mu_model_lcdm_smooth,
+            mu_model_control_smooth,
             color="red",
             ls="-",
-            label=rf"{control_latex} ($\chi^2$={chi2_lcdm})",
+            label=rf"{control_latex} ($\chi^2$={chi2_control})",
             lw=2.5,
         )
         axs[1].errorbar(
             z_data,
-            res_lcdm,
+            res_control,
             yerr=diag_errors_plot,
             fmt=".",
             color="red",
@@ -1226,11 +1191,16 @@ def plot_hubble_diagram(
             capsize=2,
             ms=4,
         )
-        z_lcdm_avg, res_lcdm_avg = get_binned_average(z_data, res_lcdm)
-        z_lcdm_avg, res_lcdm_avg = _smooth_line(z_lcdm_avg, res_lcdm_avg)
+        z_control_avg, res_control_avg = get_binned_average(
+            z_data, res_control
+        )
+        z_control_avg, res_control_avg = _smooth_line(
+            z_control_avg,
+            res_control_avg,
+        )
         axs[1].plot(
-            z_lcdm_avg,
-            res_lcdm_avg,
+            z_control_avg,
+            res_control_avg,
             color="darkred",
             ls="-",
             lw=2,
@@ -1238,52 +1208,52 @@ def plot_hubble_diagram(
             label=rf"Avg. {control_latex} Res.",
         )
 
-    alt_name_latex = test_latex
-    if alt_model_fit_results and alt_model_fit_results.get("success"):
-        fitted_vals = alt_model_fit_results["fitted_cosmological_params"]
-        p_alt = list(fitted_vals.values())
-        mu_model_alt_smooth = alt_model_plugin.distance_modulus_model(
+    test_name_latex = test_latex
+    if test_fit_results and test_fit_results.get("success"):
+        fitted_vals = test_fit_results["fitted_cosmological_params"]
+        p_test = list(fitted_vals.values())
+        mu_model_test_smooth = test_model_plugin.distance_modulus_model(
             z_plot_smooth,
-            *p_alt,
+            *p_test,
         )
-        mu_model_alt_points = alt_model_plugin.distance_modulus_model(
+        mu_model_test_points = test_model_plugin.distance_modulus_model(
             z_data,
-            *p_alt,
+            *p_test,
         )
-        res_alt = _apply_sne_intercept(mu_obs_data - mu_model_alt_points)
-        chi2_alt = f"{alt_model_fit_results.get('chi2_min', numpy.nan):.2f}"
+        res_test = _apply_sne_intercept(mu_obs_data - mu_model_test_points)
+        chi2_test = f"{test_fit_results.get('chi2_min', numpy.nan):.2f}"
         axs[0].plot(
             z_plot_smooth,
-            mu_model_alt_smooth,
+            mu_model_test_smooth,
             color="blue",
             ls="--",
-            label=rf"{alt_name_latex} ($\chi^2$={chi2_alt})",
+            label=rf"{test_name_latex} ($\chi^2$={chi2_test})",
             lw=2.5,
         )
         axs[1].errorbar(
             z_data,
-            res_alt,
+            res_test,
             yerr=diag_errors_plot,
             fmt=".",
             mfc="none",
             mec="blue",
             ecolor="lightblue",
             alpha=0.5,
-            label=rf"{alt_name_latex} Res.",
+            label=rf"{test_name_latex} Res.",
             elinewidth=1,
             capsize=2,
             ms=4,
         )
-        z_alt_avg, res_alt_avg = get_binned_average(z_data, res_alt)
-        z_alt_avg, res_alt_avg = _smooth_line(z_alt_avg, res_alt_avg)
+        z_test_avg, res_test_avg = get_binned_average(z_data, res_test)
+        z_test_avg, res_test_avg = _smooth_line(z_test_avg, res_test_avg)
         axs[1].plot(
-            z_alt_avg,
-            res_alt_avg,
+            z_test_avg,
+            res_test_avg,
             color="darkblue",
             ls="--",
             lw=2,
             zorder=11,
-            label=f"Avg. {alt_name_latex} Res.",
+            label=f"Avg. {test_name_latex} Res.",
         )
 
     axs[0].set_ylabel(
@@ -1330,13 +1300,13 @@ def plot_hubble_diagram(
         linewidth=0.5,
     )
 
-    bbox_lcdm = dict(
+    bbox_control = dict(
         boxstyle="round,pad=0.5",
         fc="#FFEEEE",
         ec="darkred",
         alpha=0.8,
     )
-    bbox_alt = dict(
+    bbox_test = dict(
         boxstyle="round,pad=0.5",
         fc="#EEF2FF",
         ec="darkblue",
@@ -1348,31 +1318,31 @@ def plot_hubble_diagram(
         info_x,
         red_y,
         format_model_summary_text(
-            lcdm_plugin,
+            control_model_plugin,
             "sne",
-            lcdm_fit_results,
+            control_fit_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_lcdm,
+        bbox=bbox_control,
     )
     fig.text(
         info_x,
         blue_y,
         format_model_summary_text(
-            alt_model_plugin,
+            test_model_plugin,
             "sne",
-            alt_model_fit_results,
+            test_fit_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_alt,
+        bbox=bbox_test,
     )
 
     y = start_y
@@ -1411,10 +1381,10 @@ def plot_hubble_diagram(
 
 def plot_bao_observables(
     bao_data_df: Any,
-    lcdm_full_results: Any,
-    alt_model_full_results: Any,
-    lcdm_plugin: Any,
-    alt_model_plugin: Any,
+    control_results: Any,
+    test_results: Any,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
     sne_data_df: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
@@ -1458,7 +1428,6 @@ def plot_bao_observables(
     residual_axis = axs[1]
 
     footer_lines = build_footer_lines(
-        alt_model_plugin,
         bao_data_df.attrs,
         timestamp,
         comparison=comparison,
@@ -1557,23 +1526,23 @@ def plot_bao_observables(
             )
 
     line_styles = ["-", "--", ":"]
-    plot_model_bao(lcdm_full_results, "red", line_styles, control_latex)
+    plot_model_bao(control_results, "red", line_styles, control_latex)
 
-    alt_name_latex = test_latex
+    test_name_latex = test_latex
     plot_model_bao(
-        alt_model_full_results, "blue", line_styles, alt_name_latex, alpha=0.25
+        test_results, "blue", line_styles, test_name_latex, alpha=0.25
     )
 
     # --- Residuals ---
     all_res = []
     val_data = bao_data_df["value"].values
-    lcdm_pred = lcdm_full_results.get("pred_df")
-    if lcdm_pred is not None:
-        res_lcdm = val_data - lcdm_pred["model_prediction"].values
-        all_res.append(res_lcdm)
+    control_pred = control_results.get("pred_df")
+    if control_pred is not None:
+        res_control = val_data - control_pred["model_prediction"].values
+        all_res.append(res_control)
         residual_axis.errorbar(
             bao_data_df["redshift"],
-            res_lcdm,
+            res_control,
             yerr=bao_data_df["error"],
             fmt=".",
             color="red",
@@ -1585,7 +1554,7 @@ def plot_bao_observables(
         )
         z_avg, r_avg = get_binned_average(
             bao_data_df["redshift"].values,
-            res_lcdm,
+            res_control,
         )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
         residual_axis.plot(
@@ -1598,27 +1567,27 @@ def plot_bao_observables(
             label=rf"Avg. {control_latex} Res.",
         )
 
-    alt_pred = alt_model_full_results.get("pred_df")
-    if alt_pred is not None:
-        res_alt = val_data - alt_pred["model_prediction"].values
-        all_res.append(res_alt)
+    test_pred = test_results.get("pred_df")
+    if test_pred is not None:
+        res_test = val_data - test_pred["model_prediction"].values
+        all_res.append(res_test)
         residual_axis.errorbar(
             bao_data_df["redshift"],
-            res_alt,
+            res_test,
             yerr=bao_data_df["error"],
             fmt=".",
             mfc="none",
             mec="blue",
             ecolor="lightblue",
             alpha=0.5,
-            label=rf"{alt_name_latex} Res.",
+            label=rf"{test_name_latex} Res.",
             elinewidth=1,
             capsize=2,
             ms=7,
         )
         z_avg, r_avg = get_binned_average(
             bao_data_df["redshift"].values,
-            res_alt,
+            res_test,
         )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
         residual_axis.plot(
@@ -1628,7 +1597,7 @@ def plot_bao_observables(
             ls="--",
             lw=2,
             zorder=11,
-            label=f"Avg. {alt_name_latex} Res.",
+            label=f"Avg. {test_name_latex} Res.",
         )
 
     if all_res:
@@ -1677,13 +1646,13 @@ def plot_bao_observables(
         linewidth=0.5,
     )
 
-    bbox_lcdm = dict(
+    bbox_control = dict(
         boxstyle="round,pad=0.5",
         fc="#FFEEEE",
         ec="darkred",
         alpha=0.8,
     )
-    bbox_alt = dict(
+    bbox_test = dict(
         boxstyle="round,pad=0.5",
         fc="#EEF2FF",
         ec="darkblue",
@@ -1695,33 +1664,33 @@ def plot_bao_observables(
         info_x,
         red_y,
         format_model_summary_text(
-            lcdm_plugin,
+            control_model_plugin,
             "bao",
-            lcdm_full_results.get("sne_fit_results", {}),
-            **lcdm_full_results,
+            control_results.get("sne_fit_results", {}),
+            **control_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_lcdm,
+        bbox=bbox_control,
     )
     fig.text(
         info_x,
         blue_y,
         format_model_summary_text(
-            alt_model_plugin,
+            test_model_plugin,
             "bao",
-            alt_model_full_results.get("sne_fit_results", {}),
-            **alt_model_full_results,
+            test_results.get("sne_fit_results", {}),
+            **test_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_alt,
+        bbox=bbox_test,
     )
 
     y = start_y
@@ -1760,12 +1729,12 @@ def plot_bao_observables(
 
 def plot_cmb_spectrum(
     cmb_data_df: Any,
-    lcdm_cmb_results: Any,
-    alt_cmb_results: Any,
-    lcdm_sne_results: Any,
-    alt_sne_results: Any,
-    lcdm_plugin: Any,
-    alt_model_plugin: Any,
+    control_cmb_results: Any,
+    test_cmb_results: Any,
+    control_sne_results: Any,
+    test_sne_results: Any,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
     plot_dir: str = ".",
     timestamp: str | None = None,
     *,
@@ -1835,9 +1804,9 @@ def plot_cmb_spectrum(
     )
 
     footer_lines = build_footer_lines(
-        alt_model_plugin,
         cmb_data_df.attrs,
         timestamp,
+        extra_lines=[(f"CMB execution: {NATIVE_CMB_ENGINE_LABEL}.", False)],
         comparison=comparison,
     )
     line_height = 0.015
@@ -1850,14 +1819,14 @@ def plot_cmb_spectrum(
         bottom=start_y + info_gap + footer_pad,
     )
 
-    lcdm_theory = None
-    alt_theory = None
-    if lcdm_cmb_results:
-        lcdm_theory = lcdm_cmb_results.get("theory_spectrum")
-    if alt_cmb_results:
-        alt_theory = alt_cmb_results.get("theory_spectrum")
+    control_theory = None
+    test_theory = None
+    if control_cmb_results:
+        control_theory = control_cmb_results.get("theory_spectrum")
+    if test_cmb_results:
+        test_theory = test_cmb_results.get("theory_spectrum")
 
-    alt_name_latex = test_latex
+    test_name_latex = test_latex
 
     for i, comp in enumerate(components):
         idx_main = i * 2
@@ -1896,20 +1865,20 @@ def plot_cmb_spectrum(
             label="Data ±1σ",
         )
 
-        if lcdm_theory is not None:
+        if control_theory is not None:
             theory_values = (
-                lcdm_theory.get(comp)
-                if isinstance(lcdm_theory, dict)
-                else (lcdm_theory if comp == "TT" else None)
+                control_theory.get(comp)
+                if isinstance(control_theory, dict)
+                else (control_theory if comp == "TT" else None)
             )
             if theory_values is not None:
-                chi2_lcdm = (
-                    f"{lcdm_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
+                chi2_control = (
+                    f"{control_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
                     if comp == "TT"
                     else ""
                 )
                 label = control_latex + (
-                    rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else ""
+                    rf" ($\chi^2$={chi2_control})" if chi2_control else ""
                 )
                 axs[idx_main].plot(
                     ells,
@@ -1957,30 +1926,30 @@ def plot_cmb_spectrum(
                     label=(f"Avg. {control_latex} Res." if i == 0 else None),
                 )
 
-        if alt_theory is not None:
-            alt_theory_values = (
-                alt_theory.get(comp)
-                if isinstance(alt_theory, dict)
-                else (alt_theory if comp == "TT" else None)
+        if test_theory is not None:
+            test_theory_values = (
+                test_theory.get(comp)
+                if isinstance(test_theory, dict)
+                else (test_theory if comp == "TT" else None)
             )
-            if alt_theory_values is not None:
-                chi2_alt = (
-                    f"{alt_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
+            if test_theory_values is not None:
+                chi2_test = (
+                    f"{test_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
                     if comp == "TT"
                     else ""
                 )
-                label = rf"{alt_name_latex}" + (
-                    rf" ($\chi^2$={chi2_alt})" if chi2_alt else ""
+                label = rf"{test_name_latex}" + (
+                    rf" ($\chi^2$={chi2_test})" if chi2_test else ""
                 )
                 axs[idx_main].plot(
                     ells,
-                    alt_theory_values,
+                    test_theory_values,
                     color="blue",
                     ls="--",
                     lw=2.0,
                     label=label,
                 )
-                residuals = obs - alt_theory_values
+                residuals = obs - test_theory_values
                 axs[idx_res].errorbar(
                     ells,
                     residuals,
@@ -1990,7 +1959,7 @@ def plot_cmb_spectrum(
                     mec="blue",
                     ecolor="lightblue",
                     alpha=0.5,
-                    label=rf"{alt_name_latex} Res." if i == 0 else None,
+                    label=rf"{test_name_latex} Res." if i == 0 else None,
                     elinewidth=1,
                     capsize=2,
                     ms=4,
@@ -2004,7 +1973,7 @@ def plot_cmb_spectrum(
                     ls="--",
                     lw=2,
                     zorder=11,
-                    label=f"Avg. {alt_name_latex} Res." if i == 0 else None,
+                    label=f"Avg. {test_name_latex} Res." if i == 0 else None,
                 )
 
         axs[idx_main].set_ylabel(
@@ -2050,13 +2019,13 @@ def plot_cmb_spectrum(
             True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5
         )
 
-    bbox_lcdm = dict(
+    bbox_control = dict(
         boxstyle="round,pad=0.5",
         fc="#FFEEEE",
         ec="darkred",
         alpha=0.8,
     )
-    bbox_alt = dict(
+    bbox_test = dict(
         boxstyle="round,pad=0.5",
         fc="#EEF2FF",
         ec="darkblue",
@@ -2068,35 +2037,35 @@ def plot_cmb_spectrum(
         info_x,
         red_y,
         format_model_summary_text(
-            lcdm_plugin,
+            control_model_plugin,
             "cmb",
-            lcdm_sne_results,
-            chi2_cmb=lcdm_cmb_results.get("chi2_cmb"),
-            chi2_total=lcdm_sne_results.get("chi2_total"),
+            control_sne_results,
+            chi2_cmb=control_cmb_results.get("chi2_cmb"),
+            chi2_total=control_sne_results.get("chi2_total"),
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_lcdm,
+        bbox=bbox_control,
     )
     fig.text(
         info_x,
         blue_y,
         format_model_summary_text(
-            alt_model_plugin,
+            test_model_plugin,
             "cmb",
-            alt_sne_results,
-            chi2_cmb=alt_cmb_results.get("chi2_cmb"),
-            chi2_total=alt_sne_results.get("chi2_total"),
+            test_sne_results,
+            chi2_cmb=test_cmb_results.get("chi2_cmb"),
+            chi2_total=test_sne_results.get("chi2_total"),
         ),
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
         wrap=True,
         multialignment="left",
-        bbox=bbox_alt,
+        bbox=bbox_test,
     )
 
     y = start_y
@@ -2135,7 +2104,7 @@ def plot_cmb_spectrum(
 
 def plot_corner(
     posterior_samples: numpy.ndarray,
-    alt_model_plugin: Any,
+    model_plugin: Any,
     data_attrs: dict[str, Any] | None,
     plot_dir: str = ".",
     parameter_names: list[str] | None = None,
@@ -2152,7 +2121,7 @@ def plot_corner(
         two-dimensional ``(n_samples, n_params)`` array. Samples may contain
         NaNs or infinities; these are dropped before plotting to avoid
         distorting the marginal distributions.
-    alt_model_plugin:
+    model_plugin:
         Plugin describing the model whose posterior is being rendered in the
         selected comparison.
         The helper inspects ``PARAMETER_NAMES`` and ``PARAMETER_LATEX_NAMES``
@@ -2185,51 +2154,19 @@ def plot_corner(
     logger.info("Generating corner plot for posterior samples...")
     attrs = data_attrs or {}
 
-    default_names = list(getattr(alt_model_plugin, "PARAMETER_NAMES", []))
+    default_names = list(getattr(model_plugin, "PARAMETER_NAMES", []))
     # Store the LaTeX-friendly labels separately so that axis rendering falls
     # back to readable parameter names when the plugin omits a mapping.
     label_candidates = list(
-        getattr(alt_model_plugin, "PARAMETER_LATEX_NAMES", []),
+        getattr(model_plugin, "PARAMETER_LATEX_NAMES", []),
     )
     effective_names = parameter_names or default_names
 
-    validated = _prepare_corner_inputs(
+    samples, labels, stats = _prepare_corner_inputs(
         posterior_samples,
         effective_names,
     )
-
-    if not isinstance(validated, tuple):
-        raise TypeError(
-            "_prepare_corner_inputs must return a tuple of outputs",
-        )
-
-    if len(validated) == 3:
-        samples, labels, stats = validated
-    elif len(validated) == 2:
-        samples, labels = validated
-        stats = {
-            "original_count": int(samples.shape[0]),
-            "finite_count": int(samples.shape[0]),
-            "processed_count": int(samples.shape[0]),
-            "stride": 1,
-            "downsampled": False,
-            "legacy_validator": True,
-        }
-    else:
-        raise ValueError(
-            "_prepare_corner_inputs returned an unexpected number of values",
-        )
-
-    # The legacy flag differentiates modern validators from fallback paths so
-    # Stage 5 logs can highlight when older helpers require migration.
-    stats.setdefault("legacy_validator", False)
     n_params = samples.shape[1]
-
-    if stats.get("legacy_validator", False):
-        logger.info(
-            "_prepare_corner_inputs returned the legacy two-value signature; "
-            "derived summary statistics from the flattened samples",
-        )
 
     if stats["downsampled"]:
         logger.info(
@@ -2253,14 +2190,13 @@ def plot_corner(
         label = latex_name or labels[idx]
         wrapped_labels.append(_wrap_math(label))
 
-    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    model_name = getattr(model_plugin, "MODEL_NAME", "Model")
     extra_lines = _format_corner_footer_stats(stats)
     if arviz_module is not None:
         extra_lines.append(
             ("Corner densities rendered via ArviZ backend.", False)
         )
     footer_lines = build_footer_lines(
-        alt_model_plugin,
         attrs,
         timestamp,
         extra_lines=extra_lines,
@@ -2343,7 +2279,7 @@ def plot_corner(
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
-    # Copernican Suite's styling helpers and footers.  The geometry is now
+    # Copernican Suite's styling helpers and footers. The geometry is
     # derived from ``_compute_corner_layout`` so the panels resize gracefully
     # as the dimensionality grows while remaining within a manageable figure.
     fig, axes = _build_corner_figure()
@@ -2395,10 +2331,10 @@ def plot_corner(
         ) as exc:  # pragma: no cover - ArviZ-specific failures
             logger.warning(
                 "ArviZ corner rendering failed (%s); falling back "
-                "to legacy grid.",
+                "to the Matplotlib grid.",
                 exc,
             )
-            _render_corner_grid_legacy(
+            _render_corner_grid_matplotlib(
                 axes_array,
                 n_params,
                 samples,
@@ -2409,7 +2345,7 @@ def plot_corner(
                 contour_levels,
             )
     else:
-        _render_corner_grid_legacy(
+        _render_corner_grid_matplotlib(
             axes_array,
             n_params,
             samples,
@@ -2421,7 +2357,7 @@ def plot_corner(
         )
 
     fig.suptitle(
-        f"Posterior corner plot: {alt_name}",
+        f"Posterior corner plot: {model_name}",
         fontsize=font_sizes["title"],
         y=_CORNER_TITLE_Y,
     )
@@ -2476,7 +2412,7 @@ def plot_corner(
 
 def plot_parameter_histograms(
     posterior_samples: numpy.ndarray,
-    alt_model_plugin: Any,
+    model_plugin: Any,
     data_attrs: dict[str, Any] | None,
     plot_dir: str = ".",
     parameter_names: list[str] | None = None,
@@ -2495,40 +2431,14 @@ def plot_parameter_histograms(
     logger.info("Generating parameter histograms for posterior samples...")
     attrs = data_attrs or {}
 
-    default_names = list(getattr(alt_model_plugin, "PARAMETER_NAMES", []))
-    label_candidates = list(
-        getattr(alt_model_plugin, "PARAMETER_LATEX_NAMES", [])
-    )
+    default_names = list(getattr(model_plugin, "PARAMETER_NAMES", []))
+    label_candidates = list(getattr(model_plugin, "PARAMETER_LATEX_NAMES", []))
     effective_names = parameter_names or default_names
 
-    validated = _prepare_corner_inputs(
+    samples, labels, stats = _prepare_corner_inputs(
         posterior_samples,
         effective_names,
     )
-
-    if not isinstance(validated, tuple):
-        raise TypeError(
-            "_prepare_corner_inputs must return a tuple of outputs"
-        )
-
-    if len(validated) == 3:
-        samples, labels, stats = validated
-    elif len(validated) == 2:
-        samples, labels = validated
-        stats = {
-            "original_count": int(samples.shape[0]),
-            "finite_count": int(samples.shape[0]),
-            "processed_count": int(samples.shape[0]),
-            "stride": 1,
-            "downsampled": False,
-            "legacy_validator": True,
-        }
-    else:
-        raise ValueError(
-            "_prepare_corner_inputs returned an unexpected number of values"
-        )
-
-    stats.setdefault("legacy_validator", False)
     n_params = samples.shape[1]
 
     wrapped_labels: list[str] = []
@@ -2539,7 +2449,7 @@ def plot_parameter_histograms(
         label = latex_name or labels[idx]
         wrapped_labels.append(_wrap_math(label))
 
-    model_label = getattr(alt_model_plugin, "MODEL_NAME", "model")
+    model_label = getattr(model_plugin, "MODEL_NAME", "model")
 
     bins = max(25, int(numpy.sqrt(samples.shape[0]) // 2))
     percentile_lines = (16.0, 50.0, 84.0)
@@ -2663,7 +2573,6 @@ def plot_parameter_histograms(
         )
 
     footer_lines = build_footer_lines(
-        alt_model_plugin,
         attrs,
         timestamp,
         extra_lines=extra_lines,

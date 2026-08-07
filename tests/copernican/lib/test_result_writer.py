@@ -13,6 +13,7 @@ import yaml
 from copernican.engines import engine_mcmc
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, result_writer
+from copernican.lib.model_selection import build_comparison_request
 
 
 class TestResultWriter(unittest.TestCase):
@@ -50,41 +51,53 @@ class TestResultWriter(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             json_path, yaml_path = result_writer.save_summary(
-                {plugin.MODEL_NAME: res}, tmpdir, timestamp="test"
+                res,
+                res,
+                tmpdir,
+                comparison=build_comparison_request(
+                    plugin.MODEL_NAME,
+                    plugin.MODEL_NAME,
+                ),
+                timestamp="test",
             )
             with open(json_path, "r", encoding="utf-8") as file_handle:
                 jdata = json.load(file_handle)
             with open(yaml_path, "r", encoding="utf-8") as file_handle:
                 ydata = yaml.safe_load(file_handle)
             for summary_data in (jdata, ydata):
-                self.assertIn(plugin.MODEL_NAME, summary_data)
-                entry = summary_data[plugin.MODEL_NAME]
-                self.assertIn("parameters", entry)
-                self.assertIn("errors_1sigma", entry)
-                self.assertIn("covariance_matrix", entry)
-                self.assertIn("sampling", entry)
-                for value in entry["parameters"].values():
-                    self.assertIsInstance(value, numbers.Real)
-                for value in entry["errors_1sigma"].values():
-                    self.assertIsInstance(value, numbers.Real)
-                matrix = entry["covariance_matrix"]["matrix"]
-                for row in matrix:
-                    for value in row:
+                self.assertEqual(set(summary_data), {"control", "test"})
+                for role in ("control", "test"):
+                    entry = summary_data[role]
+                    self.assertEqual(entry["model"], plugin.MODEL_NAME)
+                    self.assertIn("parameters", entry)
+                    self.assertIn("errors_1sigma", entry)
+                    self.assertIn("covariance_matrix", entry)
+                    self.assertIn("sampling", entry)
+                    for value in entry["parameters"].values():
                         self.assertIsInstance(value, numbers.Real)
-                sampling = entry["sampling"]
-                self.assertIsInstance(sampling, dict)
-                self.assertEqual(sampling.get("production_steps"), 6)
-                self.assertEqual(sampling.get("burn_in_steps"), 12)
-                _lower, _upper, fixed_mask = (
-                    engine_mcmc._classify_parameter_bounds(
-                        plugin.PARAMETER_BOUNDS,
-                        logger=logging.getLogger(),
+                    for value in entry["errors_1sigma"].values():
+                        self.assertIsInstance(value, numbers.Real)
+                    matrix = entry["covariance_matrix"]["matrix"]
+                    for row in matrix:
+                        for value in row:
+                            self.assertIsInstance(value, numbers.Real)
+                    sampling = entry["sampling"]
+                    self.assertIsInstance(sampling, dict)
+                    self.assertEqual(sampling.get("production_steps"), 6)
+                    self.assertEqual(sampling.get("burn_in_steps"), 12)
+                    _lower, _upper, fixed_mask = (
+                        engine_mcmc._classify_parameter_bounds(
+                            plugin.PARAMETER_BOUNDS,
+                            logger=logging.getLogger(),
+                        )
                     )
-                )
-                active = int((~fixed_mask).sum())
-                expected_walkers = max(4, 2 * active)
-                self.assertEqual(sampling.get("n_walkers"), expected_walkers)
-                self.assertEqual(sampling.get("pool_workers"), 0)
+                    active = int((~fixed_mask).sum())
+                    expected_walkers = max(4, 2 * active)
+                    self.assertEqual(
+                        sampling.get("n_walkers"),
+                        expected_walkers,
+                    )
+                    self.assertEqual(sampling.get("pool_workers"), 0)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

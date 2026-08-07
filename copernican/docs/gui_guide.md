@@ -13,18 +13,18 @@ to stay in the CLI or want to correlate GUI actions with the manifest pipeline.
 ## Navigation Rail
 The left rail is always visible and reserves space for a padded Copernican logo
 plus buttons for every page:
-- **Home** – Surfaces catalogue health, model/engine badges, and quick actions
- for importing manifests, launching the Run Builder or opening the output
- directory.
+- **Home** – Surfaces catalogue health, model/sampler badges, and quick
+ actions for importing manifests, launching the Run Builder, or opening the
+ output directory.
 - **Run Builder** – Opens the seven-step wizard described below and keeps the
  Previous/Next/Cancel controls anchored beneath the jump buttons.
-- **Run Monitor** – Streams sampler progress, logs and run alerts. Buttons for
- cancel, pause and hard stop share the same disabled state logic used
+- **Run Monitor** – Streams sampler progress, logs, and run alerts. Buttons
+ for cancel, pause, and hard stop share the same disabled state logic used
  elsewhere, so you always see whether the worker is running.
-- **Data / Models / Engines** – Expose searchable catalogues sourced from the
- cached registries. Each page includes open-folder actions, metadata panes,
- parser revalidation controls and trust notes so you can inspect assets before
- entering the builder.
+- **Data / Models / Sampler engines** – Expose searchable catalogues sourced
+ from the cached registries. Each page includes open-folder actions, metadata
+ panes, parser revalidation controls, and trust notes so you can inspect assets
+ before entering the builder.
 - **Validation** – Executes `python -m copernican
   --run-validation`, streams the CLI output into a Run Monitor–style log box,
  saves outputs under
@@ -36,16 +36,17 @@ plus buttons for every page:
  point even though the values remain numerically fixed for validation.
  **Cancel validation** terminates the background worker, **Clear validation**
  removes every `copernican/validation/output/.../validation_run_*` folder plus
- `~/VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
+ `~/VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps
  log pinned to the newest lines while the GUI progress bars mirror the CLI
  counter state.
-- **Settings** – Provides diagnostics filters, log viewers and output-directory
- helpers plus a recap of the `COPERNICAN_*` environment variables in
+- **Settings** – Provides diagnostics filters, log viewers, and
+ output-directory helpers plus a recap of the `COPERNICAN_*` environment
+ variables in
  effect.
-- **Help** – Loads this guide or the CLI companion from `docs/` directly inside
- the GUI with a scrollable text viewer.
-- **About / Exit** – Show the project overview or terminate the GUI and return
- to the launcher menu.
+- **Help** – Loads this guide or the CLI companion from `docs/` directly
+ inside the GUI with a scrollable text viewer.
+- **About / Exit** – Show the project overview or terminate the GUI and
+ return to the launcher menu.
 All navigation pages share the same bold header style used by Run Builder
 and Run Monitor, keeping the typography consistent regardless of the page.
 ## Run Builder Overview
@@ -55,7 +56,7 @@ native ttk
 states so Manifest and Confirm grey out until prerequisites are satisfied. A
 contextual two-line message under the buttons explains what needs to happen on
 each page. The steps are:
-1. **Seed** – Enter a numeric seed or accept the default. The GUI respects the
+1. **Seed** – Enter a numeric seed or accept the default. The GUI respects
  `COPERNICAN_SEED` environment variable and logs the final value into the run
  manifest and summary tables. Default (0), Random timestamp, Alien Invasion,
  Emoji Meteors, Constellation and the environment override buttons are
@@ -75,26 +76,29 @@ each page. The steps are:
 3. **Test model** – Select the model evaluated against the control. The page
  uses the same single-select list, metadata preview, and exact-path loading
  behavior as the control page.
-4. **Data** – Three fixed-height (four-row) listboxes stack vertically for SNe,
- BAO and CMB catalogues. Each box is 500 px wide and uses a dedicated
+4. **Data** – Three fixed-height (four-row) listboxes stack vertically for
+ SNe, BAO, and CMB catalogues. Each box is 500 px wide and uses a dedicated
  scrollbar so selections remain readable.
-5. **Engine** – Selecting an engine loads its capability metadata and renders
- per-parameter controls inside the Run Settings box. Integer and float fields
- use spinboxes with bounded ranges taken from `_ENGINE_SETTING_LIMITS`; pool
+5. **Sampler engine** – Selecting a sampler loads its capability metadata and
+ renders per-parameter controls inside the Run Settings box. Integer and
+ float fields use spinboxes with bounded ranges taken from
+ `_ENGINE_SETTING_LIMITS`; pool
  size is capped by the detected CPU core count. Boolean settings render as
  checkboxes (for example, Display progress). Recommendations display directly
- above their associated inputs.
+ above their associated inputs. The fixed Copernican native declared-graph CMB
+ engine is shown for provenance and is not a selectable builder step.
 6. **Manifest** – Displays the draft manifest in a scrollable text widget and
  surfaces reminder text if the workspace has not been saved. The buttons let
  you save, save-and-confirm, export to an external path, open the on-disk
  manifest or clear the workspace.
-7. **Confirm** – Summarises the entire run, including the control/test pair and
- walker/burn-in/production
- settings and pool size hints. The **Start run** button stays disabled until
+7. **Confirm** – Summarises the entire run, including the control/test pair,
+ walker/burn-in/production settings, pool size hints, and the fixed native CMB
+ engine. The **Start run** button stays disabled until
  a manifest exists so every execution renames the workspace (`copernican-
    run_<timestamp>`) before launching the CLI worker.
-`Next` is blocked on the Engine step until all of the first five pages have
-selections. Attempting to proceed triggers a toast and a modal warning telling
+`Next` is blocked on the Sampler engine step until all of the first five pages
+have selections. Attempting to proceed triggers a toast and a modal warning
+telling
 you which prerequisites are missing. The Manifest page also refuses to advance
 until the manifest is saved, ensuring the Confirm page always opens with a real
 workspace on disk.
@@ -126,7 +130,8 @@ the right.
 ## Embedded Help
 The Help page mirrors the Run Builder control bar. Two buttons (GUI guide
 and CLI guide) sit under the introductory paragraph, and the header updates to
-“Help: GUI guide” or “Help: CLI guide” as you switch between them. Markdown is
+“Help: GUI guide” or “Help: CLI guide” as you switch between them.
+Markdown is
 rendered with heading, bold, italic and code styling so the guides remain easy
 to read inside the GUI, complete with the project banner and scrollbars. Use
 this page to keep documentation open beside the builder or monitor without

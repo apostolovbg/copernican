@@ -170,7 +170,7 @@ digest = hashlib.sha256(
 print(digest)
 PY
 ```
-2. Replace the old digest entry in `TRUSTED_PARSER_DIGESTS`.
+2. Replace the existing digest entry in `TRUSTED_PARSER_DIGESTS`.
 3. Log the update in `CHANGELOG.md` and extend the
  `docs/data_overview.md` narrative so the history of the hash change
  follows Law 11.

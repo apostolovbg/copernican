@@ -36,13 +36,22 @@ def _create_run_dir(tmp_path, name, chi2_total, rows, h0_value):
     (run_dir / "run_manifest_20250101.yml").write_text(
         yaml.safe_dump(manifest), encoding="utf-8"
     )
+    role_summary = {
+        "model": "LambdaCDM",
+        "parameters": {"H_0": h0_value},
+        "errors_1sigma": {"H_0": 0.4},
+        "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
+        "sampling": {"production_steps": 200},
+    }
     summary = {
-        "LambdaCDM": {
+        "control": role_summary,
+        "test": {
+            "model": "LambdaCDM",
             "parameters": {"H_0": h0_value},
             "errors_1sigma": {"H_0": 0.4},
             "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
             "sampling": {"production_steps": 200},
-        }
+        },
     }
     (run_dir / "parameter-summary_20250101.yml").write_text(
         yaml.safe_dump(summary), encoding="utf-8"
@@ -362,6 +371,8 @@ class LaunchArgParsingTestCase(unittest.TestCase):
         )
         self.assertEqual(args.control_model, "reference.yml")
         self.assertEqual(args.test_model, "test.yml")
+        self.assertFalse(hasattr(args, "cmb_solver"))
+        self.assertFalse(hasattr(args, "cmb_backend"))
 
 
 if __name__ == "__main__":

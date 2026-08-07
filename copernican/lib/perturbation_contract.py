@@ -15,6 +15,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy
 
+from .cmb_identity import NATIVE_CMB_ENGINE_ID, NATIVE_CMB_ENGINE_LABEL
 from .cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_spec,
@@ -6734,14 +6735,12 @@ def _build_execution_route_summary() -> dict[str, Any]:
     """Return the single native execution-route metadata surface."""
 
     return {
-        "route_id": "native_declared_graph",
-        "prediction_engine": "copernican_native_declared_graph",
-        "transfer_function_path": (
+        "engine_id": NATIVE_CMB_ENGINE_ID,
+        "engine_label": NATIVE_CMB_ENGINE_LABEL,
+        "runtime_module": (
             "copernican.lib.likelihoods.cmb.copernican_cmb_solver"
         ),
-        "solver": "declared_math_graph",
-        "route_ready_for_execution": True,
-        "uses_native_declared_graph": True,
+        "ready": True,
     }
 
 

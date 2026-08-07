@@ -19,6 +19,7 @@ from copernican import validation as validation_module
 from copernican.lib import cmb_contract
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
+from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
 from copernican.lib.engine_adapter import PluginValidationError
 from copernican.lib.likelihoods.cmb import cmb
 from copernican.lib.perturbation_contract import PerturbationContractData
@@ -961,13 +962,11 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 summary = plugin.get_cmb_perturbation_data(
                     plugin.INITIAL_GUESSES
                 ).manifest_summary
-                self.assertTrue(summary["execution_route"][
-                    "uses_native_declared_graph"
-                ])
                 self.assertEqual(
-                    summary["execution_route"]["route_id"],
-                    "native_declared_graph",
+                    summary["execution_route"]["engine_id"],
+                    NATIVE_CMB_ENGINE_ID,
                 )
+                self.assertTrue(summary["execution_route"]["ready"])
                 self.assertEqual(
                     set(summary["species_names"]),
                     expected_species[model_name],
@@ -1407,9 +1406,8 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         route = summary["execution_route"]
 
         self.assertFalse(hasattr(plugin, "CMB_PERTURBATION_STANDARD"))
-        self.assertTrue(route["uses_native_declared_graph"])
-        self.assertEqual(route["route_id"], "native_declared_graph")
-        self.assertTrue(route["route_ready_for_execution"])
+        self.assertEqual(route["engine_id"], NATIVE_CMB_ENGINE_ID)
+        self.assertTrue(route["ready"])
         self.assertIn("evolve_theta_gamma0", summary["equation_names"])
         self.assertIn(
             "adiabatic_scalar", summary["initial_condition_family_names"]
@@ -1467,24 +1465,25 @@ class NativeLCDMModelTestCase(unittest.TestCase):
 
         plugin = self._build_plugin()
         manifest = run_manifest.build_manifest(
-            [(plugin, "1.0")],
+            [(plugin, "1.0"), (plugin, "1.0")],
             SimpleNamespace(__name__="native_test", ENGINE_VERSION="test"),
             [],
         )
         model_entry = manifest["cmb"]["models"][0]
-        route = model_entry["custom_cmb_execution_route"]
+        route = model_entry["native_cmb_execution"]
 
         self.assertEqual(
             model_entry["execution_engine"],
-            "native_declared_graph",
+            NATIVE_CMB_ENGINE_ID,
         )
-        self.assertTrue(route["uses_native_declared_graph"])
+        self.assertEqual(route["engine_id"], NATIVE_CMB_ENGINE_ID)
+        self.assertTrue(route["ready"])
         self.assertEqual(
-            model_entry["custom_cmb_numerical_settings"]["ell_max"],
+            model_entry["native_cmb_numerical_settings"]["ell_max"],
             2000,
         )
         self.assertEqual(
-            model_entry["custom_cmb_runtime_manifest_summary"][
+            model_entry["native_cmb_runtime_manifest_summary"][
                 "compile_diagnostics"
             ]["compiler"],
             "copernican.lib.model_coder.compile_native_cmb_runtime",

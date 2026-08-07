@@ -114,11 +114,11 @@ class _BoundedCacheStore(Generic[_CacheValue]):
 _DECLARED_SYMBOL_PLAN_CACHE = _BoundedCacheStore(limit=256)
 _DECLARED_GRAPH_EXECUTION_PLAN_CACHE = _BoundedCacheStore(limit=256)
 _DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
-_CUSTOM_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
-_CUSTOM_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
-_CUSTOM_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
-_CUSTOM_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
-_CUSTOM_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
+_NATIVE_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
+_NATIVE_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
+_NATIVE_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
+_NATIVE_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
+_NATIVE_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
     limit=512,
     max_bytes=32 * 1024 * 1024,
 )
@@ -181,50 +181,50 @@ def set_declared_momentum_grid(cache_key: Any, runtime_bundle: Any) -> None:
     _DECLARED_MOMENTUM_GRID_CACHE.set(cache_key, runtime_bundle)
 
 
-def get_custom_cmb_background(cache_key: Any):
+def get_native_cmb_background(cache_key: Any):
     """Return one cached native background payload when present."""
 
-    return _CUSTOM_CMB_BACKGROUND_CACHE.get(cache_key)
+    return _NATIVE_CMB_BACKGROUND_CACHE.get(cache_key)
 
 
-def set_custom_cmb_background(cache_key: Any, background_data: Any) -> None:
+def set_native_cmb_background(cache_key: Any, background_data: Any) -> None:
     """Store one native background payload."""
 
-    _CUSTOM_CMB_BACKGROUND_CACHE.set(cache_key, background_data)
+    _NATIVE_CMB_BACKGROUND_CACHE.set(cache_key, background_data)
 
 
-def get_custom_cmb_spectrum(cache_key: Any):
+def get_native_cmb_spectrum(cache_key: Any):
     """Return one cached native spectrum payload when present."""
 
-    return _CUSTOM_CMB_SPECTRUM_CACHE.get(cache_key)
+    return _NATIVE_CMB_SPECTRUM_CACHE.get(cache_key)
 
 
-def set_custom_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
+def set_native_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
     """Store one native spectrum payload."""
 
-    _CUSTOM_CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
+    _NATIVE_CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
 
 
 def get_bessel_inputs(x_signature: str) -> numpy.ndarray | None:
     """Return one cached x-grid keyed by its stable signature."""
 
-    return _CUSTOM_CMB_BESSEL_INPUT_CACHE.get(x_signature)
+    return _NATIVE_CMB_BESSEL_INPUT_CACHE.get(x_signature)
 
 
 def store_bessel_inputs(x_signature: str, x_values: numpy.ndarray) -> None:
     """Store one x-grid and prune dependent Bessel caches on eviction."""
 
-    before_keys = set(_CUSTOM_CMB_BESSEL_INPUT_CACHE._store)
-    _CUSTOM_CMB_BESSEL_INPUT_CACHE.set(x_signature, x_values)
-    after_keys = set(_CUSTOM_CMB_BESSEL_INPUT_CACHE._store)
+    before_keys = set(_NATIVE_CMB_BESSEL_INPUT_CACHE._store)
+    _NATIVE_CMB_BESSEL_INPUT_CACHE.set(x_signature, x_values)
+    after_keys = set(_NATIVE_CMB_BESSEL_INPUT_CACHE._store)
     evicted_signatures = before_keys - after_keys
     for stale_signature in evicted_signatures:
-        _CUSTOM_CMB_BESSEL_VALUE_CACHE.prune(
+        _NATIVE_CMB_BESSEL_VALUE_CACHE.prune(
             lambda key, stale_signature=stale_signature: (
                 key[1] == stale_signature
             )
         )
-        _CUSTOM_CMB_BESSEL_BATCH_CACHE.prune(
+        _NATIVE_CMB_BESSEL_BATCH_CACHE.prune(
             lambda key, stale_signature=stale_signature: (
                 key[1] == stale_signature
             )
@@ -234,19 +234,19 @@ def store_bessel_inputs(x_signature: str, x_values: numpy.ndarray) -> None:
 def get_bessel_values(cache_key: Any):
     """Return one cached spherical-Bessel pair when present."""
 
-    return _CUSTOM_CMB_BESSEL_VALUE_CACHE.get(cache_key)
+    return _NATIVE_CMB_BESSEL_VALUE_CACHE.get(cache_key)
 
 
 def set_bessel_values(cache_key: Any, values: Any) -> None:
     """Store one spherical-Bessel pair."""
 
-    _CUSTOM_CMB_BESSEL_VALUE_CACHE.set(cache_key, values)
+    _NATIVE_CMB_BESSEL_VALUE_CACHE.set(cache_key, values)
 
 
 def get_declared_projection_kernel_batch(cache_key: Any):
     """Return one cached ell-batched kernel pack when present."""
 
-    return _CUSTOM_CMB_BESSEL_BATCH_CACHE.get(cache_key)
+    return _NATIVE_CMB_BESSEL_BATCH_CACHE.get(cache_key)
 
 
 def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
@@ -254,7 +254,7 @@ def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
 
     if _numpy_payload_bytes(batch) > _PROJECTION_BATCH_CACHE_MAX_BYTES:
         return
-    _CUSTOM_CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
+    _NATIVE_CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
 
 
 def record_native_cmb_performance(
@@ -310,11 +310,11 @@ def clear_native_cmb_caches() -> None:
         _DECLARED_SYMBOL_PLAN_CACHE,
         _DECLARED_GRAPH_EXECUTION_PLAN_CACHE,
         _DECLARED_MOMENTUM_GRID_CACHE,
-        _CUSTOM_CMB_BACKGROUND_CACHE,
-        _CUSTOM_CMB_SPECTRUM_CACHE,
-        _CUSTOM_CMB_BESSEL_INPUT_CACHE,
-        _CUSTOM_CMB_BESSEL_VALUE_CACHE,
-        _CUSTOM_CMB_BESSEL_BATCH_CACHE,
+        _NATIVE_CMB_BACKGROUND_CACHE,
+        _NATIVE_CMB_SPECTRUM_CACHE,
+        _NATIVE_CMB_BESSEL_INPUT_CACHE,
+        _NATIVE_CMB_BESSEL_VALUE_CACHE,
+        _NATIVE_CMB_BESSEL_BATCH_CACHE,
     ):
         cache.clear()
     _NATIVE_PERFORMANCE_PHASE_SECONDS.clear()
@@ -331,11 +331,11 @@ def native_cmb_cache_stats() -> dict[str, dict[str, int]]:
             _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.snapshot()
         ),
         "declared_momentum_grid": (_DECLARED_MOMENTUM_GRID_CACHE.snapshot()),
-        "custom_background": _CUSTOM_CMB_BACKGROUND_CACHE.snapshot(),
-        "custom_spectrum": _CUSTOM_CMB_SPECTRUM_CACHE.snapshot(),
-        "bessel_inputs": _CUSTOM_CMB_BESSEL_INPUT_CACHE.snapshot(),
-        "bessel_values": _CUSTOM_CMB_BESSEL_VALUE_CACHE.snapshot(),
+        "native_background": _NATIVE_CMB_BACKGROUND_CACHE.snapshot(),
+        "native_spectrum": _NATIVE_CMB_SPECTRUM_CACHE.snapshot(),
+        "bessel_inputs": _NATIVE_CMB_BESSEL_INPUT_CACHE.snapshot(),
+        "bessel_values": _NATIVE_CMB_BESSEL_VALUE_CACHE.snapshot(),
         "declared_projection_kernel_batch": (
-            _CUSTOM_CMB_BESSEL_BATCH_CACHE.snapshot()
+            _NATIVE_CMB_BESSEL_BATCH_CACHE.snapshot()
         ),
     }

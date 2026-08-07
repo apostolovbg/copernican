@@ -20,6 +20,7 @@ import yaml
 from copernican import version as version_module
 
 from . import utils
+from .cmb_identity import NATIVE_CMB_ENGINE_ID, NATIVE_CMB_ENGINE_LABEL
 from .likelihoods.cmb.native_background import (
     _summarize_declared_background_manifest_summary,
 )
@@ -148,7 +149,8 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         models_meta.append(
             {
                 "model": getattr(plugin, "MODEL_NAME", "unknown"),
-                "execution_engine": "native_declared_graph",
+                "execution_engine": NATIVE_CMB_ENGINE_ID,
+                "execution_engine_label": NATIVE_CMB_ENGINE_LABEL,
                 "param_map_keys": sorted(str(key) for key in param_map),
                 "call_methods": [
                     str(call.get("method"))
@@ -348,40 +350,15 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         dependency_summary, "evaluation_order", ()
                     )
                 ],
-                "custom_cmb_execution_route": {
+                "native_cmb_execution": {
                     str(key): value for key, value in execution_route.items()
                 },
-                "custom_cmb_equation_count": len(
-                    getattr(perturbation_data, "equations", {}) or {}
-                ),
-                "custom_cmb_constraint_count": len(
-                    getattr(perturbation_data, "constraints", {}) or {}
-                ),
-                "custom_cmb_closure_count": len(
-                    getattr(perturbation_data, "closures", {}) or {}
-                ),
-                "custom_cmb_source_count": len(perturbation_sources),
-                "custom_cmb_observable_count": len(
-                    getattr(perturbation_data, "observables", {}) or {}
-                ),
-                "custom_cmb_observable_names": [
-                    str(key)
-                    for key in manifest_summary_data.get(
-                        "observable_names", ()
-                    )
-                ],
-                "custom_cmb_initial_condition_count": len(
-                    getattr(perturbation_data, "initial_conditions", {}) or {}
-                ),
-                "custom_cmb_boundary_condition_count": len(
-                    getattr(perturbation_data, "boundary_conditions", {}) or {}
-                ),
-                "custom_cmb_numerical_settings": numerical_settings,
-                "custom_cmb_graph_manifest_summary": manifest_summary_data,
-                "custom_cmb_background_manifest_summary": (
+                "native_cmb_numerical_settings": numerical_settings,
+                "native_cmb_graph_manifest_summary": manifest_summary_data,
+                "native_cmb_background_manifest_summary": (
                     background_manifest_summary
                 ),
-                "custom_cmb_runtime_manifest_summary": {
+                "native_cmb_runtime_manifest_summary": {
                     "execution_route": {
                         str(key): value
                         for key, value in execution_route.items()
@@ -454,7 +431,8 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         )
 
     return {
-        "execution_engine": "native_declared_graph",
+        "execution_engine": NATIVE_CMB_ENGINE_ID,
+        "execution_engine_label": NATIVE_CMB_ENGINE_LABEL,
         "models": models_meta,
     }
 
@@ -496,40 +474,41 @@ def build_manifest(
         Optional configuration snapshot that captures the human-facing
         selections that drove the manifest.  When omitted the snapshot is
         derived from the collected model and dataset metadata.
+    comparison:
+        Required role identity when caller metadata differs from plugin
+        display names. When omitted, the two ordered model records define the
+        control and test roles.
     """
 
     model_records = list(models)
-    if comparison is None:
-        if len(model_records) >= 2:
-            comparison = build_comparison_request(
-                getattr(model_records[0][0], "MODEL_NAME", "control"),
-                getattr(model_records[1][0], "MODEL_NAME", "test"),
-                control_filename=getattr(
-                    model_records[0][0], "MODEL_FILENAME", ""
-                ),
-                test_filename=getattr(
-                    model_records[1][0], "MODEL_FILENAME", ""
-                ),
-            )
-        elif model_records:
-            comparison = build_comparison_request(
-                "model_lcdm.yml",
-                getattr(model_records[0][0], "MODEL_NAME", "test"),
-                test_filename=getattr(
-                    model_records[0][0], "MODEL_FILENAME", ""
-                ),
-            )
-        else:
-            comparison = build_comparison_request(
-                "model_lcdm.yml", "model_lcdm.yml"
-            )
-
-    if len(model_records) >= 2:
-        validate_comparison_compatibility(
-            comparison,
-            control_metadata=getattr(model_records[0][0], "CMB_CONTRACT", {}),
-            test_metadata=getattr(model_records[1][0], "CMB_CONTRACT", {}),
+    if len(model_records) != 2:
+        raise ValueError(
+            "Run manifests require exactly one control model and one test "
+            "model."
         )
+    if comparison is None:
+        comparison = build_comparison_request(
+            getattr(model_records[0][0], "MODEL_NAME", "control"),
+            getattr(model_records[1][0], "MODEL_NAME", "test"),
+            control_filename=getattr(
+                model_records[0][0], "MODEL_FILENAME", ""
+            ),
+            test_filename=getattr(model_records[1][0], "MODEL_FILENAME", ""),
+        )
+
+    record_names = tuple(
+        str(getattr(plugin, "MODEL_NAME", "")) for plugin, _ in model_records
+    )
+    if comparison.model_names != record_names:
+        raise ValueError(
+            "Manifest model records must be ordered as the declared control "
+            "and test comparison."
+        )
+    validate_comparison_compatibility(
+        comparison,
+        control_metadata=getattr(model_records[0][0], "CMB_CONTRACT", {}),
+        test_metadata=getattr(model_records[1][0], "CMB_CONTRACT", {}),
+    )
 
     manifest = {
         "copernican": {"version": _copernican_version()},
@@ -592,15 +571,11 @@ def build_manifest(
 
     if configuration:
         manifest["configuration"] = dict(configuration)
-        manifest["configuration"].setdefault(
-            "comparison", comparison.as_manifest()
-        )
-        manifest["configuration"].setdefault(
-            "control_model", comparison.control_model.name
-        )
-        manifest["configuration"].setdefault(
-            "test_model", comparison.test_model.name
-        )
+        manifest_configuration = manifest["configuration"]
+        manifest_configuration["models"] = list(comparison.model_names)
+        manifest_configuration["comparison"] = comparison.as_manifest()
+        manifest_configuration["control_model"] = comparison.control_model.name
+        manifest_configuration["test_model"] = comparison.test_model.name
     else:
         manifest["configuration"] = {
             "notes": "Derived from GUI selections; update when importing.",

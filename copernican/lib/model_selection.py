@@ -11,7 +11,7 @@ DEFAULT_CONTROL_MODEL = "model_lcdm.yml"
 
 @dataclass(frozen=True)
 class ModelRole:
-    """Identify one selected model independently of its execution backend."""
+    """Identify one selected model independently of its comparison role."""
 
     name: str
     filename: str = ""
@@ -85,55 +85,28 @@ def build_comparison_request(
 ) -> ComparisonRequest:
     """Build and validate a shared control/test comparison request."""
 
-    request = ComparisonRequest(
+    return ComparisonRequest(
         control_model=model_role_from_value(
             control_model, filename=control_filename
         ),
         test_model=model_role_from_value(test_model, filename=test_filename),
     )
-    if (
-        request.control_model.name.casefold()
-        == request.test_model.name.casefold()
-    ):
-        if request.control_model.filename and request.test_model.filename:
-            if (
-                request.control_model.filename.casefold()
-                != request.test_model.filename.casefold()
-            ):
-                return request
-        return request
-    return request
 
 
 def comparison_from_manifest(manifest: Mapping[str, Any]) -> ComparisonRequest:
-    """Read the canonical comparison from a manifest.
-
-    The single-model form remains readable so previously saved manifests can
-    be inspected and explicitly migrated by the manifest loader.
-    """
+    """Read the required canonical comparison from a manifest."""
 
     selection = manifest.get("selection", {}) or {}
-    configuration = manifest.get("configuration", {}) or {}
-    comparison = selection.get("comparison") or configuration.get(
-        "comparison", {}
-    )
+    comparison = selection.get("comparison", {})
     if isinstance(comparison, Mapping):
         control = comparison.get("control")
         test = comparison.get("test")
         if control and test:
             return build_comparison_request(control, test)
-    control = selection.get("control_model") or configuration.get(
-        "control_model"
+    raise ValueError(
+        "Run manifests must declare selection.comparison with control and "
+        "test model records."
     )
-    test = selection.get("test_model") or configuration.get("test_model")
-    models = selection.get("models") or configuration.get("models") or []
-    if isinstance(models, str):
-        models = [models]
-    if not control:
-        control = DEFAULT_CONTROL_MODEL
-    if not test:
-        test = models[0] if models else DEFAULT_CONTROL_MODEL
-    return build_comparison_request(control, test)
 
 
 def _surface_value(metadata: Mapping[str, Any], keys: tuple[str, ...]) -> Any:

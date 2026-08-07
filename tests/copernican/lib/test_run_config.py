@@ -22,7 +22,11 @@ class TestRunConfig(unittest.TestCase):
         self.simple_manifest = {
             "seed": 42,
             "selection": {
-                "models": ["LambdaCDM"],
+                "models": ["ReferenceModel", "CandidateModel"],
+                "comparison": {
+                    "control": {"name": "ReferenceModel"},
+                    "test": {"name": "CandidateModel"},
+                },
                 "engine": {
                     "name": "copernican.engines.engine_mcmc",
                     "version": "7.6.20",
@@ -49,21 +53,26 @@ class TestRunConfig(unittest.TestCase):
     def test_build_config_from_manifest(self) -> None:
         config = build_config_from_manifest(self.simple_manifest)
         self.assertEqual(config.seed, 42)
-        self.assertEqual(config.models, ["LambdaCDM"])
+        self.assertEqual(config.models, ["ReferenceModel", "CandidateModel"])
         self.assertEqual(
             config.engine.module_name, "copernican.engines.engine_mcmc"
         )
         self.assertEqual(config.engine.version, "7.6.20")
         self.assertEqual(config.run_settings.engine_kind, "mcmc")
         self.assertEqual(config.run_settings.settings["n_steps"], 200)
-        self.assertEqual(config.control_model, "model_lcdm.yml")
-        self.assertEqual(config.test_model, "LambdaCDM")
+        self.assertEqual(config.control_model, "ReferenceModel")
+        self.assertEqual(config.test_model, "CandidateModel")
         self.assertEqual(len(config.datasets), 1)
         descriptor = config.datasets[0]
         self.assertIsInstance(descriptor, DatasetDescriptor)
         self.assertEqual(descriptor.dataset_id, "sne/pantheon")
         self.assertEqual(descriptor.dataset_type, "sne")
         self.assertEqual(descriptor.version, "1.0")
+
+    def test_single_model_selection_is_rejected(self) -> None:
+        self.simple_manifest["selection"]["models"] = ["CandidateModel"]
+        with self.assertRaisesRegex(ValueError, "control and test"):
+            build_config_from_manifest(self.simple_manifest)
 
 
 if __name__ == "__main__":

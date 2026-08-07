@@ -40,7 +40,17 @@ class TestRunExecutor(unittest.TestCase):
         return {
             "seed": seed,
             "selection": {
-                "models": ["LambdaCDM"],
+                "models": ["model_lcdm", "model_wcdm"],
+                "comparison": {
+                    "control": {
+                        "name": "model_lcdm",
+                        "filename": "model_lcdm.yml",
+                    },
+                    "test": {
+                        "name": "model_wcdm",
+                        "filename": "model_wcdm.yml",
+                    },
+                },
                 "engine": {
                     "name": "copernican.engines.engine_mcmc",
                     "version": "7.6.20",
@@ -153,7 +163,11 @@ class TestRunExecutor(unittest.TestCase):
                 "model_name: ExternalModel\nparameters: []\n",
                 encoding="utf-8",
             )
-            manifest["selection"]["models"] = [str(model_path)]
+            manifest["selection"]["models"][1] = "external_model"
+            manifest["selection"]["comparison"]["test"] = {
+                "name": "external_model",
+                "filename": str(model_path),
+            }
             pipeline_calls = []
             with contextlib.ExitStack() as stack:
                 self._enter_common_patches(stack)
@@ -172,8 +186,10 @@ class TestRunExecutor(unittest.TestCase):
                 )
 
         self.assertTrue(pipeline_calls)
-        alt_model = pipeline_calls[0]["alt_model_plugin"]
-        self.assertEqual(alt_model.MODEL_FILENAME, "external_model.yaml")
+        test_model = pipeline_calls[0]["test_model_plugin"]
+        self.assertEqual(test_model.MODEL_FILENAME, "external_model.yaml")
+        control_model = pipeline_calls[0]["control_model_plugin"]
+        self.assertEqual(control_model.MODEL_FILENAME, "model_lcdm.yml")
         comparison = pipeline_calls[0]["comparison"]
         self.assertEqual(comparison.control_model.name, "model_lcdm")
         self.assertEqual(comparison.test_model.name, "external_model")

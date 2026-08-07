@@ -17,8 +17,9 @@ directly without using the command-line interface. The core modules are:
  `EnginePlugin.CMB_PERTURBATION_DATA`, `EnginePlugin.CMB_NATIVE_RUNTIME`,
  `REQUIRED_ATTRIBUTES`, and `REQUIRED_FUNCTIONS`. Import it when building
  custom tooling that needs to confirm interface compliance.
-- `copernican.lib.progress` – shared progress reporting helpers. Engines import
- `BatchProgressBar` so CLI runs log simple counters such as “Burn-in stage
+- `copernican.lib.progress` – shared progress reporting helpers. Sampler
+ engines import `BatchProgressBar` so CLI runs log simple counters such as
+ “Burn-in stage
  batch 1: 3/200 steps completed (1%)” while emitting the structured
  ``batch_start``, ``progress_update`` and ``batch_finish`` records that power
  the GUI progress monitors. The helper keeps stage metadata and the listener
@@ -33,8 +34,8 @@ directly without using the command-line interface. The core modules are:
  ArviZ backend generated the densities so automated workflows know when the
  helper relied on the shared plotting stack. The underlying
  `_prepare_corner_inputs` validator flattens samples, derives thinning
- statistics and feeds `build_footer_lines`, keeping the `legacy` shim in place
- for earlier automation.
+ statistics, and feeds `build_footer_lines` through the canonical plotting
+ path.
 - `copernican.lib.plotter.plot_parameter_histograms(samples, plugin,
   data_attrs, plot_dir, comparison)` – generate a grid of per-parameter
   histograms rendered
@@ -48,8 +49,8 @@ directly without using the command-line interface. The core modules are:
  picklable :class:`PosteriorEvaluator` combining priors, transforms and
  likelihood callables. Engines should always route posterior evaluations
  through this helper to keep multiprocessing safe.
-- `copernican.lib.statistics` – shared chi-squared and BAO/CMB helper functions
- used by every engine. Importing from this module keeps the numerical
+- `copernican.lib.statistics` – shared chi-squared and BAO/CMB helper
+ functions used by every sampler engine. Importing from this module keeps the
  implementations in a single place so engines remain thin orchestration
  layers. The helpers expose SNe chi-squared evaluations that always return
  finite values for physically meaningful proposals so MCMC reseeding can fall
@@ -87,7 +88,8 @@ CLI, GUI, manifest builder, executor, and plotting layer. Construct a pair
 with `build_comparison_request(control_model, test_model)`, or recover one
 from a saved manifest with `comparison_from_manifest(manifest)`. The request
 contains `control_model` and `test_model` role records, each with a display
-name and optional YAML filename.
+name and optional YAML filename. Manifest loading requires both records and
+does not infer a missing role from a single-model field.
 
 `run_manifest.build_manifest` stores this request under
 `selection.comparison`, alongside explicit `control_model` and `test_model`
@@ -109,7 +111,10 @@ declared-graph execution. `native_background.py` owns the declared background,
 recombination, and reionization tables; `native_evolution.py` owns the
 compiled declared-graph evolution plan; `native_projection.py` owns the
 line-of-sight transfer and spectrum assembly; and `native_cache.py` owns
-bounded cache state plus reset and diagnostics helpers.
+ bounded cache state plus reset and diagnostics helpers.
+`copernican.lib.cmb_identity` exposes the stable production identity
+`copernican_native_declared_graph`. CLI and GUI callers select model roles and
+a sampler engine; they do not select a CMB engine.
 `engine_adapter.py` hands the precompiled native runtime into that package
 directly, so repeated calls avoid rebuilding static graph structure
 before the declared solver evolves graph variables,
@@ -160,21 +165,19 @@ top-level likelihood wrapper.
  to handle undefined sampler states. When the CLI selects this backend,
  Stage 2 prompts for production steps, burn-in length, walker counts and
  worker pools, mirroring the available function arguments for scripted
- workflows. A legacy ``fit_sne_parameters`` alias remains for backward
- compatibility but logs a deprecation warning.
+ workflows.
 - `copernican.engines.engine_nested.fit_cosmology_parameters` –
  wraps a lightweight nested-sampling routine that evaluates the same
  adapter-provided posterior while reporting log-evidence estimates,
  live-point counts, enlargement factors and iteration diagnostics. The
  CLI surfaces backend-specific prompts for live points, evidence
  tolerances and enlargement fractions so interactive runs align with
- scripted calls that specify the same keyword arguments. The legacy
- ``fit_sne_parameters`` name resolves to this function but is
- deprecated.
-- `result_writer.save_summary(results, output_dir)` – serialize fitted
- parameters, 1σ errors, covariance matrices and the recorded sampling
- configuration—including nested-sampling metadata such as live-point counts
- and evidence tolerances—to JSON and YAML for later analysis.
+ scripted calls that specify the same keyword arguments.
+- `result_writer.save_summary(control_results, test_results, output_dir,
+  comparison=comparison)` – serialize both role-specific fitted-parameter
+ records, 1σ errors, covariance matrices, and sampling configuration to JSON
+ and YAML. The control and test keys remain distinct when both roles select
+ the same model.
  - `copernican.engines.engine_mcmc` – lightweight `emcee`
  sampler for SNe posteriors. Walkers are initialised uniformly within
  declared parameter bounds, a burn-in run precedes production

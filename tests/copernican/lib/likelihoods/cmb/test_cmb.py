@@ -2850,14 +2850,14 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertEqual(
             route,
             {
-                "route_id": "native_declared_graph",
-                "prediction_engine": "copernican_native_declared_graph",
-                "transfer_function_path": (
+                "engine_id": "copernican_native_declared_graph",
+                "engine_label": (
+                    "Copernican native declared-graph CMB engine"
+                ),
+                "runtime_module": (
                     "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
                 ),
-                "solver": "declared_math_graph",
-                "route_ready_for_execution": True,
-                "uses_native_declared_graph": True,
+                "ready": True,
             },
         )
         self.assertEqual(
@@ -6688,7 +6688,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(spectrum_data.spectra["TT"]),
         )
         self.assertGreater(
-            native_cache.native_cmb_cache_stats()["custom_spectrum"]["hits"],
+            native_cache.native_cmb_cache_stats()["native_spectrum"]["hits"],
             0,
         )
 

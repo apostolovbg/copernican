@@ -66,6 +66,13 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
     """Translate ``manifest`` contents into a :class:`RunConfig`."""
 
     selection = manifest.get("selection", {})
+    comparison = comparison_from_manifest(manifest)
+    selected_models = list(selection.get("models", []))
+    if tuple(selected_models) != comparison.model_names:
+        raise ValueError(
+            "Run manifests must list exactly the declared control and test "
+            "models in role order."
+        )
     configuration = manifest.get("configuration", {})
     engine_meta = selection.get("engine", {})
     datasets_meta = manifest.get("datasets", {})
@@ -87,7 +94,7 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
         datasets.append(descriptor)
     return RunConfig(
         seed=int(manifest.get("seed", 0)),
-        models=list(selection.get("models", [])),
+        models=selected_models,
         engine=EngineDescriptor(
             module_name=engine_meta.get(
                 "name", "copernican.engines.engine_mcmc"
@@ -99,5 +106,5 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
             engine_kind=settings.get("engine_kind", "mcmc"),
             settings=settings,
         ),
-        comparison=comparison_from_manifest(manifest),
+        comparison=comparison,
     )

@@ -20,7 +20,8 @@ When editing via the GUI the Save Manifest page first writes the working
 configuration into
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml` so you can
 continue adjusting the builder without affecting real runs. Save buttons stay
-disabled until seed, model, data and engine selections exist, and Start Run
+disabled until seed, model, data, and sampler-engine selections exist, and
+Start Run
 renames the temporary workspace to the timestamped `copernican-run_<ts>` folder
 and file before invoking the CLI worker so downstream tooling always sees the
 canonical manifest. CLI `python -m copernican` invocations pass the
@@ -53,12 +54,14 @@ when output directories change.
  were kept, deleted or archived after a stop decision.
 - The Run Builder snapshot under ``configuration`` plus the operator notes
  captured during the start confirmation stored in ``confirmation``.
-The canonical ``selection.comparison`` block contains ``control`` and ``test``
-records with model names and YAML filenames. ``configuration.comparison``
-mirrors it for builder consumers, while ``control_model`` and ``test_model``
-provide direct scalar names. The same pair is consumed by the CLI and GUI,
-and compatibility checks reject mismatched declared observable surfaces
-before model execution.
+The canonical ``selection.comparison`` block contains exactly one ``control``
+record and one ``test`` record with model names and YAML filenames.
+``selection.models`` preserves that role order, and
+``configuration.comparison`` mirrors the pair for builder consumers.
+``control_model`` and ``test_model`` provide direct scalar names. The CLI and
+GUI consume the same pair, and compatibility checks reject mismatched declared
+observable surfaces before model execution. A same-model comparison retains
+both role records instead of collapsing them into one model result.
 Saving this manifest alongside plots and tables allows others to reproduce a
 run exactly. To rerun an analysis:
 1. Checkout the commit listed under `git.commit` and ensure the dirty flag
@@ -103,18 +106,21 @@ which behaviour and documentation set applied to the run, especially when a
 development branch has diverged from the last tagged release.
 For CMB-capable models the manifest carries three complementary truth
 surfaces under each `cmb.models[*]` entry:
-- `custom_cmb_graph_manifest_summary` for the declared graph identity and
+- `native_cmb_graph_manifest_summary` for the declared graph identity and
  observable contracts, including each transfer component's
  `declared_projection` entry.
-- `custom_cmb_background_manifest_summary` for declared background aliases,
+- `native_cmb_background_manifest_summary` for declared background aliases,
  reionization calibration, and recombination runtime provenance, including
- the declared recombination quantity names when custom hooks are present.
-- `custom_cmb_runtime_manifest_summary` for native execution provenance and
- numerical settings.
+ the declared recombination quantity names when model hooks are present.
+- `native_cmb_runtime_manifest_summary` for native execution provenance,
+ numerical settings, accuracy controls, runtime signature, and compiler
+ diagnostics.
 That split keeps graph structure, physical background provenance, and runtime
-proof separate. The route block identifies the sole native declared-graph
-engine and its compiled runtime signature. Backend and standard-route keys
-are invalid and cannot be recorded. The
+proof separate. The top-level `cmb.execution_engine` and
+`cmb.execution_engine_label` fields identify the sole Copernican native
+declared-graph CMB engine. Each model also records `native_cmb_execution` and
+`native_cmb_numerical_settings`. Backend and standard-route keys are invalid
+and cannot be recorded. The
 per-model `perturbation_*_names` lists expose declared interactions,
 conservation rules, and projection extensions so audits can check theory
 extensions without diffing the original model file.

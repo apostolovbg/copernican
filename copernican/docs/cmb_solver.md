@@ -1,11 +1,16 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-06
+**Last Updated:** 2026-08-07
 **Project Version:** 12.0.26
 
 ## Overview
 This document is the canonical physical convention for Copernican's native
 CMB solver path. Every bundled production CMB model uses one route-neutral
 declared graph with no solver selector or backend fallback.
+
+The production execution identity is
+`copernican_native_declared_graph`, displayed as the Copernican native
+declared-graph CMB engine. CLI and GUI workflows select control and test model
+contracts and a sampler engine; they do not expose a CMB-engine choice.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
@@ -956,7 +961,8 @@ spectra. A transfer component supplies a source role and a projection kernel;
 an angular spectrum combines two compatible transfers. Thus `PP` is a
 lensing-potential spectrum, `TP` and `EP` are cross-surfaces, and lensed
 spectra depend on both the unlensed CMB surface and `PP`. A request for one
-component does not authorize a substitute source or a standard-backend result.
+component does not authorize a substitute source or an external-reference
+result.
 
 ## Numerical Controls And Runtime Envelope
 
@@ -1124,7 +1130,7 @@ and an independently constructed CAMB reference. The native call is made
 through the production declared-graph route; the reference helper is confined
 to the scientific test module and never calls the production solver. The
 comparison is absolute over the declared multipole surfaces rather than a
-response ratio or a calibrated standard-backend output.
+response ratio or an externally calibrated output.
 
 The acceptance surface includes native `TT`, `TE`, and `EE`, the lensing
 potential `PP`, and the declared `TP` and `EP` cross-surfaces. The acceptance

@@ -184,7 +184,7 @@ class TestCosmoEngineNested(unittest.TestCase):
             ),
         )
         manifest = run_manifest.build_manifest(
-            models=[(plugin, "1.0")],
+            models=[(plugin, "1.0"), (plugin, "1.0")],
             engine_module=module,
             datasets=[],
         )

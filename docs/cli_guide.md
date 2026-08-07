@@ -28,10 +28,10 @@ After the environment check you can select:
 1. **Start Copernican (GUI)** – Runs `python -m copernican --gui`
 2. **Start Copernican (CLI)** – Runs the manifest-driven CLI workflow
 3. **Run the unit test suite** – Delegates to `python -m unittest discover`
-4. **Enable strict warning mode** – Sets `COPERNICAN_STRICT_WARNINGS=1` for the
- session so Python warnings raise errors
-5. **Environment and dependency management** – Rebuilds `.venv` and reports the
- detected interpreter
+4. **Enable strict warning mode** – Sets `COPERNICAN_STRICT_WARNINGS=1` for
+ the session so Python warnings raise errors
+5. **Environment and dependency management** – Rebuilds `.venv` and reports
+ the detected interpreter
 6. **Install Copernican** – Runs `pip install .` inside the managed
  interpreter
 You can call `python -m copernican --cli` directly after activating `.venv`
@@ -39,21 +39,22 @@ if you do not need the curated prompts. Additional switches include `--gui`,
 `--no-gui`, `--manifest <path>` to execute a saved manifest,
 `--control-model <model>` and `--test-model <model>` to override the pair in
 that manifest, and `--output-dir` to override where run directories are
-created.
+created. CMB-capable models always use the Copernican native declared-graph
+CMB engine; the CLI has no CMB solver or backend selector.
 ## Interactive CLI Workflow
 The CLI mirrors the Run Builder pages and the shared comparison request:
-1. **Seed selection** – Accept the default seed (`0`), supply your own value or
- request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
+1. **Seed selection** – Accept the default seed (`0`), supply your own value,
+ or request a random seed. Setting `COPERNICAN_SEED` bypasses the prompt.
 2. **Control model** – Select the model used as the comparison control. The
  `model_lcdm.yml` definition is the default.
-3. **Test model** – Select the model evaluated against the control. Both model
- roles use the same YAML validation and exact-path loading rules.
+3. **Test model** – Select the model evaluated against the control. Both
+ model roles use the same YAML validation and exact-path loading rules.
 4. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
  Parsers are verified by SHA256 digest before their modules are imported.
-5. **Engine selection** – Choose a sampler backend from `copernican/engines/`.
+5. **Sampler engine** – Choose a sampler backend from `copernican/engines/`.
  The default is `copernican/engines/engine_mcmc.py` unless you
- override it. Engine metadata (walkers, burn-in, production steps, pool
- size) is gathered immediately after the engine choice. When a selected
+ override it. Sampler metadata (walkers, burn-in, production steps, pool
+ size) is gathered immediately after the choice. When a selected sampler
  engine detects that every parameter is fixed (for example, when the
  validation manifest runs `Planck 2018 Reference LambdaCDM`), the sampler
  mirrors the reference values, fabricates identical chains, and
@@ -63,7 +64,8 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
 6. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
  writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
  naming convention as the GUI. The manifest records dataset hashes, model
- metadata, engine knobs and Git information. The CLI run log for each
+ metadata, sampler knobs, native CMB engine identity, and Git information.
+ The CLI run log for each
  manifest resides under the resulting
  `~/copernican_output/copernican-run_<timestamp>/` folder as
  `copernican-run_<timestamp>.txt`. GUI-launched runs also write the same
@@ -84,8 +86,8 @@ flags execute their action and exit immediately:
 - `--revalidate-dataset DATASET_ID` – Re-runs the parser hash check for a
  specific dataset id and warns when the digest diverges from the trusted
  value.
-- `--list-manifests` – Lists timestamped run folders under the selected output
- directory and shows the most recent manifest file in each folder.
+- `--list-manifests` – Lists timestamped run folders under the selected
+ output directory and shows the most recent manifest file in each folder.
 - `--show-manifest PATH` – Pretty-prints a saved manifest file so you can
  inspect it without opening a GUI metadata viewer.
 - `--run-validation` – Executes the golden manifests under
@@ -141,10 +143,8 @@ comparison object used by the GUI before the executor loads either model.
 - `COPERNICAN_STRICT_WARNINGS=1` – Elevates Python warnings to errors, useful
  in CI pipelines.
 - `COPERNICAN_SEED=<value>` – Pre-fills the seed question.
-- `COPERNICAN_DEP_CACHE_DIR=<path>` – Overrides the default `.cache/` location
- used by the dependency scanner.
-The staged CLI menu has been retired; there is no
-`COPERNICAN_ENABLE_STAGED_MENU` flag or equivalent toggle.
+- `COPERNICAN_DEP_CACHE_DIR=<path>` – Overrides the default `.cache/`
+ location used by the dependency scanner.
 Review `AGENTS.md` for the rest of the configuration knobs, especially the
 launcher policies enforced in CI.
 ## Troubleshooting and Logs

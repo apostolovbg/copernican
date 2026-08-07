@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-06
+**Last Updated:** 2026-08-07
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -22,7 +22,7 @@ keeping the results tied to the exact inputs that produced them.
 The same manifest can drive the command-line interface or the GUI. That keeps
 interactive runs and scripted runs on one configuration surface, with the same
 seed handling, control-model and test-model selection, dataset selection,
-engine choice, and output layout.
+sampler-engine choice, and output layout.
 
 Copernican is built for reproducibility. Every run writes a manifest, logs,
 summary artifacts, plots, and chain outputs into a per-run directory under
@@ -41,142 +41,17 @@ inputs, numerical controls, and independent-reference boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
-All bundled CMB model manifests, including
-[`model_lcdm.yml`](copernican/models/model_lcdm.yml), declare
-one route-neutral perturbation graph and execute through the native solver
-when CMB output is available. `model_lcdm.yml` is the canonical native
-LambdaCDM declaration. Each model's species and source closures remain
-theory-specific; CAMB and CLASS are independent scientific reference tools
-used by tests, not production spectrum engines.
+All bundled CMB-capable models execute through the Copernican native
+declared-graph CMB engine. The CLI and GUI do not expose a CMB solver or
+backend selector; the selected control and test models provide the physical
+contracts for the same engine. CAMB and CLASS are independent scientific
+reference tools used by tests, not production spectrum engines.
 
-Native projection requests use bounded radial-kernel caches and ell-batched
-work arrays, keeping memory use tied to the declared numerical envelope while
-preserving the model's requested multipole range. Compatible Fourier-mode
-grids share radial recurrence work before projection. The scalar k quadrature
-uses declared multipole anchors and phase-aware distance and sound-horizon
-nodes, so acoustic oscillations remain part of the bounded quadrature rather
-than being post-processed.
-
-Generated scalar gauges use one compiled declared equation graph and shared
-deterministic Runge-Kutta substeps, so gauge-equivalent contracts follow the
-same numerical trajectory rather than diverging because of basis-specific
-adaptive stepping.
-
-Scalar model declarations may select one regular adiabatic or isocurvature
-initial-mode family. The native runtime validates the absolute starting
-state and declared collision constraints before it evolves that mode.
-
-Native tight-coupling thresholds, terminal hierarchy closures, and collision
-conservation checks are declared in each perturbation contract. Exact and
-implicit collision updates validate their attached invariants before the
-state reaches projection.
-
-Native CMB execution separates contract-static graph compilation,
-cosmology-static background and collision tables, and request-specific
-projection work. Every scalar mode uses the same compiled equation program;
-bounded cache identities keep repeated cosmology proposals from rebuilding
-contract structure. Projection kernels may batch only radial-kernel work,
-never scalar physics equations.
-Native numerical contracts may declare `evolution_phase_step` for the
-declaration-driven evolution schedule. Tensor projections reserve their
-spin-2 high-k quadrature tail rather than applying an empirical spectrum
-correction.
-The generated massless-neutrino hierarchy uses an explicit `F_2 / 2`
-anisotropic-stress convention, including its metric source and initial data.
-Massive-neutrino hierarchies use validated q-resolved states and distinct
-physical density, pressure, momentum, and shear moments. Their logarithmic
-q-grid rejects invalid nodes or weights before caching, and remains inactive
-when a contract declares no massive-neutrino species. The evolved q dipole
-uses the regularized physical variable `v(q,a) Psi_1`, and the matching
-q-integrated momentum source uses `q^4 f_0 / v`; this avoids a
-nonrelativistic singularity without collapsing the resolved hierarchy.
-Fixed relativistic and nonrelativistic source spectra are checked against
-independent log-q quadrature at a ten-percent absolute tolerance.
-
-Generated tensor contracts evolve only physical spin-2 states: the tensor
-metric wave and derivative, photon and massless-neutrino temperature moments
-from the quadrupole upward, and photon E/B polarization moments from
-`l = 2`. Regular superhorizon initial data satisfy declared metric,
-neutrino-stress, and Thomson-collision constraints before evolution. Tensor
-temperature and polarization sources use independently checked normalization
-and sector-specific radial kernels, and accepted source histories change by
-less than one percent when the working hierarchy depth is increased.
-
-Tensor absolute acceptance uses a fixed `r = 0.1`, `nt = 0` cosmology and
-independent CAMB references confined to the scientific test surface. Native
-unlensed and lensed tensor `TT`, `EE`, and `BB` meet a ten-percent median
-fractional-error boundary at the declared reference multipoles. Lensing uses
-the native scalar `PP` surface and retains finite positive primordial tensor
-`BB` through the exact remapper.
-
-Gauge-equivalent scalar acceptance fixes the cosmology, grids, initial mode,
-and source roles while comparing conformal-Newtonian, synchronous, and
-Bardeen-invariant routes. Compiled manifests expose the observable basis,
-metric states, and explicit bridge expressions. Visible source histories and
-all scalar spectra must agree within the declared `0.1%` boundary without
-making the routes identical through aliases.
-
-Physical vector acceptance declares `sigma_vector`, matter vorticity, photon
-and neutrino vector moments, even and odd photon polarization, collision
-conservation, and free-streaming closure. Independent flat-space checks cover
-the vector temperature, E, and B radial kernels. Generated vector transfers
-are finite and retain odd-parity `BB`; scalar-only contracts do not acquire
-vector state, source, or kernel names.
-
-Native runtime acceptance also records phase timings and enforces the bounded
-180-second full-spectrum and 60-second joint-MCMC budgets used by the managed
-test surface.
-
-Generated scalar contracts validate Einstein energy, momentum, and shear
-residuals across the accepted evolution history and expose named anchor
-diagnostics in the runtime envelope. State and residual units are checked
-before projection.
-
-Native accuracy tiers can opt into phase-aware transfer-node selection,
-visibility-aware source-time refinement, line-of-sight quadrature checks, and
-scalar state/source history comparisons through `adaptive_transfer`,
-`adaptive_source`, `adaptive_projection`, and `adaptive_evolution` accuracy
-controls. Evolution refinement compares early, recombination, and late
-physical anchors and charges both integrations to the runtime envelope. Each
-surface reports its measured refinement error and fails clearly when the
-declared tolerance is not met within its node budget.
-
-Requested spectra resolve only the declared transfer and source dependencies;
-unavailable spectra fail before evolution. The detailed convergence controls
-and projection conventions are documented in
-[`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
-
-Declared scalar line-of-sight components bind source names to reviewed roles
-through the shared projection contract. Temperature monopole, ISW, and
-additive sources use the ordinary spherical-Bessel kernel; Doppler uses its
-first derivative; and the integrated temperature quadrupole derivative uses
-the second derivative. Native runtime envelopes report the source-role set,
-grid size, finite-history status, and source-history convergence data for
-each accepted request. A
-missing declared source fails with an availability reason rather than
-producing a zero transfer or borrowing another sector.
-
-Exact lensed requests preserve a declared unlensed `BB` transfer when one is
-available; otherwise the native remapper uses the physical zero-parity base
-and derives lensing-induced `lensed_BB` from `EE` and `PP`.
-
-The lensed assembler expands every request to one contiguous zero-based
-analysis surface before remapping. It passes the native unlensed TT, TE, EE,
-and BB surfaces together with the native PP surface to the remapper, then
-selects the requested lensed outputs. Sparse public requests therefore cannot
-change interpolation or bypass an available odd-parity transfer.
-
-The native curved-sky remapper validates finite compatible `cls` and `clpp`
-surfaces before work begins. Its bounded Gauss-Legendre sampling can be
-refined through `sampling_factor`, with interpolation stability covered by
-the native lensing tests.
-
-Projection kernels are independently validated radial operators. The native
-batch evaluates spherical-Bessel values, first and second derivatives, spin-2
-E/B windows, vector windows, tensor windows, and lensing geometry from one
-bounded radial grid. Signed arguments preserve each kernel's parity, exact
-zero-argument limits remain finite, and projection contracts reject a sector
-that the selected kernel cannot represent before integration begins.
+Requested spectra resolve only declared model dependencies. A model without
+a defensible perturbation closure reports the affected CMB outputs as
+unavailable rather than substituting another engine or a zero spectrum. See
+[`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md) for the graph,
+physical, numerical, lensing, caching, and reference conventions.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
@@ -343,10 +218,10 @@ Each run keeps its own run logs inside the generated
 
 ## Run Builder and GUI
 The GUI keeps the same manifest model as the CLI. The Run Builder walks
-through seed, control model, test model, dataset, engine, and plan panels. The
-control model defaults to `model_lcdm.yml`, while the test model is selected
-independently. The Save Manifest page stays locked until each step has a
-selection; and the Start Run action renames the workspace to
+through seed, control model, test model, dataset, sampler engine, and plan
+panels. The control model defaults to `model_lcdm.yml`, while the test model
+is selected independently. The Save Manifest page stays locked until each
+step has a selection; and the Start Run action renames the workspace to
 `copernican-run_<timestamp>` before launching the worker. The Run Settings
 panel mirrors the CLI prompts for walkers, burn-in, production steps, and pool
 size so GUI runs and CLI runs use the same run metadata.

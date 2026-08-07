@@ -271,8 +271,8 @@ def execute_run_from_manifest(
     sampling_plan.setdefault("engine_kind", config.run_settings.engine_kind)
     display_progress = bool(sampling_plan.pop("display_progress", True))
     run_pipeline.execute_run_pipeline(
-        lcdm=control_plugin,
-        alt_model_plugin=test_plugin,
+        control_model_plugin=control_plugin,
+        test_model_plugin=test_plugin,
         engine_module=engine_module,
         sne_data_df=loaded_data.get("sne"),
         bao_data_df=loaded_data.get("bao"),

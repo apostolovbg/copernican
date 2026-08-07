@@ -42,9 +42,9 @@ described throughout this document.
  `copernican.lib.progress`, which exposes `BatchProgressBar`. The helper
  writes simple counter lines such as “Burn-in stage batch 1: 3/200 steps
  completed (1%)”, preserves the listener contract and exposes a no-op
- suspension context so diagnostics can print between updates without the old
+ suspension context so diagnostics can print between updates without a
  carriage-return renderer.
-* `copernican/engines/` contains back ends such as the default
+* `copernican/engines/` contains sampler backends such as the default
  ``engine_mcmc.py``. Engines consume `EnginePlugin` definitions,
  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
  ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
@@ -58,7 +58,7 @@ described throughout this document.
  into background tables, declared evolution, line-of-sight projection,
  and bounded cache ownership. Nested sampling and ensemble MCMC both rely
  on the shared Stage 2 helper so the counter lines and listener events
- stay consistent regardless of backend.
+ stay consistent regardless of sampler backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
  transforms and dataset compatibility. Each file is compiled into a picklable
  :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
@@ -90,10 +90,14 @@ described throughout this document.
  citations and licenses alongside actions that open the containing folders,
  view metadata files or revalidate trusted parser hashes. Manifest files can
  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
- pre-fills model, dataset and engine selections for iterative experiments.
+ pre-fills model, dataset, and sampler-engine selections for iterative
+ experiments.
 ## Native CMB Engine
 CMB contracts use the declared-math graph engine in
 `copernican/lib/likelihoods/cmb/` without a solver selector.
+The stable execution identity is `copernican_native_declared_graph`. User
+interfaces select control and test model contracts plus a sampler engine;
+they do not select a CMB engine.
 * One immutable graph carries variables, derived quantities,
  differential equations, algebraic constraints, closures, source terms,
  initial conditions, observable mappings, validity notes, and numerical
@@ -144,9 +148,9 @@ CMB contracts use the declared-math graph engine in
  `line_of_sight_lensing_potential` requires a declared `potential` source.
 * The spectra are built from the primordial power law
  `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
- `TE`, `EE`, and any declared `BB`, lensing-potential, or custom transfer
- target. The custom path keeps the numerical settings explicit and rejects
- unsupported custom sectors, missing declared equations, and theory-specific
+ `TE`, `EE`, and any declared `BB`, lensing-potential, or model-defined
+ transfer target. The native path keeps the numerical settings explicit and
+ rejects unsupported sectors, missing declared equations, and theory-specific
  solver keys before any spectrum is produced.
 ## Stage-by-stage flow
 ### Dependency priming and logging
@@ -163,8 +167,8 @@ prompts flow through :mod:`copernican.lib.console_output` so patched `print`
 and `input` hooks in :mod:`copernican.lib.logger` can mirror them into the log
 file without duplication. The logger strips repository paths from messages,
 records system details and timestamps in UTC and keeps a deliberate blank
-spacer after initialisation so Stage 1 banners align with prior releases while
-avoiding redundant status text.
+spacer after initialisation so Stage 1 banners remain readable without
+redundant status text.
 ### Stage 1 orchestration
 Stage 1 focuses on reproducibility and validation:
 * The seed selector honours ``COPERNICAN_SEED`` when set, otherwise offers to
@@ -178,7 +182,7 @@ Stage 1 focuses on reproducibility and validation:
  contracts.
  Validation errors are aggregated and displayed as bullet points before the
  user is asked whether to restart Stage 1 or exit entirely.
-* Engine selection is dynamic: any file matching
+* Sampler-engine selection is dynamic: any file matching
  `copernican/engines/engine_*.py` appears in the menu. Prompts reflect
  the selected backend so ensemble MCMC users configure burn-in, walkers and
  worker pools while nested sampling users pick live-point budgets and
@@ -193,7 +197,8 @@ and assembles the combined SNe, BAO and CMB likelihoods via
 :class:`copernican.lib.posterior.PosteriorEvaluator` so multiprocessing pools
 can reuse the same callable safely.
 The shared helper in :mod:`copernican.lib.progress` keeps interactive output
-stable across engines. It writes counter lines such as “Burn-in stage batch 1:
+stable across sampler engines. It writes counter lines such as “Burn-in stage
+batch 1:
 3/200 steps completed (1%)”, emits the same ``batch_start``,
 ``progress_update`` and ``batch_finish`` events that feed the GUI progress
 panels, and offers a suspension context so diagnostics can print between
@@ -219,10 +224,9 @@ plot grid dimensions. Footer guard bands keep three lines of metadata clear of
 the axes: the model comparison, dataset description and citation. Footer
 spacing maintains both a fixed gap above the axes and a clearance above the
 canvas edge so long labels or future gravitational-wave annotations do not
-collide with data. The corner-plot validator thins samples when necessary,
-labels every parameter using the names stored on the adapter and exposes a
-legacy wrapper so older tooling can import `_validate_corner_inputs`
-without linter noise.
+collide with data. The corner-input preparation path thins samples when
+necessary and labels every parameter using the names stored on the adapter
+before ArviZ or the Matplotlib renderer receives the data.
 ### Stage 6 outputs and manifests
 All artefacts land in a run-specific `output/copernican-run_YYYYMMDD_HHMMSS`
 directory. The manifest recorded by :mod:`copernican.lib.run_manifest` captures

@@ -19,6 +19,7 @@ import numpy
 
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
+from .model_selection import ComparisonRequest
 from .utils import ensure_dir_exists, generate_filename
 
 
@@ -28,22 +29,44 @@ def _safe_model_label(name: str) -> str:
     return name.replace(" ", "_").replace(".", "") or "model"
 
 
+def _validate_plugin_pair(
+    comparison: ComparisonRequest,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
+) -> None:
+    """Require CSV plugins to match the declared comparison roles."""
+
+    plugin_names = (
+        str(getattr(control_model_plugin, "MODEL_NAME", "")),
+        str(getattr(test_model_plugin, "MODEL_NAME", "")),
+    )
+    if plugin_names != comparison.model_names:
+        raise ValueError(
+            "CSV model plugins must match the declared control/test "
+            "comparison."
+        )
+
+
 def save_sne_results_detailed_csv(
     sne_data_df: Any,
-    lcdm_fit_results: Any,
-    alt_model_fit_results: Any,
-    lcdm_plugin: Any,
-    alt_model_plugin: Any,
+    control_fit_results: Any,
+    test_fit_results: Any,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
     csv_dir: str = ".",
     timestamp: str | None = None,
     *,
-    control_model_name: str | None = None,
-    test_model_name: str | None = None,
+    comparison: ComparisonRequest,
 ) -> None:
     """Save a detailed, point-by-point breakdown of the SNe Ia fitting
     results."""
     ensure_dir_exists(csv_dir)
     logger = get_logger()
+    _validate_plugin_pair(
+        comparison,
+        control_model_plugin,
+        test_model_plugin,
+    )
 
     cols_to_keep = [
         col
@@ -63,46 +86,51 @@ def save_sne_results_detailed_csv(
         sne_data_df.attrs.get("requires_sne_intercept_marginalization")
     )
 
-    control_label = _safe_model_label(control_model_name or "lcdm")
-    test_label = _safe_model_label(
-        test_model_name or getattr(alt_model_plugin, "MODEL_NAME", "alt")
-    )
-    if lcdm_fit_results and lcdm_fit_results.get("success"):
-        p_lcdm = list(lcdm_fit_results["fitted_cosmological_params"].values())
-        mu_model_lcdm = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
-        df_out[f"mu_model_{control_label}"] = mu_model_lcdm
-        residual_lcdm = mu_data - mu_model_lcdm
+    control_name, test_name = comparison.model_names
+    control_label = _safe_model_label(control_name)
+    test_label = _safe_model_label(test_name)
+    if control_fit_results and control_fit_results.get("success"):
+        p_control = list(
+            control_fit_results["fitted_cosmological_params"].values()
+        )
+        mu_model_control = control_model_plugin.distance_modulus_model(
+            z_data, *p_control
+        )
+        df_out[f"mu_model_{control_label}"] = mu_model_control
+        residual_control = mu_data - mu_model_control
         if requires_intercept:
-            delta_lcdm = compute_sne_intercept_delta(
-                residual_lcdm,
+            delta_control = compute_sne_intercept_delta(
+                residual_control,
                 covariance_matrix_inv=sne_data_df.attrs.get(
                     "covariance_matrix_inv"
                 ),
                 diag_errors=diag_errors,
             )
-            residual_lcdm = residual_lcdm + delta_lcdm
-        df_out[f"residual_{control_label}"] = residual_lcdm
+            residual_control = residual_control + delta_control
+        df_out[f"residual_{control_label}"] = residual_control
     else:
         df_out[f"mu_model_{control_label}"] = numpy.nan
         df_out[f"residual_{control_label}"] = numpy.nan
 
-    if alt_model_fit_results and alt_model_fit_results.get("success"):
-        p_alt = list(
-            alt_model_fit_results["fitted_cosmological_params"].values(),
+    if test_fit_results and test_fit_results.get("success"):
+        p_test = list(
+            test_fit_results["fitted_cosmological_params"].values(),
         )
-        mu_model_alt = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
-        df_out[f"mu_model_{test_label}"] = mu_model_alt
-        residual_alt = mu_data - mu_model_alt
+        mu_model_test = test_model_plugin.distance_modulus_model(
+            z_data, *p_test
+        )
+        df_out[f"mu_model_{test_label}"] = mu_model_test
+        residual_test = mu_data - mu_model_test
         if requires_intercept:
-            delta_alt = compute_sne_intercept_delta(
-                residual_alt,
+            delta_test = compute_sne_intercept_delta(
+                residual_test,
                 covariance_matrix_inv=sne_data_df.attrs.get(
                     "covariance_matrix_inv"
                 ),
                 diag_errors=diag_errors,
             )
-            residual_alt = residual_alt + delta_alt
-        df_out[f"residual_{test_label}"] = residual_alt
+            residual_test = residual_test + delta_test
+        df_out[f"residual_{test_label}"] = residual_test
     else:
         df_out[f"mu_model_{test_label}"] = numpy.nan
         df_out[f"residual_{test_label}"] = numpy.nan
@@ -129,14 +157,12 @@ def save_sne_results_detailed_csv(
 
 def save_bao_results_csv(
     bao_data_df: Any,
-    lcdm_results: Any,
-    alt_model_results: Any,
-    alt_model_name: str,
+    control_results: Any,
+    test_results: Any,
     csv_dir: str = ".",
     timestamp: str | None = None,
     *,
-    control_model_name: str | None = None,
-    test_model_name: str | None = None,
+    comparison: ComparisonRequest,
 ) -> None:
     """Save a detailed breakdown of the BAO results to a CSV file."""
     ensure_dir_exists(csv_dir)
@@ -147,14 +173,15 @@ def save_bao_results_csv(
 
     df_out = bao_data_df.copy()
 
-    control_label = _safe_model_label(control_model_name or "lcdm")
-    test_label = _safe_model_label(test_model_name or alt_model_name)
+    control_name, test_name = comparison.model_names
+    control_label = _safe_model_label(control_name)
+    test_label = _safe_model_label(test_name)
     if (
-        lcdm_results
-        and lcdm_results.get("pred_df") is not None
-        and not lcdm_results["pred_df"].empty
+        control_results
+        and control_results.get("pred_df") is not None
+        and not control_results["pred_df"].empty
     ):
-        df_out[f"pred_{control_label}"] = lcdm_results["pred_df"][
+        df_out[f"pred_{control_label}"] = control_results["pred_df"][
             "model_prediction"
         ]
         df_out[f"chi2_contrib_{control_label}"] = (
@@ -163,11 +190,11 @@ def save_bao_results_csv(
         ) ** 2
 
     if (
-        alt_model_results
-        and alt_model_results.get("pred_df") is not None
-        and not alt_model_results["pred_df"].empty
+        test_results
+        and test_results.get("pred_df") is not None
+        and not test_results["pred_df"].empty
     ):
-        df_out[f"pred_{test_label}"] = alt_model_results["pred_df"][
+        df_out[f"pred_{test_label}"] = test_results["pred_df"][
             "model_prediction"
         ]
         diff = df_out["value"] - df_out[f"pred_{test_label}"]
@@ -196,14 +223,12 @@ def save_bao_results_csv(
 
 def save_cmb_results_csv(
     cmb_data_df: Any,
-    lcdm_results: Any,
-    alt_model_results: Any,
-    alt_model_name: str,
+    control_results: Any,
+    test_results: Any,
     csv_dir: str = ".",
     timestamp: str | None = None,
     *,
-    control_model_name: str | None = None,
-    test_model_name: str | None = None,
+    comparison: ComparisonRequest,
 ) -> None:
     """Save CMB spectrum predictions and residuals to a CSV file."""
     ensure_dir_exists(csv_dir)
@@ -218,27 +243,30 @@ def save_cmb_results_csv(
     if "Dl_ee_obs" in cmb_data_df.columns:
         df_out["Dl_ee_obs"] = cmb_data_df["Dl_ee_obs"]
 
-    control_label = _safe_model_label(control_model_name or "lcdm")
-    test_label = _safe_model_label(test_model_name or alt_model_name)
-    if lcdm_results and lcdm_results.get("theory_spectrum") is not None:
-        th_lcdm = lcdm_results["theory_spectrum"]
-        if isinstance(th_lcdm, dict):
-            if "TT" in th_lcdm:
-                df_out[f"Dl_{control_label}_tt"] = th_lcdm["TT"]
+    control_name, test_name = comparison.model_names
+    control_label = _safe_model_label(control_name)
+    test_label = _safe_model_label(test_name)
+    if control_results and control_results.get("theory_spectrum") is not None:
+        control_spectrum = control_results["theory_spectrum"]
+        if isinstance(control_spectrum, dict):
+            if "TT" in control_spectrum:
+                df_out[f"Dl_{control_label}_tt"] = control_spectrum["TT"]
                 df_out[f"residual_{control_label}_tt"] = (
-                    df_out["Dl_obs"] - th_lcdm["TT"]
+                    df_out["Dl_obs"] - control_spectrum["TT"]
                 )
-            if "TE" in th_lcdm and "Dl_te_obs" in df_out.columns:
-                df_out[f"Dl_{control_label}_te"] = th_lcdm["TE"]
-                te_diff = df_out["Dl_te_obs"] - th_lcdm["TE"]
+            if "TE" in control_spectrum and "Dl_te_obs" in df_out.columns:
+                df_out[f"Dl_{control_label}_te"] = control_spectrum["TE"]
+                te_diff = df_out["Dl_te_obs"] - control_spectrum["TE"]
                 df_out[f"residual_{control_label}_te"] = te_diff
-            if "EE" in th_lcdm and "Dl_ee_obs" in df_out.columns:
-                df_out[f"Dl_{control_label}_ee"] = th_lcdm["EE"]
-                ee_diff = df_out["Dl_ee_obs"] - th_lcdm["EE"]
+            if "EE" in control_spectrum and "Dl_ee_obs" in df_out.columns:
+                df_out[f"Dl_{control_label}_ee"] = control_spectrum["EE"]
+                ee_diff = df_out["Dl_ee_obs"] - control_spectrum["EE"]
                 df_out[f"residual_{control_label}_ee"] = ee_diff
         else:
-            df_out[f"Dl_{control_label}"] = th_lcdm
-            df_out[f"residual_{control_label}"] = df_out["Dl_obs"] - th_lcdm
+            df_out[f"Dl_{control_label}"] = control_spectrum
+            df_out[f"residual_{control_label}"] = (
+                df_out["Dl_obs"] - control_spectrum
+            )
     else:
         df_out[
             [
@@ -258,26 +286,26 @@ def save_cmb_results_csv(
         ] = numpy.nan
 
     has_theory = False
-    if alt_model_results:
-        has_theory = alt_model_results.get("theory_spectrum") is not None
+    if test_results:
+        has_theory = test_results.get("theory_spectrum") is not None
     if has_theory:
-        th_alt = alt_model_results["theory_spectrum"]
-        if isinstance(th_alt, dict):
-            if "TT" in th_alt:
-                df_out[f"Dl_{test_label}_tt"] = th_alt["TT"]
-                tt_diff = df_out["Dl_obs"] - th_alt["TT"]
+        test_spectrum = test_results["theory_spectrum"]
+        if isinstance(test_spectrum, dict):
+            if "TT" in test_spectrum:
+                df_out[f"Dl_{test_label}_tt"] = test_spectrum["TT"]
+                tt_diff = df_out["Dl_obs"] - test_spectrum["TT"]
                 df_out[f"residual_{test_label}_tt"] = tt_diff
-            if "TE" in th_alt and "Dl_te_obs" in df_out.columns:
-                df_out[f"Dl_{test_label}_te"] = th_alt["TE"]
-                te_diff = df_out["Dl_te_obs"] - th_alt["TE"]
+            if "TE" in test_spectrum and "Dl_te_obs" in df_out.columns:
+                df_out[f"Dl_{test_label}_te"] = test_spectrum["TE"]
+                te_diff = df_out["Dl_te_obs"] - test_spectrum["TE"]
                 df_out[f"residual_{test_label}_te"] = te_diff
-            if "EE" in th_alt and "Dl_ee_obs" in df_out.columns:
-                df_out[f"Dl_{test_label}_ee"] = th_alt["EE"]
-                ee_diff = df_out["Dl_ee_obs"] - th_alt["EE"]
+            if "EE" in test_spectrum and "Dl_ee_obs" in df_out.columns:
+                df_out[f"Dl_{test_label}_ee"] = test_spectrum["EE"]
+                ee_diff = df_out["Dl_ee_obs"] - test_spectrum["EE"]
                 df_out[f"residual_{test_label}_ee"] = ee_diff
         else:
-            df_out[f"Dl_{test_label}"] = th_alt
-            df_out[f"residual_{test_label}"] = df_out["Dl_obs"] - th_alt
+            df_out[f"Dl_{test_label}"] = test_spectrum
+            df_out[f"residual_{test_label}"] = df_out["Dl_obs"] - test_spectrum
     else:
         df_out[
             [

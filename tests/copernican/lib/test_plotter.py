@@ -20,13 +20,16 @@ from copernican.lib import plotter
 from copernican.lib import utils as plot_utils
 from copernican.lib.model_selection import build_comparison_request
 
-_TEST_COMPARISON = build_comparison_request("LCDM", "TestModel")
+_TEST_COMPARISON = build_comparison_request(
+    "ReferenceModel",
+    "CandidateModel",
+)
 
 
 class _DummyPlugin:
     """Lightweight stand-in exposing the attributes the plotter expects."""
 
-    MODEL_NAME = "TestModel"
+    MODEL_NAME = "CandidateModel"
     MODEL_EQUATIONS_LATEX_SN: list[str] = []
     MODEL_EQUATIONS_LATEX_BAO: list[str] = []
     PARAMETER_NAMES: list[str] = []
@@ -119,17 +122,6 @@ class TestPlotter(unittest.TestCase):
         monkeypatch: pytest.MonkeyPatch | None = None,
     ) -> None:
         _case_plot_corner_falls_back_to_agg_backend(
-            self,
-            tmp_path,
-            monkeypatch,
-        )
-
-    def test_plot_corner_handles_legacy_validator_signature(
-        self,
-        tmp_path=None,
-        monkeypatch: pytest.MonkeyPatch | None = None,
-    ) -> None:
-        _case_plot_corner_handles_legacy_validator_signature(
             self,
             tmp_path,
             monkeypatch,
@@ -244,7 +236,7 @@ def _case_plot_corner_renders_expected_file(
         "corner-plot",
         "joint_posterior",
         "png",
-        model_name="LCDM-vs-TestModel",
+        model_name="ReferenceModel-vs-CandidateModel",
         timestamp=timestamp,
     )
     self.assertTrue((tmp_path / expected_name).exists())
@@ -281,7 +273,7 @@ def _case_plot_parameter_histograms_renders_expected_file(
         "parameter-histograms",
         "joint_posterior",
         "png",
-        model_name="LCDM-vs-TestModel",
+        model_name="ReferenceModel-vs-CandidateModel",
         timestamp=timestamp,
     )
     self.assertTrue((tmp_path / expected_name).exists())
@@ -586,7 +578,6 @@ def _case_format_corner_footer_stats_reports_processing(self) -> None:
         "processed_count": 300,
         "stride": 3,
         "downsampled": True,
-        "legacy_validator": True,
     }
 
     lines = plotter._format_corner_footer_stats(stats)
@@ -595,7 +586,7 @@ def _case_format_corner_footer_stats_reports_processing(self) -> None:
     self.assertTrue(any("300 samples used" in line for line in rendered))
     self.assertTrue(any("stride 3" in line for line in rendered))
     self.assertTrue(any("Automatic thinning" in line for line in rendered))
-    self.assertTrue(any("Legacy validator" in line for line in rendered))
+    self.assertFalse(hasattr(plotter, "_validate_corner_inputs"))
 
 
 def _case_plot_corner_downsamples_large_chains(
@@ -637,10 +628,6 @@ def _case_plot_corner_downsamples_large_chains(
     monkeypatch.setattr(
         plotter, "_prepare_corner_inputs", _recording_validator
     )
-    monkeypatch.setattr(
-        plotter, "_validate_corner_inputs", _recording_validator
-    )
-
     original_build_footer_lines = plotter.build_footer_lines
     recorded: dict[str, Any] = {}
 
@@ -720,60 +707,6 @@ def _case_plot_corner_falls_back_to_agg_backend(
 
     self.assertEqual(attempts["count"], 2)
     self.assertEqual(switched, ["Agg"])
-
-
-def _case_plot_corner_handles_legacy_validator_signature(
-    self,
-    tmp_path=None,
-    monkeypatch: pytest.MonkeyPatch | None = None,
-) -> None:
-    """Ensure Stage 5 tolerates two-value legacy validators."""
-
-    tmp_path = _tmp_path_or_default(tmp_path)
-    if monkeypatch is None:
-        monkeypatch = pytest.MonkeyPatch()
-        self.addCleanup(monkeypatch.undo)
-
-    rng = numpy.random.default_rng(42)
-    samples = rng.normal(size=(5, 2, 2))
-
-    attrs = {
-        "dataset_id": "joint_posterior",
-        "dataset_name": "Joint posterior",
-        "description": "Legacy validator compatibility check",
-        "citation": "Corner validation stub",
-    }
-
-    def _legacy_validator(
-        posterior_samples: numpy.ndarray, parameter_names: list[str]
-    ) -> tuple[numpy.ndarray, list[str]]:
-        """Mimic the pre-7.4 signature returning only flattened data."""
-
-        flattened = numpy.asarray(posterior_samples).reshape(
-            -1, posterior_samples.shape[-1]
-        )
-        return flattened, parameter_names[: flattened.shape[1]]
-
-    monkeypatch.setattr(plotter, "_prepare_corner_inputs", _legacy_validator)
-    monkeypatch.setattr(plotter, "_validate_corner_inputs", _legacy_validator)
-
-    plotter.plot_corner(
-        samples,
-        _CornerPlugin,
-        attrs,
-        plot_dir=str(tmp_path),
-        timestamp="20251108_000000",
-        comparison=_TEST_COMPARISON,
-    )
-
-    expected_name = plot_utils.generate_filename(
-        "corner-plot",
-        "joint_posterior",
-        "png",
-        model_name="LCDM-vs-TestModel",
-        timestamp="20251108_000000",
-    )
-    self.assertTrue((tmp_path / expected_name).exists())
 
 
 def _case_density_levels_are_strictly_increasing(self) -> None:
@@ -862,7 +795,6 @@ def _case_build_footer_lines_preserves_citation_by_default(self) -> None:
     }
 
     footer_lines = plotter.build_footer_lines(
-        _CornerPlugin,
         attrs,
         "20250101_000000",
         comparison=_TEST_COMPARISON,
@@ -886,7 +818,6 @@ def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
 
     extra_lines = [("Corner plot generation: 12 samples used", False)]
     footer_lines = plotter.build_footer_lines(
-        _CornerPlugin,
         attrs,
         "20250101_000000",
         extra_lines=extra_lines,
@@ -895,7 +826,9 @@ def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
     )
 
     footer_text = [line for line, _ in footer_lines]
-    self.assertTrue(footer_text[0].startswith("LCDM vs TestModel"))
+    self.assertTrue(
+        footer_text[0].startswith("ReferenceModel vs CandidateModel")
+    )
     self.assertNotIn("Corner validation stub", "\n".join(footer_text))
     generation_line = "Corner plot generation: 12 samples used"
     self.assertEqual(footer_text.count(generation_line), 1)
@@ -906,6 +839,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
 
     def test_public_symbols_are_exposed(self) -> None:
         source = inspect.getsource(plotter.plot_bao_observables)
+        cmb_source = inspect.getsource(plotter.plot_cmb_spectrum)
         self.assertTrue(callable(plotter.build_footer_lines))
         self.assertTrue(callable(plotter.compose_footer))
         self.assertTrue(callable(plotter.format_model_summary_text))
@@ -917,3 +851,5 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(plotter.plot_parameter_histograms))
         self.assertIn("def plot_model_bao(", source)
         self.assertIn("def robust_plot(", source)
+        self.assertIn("NATIVE_CMB_ENGINE_LABEL", cmb_source)
+        self.assertNotIn("lcdm", inspect.getsource(plotter).lower())

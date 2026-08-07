@@ -400,11 +400,19 @@ def analyze_run(run_dir: Path) -> RunAnalysisResult:
 
     summaries: dict[str, ModelSummary] = {}
 
-    for model_name, model_data in _ensure_mapping(param_summary).items():
+    parameter_roles = _ensure_mapping(param_summary)
+    if parameter_roles and set(parameter_roles) != {"control", "test"}:
+        raise ValueError(
+            "Parameter summaries must contain control and test role records."
+        )
+    for role, model_data in parameter_roles.items():
+        model_name = str(model_data.get("model") or "").strip()
+        if not model_name:
+            raise ValueError(f"Parameter summary role '{role}' has no model.")
         norm = _normalize_model_label(model_name)
         log_entry = model_log.get(norm, {})
         chi2_vals = log_entry.get("chi2", {})
-        summaries[model_name] = ModelSummary(
+        summaries[role] = ModelSummary(
             name=model_name,
             parameters=model_data.get("parameters", {}),
             errors_1sigma=model_data.get("errors_1sigma"),
@@ -549,8 +557,12 @@ def _posterior_plugin(
     param_names: list[str],
 ) -> _PosteriorPlotPlugin:
     """Create a plotting plugin summarizing the run's posterior parameters."""
-    model_names = list(result.model_summaries.keys())
-    model_label = model_names[0] if model_names else "Posterior"
+    model_label = " / ".join(
+        f"{role}: {summary.name}"
+        for role, summary in result.model_summaries.items()
+    )
+    if not model_label:
+        model_label = "Posterior"
     latex_names = list(param_names)
     return _PosteriorPlotPlugin(
         MODEL_NAME=model_label,
@@ -782,7 +794,10 @@ def _run_descriptor(result: RunAnalysisResult) -> dict[str, Any]:
         ),
         "end_time": result.end_time.isoformat() if result.end_time else None,
         "duration_seconds": result.duration_seconds,
-        "models": sorted(result.model_summaries.keys()),
+        "models": [
+            f"{role}: {summary.name}"
+            for role, summary in result.model_summaries.items()
+        ],
         "datasets": sorted(result.datasets.keys()),
     }
 
@@ -972,8 +987,8 @@ def format_run_summary_text(result: RunAnalysisResult) -> str:
     lines.append("")
 
     if result.model_summaries:
-        for model_name, summary in result.model_summaries.items():
-            lines.append(f"Model: {model_name}")
+        for role, summary in result.model_summaries.items():
+            lines.append(f"{role.title()} model: {summary.name}")
             for chi2_key, chi2_value in sorted(summary.chi2.items()):
                 lines.append(f"  {chi2_key}: {chi2_value}")
             if summary.acceptance:

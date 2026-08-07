@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 from copernican.lib import run_manifest
 from copernican.lib.model_selection import (
-    DEFAULT_CONTROL_MODEL,
     ComparisonRequest,
     ModelRole,
     build_comparison_request,
@@ -53,12 +52,11 @@ class ModelSelectionTestCase(unittest.TestCase):
             "Reference Model",
         )
 
-    def test_missing_legacy_control_uses_lcdm_default(self) -> None:
-        restored = comparison_from_manifest(
-            {"selection": {"models": ["Modified Model"]}}
-        )
-        self.assertEqual(restored.control_model.name, DEFAULT_CONTROL_MODEL)
-        self.assertEqual(restored.test_model.name, "Modified Model")
+    def test_manifest_without_both_roles_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "control and test"):
+            comparison_from_manifest(
+                {"selection": {"models": ["Modified Model"]}}
+            )
 
     def test_declared_surface_mismatch_is_rejected(self) -> None:
         request = build_comparison_request("A", "B")

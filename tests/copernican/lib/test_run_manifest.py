@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import yaml
 
 from copernican.lib import run_manifest, utils
+from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
 from copernican.version import get_version
 
 
@@ -152,15 +153,15 @@ def _dummy_plugin():
             manifest_summary={
                 "observable_names": ("temperature", "TT"),
                 "execution_route": {
-                    "route_id": "native_declared_graph",
-                    "prediction_engine": "copernican_native_declared_graph",
-                    "transfer_function_path": (
+                    "engine_id": NATIVE_CMB_ENGINE_ID,
+                    "engine_label": (
+                        "Copernican native declared-graph CMB engine"
+                    ),
+                    "runtime_module": (
                         "copernican.lib.likelihoods.cmb."
                         "copernican_cmb_solver"
                     ),
-                    "solver": "declared_math_graph",
-                    "route_ready_for_execution": True,
-                    "uses_native_declared_graph": True,
+                    "ready": True,
                 },
                 "transfer_component_contracts": {
                     "temperature": {
@@ -185,6 +186,12 @@ def _dummy_plugin():
     )
 
 
+def _dummy_model_records():
+    """Return the required control/test pair for manifest tests."""
+
+    return [(_dummy_plugin(), "1.0"), (_dummy_plugin(), "1.0")]
+
+
 class TestRunManifest(unittest.TestCase):
     """Exercise manifest creation, persistence, and lifecycle helpers."""
 
@@ -197,7 +204,7 @@ class TestRunManifest(unittest.TestCase):
             file_hashes = {"data.txt": utils.compute_sha256(data_path)}
             utils.set_random_seed(123)
             manifest = run_manifest.build_manifest(
-                models=[(_dummy_plugin(), "1.0")],
+                models=_dummy_model_records(),
                 engine_module=engine,
                 datasets=[
                     {
@@ -230,7 +237,10 @@ class TestRunManifest(unittest.TestCase):
             hashes = ds_entry["hashes"]
             self.assertIn("data.txt", hashes)
             self.assertEqual(hashes["data.txt"], file_hashes["data.txt"])
-            self.assertEqual(loaded["selection"]["models"], ["DummyModel"])
+            self.assertEqual(
+                loaded["selection"]["models"],
+                ["DummyModel", "DummyModel"],
+            )
             self.assertEqual(loaded["selection"]["engine"]["name"], "engine")
             self.assertEqual(loaded["selection"]["datasets"], ["ds"])
             self.assertEqual(len(loaded["git"]["commit"]), 40)
@@ -239,13 +249,13 @@ class TestRunManifest(unittest.TestCase):
             cmb_entry = loaded["cmb"]
             self.assertEqual(
                 cmb_entry["execution_engine"],
-                "native_declared_graph",
+                NATIVE_CMB_ENGINE_ID,
             )
             model_entry = cmb_entry["models"][0]
             self.assertEqual(model_entry["model"], "DummyModel")
             self.assertEqual(
                 model_entry["execution_engine"],
-                "native_declared_graph",
+                NATIVE_CMB_ENGINE_ID,
             )
             self.assertEqual(
                 model_entry["param_map_keys"],
@@ -329,29 +339,23 @@ class TestRunManifest(unittest.TestCase):
                 ["equation:continuity_x"],
             )
             self.assertEqual(
-                model_entry["custom_cmb_execution_route"]["route_id"],
-                "native_declared_graph",
+                model_entry["native_cmb_execution"]["engine_id"],
+                NATIVE_CMB_ENGINE_ID,
             )
             self.assertNotIn("backend", model_entry)
             self.assertNotIn("perturbation_standard", model_entry)
-            self.assertEqual(model_entry["custom_cmb_constraint_count"], 1)
-            self.assertEqual(model_entry["custom_cmb_observable_count"], 2)
-            self.assertEqual(
-                model_entry["custom_cmb_observable_names"],
-                ["temperature", "TT"],
-            )
             self.assertIn(
                 "background_derived_names",
-                model_entry["custom_cmb_background_manifest_summary"],
+                model_entry["native_cmb_background_manifest_summary"],
             )
             self.assertIn(
                 "Omega_b0",
-                model_entry["custom_cmb_background_manifest_summary"][
+                model_entry["native_cmb_background_manifest_summary"][
                     "background_derived_names"
                 ],
             )
             self.assertEqual(
-                model_entry["custom_cmb_background_manifest_summary"][
+                model_entry["native_cmb_background_manifest_summary"][
                     "background_recombination_quantity_names"
                 ],
                 [
@@ -363,18 +367,18 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertIn(
                 "photon_fraction_today",
-                model_entry["custom_cmb_background_manifest_summary"][
+                model_entry["native_cmb_background_manifest_summary"][
                     "background_quantity_role_names"
                 ]["density"],
             )
             self.assertEqual(
-                model_entry["custom_cmb_background_manifest_summary"][
+                model_entry["native_cmb_background_manifest_summary"][
                     "reionization_calibration"
                 ]["symbol"],
                 "reionization_log10_amplitude",
             )
             self.assertEqual(
-                model_entry["custom_cmb_background_manifest_summary"][
+                model_entry["native_cmb_background_manifest_summary"][
                     "recombination_runtime"
                 ]["declared_quantity_names"],
                 [
@@ -385,39 +389,39 @@ class TestRunManifest(unittest.TestCase):
                 ],
             )
             self.assertEqual(
-                model_entry["custom_cmb_graph_manifest_summary"][
+                model_entry["native_cmb_graph_manifest_summary"][
                     "transfer_component_contracts"
                 ]["temperature"]["declared_projection"],
                 "line_of_sight_temperature",
             )
             self.assertEqual(
-                model_entry["custom_cmb_graph_manifest_summary"][
+                model_entry["native_cmb_graph_manifest_summary"][
                     "angular_power_spectrum_targets"
                 ]["TT"]["primary"],
                 "temperature",
             )
             self.assertEqual(
-                model_entry["custom_cmb_runtime_manifest_summary"][
+                model_entry["native_cmb_runtime_manifest_summary"][
                     "execution_route"
-                ]["solver"],
-                "declared_math_graph",
+                ]["engine_id"],
+                NATIVE_CMB_ENGINE_ID,
             )
             self.assertEqual(
-                model_entry["custom_cmb_runtime_manifest_summary"][
+                model_entry["native_cmb_runtime_manifest_summary"][
                     "runtime_signature"
                 ],
                 "native-cmb-runtime:dummy",
             )
             self.assertIn(
                 "reionization_calibration",
-                model_entry["custom_cmb_runtime_manifest_summary"],
+                model_entry["native_cmb_runtime_manifest_summary"],
             )
 
     def test_manifest_records_native_execution_route(self) -> None:
         """Native declared runs should record the sole prediction route."""
 
         manifest = run_manifest.build_manifest(
-            models=[(_dummy_plugin(), "1.0")],
+            models=_dummy_model_records(),
             engine_module=SimpleNamespace(
                 __name__="engine", ENGINE_VERSION="0.0"
             ),
@@ -426,13 +430,8 @@ class TestRunManifest(unittest.TestCase):
 
         model_entry = manifest["cmb"]["models"][0]
         self.assertEqual(
-            model_entry["custom_cmb_execution_route"]["route_id"],
-            "native_declared_graph",
-        )
-        self.assertTrue(
-            model_entry["custom_cmb_execution_route"][
-                "uses_native_declared_graph"
-            ]
+            model_entry["native_cmb_execution"]["engine_id"],
+            NATIVE_CMB_ENGINE_ID,
         )
         self.assertEqual(
             model_entry["perturbation_interaction_names"],
@@ -448,16 +447,16 @@ class TestRunManifest(unittest.TestCase):
         )
         self.assertNotIn(
             "uses_camb_prediction",
-            model_entry["custom_cmb_execution_route"],
+            model_entry["native_cmb_execution"],
         )
         self.assertEqual(
-            model_entry["custom_cmb_runtime_manifest_summary"][
+            model_entry["native_cmb_runtime_manifest_summary"][
                 "execution_route"
-            ]["transfer_function_path"],
+            ]["runtime_module"],
             "copernican.lib.likelihoods.cmb.copernican_cmb_solver",
         )
         self.assertEqual(
-            model_entry["custom_cmb_runtime_manifest_summary"][
+            model_entry["native_cmb_runtime_manifest_summary"][
                 "compile_diagnostics"
             ]["compiler"],
             "copernican.lib.model_coder.compile_native_cmb_runtime",
@@ -467,7 +466,7 @@ class TestRunManifest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             utils.set_random_seed(1)
             manifest = run_manifest.build_manifest(
-                models=[(_dummy_plugin(), "1.0")],
+                models=_dummy_model_records(),
                 engine_module=SimpleNamespace(
                     __name__="engine", ENGINE_VERSION="0.1"
                 ),
@@ -494,6 +493,14 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(aborted["status"]["state"], "aborted")
             self.assertEqual(aborted["status"]["outputs"], "archived")
             self.assertEqual(aborted["status"]["reason"], "Test abort")
+
+    def test_manifest_rejects_a_single_model_record(self) -> None:
+        with self.assertRaisesRegex(ValueError, "control model"):
+            run_manifest.build_manifest(
+                models=[(_dummy_plugin(), "1.0")],
+                engine_module=SimpleNamespace(__name__="engine"),
+                datasets=[],
+            )
 
     def test_manifest_custom_target_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

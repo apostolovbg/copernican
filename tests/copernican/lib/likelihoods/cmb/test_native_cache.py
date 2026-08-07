@@ -62,17 +62,17 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             {"grid": 1},
         )
 
-        self.assertIsNone(native_cache.get_custom_cmb_background("bg"))
-        native_cache.set_custom_cmb_background("bg", {"a": 1.0})
+        self.assertIsNone(native_cache.get_native_cmb_background("bg"))
+        native_cache.set_native_cmb_background("bg", {"a": 1.0})
         self.assertEqual(
-            native_cache.get_custom_cmb_background("bg"),
+            native_cache.get_native_cmb_background("bg"),
             {"a": 1.0},
         )
 
-        self.assertIsNone(native_cache.get_custom_cmb_spectrum("spec"))
-        native_cache.set_custom_cmb_spectrum("spec", {"tt": 2.0})
+        self.assertIsNone(native_cache.get_native_cmb_spectrum("spec"))
+        native_cache.set_native_cmb_spectrum("spec", {"tt": 2.0})
         self.assertEqual(
-            native_cache.get_custom_cmb_spectrum("spec"),
+            native_cache.get_native_cmb_spectrum("spec"),
             {"tt": 2.0},
         )
 
@@ -116,6 +116,10 @@ class NativeCacheModuleTestCase(unittest.TestCase):
         self.assertTrue(callable(native_cache.record_native_cmb_phase))
 
         stats = native_cache.native_cmb_cache_stats()
+        self.assertIn("native_background", stats)
+        self.assertIn("native_spectrum", stats)
+        self.assertNotIn("custom_background", stats)
+        self.assertNotIn("custom_spectrum", stats)
         self.assertEqual(stats["declared_symbol_plan"]["entries"], 1)
         self.assertEqual(
             stats["declared_graph_execution_plan"]["entries"],

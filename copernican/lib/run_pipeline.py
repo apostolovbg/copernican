@@ -11,12 +11,9 @@ import numpy
 from copernican.lib import chain_io, console_output, csv_writer, diagnostics
 from copernican.lib import logger as log_mod
 from copernican.lib import plotter, result_writer, utils
+from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_LABEL
 from copernican.lib.likelihoods import compute_cmb_spectrum_cached
-from copernican.lib.model_selection import (
-    ComparisonRequest,
-    build_comparison_request,
-    comparison_slug,
-)
+from copernican.lib.model_selection import ComparisonRequest
 
 
 # Fallback logger retrieved lazily so the helper works when called before
@@ -113,7 +110,6 @@ def _posterior_metadata(sne_data_df: Any) -> dict[str, str]:
 def _maybe_plot_corner(
     fit_results: Mapping[str, Any],
     plugin: Any,
-    label: str,
     sne_data_df: Any,
     output_dir: str,
     timestamp: str,
@@ -139,7 +135,6 @@ def _maybe_plot_corner(
 def _maybe_plot_parameter_histograms(
     fit_results: Mapping[str, Any],
     plugin: Any,
-    label: str,
     sne_data_df: Any,
     output_dir: str,
     timestamp: str,
@@ -163,8 +158,8 @@ def _maybe_plot_parameter_histograms(
 
 def execute_run_pipeline(
     *,
-    lcdm: Any,
-    alt_model_plugin: Any,
+    control_model_plugin: Any,
+    test_model_plugin: Any,
     engine_module: Any,
     sne_data_df: Any,
     bao_data_df: Any | None,
@@ -175,24 +170,29 @@ def execute_run_pipeline(
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     display_progress: bool = True,
     logger: Any | None = None,
-    comparison: ComparisonRequest | None = None,
+    comparison: ComparisonRequest,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run the sampling/diagnostics pipeline and persist outputs."""
 
     logger = _get_logger(logger)
-    comparison = comparison or build_comparison_request(
-        getattr(lcdm, "MODEL_NAME", "ControlModel"),
-        getattr(alt_model_plugin, "MODEL_NAME", "TestModel"),
-        control_filename=getattr(lcdm, "MODEL_FILENAME", ""),
-        test_filename=getattr(alt_model_plugin, "MODEL_FILENAME", ""),
-    )
     control_name, test_name = comparison.model_names
+    plugin_names = (
+        getattr(control_model_plugin, "MODEL_NAME", ""),
+        getattr(test_model_plugin, "MODEL_NAME", ""),
+    )
+    if plugin_names != comparison.model_names:
+        raise ValueError(
+            "Pipeline model plugins must match the declared control/test "
+            "comparison."
+        )
     engine_label = getattr(
         engine_module,
         "ENGINE_LABEL",
         getattr(engine_module, "__name__", "Engine"),
     )
     console_output.write(f"\n--- Sampling with {engine_label} ---\n")
+    if cmb_data_df is not None:
+        console_output.write(f"CMB execution: {NATIVE_CMB_ENGINE_LABEL}.")
     console_output.write("")
 
     plan_kind = str(sampling_plan.get("engine_kind", "mcmc")).lower()
@@ -249,9 +249,9 @@ def execute_run_pipeline(
         console_output.write(f"  Enlargement fraction: {sampling_enlarge:g}")
         console_output.write(f"  Starting {control_name} sampler...")
         console_output.write("")
-        lcdm_fit_results = fit_fn(
+        control_fit_results = fit_fn(
             sne_data_df,
-            lcdm,
+            control_model_plugin,
             bao_data_df=bao_data_df,
             cmb_data_df=cmb_data_df,
             n_live_points=sampling_live,
@@ -268,9 +268,9 @@ def execute_run_pipeline(
         console_output.write(f"  Worker pool: {pool_label}")
         console_output.write(f"  Starting {control_name} sampler...")
         console_output.write("")
-        lcdm_fit_results = fit_fn(
+        control_fit_results = fit_fn(
             sne_data_df,
-            lcdm,
+            control_model_plugin,
             bao_data_df=bao_data_df,
             cmb_data_df=cmb_data_df,
             n_walkers=sampling_walkers,
@@ -281,26 +281,26 @@ def execute_run_pipeline(
             progress_callback=progress_callback,
         )
 
-    lcdm_file = getattr(lcdm, "MODEL_FILENAME", "")
-    alt_file = getattr(alt_model_plugin, "MODEL_FILENAME", "")
+    control_file = getattr(control_model_plugin, "MODEL_FILENAME", "")
+    test_file = getattr(test_model_plugin, "MODEL_FILENAME", "")
     same_name = (
-        getattr(lcdm, "MODEL_NAME", "").casefold()
-        == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
+        getattr(control_model_plugin, "MODEL_NAME", "").casefold()
+        == getattr(test_model_plugin, "MODEL_NAME", "").casefold()
     )
     if (
         same_name
-        and lcdm_file == alt_file
-        and type(lcdm) is type(alt_model_plugin)
+        and control_file == test_file
+        and type(control_model_plugin) is type(test_model_plugin)
     ):
         logger.info("Test model matches control model; reusing SNe chain.")
         console_output.write(
             "Test model matches control model; reusing the completed chain."
         )
         console_output.write("")
-        alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
+        test_fit_results = copy.deepcopy(control_fit_results)
     else:
         console_output.write("")
-        console_output.write(f"Test model: {alt_model_plugin.MODEL_NAME}")
+        console_output.write(f"Test model: {test_model_plugin.MODEL_NAME}")
         if plan_kind == "nested":
             console_output.write(f"  Live points: {sampling_live}")
             console_output.write(f"  Max iterations: {sampling_max_iter}")
@@ -311,9 +311,9 @@ def execute_run_pipeline(
         if plan_kind == "nested":
             console_output.write("  Starting test-model sampler...")
             console_output.write("")
-            alt_model_fit_results = fit_fn(
+            test_fit_results = fit_fn(
                 sne_data_df,
-                alt_model_plugin,
+                test_model_plugin,
                 bao_data_df=bao_data_df,
                 cmb_data_df=cmb_data_df,
                 n_live_points=sampling_live,
@@ -330,9 +330,9 @@ def execute_run_pipeline(
             console_output.write(f"  Worker pool: {pool_label}")
             console_output.write("  Starting test-model sampler...")
             console_output.write("")
-            alt_model_fit_results = fit_fn(
+            test_fit_results = fit_fn(
                 sne_data_df,
-                alt_model_plugin,
+                test_model_plugin,
                 bao_data_df=bao_data_df,
                 cmb_data_df=cmb_data_df,
                 n_walkers=sampling_walkers,
@@ -344,7 +344,7 @@ def execute_run_pipeline(
             )
         console_output.write(
             f"Completed test-model sampling for "
-            f"{alt_model_plugin.MODEL_NAME}."
+            f"{test_model_plugin.MODEL_NAME}."
         )
         console_output.write("")
 
@@ -352,13 +352,11 @@ def execute_run_pipeline(
     console_output.write("")
 
     result_writer.save_summary(
-        {
-            lcdm.MODEL_NAME: lcdm_fit_results,
-            alt_model_plugin.MODEL_NAME: alt_model_fit_results,
-        },
+        control_fit_results,
+        test_fit_results,
         output_dir,
         timestamp=run_start_ts,
-        comparison_slug=comparison_slug(comparison),
+        comparison=comparison,
     )
 
     # BAO diagnostics.
@@ -464,9 +462,13 @@ def execute_run_pipeline(
             )
         return summary
 
-    lcdm_bao_summary = _run_bao_analysis(lcdm, lcdm_fit_results, z_plot_smooth)
-    alt_bao_summary = _run_bao_analysis(
-        alt_model_plugin, alt_model_fit_results, z_plot_smooth
+    control_bao_summary = _run_bao_analysis(
+        control_model_plugin,
+        control_fit_results,
+        z_plot_smooth,
+    )
+    test_bao_summary = _run_bao_analysis(
+        test_model_plugin, test_fit_results, z_plot_smooth
     )
 
     # CMB diagnostics.
@@ -548,30 +550,33 @@ def execute_run_pipeline(
             )
         return summary
 
-    lcdm_cmb_summary = _run_cmb_analysis(lcdm, lcdm_fit_results)
-    alt_cmb_summary = _run_cmb_analysis(
-        alt_model_plugin,
-        alt_model_fit_results,
+    control_cmb_summary = _run_cmb_analysis(
+        control_model_plugin,
+        control_fit_results,
+    )
+    test_cmb_summary = _run_cmb_analysis(
+        test_model_plugin,
+        test_fit_results,
     )
 
     logger.info("\n--- Generating outputs ---")
     logger.info(
         "%s CMB χ² = %.2f",
-        lcdm.MODEL_NAME,
-        lcdm_cmb_summary["chi2_cmb"],
+        control_model_plugin.MODEL_NAME,
+        control_cmb_summary["chi2_cmb"],
     )
     logger.info(
         "%s CMB χ² = %.2f",
-        alt_model_plugin.MODEL_NAME,
-        alt_cmb_summary["chi2_cmb"],
+        test_model_plugin.MODEL_NAME,
+        test_cmb_summary["chi2_cmb"],
     )
 
     plotter.plot_hubble_diagram(
         sne_data_df,
-        lcdm_fit_results,
-        alt_model_fit_results,
-        lcdm,
-        alt_model_plugin,
+        control_fit_results,
+        test_fit_results,
+        control_model_plugin,
+        test_model_plugin,
         plot_dir=output_dir,
         timestamp=run_start_ts,
         comparison=comparison,
@@ -579,10 +584,10 @@ def execute_run_pipeline(
     if bao_data_df is not None:
         plotter.plot_bao_observables(
             bao_data_df,
-            lcdm_bao_summary,
-            alt_bao_summary,
-            lcdm,
-            alt_model_plugin,
+            control_bao_summary,
+            test_bao_summary,
+            control_model_plugin,
+            test_model_plugin,
             sne_data_df,
             plot_dir=output_dir,
             timestamp=run_start_ts,
@@ -591,48 +596,44 @@ def execute_run_pipeline(
     if cmb_data_df is not None:
         plotter.plot_cmb_spectrum(
             cmb_data_df,
-            lcdm_cmb_summary,
-            alt_cmb_summary,
-            lcdm_fit_results,
-            alt_model_fit_results,
-            lcdm,
-            alt_model_plugin,
+            control_cmb_summary,
+            test_cmb_summary,
+            control_fit_results,
+            test_fit_results,
+            control_model_plugin,
+            test_model_plugin,
             plot_dir=output_dir,
             timestamp=run_start_ts,
             comparison=comparison,
         )
 
     _maybe_plot_corner(
-        lcdm_fit_results,
-        lcdm,
-        lcdm.MODEL_NAME,
+        control_fit_results,
+        control_model_plugin,
         sne_data_df,
         output_dir,
         run_start_ts,
         comparison,
     )
     _maybe_plot_parameter_histograms(
-        lcdm_fit_results,
-        lcdm,
-        lcdm.MODEL_NAME,
+        control_fit_results,
+        control_model_plugin,
         sne_data_df,
         output_dir,
         run_start_ts,
         comparison,
     )
     _maybe_plot_corner(
-        alt_model_fit_results,
-        alt_model_plugin,
-        alt_model_plugin.MODEL_NAME,
+        test_fit_results,
+        test_model_plugin,
         sne_data_df,
         output_dir,
         run_start_ts,
         comparison,
     )
     _maybe_plot_parameter_histograms(
-        alt_model_fit_results,
-        alt_model_plugin,
-        alt_model_plugin.MODEL_NAME,
+        test_fit_results,
+        test_model_plugin,
         sne_data_df,
         output_dir,
         run_start_ts,
@@ -640,10 +641,12 @@ def execute_run_pipeline(
     )
 
     console_output.write("\n--- Theory Abstracts ---\n")
-    console_output.write(f"{control_name} Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
     console_output.write(
-        f"{alt_model_plugin.MODEL_NAME} Abstract:\n"
-        f"{alt_model_plugin.MODEL_ABSTRACT}\n"
+        f"{control_name} Abstract:\n{control_model_plugin.MODEL_ABSTRACT}\n"
+    )
+    console_output.write(
+        f"{test_model_plugin.MODEL_NAME} Abstract:\n"
+        f"{test_model_plugin.MODEL_ABSTRACT}\n"
     )
 
     def _print_fit(
@@ -697,87 +700,84 @@ def execute_run_pipeline(
 
     _print_fit(
         control_name,
-        lcdm_fit_results,
-        lcdm_bao_summary,
-        lcdm_cmb_summary,
-        lcdm,
+        control_fit_results,
+        control_bao_summary,
+        control_cmb_summary,
+        control_model_plugin,
     )
     _print_fit(
-        alt_model_plugin.MODEL_NAME,
-        alt_model_fit_results,
-        alt_bao_summary,
-        alt_cmb_summary,
-        alt_model_plugin,
+        test_model_plugin.MODEL_NAME,
+        test_fit_results,
+        test_bao_summary,
+        test_cmb_summary,
+        test_model_plugin,
     )
 
     csv_writer.save_sne_results_detailed_csv(
         sne_data_df,
-        lcdm_fit_results,
-        alt_model_fit_results,
-        lcdm,
-        alt_model_plugin,
+        control_fit_results,
+        test_fit_results,
+        control_model_plugin,
+        test_model_plugin,
         csv_dir=output_dir,
         timestamp=run_start_ts,
-        control_model_name=control_name,
-        test_model_name=test_name,
+        comparison=comparison,
     )
 
     if bao_data_df is not None:
         csv_writer.save_bao_results_csv(
             bao_data_df,
-            lcdm_bao_summary,
-            alt_bao_summary,
-            alt_model_name=test_name,
+            control_bao_summary,
+            test_bao_summary,
             csv_dir=output_dir,
             timestamp=run_start_ts,
-            control_model_name=control_name,
-            test_model_name=test_name,
+            comparison=comparison,
         )
     if cmb_data_df is not None:
         csv_writer.save_cmb_results_csv(
             cmb_data_df,
-            lcdm_cmb_summary,
-            alt_cmb_summary,
-            alt_model_name=test_name,
+            control_cmb_summary,
+            test_cmb_summary,
             csv_dir=output_dir,
             timestamp=run_start_ts,
-            control_model_name=control_name,
-            test_model_name=test_name,
+            comparison=comparison,
         )
 
-    if lcdm_fit_results.get("samples") is not None:
+    if control_fit_results.get("samples") is not None:
         fname = utils.generate_filename(
             "posterior",
             sne_data_df.attrs.get("dataset_id", "sne_data"),
             "nc",
-            model_name=lcdm.MODEL_NAME.replace(" ", "_"),
+            model_name=control_model_plugin.MODEL_NAME.replace(" ", "_"),
             timestamp=run_start_ts,
         )
         chain_io.save_posterior(
-            lcdm_fit_results["samples"],
-            lcdm_fit_results.get("param_names", lcdm.PARAMETER_NAMES),
-            os.path.join(output_dir, fname),
-            metadata={
-                "model": lcdm.MODEL_NAME,
-                "dataset": sne_data_df.attrs.get("dataset_id", ""),
-            },
-        )
-    if alt_model_fit_results.get("samples") is not None:
-        fname = utils.generate_filename(
-            "posterior",
-            sne_data_df.attrs.get("dataset_id", "sne_data"),
-            "nc",
-            model_name=alt_model_plugin.MODEL_NAME.replace(" ", "_"),
-            timestamp=run_start_ts,
-        )
-        chain_io.save_posterior(
-            alt_model_fit_results["samples"],
-            alt_model_fit_results.get(
-                "param_names", alt_model_plugin.PARAMETER_NAMES
+            control_fit_results["samples"],
+            control_fit_results.get(
+                "param_names", control_model_plugin.PARAMETER_NAMES
             ),
             os.path.join(output_dir, fname),
             metadata={
-                "model": alt_model_plugin.MODEL_NAME,
+                "model": control_model_plugin.MODEL_NAME,
+                "dataset": sne_data_df.attrs.get("dataset_id", ""),
+            },
+        )
+    if test_fit_results.get("samples") is not None:
+        fname = utils.generate_filename(
+            "posterior",
+            sne_data_df.attrs.get("dataset_id", "sne_data"),
+            "nc",
+            model_name=test_model_plugin.MODEL_NAME.replace(" ", "_"),
+            timestamp=run_start_ts,
+        )
+        chain_io.save_posterior(
+            test_fit_results["samples"],
+            test_fit_results.get(
+                "param_names", test_model_plugin.PARAMETER_NAMES
+            ),
+            os.path.join(output_dir, fname),
+            metadata={
+                "model": test_model_plugin.MODEL_NAME,
                 "dataset": sne_data_df.attrs.get("dataset_id", ""),
             },
         )
@@ -785,10 +785,10 @@ def execute_run_pipeline(
     console_output.write("Evaluation complete.")
     console_output.write("")
     return (
-        lcdm_fit_results,
-        alt_model_fit_results,
-        lcdm_bao_summary,
-        alt_bao_summary,
-        lcdm_cmb_summary,
-        alt_cmb_summary,
+        control_fit_results,
+        test_fit_results,
+        control_bao_summary,
+        test_bao_summary,
+        control_cmb_summary,
+        test_cmb_summary,
     )

@@ -668,7 +668,7 @@ class _CustomCMBPhysicalParameters:
 
 @dataclass(slots=True)
 class _CustomCMBBackgroundData:
-    """Background and recombination tables for the generic CMB solver."""
+    """Background and recombination tables for declared native execution."""
 
     a_grid: numpy.ndarray
     z_grid: numpy.ndarray
@@ -895,9 +895,9 @@ def _accuracy_control_positive_int(
 def _get_cached_custom_cmb_background(
     cache_key: tuple[Any, ...],
 ) -> "_CustomCMBBackgroundData":
-    """Return a cached custom background payload."""
+    """Return a cached native background payload."""
 
-    cached = native_cache.get_custom_cmb_background(cache_key)
+    cached = native_cache.get_native_cmb_background(cache_key)
     if cached is None:  # pragma: no cover - callers guard existence first
         raise KeyError(cache_key)
     return cached
@@ -906,9 +906,9 @@ def _get_cached_custom_cmb_background(
 def _get_cached_custom_cmb_spectrum_data(
     cache_key: tuple[Any, ...],
 ) -> "CustomCMBSpectrumData":
-    """Return a cached custom spectrum payload."""
+    """Return a cached native spectrum payload."""
 
-    cached = native_cache.get_custom_cmb_spectrum(cache_key)
+    cached = native_cache.get_native_cmb_spectrum(cache_key)
     if cached is None:  # pragma: no cover - callers guard existence first
         raise KeyError(cache_key)
     return cached
@@ -1399,7 +1399,7 @@ def _custom_cmb_background_cache_key(
     numerics: _CustomCMBNumerics,
     background_provider: Any | None,
 ) -> native_cache.NativeRuntimeCacheIdentity:
-    """Return a cache key for the custom CMB background tables."""
+    """Return a cache key for the native CMB background tables."""
 
     physical_key = tuple(
         (
@@ -1429,7 +1429,7 @@ def _custom_cmb_spectrum_cache_key(
     background_provider: Any | None,
     requested_spectra: Iterable[str] | None = None,
 ) -> native_cache.NativeRuntimeCacheIdentity:
-    """Return a cache key for the custom spectrum transfer data."""
+    """Return a cache key for native spectrum transfer data."""
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
     requested_key = None
@@ -1538,7 +1538,7 @@ def _extract_contract_scalar_with_source(
 def _resolve_custom_cmb_numerics(
     contract: Mapping[str, Any],
 ) -> _CustomCMBNumerics:
-    """Return numerical settings for the generic custom CMB solver."""
+    """Return numerical settings for native declared-graph execution."""
 
     raw = contract.get("numerical", {}) or {}
     if not isinstance(raw, Mapping):
@@ -2188,7 +2188,7 @@ def _build_custom_cmb_background(
         numerics,
         background_provider,
     )
-    cached_background = native_cache.get_custom_cmb_background(cache_key)
+    cached_background = native_cache.get_native_cmb_background(cache_key)
     if cached_background is not None:
         return _get_cached_custom_cmb_background(cache_key)
     del background_provider
@@ -3289,5 +3289,5 @@ def _build_custom_cmb_background(
         sound_speed_of_eta=sound_speed_of_eta,
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
     )
-    native_cache.set_custom_cmb_background(cache_key, background_data)
+    native_cache.set_native_cmb_background(cache_key, background_data)
     return _get_cached_custom_cmb_background(cache_key)

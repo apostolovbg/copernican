@@ -13,6 +13,7 @@ import yaml
 
 from copernican.engines import engine_mcmc, engine_nested
 from copernican.lib import dataset_registry, result_writer, run_manifest, utils
+from copernican.lib.model_selection import build_comparison_request
 from tests.project.datasets.synthetic import model_plugin
 
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
@@ -139,17 +140,21 @@ class TestSyntheticIntegration(unittest.TestCase):
                 )
                 self.assertTrue(fit_result.get("chi2_components", {}))
 
-                engine_results = {plugin.MODEL_NAME: fit_result}
                 summary_paths = result_writer.save_summary(
-                    engine_results,
+                    fit_result,
+                    fit_result,
                     tmpdir,
+                    comparison=build_comparison_request(
+                        plugin.MODEL_NAME,
+                        plugin.MODEL_NAME,
+                    ),
                     timestamp="20000101_000000",
                 )
                 for summary_path in summary_paths:
                     self.assertTrue(utils.compute_sha256(summary_path))
 
                 manifest = run_manifest.build_manifest(
-                    models=[(plugin, "0.1")],
+                    models=[(plugin, "0.1"), (plugin, "0.1")],
                     engine_module=engine_module,
                     datasets=[_dataset_entry(sne_dataframe)],
                 )

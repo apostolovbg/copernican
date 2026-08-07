@@ -19,15 +19,16 @@ padding.
 - [Validation](#validation)
 - [Metadata dialogs](#metadata-dialogs)
 - [Models](#models)
-- [Engines](#engines)
+- [Sampler Engines](#sampler-engines)
 - [Settings](#settings)
 - [Help](#help)
 - [Launching the GUI](#launching-the-gui)
 ## Run Builder
 The Run Builder mirrors the CLI stages with dedicated panels for the seed,
-control model, test model, dataset selection, engine choice, plan notes and
-the final confirmation. The control model defaults to `model_lcdm.yml`; the
-test model is selected independently. Models and datasets use single-selection
+control model, test model, dataset selection, sampler-engine choice, plan
+notes, and final confirmation. The control model defaults to
+`model_lcdm.yml`; the test model is selected independently. Models and
+datasets use single-selection
 lists so you cannot select more than one item at each stage, and every panel
 draws live entries
 from the inventories generated during GUI start-up. Revalidation, metadata
@@ -42,7 +43,8 @@ confirmation step’s **Start Run from manifest** button. A companion **Insert
 manifest** button stages the generated manifest so you can review metadata or
 export it before launching the worker.
 The Save Manifest step stays locked until every seed/control-model/test-model/
-engine panel reports a selection. Saving writes the current manifest to
+sampler-engine panel reports a selection. Saving writes the current manifest
+to
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, leaves
 the workspace editable and enables the **Save and confirm** controls.
 Cancel and Clear actions purge that temporary folder so aborted builders
@@ -61,7 +63,8 @@ and *Revalidate parser* buttons call the same helpers the CLI exposes.
 The builder includes a Run Settings panel where you set the number of
 walkers, burn-in steps, production steps and multiprocessing pool size before
 confirming a run. The panel mirrors the CLI prompts verbatim—reminding you
-about minimum walkers, recommended defaults, “quick burn-in” shortcuts and the
+about minimum walkers, recommended defaults, “quick burn-in” shortcuts, and
+the
 current CPU count—so GUI launches receive the same context as the terminal
 workflow. These values are stored in the run manifest so downstream replays or
 audits capture every execution parameter.
@@ -80,7 +83,7 @@ scrollable log console that tails the per-run `copernican-run_<timestamp>.txt`
 file inside `~/copernican_output/copernican-run_<timestamp>/`. The filter
 buttons keep INFO, WARNING or ERROR entries visible so you can follow the
 exact same diagnostics the command line renders while the GUI keeps every
-alert anchored for quick navigation. A new “Lock log to latest entry” checkbox
+alert anchored for quick navigation. A “Lock log to latest entry” checkbox
 beside the filters pins the view to the most recent lines whenever you want to
 watch the ensemble finish without manually scrolling back down. That log
 console drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200
@@ -103,9 +106,10 @@ manifest/log/parameter summary-derived diagnostics and render the results
 inside a scrollable text pane. The “Reload summary” button re-parses the
 folder, “Export summary” saves structured ``analysis-
 summary_<timestamp>.yml``/``.json`` copies into the selected directory, and
-“Copy JSON” pours the serialised result into the clipboard for quick reporting.
+“Copy JSON” puts the serialised result into the clipboard for reporting.
 The summary lists datasets, row counts, R-hat/ESS diagnostics, model χ²
-components, BAO ``r_s`` values and the run’s timestamps without forcing you to
+components, BAO ``r_s`` values, and the run’s timestamps without forcing you
+to
 re-run the CLI workflow.
 The Posteriors tab hooks directly into ``posterior-*.nc`` outputs via
 ``copernican.lib.posterior_explorer`` and renders their trace/hist overview
@@ -115,7 +119,7 @@ toggle drag-enabled zoom/pan while the control row lets you pick a snapshot and
 load it into the viewer. Fit-to-screen and “restore view” helpers keep the
 traces legible, and the zoom toggle enables a click-and-drag pan so you can
 inspect any region without re-creating the plot. A second control row offers
-“Show corner plot” and “Show histograms” actions that load the latest archived
+The “Show corner plot” and “Show histograms” actions load archived
 PNGs from the run directory so you can quickly compare the derived Surfaces
 without re-opening the sampler output.
 The Comparisons tab lets you load two run directories, view Δχ²/parameter
@@ -138,7 +142,7 @@ sampler records the canonical point while keeping the values numerically
 locked for regression checks. A **Cancel validation** button terminates the
 worker mid-run, **Clear validation** removes every
 `copernican/validation/output/.../validation_run_*` directory plus
-`~/VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
+`~/VALIDATION.md`. The “Lock summary to latest entry” checkbox keeps the
 log pinned to the newest lines while the GUI progress bars mirror the CLI
 counter state. The
 validation button stays disabled while the run is active so you cannot stack
@@ -146,7 +150,8 @@ overlapping validations.
 ## Metadata dialogs
 Metadata, YAML and module viewers automatically size themselves to the longest
 line, enforce the 15/25-line minimum and default window sizes requested by
-design, and include an **Open file…** button that launches the underlying asset
+design and include an **Open file…** button that launches the underlying
+asset
 in the operating system's default editor. The dialogs keep horizontal resizing
 locked while allowing unlimited vertical resizing so short files stay compact
 and long YAMLs remain comfortable to read.
@@ -154,11 +159,11 @@ and long YAMLs remain comfortable to read.
 Models appear in a scrollable panel with badge, license and SHA256 details.
 The *Open model folder* and *View YAML* actions link the UI directly to the
 underlying YAML files so you can inspect definitions without leaving the GUI.
-## Engines
-Every discovered engine shows its label, version, badges and digest inside its
-own framed row. *Open engine folder* and *View module* buttons call the same
-helpers the CLI uses, ensuring the GUI never feels like a stub even with just a
-handful of engines.
+## Sampler Engines
+Every discovered sampler engine shows its label, version, badges, and digest
+inside its own framed row. *Open engine folder* and *View module* buttons call
+the same helpers used by the Run Builder. The native CMB engine is fixed by the
+selected model contracts and does not appear as a selectable engine.
 ## Settings
 The Settings screen mirrors the Run Builder navigation: three tabs
 list Datasets, GUI and Tools options in the same style as the wizard

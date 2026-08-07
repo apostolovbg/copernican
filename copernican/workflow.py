@@ -5,7 +5,7 @@
 
 This module ties together model selection, dataset loading and result
 generation while delegating dependency checks and menu rendering to
-``copernican.lib.cli`` helpers. The package entrypoint now lives here so the
+``copernican.lib.cli`` helpers. The package entrypoint lives here so the
 distribution can run through ``python -m copernican`` and the console script
 without a root-level wrapper file.
 """
@@ -966,7 +966,10 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     parser.add_argument(
         "--control-model",
         metavar="MODEL",
-        help="Override the control model recorded in the manifest.",
+        help=(
+            "Override the control model recorded in the manifest. "
+            "CMB-capable models use the native declared-graph CMB engine."
+        ),
     )
     parser.add_argument(
         "--test-model",
@@ -1153,12 +1156,11 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
 def launch_gui() -> None:
     """Start the GUI scaffold and log the shared orchestration services.
 
-    Legacy behaviour printed the orchestration descriptor list so GUI wrappers
-    could discover the available entry points without triggering the CLI.  The
-    Tkinter scaffold keeps that behaviour while providing a navigation rail,
-    Run Builder and monitoring shells.  When Tk is unavailable the scaffold
-    continues in headless mode so CI can validate navigation logic without a
-    display server.
+    The orchestration descriptor list lets GUI wrappers discover available
+    entry points without triggering the CLI. The Tkinter scaffold provides a
+    navigation rail, Run Builder, and monitoring shells. When Tk is unavailable
+    the scaffold continues in headless mode so CI can validate navigation logic
+    without a display server.
     """
 
     app_logger = log_mod.get_logger()
@@ -1350,10 +1352,12 @@ def main_workflow(
         selection["comparison"] = comparison.as_manifest()
         selection["control_model"] = comparison.control_model.name
         selection["test_model"] = comparison.test_model.name
+        selection["models"] = list(comparison.model_names)
         configuration = manifest.setdefault("configuration", {})
         configuration["comparison"] = comparison.as_manifest()
         configuration["control_model"] = comparison.control_model.name
         configuration["test_model"] = comparison.test_model.name
+        configuration["models"] = list(comparison.model_names)
     run_executor.execute_run_from_manifest(
         manifest,
         script_dir=Path(SCRIPT_DIR),

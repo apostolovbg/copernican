@@ -65,11 +65,11 @@ inverse matrix to `df.attrs['covariance_matrix_inv']`. For uncorrelated data,
 as shown here, omitting the matrix is sufficient and the engine will fall back
 to diagonal errors. During analysis the engine populates a
 `model_prediction` column on the returned DataFrame. The Stage 2 workflow
-reuses the same SNe chain whenever both models point to the identical plugin,
-ensuring these predictions align perfectly between baseline and alternative
-theory curves in diagnostic plots. The matching chi-squared totals recorded in
-BAO CSV exports confirm that LCDM-versus-LCDM checks keep the red and blue
-curves coincident. All observable types use the naming convention `DV_over_rs`,
+reuses the same SNe chain whenever the control and test roles point to the
+identical plugin, ensuring their predictions align in diagnostic plots. The
+matching chi-squared totals recorded in BAO CSV exports confirm same-model
+comparison behavior without assuming a particular theory. All observable
+types use the naming convention `DV_over_rs`,
 `DM_over_rs` or `DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the
 sound horizon. The parser converts the YAML to a Pandas `DataFrame` and the
 data loader attaches the metadata to the `.attrs` attribute. In addition to the
@@ -82,5 +82,6 @@ description, notes and a separate citation line.
 Additional points can be appended to `data_points` to experiment with new BAO
 measurements. Keep observable names consistent and supply a metadata file
 describing the provenance of the added entries. The lightweight format allows
-tests to cover edge cases—such as missing columns or unexpected types—without
+tests to cover edge cases, such as missing columns or unexpected types,
+without
 shipping large survey catalogues in the repository.

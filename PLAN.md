@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-06
+**Last Updated:** 2026-08-07
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -2085,7 +2085,7 @@ Implementation record:
   route metadata and developmental wording, and executes finite native smoke
   spectra for every model that declares CMB availability.
 
-### [open] Slice Thirty-Five - User-facing native-only cutover
+### [closed] Slice Thirty-Five - User-facing native-only cutover
 
 Purpose:
 
@@ -2117,6 +2117,24 @@ Done when:
 
 * User-facing workflows truthfully expose one native CMB engine and flexible
   model comparison.
+
+Implementation record:
+
+* CLI and GUI workflows select exactly one control model, one test model, and
+  one sampler engine. They expose the fixed Copernican native declared-graph
+  CMB identity for provenance without a CMB solver or backend selector.
+* Manifest loading, execution, result writing, CSV export, plotting, and
+  analysis consume the same ordered control/test comparison. Missing role
+  records fail, while same-model comparisons retain distinct control and test
+  outputs.
+* Native CMB manifest, cache, runtime, footer, and error labels use one
+  production identity. Transitional custom-route labels and implicit LCDM
+  comparison assumptions are absent from user-facing surfaces.
+* Repository and package documentation distinguish sampler engines from the
+  native CMB engine, describe arbitrary model pairs, and direct physical solver
+  details to the canonical CMB convention document.
+* Targeted CLI, GUI, manifest, executor, plotting, analysis, result-writing,
+  cache, model-selection, and synthetic-integration tests cover the cutover.
 
 ### [open] Slice Thirty-Six - Scientific reference and package isolation
 

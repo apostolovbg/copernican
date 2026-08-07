@@ -381,7 +381,7 @@ def _compute_declared_perturbation_spectrum(
     for spectrum_name, spectrum_values in spectra_results.items():
         if not numpy.all(numpy.isfinite(spectrum_values)):
             raise ValueError(
-                "Custom CMB spectrum calculation produced non-finite "
+                "Native CMB spectrum calculation produced non-finite "
                 f"{spectrum_name} values"
             )
     result = {}

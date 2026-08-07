@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-06
+**Last Updated:** 2026-08-07
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,154 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-07:
+  Change: Completed the native-only user-facing CMB cutover and canonical
+  control/test model APIs.
+  Why: Removed solver selection and implicit single-model or LCDM assumptions
+  from runtime and documentation surfaces.
+  Impact: Ensured CLI, GUI, manifests, outputs, caches, and plots report one
+  native engine and exact model roles.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_metadata.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/orchestration_services.md
+  copernican/docs/packaging.md
+  copernican/docs/run_manifest.md
+  copernican/lib/analysis.py
+  copernican/lib/cmb_identity.py
+  copernican/lib/csv_writer.py
+  copernican/lib/gui/app.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_selection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/architecture.md
+  docs/bao_compound_dataset_format.md
+  docs/cli_guide.md
+  docs/data_overview.md
+  docs/dataset_metadata.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/orchestration_services.md
+  docs/packaging.md
+  docs/run_manifest.md
+  tests/copernican/engines/test_engine_nested.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/test_analysis.py
+  tests/copernican/lib/test_cmb_identity.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_selection.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_plotter.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/test_workflow.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+
+- 2026-08-06:
+  Change: Completed the native-only user-facing CMB cutover and canonical
+  control/test model APIs.
+  Why: Removed solver selection and implicit single-model or LCDM assumptions
+  from runtime and documentation surfaces.
+  Impact: Ensured CLI, GUI, manifests, outputs, caches, and plots report one
+  native engine and exact model roles.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/data_overview.md
+  copernican/docs/dataset_metadata.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/orchestration_services.md
+  copernican/docs/packaging.md
+  copernican/docs/run_manifest.md
+  copernican/lib/analysis.py
+  copernican/lib/cmb_identity.py
+  copernican/lib/csv_writer.py
+  copernican/lib/gui/app.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/model_selection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/architecture.md
+  docs/bao_compound_dataset_format.md
+  docs/cli_guide.md
+  docs/data_overview.md
+  docs/dataset_metadata.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/orchestration_services.md
+  docs/packaging.md
+  docs/run_manifest.md
+  tests/copernican/engines/test_engine_nested.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/test_analysis.py
+  tests/copernican/lib/test_cmb_identity.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_model_selection.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_plotter.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/test_workflow.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
 
 - 2026-08-06:
   Change: Corrected MCMC convergence diagnostics for fixed parameters.

@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-07-18
+**Last Updated:** 2026-08-07
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -37,6 +37,11 @@ The same pair can be selected in the GUI or overridden with
 The GUI keeps the selected filenames attached to each role, so models with
 the same display name remain distinct comparisons; the default control stays
 `model_lcdm.yml` until a different control is chosen.
+
+CMB-capable control and test models always execute through the Copernican
+native declared-graph CMB engine. There is no CMB solver or backend flag in
+the CLI or GUI. For CMB provenance, inspect `cmb.execution_engine` and each
+model's `native_cmb_*` summaries in the run manifest.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and

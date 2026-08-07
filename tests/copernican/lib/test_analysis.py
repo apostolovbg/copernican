@@ -25,7 +25,7 @@ def _build_run_result(run_dir: Path) -> analysis.RunAnalysisResult:
     )
     return analysis.RunAnalysisResult(
         run_dir=run_dir,
-        model_summaries={"LambdaCDM": summary},
+        model_summaries={"control": summary, "test": summary},
         manifest={
             "selection": {
                 "comparison": _TEST_COMPARISON.as_manifest(),
@@ -95,7 +95,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertIsInstance(result, analysis.RunAnalysisResult)
         self.assertIsInstance(result.diagnostics, analysis.RunDiagnostics)
         self.assertIsInstance(
-            result.model_summaries["LambdaCDM"], analysis.ModelSummary
+            result.model_summaries["control"], analysis.ModelSummary
         )
         self.assertIsInstance(result.to_dict(), dict)
 

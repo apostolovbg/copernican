@@ -20,8 +20,8 @@ def _prime_gui_selections(gui: CopernicanGUI) -> None:
 
     model_entry = next(iter(gui.model_index.values()))
     engine_entry = next(iter(gui.engine_index.values()))
-    gui.selected_models = [model_entry["id"]]
-    gui._selected_model_entry = model_entry  # type: ignore[attr-defined]
+    gui._apply_model_role("control", model_entry)
+    gui._apply_model_role("test", model_entry)
     gui.selected_engine = engine_entry["id"]
     gui._selected_engine_entry = engine_entry  # type: ignore[attr-defined]
 
@@ -69,6 +69,9 @@ class TestCopernicanGUI(unittest.TestCase):
         self.assertEqual(
             comparison["test"]["filename"], test_entry["filename"]
         )
+        self.assertIn("Sampler engine", gui.builder_steps)
+        self.assertNotIn("CMB solver", gui.builder_steps)
+        self.assertNotIn("backend", manifest["configuration"])
 
     def test_model_and_engine_metadata_actions(self) -> None:
         _case_model_and_engine_metadata_actions(self)
@@ -213,8 +216,11 @@ def _case_external_model_loading_and_output_root(self) -> None:
         entry = gui._load_model_from_path(str(model_path))
         self.assertIsNotNone(entry)
         self.assertEqual(entry["filename"], "external_model.yaml")
-        self.assertEqual(gui.selected_models[0], str(model_path.resolve()))
-        self.assertEqual(gui.draft.model, str(model_path.resolve()))
+        self.assertEqual(
+            gui.selected_test_model,
+            str(model_path.resolve()),
+        )
+        self.assertEqual(gui.draft.test_model, str(model_path.resolve()))
         self.assertEqual(
             Path(gui._output_root()),
             Path.home() / "copernican_output",
@@ -239,10 +245,13 @@ def _case_builder_navigation_and_draft(self) -> None:
 
 def _case_builder_next_requires_all_pages_selected(self) -> None:
     gui = CopernicanGUI(render=False)
-    gui.current_step_index = gui.builder_steps.index("Engine")
+    gui.current_step_index = gui.builder_steps.index("Sampler engine")
     starting_alerts = len(gui.alerts)
     gui._handle_builder_next()
-    self.assertEqual(gui.current_step_index, gui.builder_steps.index("Engine"))
+    self.assertEqual(
+        gui.current_step_index,
+        gui.builder_steps.index("Sampler engine"),
+    )
     self.assertEqual(len(gui.alerts), starting_alerts + 1)
     self.assertIn("Seed", gui.alerts[-1].message)
 
@@ -264,10 +273,11 @@ def _case_builder_next_advances_when_pages_ready(
         name="Dataset",
     )
     self.assertTrue(gui._builder_ready())
-    gui.current_step_index = gui.builder_steps.index("Engine")
+    gui.current_step_index = gui.builder_steps.index("Sampler engine")
     gui._handle_builder_next()
     self.assertEqual(
-        gui.current_step_index, gui.builder_steps.index("Engine") + 1
+        gui.current_step_index,
+        gui.builder_steps.index("Sampler engine") + 1,
     )
 
 
@@ -313,7 +323,7 @@ def _case_clear_manifest_resets_state(
     self.assertIsNone(gui.manifest_workspace)
     self.assertFalse(folder.exists())
     self.assertEqual(gui.current_step_index, 0)
-    self.assertEqual(gui.selected_models, [])
+    self.assertEqual(gui.selected_test_model, "")
     self.assertEqual(gui.selected_engine, "")
 
 
@@ -351,7 +361,7 @@ def _case_auto_loads_saved_temp_manifest(
         valid_for_cmb=False,
     )
     manifest = run_manifest.build_manifest(
-        models=[(model_plugin, "gui")],
+        models=[(model_plugin, "gui"), (model_plugin, "gui")],
         engine_module=engine_module,
         datasets=[
             {
@@ -369,7 +379,7 @@ def _case_auto_loads_saved_temp_manifest(
         state="pending",
         output_policy="unprepared",
         configuration={
-            "models": ["TestModel"],
+            "models": ["TestModel", "TestModel"],
             "engine": {
                 "name": "copernican.engines.engine_mcmc",
                 "version": "test",
@@ -449,7 +459,7 @@ def _case_confirm_start_run_renames_manifest(
 def _case_cancel_inactive_without_configuration(self) -> None:
     gui = CopernicanGUI(render=False)
     self.assertFalse(gui._has_configuration())
-    gui.selected_models = ["LambdaCDM"]
+    gui.selected_test_model = "LambdaCDM"
     self.assertTrue(gui._has_configuration())
 
 
@@ -486,7 +496,9 @@ def _case_run_monitor_lifecycle(self) -> None:
 
 def _case_manifest_import_export_round_trip(self) -> None:
     gui = CopernicanGUI(render=False)
-    gui.draft.model = "ModelB"
+    model_entry = next(iter(gui.model_index.values()))
+    gui._apply_model_role("control", model_entry)
+    gui._apply_model_role("test", model_entry)
     gui.draft.dataset = "Dataset"
     gui.draft.engine = "engine"
     gui.draft.walkers = "33"
@@ -499,7 +511,8 @@ def _case_manifest_import_export_round_trip(self) -> None:
         self.assertTrue(loaded["selection"]["models"])
         imported = gui.import_manifest(path)
         self.assertTrue(imported["selection"]["engine"]["name"])
-        self.assertTrue(gui.selected_models)
+        self.assertTrue(gui.selected_control_model)
+        self.assertTrue(gui.selected_test_model)
         self.assertEqual(gui.draft.walkers, "33")
         self.assertEqual(gui.draft.burn_in, "20")
         self.assertEqual(gui.draft.production_steps, "100")
@@ -524,7 +537,9 @@ def _case_duplicate_manifest_prefills_builder(
 ) -> None:
     tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
-    gui.selected_models = ["LambdaCDM"]
+    model_entry = next(iter(gui.model_index.values()))
+    gui._apply_model_role("control", model_entry)
+    gui._apply_model_role("test", model_entry)
     gui.selected_engine = "copernican.engines.engine_mcmc"
     gui.draft.seed = "5"
     gui.register_dataset(

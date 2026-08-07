@@ -1,11 +1,12 @@
 # Packaging Guide
 This document covers development and packaging setup for Copernican.
-Copernican keeps Python 3.11 as the managed baseline because CAMB
-publishes wheels for that interpreter. Use this guide from the folder
-that contains the Copernican files. Every command below assumes that
-folder is the current working directory. The bootstrap downloads Python
-3.11 into `.python`, then builds `.venv` from that local interpreter.
-The system Python stays untouched.
+Copernican keeps Python 3.11 as the managed baseline for its pinned runtime
+and binary dependency matrix. Use this guide from the folder that contains
+the Copernican files. Every command below assumes that folder is the current
+working directory. The bootstrap downloads Python 3.11 into `.python`, then
+builds `.venv` from that local interpreter. The system Python stays untouched.
+The independent scientific test environment includes CAMB as a reference;
+production CMB execution uses the native declared-graph engine.
 ## Table of Contents
 - [Bootstrap the private interpreter](#bootstrap-the-private-interpreter)
 - [Create the venv](#create-the-venv)

@@ -1574,7 +1574,7 @@ def _compute_custom_cmb_spectrum_data(
         background_provider,
         requested_spectra=requested_spectrum_names,
     )
-    cached_spectrum = native_cache.get_custom_cmb_spectrum(cache_key)
+    cached_spectrum = native_cache.get_native_cmb_spectrum(cache_key)
     if cached_spectrum is not None:
         native_cache.record_native_cmb_performance(
             {"total_seconds": 0.0},
@@ -1646,7 +1646,7 @@ def _compute_custom_cmb_spectrum_data(
         manifest_summary.get("generated_scalar_hierarchy")
     )
     background_cache_before = native_cache.native_cmb_cache_stats()[
-        "custom_background"
+        "native_background"
     ]
     with performance_timer.phase("background"):
         physical_params = _resolve_custom_cmb_physical_parameters(
@@ -2102,7 +2102,7 @@ def _compute_custom_cmb_spectrum_data(
         "declared_graph_execution_plan"
     ]
     background_cache_after = native_cache.native_cmb_cache_stats()[
-        "custom_background"
+        "native_background"
     ]
     runtime_envelope["graph_plan_cache_hit"] = bool(
         graph_cache_after["hits"] > graph_cache_before["hits"]
@@ -5890,5 +5890,5 @@ def _compute_custom_cmb_spectrum_data(
         spectra=FrozenMapping(spectra_results),
         runtime_envelope=FrozenMapping(runtime_envelope),
     )
-    native_cache.set_custom_cmb_spectrum(cache_key, spectrum_data)
+    native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
     return _get_cached_custom_cmb_spectrum_data(cache_key)
