@@ -5,13 +5,15 @@ and binary dependency matrix. Use this guide from the folder that contains
 the Copernican files. Every command below assumes that folder is the current
 working directory. The bootstrap downloads Python 3.11 into `.python`, then
 builds `.venv` from that local interpreter. The system Python stays untouched.
-The independent scientific test environment includes CAMB as a reference;
-production CMB execution uses the native declared-graph engine.
+The repository workspace includes CAMB for independent scientific-reference
+tests. Production installations use the native declared-graph engine and do
+not depend on CAMB or CLASS.
 ## Table of Contents
 - [Bootstrap the private interpreter](#bootstrap-the-private-interpreter)
 - [Create the venv](#create-the-venv)
 - [Activate the environment](#activate-the-environment)
 - [Install the locked dependencies](#install-the-locked-dependencies)
+- [Dependency surfaces](#dependency-surfaces)
 - [Launch Copernican](#launch-copernican)
 - [Build optional distributions](#build-optional-distributions)
  - [Keep the tracked version in sync](#keep-the-tracked-version-in-sync)
@@ -105,6 +107,27 @@ environment.
 ```
 python -m pip install -r requirements.lock
 ```
+## Dependency surfaces
+Copernican keeps production and repository-only dependencies in separate
+managed surfaces:
+
+- `pyproject.toml` declares default package runtime dependencies.
+- `copernican/runtime-requirements.lock` freezes that package runtime and does
+  not contain CAMB or CLASS.
+- `requirements.in` composes the package and DevCovenant locks and declares
+  CAMB as an independent scientific-reference dependency.
+- `requirements.lock` freezes the complete repository workspace used for
+  development and tests.
+
+The package license inventory under `copernican/lib/licenses/` follows the
+package runtime lock. The root `licenses/` inventory follows the workspace
+lock and therefore records CAMB. Wheels install only the package inventory;
+the test-only reference builder remains under `tests/project/lib/` and is not
+part of package discovery or installed entry points.
+
+Installing `copernican` without extras therefore installs no external CMB
+solver. Repository tests use the workspace lock so independent CAMB reference
+calculations remain available without creating a production fallback.
 ## Launch Copernican
 Use the same launch steps as the top README. The commands below match
 the same launch flow on every supported platform.
@@ -150,11 +173,14 @@ packaged wheels display the intended identifier even before a Git tag is cut.
 Keeping the two locations aligned prevents confusion between development
 snapshots and tagged releases.
 ### Regenerating dependency locks
-Run `make lock` whenever `requirements.in` changes. The helper installs
-`pip-tools==7.4.1` on demand and produces byte-for-byte identical
-lockfiles in CI. Developers can either rely on the pre-commit hook to
-provision the tool automatically or install the optional `dev` extra
-(`pip install .[dev]`) when preparing packaging updates locally.
+Refresh every managed dependency surface whenever `requirements.in` or
+`pyproject.toml` changes:
+```
+python -m devcovenant policy dependency-management refresh-all
+```
+The refresh synchronizes workspace and package locks, hashes, license reports,
+and license texts. The gate verifies those generated artifacts against their
+owning dependency manifests.
 ## Verify the build
 After installation or building a distribution, run both test suites to
 confirm everything operates correctly. The `tests/test_engine_mcmc.py`

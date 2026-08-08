@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-07
+**Last Updated:** 2026-08-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -46,6 +46,11 @@ declared-graph CMB engine. The CLI and GUI do not expose a CMB solver or
 backend selector; the selected control and test models provide the physical
 contracts for the same engine. CAMB and CLASS are independent scientific
 reference tools used by tests, not production spectrum engines.
+
+A default package installation has no CAMB or CLASS dependency. The repository
+workspace lock includes CAMB only for independent scientific-reference tests;
+the packaged runtime lock and installed license inventory contain native
+production dependencies only.
 
 Requested spectra resolve only declared model dependencies. A model without
 a defensible perturbation closure reports the affected CMB outputs as

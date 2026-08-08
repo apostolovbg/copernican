@@ -1,7 +1,7 @@
-# tzdata 2026.2
+# tzdata 2026.3
 
 This file aggregates the upstream license texts resolved for
-`tzdata==2026.2`.
+`tzdata==2026.3`.
 
 Resolved from: installed distribution metadata
 

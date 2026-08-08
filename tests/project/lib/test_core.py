@@ -388,7 +388,57 @@ class FunctionalTestCase(unittest.TestCase):
                 install_result.stderr,
             )
 
+            dist_info = tuple(target_dir.glob("copernican-*.dist-info"))
+            self.assertEqual(len(dist_info), 1)
+            metadata = filesystem_helpers.read_text(dist_info[0] / "METADATA")
+            requirements = tuple(
+                line.lower()
+                for line in metadata.splitlines()
+                if line.startswith("Requires-Dist:")
+            )
+            self.assertFalse(
+                any("camb" in requirement for requirement in requirements)
+            )
+            self.assertFalse(
+                any("classy" in requirement for requirement in requirements)
+            )
+            installed_names = {
+                path.name.lower()
+                for path in target_dir.rglob("*")
+                if path.is_file()
+            }
+            self.assertTrue(
+                {
+                    "camb_reference.py",
+                    "camb_contract.py",
+                    "camb_solver.py",
+                    "camb-1.6.0.txt",
+                }.isdisjoint(installed_names)
+            )
+            self.assertFalse(
+                any(
+                    name.startswith(
+                        (
+                            "camb_reference.",
+                            "camb_contract.",
+                            "camb_solver.",
+                            "camb-",
+                        )
+                    )
+                    for name in installed_names
+                )
+            )
+            self.assertFalse((target_dir / "tests").exists())
+
             smoke_script = (
+                "import sys\n"
+                "class _RejectScientificReferences:\n"
+                "    def find_spec(self, fullname, path=None, target=None):\n"
+                "        root = fullname.split('.', 1)[0]\n"
+                "        if root in {'camb', 'classy'}:\n"
+                "            raise ModuleNotFoundError(fullname)\n"
+                "        return None\n"
+                "sys.meta_path.insert(0, _RejectScientificReferences())\n"
                 "import json\n"
                 "import numpy\n"
                 "from copernican.lib import model_coder\n"
@@ -402,6 +452,8 @@ class FunctionalTestCase(unittest.TestCase):
                 "values = numpy.asarray(spectra, dtype=float)\n"
                 "assert values.shape == (ells.size,)\n"
                 "assert numpy.all(numpy.isfinite(values))\n"
+                "assert 'camb' not in sys.modules\n"
+                "assert 'classy' not in sys.modules\n"
             )
             environment = dict(os.environ)
             existing_pythonpath = environment.get("PYTHONPATH", "")

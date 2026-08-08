@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-07
+**Last Updated:** 2026-08-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,52 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-08:
+  Change: Split scientific-reference dependencies and assets from production
+  packaging.
+  Why: Removed CAMB from default package requirements while retaining exact
+  independent reference tests in the repository workspace.
+  Impact: Ensured native installations run without external CMB solvers and
+  synchronized dependency, license, manifest, cache, and discovery surfaces.
+  Files:
+  CHANGELOG.md
+  CITATION.cff
+  MANIFEST.in
+  PLAN.md
+  README.md
+  SECURITY.md
+  copernican/README.md
+  copernican/CITATION.cff
+  copernican/SECURITY.md
+  copernican/docs/packaging.md
+  copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+  copernican/lib/licenses/camb-1.6.0.txt
+  copernican/lib/licenses/packaging-26.2.txt
+  copernican/lib/licenses/setuptools-82.0.1.txt
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/runtime-requirements.lock
+  devcovenant/registry/registry.yaml
+  docs/packaging.md
+  licenses/THIRD_PARTY_LICENSES.md
+  licenses/astropy-iers-data-0.2026.6.1.17.39.59.txt
+  licenses/astropy-iers-data-0.2026.8.3.0.53.6.txt
+  licenses/pillow-12.2.0.txt
+  licenses/pillow-12.3.0.txt
+  licenses/pytz-2026.2.txt
+  licenses/pytz-2026.3.post1.txt
+  licenses/rpds-py-2026.5.1.txt
+  licenses/rpds-py-2026.6.3.txt
+  licenses/tzdata-2026.2.txt
+  licenses/tzdata-2026.3.txt
+  pyproject.toml
+  requirements.in
+  requirements.lock
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_packaging_configuration.py
 
 - 2026-08-07:
   Change: Completed the native-only user-facing CMB cutover and canonical

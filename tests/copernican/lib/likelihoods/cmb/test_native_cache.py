@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy
 
+from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
 from copernican.lib.likelihoods.cmb import native_cache
 
 
@@ -184,6 +185,7 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             changed_request.cosmology_static,
         )
         self.assertNotEqual(hash(identity), hash(changed_request))
+        self.assertEqual(identity.execution_engine, NATIVE_CMB_ENGINE_ID)
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,7 +1,7 @@
-# astropy-iers-data 0.2026.6.1.17.39.59
+# astropy-iers-data 0.2026.8.3.0.53.6
 
 This file aggregates the upstream license texts resolved for
-`astropy-iers-data==0.2026.6.1.17.39.59`.
+`astropy-iers-data==0.2026.8.3.0.53.6`.
 
 Resolved from: installed distribution metadata
 

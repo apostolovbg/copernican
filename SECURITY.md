@@ -2,7 +2,7 @@
 **Doc ID:** SECURITY
 **Doc Type:** repo-security
 **Project Version:** 12.0.26
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-08-08
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -39,6 +39,12 @@ execution, reproducibility, or data trust:
 
 Those areas are treated as first-class project surfaces because a change in
 any one of them can alter how Copernican executes or what data it trusts.
+
+The package runtime surface excludes scientific-reference solvers. CAMB is
+locked and licensed only by the repository workspace for independent tests;
+it is absent from default wheel metadata, package runtime locks, and installed
+package license assets. Package-isolation tests reject attempts to import CAMB
+or CLASS during native CMB execution.
 
 ## How To Report
 Include enough detail to let maintainers reproduce the issue without guessing.

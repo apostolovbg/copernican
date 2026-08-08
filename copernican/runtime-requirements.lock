@@ -11,19 +11,12 @@ astropy==6.0.0 \
     --hash=sha256:af67850f0476e04e78a1e5d96b767cd7f484c15fa9e684fed7f7c1277883bfbe
     # via -r pyproject.toml
 
-astropy-iers-data==0.2026.6.1.17.39.59 \
-    --hash=sha256:14670333b6999594890688e98d623182157428326fbe4c9de24a872dae76002b
+astropy-iers-data==0.2026.8.3.0.53.6 \
+    --hash=sha256:89cfc77a74050af3d3723544a6c0c4632b72a900e0e02bd7b647a6152e8c56da
     # via -r pyproject.toml
 
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309
-    # via -r pyproject.toml
-
-camb==1.6.0 \
-    --hash=sha256:19ca671847ede8392b100d638af6086b3c1985c9cb430c40a0fc8807bd4a1fd3 \
-    --hash=sha256:3601adea550b2f627d67652b6b1125a5459bd9a62b5191cee901f2acfc8049ad \
-    --hash=sha256:e2c2e2e44e19f33345a55789704eb419148208cbac7253808e9bac09768fd8ac \
-    --hash=sha256:e3d3ae89a29ebe379bd87a56e953d2feff7cbc0dce5e8eece813b287ee0c1924
     # via -r pyproject.toml
 
 contourpy==1.3.2 \
@@ -103,11 +96,14 @@ pandas==2.2.1 \
     --hash=sha256:f821213d48f4ab353d20ebc24e4faf94ba40d76680642fb7ce2ea31a3ad94f9b
     # via -r pyproject.toml
 
-pillow==12.2.0 \
-    --hash=sha256:6e6b2a0c538fc200b38ff9eb6628228b77908c319a005815f2dde585a0664b60 \
-    --hash=sha256:71cde9a1e1551df7d34a25462fc60325e8a11a82cc2e2f54578e5e9a1e153d65 \
-    --hash=sha256:8bd7903a5f2a4545f6fd5935c90058b89d30045568985a71c79f5fd6edf9b91e \
-    --hash=sha256:8be29e59487a79f173507c30ddf57e733a357f67881430449bb32614075a40ab
+pillow==12.2.0 ; (sys_platform == "linux" and python_version == "3.11") \
+    --hash=sha256:8bd7903a5f2a4545f6fd5935c90058b89d30045568985a71c79f5fd6edf9b91e
+    # via -r pyproject.toml
+
+pillow==12.3.0 ; (sys_platform == "win32" and python_version == "3.11") or (sys_platform == "darwin" and python_version == "3.11") or (sys_platform == "darwin" and python_version == "3.11") \
+    --hash=sha256:00808c5e14ef63ac5161091d242999076604ff74b883423a11e5d7bbb38bf756 \
+    --hash=sha256:37d6d0a00072fd2948eb22bce7e1475f34569d90c87c59f7a2ec59541b77f7a6 \
+    --hash=sha256:8e95e1385e4998ae9694eeaa4730ba5457ff61185b3a55e2e7bea0880aef452a
     # via -r pyproject.toml
 
 psutil==5.9.8 \
@@ -132,8 +128,8 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via -r pyproject.toml
 
-pytz==2026.2 \
-    --hash=sha256:04156e608bee23d3792fd45c94ae47fae1036688e75032eea2e3bf0323d1f126
+pytz==2026.3.post1 \
+    --hash=sha256:dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815
     # via -r pyproject.toml
 
 PyYAML==6.0.3 \
@@ -147,11 +143,11 @@ referencing==0.37.0 \
     --hash=sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231
     # via -r pyproject.toml
 
-rpds-py==2026.5.1 \
-    --hash=sha256:3397a5ed7174dc2786bb214030232fc36fe8e5584fec43a9952cc542b1a12036 \
-    --hash=sha256:613fc4ee9eaef26dc5840666214dd6fbcebcf32f46e76f4abc473059f4e13dda \
-    --hash=sha256:7bd530e6a530bb3ea892f194fafa455f3516ac25ecf7143fd33c09be62b0470a \
-    --hash=sha256:99ab6ba7bfa2cb0f96a04e3652355bf04e3f51aceb1e943b8541dab7ba4828cc
+rpds-py==2026.6.3 \
+    --hash=sha256:2c54a076ca4d370980ab57bc0e31df57bbe8d41340436a90ef8b1219a3cbb127 \
+    --hash=sha256:7b689145a1485c335569bd056464f3243a29af7ed3871c7be31ad624ba239bc7 \
+    --hash=sha256:9c1255b302953c86a486b81d330d5ee1d5bd937691ce271b6be0ef0e299eaab7 \
+    --hash=sha256:db08f45aecde626498fb3df07bcf6d2ec040af42e859a4f5040d79c200342911
     # via -r pyproject.toml
 
 scipy==1.12.0 \
@@ -181,8 +177,8 @@ typing_extensions==4.10.0 \
     --hash=sha256:69b1a937c3a517342112fb4c6df7e72fc39a38e7891a5730ed4985b5214b5475
     # via -r pyproject.toml
 
-tzdata==2026.2 \
-    --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
+tzdata==2026.3 \
+    --hash=sha256:dc096730c87af6cab1b171c9d532be840741ff5d459015e7f6947bd7d7e54931
     # via -r pyproject.toml
 
 xarray==2023.12.0 \

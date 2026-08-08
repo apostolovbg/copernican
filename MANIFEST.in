@@ -1,7 +1,11 @@
-recursive-include licenses *
 recursive-include copernican/lib *
 recursive-include copernican/docs *
 recursive-include copernican/img *
 recursive-include copernican/rng_minigames *
 include copernican/runtime-requirements.lock
 include copernican/VERSION
+prune tests
+prune licenses
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude */__pycache__/*

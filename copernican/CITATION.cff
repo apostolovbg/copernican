@@ -1,4 +1,4 @@
-# Last Updated: 2026-06-03
+# Last Updated: 2026-08-08
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Copernican"
@@ -8,7 +8,9 @@ date-released: "2026-06-02"
 abstract: >-
   Copernican is a package-first Python toolkit for evaluating cosmological
   models against SNe Ia, BAO, and CMB observations, with bundled engines,
-  models, and validation helpers shipped under the `copernican/` package.
+  models, validation helpers, and a native declared-graph CMB engine shipped
+  under the `copernican/` package. External scientific-reference solvers are
+  development dependencies rather than production runtime requirements.
 
 authors:
   - family-names: "Apostolov"

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import re
-from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
 
 import camb
@@ -18,15 +17,7 @@ _C_LIGHT_KM_S = 299_792.458
 _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
-
-
-def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
-    """Rehydrate a mapping created by the cached CAMB helpers."""
-
-    restored: dict[str, Any] = {}
-    for key, restored_value in items:
-        restored[str(key)] = restored_value
-    return restored
+CAMB_REFERENCE_IDENTITY = f"camb:{camb.__version__}"
 
 
 def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
@@ -241,93 +232,6 @@ def _make_camb_params(
     return params
 
 
-@lru_cache(maxsize=128)
-def _cached_cmb(
-    key: tuple[str, tuple[tuple[str, Any], ...], int, tuple[str, ...]],
-):
-    """Return unlensed CAMB spectra for a given cache key."""
-
-    _, items, lmax, spectra = key
-    param_dict = _restore_dict(items)
-    params = _make_camb_params(param_dict, lmax=int(lmax))
-    results = camb.get_results(params)
-    cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
-    out: dict[str, numpy.ndarray] = {}
-    if "TT" in spectra:
-        out["TT"] = cls[:, 0]
-    if "EE" in spectra:
-        out["EE"] = cls[:, 1]
-    if "TE" in spectra:
-        out["TE"] = cls[:, 3]
-    return out
-
-
-@lru_cache(maxsize=128)
-def _cached_background(
-    key: tuple[str, tuple[tuple[str, Any], ...], tuple[float, ...]],
-) -> tuple[
-    float,
-    tuple[float, ...],
-    tuple[float, ...],
-    tuple[float, ...],
-    tuple[float, ...],
-    tuple[float, ...],
-]:
-    """Return cached CAMB background observables for ``key``."""
-
-    _, items, z_tuple = key
-    param_dict = _restore_dict(items)
-    params = _make_camb_params(param_dict, lmax=None)
-    results = camb.get_results(params)
-    derived = results.get_derived_params()
-    rs_drag = float(derived.get("rdrag", float("nan")))
-
-    z_arr = numpy.asarray(z_tuple, dtype=float)
-    comoving_distances: list[float] = []
-    angular_distance_values: list[float] = []
-    hubble_parameters: list[float] = []
-    for z_val in z_arr:
-        comoving_distances.append(
-            float(results.comoving_radial_distance(float(z_val)))
-        )
-        angular_distance_values.append(
-            float(results.angular_diameter_distance(float(z_val)))
-        )
-        hubble_parameters.append(float(results.hubble_parameter(float(z_val))))
-
-    comoving_distance_array = numpy.asarray(comoving_distances, dtype=float)
-    angular_distance_array = numpy.asarray(
-        angular_distance_values, dtype=float
-    )
-    hubble_parameter_array = numpy.asarray(hubble_parameters, dtype=float)
-    with numpy.errstate(divide="ignore", invalid="ignore"):
-        hubble_distance_array = numpy.where(
-            numpy.abs(hubble_parameter_array) > 1e-12,
-            _C_LIGHT_KM_S / hubble_parameter_array,
-            numpy.nan,
-        )
-    term = comoving_distance_array * comoving_distance_array
-    term *= z_arr
-    with numpy.errstate(divide="ignore", invalid="ignore"):
-        term = term * hubble_distance_array
-    volume_average_distance_array = numpy.full_like(
-        term, numpy.nan, dtype=float
-    )
-    mask = numpy.isfinite(term) & (term >= 0.0)
-    volume_average_distance_array[mask] = numpy.power(term[mask], 1.0 / 3.0)
-    zero = numpy.isfinite(term) & (z_arr == 0.0)
-    volume_average_distance_array[zero] = 0.0
-
-    return (
-        rs_drag,
-        tuple(comoving_distance_array.tolist()),
-        tuple(hubble_distance_array.tolist()),
-        tuple(angular_distance_array.tolist()),
-        tuple(volume_average_distance_array.tolist()),
-        tuple(hubble_parameter_array.tolist()),
-    )
-
-
 def _compute_cmb_spectrum_direct(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -469,6 +373,7 @@ def describe_camb_configuration() -> dict[str, Any]:
         }
 
     return {
+        "reference_identity": CAMB_REFERENCE_IDENTITY,
         "lmax_padding": _LMAX_PADDING,
         "lens_potential_accuracy": _LENS_POTENTIAL_ACCURACY,
         "reionization_model": "optical_depth_tau",
@@ -477,6 +382,7 @@ def describe_camb_configuration() -> dict[str, Any]:
 
 
 __all__ = [
+    "CAMB_REFERENCE_IDENTITY",
     "compute_camb_background_observables",
     "compute_cmb_spectrum_from_camb_contract",
     "describe_camb_configuration",

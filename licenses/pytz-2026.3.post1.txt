@@ -1,7 +1,7 @@
-# pytz 2026.2
+# pytz 2026.3.post1
 
 This file aggregates the upstream license texts resolved for
-`pytz==2026.2`.
+`pytz==2026.3.post1`.
 
 Resolved from: installed distribution metadata
 

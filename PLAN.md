@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-07
+**Last Updated:** 2026-08-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -2136,7 +2136,7 @@ Implementation record:
 * Targeted CLI, GUI, manifest, executor, plotting, analysis, result-writing,
   cache, model-selection, and synthetic-integration tests cover the cutover.
 
-### [open] Slice Thirty-Six - Scientific reference and package isolation
+### [closed] Slice Thirty-Six - Scientific reference and package isolation
 
 Purpose:
 
@@ -2169,6 +2169,22 @@ Done when:
 
 * Production and scientific-reference dependency boundaries are explicit and
   mechanically enforced.
+
+Implementation record:
+
+* The default package dependency manifest and packaged runtime lock exclude
+  CAMB and CLASS. The repository workspace manifest retains CAMB as an exact
+  independent scientific-reference dependency for tests.
+* Package and workspace license inventories follow their owning dependency
+  surfaces. Wheels and source manifests exclude workspace licenses, test
+  reference modules, obsolete CAMB adapters, and bytecode artifacts.
+* Native runtime cache identities include the canonical native execution
+  engine. The independent CAMB helper records its own provider and version
+  identity entirely under the test tree.
+* Installed-package validation inspects wheel metadata and assets, blocks
+  CAMB and CLASS imports, and executes a finite native declared-graph spectrum.
+  Focused dependency, license, manifest, package-discovery, cache, and
+  independent-reference tests enforce the boundary.
 
 ### [open] Slice Thirty-Seven - Cross-sector numerical convergence
 

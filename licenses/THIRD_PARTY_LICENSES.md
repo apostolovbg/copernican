@@ -13,7 +13,7 @@ texts stored under `licenses/`.
 ## Dependency License Inventory
 - `arviz==0.16.1`: `licenses/arviz-0.16.1.txt`
 - `astropy==6.0.0`: `licenses/astropy-6.0.0.txt`
-- `astropy-iers-data==0.2026.6.1.17.39.59`: `licenses/astropy-iers-data-0.2026.6.1.17.39.59.txt`
+- `astropy-iers-data==0.2026.8.3.0.53.6`: `licenses/astropy-iers-data-0.2026.8.3.0.53.6.txt`
 - `attrs==26.1.0`: `licenses/attrs-26.1.0.txt`
 - `bandit==1.9.4`: `licenses/bandit-1.9.4.txt`
 - `build==1.5.0`: `licenses/build-1.5.0.txt`
@@ -41,7 +41,7 @@ texts stored under `licenses/`.
 - `numpy==1.26.4`: `licenses/numpy-1.26.4.txt`
 - `packaging==26.2`: `licenses/packaging-26.2.txt`
 - `pandas==2.2.1`: `licenses/pandas-2.2.1.txt`
-- `pillow==12.2.0`: `licenses/pillow-12.2.0.txt`
+- `pillow==12.3.0`: `licenses/pillow-12.3.0.txt`
 - `pip==26.1.1`: `licenses/pip-26.1.1.txt`
 - `pip-tools==7.5.3`: `licenses/pip-tools-7.5.3.txt`
 - `platformdirs==4.9.6`: `licenses/platformdirs-4.9.6.txt`
@@ -55,11 +55,11 @@ texts stored under `licenses/`.
 - `pytest==9.0.3`: `licenses/pytest-9.0.3.txt`
 - `python-dateutil==2.9.0.post0`: `licenses/python-dateutil-2.9.0.post0.txt`
 - `python-discovery==1.3.1`: `licenses/python-discovery-1.3.1.txt`
-- `pytz==2026.2`: `licenses/pytz-2026.2.txt`
+- `pytz==2026.3.post1`: `licenses/pytz-2026.3.post1.txt`
 - `PyYAML==6.0.3`: `licenses/PyYAML-6.0.3.txt`
 - `referencing==0.37.0`: `licenses/referencing-0.37.0.txt`
 - `rich==15.0.0`: `licenses/rich-15.0.0.txt`
-- `rpds-py==2026.5.1`: `licenses/rpds-py-2026.5.1.txt`
+- `rpds-py==2026.6.3`: `licenses/rpds-py-2026.6.3.txt`
 - `scipy==1.12.0`: `licenses/scipy-1.12.0.txt`
 - `semver==3.0.4`: `licenses/semver-3.0.4.txt`
 - `setuptools==82.0.1`: `licenses/setuptools-82.0.1.txt`
@@ -67,7 +67,7 @@ texts stored under `licenses/`.
 - `stevedore==5.8.0`: `licenses/stevedore-5.8.0.txt`
 - `sympy==1.13.0`: `licenses/sympy-1.13.0.txt`
 - `typing_extensions==4.10.0`: `licenses/typing_extensions-4.10.0.txt`
-- `tzdata==2026.2`: `licenses/tzdata-2026.2.txt`
+- `tzdata==2026.3`: `licenses/tzdata-2026.3.txt`
 - `virtualenv==21.3.3`: `licenses/virtualenv-21.3.3.txt`
 - `wheel==0.47.0`: `licenses/wheel-0.47.0.txt`
 - `xarray==2023.12.0`: `licenses/xarray-2023.12.0.txt`

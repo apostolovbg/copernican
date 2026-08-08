@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Any, Generic, Mapping, TypeVar
 
 import numpy
+
+from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
 
 _CacheValue = TypeVar("_CacheValue")
 
@@ -29,6 +31,7 @@ class NativeRuntimeCacheIdentity:
     contract_static: Any
     cosmology_static: Any
     request_specific: Any
+    execution_engine: str = field(default=NATIVE_CMB_ENGINE_ID, init=False)
 
 
 class _BoundedCacheStore(Generic[_CacheValue]):

@@ -12,14 +12,15 @@ authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    # Keep versions in sync with requirements.lock.
+    # Keep runtime versions in sync with the packaged runtime lock.
     "numpy==1.26.4",
     "scipy==1.12.0",
     "matplotlib==3.8.2",
     "pandas==2.2.1",
     "sympy==1.13.0",
     "jsonschema==4.21.1",
-    "camb==1.6.0",
+    "packaging==26.2",
+    "setuptools==82.0.1",
     "contourpy==1.3.2",
     "PyYAML==6.0.3",
     "astropy==6.0.0",
@@ -73,11 +74,6 @@ exclude = [
     "tests",
 ]
 
-[tool.setuptools.data-files]
-# License assets are installed alongside wheels so third-party notices ship
-# with source and binary distributions.
-"licenses" = ["licenses/*"]
-
 [tool.setuptools.package-data]
 # Package data keeps the runtime version file, bundled datasets, docs, and
 # packaged mini-games together.
@@ -97,4 +93,12 @@ exclude = [
     "global_settings/**/*",
     "licenses/**/*",
     "vendor/**/*",
+]
+
+[tool.setuptools.exclude-package-data]
+"*" = [
+    "*.py[cod]",
+    "**/*.py[cod]",
+    "__pycache__/*",
+    "**/__pycache__/*",
 ]
