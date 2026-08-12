@@ -24,6 +24,9 @@ from .cmb_identity import NATIVE_CMB_ENGINE_ID, NATIVE_CMB_ENGINE_LABEL
 from .likelihoods.cmb.native_background import (
     _summarize_declared_background_manifest_summary,
 )
+from .likelihoods.cmb.native_convergence import (
+    resolve_native_numerical_envelope,
+)
 from .model_selection import (
     ComparisonRequest,
     build_comparison_request,
@@ -137,6 +140,12 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         compile_diagnostics = getattr(
             native_runtime, "compile_diagnostics", None
         )
+        envelope_contract = dict(contract)
+        if perturbation_data is not None:
+            envelope_contract["perturbation_data"] = perturbation_data
+        numerical_envelope = resolve_native_numerical_envelope(
+            envelope_contract
+        ).to_dict()
         grid_meta = {
             str(grid_name): {
                 "lower": grid_def.get("lower"),
@@ -354,6 +363,7 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                     str(key): value for key, value in execution_route.items()
                 },
                 "native_cmb_numerical_settings": numerical_settings,
+                "native_cmb_numerical_envelope": numerical_envelope,
                 "native_cmb_graph_manifest_summary": manifest_summary_data,
                 "native_cmb_background_manifest_summary": (
                     background_manifest_summary
@@ -364,6 +374,7 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         for key, value in execution_route.items()
                     },
                     "numerical_settings": numerical_settings,
+                    "numerical_envelope": numerical_envelope,
                     "accuracy_controls": (
                         dict(accuracy_controls)
                         if hasattr(accuracy_controls, "items")

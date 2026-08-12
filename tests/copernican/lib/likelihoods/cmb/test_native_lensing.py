@@ -6,6 +6,7 @@ import unittest
 
 import numpy
 
+from copernican.lib.likelihoods.cmb import native_convergence
 from copernican.lib.likelihoods.cmb.native_lensing import (
     legendre_funcs,
     legendrep,
@@ -136,6 +137,17 @@ class NativeLensingTestCase(unittest.TestCase):
             rtol=1.0e-7,
             atol=1.0e-14,
         )
+        bb_metric = native_convergence.evaluate_control_refinement(
+            coarse[:, 2],
+            refined[:, 2],
+            name="lensed BB quadrature",
+            tolerance=(
+                native_convergence.FINAL_SPECTRUM_RELATIVE_TOLERANCES[
+                    "lensed_BB"
+                ]
+            ),
+        )
+        native_convergence.require_native_convergence(bb_metric)
 
     def test_remapping_rejects_incompatible_surfaces(self) -> None:
         """Invalid remapping surfaces fail before numerical work begins."""

@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-07
+**Last Updated:** 2026-08-12
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1107,6 +1107,53 @@ envelope explicitly accepts the reported error. Adaptive work remains bounded
 by the declared node and runtime limits; it never replaces unavailable
 observables or introduces an empirical spectrum scale.
 
+### Final Convergence Tier
+
+Set `accuracy_tier: final` to request the bounded cross-sector acceptance
+envelope. `final` is the only named tier. An unknown tier or an incomplete
+bounded runtime envelope fails before background integration. The resolved
+envelope records the active sectors, every background and projection
+control, hierarchy depths, momentum-grid definitions, runtime limits, and
+acceptance thresholds.
+
+The final scalar floor uses photon temperature and polarization depths of
+ten and a massless-neutrino depth of seven. The vector floor uses depths
+eight, eight, and five. The tensor floor uses depths twelve, twelve, and
+nine. An active massive-neutrino hierarchy uses at least seven multipoles
+and a q grid with at least 16 nodes over `0.05 <= q <= 15`, using the declared
+second-order quadrature. A contract containing more than one sector receives
+the strongest applicable floor for each shared hierarchy.
+
+The bounded numerical floor also requires `ell_max >= 2000`, `k_max >= 0.3`,
+at least 18 k nodes, at least 192 background eta samples, at least 128
+evolution eta samples, a source-grid multiplier of at least two, and a
+lensing sampling factor of at least `1.4`. The initial redshift is at least
+`2e4`; integration tolerances, phase steps, lower bounds, and tight-coupling
+exit controls have explicit upper bounds. These checks reject a request that
+labels reduced work as final.
+
+Final refinement uses relative L-infinity errors for auto-spectra and the
+correlation coefficient `TE / sqrt(abs(TT * EE))` for normalized `TE`.
+Successive refinements must change `TT` and `EE` by less than 1%, normalized
+`TE` by less than 2%, `PP` by less than 3%, and lensed `BB` by less than 5%.
+Massive-neutrino q refinement must remain below 2%, and every accepted
+hierarchy refinement must remain below 1%. Zero crossings remain finite
+because the L-infinity metric uses the refined surface peak as its scale.
+
+The acceptance ladder varies background resolution, source-grid density,
+fixed k anchors, scalar/vector/tensor hierarchy depths, massive-neutrino q
+nodes, and curved-sky lensing sampling independently. Physical k anchors are
+retained across production-sized refinements, vector and tensor polarization
+terminals use their flat-space free-streaming closures, and clustered
+line-of-sight anchors use positive local trapezoid panels when generalized
+Simpson weights would become negative.
+
+Run manifests expose the complete result as
+`native_cmb_numerical_envelope` and repeat it under the native runtime
+summary as `numerical_envelope`. Runtime spectrum payloads carry the same
+resolved envelope, the selected tier, and the lensing sampling factor. This
+keeps validation output tied to the controls that produced it.
+
 The native LCDM absolute-parity contract uses
 `tight_coupling_ratio: 1600.0`. This value keeps the generated scalar route
 on the exact split Thomson evolution and declaration-driven fast-manifold
@@ -1114,14 +1161,14 @@ projection for the reference surface. Lower values are
 valid for exploratory runs, but they are not sufficient evidence for the
 absolute scalar thresholds in `PLAN.md`.
 
-Numerical controls define a reproducible execution envelope, and the adaptive
+Numerical controls define a reproducible execution envelope, and adaptive
 surfaces provide local convergence evidence for k, source histories, and
-line-of-sight quadrature. Scientific parity still requires controlled changes
-to the background, hierarchy, q-grid, and lensing resolutions with stable
-observables in the later acceptance slices. The massive-neutrino acceptance
-surface compares absolute density, pressure, momentum, and shear source
-spectra at fixed relativistic and nonrelativistic cosmologies against direct
-log-q quadrature; it does not use a mass response ratio.
+line-of-sight quadrature. Cross-sector acceptance independently refines the
+background, hierarchies, q grid, and lensing quadrature. The
+massive-neutrino acceptance surface compares absolute density, pressure,
+momentum, and shear source spectra at fixed relativistic and
+nonrelativistic cosmologies against direct log-q quadrature; it does not use
+a mass response ratio.
 
 ## Scalar Absolute Parity
 

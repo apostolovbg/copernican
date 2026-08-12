@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-08
+**Last Updated:** 2026-08-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,13 @@ a defensible perturbation closure reports the affected CMB outputs as
 unavailable rather than substituting another engine or a zero spectrum. See
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md) for the graph,
 physical, numerical, lensing, caching, and reference conventions.
+
+Native CMB validation records the resolved numerical envelope in each run
+manifest. The named final tier requires bounded background, transfer,
+source, hierarchy, momentum-grid, and lensing controls and rejects
+under-resolved requests before expensive evolution. Cross-sector refinement
+tests enforce the documented `TT`, `TE`, `EE`, `PP`, lensed `BB`, q-grid,
+and hierarchy thresholds.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

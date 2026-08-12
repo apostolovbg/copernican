@@ -1482,6 +1482,23 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             model_entry["native_cmb_numerical_settings"]["ell_max"],
             2000,
         )
+        numerical_envelope = model_entry["native_cmb_numerical_envelope"]
+        self.assertEqual(numerical_envelope["accuracy_tier"], "final")
+        self.assertTrue(numerical_envelope["bounded"])
+        self.assertEqual(
+            numerical_envelope["numerical_controls"][
+                "lensing_sampling_factor"
+            ],
+            1.4,
+        )
+        self.assertEqual(
+            set(numerical_envelope["hierarchy_controls"]),
+            {
+                "massless_neutrino",
+                "photon_polarization",
+                "photon_temperature",
+            },
+        )
         self.assertEqual(
             model_entry["native_cmb_runtime_manifest_summary"][
                 "compile_diagnostics"

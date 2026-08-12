@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-08
+**Last Updated:** 2026-08-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -2186,7 +2186,7 @@ Implementation record:
   Focused dependency, license, manifest, package-discovery, cache, and
   independent-reference tests enforce the boundary.
 
-### [open] Slice Thirty-Seven - Cross-sector numerical convergence
+### [closed] Slice Thirty-Seven - Cross-sector numerical convergence
 
 Purpose:
 
@@ -2220,6 +2220,24 @@ Done when:
 
 * Every physical numerical control demonstrates converged output and every
   requested accuracy tier has an explicit bounded envelope.
+
+Implementation closure:
+
+* `native_convergence.py` defines the sole named final tier, sector-specific
+  hierarchy floors, bounded runtime limits, stable relative L-infinity and
+  normalized-TE metrics, and named failures for unresolved refinements.
+* Runtime and run-manifest payloads record background, eta, k, source,
+  hierarchy, q-grid, lensing, sector, threshold, and work-limit controls in
+  one resolved numerical envelope.
+* Fixed k refinements retain physical multipole anchors, clustered
+  line-of-sight grids avoid negative generalized-Simpson panels, and vector
+  and tensor polarization terminals apply flat-space free-streaming closure.
+* Physical acceptance ladders cover background and recombination histories,
+  scalar k and source grids, scalar/vector/tensor hierarchy spectra,
+  massive-neutrino q and hierarchy spectra, and curved-sky lensed-BB
+  quadrature at the required thresholds.
+* The canonical native LambdaCDM declaration selects the bounded final tier
+  and declares its complete hierarchy and lensing controls.
 
 ### [open] Slice Thirty-Eight - Output, cache, and contract consistency
 

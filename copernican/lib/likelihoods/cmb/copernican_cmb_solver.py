@@ -124,6 +124,8 @@ def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
 def _assemble_exact_lensed_spectra(
     scaled_spectra: Mapping[str, numpy.ndarray],
     ell_grid: numpy.ndarray,
+    *,
+    sampling_factor: float = 1.4,
 ) -> dict[str, numpy.ndarray]:
     """Return exact curved-sky lensed spectra from unlensed inputs."""
 
@@ -193,6 +195,7 @@ def _assemble_exact_lensed_spectra(
         clpp,
         lmax=lmax,
         lmax_lensed=lmax,
+        sampling_factor=sampling_factor,
     )
     return {
         "lensed_TT": _safe_float_output(lensed_cls[:, 0]),
@@ -371,6 +374,12 @@ def _compute_declared_perturbation_spectrum(
                 _assemble_exact_lensed_spectra(
                     lensing_inputs,
                     custom_data.ell_grid,
+                    sampling_factor=float(
+                        custom_data.runtime_envelope.get(
+                            "lensing_sampling_factor",
+                            1.4,
+                        )
+                    ),
                 )
             )
         finally:

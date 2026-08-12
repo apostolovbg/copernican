@@ -11,7 +11,7 @@ import ast
 import copy
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
@@ -953,7 +953,11 @@ def _vector_polarization_recurrence_rhs(
     opposite_coeff = 2.0 / (float(moment) * float(moment + 1))
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        return "0.0"
+        pieces[0] = (
+            f"{float(moment) / float(moment - 1):.16g} * acoustic_k * "
+            f"{previous_name}"
+        )
+        pieces.append(f"- {float(moment + 2):.16g} * {name} / vector_eta_safe")
     else:
         next_coeff = _vector_polarization_next_coeff(moment)
         pieces.append(f"- {next_coeff:.16g} * acoustic_k * {next_name}")
@@ -1047,7 +1051,11 @@ def _tensor_polarization_recurrence_rhs(
     opposite_coeff = 4.0 / (float(moment) * float(moment + 1))
     pieces = [f"{previous_coeff:.16g} * acoustic_k * {previous_name}"]
     if next_name is None:
-        pass
+        pieces[0] = (
+            f"{float(moment) / float(moment - 2):.16g} * acoustic_k * "
+            f"{previous_name}"
+        )
+        pieces.append(f"- {float(moment + 3):.16g} * {name} / tensor_eta_safe")
     else:
         moment_value = float(moment)
         tensor_factor = (
@@ -1066,6 +1074,35 @@ def _tensor_polarization_recurrence_rhs(
     if collision_term is not None:
         pieces.append(collision_term)
     return " ".join(pieces)
+
+
+def _materialize_bounded_derived_sum(
+    derived_entries: dict[str, Any],
+    component_names: Iterable[str],
+    *,
+    name_prefix: str,
+    description: str,
+    units: str,
+) -> str:
+    """Return a bounded-AST sum, materializing intermediate partials."""
+
+    active_names = [str(name) for name in component_names]
+    if not active_names:
+        return "0.0"
+    level = 0
+    while len(active_names) > 32:
+        partial_names: list[str] = []
+        for chunk_index, start in enumerate(range(0, len(active_names), 32)):
+            partial_name = f"{name_prefix}_level{level}_{chunk_index}"
+            derived_entries[partial_name] = {
+                "expression": " + ".join(active_names[start : start + 32]),
+                "description": description,
+                "units": units,
+            }
+            partial_names.append(partial_name)
+        active_names = partial_names
+        level += 1
+    return " + ".join(active_names)
 
 
 def _materialize_native_scalar_hierarchy_contract(
@@ -2471,22 +2508,51 @@ def _materialize_native_scalar_hierarchy_contract(
                 "units": _DIMENSIONLESS_UNITS,
             }
             for moment in range(3, massive_neutrino_l_max + 1):
-                aggregate_hierarchy_component_names[moment].append(
-                    f"{q_prefix}_shear_weight * "
-                    f"{_scalar_massive_neutrino_q_name(q_index, moment)}"
+                component_name = (
+                    f"massive_neutrino_metric_l{moment}_q{q_index}"
                 )
-        density_sum_expression = " + ".join(q_density_component_names)
-        pressure_sum_expression = " + ".join(q_pressure_component_names)
-        momentum_sum_expression = " + ".join(q_momentum_component_names)
-        shear_sum_expression = " + ".join(q_shear_component_names)
-        if len(q_density_component_names) > 1:
-            density_sum_expression = f"({density_sum_expression})"
-        if len(q_pressure_component_names) > 1:
-            pressure_sum_expression = f"({pressure_sum_expression})"
-        if len(q_momentum_component_names) > 1:
-            momentum_sum_expression = f"({momentum_sum_expression})"
-        if len(q_shear_component_names) > 1:
-            shear_sum_expression = f"({shear_sum_expression})"
+                derived_entries[component_name] = {
+                    "expression": (
+                        f"{q_prefix}_shear_weight * "
+                        f"{_scalar_massive_neutrino_q_name(q_index, moment)}"
+                    ),
+                    "description": (
+                        "Momentum-grid-weighted q-bin higher multipole "
+                        f"F_nu_m,{int(moment)}."
+                    ),
+                    "units": _DIMENSIONLESS_UNITS,
+                }
+                aggregate_hierarchy_component_names[moment].append(
+                    component_name
+                )
+        density_sum_expression = _materialize_bounded_derived_sum(
+            derived_entries,
+            q_density_component_names,
+            name_prefix="massive_neutrino_density_sum",
+            description="Partial massive-neutrino density quadrature.",
+            units=_DIMENSIONLESS_UNITS,
+        )
+        pressure_sum_expression = _materialize_bounded_derived_sum(
+            derived_entries,
+            q_pressure_component_names,
+            name_prefix="massive_neutrino_pressure_sum",
+            description="Partial massive-neutrino pressure quadrature.",
+            units=_DIMENSIONLESS_UNITS,
+        )
+        momentum_sum_expression = _materialize_bounded_derived_sum(
+            derived_entries,
+            q_momentum_component_names,
+            name_prefix="massive_neutrino_momentum_sum",
+            description="Partial massive-neutrino momentum quadrature.",
+            units=_INVERSE_MPC_UNITS,
+        )
+        shear_sum_expression = _materialize_bounded_derived_sum(
+            derived_entries,
+            q_shear_component_names,
+            name_prefix="massive_neutrino_shear_sum",
+            description="Partial massive-neutrino shear quadrature.",
+            units=_DIMENSIONLESS_UNITS,
+        )
         derived_entries.update(
             {
                 "massive_neutrino_metric_density": {
@@ -2557,9 +2623,15 @@ def _materialize_native_scalar_hierarchy_contract(
         )
         for moment in range(3, massive_neutrino_l_max + 1):
             component_expressions = aggregate_hierarchy_component_names[moment]
-            aggregate_expression = " + ".join(component_expressions)
-            if len(component_expressions) > 1:
-                aggregate_expression = f"({aggregate_expression})"
+            aggregate_expression = _materialize_bounded_derived_sum(
+                derived_entries,
+                component_expressions,
+                name_prefix=f"massive_neutrino_l{moment}_sum",
+                description=(
+                    "Partial massive-neutrino higher-multipole quadrature."
+                ),
+                units=_DIMENSIONLESS_UNITS,
+            )
             derived_entries[_scalar_massive_neutrino_name(moment)] = {
                 "expression": aggregate_expression,
                 "description": (

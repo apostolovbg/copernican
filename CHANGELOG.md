@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-08
+**Last Updated:** 2026-08-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,60 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-12:
+  Change: Finalized Slice Thirty-Seven cross-sector numerical convergence
+  controls and physical refinement validation.
+  Why: Aligned closure metadata with the active workflow session after the
+  UTC date boundary.
+  Impact: Preserved explicit final-tier floors, complete numerical envelopes,
+  and the validated Slice Thirty-Seven accuracy thresholds.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_convergence.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_native_convergence.py
+  tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_run_manifest.py
+
+- 2026-08-11:
+  Change: Implemented bounded cross-sector native CMB convergence controls
+  and physical refinement validation.
+  Why: Ensured every final-tier background, projection, hierarchy,
+  momentum-grid, and lensing control to demonstrate numerical convergence.
+  Impact: Enforced explicit final-tier floors, recorded complete numerical
+  envelopes, and validated the Slice Thirty-Seven accuracy thresholds.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_convergence.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_native_convergence.py
+  tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_run_manifest.py
 
 - 2026-08-08:
   Change: Split scientific-reference dependencies and assets from production

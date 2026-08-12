@@ -79,6 +79,7 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
                     "PP": lensing_potential_cls,
                 },
                 ell_grid,
+                sampling_factor=2.2,
             )
 
         remapper.assert_called_once()
@@ -90,6 +91,7 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
             base_cls[:, 3], temperature_electric_cls
         )
         numpy.testing.assert_array_equal(clpp[2:], lensing_potential_cls[2:])
+        self.assertEqual(remapper.call_args.kwargs["sampling_factor"], 2.2)
         self.assertEqual(
             set(result),
             {"lensed_TT", "lensed_TE", "lensed_EE", "lensed_BB"},

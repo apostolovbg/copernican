@@ -31,6 +31,7 @@ from copernican.lib.likelihoods.cmb import (
 from copernican.lib.likelihoods.cmb import (
     native_background,
     native_cache,
+    native_convergence,
     native_evolution,
     native_projection,
 )
@@ -4351,6 +4352,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             places=12,
         )
 
+    def test_native_los_weights_stay_positive_across_clustered_anchors(
+        self,
+    ) -> None:
+        """Clustered physical anchors must not destabilize LOS weights."""
+
+        eta_grid = numpy.asarray(
+            (0.0, 1.0e-6, 0.2, 0.4, 1.0),
+            dtype=float,
+        )
+        weights = native_projection._simpson_weights(eta_grid)
+
+        self.assertTrue(numpy.all(numpy.isfinite(weights)))
+        self.assertTrue(numpy.all(weights >= 0.0))
+        self.assertAlmostEqual(
+            float(numpy.sum(weights)),
+            float(eta_grid[-1] - eta_grid[0]),
+            places=12,
+        )
+
     def test_native_nonuniform_gradient_preserves_quadratic_derivative(
         self,
     ) -> None:
@@ -6026,12 +6046,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_scalar_hierarchy_depth_converges_at_anchor_surface(
         self,
     ) -> None:
-        """Increasing scalar hierarchy depth changes TT by under one
-        percent.
-        """
+        """Refined scalar hierarchy depths change accepted spectra by <1%."""
 
-        spectra = []
-        for depth in (6, 8):
+        spectra_by_depth = []
+        for depth in (10, 12):
             contract = _speedup_contract(
                 _native_scalar_hierarchy_contract(sum_mnu=0.0)
             )
@@ -6041,7 +6059,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     "k_sample_count": 6,
                     "eta_sample_count": 128,
                     "photon_hierarchy_l_max": depth,
-                    "neutrino_hierarchy_l_max": max(3, depth - 3),
+                    "photon_polarization_hierarchy_l_max": depth,
+                    "neutrino_hierarchy_l_max": depth - 3,
                     "ell_max": 120,
                 }
             )
@@ -6050,18 +6069,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 native_projection._compute_custom_cmb_spectrum_data(
                     _prepare_native_contract(contract),
                     numpy.asarray((20, 60, 120), dtype=int),
-                    requested_spectra=("TT",),
+                    requested_spectra=("TT", "EE"),
                 )
             )
-            spectra.append(
-                numpy.asarray(spectrum_data.spectra["TT"], dtype=float)
-            )
+            spectra_by_depth.append(spectrum_data.spectra)
 
-        relative_error = numpy.max(
-            numpy.abs(spectra[0] - spectra[1])
-            / numpy.maximum(numpy.abs(spectra[1]), 1.0e-30)
-        )
-        self.assertLess(float(relative_error), 1.0e-2)
+        for spectrum_name in ("TT", "EE"):
+            metric = native_convergence.evaluate_control_refinement(
+                spectra_by_depth[0][spectrum_name],
+                spectra_by_depth[1][spectrum_name],
+                name=f"scalar {spectrum_name} hierarchy",
+                tolerance=(
+                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
+                ),
+            )
+            native_convergence.require_native_convergence(metric)
 
     def test_native_adaptive_projection_refines_line_of_sight_grid(
         self,
@@ -6253,6 +6275,49 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectrum_data.spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
+    def test_final_scalar_k_and_source_refinements_converge(self) -> None:
+        """Independent k and source-grid refinements meet final bounds."""
+
+        spectra_by_grid = {}
+        for label, k_count, source_multiplier in (
+            ("baseline", 64, 2),
+            ("k_refined", 96, 2),
+            ("source_refined", 64, 4),
+        ):
+            contract = _speedup_contract(
+                _custom_contract(include_lensing=True)
+            )
+            contract["model_name"] = f"FinalScalarGrid{label}"
+            contract["numerical"].update(
+                {
+                    "k_sample_count": k_count,
+                    "eta_sample_count": 512,
+                    "ell_max": 40,
+                    "source_grid_multiplier": source_multiplier,
+                }
+            )
+            contract["perturbations"]["numerics"] = copy.deepcopy(
+                contract["numerical"]
+            )
+            native_cache.clear_native_cmb_caches()
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 30, 40), dtype=int),
+                    requested_spectra=("TT", "TE", "EE", "PP"),
+                )
+            )
+            spectra_by_grid[label] = spectrum_data.spectra
+
+        for refined_label in ("k_refined", "source_refined"):
+            with self.subTest(refinement=refined_label):
+                report = native_convergence.evaluate_spectrum_refinement(
+                    spectra_by_grid["baseline"],
+                    spectra_by_grid[refined_label],
+                    required_spectra=("TT", "TE", "EE", "PP"),
+                )
+                native_convergence.require_native_convergence(report)
+
     def test_native_eta_sample_count_changes_background_resolution(
         self,
     ) -> None:
@@ -6280,6 +6345,63 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(refined_background.eta_grid.size),
             int(coarse_background.eta_grid.size),
         )
+
+    def test_native_background_refinement_meets_final_bound(self) -> None:
+        """Background and recombination converge below one percent."""
+
+        backgrounds = []
+        for eta_count in (384, 767):
+            contract = _speedup_contract(_custom_contract())
+            contract["model_name"] = f"BackgroundRefinement{eta_count}"
+            contract["numerical"]["eta_sample_count"] = eta_count
+            contract["perturbations"]["numerics"] = copy.deepcopy(
+                contract["numerical"]
+            )
+            prepared = _prepare_native_contract(contract)
+            physical = (
+                native_background._resolve_custom_cmb_physical_parameters(
+                    prepared
+                )
+            )
+            numerics = native_background._resolve_custom_cmb_numerics(prepared)
+            backgrounds.append(
+                native_background._build_custom_cmb_background(
+                    prepared,
+                    physical,
+                    numerics,
+                )
+            )
+
+        coarse, refined = backgrounds
+        for name in (
+            "eta0",
+            "sound_horizon_mpc",
+            "eta_rec",
+            "reionization_z",
+            "reionization_tau",
+        ):
+            metric = native_convergence.evaluate_control_refinement(
+                (getattr(coarse, name),),
+                (getattr(refined, name),),
+                name=f"background {name}",
+                tolerance=0.01,
+            )
+            native_convergence.require_native_convergence(metric)
+        scale_factor = numpy.geomspace(1.0e-4, 1.0, 512)
+        for name in ("visibility_of_eta", "x_e_of_eta"):
+            coarse_history = getattr(coarse, name)(
+                coarse.eta_of_a(scale_factor)
+            )
+            refined_history = getattr(refined, name)(
+                refined.eta_of_a(scale_factor)
+            )
+            metric = native_convergence.evaluate_control_refinement(
+                coarse_history,
+                refined_history,
+                name=f"background {name}",
+                tolerance=0.01,
+            )
+            native_convergence.require_native_convergence(metric)
 
     def test_native_background_keeps_pre_grid_conformal_time(self) -> None:
         """Native eta and sound-horizon grids should start at the big bang."""
@@ -6525,6 +6647,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertIn("evolution_work_units", spectrum_data.runtime_envelope)
         self.assertIn("projection_work_units", spectrum_data.runtime_envelope)
+        numerical_envelope = spectrum_data.runtime_envelope[
+            "numerical_envelope"
+        ]
+        self.assertIsNone(numerical_envelope["accuracy_tier"])
+        self.assertEqual(numerical_envelope["sectors"], ["scalar"])
+        self.assertEqual(
+            numerical_envelope["spectrum_relative_tolerances"]["lensed_BB"],
+            0.05,
+        )
         for phase_name in (
             "compilation",
             "background",
@@ -6545,6 +6676,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(performance["requests"]), 2)
         self.assertEqual(int(performance["cache_hits"]), 1)
         self.assertIn("total_seconds", performance["phase_seconds"])
+
+    def test_final_accuracy_tier_fails_before_background_work(self) -> None:
+        """An under-resolved final request must fail before integration."""
+
+        raw_contract = _speedup_contract(_analytic_signal_contract())
+        raw_contract["perturbations"]["accuracy_controls"] = {
+            "accuracy_tier": "final",
+            "runtime_envelope": "bounded",
+        }
+        contract = _prepare_native_contract(raw_contract)
+        with mock.patch.object(
+            native_projection,
+            "_build_custom_cmb_background",
+        ) as background_builder:
+            with self.assertRaisesRegex(ValueError, "under-resolved"):
+                native_projection._compute_custom_cmb_spectrum_data(
+                    contract,
+                    numpy.arange(20, 25, dtype=int),
+                )
+        background_builder.assert_not_called()
 
     def test_native_runtime_prepares_graph_once_per_spectrum(self) -> None:
         """Static graph preparation must not scale with Fourier modes."""
@@ -7460,6 +7611,84 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "odd",
         )
 
+    def test_native_vector_polarization_terminals_absorb_free_streaming(
+        self,
+    ) -> None:
+        """Vector E and B terminals must use the flat-space closure."""
+
+        contract = _prepare_native_contract(
+            _native_vector_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+        context = {
+            "acoustic_k": 0.2,
+            "collision_rate": 0.0,
+            "vector_eta_safe": 10.0,
+            "e_gamma_v7": 0.2,
+            "e_gamma_v8": 0.07,
+            "b_gamma_v7": -0.1,
+            "b_gamma_v8": 0.04,
+        }
+        e_terminal = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_e_gamma_v8"].compiled_rhs,
+            context,
+        )
+        b_terminal = native_evolution._evaluate_compiled_expression_noerr(
+            perturbation_data.equations["evolve_b_gamma_v8"].compiled_rhs,
+            context,
+        )
+
+        self.assertAlmostEqual(
+            float(e_terminal),
+            8.0 / 7.0 * 0.2 * 0.2
+            - 10.0 * 0.07 / 10.0
+            + 2.0 / (8.0 * 9.0) * 0.2 * 0.04,
+        )
+        self.assertAlmostEqual(
+            float(b_terminal),
+            8.0 / 7.0 * 0.2 * -0.1
+            - 10.0 * 0.04 / 10.0
+            - 2.0 / (8.0 * 9.0) * 0.2 * 0.07,
+        )
+
+    def test_native_vector_hierarchy_spectra_converge_below_one_percent(
+        self,
+    ) -> None:
+        """Vector TT, EE, and BB meet the hierarchy refinement bound."""
+
+        spectra_by_depth = []
+        for depth in (8, 10):
+            contract = _speedup_contract(_native_vector_hierarchy_contract())
+            controls = {
+                "k_sample_count": 8,
+                "eta_sample_count": 192,
+                "photon_hierarchy_l_max": depth,
+                "photon_polarization_hierarchy_l_max": depth,
+                "neutrino_hierarchy_l_max": depth - 3,
+            }
+            contract["model_name"] = f"VectorHierarchyRefinement{depth}"
+            contract["numerical"].update(controls)
+            contract["perturbations"]["numerics"].update(controls)
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 60, 120), dtype=int),
+                    requested_spectra=("TT", "EE", "BB"),
+                )
+            )
+            spectra_by_depth.append(spectrum_data.spectra)
+
+        for spectrum_name in ("TT", "EE", "BB"):
+            metric = native_convergence.evaluate_control_refinement(
+                spectra_by_depth[0][spectrum_name],
+                spectra_by_depth[1][spectrum_name],
+                name=f"vector {spectrum_name} hierarchy",
+                tolerance=(
+                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
+                ),
+            )
+            native_convergence.require_native_convergence(metric)
+
     def test_native_vector_manifest_records_physical_sector_roles(
         self,
     ) -> None:
@@ -7825,11 +8054,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertAlmostEqual(
             float(e_terminal),
-            8.0 / 17.0 * 0.2 * 0.2 + 4.0 / (8.0 * 9.0) * 0.2 * 0.04,
+            8.0 / 6.0 * 0.2 * 0.2
+            - 11.0 * 0.07 / 10.0
+            + 4.0 / (8.0 * 9.0) * 0.2 * 0.04,
         )
         self.assertAlmostEqual(
             float(b_terminal),
-            8.0 / 17.0 * 0.2 * -0.1 - 4.0 / (8.0 * 9.0) * 0.2 * 0.07,
+            8.0 / 6.0 * 0.2 * -0.1
+            - 11.0 * 0.04 / 10.0
+            - 4.0 / (8.0 * 9.0) * 0.2 * 0.07,
         )
 
     def test_native_tensor_hierarchy_depth_converges_source_histories(
@@ -7871,6 +8104,44 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 0.01,
                 msg=f"{key} hierarchy-depth error: {relative_error}",
             )
+
+    def test_native_tensor_hierarchy_spectra_converge_below_one_percent(
+        self,
+    ) -> None:
+        """Tensor TT, EE, and BB meet the hierarchy refinement bound."""
+
+        spectra_by_depth = []
+        for depth in (12, 14):
+            contract = _speedup_contract(_native_tensor_hierarchy_contract())
+            controls = {
+                "k_sample_count": 8,
+                "eta_sample_count": 192,
+                "photon_hierarchy_l_max": depth,
+                "photon_polarization_hierarchy_l_max": depth,
+                "neutrino_hierarchy_l_max": depth - 3,
+            }
+            contract["model_name"] = f"TensorHierarchyRefinement{depth}"
+            contract["numerical"].update(controls)
+            contract["perturbations"]["numerics"].update(controls)
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 60, 120), dtype=int),
+                    requested_spectra=("TT", "EE", "BB"),
+                )
+            )
+            spectra_by_depth.append(spectrum_data.spectra)
+
+        for spectrum_name in ("TT", "EE", "BB"):
+            metric = native_convergence.evaluate_control_refinement(
+                spectra_by_depth[0][spectrum_name],
+                spectra_by_depth[1][spectrum_name],
+                name=f"tensor {spectrum_name} hierarchy",
+                tolerance=(
+                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
+                ),
+            )
+            native_convergence.require_native_convergence(metric)
 
     def test_native_tensor_hierarchy_transfer_payloads_are_finite(
         self,
@@ -9381,6 +9652,58 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             abs(fine_mass_fraction - medium_mass_fraction),
             abs(medium_mass_fraction - coarse_mass_fraction),
         )
+
+    def test_massive_neutrino_q_and_hierarchy_spectra_converge(self) -> None:
+        """Massive-neutrino q and hierarchy refinements meet final bounds."""
+
+        spectra = []
+        for q_count, hierarchy_l_max in ((16, 5), (20, 5), (20, 7)):
+            contract = _speedup_contract(
+                _native_scalar_hierarchy_contract(
+                    include_massive_neutrino=True,
+                    sum_mnu=0.5,
+                )
+            )
+            contract["model_name"] = (
+                f"MassiveNeutrinoQ{q_count}L{hierarchy_l_max}"
+            )
+            contract["numerical"].update(
+                {
+                    "k_sample_count": 6,
+                    "eta_sample_count": 128,
+                    "massive_neutrino_hierarchy_l_max": hierarchy_l_max,
+                }
+            )
+            contract["numerical"]["momentum_grids"][
+                "massive_neutrino_default"
+            ]["count"] = q_count
+            contract["perturbations"]["numerics"] = copy.deepcopy(
+                contract["numerical"]
+            )
+            native_cache.clear_native_cmb_caches()
+            spectrum_data = (
+                native_projection._compute_custom_cmb_spectrum_data(
+                    _prepare_native_contract(contract),
+                    numpy.asarray((20, 40), dtype=int),
+                    requested_spectra=("TT",),
+                )
+            )
+            spectra.append(spectrum_data.spectra["TT"])
+
+        q_metric = native_convergence.evaluate_control_refinement(
+            spectra[0],
+            spectra[1],
+            name="massive-neutrino q grid",
+            tolerance=native_convergence.FINAL_Q_GRID_RELATIVE_TOLERANCE,
+        )
+        hierarchy_metric = native_convergence.evaluate_control_refinement(
+            spectra[1],
+            spectra[2],
+            name="massive-neutrino hierarchy",
+            tolerance=(native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
+        )
+        native_convergence.require_native_convergence(q_metric)
+        native_convergence.require_native_convergence(hierarchy_metric)
 
     def test_native_scalar_hierarchy_momentum_grid_cache_reuses(
         self,

@@ -618,7 +618,9 @@ class _CustomCMBNumerics:
     evolution_eta_sample_count: int | None = None
     evolution_phase_step: float = 0.5
     photon_hierarchy_l_max: int = 8
+    photon_polarization_hierarchy_l_max: int = 8
     neutrino_hierarchy_l_max: int = 8
+    massive_neutrino_hierarchy_l_max: int = 5
     ode_rtol: float = 1.0e-6
     ode_atol: float = 1.0e-9
     tight_coupling_ratio: float = 50.0
@@ -626,6 +628,7 @@ class _CustomCMBNumerics:
     a_min: float = 1.0e-8
     source_grid_multiplier: int = 2
     initial_redshift: float = 1.0e5
+    lensing_sampling_factor: float = 1.4
 
 
 @dataclass(slots=True)
@@ -1606,11 +1609,25 @@ def _resolve_custom_cmb_numerics(
             defaults.photon_hierarchy_l_max,
         ),
     )
+    photon_polarization_hierarchy_l_max = max(
+        2,
+        _read_int(
+            "photon_polarization_hierarchy_l_max",
+            defaults.photon_polarization_hierarchy_l_max,
+        ),
+    )
     neutrino_hierarchy_l_max = max(
         2,
         _read_int(
             "neutrino_hierarchy_l_max",
             defaults.neutrino_hierarchy_l_max,
+        ),
+    )
+    massive_neutrino_hierarchy_l_max = max(
+        2,
+        _read_int(
+            "massive_neutrino_hierarchy_l_max",
+            defaults.massive_neutrino_hierarchy_l_max,
         ),
     )
     ode_rtol = _read_float("ode_rtol", defaults.ode_rtol)
@@ -1639,6 +1656,14 @@ def _resolve_custom_cmb_numerics(
         "initial_redshift",
         defaults.initial_redshift,
     )
+    lensing_sampling_factor = _read_float(
+        "lensing_sampling_factor",
+        defaults.lensing_sampling_factor,
+    )
+    if lensing_sampling_factor < 1.0:
+        raise ValueError(
+            "cmb.numerical.lensing_sampling_factor must be at least 1"
+        )
     minimum_ell_max = _accuracy_control_positive_int(
         accuracy_controls,
         "minimum_ell_max",
@@ -1736,6 +1761,54 @@ def _resolve_custom_cmb_numerics(
             "cmb.numerical.neutrino_hierarchy_l_max >= "
             f"{minimum_neutrino_l_max}"
         )
+    minimum_polarization_l_max = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_photon_polarization_hierarchy_l_max",
+    )
+    if (
+        minimum_polarization_l_max is not None
+        and photon_polarization_hierarchy_l_max < minimum_polarization_l_max
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.photon_polarization_hierarchy_l_max >= "
+            f"{minimum_polarization_l_max}"
+        )
+    minimum_massive_neutrino_l_max = _accuracy_control_positive_int(
+        accuracy_controls,
+        "minimum_massive_neutrino_hierarchy_l_max",
+    )
+    if (
+        minimum_massive_neutrino_l_max is not None
+        and massive_neutrino_hierarchy_l_max < minimum_massive_neutrino_l_max
+    ):
+        raise ValueError(
+            "Declared accuracy_controls require "
+            "cmb.numerical.massive_neutrino_hierarchy_l_max >= "
+            f"{minimum_massive_neutrino_l_max}"
+        )
+    raw_minimum_lensing_sampling = _accuracy_control_value(
+        accuracy_controls,
+        "minimum_lensing_sampling_factor",
+    )
+    if raw_minimum_lensing_sampling is not None:
+        minimum_lensing_sampling = float(
+            _coerce_numeric_scalar(
+                raw_minimum_lensing_sampling,
+                name="minimum_lensing_sampling_factor",
+            )
+        )
+        if minimum_lensing_sampling < 1.0:
+            raise ValueError(
+                "cmb.perturbations.accuracy_controls."
+                "minimum_lensing_sampling_factor must be at least 1"
+            )
+        if lensing_sampling_factor < minimum_lensing_sampling:
+            raise ValueError(
+                "Declared accuracy_controls require "
+                "cmb.numerical.lensing_sampling_factor >= "
+                f"{minimum_lensing_sampling:g}"
+            )
     return _CustomCMBNumerics(
         ell_min=ell_min,
         ell_max=ell_max,
@@ -1746,7 +1819,11 @@ def _resolve_custom_cmb_numerics(
         evolution_eta_sample_count=evolution_eta_sample_count,
         evolution_phase_step=evolution_phase_step,
         photon_hierarchy_l_max=photon_hierarchy_l_max,
+        photon_polarization_hierarchy_l_max=(
+            photon_polarization_hierarchy_l_max
+        ),
         neutrino_hierarchy_l_max=neutrino_hierarchy_l_max,
+        massive_neutrino_hierarchy_l_max=(massive_neutrino_hierarchy_l_max),
         ode_rtol=ode_rtol,
         ode_atol=ode_atol,
         tight_coupling_ratio=tight_coupling_ratio,
@@ -1754,6 +1831,7 @@ def _resolve_custom_cmb_numerics(
         a_min=a_min,
         source_grid_multiplier=source_grid_multiplier,
         initial_redshift=initial_redshift,
+        lensing_sampling_factor=lensing_sampling_factor,
     )
 
 

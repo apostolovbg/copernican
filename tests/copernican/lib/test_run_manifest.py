@@ -412,6 +412,14 @@ class TestRunManifest(unittest.TestCase):
                 ],
                 "native-cmb-runtime:dummy",
             )
+            self.assertIn("native_cmb_numerical_envelope", model_entry)
+            self.assertIn(
+                "numerical_envelope",
+                model_entry["native_cmb_runtime_manifest_summary"],
+            )
+            self.assertIsNone(
+                model_entry["native_cmb_numerical_envelope"]["accuracy_tier"]
+            )
             self.assertIn(
                 "reionization_calibration",
                 model_entry["native_cmb_runtime_manifest_summary"],

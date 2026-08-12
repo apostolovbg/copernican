@@ -57,6 +57,10 @@ from .native_background import (
     _resolve_declared_accuracy_controls,
     _resolve_declared_background_context,
 )
+from .native_convergence import (
+    BOUNDED_RUNTIME_LIMITS,
+    resolve_native_numerical_envelope,
+)
 from .native_evolution import (
     _COMPILED_CONTEXT_GLOBALS,
     _build_declared_base_context,
@@ -549,10 +553,10 @@ def _build_projection_k_grid(
         num=max(2, min(sample_count, grid_ell_max - grid_ell_min + 1)),
         dtype=int,
     )
-    anchor_node_budget = max(
-        2,
-        sample_count // (4 if sample_count >= 256 else 2),
-    )
+    # Use one stable physical-anchor budget throughout production-sized
+    # refinements.  The remaining nodes are deterministic midpoint
+    # subdivisions, so the 64-node final ladder is retained at 96 nodes.
+    anchor_node_budget = min(48, max(2, sample_count - 2))
     anchor_ells = _projection_anchor_ells(
         projection_ell_values,
         perturbation_data=perturbation_data,
@@ -1083,6 +1087,19 @@ def _simpson_weights(grid: numpy.ndarray) -> numpy.ndarray:
     for start in range(0, simpson_stop - 2, 2):
         left_step = step_sizes[start]
         right_step = step_sizes[start + 1]
+        ratio_limit = 2.0 * (1.0 + 1.0e-12)
+        if (
+            right_step > ratio_limit * left_step
+            or left_step > ratio_limit * right_step
+        ):
+            # Generalized Simpson weights become negative when adjacent
+            # intervals differ by more than two.  Merged physical grids can
+            # contain near-coincident background anchors, so use the
+            # positive trapezoid rule for only that unstable interval pair.
+            weights[start] += 0.5 * left_step
+            weights[start + 1] += 0.5 * (left_step + right_step)
+            weights[start + 2] += 0.5 * right_step
+            continue
         total_step = left_step + right_step
         weights[start] += (
             total_step * (2.0 * left_step - right_step) / (6.0 * left_step)
@@ -1108,8 +1125,10 @@ def _refine_eta_grid(
     step_sizes = numpy.diff(eta_grid)[:, numpy.newaxis] / float(subdivisions)
     offsets = numpy.arange(subdivisions, dtype=float)[numpy.newaxis, :]
     refined = (left_edges + step_sizes * offsets).reshape(-1)
-    return numpy.concatenate(
-        (numpy.asarray(refined, dtype=float), eta_grid[-1:]),
+    return numpy.unique(
+        numpy.concatenate(
+            (numpy.asarray(refined, dtype=float), eta_grid[-1:]),
+        )
     )
 
 
@@ -1171,12 +1190,7 @@ def _validate_runtime_envelope_controls(
     if runtime_envelope is None:
         return {}
     if runtime_envelope == "bounded":
-        return {
-            "maximum_evolution_work_units": 100_000_000,
-            "maximum_momentum_work_units": 10_000_000,
-            "maximum_projection_work_units": 5_000_000_000,
-            "maximum_total_work_units": 5_200_000_000,
-        }
+        return dict(BOUNDED_RUNTIME_LIMITS)
     if not isinstance(runtime_envelope, Mapping):
         raise ValueError(
             "cmb.perturbations.accuracy_controls.runtime_envelope must be "
@@ -1591,6 +1605,11 @@ def _compute_custom_cmb_spectrum_data(
         )
         execution_plan = _compile_declared_graph_execution_plan(
             perturbation_data
+        )
+        envelope_contract = dict(contract_or_params)
+        envelope_contract["perturbation_data"] = perturbation_data
+        numerical_envelope = resolve_native_numerical_envelope(
+            envelope_contract
         )
     value_steps_by_name = {
         str(step.output_name): step for step in execution_plan.value_steps
@@ -2088,6 +2107,11 @@ def _compute_custom_cmb_spectrum_data(
             sum(runtime.points.size for runtime in momentum_runtimes)
         ),
         evolution_multiplier=(2 if adaptive_controls.evolution_enabled else 1),
+    )
+    runtime_envelope["numerical_envelope"] = numerical_envelope.to_dict()
+    runtime_envelope["accuracy_tier"] = numerical_envelope.accuracy_tier
+    runtime_envelope["lensing_sampling_factor"] = float(
+        numerical_envelope.numerical_controls["lensing_sampling_factor"]
     )
     runtime_envelope["static_graph_preparations"] = 1
     runtime_envelope["contract_static_preparations"] = 1
