@@ -80,6 +80,35 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-12:
+  Change: Fixed native convergence follow-up failures in compact likelihood,
+  sector-envelope, momentum-quadrature, and vector-closure validation.
+  Why: Corrected reduced-test tier metadata and aligned assertions with the
+  compiled graph's bounded sums and physical terminal recurrences.
+  Impact: Restored the failing run surfaces while preserving strict final-tier
+  rejection and complete active-sector reporting.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_convergence.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_native_convergence.py
+  tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_manifest.py
+
+- 2026-08-12:
   Change: Finalized Slice Thirty-Seven cross-sector numerical convergence
   controls and physical refinement validation.
   Why: Aligned closure metadata with the active workflow session after the

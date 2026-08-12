@@ -63,7 +63,9 @@ manifest. The named final tier requires bounded background, transfer,
 source, hierarchy, momentum-grid, and lensing controls and rejects
 under-resolved requests before expensive evolution. Cross-sector refinement
 tests enforce the documented `TT`, `TE`, `EE`, `PP`, lensed `BB`, q-grid,
-and hierarchy thresholds.
+and hierarchy thresholds. Explicit graphs without a sector registry retain
+their active sector identity from compiled observable and tensor-character
+metadata, so runtime envelopes cannot silently omit executed sectors.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so

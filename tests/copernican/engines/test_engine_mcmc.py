@@ -66,6 +66,7 @@ def _build_model_plugin(
             }
         )
         perturbations = parsed["cmb"]["perturbations"]
+        perturbations["accuracy_controls"].pop("accuracy_tier", None)
         perturbations["accuracy_controls"]["scalar_reference_ells"] = [
             2,
             40,

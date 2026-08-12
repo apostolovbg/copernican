@@ -8643,8 +8643,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_metric_shear",
         )
         self.assertIn(
-            "massive_neutrino_q0_shear_weight * nu_massive_q0_l3",
+            "massive_neutrino_metric_l3_q0",
             perturbation_data.derived["nu_massive_l3"].expression,
+        )
+        self.assertIn(
+            "massive_neutrino_q0_shear_weight * nu_massive_q0_l3",
+            perturbation_data.derived[
+                "massive_neutrino_metric_l3_q0"
+            ].expression,
         )
         self.assertIn(
             "acoustic_k * scalar_initial_conformal_time / 6.0",

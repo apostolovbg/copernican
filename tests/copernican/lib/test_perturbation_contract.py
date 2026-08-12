@@ -1382,6 +1382,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             "e_gamma_v5": 0.4,
             "e_gamma_v6": -0.1,
             "b_gamma_v3": 0.6,
+            "b_gamma_v5": -0.2,
             "b_gamma_v6": 0.8,
             "vector_eta_safe": 10.0,
         }
@@ -1417,13 +1418,29 @@ class PerturbationContractTestCase(unittest.TestCase):
             terminal_temperature_rhs,
             (6.0 / 5.0) * 0.5 * 0.2 - (8.0 / 10.0) * (-0.3),
         )
-        self.assertEqual(
-            compiled.equations["evolve_e_gamma_v6"].rhs,
-            "0.0",
+        terminal_e_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_e_gamma_v6"].compiled_rhs,
+                context,
+            )
         )
-        self.assertEqual(
-            compiled.equations["evolve_b_gamma_v6"].rhs,
-            "0.0",
+        self.assertAlmostEqual(
+            terminal_e_rhs,
+            (6.0 / 5.0) * 0.5 * 0.4
+            - 8.0 * (-0.1) / 10.0
+            + (1.0 / 21.0) * 0.5 * 0.8,
+        )
+        terminal_b_rhs = float(
+            evaluate_compiled_expression(
+                compiled.equations["evolve_b_gamma_v6"].compiled_rhs,
+                context,
+            )
+        )
+        self.assertAlmostEqual(
+            terminal_b_rhs,
+            (6.0 / 5.0) * 0.5 * (-0.2)
+            - 8.0 * 0.8 / 10.0
+            - (1.0 / 21.0) * 0.5 * (-0.1),
         )
 
     def test_tensor_metadata_contract_materializes_runtime_graph(

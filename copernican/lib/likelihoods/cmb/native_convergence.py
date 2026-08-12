@@ -358,6 +358,8 @@ def _active_sectors(contract: Mapping[str, Any]) -> tuple[str, ...]:
     perturbation_data = contract.get("perturbation_data")
     if perturbation_data is not None:
         sectors = getattr(perturbation_data, "sectors", {}) or {}
+        variables = getattr(perturbation_data, "variables", {}) or {}
+        observables = getattr(perturbation_data, "observables", {}) or {}
     else:
         perturbations = contract.get("perturbations", {}) or {}
         sectors = (
@@ -365,9 +367,39 @@ def _active_sectors(contract: Mapping[str, Any]) -> tuple[str, ...]:
             if isinstance(perturbations, Mapping)
             else {}
         )
-    if not isinstance(sectors, Mapping):
-        return ()
-    return tuple(sorted(str(name) for name in sectors))
+        variables = (
+            perturbations.get("variables", {})
+            if isinstance(perturbations, Mapping)
+            else {}
+        )
+        observables = (
+            perturbations.get("observables", {})
+            if isinstance(perturbations, Mapping)
+            else {}
+        )
+    if isinstance(sectors, Mapping) and sectors:
+        return tuple(sorted(str(name) for name in sectors))
+
+    inferred: set[str] = set()
+    tensor_character_sectors = {
+        "scalar_like": "scalar",
+        "vector_like": "vector",
+        "tensor_like": "tensor",
+    }
+    for entries in (variables, observables):
+        if not isinstance(entries, Mapping):
+            continue
+        for entry in entries.values():
+            sector = _entry_value(entry, "sector")
+            if sector in {"scalar", "vector", "tensor"}:
+                inferred.add(str(sector))
+            tensor_character = _entry_value(entry, "tensor_character")
+            inferred_sector = tensor_character_sectors.get(
+                str(tensor_character)
+            )
+            if inferred_sector is not None:
+                inferred.add(inferred_sector)
+    return tuple(sorted(inferred))
 
 
 def _finite_control(numerical: Mapping[str, Any], name: str) -> float:

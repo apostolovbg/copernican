@@ -1116,6 +1116,11 @@ envelope records the active sectors, every background and projection
 control, hierarchy depths, momentum-grid definitions, runtime limits, and
 acceptance thresholds.
 
+When an explicit graph omits a sector registry, the resolved envelope infers
+its active sectors from the compiler's observable-sector and variable
+tensor-character metadata. This preserves the executed graph identity in
+runtime and manifest records without adding undeclared hierarchy families.
+
 The final scalar floor uses photon temperature and polarization depths of
 ten and a massless-neutrino depth of seven. The vector floor uses depths
 eight, eight, and five. The tensor floor uses depths twelve, twelve, and

@@ -141,6 +141,34 @@ class NativeConvergenceTestCase(unittest.TestCase):
         )
         self.assertEqual(len(payload["runtime_limits"]), 4)
 
+    def test_envelope_infers_sector_from_compiled_graph_metadata(self) -> None:
+        """Explicit graphs without sector blocks retain their graph sector."""
+
+        contract = {
+            "perturbation_data": SimpleNamespace(
+                accuracy_controls={},
+                hierarchy_families={},
+                numerics={},
+                sectors={},
+                variables={
+                    "signal": SimpleNamespace(
+                        sector=None,
+                        tensor_character="scalar_like",
+                    )
+                },
+                observables={
+                    "TT": SimpleNamespace(
+                        sector="scalar",
+                        tensor_character="scalar_like",
+                    )
+                },
+            )
+        }
+
+        envelope = resolve_native_numerical_envelope(contract)
+
+        self.assertEqual(envelope.sectors, ("scalar",))
+
     def test_final_tier_rejects_each_underresolved_control_family(
         self,
     ) -> None:
