@@ -9,6 +9,11 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy
 import pandas
 
+from ...cmb_output import (
+    CMBObservationBlock,
+    assemble_cmb_theory_vector,
+    cmb_observation_blocks,
+)
 from ...model_coder import prepare_native_cmb_execution_contract
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
 from .copernican_cmb_solver import _compute_declared_perturbation_spectrum
@@ -119,7 +124,7 @@ class CMBLike(LikelihoodProtocol):
     _ells: numpy.ndarray = field(init=False, repr=False)
     _observed: numpy.ndarray = field(init=False, repr=False)
     _observed_spectra: tuple[str, ...] = field(init=False, repr=False)
-    _observed_spectrum_labels: numpy.ndarray = field(
+    _observation_blocks: tuple[CMBObservationBlock, ...] = field(
         init=False,
         repr=False,
     )
@@ -141,43 +146,31 @@ class CMBLike(LikelihoodProtocol):
             self._ells = numpy.empty(0, dtype=int)
             self._observed = numpy.empty(0, dtype=float)
             self._observed_spectra = ()
-            self._observed_spectrum_labels = numpy.empty(0, dtype=object)
+            self._observation_blocks = ()
             self._cov_inv = None
             self._residual_buffer = numpy.empty(0, dtype=float)
             return
 
+        blocks = cmb_observation_blocks(cmb_df)
+        self._observation_blocks = blocks
         if "spectrum" in cmb_df.columns:
-            spectrum_series = cmb_df["spectrum"].astype(str)
-            observed_spectra = tuple(dict.fromkeys(spectrum_series.tolist()))
-            ordered_spectra = pandas.Categorical(
-                spectrum_series,
-                categories=list(observed_spectra),
-                ordered=True,
+            self._observed_spectra = tuple(
+                block.metadata.canonical_name for block in blocks
             )
-            ordered_df = cmb_df.assign(
-                _spectrum_order=ordered_spectra
-            ).sort_values(
-                ["_spectrum_order", "ell"],
-                kind="stable",
-            )
-            self._observed_spectra = observed_spectra
-            self._ells = ordered_df["ell"].to_numpy(dtype=int, copy=True)
-            self._observed = ordered_df["Dl_obs"].to_numpy(
+            self._ells = cmb_df["ell"].to_numpy(dtype=int, copy=True)
+            self._observed = cmb_df["Dl_obs"].to_numpy(
                 dtype=float,
                 copy=True,
             )
-            self._observed_spectrum_labels = ordered_df["spectrum"].to_numpy(
-                dtype=object, copy=True
-            )
         else:
             self._observed_spectra = ("TT",)
+            self._observation_blocks = tuple(
+                block
+                for block in blocks
+                if block.metadata.canonical_name == "TT"
+            )
             self._ells = cmb_df["ell"].to_numpy(dtype=int, copy=True)
             self._observed = cmb_df["Dl_obs"].to_numpy(dtype=float, copy=True)
-            self._observed_spectrum_labels = numpy.full(
-                self._observed.shape,
-                "TT",
-                dtype=object,
-            )
         if numpy.any(~numpy.isfinite(self._observed)):
             self._setup_error = (
                 "(cmb_like): Observed spectrum contains non-finite values."
@@ -270,19 +263,15 @@ class CMBLike(LikelihoodProtocol):
             return float("-inf")
 
         if isinstance(theory, Mapping):
-            theory_blocks = {
-                str(name): numpy.asarray(values, dtype=float)
-                for name, values in theory.items()
-            }
-            theory_vector = numpy.empty_like(self._observed, dtype=float)
-            for index, (spectrum_name, _ell_value) in enumerate(
-                zip(self._observed_spectrum_labels, self._ells)
-            ):
-                block = theory_blocks.get(str(spectrum_name))
-                if block is None or index >= block.size:
-                    self._state = LikelihoodState()
-                    return float("-inf")
-                theory_vector[index] = float(block[index])
+            try:
+                theory_vector = assemble_cmb_theory_vector(
+                    theory,
+                    self._observation_blocks,
+                    total_row_count=self._observed.size,
+                )
+            except (KeyError, TypeError, ValueError):
+                self._state = LikelihoodState()
+                return float("-inf")
         else:
             theory_vector = numpy.asarray(theory, dtype=float)
             if len(requested_spectra) > 1:

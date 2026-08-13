@@ -58,6 +58,30 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertTrue(any("ModelX CMB TE" in line for line in lines))
         self.assertFalse(any("mismatched" in line for line in lines))
 
+    def test_cmb_diagnostics_preserves_long_form_surface_names(self):
+        """Long-form diagnostics must not merge physical output surfaces."""
+
+        data_frame = pandas.DataFrame(
+            {
+                "ell": [30, 20, 40, 30],
+                "spectrum": ["scalar_TT", "PP", "scalar_TT", "PP"],
+                "Dl_obs": [10.0, 0.1, 12.0, 0.2],
+            }
+        )
+        theory = {
+            "scalar_TT": numpy.array([9.0, 0.0, 11.0, 0.0]),
+            "PP": numpy.array([0.0, 0.08, 0.0, 0.18]),
+        }
+
+        lines = cmb_residual_diagnostics(
+            data_frame,
+            theory,
+            model_name="ModelX",
+        )
+
+        self.assertTrue(any("CMB scalar_TT" in line for line in lines))
+        self.assertTrue(any("CMB PP" in line for line in lines))
+
 
 if __name__ == "__main__":  # pragma: no cover - convenience for local runs
     unittest.main()

@@ -13,9 +13,11 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq
 from scipy.special import spherical_jn
 
+from ...cmb_output import canonical_cmb_spectrum_name
 from ...engine_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
+    FrozenMapping,
     _evaluate_safe_expression,
     _freeze_for_cache,
 )
@@ -784,7 +786,7 @@ def _physical_runtime_scalars(
     return runtime_scalars
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class CustomCMBSpectrumData:
     """Internal transfer-component and spectrum payload for CMB outputs."""
 
@@ -793,38 +795,93 @@ class CustomCMBSpectrumData:
     transfer_components: Mapping[str, numpy.ndarray]
     spectra: Mapping[str, numpy.ndarray]
     runtime_envelope: Mapping[str, Any] = field(default_factory=dict)
+    spectrum_availability: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Freeze cached arrays and mappings before exposing the payload."""
+
+        ell_grid = numpy.asarray(self.ell_grid)
+        k_grid = numpy.asarray(self.k_grid)
+        ell_grid.setflags(write=False)
+        k_grid.setflags(write=False)
+        transfer_components = {}
+        for name, values in self.transfer_components.items():
+            array = numpy.asarray(values)
+            array.setflags(write=False)
+            transfer_components[str(name)] = array
+        spectra = {}
+        for name, values in self.spectra.items():
+            array = numpy.asarray(values)
+            array.setflags(write=False)
+            spectra[canonical_cmb_spectrum_name(name)] = array
+        object.__setattr__(self, "ell_grid", ell_grid)
+        object.__setattr__(self, "k_grid", k_grid)
+        object.__setattr__(
+            self,
+            "transfer_components",
+            FrozenMapping(transfer_components),
+        )
+        object.__setattr__(self, "spectra", FrozenMapping(spectra))
+        object.__setattr__(
+            self,
+            "runtime_envelope",
+            FrozenMapping(self.runtime_envelope),
+        )
+        object.__setattr__(
+            self,
+            "spectrum_availability",
+            FrozenMapping(
+                {
+                    canonical_cmb_spectrum_name(name): str(status)
+                    for name, status in self.spectrum_availability.items()
+                }
+            ),
+        )
+
+    def _transfer_component(self, name: str) -> numpy.ndarray:
+        """Return one declared transfer or fail instead of fabricating it."""
+
+        if name not in self.transfer_components:
+            raise KeyError(f"Transfer component '{name}' is unavailable")
+        return numpy.asarray(self.transfer_components[name])
+
+    def _spectrum(self, name: str) -> numpy.ndarray:
+        """Return one computed spectrum or fail instead of returning empty."""
+
+        if name not in self.spectra:
+            status = self.spectrum_availability.get(name, "unavailable")
+            raise KeyError(f"Spectrum '{name}' is {status}")
+        return numpy.asarray(self.spectra[name])
 
     @property
     def Delta_l_T(self) -> numpy.ndarray:
         """Return the temperature transfer component when present."""
 
-        return numpy.asarray(self.transfer_components.get("temperature", []))
+        return self._transfer_component("temperature")
 
     @property
     def Delta_l_E(self) -> numpy.ndarray:
         """Return the E-mode transfer component when present."""
 
-        return numpy.asarray(
-            self.transfer_components.get("polarization_e", []),
-        )
+        return self._transfer_component("polarization_e")
 
     @property
     def C_l_TT(self) -> numpy.ndarray:
         """Return the TT power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("TT", []))
+        return self._spectrum("TT")
 
     @property
     def C_l_TE(self) -> numpy.ndarray:
         """Return the TE power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("TE", []))
+        return self._spectrum("TE")
 
     @property
     def C_l_EE(self) -> numpy.ndarray:
         """Return the EE power spectrum when present."""
 
-        return numpy.asarray(self.spectra.get("EE", []))
+        return self._spectrum("EE")
 
 
 @dataclass(frozen=True, slots=True)
@@ -1438,7 +1495,12 @@ def _custom_cmb_spectrum_cache_key(
     requested_key = None
     if requested_spectra is not None:
         requested_key = tuple(
-            sorted({str(name).upper() for name in requested_spectra})
+            sorted(
+                {
+                    canonical_cmb_spectrum_name(name)
+                    for name in requested_spectra
+                }
+            )
         )
     return native_cache.NativeRuntimeCacheIdentity(
         contract_static=_freeze_for_cache(

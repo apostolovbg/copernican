@@ -1096,8 +1096,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     any(term in description for term in forbidden_terms)
                 )
 
-    def test_native_cmb_models_spectrum_smoke(self):
-        """Every CMB-capable model must execute a finite native spectrum."""
+    def test_native_cmb_models_execute_finite_declared_tt(self):
+        """Every CMB-capable model must execute finite declared TT."""
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
@@ -1417,8 +1417,8 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
         )
 
-    def test_native_lcdm_spectrum_smoke_is_finite(self) -> None:
-        """Native scalar spectra must execute without an external solver."""
+    def test_native_lcdm_declared_spectra_are_finite(self) -> None:
+        """Declared LCDM spectra must execute without an external solver."""
 
         plugin = self._build_plugin()
         ell_grid = numpy.asarray([2, 10, 20], dtype=int)

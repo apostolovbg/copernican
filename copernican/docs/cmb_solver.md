@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-08-13
 **Project Version:** 12.0.26
 
 ## Overview
@@ -895,8 +895,28 @@ The tensor route reads `r` as the tensor-to-scalar amplitude ratio and `nt`
 as the tensor spectral index when constructing the primordial tensor power
 law.
 
-Unavailable spectra stay unavailable. Physically zero and unavailable are not
-the same state.
+Public names use the canonical
+`[lensed_][scalar_|vector_|tensor_|total_]SPECTRUM` form. Exact component
+observables declared by a graph retain that name; they are not collapsed into
+an unprefixed surface. A component alias is valid only when the matching
+sector owns the underlying observable. A `total_` alias can refer to a
+single-sector output, an explicit total observable, or an observable whose
+metadata identifies a mixed surface. It cannot relabel one sector of a
+multi-sector graph as the total.
+
+Every internal spectrum payload records one availability state for each
+relevant name. `computed` identifies a requested declared result,
+`unrequested` identifies a declared result outside the request dependency
+closure, and `physical_zero` identifies the absent primordial `BB` baseline
+accepted by the exact remapper. A name outside the declared graph is
+unavailable and raises an error. Accessors never convert any of these states
+into an empty array, and cached arrays are read-only.
+
+Long-form CMB data uses the columns `ell`, `spectrum`, and `Dl_obs`.
+Likelihood evaluation preserves the original table and covariance order,
+including repeated and noncontiguous multipoles. Plot, diagnostic, and CSV
+surfaces use the same canonical metadata, so scalar, vector, tensor, total,
+lensed, unlensed, lensing-potential, and diagnostic outputs remain separate.
 
 ## Native Execution Pipeline
 
@@ -934,6 +954,14 @@ source histories, transfer matrices, and public spectrum surfaces. The
 `NativeRuntimeCacheIdentity` records those three key portions separately, so a
 new multipole request does not invalidate structural or cosmology-static
 entries.
+
+The spectrum cache identity freezes the full execution-relevant contract view:
+graph structure, bound `param_map` and model-parameter values, declared grids,
+numerical and accuracy controls, background-provider identity, requested
+canonical spectra, and the ordered multipole sequence. Repeated multipoles
+remain part of that sequence. Changing any one of these inputs produces a
+different request identity, while an identical request returns the same
+read-only payload.
 
 Each scalar mode uses the compiled equation program. A graph without split
 collision operators uses one implicit BDF solve on the declared continuous

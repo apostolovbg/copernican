@@ -8,64 +8,24 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
+from ...cmb_output import (
+    canonical_cmb_spectrum_name as _canonical_spectrum_name,
+)
+from ...cmb_output import (
+    compose_cmb_spectrum_name as _compose_canonical_spectrum_name,
+)
+from ...cmb_output import (
+    split_cmb_spectrum_name as _split_canonical_spectrum_name,
+)
 from . import native_cache
 from .native_lensing import lensed_cls as _lensed_cls
 from .native_projection import _compute_custom_cmb_spectrum_data
 
-_CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
-_LENSED_NATIVE_SPECTRA = frozenset(
-    {"lensed_BB", "lensed_EE", "lensed_TE", "lensed_TT"}
-)
-_NATIVE_SPECTRUM_COMPONENT_PREFIXES = frozenset(
-    {"scalar", "total", "tensor", "vector"}
-)
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_b",
     "polarization_e",
     "temperature",
 }
-_SPECTRUM_ALIASES = {
-    "EPHI": "EP",
-    "PHIPHI": "PP",
-    "TPHI": "TP",
-}
-
-
-def _split_canonical_spectrum_name(
-    spectrum_name: str,
-) -> tuple[bool, str | None, str]:
-    """Return ``(lensed, component, base_name)`` for ``spectrum_name``."""
-
-    name = str(spectrum_name)
-    lensed = name.lower().startswith("lensed_")
-    if lensed:
-        name = name.split("_", 1)[1]
-    lower_name = name.lower()
-    component = None
-    for candidate in sorted(_NATIVE_SPECTRUM_COMPONENT_PREFIXES):
-        prefix = f"{candidate}_"
-        if lower_name.startswith(prefix):
-            component = candidate
-            name = name[len(prefix) :]
-            break
-    return lensed, component, str(name).upper()
-
-
-def _compose_canonical_spectrum_name(
-    *,
-    lensed: bool,
-    component: str | None,
-    base_name: str,
-) -> str:
-    """Return the canonical spectrum name for one parsed spectrum token."""
-
-    name = str(base_name).upper()
-    name = _SPECTRUM_ALIASES.get(name, name)
-    if component is not None:
-        name = f"{component}_{name}"
-    if lensed:
-        return f"lensed_{name}"
-    return name
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -77,31 +37,11 @@ def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
     return numpy.asarray(clipped, dtype=float)
 
 
-def _canonical_spectrum_name(spectrum_name: str) -> str:
-    """Return the canonical native-spectrum name for ``spectrum_name``."""
-
-    lensed, component, base_name = _split_canonical_spectrum_name(
-        spectrum_name
-    )
-    return _compose_canonical_spectrum_name(
-        lensed=lensed,
-        component=component,
-        base_name=base_name,
-    )
-
-
 def _base_spectrum_name(spectrum_name: str) -> str:
     """Return the unprefixed unlensed spectrum token for ``spectrum_name``."""
 
     _, _, base_name = _split_canonical_spectrum_name(spectrum_name)
-    return _SPECTRUM_ALIASES.get(base_name, base_name)
-
-
-def _spectrum_component_name(spectrum_name: str) -> str | None:
-    """Return the component prefix encoded in ``spectrum_name``."""
-
-    _, component, _ = _split_canonical_spectrum_name(spectrum_name)
-    return component
+    return base_name
 
 
 def _is_lensed_requested_spectrum(spectrum_name: str) -> bool:
@@ -247,15 +187,27 @@ def _normalize_lensing_input_spectra(
 
 def _requested_base_spectra(
     canonical_requested_spectra: Sequence[str],
+    *,
+    perturbation_data: Any | None = None,
 ) -> tuple[str, ...]:
     """Return the non-lensed spectra needed to satisfy one request set."""
 
+    declared_spectra = {
+        _canonical_spectrum_name(name)
+        for name, entry in (
+            getattr(perturbation_data, "observables", {}) or {}
+        ).items()
+        if getattr(entry, "kind", None) == "angular_power_spectrum"
+    }
     base_spectra: set[str] = set()
     for spectrum_name in canonical_requested_spectra:
         if _is_lensed_requested_spectrum(spectrum_name):
             base_spectra.update({"TT", "TE", "EE", "BB", "PP"})
             continue
-        base_spectra.add(_base_spectrum_name(spectrum_name))
+        if spectrum_name in declared_spectra:
+            base_spectra.add(spectrum_name)
+        else:
+            base_spectra.add(_base_spectrum_name(spectrum_name))
     return tuple(sorted(base_spectra))
 
 
@@ -280,17 +232,28 @@ def _resolve_available_spectrum_name(
     )
     if fallback_name not in available_spectra:
         return None
-    if component in (None, "total"):
+    if component is None:
         return fallback_name
     sector_names = tuple(
         str(name)
         for name in perturbation_data.manifest_summary.get("sector_names", ())
     )
-    if len(sector_names) == 1 and sector_names[0] == component:
-        return fallback_name
     observable_entry = perturbation_data.observables.get(
         _base_spectrum_name(fallback_name)
     )
+    if component == "total":
+        if len(sector_names) == 1:
+            return fallback_name
+        observable_sector = str(
+            getattr(observable_entry, "sector", None) or ""
+        )
+        return (
+            fallback_name
+            if observable_sector in {"", "mixed", "total"}
+            else None
+        )
+    if len(sector_names) == 1 and sector_names[0] == component:
+        return fallback_name
     if (
         observable_entry is not None
         and str(observable_entry.sector or "") == component
@@ -319,6 +282,8 @@ def _compute_declared_perturbation_spectrum(
     if requested_ell_grid.size == 0:
         raise ValueError("ells must not be empty")
     requested_spectra = tuple(str(name) for name in spectra)
+    if not requested_spectra:
+        raise ValueError("Requested CMB spectra must not be empty")
     canonical_requested_spectra = tuple(
         _canonical_spectrum_name(name) for name in requested_spectra
     )
@@ -336,7 +301,8 @@ def _compute_declared_perturbation_spectrum(
         analysis_ell_grid = requested_ell_grid
         output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
     base_requested_spectra = _requested_base_spectra(
-        canonical_requested_spectra
+        canonical_requested_spectra,
+        perturbation_data=perturbation_data,
     )
     custom_data = _compute_custom_cmb_spectrum_data(
         contract_or_params,

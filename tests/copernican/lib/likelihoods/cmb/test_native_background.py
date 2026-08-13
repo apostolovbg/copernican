@@ -82,6 +82,28 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             numpy.array_equal(spectrum_data.C_l_EE, numpy.array([9.0, 10.0]))
         )
 
+    def test_spectrum_payload_is_read_only_and_missing_values_fail(self):
+        """Cached outputs must not fabricate or permit mutated spectra."""
+
+        spectrum_data = native_background.CustomCMBSpectrumData(
+            ell_grid=numpy.array([20, 30]),
+            k_grid=numpy.array([0.1, 0.2]),
+            transfer_components={
+                "temperature": numpy.array([1.0, 2.0]),
+            },
+            spectra={"TT": numpy.array([3.0, 4.0])},
+            spectrum_availability={"TT": "computed", "EE": "unrequested"},
+        )
+
+        with self.assertRaisesRegex(KeyError, "EE.*unrequested"):
+            _ = spectrum_data.C_l_EE
+        with self.assertRaisesRegex(KeyError, "polarization_e.*unavailable"):
+            _ = spectrum_data.Delta_l_E
+        with self.assertRaises(ValueError):
+            spectrum_data.C_l_TT[0] = 0.0
+        with self.assertRaises(TypeError):
+            spectrum_data.spectra["TT"] = numpy.zeros(2)
+
     def test_native_background_source_does_not_import_camb(self):
         """The native background module should remain CAMB-free."""
 

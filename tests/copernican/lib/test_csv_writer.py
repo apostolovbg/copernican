@@ -108,5 +108,56 @@ class SNeCsvWriterRegressionTestCase(unittest.TestCase):
             )
 
 
+class CMBCsvWriterRegressionTestCase(unittest.TestCase):
+    """Exercise exact long-form CMB output serialization."""
+
+    def test_long_form_cmb_csv_preserves_surface_rows(self) -> None:
+        """CSV theory columns must align repeated interleaved spectra."""
+
+        observations = pandas.DataFrame(
+            {
+                "ell": [30, 20, 40, 30],
+                "spectrum": ["scalar_TT", "PP", "scalar_TT", "PP"],
+                "Dl_obs": [10.0, 0.1, 12.0, 0.2],
+            }
+        )
+        observations.attrs["dataset_id"] = "cmb_long_form"
+        theory = {
+            "scalar_TT": numpy.array([9.0, 0.0, 11.0, 0.0]),
+            "PP": numpy.array([0.0, 0.08, 0.0, 0.18]),
+        }
+        results = {"theory_spectrum": theory}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            module.save_cmb_results_csv(
+                observations,
+                results,
+                results,
+                csv_dir=tmpdir,
+                timestamp="20260812_000000",
+                comparison=build_comparison_request(
+                    "Reference Model",
+                    "Candidate Model",
+                ),
+            )
+
+            csv_files = list(Path(tmpdir).glob("*.csv"))
+            self.assertEqual(len(csv_files), 1)
+            output_df = pandas.read_csv(csv_files[0])
+
+        self.assertEqual(
+            output_df["spectrum"].tolist(),
+            ["scalar_TT", "PP", "scalar_TT", "PP"],
+        )
+        numpy.testing.assert_allclose(
+            output_df["Dl_Reference_Model"],
+            [9.0, 0.08, 11.0, 0.18],
+        )
+        numpy.testing.assert_allclose(
+            output_df["residual_Reference_Model"],
+            [1.0, 0.02, 1.0, 0.02],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

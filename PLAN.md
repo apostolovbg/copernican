@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-08-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -2239,7 +2239,7 @@ Implementation closure:
 * The canonical native LambdaCDM declaration selects the bounded final tier
   and declares its complete hierarchy and lensing controls.
 
-### [open] Slice Thirty-Eight - Output, cache, and contract consistency
+### [closed] Slice Thirty-Eight - Output, cache, and contract consistency
 
 Purpose:
 
@@ -2274,6 +2274,26 @@ Done when:
 
 * Public APIs, cache behavior, plotting surfaces, and spectrum metadata
   agree with the native physical graph.
+
+Implementation closure:
+
+* Canonical output metadata keeps scalar, vector, tensor, total, lensed,
+  unlensed, lensing-potential, and diagnostic surfaces distinct across the
+  likelihood, run pipeline, plots, diagnostics, and CSV output.
+* Long-form likelihood blocks preserve dataset and covariance order for
+  repeated and noncontiguous multipoles.
+* Native payloads expose computed, unrequested, and physical-zero states,
+  reject unavailable access, and freeze cached arrays against mutation.
+* Spectrum cache identities bind graph structure, parameters, grids,
+  requested spectra, accuracy controls, provider identity, and the ordered
+  multipole sequence.
+* Exact declared component spectra retain their names; single-sector aliases
+  match their total surfaces, and mixed-sector totals require a defensible
+  total observable.
+* Exact lensing tests prove that changing `PP` changes every lensed surface
+  and that primordial vector and tensor `BB` survive remapping.
+* Acceptance-only sector timing coverage was removed in favor of named
+  cache, availability, output, likelihood, and cross-sector assertions.
 
 ### [open] Slice Thirty-Nine - Final scientific and repository closure
 

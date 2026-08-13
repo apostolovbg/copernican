@@ -14,6 +14,8 @@ from typing import Iterable, Mapping
 import numpy
 import pandas
 
+from .cmb_output import cmb_observation_blocks, cmb_theory_values_for_block
+
 
 def _residual_statistics(
     residuals: numpy.ndarray,
@@ -102,39 +104,24 @@ def cmb_residual_diagnostics(
     if cmb_data is None or getattr(cmb_data, "empty", True):
         return [f"{model_name} CMB residuals unavailable (no data)."]
 
-    if isinstance(theory, numpy.ndarray):
-        theory_map: Mapping[str, numpy.ndarray] = {}
-        theory_map["TT"] = numpy.asarray(theory, dtype=float)
-    else:
-        theory_map = {}
-        for key, component_values in theory.items():
-            theory_map[key] = numpy.asarray(component_values, dtype=float)
-
-    component_columns = {
-        "TT": "Dl_obs",
-        "TE": "Dl_te_obs",
-        "EE": "Dl_ee_obs",
-    }
-
     lines: list[str] = []
-    for component, obs_col in component_columns.items():
-        if component not in theory_map or obs_col not in cmb_data:
+    for block in cmb_observation_blocks(cmb_data):
+        try:
+            predicted = cmb_theory_values_for_block(
+                theory,
+                block,
+                total_row_count=len(cmb_data),
+            )
+        except (KeyError, TypeError, ValueError):
             continue
-
-        observed = cmb_data[obs_col].to_numpy(dtype=float)
-        predicted = theory_map[component]
-        size = min(observed.size, predicted.size)
-        if size == 0:
-            continue
-        observed = observed[:size]
-        predicted = predicted[:size]
-        residuals = observed - predicted
+        residuals = block.observed - predicted
         rms, max_abs, median, n_points = _residual_statistics(residuals)
         if n_points == 0:
             continue
         lines.append(
             (
-                f"{model_name} CMB {component} rms={rms:.3g}, "
+                f"{model_name} CMB "
+                f"{block.metadata.canonical_name} rms={rms:.3g}, "
                 f"max={max_abs:.3g}, median={median:+.3g} (N={n_points})"
             )
         )

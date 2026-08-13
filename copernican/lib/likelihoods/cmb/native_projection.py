@@ -15,6 +15,7 @@ from scipy.linalg import expm
 from scipy.optimize import least_squares
 from scipy.special import gammaln, spherical_jn
 
+from ...cmb_output import canonical_cmb_spectrum_name
 from ...cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_kernel_spec,
@@ -1580,7 +1581,7 @@ def _compute_custom_cmb_spectrum_data(
     requested_spectrum_names = None
     if requested_spectra is not None:
         requested_spectrum_names = {
-            str(name).upper() for name in requested_spectra
+            canonical_cmb_spectrum_name(name) for name in requested_spectra
         }
     cache_key = _custom_cmb_spectrum_cache_key(
         contract_or_params,
@@ -1981,11 +1982,18 @@ def _compute_custom_cmb_spectrum_data(
                 continue
     physical_runtime_scalars = _physical_runtime_scalars(physical_params)
 
-    all_power_spectrum_observables = {
-        name: entry
-        for name, entry in perturbation_data.observables.items()
-        if entry.kind == "angular_power_spectrum"
-    }
+    all_power_spectrum_observables = {}
+    for name, entry in perturbation_data.observables.items():
+        if entry.kind != "angular_power_spectrum":
+            continue
+        canonical_name = canonical_cmb_spectrum_name(name)
+        if canonical_name in all_power_spectrum_observables:
+            raise ValueError(
+                "Declared angular spectra must have unique canonical names: "
+                f"{canonical_name}"
+            )
+        all_power_spectrum_observables[canonical_name] = entry
+    physical_zero_spectra: set[str] = set()
     if requested_spectrum_names is not None:
         if not requested_spectrum_names:
             raise ValueError(
@@ -2001,6 +2009,7 @@ def _compute_custom_cmb_spectrum_data(
             # Exact lensing remapping accepts an absent unlensed BB input as
             # the physical zero-parity baseline and generates lensed BB from
             # the declared E-mode and lensing-potential spectra.
+            physical_zero_spectra.add("BB")
             unavailable_spectra = []
         if unavailable_spectra:
             raise ValueError(
@@ -2031,6 +2040,14 @@ def _compute_custom_cmb_spectrum_data(
             str(observable.secondary)
             for observable in power_spectrum_observables.values()
         )
+    spectrum_availability = {
+        name: (
+            "computed" if name in power_spectrum_observables else "unrequested"
+        )
+        for name in all_power_spectrum_observables
+    }
+    for name in physical_zero_spectra:
+        spectrum_availability[name] = "physical_zero"
     transfer_component_observables = {
         name: entry
         for name, entry in perturbation_data.observables.items()
@@ -2112,6 +2129,9 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["accuracy_tier"] = numerical_envelope.accuracy_tier
     runtime_envelope["lensing_sampling_factor"] = float(
         numerical_envelope.numerical_controls["lensing_sampling_factor"]
+    )
+    runtime_envelope["spectrum_availability"] = FrozenMapping(
+        dict(sorted(spectrum_availability.items()))
     )
     runtime_envelope["static_graph_preparations"] = 1
     runtime_envelope["contract_static_preparations"] = 1
@@ -5913,6 +5933,7 @@ def _compute_custom_cmb_spectrum_data(
         ),
         spectra=FrozenMapping(spectra_results),
         runtime_envelope=FrozenMapping(runtime_envelope),
+        spectrum_availability=FrozenMapping(spectrum_availability),
     )
     native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
     return _get_cached_custom_cmb_spectrum_data(cache_key)

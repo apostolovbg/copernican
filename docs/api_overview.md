@@ -82,6 +82,10 @@ directly without using the command-line interface. The core modules are:
 - `csv_writer.save_sne_results_detailed_csv`, `save_bao_results_csv` and
  `save_cmb_results_csv` – persist fitting results with filenames that encode
  the dataset, control/test model pair and timestamp.
+- `copernican.lib.cmb_output` – canonicalize named CMB spectra, describe
+  sector, lensing, family, and unit metadata, and assemble row-aligned theory
+  vectors for long-form observations. `cmb_observation_blocks` preserves
+  repeated and noncontiguous multipoles without reordering covariance rows.
 ## Shared Model Comparison
 `copernican.lib.model_selection` is the common selection contract used by the
 CLI, GUI, manifest builder, executor, and plotting layer. Construct a pair
@@ -122,6 +126,11 @@ rebuilds the recombination visibility function, integrates the declared
 reionization history, and projects the declared transfer components into
 spectra such as `TT`, `TE`, `EE`, `BB`, or custom outputs when the
 required observable mappings exist.
+`CustomCMBSpectrumData.spectrum_availability` distinguishes computed,
+unrequested, and physical-zero remapping inputs. Undeclared outputs raise
+errors, and cached arrays are read-only. The spectrum cache identity includes
+the graph, bound parameters, grids, accuracy controls, canonical requested
+spectra, and ordered multipole sequence.
 The native contract is a single graph declaration. It exposes
 variables, derived quantities, equations, constraints, closures, source
 terms, initial conditions, boundary conditions, observables, validity

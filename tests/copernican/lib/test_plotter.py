@@ -11,9 +11,12 @@ import inspect
 import tkinter
 import types
 import unittest
+from pathlib import Path
 from typing import Any
+from unittest import mock
 
 import numpy
+import pandas
 import pytest
 
 from copernican.lib import plotter
@@ -41,6 +44,12 @@ class _CornerPlugin(_DummyPlugin):
 
     PARAMETER_NAMES = ["alpha", "beta", "gamma"]
     PARAMETER_LATEX_NAMES = [r"\alpha", r"\beta", r"\gamma"]
+
+
+class _ReferencePlugin(_DummyPlugin):
+    """Control role used by comparison plot tests."""
+
+    MODEL_NAME = "ReferenceModel"
 
 
 def _tmp_path_or_default(tmp_path) -> Any:
@@ -153,6 +162,83 @@ class TestPlotter(unittest.TestCase):
         _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
             self,
         )
+
+    def test_plot_cmb_keeps_named_surfaces_in_separate_panels(
+        self,
+        tmp_path=None,
+    ) -> None:
+        """CMB plots must retain sector and lensing surface identities."""
+
+        tmp_path = _tmp_path_or_default(tmp_path)
+        observations = pandas.DataFrame(
+            {
+                "ell": [30, 20, 40, 30, 50, 40],
+                "spectrum": [
+                    "scalar_TT",
+                    "tensor_TT",
+                    "PP",
+                    "scalar_TT",
+                    "tensor_TT",
+                    "PP",
+                ],
+                "Dl_obs": [10.0, 8.0, 0.1, 12.0, 9.0, 0.2],
+            }
+        )
+        observations.attrs.update(
+            {
+                "dataset_id": "cmb_surfaces",
+                "dataset_name": "CMB surfaces",
+                "covariance_matrix_inv": numpy.eye(6),
+            }
+        )
+        theory = {
+            "scalar_TT": numpy.array([9.0, 0.0, 0.0, 11.0, 0.0, 0.0]),
+            "tensor_TT": numpy.array([0.0, 7.5, 0.0, 0.0, 8.5, 0.0]),
+            "PP": numpy.array([0.0, 0.0, 0.09, 0.0, 0.0, 0.18]),
+        }
+        cmb_results = {"theory_spectrum": theory, "chi2_cmb": 1.0}
+        fit_results = {
+            "fitted_cosmological_params": {},
+            "chi2_total": 1.0,
+        }
+        captured_titles: list[str] = []
+
+        def _capture_savefig(path: str, **_kwargs: Any) -> None:
+            captured_titles.extend(
+                axis.get_title() for axis in plotter.plt.gcf().axes
+            )
+            Path(path).touch()
+
+        timestamp = "20260812_000000"
+        with mock.patch.object(
+            plotter.plt,
+            "savefig",
+            side_effect=_capture_savefig,
+        ):
+            plotter.plot_cmb_spectrum(
+                observations,
+                cmb_results,
+                cmb_results,
+                fit_results,
+                fit_results,
+                _ReferencePlugin,
+                _DummyPlugin,
+                plot_dir=str(tmp_path),
+                timestamp=timestamp,
+                comparison=_TEST_COMPARISON,
+            )
+
+        expected_name = plot_utils.generate_filename(
+            "cmb-plot",
+            "cmb_surfaces",
+            "png",
+            model_name="ReferenceModel-vs-CandidateModel",
+            timestamp=timestamp,
+        )
+        self.assertTrue((tmp_path / expected_name).exists())
+        self.assertTrue(any("scalar_TT" in title for title in captured_titles))
+        self.assertTrue(any("tensor_TT" in title for title in captured_titles))
+        self.assertTrue(any("PP" in title for title in captured_titles))
 
 
 def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:

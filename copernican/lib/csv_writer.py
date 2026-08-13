@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy
 
+from .cmb_output import assemble_cmb_theory_vector, cmb_observation_blocks
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .model_selection import ComparisonRequest
@@ -237,15 +238,58 @@ def save_cmb_results_csv(
         logger.warning("CMB data is empty, skipping CSV save.")
         return
 
+    control_name, test_name = comparison.model_names
+    control_label = _safe_model_label(control_name)
+    test_label = _safe_model_label(test_name)
+    if "spectrum" in cmb_data_df.columns:
+        df_out = cmb_data_df[["ell", "spectrum", "Dl_obs"]].copy()
+        blocks = cmb_observation_blocks(cmb_data_df)
+        for results, model_label in (
+            (control_results, control_label),
+            (test_results, test_label),
+        ):
+            theory = results.get("theory_spectrum") if results else None
+            try:
+                values = (
+                    assemble_cmb_theory_vector(
+                        theory,
+                        blocks,
+                        total_row_count=len(cmb_data_df),
+                    )
+                    if theory is not None
+                    else numpy.full(len(cmb_data_df), numpy.nan)
+                )
+            except (KeyError, TypeError, ValueError):
+                values = numpy.full(len(cmb_data_df), numpy.nan)
+            df_out[f"Dl_{model_label}"] = values
+            df_out[f"residual_{model_label}"] = df_out["Dl_obs"] - values
+
+        dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
+        model_comparison_name = f"{control_label}-vs-{test_label}"
+        filename = generate_filename(
+            "cmb-data",
+            dataset_id,
+            "csv",
+            model_name=model_comparison_name,
+            timestamp=timestamp,
+        )
+        try:
+            df_out.to_csv(
+                os.path.join(csv_dir, filename),
+                index=False,
+                float_format="%.6g",
+            )
+            logger.info(f"CMB detailed results CSV saved to {filename}")
+        except (OSError, ValueError) as exc:
+            logger.error(f"Error saving CMB detailed results CSV: {exc}")
+        return
+
     df_out = cmb_data_df[["ell", "Dl_obs"]].copy()
     if "Dl_te_obs" in cmb_data_df.columns:
         df_out["Dl_te_obs"] = cmb_data_df["Dl_te_obs"]
     if "Dl_ee_obs" in cmb_data_df.columns:
         df_out["Dl_ee_obs"] = cmb_data_df["Dl_ee_obs"]
 
-    control_name, test_name = comparison.model_names
-    control_label = _safe_model_label(control_name)
-    test_label = _safe_model_label(test_name)
     if control_results and control_results.get("theory_spectrum") is not None:
         control_spectrum = control_results["theory_spectrum"]
         if isinstance(control_spectrum, dict):

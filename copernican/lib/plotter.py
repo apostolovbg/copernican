@@ -20,6 +20,7 @@ from copernican import version as version_module
 
 from . import latex_utils
 from .cmb_identity import NATIVE_CMB_ENGINE_LABEL
+from .cmb_output import cmb_observation_blocks, cmb_theory_values_for_block
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .model_selection import ComparisonRequest, comparison_slug
@@ -1760,8 +1761,10 @@ def plot_cmb_spectrum(
         "ticks": 12,
     }
 
-    ells = cmb_data_df["ell"].values
-    dl_obs = cmb_data_df["Dl_obs"].values
+    blocks = cmb_observation_blocks(cmb_data_df)
+    if not blocks:
+        logger.warning("CMB data does not expose any observable spectra.")
+        return
     diag_errors_plot = None
     if "covariance_matrix_inv" in cmb_data_df.attrs:
         try:
@@ -1776,15 +1779,9 @@ def plot_cmb_spectrum(
             logger.warning(
                 f"Could not derive CMB errors from covariance: {exc}",
             )
-            diag_errors_plot = numpy.full_like(dl_obs, 1.0)
+            diag_errors_plot = numpy.ones(len(cmb_data_df), dtype=float)
     else:
-        diag_errors_plot = numpy.full_like(dl_obs, 1.0)
-
-    components = ["TT"]
-    if "Dl_te_obs" in cmb_data_df.columns:
-        components.append("TE")
-    if "Dl_ee_obs" in cmb_data_df.columns:
-        components.append("EE")
+        diag_errors_plot = numpy.ones(len(cmb_data_df), dtype=float)
 
     left = 0.08
     right = 0.75
@@ -1793,15 +1790,16 @@ def plot_cmb_spectrum(
     info_x, info_gap = _info_box_layout(right)
 
     fig, axs = plt.subplots(
-        len(components) * 2,
+        len(blocks) * 2,
         1,
-        figsize=(17, 6 * len(components)),
+        figsize=(17, 6 * len(blocks)),
         sharex=True,
         gridspec_kw={
-            "height_ratios": [4, 1.5] * len(components),
+            "height_ratios": [4, 1.5] * len(blocks),
             "hspace": 0.25,
         },
     )
+    axs = numpy.atleast_1d(axs)
 
     footer_lines = build_footer_lines(
         cmb_data_df.attrs,
@@ -1828,18 +1826,42 @@ def plot_cmb_spectrum(
 
     test_name_latex = test_latex
 
-    for i, comp in enumerate(components):
+    for i, block in enumerate(blocks):
         idx_main = i * 2
         idx_res = idx_main + 1
-        obs_key = "Dl_obs" if comp == "TT" else f"Dl_{comp.lower()}_obs"
-        obs = cmb_data_df[obs_key].values
-        if comp == "TT":
-            err = diag_errors_plot
+        metadata = block.metadata
+        order = numpy.argsort(block.ells, kind="stable")
+        ells = block.ells[order]
+        obs = block.observed[order]
+        if block.observed_column == "Dl_obs":
+            err = diag_errors_plot[block.row_indices][order]
         else:
-            err = cmb_data_df.get(
-                f"e_{comp.lower()}_obs",
-                numpy.full_like(obs, 1.0),
-            )
+            error_column = f"e_{metadata.base_spectrum.lower()}_obs"
+            err = numpy.asarray(
+                cmb_data_df.get(
+                    error_column,
+                    numpy.ones(len(cmb_data_df), dtype=float),
+                ),
+                dtype=float,
+            )[block.row_indices][order]
+
+        def _theory_values(theory):
+            """Return this block's theory values in plotting order."""
+
+            if theory is None:
+                return None
+            try:
+                values = cmb_theory_values_for_block(
+                    theory,
+                    block,
+                    total_row_count=len(cmb_data_df),
+                )
+            except (KeyError, TypeError, ValueError):
+                return None
+            return values[order]
+
+        control_values = _theory_values(control_theory)
+        test_values = _theory_values(test_theory)
 
         axs[idx_main].errorbar(
             ells,
@@ -1865,130 +1887,128 @@ def plot_cmb_spectrum(
             label="Data ±1σ",
         )
 
-        if control_theory is not None:
-            theory_values = (
-                control_theory.get(comp)
-                if isinstance(control_theory, dict)
-                else (control_theory if comp == "TT" else None)
+        if control_values is not None:
+            chi2_control = (
+                f"{control_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
+                if i == 0
+                else ""
             )
-            if theory_values is not None:
-                chi2_control = (
-                    f"{control_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
-                    if comp == "TT"
-                    else ""
-                )
-                label = control_latex + (
-                    rf" ($\chi^2$={chi2_control})" if chi2_control else ""
-                )
-                axs[idx_main].plot(
-                    ells,
-                    theory_values,
-                    color="red",
-                    ls="-",
-                    lw=2.0,
-                    label=label,
-                )
+            label = control_latex + (
+                rf" ($\chi^2$={chi2_control})" if chi2_control else ""
+            )
+            axs[idx_main].plot(
+                ells,
+                control_values,
+                color="red",
+                ls="-",
+                lw=2.0,
+                label=label,
+            )
+            if metadata.base_spectrum in {"BB", "EE", "PP", "TT"}:
                 cosmic_variance = (
-                    numpy.sqrt(2.0 / (2 * ells + 1.0)) * theory_values
+                    numpy.sqrt(2.0 / (2 * ells + 1.0)) * control_values
                 )
-                lower = numpy.clip(theory_values - cosmic_variance, 1e-8, None)
                 axs[idx_main].fill_between(
                     ells,
-                    lower,
-                    theory_values + cosmic_variance,
+                    control_values - cosmic_variance,
+                    control_values + cosmic_variance,
                     color="red",
                     alpha=0.1,
                     label="Cosmic var.",
                     zorder=0,
                 )
-                residuals = obs - theory_values
-                axs[idx_res].errorbar(
-                    ells,
-                    residuals,
-                    yerr=err,
-                    fmt=".",
-                    color="red",
-                    alpha=0.5,
-                    label=f"{control_latex} Res." if i == 0 else None,
-                    elinewidth=1,
-                    capsize=2,
-                    ms=4,
-                )
-                z_avg, r_avg = get_binned_average(ells, residuals)
-                z_avg, r_avg = _smooth_line(z_avg, r_avg)
-                axs[idx_res].plot(
-                    z_avg,
-                    r_avg,
-                    color="darkred",
-                    ls="-",
-                    lw=2,
-                    zorder=10,
-                    label=(f"Avg. {control_latex} Res." if i == 0 else None),
-                )
-
-        if test_theory is not None:
-            test_theory_values = (
-                test_theory.get(comp)
-                if isinstance(test_theory, dict)
-                else (test_theory if comp == "TT" else None)
+            residuals = obs - control_values
+            axs[idx_res].errorbar(
+                ells,
+                residuals,
+                yerr=err,
+                fmt=".",
+                color="red",
+                alpha=0.5,
+                label=f"{control_latex} Res.",
+                elinewidth=1,
+                capsize=2,
+                ms=4,
             )
-            if test_theory_values is not None:
-                chi2_test = (
-                    f"{test_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
-                    if comp == "TT"
-                    else ""
-                )
-                label = rf"{test_name_latex}" + (
-                    rf" ($\chi^2$={chi2_test})" if chi2_test else ""
-                )
-                axs[idx_main].plot(
-                    ells,
-                    test_theory_values,
-                    color="blue",
-                    ls="--",
-                    lw=2.0,
-                    label=label,
-                )
-                residuals = obs - test_theory_values
-                axs[idx_res].errorbar(
-                    ells,
-                    residuals,
-                    yerr=err,
-                    fmt=".",
-                    mfc="none",
-                    mec="blue",
-                    ecolor="lightblue",
-                    alpha=0.5,
-                    label=rf"{test_name_latex} Res." if i == 0 else None,
-                    elinewidth=1,
-                    capsize=2,
-                    ms=4,
-                )
-                z_avg, r_avg = get_binned_average(ells, residuals)
-                z_avg, r_avg = _smooth_line(z_avg, r_avg)
-                axs[idx_res].plot(
-                    z_avg,
-                    r_avg,
-                    color="darkblue",
-                    ls="--",
-                    lw=2,
-                    zorder=11,
-                    label=f"Avg. {test_name_latex} Res." if i == 0 else None,
-                )
+            z_avg, r_avg = get_binned_average(ells, residuals)
+            z_avg, r_avg = _smooth_line(z_avg, r_avg)
+            axs[idx_res].plot(
+                z_avg,
+                r_avg,
+                color="darkred",
+                ls="-",
+                lw=2,
+                zorder=10,
+                label=f"Avg. {control_latex} Res.",
+            )
 
-        axs[idx_main].set_ylabel(
-            r"$D_\ell\ (\mu K^2)$",
-            fontsize=font_sizes["label"],
+        if test_values is not None:
+            chi2_test = (
+                f"{test_cmb_results.get('chi2_cmb', numpy.nan):.2f}"
+                if i == 0
+                else ""
+            )
+            label = rf"{test_name_latex}" + (
+                rf" ($\chi^2$={chi2_test})" if chi2_test else ""
+            )
+            axs[idx_main].plot(
+                ells,
+                test_values,
+                color="blue",
+                ls="--",
+                lw=2.0,
+                label=label,
+            )
+            residuals = obs - test_values
+            axs[idx_res].errorbar(
+                ells,
+                residuals,
+                yerr=err,
+                fmt=".",
+                mfc="none",
+                mec="blue",
+                ecolor="lightblue",
+                alpha=0.5,
+                label=rf"{test_name_latex} Res.",
+                elinewidth=1,
+                capsize=2,
+                ms=4,
+            )
+            z_avg, r_avg = get_binned_average(ells, residuals)
+            z_avg, r_avg = _smooth_line(z_avg, r_avg)
+            axs[idx_res].plot(
+                z_avg,
+                r_avg,
+                color="darkblue",
+                ls="--",
+                lw=2,
+                zorder=11,
+                label=f"Avg. {test_name_latex} Res.",
+            )
+
+        ylabel = (
+            r"$D_\ell$ (dimensionless)"
+            if metadata.units == "dimensionless"
+            else r"$D_\ell\ (\mu K^2)$"
         )
-        if comp in ("TT", "EE"):
+        axs[idx_main].set_ylabel(ylabel, fontsize=font_sizes["label"])
+        plotted_values = [obs]
+        if control_values is not None:
+            plotted_values.append(control_values)
+        if test_values is not None:
+            plotted_values.append(test_values)
+        if metadata.base_spectrum in {"BB", "EE", "PP", "TT"} and all(
+            numpy.any(numpy.isfinite(values))
+            and numpy.all(values[numpy.isfinite(values)] > 0.0)
+            for values in plotted_values
+        ):
             axs[idx_main].set_yscale("log")
-        if i == 0:
-            axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
+        axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
         # Reduce padding so titles fit in the vertical gaps between
         # spectrum and residual panels without overlapping.
         title_pad = 6
         axs[idx_main].set_title(
-            f"CMB {comp} Power Spectrum: {dataset_name}",
+            f"CMB {metadata.canonical_name} Power Spectrum: {dataset_name}",
             fontsize=font_sizes["title"],
             pad=title_pad,
         )
@@ -2001,7 +2021,7 @@ def plot_cmb_spectrum(
         )
 
         axs[idx_res].axhline(0, color="black", ls="--", lw=1)
-        if i == len(components) - 1:
+        if i == len(blocks) - 1:
             axs[idx_res].set_xlabel(
                 r"Multipole $\ell$",
                 fontsize=font_sizes["label"],
@@ -2009,8 +2029,7 @@ def plot_cmb_spectrum(
         axs[idx_res].set_ylabel(
             r"$D_\ell^{obs} - D_\ell^{th}$", fontsize=font_sizes["label"]
         )
-        if i == 0:
-            axs[idx_res].legend(fontsize=font_sizes["legend"], loc="best")
+        axs[idx_res].legend(fontsize=font_sizes["legend"], loc="best")
         axs[idx_res].minorticks_on()
         axs[idx_res].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]

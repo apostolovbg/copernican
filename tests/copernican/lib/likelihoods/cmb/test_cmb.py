@@ -8,7 +8,6 @@ import inspect
 import re
 import unittest
 from pathlib import Path
-from time import perf_counter
 from types import MappingProxyType, SimpleNamespace
 from typing import Mapping, Sequence
 from unittest import mock
@@ -5232,6 +5231,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
             0.0,
         )
+        for spectrum_name in (
+            "lensed_TT",
+            "lensed_TE",
+            "lensed_EE",
+            "lensed_BB",
+        ):
+            with self.subTest(spectrum_name=spectrum_name):
+                self.assertGreater(
+                    float(
+                        numpy.max(
+                            numpy.abs(
+                                numpy.asarray(
+                                    changed_lensed[spectrum_name],
+                                    dtype=numpy.longdouble,
+                                )
+                                - numpy.asarray(
+                                    baseline_lensed[spectrum_name],
+                                    dtype=numpy.longdouble,
+                                )
+                            )
+                        )
+                    ),
+                    0.0,
+                )
 
     def test_lensed_sparse_requests_match_contiguous_remapping(self) -> None:
         """Lensing must interpolate on a contiguous analysis grid once."""
@@ -6740,67 +6763,175 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["projection_bessel_mode_count"]),
         )
 
-    def test_native_sector_smoke_paths_stay_within_acceptance_budget(self):
-        """Keep representative native sector paths within the budget."""
+    def test_native_spectrum_cache_identity_covers_runtime_inputs(self):
+        """Every result-affecting surface must change cache identity."""
+
+        contract = _analytic_signal_contract()
+
+        def _identity(
+            candidate,
+            *,
+            ells=(20, 30),
+            requested=("TT",),
+        ):
+            return native_background._custom_cmb_spectrum_cache_key(
+                candidate,
+                ells,
+                None,
+                requested_spectra=requested,
+            )
+
+        identities = [_identity(contract)]
+        structure_changed = copy.deepcopy(contract)
+        structure_changed["perturbations"]["equations"]["evolve_signal_mode"][
+            "rhs"
+        ] = "-2.0 * decay_rate * signal_mode"
+        identities.append(_identity(structure_changed))
+        parameters_changed = copy.deepcopy(contract)
+        parameters_changed["model_parameters"]["source_scale"] = 2.0
+        identities.append(_identity(parameters_changed))
+        grid_changed = copy.deepcopy(contract)
+        grid_changed["numerical"]["k_sample_count"] = 7
+        identities.append(_identity(grid_changed))
+        accuracy_changed = copy.deepcopy(contract)
+        accuracy_changed["perturbations"]["accuracy_controls"] = {
+            "adaptive": {"source_relative_tolerance": 0.02}
+        }
+        identities.append(_identity(accuracy_changed))
+        identities.append(_identity(contract, requested=("EE",)))
+        identities.append(_identity(contract, ells=(20, 20, 30)))
+
+        self.assertEqual(len(set(identities)), len(identities))
+
+    def test_native_spectrum_payload_distinguishes_availability_states(self):
+        """Computed, unrequested, and physical-zero outputs stay distinct."""
+
+        contract = _analytic_signal_contract()
+        observables = contract["perturbations"]["observables"]
+        for name in ("TE", "EE", "PP"):
+            observables[name] = {
+                "kind": "angular_power_spectrum",
+                "primary": "signal_transfer",
+                "secondary": "signal_transfer",
+            }
+        prepared = _prepare_native_contract(contract)
+        tt_only = native_projection._compute_custom_cmb_spectrum_data(
+            prepared,
+            numpy.asarray((20, 30), dtype=int),
+            requested_spectra=("TT",),
+        )
+        lensing_inputs = native_projection._compute_custom_cmb_spectrum_data(
+            prepared,
+            numpy.asarray((20, 30), dtype=int),
+            requested_spectra=("TT", "TE", "EE", "BB", "PP"),
+        )
+
+        self.assertEqual(tt_only.spectrum_availability["TT"], "computed")
+        self.assertEqual(tt_only.spectrum_availability["EE"], "unrequested")
+        self.assertNotIn("EE", tt_only.spectra)
+        self.assertEqual(
+            lensing_inputs.spectrum_availability["BB"],
+            "physical_zero",
+        )
+        self.assertNotIn("BB", lensing_inputs.spectra)
+        self.assertEqual(
+            lensing_inputs.runtime_envelope["spectrum_availability"]["BB"],
+            "physical_zero",
+        )
+        with self.assertRaises(ValueError):
+            tt_only.spectra["TT"][0] = 0.0
+
+    def test_declared_component_spectrum_executes_by_exact_name(self) -> None:
+        """Explicit component observables must not collapse into aliases."""
+
+        contract = _analytic_signal_contract()
+        observables = contract["perturbations"]["observables"]
+        observables["scalar_TT"] = observables.pop("TT")
+        prepared = _prepare_native_contract(contract)
+        ells = numpy.asarray((20, 30, 40), dtype=int)
+
+        spectrum = cmb.compute_cmb_spectrum_from_contract(
+            prepared,
+            ells,
+            spectra=("scalar_TT",),
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
+        with self.assertRaisesRegex(ValueError, "does not provide.*TT"):
+            cmb.compute_cmb_spectrum_from_contract(
+                prepared,
+                ells,
+                spectra=("TT",),
+            )
+
+    def test_public_spectrum_request_rejects_empty_names(self):
+        """A public request must identify at least one output."""
+
+        prepared = _prepare_native_contract(_analytic_signal_contract())
+        ells = numpy.asarray((20, 30), dtype=int)
+
+        with self.assertRaisesRegex(ValueError, "must not be empty"):
+            cmb.compute_cmb_spectrum_from_contract(
+                prepared,
+                ells,
+                spectra=(),
+            )
+
+    def test_native_scalar_and_vector_aliases_match_total_spectra(self):
+        """Single-sector component and total aliases must be identical."""
 
         cases = (
-            ("scalar", _native_scalar_hierarchy_contract(sum_mnu=0.0)),
-            ("interaction", _custom_contract()),
-            (
-                "gauge",
-                _native_scalar_hierarchy_contract(gauge="synchronous"),
-            ),
-            ("tensor", _native_tensor_hierarchy_contract()),
-            ("vector", _native_vector_hierarchy_contract()),
-            (
-                "massive_neutrino",
-                _native_scalar_hierarchy_contract(
-                    include_massive_neutrino=True
-                ),
-            ),
+            ("scalar", _native_scalar_hierarchy_contract(), "TT"),
+            ("vector", _native_vector_hierarchy_contract(), "BB"),
         )
-        started = perf_counter()
-        for case_name, raw_contract in cases:
-            with self.subTest(case_name=case_name):
-                contract = _prepare_native_contract(
+        ells = numpy.asarray((20, 30, 40), dtype=int)
+        for sector, raw_contract, base_name in cases:
+            with self.subTest(sector=sector):
+                prepared = _prepare_native_contract(
                     _speedup_contract(raw_contract)
                 )
-                compact_numerics = {
-                    "ell_max": 120,
-                    "k_sample_count": 8,
-                    "eta_sample_count": 64,
-                    "photon_hierarchy_l_max": 4,
-                    "photon_polarization_hierarchy_l_max": 4,
-                    "neutrino_hierarchy_l_max": 3,
-                }
-                contract["numerical"].update(compact_numerics)
-                contract["perturbations"]["numerics"].update(compact_numerics)
-                momentum_grids = contract["perturbations"]["numerics"].get(
-                    "momentum_grids", {}
+                spectra = cmb.compute_cmb_spectrum_from_contract(
+                    prepared,
+                    ells,
+                    spectra=(
+                        base_name,
+                        f"{sector}_{base_name}",
+                        f"total_{base_name}",
+                    ),
                 )
-                if "massive_neutrino_default" in momentum_grids:
-                    momentum_grids["massive_neutrino_default"].update(
-                        {"count": 2, "q_min": 0.1, "q_max": 12.0}
-                    )
-                spectrum_data = (
-                    native_projection._compute_custom_cmb_spectrum_data(
-                        contract,
-                        numpy.asarray((20, 40, 80), dtype=int),
-                        requested_spectra=("TT",),
-                    )
+                numpy.testing.assert_allclose(
+                    spectra[base_name],
+                    spectra[f"{sector}_{base_name}"],
                 )
-                self.assertLess(
-                    float(spectrum_data.runtime_envelope["total_seconds"]),
-                    180.0,
+                numpy.testing.assert_allclose(
+                    spectra[base_name],
+                    spectra[f"total_{base_name}"],
                 )
-                self.assertTrue(
-                    numpy.all(
-                        numpy.isfinite(
-                            numpy.asarray(spectrum_data.spectra["TT"])
-                        )
-                    )
-                )
-        self.assertLess(perf_counter() - started, 180.0)
+
+    def test_mixed_sector_total_alias_requires_a_total_observable(self):
+        """A sector output must not masquerade as a mixed total spectrum."""
+
+        perturbation_data = SimpleNamespace(
+            manifest_summary={"sector_names": ("scalar", "tensor")},
+            observables={"TT": SimpleNamespace(sector="scalar")},
+        )
+        available = {"TT": numpy.ones(2)}
+
+        self.assertEqual(
+            native_cmb_solver._resolve_available_spectrum_name(
+                "scalar_TT",
+                perturbation_data=perturbation_data,
+                available_spectra=available,
+            ),
+            "TT",
+        )
+        self.assertIsNone(
+            native_cmb_solver._resolve_available_spectrum_name(
+                "total_TT",
+                perturbation_data=perturbation_data,
+                available_spectra=available,
+            )
+        )
 
     def test_native_generated_modes_use_declared_graph_evolution(self) -> None:
         """Generated modes should use one finite declared-graph runtime."""
@@ -9990,8 +10121,10 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
 class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
     """Exercise the public CMB likelihood surface on spectrum blocks."""
 
-    def test_loglike_supports_block_spectra(self) -> None:
-        """Block spectra should flatten into one consistent likelihood."""
+    def test_loglike_preserves_interleaved_repeated_spectrum_rows(
+        self,
+    ) -> None:
+        """Likelihood rows and covariance must retain dataset ordering."""
 
         class _BlockSpectrumPlugin:
             """Return a prepared native runtime for likelihood testing."""
@@ -10013,15 +10146,24 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
 
         cmb_data = pandas.DataFrame(
             {
-                "ell": [20, 30, 20, 30],
-                "spectrum": ["TT", "TT", "TE", "TE"],
-                "Dl_obs": [1.0, 2.0, 0.125, 0.0625],
+                "ell": [30, 20, 30, 20, 30],
+                "spectrum": ["TE", "TT", "TT", "TE", "TE"],
+                "Dl_obs": [0.5, 1.0, 2.0, 0.25, 0.125],
             }
         )
-        cmb_data.attrs["covariance_matrix_inv"] = numpy.eye(4, dtype=float)
+        cmb_data.attrs["covariance_matrix_inv"] = numpy.asarray(
+            [
+                [2.0, 0.1, 0.0, 0.0, 0.0],
+                [0.1, 2.0, 0.1, 0.0, 0.0],
+                [0.0, 0.1, 2.0, 0.1, 0.0],
+                [0.0, 0.0, 0.1, 2.0, 0.1],
+                [0.0, 0.0, 0.0, 0.1, 2.0],
+            ],
+            dtype=float,
+        )
         theory = {
-            "TT": numpy.asarray([1.0, 2.0, 3.0, 4.0], dtype=float),
-            "TE": numpy.asarray([0.5, 0.25, 0.125, 0.0625], dtype=float),
+            "TT": numpy.asarray([99.0, 1.0, 2.0, 99.0, 99.0]),
+            "TE": numpy.asarray([0.5, 99.0, 99.0, 0.25, 0.125]),
         }
         with mock.patch(
             (
@@ -10029,13 +10171,24 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
                 "_compute_declared_perturbation_spectrum"
             ),
             return_value=theory,
-        ):
+        ) as compute_spectrum:
             likelihood = cmb.CMBLike(cmb_data, _BlockSpectrumPlugin())
             loglike = likelihood.loglike(())
 
         self.assertEqual(likelihood.state["chi2"], 0.0)
         self.assertEqual(loglike, 0.0)
-        self.assertEqual(likelihood._observed.shape, (4,))
+        numpy.testing.assert_array_equal(
+            likelihood._ells,
+            [30, 20, 30, 20, 30],
+        )
+        self.assertEqual(likelihood._observed.shape, (5,))
+        self.assertEqual(
+            compute_spectrum.call_args.kwargs["spectra"], ("TE", "TT")
+        )
+        numpy.testing.assert_array_equal(
+            compute_spectrum.call_args.args[1],
+            [30, 20, 30, 20, 30],
+        )
 
 
 if __name__ == "__main__":

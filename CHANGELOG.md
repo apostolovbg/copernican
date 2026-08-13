@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-08-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,72 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-13:
+  Change: Finalized Slice Thirty-Eight output consistency and restored
+  canonical lensing-spectrum alias round trips.
+  Why: Corrected the public request contract so equivalent `PP`, `TP`, and
+  `EP` aliases can coexist while retaining one canonical execution surface.
+  Impact: Preserved explicit output metadata, immutable cache payloads,
+  row-stable likelihoods, and complete public alias compatibility.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_output.py
+  copernican/lib/csv_writer.py
+  copernican/lib/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  docs/api_overview.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_plotter.py
+
+- 2026-08-12:
+  Change: Completed Slice Thirty-Eight with canonical CMB output metadata,
+  immutable availability-aware payloads, complete cache identities, and
+  row-stable multi-spectrum tooling.
+  Why: Prevented unavailable, unrequested, physical-zero, component, and
+  lensed surfaces from collapsing across execution, likelihood, and result
+  paths.
+  Impact: Preserved exact spectra and covariance order across native solving,
+  plotting, diagnostics, CSV output, caching, and cross-sector aliases.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  docs/api_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_output.py
+  copernican/lib/csv_writer.py
+  copernican/lib/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_plotter.py
 
 - 2026-08-12:
   Change: Fixed native convergence follow-up failures in compact likelihood,

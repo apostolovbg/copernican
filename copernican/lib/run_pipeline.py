@@ -12,6 +12,10 @@ from copernican.lib import chain_io, console_output, csv_writer, diagnostics
 from copernican.lib import logger as log_mod
 from copernican.lib import plotter, result_writer, utils
 from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_LABEL
+from copernican.lib.cmb_output import (
+    describe_cmb_spectrum,
+    observed_cmb_spectrum_names,
+)
 from copernican.lib.likelihoods import compute_cmb_spectrum_cached
 from copernican.lib.model_selection import ComparisonRequest
 
@@ -480,6 +484,7 @@ def execute_run_pipeline(
                 (fit_results or {}).get("chi2_cmb", float("inf"))
             ),
             "theory_spectrum": None,
+            "spectrum_metadata": {},
         }
         if not _component_enabled(fit_results, "cmb"):
             return summary
@@ -502,17 +507,13 @@ def execute_run_pipeline(
             )
             summary["chi2_cmb"] = float("inf")
             return summary
-        components = ["TT"]
-        if "Dl_te_obs" in cmb_data_df.columns:
-            components.append("TE")
-        if "Dl_ee_obs" in cmb_data_df.columns:
-            components.append("EE")
+        components = observed_cmb_spectrum_names(cmb_data_df) or ("TT",)
         try:
             theory = compute_cmb_spectrum_cached(
                 model_plugin,
                 cosmo_params,
                 cmb_data_df["ell"].values,
-                spectra=tuple(components),
+                spectra=components,
             )
         except (
             AttributeError,
@@ -530,6 +531,10 @@ def execute_run_pipeline(
             summary["chi2_cmb"] = float("inf")
             return summary
         summary["theory_spectrum"] = theory
+        summary["spectrum_metadata"] = {
+            name: describe_cmb_spectrum(name).as_mapping()
+            for name in components
+        }
         for line in CMB_DIAG(
             cmb_data_df,
             theory,

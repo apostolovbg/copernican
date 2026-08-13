@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-08-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,14 @@ a defensible perturbation closure reports the affected CMB outputs as
 unavailable rather than substituting another engine or a zero spectrum. See
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md) for the graph,
 physical, numerical, lensing, caching, and reference conventions.
+
+CMB likelihoods and result tools preserve exact spectrum names and row order,
+including repeated or noncontiguous multipoles. Scalar, vector, tensor,
+total, lensed, unlensed, lensing-potential, and diagnostic surfaces retain
+separate metadata in plots, diagnostics, and long-form CSV output. Runtime
+payloads distinguish computed, unrequested, physically zero, and unavailable
+spectra, while cache identities bind the graph, parameters, numerical grids,
+accuracy controls, requested spectra, and multipole sequence.
 
 Native CMB validation records the resolved numerical envelope in each run
 manifest. The named final tier requires bounded background, transfer,
