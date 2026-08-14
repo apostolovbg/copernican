@@ -127,6 +127,9 @@ class TestCopernicanGUI(unittest.TestCase):
     ) -> None:
         _case_confirm_start_run_renames_manifest(self, tmp_path)
 
+    def test_worker_process_uses_importable_package_root(self) -> None:
+        _case_worker_process_uses_importable_package_root(self)
+
     def test_cancel_inactive_without_configuration(self) -> None:
         _case_cancel_inactive_without_configuration(self)
 
@@ -454,6 +457,39 @@ def _case_confirm_start_run_renames_manifest(
         gui.manifest_workspace.manifest_path.name.startswith("run_manifest_")
     )
     self.assertFalse(old_folder.exists())
+
+
+def _case_worker_process_uses_importable_package_root(self) -> None:
+    gui = CopernicanGUI(render=False)
+    fake_process = SimpleNamespace(stdout=None)
+    with (
+        mock.patch.object(
+            gui,
+            "_write_worker_config",
+            return_value="copernican-worker.json",
+        ),
+        mock.patch.object(
+            gui_app.subprocess,
+            "Popen",
+            return_value=fake_process,
+        ) as popen_mock,
+        mock.patch.object(gui_app.threading, "Thread"),
+    ):
+        gui._launch_worker_process(config={})
+
+    launch_call = popen_mock.call_args
+    launch_directory = Path(launch_call.kwargs["cwd"])
+    self.assertEqual(
+        launch_call.args[0][1:3],
+        ["-m", "copernican.lib.gui.run_worker"],
+    )
+    self.assertEqual(
+        launch_directory,
+        Path(gui_app.__file__).resolve().parents[3],
+    )
+    self.assertTrue(
+        (launch_directory / "copernican" / "__init__.py").is_file()
+    )
 
 
 def _case_cancel_inactive_without_configuration(self) -> None:

@@ -267,6 +267,9 @@ The Run Monitor streams stdout and stderr into a log box, tails the per-run
 log file, and keeps the cancel controls disabled until a run exists. Metadata
 dialogs open with the system default application and use the same launch
 behavior as the rest of the GUI.
+Run and validation workers use the active interpreter from the directory that
+contains the importable `copernican` package, so source checkouts do not
+require an editable package installation.
 
 ## Analysis Workspace
 The Analysis tab provides Run Summary, Posteriors, and Comparisons tools.

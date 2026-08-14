@@ -80,6 +80,21 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-14:
+  Change: Fixed GUI run and validation worker package-root resolution.
+  Why: Corrected the nested GUI module path used as the child-process working
+  directory in source checkouts.
+  Impact: Ensured background workers import Copernican without requiring an
+  editable package installation.
+  Files:
+  CHANGELOG.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/lib/gui/app.py
+  tests/copernican/lib/gui/test_app.py
+
+- 2026-08-14:
   Change: Restored and enforced exact root-to-package README synchronization.
   Why: Corrected a repository-specific documentation rule that requires both
   README files to remain one managed pair.

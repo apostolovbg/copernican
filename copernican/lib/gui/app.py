@@ -3687,7 +3687,7 @@ class CopernicanGUI:
         try:
             process = subprocess.Popen(  # nosec
                 command,
-                cwd=str(self._repo_root()),
+                cwd=str(self._package_import_root()),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -3891,7 +3891,7 @@ class CopernicanGUI:
                 context="validation",
             )
             return
-        output_dir = self._repo_root() / "validation" / "output"
+        output_dir = self._package_root() / "validation" / "output"
         if output_dir.exists():
             shutil.rmtree(output_dir)
         if validation_utils.VALIDATION_FILE.exists():
@@ -7368,7 +7368,7 @@ class CopernicanGUI:
         try:
             process = subprocess.Popen(  # nosec
                 command,
-                cwd=str(self._repo_root()),
+                cwd=str(self._package_import_root()),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
@@ -7788,10 +7788,15 @@ class CopernicanGUI:
                 f"Failed to terminate worker: {exc}", logging.WARNING
             )
 
-    def _repo_root(self) -> Path:
-        """Return repository root path."""
+    def _package_root(self) -> Path:
+        """Return the directory containing package-owned resources."""
 
         return Path(__file__).resolve().parents[2]
+
+    def _package_import_root(self) -> Path:
+        """Return the directory from which the package is importable."""
+
+        return self._package_root().parent
 
     def _safe_int(self, text_value: str, default: int | None) -> int | None:
         """Return ``int(text_value)`` or ``default`` when parsing fails."""

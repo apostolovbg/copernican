@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-07
+**Last Updated:** 2026-08-14
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -25,6 +25,9 @@ Troubleshooting should start with the run folder logs and the run logs
 shown in the GUI.
 If the GUI opens nothing, confirm that the managed `.venv` is active
 and that Copernican was launched with `python -m copernican --gui`.
+Run and validation workers use that interpreter and the package import root.
+If a worker reports `No module named copernican`, include the GUI launch
+command and the first worker log lines in the support report.
 
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.
