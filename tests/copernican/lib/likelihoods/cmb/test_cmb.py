@@ -12,15 +12,11 @@ from types import MappingProxyType, SimpleNamespace
 from typing import Mapping, Sequence
 from unittest import mock
 
+import camb
 import numpy
 import pandas
 from scipy.integrate import quad as scipy_quad
 from scipy.linalg import expm
-
-try:
-    import camb
-except ImportError:  # pragma: no cover - optional external reference
-    camb = None
 
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
@@ -2907,9 +2903,6 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
     def test_camb_reference_returns_requested_finite_cls(self) -> None:
         """The independent reference path must return finite requested data."""
 
-        if camb is None:
-            self.skipTest("CAMB is not installed")
-
         reference = _slice_nine_camb_reference_spectra(
             numpy.asarray((2, 10, 32), dtype=int),
             spectra=("TT", "TE", "EE", "lensed_BB", "PP", "TP", "EP"),
@@ -2936,9 +2929,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
     def test_camb_tensor_reference_returns_absolute_cls(self) -> None:
         """Tensor references must expose unlensed and lensed spectra."""
-
-        if camb is None:
-            self.skipTest("CAMB is not installed")
 
         reference = _slice_thirty_camb_tensor_reference_spectra(
             numpy.asarray((40, 50, 70), dtype=int),
@@ -2969,9 +2959,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
     def test_native_tensor_spectra_match_absolute_camb_anchors(self) -> None:
         """Native tensor spectra must match fixed CAMB anchors."""
-
-        if camb is None:
-            self.skipTest("CAMB is not installed")
 
         ells = numpy.asarray((40, 50, 70), dtype=int)
         analysis_ells = numpy.arange(int(numpy.max(ells)) + 1, dtype=int)
@@ -3050,9 +3037,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         self,
     ) -> None:
         """Massive-neutrino references must compare absolute spectra."""
-
-        if camb is None:
-            self.skipTest("CAMB is not installed")
 
         ells = numpy.asarray((20, 60, 120), dtype=int)
         spectra = ("TT", "TE", "EE")
@@ -3444,9 +3428,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
     ) -> None:
         """The native remapper must match CAMB on all lensed scalar spectra."""
 
-        if camb is None:
-            self.skipTest("CAMB is not installed")
-
         lmax = SLICE_NINE_ACCEPTANCE_RANGES["lensing_ell"][1]
         params = _slice_nine_build_camb_params(lmax=lmax)
         results = camb.get_results(params)
@@ -3552,9 +3533,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
     ) -> None:
         """The independent PP, TP, and EP surfaces use native units."""
 
-        if camb is None:
-            self.skipTest("CAMB is not installed")
-
         ells = numpy.asarray((10, 100, 1500), dtype=int)
         reference = _slice_nine_camb_reference_spectra(
             ells,
@@ -3577,9 +3555,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
     def test_slice_nine_neutral_background_matches_camb(self) -> None:
         """The fixed native background must meet all CAMB thresholds."""
-
-        if camb is None:
-            self.skipTest("CAMB is not installed")
 
         contract = _prepare_native_contract(
             _slice_nine_native_acceptance_contract()
@@ -3801,9 +3776,6 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         self,
     ) -> None:
         """Native scalar hierarchy should preserve CAMB amplitude response."""
-
-        if camb is None:
-            self.skipTest("CAMB is not installed")
 
         base_contract = _prepare_native_contract(
             _native_scalar_hierarchy_contract()

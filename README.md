@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-13
+**Last Updated:** 2026-08-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -284,9 +284,10 @@ the regression baseline deterministic so validation reports stay repeatable.
 
 ## Documentation and Policy
 The package docs mirror the root docs so installed copies and repository
-copies stay aligned. `docs/gui_guide.md` explains the GUI, `docs/cli_guide.md`
-explains the CLI, `docs/run_manifest.md` covers manifest structure, and
-`docs/packaging.md` covers setup and distribution tasks.
+copies stay aligned. `README.md` is the canonical source for
+`copernican/README.md`. `docs/gui_guide.md` explains the GUI,
+`docs/cli_guide.md` explains the CLI, `docs/run_manifest.md` covers manifest
+structure, and `docs/packaging.md` covers setup and distribution tasks.
 
 ## Maintenance Helpers
 Command-line users can work without the GUI:

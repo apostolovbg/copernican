@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-13
+**Last Updated:** 2026-08-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,41 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-14:
+  Change: Restored and enforced exact root-to-package README synchronization.
+  Why: Corrected a repository-specific documentation rule that requires both
+  README files to remain one managed pair.
+  Impact: Ensured policy refresh, packaging tests, and documentation all
+  preserve identical root and package README content.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/packaging.md
+  docs/packaging.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/project/lib/test_packaging_configuration.py
+
+- 2026-08-13:
+  Change: Completed Slice Thirty-Nine scientific and repository acceptance
+  and restored exact root-to-package README synchronization.
+  Why: Removed optional reference-test skips, corrected the managed README
+  pair, and verified every roadmap claim through the complete workflow.
+  Impact: Closed all thirty-nine slices after 702 tests passed without skips
+  in 1377.584 seconds and kept both README surfaces identical by policy.
+  Files:
+  AGENTS.md
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/packaging.md
+  docs/packaging.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/project/lib/test_packaging_configuration.py
 
 - 2026-08-13:
   Change: Finalized Slice Thirty-Eight output consistency and restored

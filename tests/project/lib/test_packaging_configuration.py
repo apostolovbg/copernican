@@ -4,6 +4,8 @@ import tomllib
 import unittest
 from pathlib import Path
 
+import yaml
+
 from tests.project import filesystem_helpers
 
 
@@ -107,6 +109,34 @@ class TestPackagingConfiguration(unittest.TestCase):
         self.assertFalse(Path("copernican/lib/camb_contract.py").exists())
         self.assertFalse(
             Path("copernican/lib/likelihoods/cmb/camb_solver.py").exists()
+        )
+
+    def test_package_readme_is_synced_from_root(self) -> None:
+        """Package documentation must mirror the canonical root README."""
+
+        root_readme = filesystem_helpers.read_text(Path("README.md"))
+        package_readme = filesystem_helpers.read_text(
+            Path("copernican/README.md")
+        )
+        profile = yaml.safe_load(
+            filesystem_helpers.read_text(
+                Path(
+                    "devcovenant/custom/profiles/userproject/"
+                    "userproject.yaml"
+                )
+            )
+        )
+        sync_pairs = profile["policy_overlays"]["package-doc-sync"][
+            "sync_pairs"
+        ]
+
+        self.assertEqual(package_readme, root_readme)
+        self.assertIn("**Doc Type:** repo-readme", package_readme)
+        self.assertIn("## Repository Layout", package_readme)
+        self.assertIn("## Repository Policy", package_readme)
+        self.assertIn(
+            "README.md=>copernican/README.md",
+            sync_pairs,
         )
 
 

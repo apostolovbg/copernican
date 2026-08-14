@@ -128,6 +128,11 @@ part of package discovery or installed entry points.
 Installing `copernican` without extras therefore installs no external CMB
 solver. Repository tests use the workspace lock so independent CAMB reference
 calculations remain available without creating a production fallback.
+## Documentation surfaces
+The root `README.md` is the canonical source for
+`copernican/README.md`. Managed documentation sync keeps those README files
+identical. Long-form manuals under `docs/` are likewise the sources for their
+packaged copies under `copernican/docs/`.
 ## Launch Copernican
 Use the same launch steps as the top README. The commands below match
 the same launch flow on every supported platform.

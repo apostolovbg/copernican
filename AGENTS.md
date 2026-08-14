@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-06-25
+**Last Updated:** 2026-08-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -55,10 +55,13 @@ DevCovenant lifecycle and command behavior used by the project.
 - 2026-05-28: Union3 compressed SNe inputs require additive intercept
   marginalization; keep parser, likelihood, CSV export and plot residuals
   aligned on that convention.
-- 2026-05-30: Generic declarative CMB execution now runs through the
-  Boltzmann-hierarchy solver in `likelihoods/cmb.py`; keep
-  `model_coder.py` capability checks and the focused perturbation tests
-  aligned with that layout.
+- 2026-05-30: Generic declarative CMB execution runs through the native
+  Boltzmann-hierarchy solver in
+  `copernican/lib/likelihoods/cmb/cmb.py`; keep
+  `copernican/lib/model_coder.py` capability checks and the focused
+  perturbation tests aligned with that layout.
+- 2026-08-13: `README.md` is canonical and syncs exactly to
+  `copernican/README.md`; keep both README paths in the managed doc pair.
 
 <!-- DEVCOV-WORKFLOW:BEGIN -->
 

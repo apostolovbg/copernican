@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-13
+**Last Updated:** 2026-08-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1764,7 +1764,7 @@ Done when:
 
 Implementation record:
 
-* Massive-neutrino grids now validate their count, positive q bounds,
+* Massive-neutrino grids validate their count, positive q bounds,
   second-order logarithmic trapezoid rule, finite nodes, and positive
   quadrature weights before entering the runtime cache.
 * Density, pressure, momentum, and shear moments retain their distinct
@@ -2295,7 +2295,7 @@ Implementation closure:
 * Acceptance-only sector timing coverage was removed in favor of named
   cache, availability, output, likelihood, and cross-sector assertions.
 
-### [open] Slice Thirty-Nine - Final scientific and repository closure
+### [closed] Slice Thirty-Nine - Final scientific and repository closure
 
 Purpose:
 
@@ -2332,6 +2332,20 @@ Done when:
   production execution, and complete repository acceptance.
 * The full local repository gate passes from a clean checkout.
 * No item from this roadmap remains open or deferred.
+
+Implementation closure:
+
+* The complete managed workflow passed all 702 tests without failures,
+  errors, or skips in 1377.584 seconds.
+* Scientific reference tests require the independent CAMB workspace
+  dependency instead of converting a missing reference into skipped
+  acceptance.
+* Production imports, model contracts, package dependencies, numerical
+  thresholds, cache identities, output metadata, and documentation surfaces
+  retain their native-only boundaries under the complete workflow.
+* The root README and package README remain an exact managed pair alongside
+  the governed long-form package-manual mirrors.
+* Every roadmap marker is closed and no implementation item is deferred.
 
 ## Completion Standard
 
