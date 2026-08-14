@@ -28,6 +28,9 @@ and that Copernican was launched with `python -m copernican --gui`.
 Run and validation workers use that interpreter and the package import root.
 If a worker reports `No module named copernican`, include the GUI launch
 command and the first worker log lines in the support report.
+The first worker summary must match the control model, test model, datasets,
+seed, and sampler settings shown at confirmation. Include the saved run
+manifest if those values differ.
 
 If a model path fails to load, check the exact path, suffix, and
 validation error that the CLI or GUI reports.

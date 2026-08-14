@@ -80,6 +80,21 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-14:
+  Change: Fixed GUI confirmation persistence and isolated GUI test workspaces.
+  Why: Corrected a stale on-disk manifest path and prevented tests from
+  reading or writing the operator's output directory.
+  Impact: Ensured workers execute the exact confirmed models and datasets
+  while tests leave user run state untouched.
+  Files:
+  CHANGELOG.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/lib/gui/app.py
+  tests/copernican/lib/gui/test_app.py
+
+- 2026-08-14:
   Change: Fixed GUI run and validation worker package-root resolution.
   Why: Corrected the nested GUI module path used as the child-process working
   directory in source checkouts.

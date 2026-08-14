@@ -49,6 +49,19 @@ def _tmp_path_or_default(tmp_path: Path | None) -> Path:
 class TestCopernicanGUI(unittest.TestCase):
     """Exercise the Tkinter GUI scaffold."""
 
+    def setUp(self) -> None:
+        """Keep every GUI workspace inside a per-test home directory."""
+
+        temporary_home = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary_home.cleanup)
+        home_patcher = mock.patch.object(
+            Path,
+            "home",
+            return_value=Path(temporary_home.name),
+        )
+        home_patcher.start()
+        self.addCleanup(home_patcher.stop)
+
     def test_catalogue_metadata_and_filters(self) -> None:
         _case_catalogue_metadata_and_filters(self)
 
@@ -448,6 +461,14 @@ def _case_confirm_start_run_renames_manifest(
     workspace = gui._persist_manifest_workspace()
     self.assertIsNotNone(workspace)
     old_folder = workspace.folder
+    test_entry = next(
+        entry
+        for entry in gui.model_index.values()
+        if entry["filename"] != "model_lcdm.yml"
+    )
+    gui._apply_model_role("test", test_entry)
+    gui.draft.seed = "17"
+    gui._stage_confirm_manifest()
     gui.confirm_start_run()
     self.assertIsNotNone(gui.manifest_workspace)
     self.assertTrue(
@@ -457,6 +478,14 @@ def _case_confirm_start_run_renames_manifest(
         gui.manifest_workspace.manifest_path.name.startswith("run_manifest_")
     )
     self.assertFalse(old_folder.exists())
+    persisted_manifest = run_manifest.load_manifest(
+        str(gui.manifest_workspace.manifest_path)
+    )
+    self.assertEqual(
+        persisted_manifest["selection"]["comparison"]["test"]["filename"],
+        test_entry["filename"],
+    )
+    self.assertEqual(persisted_manifest["confirmation"]["seed"], 17)
 
 
 def _case_worker_process_uses_importable_package_root(self) -> None:

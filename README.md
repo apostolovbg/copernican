@@ -270,6 +270,9 @@ behavior as the rest of the GUI.
 Run and validation workers use the active interpreter from the directory that
 contains the importable `copernican` package, so source checkouts do not
 require an editable package installation.
+Immediately before launch, the GUI writes the displayed confirmation snapshot
+to the run workspace. The worker therefore receives the same models, datasets,
+seed, and sampler settings shown in the Run Builder.
 
 ## Analysis Workspace
 The Analysis tab provides Run Summary, Posteriors, and Comparisons tools.

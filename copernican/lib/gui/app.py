@@ -8132,10 +8132,29 @@ class CopernicanGUI:
             )
             return
         run_start_ts = utils.get_timestamp()
-        workspace = finalize_run_workspace(
-            self.manifest_workspace,
-            start_timestamp=run_start_ts,
-        )
+        try:
+            run_manifest.save_manifest(
+                self.pending_manifest,
+                self.manifest_workspace.folder,
+                target_path=self.manifest_workspace.manifest_path,
+            )
+            workspace = finalize_run_workspace(
+                self.manifest_workspace,
+                start_timestamp=run_start_ts,
+            )
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            yaml.YAMLError,
+        ) as exc:
+            self.create_toast(
+                f"Failed to finalise run manifest: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+            return
         self.manifest_workspace = workspace
         self.summary.manifest_metadata = self._summarise_manifest()
         self.summary.manifest_actions.append(
