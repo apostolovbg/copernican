@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import copy
 import keyword
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Callable, Mapping
@@ -27,6 +28,10 @@ from .native_background import (
     _CustomCMBPhysicalParameters,
     _physical_runtime_scalars,
     _resolve_declared_accuracy_controls,
+)
+from .native_errors import (
+    NativeConstraintViolationError,
+    NativeNonFiniteEvolutionError,
 )
 
 _NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
@@ -137,6 +142,16 @@ class _DeclaredGraphExecutionPlan:
     start_condition_entries: tuple[Any, ...]
     end_condition_entries: tuple[Any, ...]
     equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredRuntimeAssets:
+    """Process-local structural graph assets for one compiled model."""
+
+    runtime_signature: str
+    perturbation_data: Any
+    execution_plan: _DeclaredGraphExecutionPlan
+    owner_pid: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -424,6 +439,17 @@ def _compile_equation_program(
         ast.Module(body=statements, type_ignores=[])
     )
     return compile(module, "<declared-cmb-equations>", "exec")
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredMomentumGridTopology:
+    """Parameter-independent nodes and weights for one momentum grid."""
+
+    name: str
+    points: numpy.ndarray
+    weights: numpy.ndarray
+    quadrature_order: int
+    family_names: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -850,6 +876,34 @@ def _compile_declared_graph_execution_plan(
     return compiled_plan
 
 
+def prepare_native_runtime_assets(
+    runtime_signature: str,
+    perturbation_data: Any,
+) -> _DeclaredRuntimeAssets:
+    """Prepare one model's structural graph assets once in this process."""
+
+    signature = str(runtime_signature or "").strip()
+    if not signature:
+        signature = repr(
+            _declared_graph_execution_plan_cache_token(perturbation_data)
+        )
+    owner_pid = os.getpid()
+    cache_key = (owner_pid, signature)
+    cached = native_cache.get_native_runtime_assets(cache_key)
+    if cached is not None:
+        return cached
+    assets = _DeclaredRuntimeAssets(
+        runtime_signature=signature,
+        perturbation_data=perturbation_data,
+        execution_plan=_compile_declared_graph_execution_plan(
+            perturbation_data
+        ),
+        owner_pid=owner_pid,
+    )
+    native_cache.set_native_runtime_assets(cache_key, assets)
+    return assets
+
+
 def _resolve_declared_momentum_grid_runtimes(
     perturbation_data: Any,
     *,
@@ -895,6 +949,97 @@ def _resolve_declared_momentum_grid_runtimes(
     if not family_groups:
         return ()
 
+    topology_key = tuple(
+        sorted(
+            (
+                str(name),
+                repr(momentum_grid_defs.get(name, {})),
+                tuple(sorted(family_names)),
+                repr(minimum_momentum_counts.get(name)),
+            )
+            for name, family_names in family_groups.items()
+        )
+    )
+    topologies = native_cache.get_declared_momentum_topology(topology_key)
+    if topologies is None:
+        prepared_topologies: list[_DeclaredMomentumGridTopology] = []
+        for grid_name, family_names in sorted(family_groups.items()):
+            grid_def = momentum_grid_defs.get(grid_name, {})
+            if grid_def in (None, {}):
+                grid_def = {}
+            if not isinstance(grid_def, Mapping):
+                raise ValueError(
+                    "cmb.perturbations.numerics.momentum_grids."
+                    f"{grid_name} must be a mapping"
+                )
+            count, q_min, q_max, quadrature_order = (
+                _validate_declared_momentum_grid_definition(
+                    grid_name,
+                    grid_def,
+                )
+            )
+            minimum_count = minimum_momentum_counts.get(grid_name)
+            if minimum_count is not None:
+                required_count = int(
+                    _coerce_numeric_scalar(
+                        minimum_count,
+                        name=(
+                            "cmb.perturbations.accuracy_controls."
+                            f"minimum_momentum_grid_count.{grid_name}"
+                        ),
+                    )
+                )
+                if required_count < 1:
+                    raise ValueError(
+                        "Declared accuracy_controls require positive "
+                        f"momentum grid counts for '{grid_name}'"
+                    )
+                if count < required_count:
+                    raise ValueError(
+                        "Declared accuracy_controls require "
+                        "cmb.perturbations.numerics.momentum_grids."
+                        f"{grid_name}.count >= {required_count}"
+                    )
+            points = numpy.geomspace(q_min, q_max, count, dtype=float)
+            if not numpy.all(numpy.isfinite(points)) or not numpy.all(
+                numpy.diff(points) > 0.0
+            ):
+                raise ValueError(
+                    f"momentum grid '{grid_name}' produced invalid q nodes"
+                )
+            log_points = numpy.log(points)
+            weights = numpy.empty_like(points)
+            deltas = numpy.diff(log_points)
+            weights[0] = 0.5 * deltas[0]
+            weights[-1] = 0.5 * deltas[-1]
+            if points.size > 2:
+                weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
+            weights = numpy.asarray(weights, dtype=float)
+            if not numpy.all(numpy.isfinite(weights)) or numpy.any(
+                weights <= 0.0
+            ):
+                raise ValueError(
+                    f"momentum grid '{grid_name}' produced invalid q weights"
+                )
+            points.flags.writeable = False
+            weights.flags.writeable = False
+            prepared_topologies.append(
+                _DeclaredMomentumGridTopology(
+                    name=str(grid_name),
+                    points=points,
+                    weights=weights,
+                    quadrature_order=quadrature_order,
+                    family_names=tuple(
+                        sorted(str(name) for name in family_names)
+                    ),
+                )
+            )
+        topologies = tuple(prepared_topologies)
+        native_cache.set_declared_momentum_topology(
+            topology_key,
+            topologies,
+        )
+
     relevant_parameter_names = {
         "num_massive_neutrinos",
         "sum_mnu",
@@ -908,16 +1053,7 @@ def _resolve_declared_momentum_grid_runtimes(
             if isinstance(parameter_name, str):
                 relevant_parameter_names.add(parameter_name)
     cache_key = (
-        tuple(
-            sorted(
-                (
-                    str(name),
-                    repr(momentum_grid_defs.get(name, {})),
-                    tuple(sorted(family_names)),
-                )
-                for name, family_names in family_groups.items()
-            )
-        ),
+        topology_key,
         tuple(
             sorted(
                 (
@@ -1010,70 +1146,16 @@ def _resolve_declared_momentum_grid_runtimes(
         return total_mass / float(count)
 
     runtimes: list[_DeclaredMomentumGridRuntime] = []
-    for grid_name, family_names in sorted(family_groups.items()):
-        grid_def = momentum_grid_defs.get(grid_name, {})
-        if grid_def in (None, {}):
-            grid_def = {}
-        if not isinstance(grid_def, Mapping):
-            raise ValueError(
-                "cmb.perturbations.numerics.momentum_grids."
-                f"{grid_name} must be a mapping"
-            )
-        count, q_min, q_max, quadrature_order = (
-            _validate_declared_momentum_grid_definition(grid_name, grid_def)
-        )
-        minimum_count = minimum_momentum_counts.get(grid_name)
-        if minimum_count is not None:
-            required_count = int(
-                _coerce_numeric_scalar(
-                    minimum_count,
-                    name=(
-                        "cmb.perturbations.accuracy_controls."
-                        f"minimum_momentum_grid_count.{grid_name}"
-                    ),
-                )
-            )
-            if required_count < 1:
-                raise ValueError(
-                    "Declared accuracy_controls require positive momentum "
-                    f"grid counts for '{grid_name}'"
-                )
-            if count < required_count:
-                raise ValueError(
-                    "Declared accuracy_controls require "
-                    "cmb.perturbations.numerics.momentum_grids."
-                    f"{grid_name}.count >= {required_count}"
-                )
-        points = numpy.geomspace(q_min, q_max, count, dtype=float)
-        if not numpy.all(numpy.isfinite(points)) or not numpy.all(
-            numpy.diff(points) > 0.0
-        ):
-            raise ValueError(
-                f"momentum grid '{grid_name}' produced invalid q nodes"
-            )
-        log_points = numpy.log(points)
-        weights = numpy.empty_like(points)
-        if points.size == 1:
-            weights[0] = 1.0
-        else:
-            deltas = numpy.diff(log_points)
-            weights[0] = 0.5 * deltas[0]
-            weights[-1] = 0.5 * deltas[-1]
-            if points.size > 2:
-                weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
-        weights = numpy.asarray(weights, dtype=float)
-        if not numpy.all(numpy.isfinite(weights)) or numpy.any(weights <= 0.0):
-            raise ValueError(
-                f"momentum grid '{grid_name}' produced invalid q weights"
-            )
+    for topology in topologies:
+        grid_def = momentum_grid_defs.get(topology.name, {}) or {}
         runtimes.append(
             _DeclaredMomentumGridRuntime(
-                name=str(grid_name),
-                points=points,
-                weights=weights,
-                quadrature_order=quadrature_order,
-                mass_eV=_grid_mass_eV(str(grid_name), grid_def),
-                family_names=tuple(sorted(str(name) for name in family_names)),
+                name=topology.name,
+                points=topology.points,
+                weights=topology.weights,
+                quadrature_order=topology.quadrature_order,
+                mass_eV=_grid_mass_eV(topology.name, grid_def),
+                family_names=topology.family_names,
             )
         )
     runtime_tuple = tuple(runtimes)
@@ -2149,15 +2231,30 @@ def _validate_generated_scalar_initial_constraints(
             continue
         normalized_residual = abs(float(context[residual_name])) / float(scale)
         if not numpy.isfinite(normalized_residual):
-            raise ValueError(
+            raise NativeNonFiniteEvolutionError(
                 "Generated scalar initial data produced non-finite Einstein "
-                f"diagnostics for {residual_name} at k={k_value}"
+                f"diagnostics for {residual_name} at k={k_value}",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(k_value),
+                    "residual": residual_name,
+                    "tolerance": float(tolerance),
+                    "tolerance_provenance": "generated_initial_gauge_default",
+                },
             )
         if normalized_residual > tolerance:
-            raise ValueError(
+            raise NativeConstraintViolationError(
                 "Generated scalar initial data violate the Einstein "
                 f"constraints for {residual_name} at k={k_value} "
-                f"({normalized_residual} > {tolerance})"
+                f"({normalized_residual} > {tolerance})",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(k_value),
+                    "normalized_residual": float(normalized_residual),
+                    "residual": residual_name,
+                    "tolerance": float(tolerance),
+                    "tolerance_provenance": "generated_initial_gauge_default",
+                },
             )
 
     for operator_name, operator_entry in (

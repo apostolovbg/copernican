@@ -67,6 +67,18 @@ class JointLike(LikelihoodProtocol):
                 component.enabled = component.enabled and toggles[name]
         self._toggles = toggles
 
+    def prepare_worker_runtime(self) -> None:
+        """Prepare enabled process-local likelihood runtime assets once."""
+
+        for name, component in self.components.items():
+            if not getattr(component, "enabled", True):
+                continue
+            if name in self._toggles and not self._toggles[name]:
+                continue
+            prepare = getattr(component, "prepare_worker_runtime", None)
+            if callable(prepare):
+                prepare()
+
     def loglike(self, params: Sequence[float]) -> float:
         """Return the total log-likelihood across all enabled components."""
 

@@ -7,7 +7,11 @@ from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import native_background, native_evolution
+from copernican.lib.likelihoods.cmb import (
+    native_background,
+    native_cache,
+    native_evolution,
+)
 from copernican.lib.perturbation_contract import compile_perturbation_contract
 
 
@@ -184,6 +188,61 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
         self.assertAlmostEqual(resolved["phi_aux"], 0.5)
         self.assertAlmostEqual(resolved["psi_aux"], 0.5)
         self.assertAlmostEqual(resolved["density_drive"], 2.5)
+
+    def test_runtime_assets_compile_once_per_process_signature(self):
+        """Repeated worker preparation should reuse one structural bundle."""
+
+        native_cache.clear_native_cmb_caches()
+        perturbation_data = _compiled_graph_fixture()
+        compiler = native_evolution._compile_declared_graph_execution_plan
+        with mock.patch.object(
+            native_evolution,
+            "_compile_declared_graph_execution_plan",
+            wraps=compiler,
+        ) as compile_plan:
+            first = native_evolution.prepare_native_runtime_assets(
+                "runtime:test",
+                perturbation_data,
+            )
+            second = native_evolution.prepare_native_runtime_assets(
+                "runtime:test",
+                perturbation_data,
+            )
+
+        self.assertIs(first, second)
+        compile_plan.assert_called_once_with(perturbation_data)
+        third = native_evolution.prepare_native_runtime_assets(
+            "runtime:test", perturbation_data
+        )
+        self.assertIs(third, first)
+        self.assertGreater(first.owner_pid, 0)
+        stats = native_cache.native_cmb_cache_stats()["native_runtime_assets"]
+        self.assertEqual(stats["entries"], 1)
+        self.assertEqual(stats["hits"], 2)
+
+    def test_runtime_assets_are_isolated_by_process_owner(self):
+        """A process identity change must materialize a distinct bundle."""
+
+        native_cache.clear_native_cmb_caches()
+        perturbation_data = _compiled_graph_fixture()
+        with mock.patch.object(
+            native_evolution.os, "getpid", return_value=101
+        ):
+            first = native_evolution.prepare_native_runtime_assets(
+                "runtime:test",
+                perturbation_data,
+            )
+        with mock.patch.object(
+            native_evolution.os, "getpid", return_value=202
+        ):
+            second = native_evolution.prepare_native_runtime_assets(
+                "runtime:test",
+                perturbation_data,
+            )
+
+        self.assertIsNot(first, second)
+        self.assertEqual(first.owner_pid, 101)
+        self.assertEqual(second.owner_pid, 202)
 
     def test_native_evolution_source_does_not_import_camb(self):
         """The native evolution module should remain CAMB-free."""

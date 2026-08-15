@@ -305,7 +305,7 @@ Done when:
 * Compound BAO uses diagonal errors without a fallback warning.
 * CLI and GUI tests prove the same manifest reaches the same executor.
 
-### [open] Slice Two - Native failure taxonomy and performance evidence
+### [closed] Slice Two - Native failure taxonomy and performance evidence
 
 Purpose:
 
@@ -370,7 +370,7 @@ Done when:
 * Failed requests retain complete phase and work-unit timing.
 * The declared `joint_mcmc` budget is exercised by production likelihood code.
 
-### [open] Slice Three - Runtime lifecycle and structural reuse
+### [closed] Slice Three - Runtime lifecycle and structural reuse
 
 Purpose:
 

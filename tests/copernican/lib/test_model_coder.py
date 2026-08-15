@@ -596,8 +596,8 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertIs(first, second)
         compile_contract.assert_called_once()
 
-    def test_native_cmb_runtime_build_contract_copies_runtime_payload(self):
-        """Bound runtime contracts should detach mutable runtime mappings."""
+    def test_native_cmb_runtime_build_contract_reuses_frozen_payload(self):
+        """Bound contracts should reuse immutable structural runtime assets."""
 
         runtime = model_coder.NativeCMBRuntime(
             model_name="TemplateModel",
@@ -636,20 +636,27 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertEqual(runtime.build_contract.__name__, "build_contract")
         self.assertEqual(contract["model_parameters"], {"Omega_m0": 0.3})
         self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
-        self.assertIsNot(contract["background"], runtime.background)
+        self.assertIsInstance(
+            runtime.background,
+            model_coder.NativeFrozenMapping,
+        )
+        self.assertIs(contract["background"], runtime.background)
         self.assertIs(
             contract["background_runtime"],
             runtime.background_runtime,
         )
-        self.assertIsNot(contract["grids"], runtime.grids)
-        self.assertIsNot(contract["values"], runtime.values)
-        self.assertEqual(contract["calls"], list(runtime.calls))
-        self.assertIsNot(contract["calls"], runtime.calls)
-        self.assertIsNot(contract["numerical"], runtime.numerical)
-        self.assertIsNot(
+        self.assertIs(contract["grids"], runtime.grids)
+        self.assertIs(contract["values"], runtime.values)
+        self.assertIs(contract["calls"], runtime.calls)
+        self.assertIs(contract["numerical"], runtime.numerical)
+        self.assertIs(
             contract["perturbations"],
             runtime.perturbation_contract,
         )
+        with self.assertRaises(TypeError):
+            contract["background"]["density"] = {}
+        with self.assertRaises(TypeError):
+            contract["background"]["density"]["expression"] = "0.0"
         self.assertIs(contract["perturbation_data"], runtime.perturbation_data)
         self.assertEqual(
             contract["runtime_signature"],
@@ -659,10 +666,6 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             contract["compile_diagnostics"],
             runtime.compile_diagnostics,
         )
-        contract["background"]["density"]["expression"] = "Omega_b0"
-        contract["numerical"]["ell_max"] = 128
-        contract["calls"][0]["method"] = "set_classes"
-        contract["perturbations"]["gauge"] = "synchronous"
         self.assertEqual(
             runtime.background["density"]["expression"],
             "Omega_m0",

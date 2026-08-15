@@ -75,6 +75,14 @@ and hierarchy thresholds. Explicit graphs without a sector registry retain
 their active sector identity from compiled observable and tensor-character
 metadata, so runtime envelopes cannot silently omit executed sectors.
 
+Native MCMC workers prepare immutable graph structure once per model and
+reuse it across parameter proposals. Bounded caches distinguish structural,
+parameter-dependent, and complete-result data, while request diagnostics
+record cold, warm, and exact-hit states with phase timings and work units.
+Only valid parameter-domain exclusions become rejected proposals; contract,
+convergence, non-finite, constraint, capability, and performance failures
+stop execution with typed diagnostics.
+
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
 source checkouts and installed copies follow the same launch path.

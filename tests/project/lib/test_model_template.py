@@ -65,15 +65,17 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
         """The root template should execute through the native graph."""
 
         plugin = self._build_template_plugin()
-        contract = plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
-        contract["numerical"].update(
-            {
-                "ell_max": 8,
-                "k_sample_count": 4,
-                "eta_sample_count": 64,
-                "source_grid_multiplier": 1,
-            }
+        runtime_contract = plugin.get_cmb_native_runtime(
+            plugin.INITIAL_GUESSES
         )
+        contract = dict(runtime_contract)
+        contract["numerical"] = {
+            **dict(runtime_contract["numerical"]),
+            "ell_max": 8,
+            "k_sample_count": 4,
+            "eta_sample_count": 64,
+            "source_grid_multiplier": 1,
+        }
         spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             [2, 3],

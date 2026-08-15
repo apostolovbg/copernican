@@ -17,6 +17,15 @@ from ...cmb_output import (
 from ...model_coder import prepare_native_cmb_execution_contract
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
 from .copernican_cmb_solver import _compute_declared_perturbation_spectrum
+from .native_errors import (
+    NativeContractError,
+    NativeInitialPointError,
+    NativeNonFiniteEvolutionError,
+    NativeParameterDomainError,
+    classify_native_exception,
+    native_failure_context,
+)
+from .native_evolution import prepare_native_runtime_assets
 
 
 def _resolve_plugin_cmb_contract(
@@ -59,16 +68,27 @@ def compute_cmb_spectrum_from_contract(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
+    workload: str = "full_spectrum",
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
-    prepared_contract = prepare_native_cmb_execution_contract(
-        contract_or_params
-    )
+    try:
+        prepared_contract = prepare_native_cmb_execution_contract(
+            contract_or_params
+        )
+    # DEVCOV_ALLOW_BROAD_ONCE native contract normalization boundary.
+    except Exception as exc:
+        context = native_failure_context(
+            contract_or_params,
+            workload=workload,
+            spectra=spectra,
+        )
+        raise classify_native_exception(exc, context=context) from exc
     return _compute_declared_perturbation_spectrum(
         prepared_contract,
         ells,
         spectra=spectra,
+        workload=workload,
     )
 
 
@@ -78,19 +98,34 @@ def compute_cmb_spectrum_cached(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
+    workload: str = "full_spectrum",
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
-    native_contract = _resolve_plugin_cmb_contract(
-        plugin,
-        cosmo_params,
-    )
-    prepared_contract = prepare_native_cmb_execution_contract(native_contract)
+    try:
+        native_contract = _resolve_plugin_cmb_contract(
+            plugin,
+            cosmo_params,
+        )
+        prepared_contract = prepare_native_cmb_execution_contract(
+            native_contract
+        )
+    # DEVCOV_ALLOW_BROAD_ONCE plugin contract normalization boundary.
+    except Exception as exc:
+        raise classify_native_exception(
+            exc,
+            context={
+                "parameters": tuple(float(value) for value in cosmo_params),
+                "requested_spectra": tuple(str(name) for name in spectra),
+                "workload": str(workload),
+            },
+        ) from exc
     return _compute_declared_perturbation_spectrum(
         prepared_contract,
         ells,
         spectra=spectra,
         background_provider=plugin,
+        workload=workload,
     )
 
 
@@ -99,6 +134,7 @@ def compute_cmb_spectrum(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
+    workload: str = "full_spectrum",
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return spectra using one structured CMB contract."""
 
@@ -106,6 +142,7 @@ def compute_cmb_spectrum(
         param_dict,
         ells,
         spectra=spectra,
+        workload=workload,
     )
 
 
@@ -136,6 +173,7 @@ class CMBLike(LikelihoodProtocol):
         repr=False,
     )
     _setup_error: str | None = field(init=False, default=None, repr=False)
+    _proposal_rejection_count: int = field(init=False, default=0, repr=False)
 
     def __post_init__(self) -> None:
         """Extract immutable arrays so log-likelihood evaluation stays lean."""
@@ -210,9 +248,12 @@ class CMBLike(LikelihoodProtocol):
             return 0.0
 
         if self._setup_error is not None:
-            logger.error(self._setup_error)
             self._state = LikelihoodState()
-            return float("-inf")
+            raise NativeContractError(self._setup_error)
+
+        domain_error = self._parameter_domain_error(params)
+        if domain_error is not None:
+            return self._reject_parameter_point(domain_error, logger=logger)
 
         try:
             native_contract = _resolve_plugin_cmb_contract(
@@ -223,21 +264,21 @@ class CMBLike(LikelihoodProtocol):
                 native_contract,
                 self._extra_params_cached,
             )
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.error("(cmb_like): %s", exc)
-            self._state = LikelihoodState()
-            return float("-inf")
+        # DEVCOV_ALLOW_BROAD_ONCE plugin contract normalization boundary.
+        except Exception as exc:
+            typed_error = classify_native_exception(
+                exc,
+                context={"workload": "joint_mcmc"},
+            )
+            if isinstance(typed_error, NativeParameterDomainError):
+                return self._reject_parameter_point(typed_error, logger=logger)
+            raise typed_error from exc
 
         if not isinstance(native_contract, Mapping):
             self._state = LikelihoodState()
-            return float("-inf")
+            raise NativeContractError(
+                "(cmb_like): Model native CMB runtime must be a mapping."
+            )
 
         requested_spectra = self._observed_spectra or ("TT",)
         try:
@@ -249,18 +290,21 @@ class CMBLike(LikelihoodProtocol):
                 self._ells,
                 spectra=requested_spectra,
                 background_provider=self.plugin,
+                workload="joint_mcmc",
             )
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            logger.error("(cmb_like): %s", exc)
-            self._state = LikelihoodState()
-            return float("-inf")
+        # DEVCOV_ALLOW_BROAD_ONCE native likelihood normalization boundary.
+        except Exception as exc:
+            typed_error = classify_native_exception(
+                exc,
+                context=native_failure_context(
+                    native_contract,
+                    workload="joint_mcmc",
+                    spectra=requested_spectra,
+                ),
+            )
+            if isinstance(typed_error, NativeParameterDomainError):
+                return self._reject_parameter_point(typed_error, logger=logger)
+            raise typed_error from exc
 
         if isinstance(theory, Mapping):
             try:
@@ -269,21 +313,29 @@ class CMBLike(LikelihoodProtocol):
                     self._observation_blocks,
                     total_row_count=self._observed.size,
                 )
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError) as exc:
                 self._state = LikelihoodState()
-                return float("-inf")
+                raise NativeContractError(
+                    "(cmb_like): CMB theory blocks do not match observations."
+                ) from exc
         else:
             theory_vector = numpy.asarray(theory, dtype=float)
             if len(requested_spectra) > 1:
                 self._state = LikelihoodState()
-                return float("-inf")
+                raise NativeContractError(
+                    "(cmb_like): Multi-spectrum data require named theory."
+                )
             if theory_vector.shape != self._observed.shape:
                 self._state = LikelihoodState()
-                return float("-inf")
+                raise NativeContractError(
+                    "(cmb_like): CMB theory vector has unexpected shape."
+                )
 
         if numpy.any(~numpy.isfinite(theory_vector)):
             self._state = LikelihoodState()
-            return float("-inf")
+            raise NativeNonFiniteEvolutionError(
+                "(cmb_like): Native CMB theory contains non-finite values."
+            )
 
         numpy.subtract(
             self._observed,
@@ -295,7 +347,9 @@ class CMBLike(LikelihoodProtocol):
         cov_inv = self._cov_inv
         if cov_inv is None:
             self._state = LikelihoodState()
-            return float("-inf")
+            raise NativeContractError(
+                "(cmb_like): Missing inverse covariance matrix."
+            )
 
         try:
             chi2 = float(
@@ -307,11 +361,17 @@ class CMBLike(LikelihoodProtocol):
             RuntimeError,
             ValueError,
         ) as exc:
-            logger.error("(cmb_like): Linear algebra failure: %s", exc)
             self._state = LikelihoodState()
-            return float("-inf")
+            raise NativeContractError(
+                f"(cmb_like): Linear algebra failure: {exc}"
+            ) from exc
 
-        loglike = -0.5 * chi2 if numpy.isfinite(chi2) else float("-inf")
+        if not numpy.isfinite(chi2):
+            self._state = LikelihoodState()
+            raise NativeContractError(
+                "(cmb_like): CMB likelihood assembly produced non-finite chi2."
+            )
+        loglike = -0.5 * chi2
         self._state = LikelihoodState(
             chi2=chi2,
             loglike=loglike,
@@ -321,6 +381,100 @@ class CMBLike(LikelihoodProtocol):
             },
         )
         return loglike
+
+    def _parameter_domain_error(
+        self,
+        params: Sequence[float],
+    ) -> NativeParameterDomainError | None:
+        """Return a typed rejection for non-finite or out-of-bound values."""
+
+        try:
+            parameter_values = tuple(float(value) for value in params)
+        except (TypeError, ValueError) as exc:
+            raise NativeContractError(
+                "CMB likelihood parameters must be numeric scalars."
+            ) from exc
+        if not all(numpy.isfinite(value) for value in parameter_values):
+            return NativeParameterDomainError(
+                "CMB likelihood parameters must be finite.",
+                context={"parameters": parameter_values},
+            )
+        bounds = tuple(getattr(self.plugin, "PARAMETER_BOUNDS", ()) or ())
+        if bounds and len(bounds) != len(parameter_values):
+            raise NativeContractError(
+                "CMB likelihood parameter vector does not match model bounds."
+            )
+        for index, (value, bound) in enumerate(zip(parameter_values, bounds)):
+            lower, upper = bound
+            if (lower is not None and value < float(lower)) or (
+                upper is not None and value > float(upper)
+            ):
+                return NativeParameterDomainError(
+                    "CMB likelihood parameter lies outside its model bounds.",
+                    context={
+                        "index": index,
+                        "lower": lower,
+                        "parameters": parameter_values,
+                        "upper": upper,
+                        "value": value,
+                    },
+                )
+        return None
+
+    def _reject_parameter_point(
+        self,
+        error: NativeParameterDomainError,
+        *,
+        logger: logging.Logger,
+    ) -> float:
+        """Record one expected proposal rejection without an error storm."""
+
+        self._proposal_rejection_count += 1
+        if self._proposal_rejection_count == 1 or (
+            self._proposal_rejection_count % 100 == 0
+        ):
+            logger.debug(
+                "(cmb_like): rejected %d parameter-domain proposal(s); "
+                "latest: %s",
+                self._proposal_rejection_count,
+                error,
+            )
+        self._state = LikelihoodState(
+            metadata={
+                "failure": error.diagnostic(),
+                "proposal_rejections": self._proposal_rejection_count,
+            }
+        )
+        return float("-inf")
+
+    def prepare_worker_runtime(self) -> None:
+        """Materialize immutable graph assets once in the current worker."""
+
+        if not self.enabled:
+            return
+        runtime = getattr(self.plugin, "CMB_NATIVE_RUNTIME", None)
+        if runtime is None:
+            raise NativeContractError(
+                "Enabled CMB likelihood requires a compiled native runtime."
+            )
+        prepare_native_runtime_assets(
+            runtime.runtime_signature,
+            runtime.perturbation_data,
+        )
+
+    def preflight(self, params: Sequence[float]) -> float:
+        """Validate the configured initial point before walker creation."""
+
+        value = float(self.loglike(params))
+        if not numpy.isfinite(value):
+            raise NativeInitialPointError(
+                "Initial native CMB parameter point was rejected.",
+                context={
+                    "parameters": tuple(float(value) for value in params),
+                    "likelihood_state": self.state,
+                },
+            )
+        return value
 
     @property
     def state(self) -> Mapping[str, Any]:

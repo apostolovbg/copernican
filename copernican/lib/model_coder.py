@@ -21,7 +21,7 @@ import sys
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 import numpy
 import sympy
@@ -102,6 +102,68 @@ class NativeCMBCompileDiagnostics:
     background_reference_names: tuple[str, ...]
 
 
+class NativeFrozenMapping(Mapping[str, Any]):
+    """Picklable recursively read-only mapping for native runtime assets."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self, source: Mapping[str, Any] | None = None) -> None:
+        """Freeze every nested value while preserving mapping semantics."""
+
+        self._data = {
+            str(key): _freeze_native_runtime_value(value)
+            for key, value in (source or {}).items()
+        }
+
+    def __getitem__(self, key: str) -> Any:
+        """Return one frozen value."""
+
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        """Yield keys in insertion order."""
+
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        """Return the number of entries."""
+
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        """Return a diagnostic representation."""
+
+        return f"NativeFrozenMapping({self._data!r})"
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return picklable mapping state."""
+
+        return self._data
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        """Restore mapping state in spawned workers."""
+
+        object.__setattr__(self, "_data", dict(state))
+
+
+def _freeze_native_runtime_value(value: Any) -> Any:
+    """Recursively freeze one process-safe structural runtime value."""
+
+    if isinstance(value, NativeFrozenMapping):
+        return value
+    if isinstance(value, Mapping):
+        return NativeFrozenMapping(value)
+    if isinstance(value, numpy.ndarray):
+        frozen_array = numpy.array(value, copy=True)
+        frozen_array.flags.writeable = False
+        return frozen_array
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_native_runtime_value(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze_native_runtime_value(item) for item in value)
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class NativeCMBRuntime:
     """Immutable native CMB runtime payload carried by engine plugins.
@@ -125,6 +187,27 @@ class NativeCMBRuntime:
     runtime_signature: str = ""
     compile_diagnostics: NativeCMBCompileDiagnostics | None = None
 
+    def __post_init__(self) -> None:
+        """Freeze structural declarations once at runtime construction."""
+
+        for name in (
+            "perturbation_contract",
+            "background",
+            "grids",
+            "values",
+            "numerical",
+        ):
+            object.__setattr__(
+                self,
+                name,
+                _freeze_native_runtime_value(getattr(self, name)),
+            )
+        object.__setattr__(
+            self,
+            "calls",
+            tuple(_freeze_native_runtime_value(entry) for entry in self.calls),
+        )
+
     def build_contract(
         self,
         *,
@@ -137,13 +220,13 @@ class NativeCMBRuntime:
             "model_name": self.model_name,
             "model_parameters": dict(model_parameters),
             "param_map": dict(param_map),
-            "background": copy.deepcopy(self.background),
+            "background": self.background,
             "background_runtime": self.background_runtime,
-            "grids": copy.deepcopy(self.grids),
-            "values": copy.deepcopy(self.values),
-            "calls": copy.deepcopy(list(self.calls)),
-            "numerical": copy.deepcopy(self.numerical),
-            "perturbations": copy.deepcopy(self.perturbation_contract),
+            "grids": self.grids,
+            "values": self.values,
+            "calls": self.calls,
+            "numerical": self.numerical,
+            "perturbations": self.perturbation_contract,
             "perturbation_data": self.perturbation_data,
             "runtime_signature": self.runtime_signature,
             "compile_diagnostics": self.compile_diagnostics,

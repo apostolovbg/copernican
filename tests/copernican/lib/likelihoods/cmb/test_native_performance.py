@@ -37,6 +37,10 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
         with timer.phase("compilation"):
             pass
         timer.add("projection", 0.25)
+        timer.mark_cache_state("warm")
+        self.assertEqual(timer.cache_state, "warm")
+        timer.set_work_units({"evolution": 4})
+        self.assertEqual(timer.work_units["evolution"], 4)
 
         snapshot = timer.snapshot(total_seconds=0.5)
         self.assertGreaterEqual(snapshot["compilation_seconds"], 0.0)
@@ -58,6 +62,29 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
                 0.75,
                 workload="joint_mcmc",
                 budget=budget,
+            )
+
+    def test_cold_joint_start_uses_startup_budget_only_once(self):
+        """Structural startup and warm proposal limits must stay distinct."""
+
+        budget = native_performance.NativePerformanceBudget(
+            full_spectrum_seconds=1.0,
+            joint_mcmc_seconds=0.5,
+        )
+        native_performance.enforce_native_performance_budget(
+            0.75,
+            workload="joint_mcmc",
+            budget=budget,
+            cache_state="cold",
+        )
+        with self.assertRaises(
+            native_performance.NativePerformanceBudgetError
+        ):
+            native_performance.enforce_native_performance_budget(
+                0.75,
+                workload="joint_mcmc",
+                budget=budget,
+                cache_state="warm",
             )
 
     def test_unbounded_controls_do_not_invent_wall_time_limit(self):

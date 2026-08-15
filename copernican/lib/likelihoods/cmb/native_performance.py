@@ -7,9 +7,17 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Iterator, Mapping
 
+from .native_errors import NativePerformanceBudgetError
 
-class NativePerformanceBudgetError(ValueError):
-    """Identify a native run that exceeded its declared wall-time budget."""
+NATIVE_PHASE_NAMES = (
+    "compilation",
+    "background",
+    "initial_data",
+    "evolution",
+    "projection",
+    "lensing",
+    "likelihood_assembly",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +43,9 @@ class NativePhaseTimer:
     """Accumulate wall time for named native execution phases."""
 
     phase_seconds: dict[str, float] = field(default_factory=dict)
+    failed_phase: str | None = None
+    cache_state: str = "cold"
+    work_units: dict[str, int] = field(default_factory=dict)
 
     @contextmanager
     def phase(self, name: str) -> Iterator[None]:
@@ -44,6 +55,10 @@ class NativePhaseTimer:
         started = perf_counter()
         try:
             yield
+        # DEVCOV_ALLOW_BROAD_ONCE phase failure accounting boundary.
+        except BaseException:
+            self.failed_phase = phase_name
+            raise
         finally:
             self.phase_seconds[phase_name] = (
                 self.phase_seconds.get(phase_name, 0.0)
@@ -67,6 +82,25 @@ class NativePhaseTimer:
 
         return float(sum(self.phase_seconds.values()))
 
+    def mark_cache_state(self, state: str) -> None:
+        """Record whether the request was cold, warm, or an exact hit."""
+
+        normalized = str(state).strip().lower()
+        if normalized not in {"cold", "warm", "exact_cache_hit"}:
+            raise ValueError(f"Unknown native cache state: {state}")
+        self.cache_state = normalized
+
+    def set_work_units(self, work_units: Mapping[str, Any]) -> None:
+        """Record non-negative governed work-unit counters."""
+
+        for name, raw_value in work_units.items():
+            value = int(raw_value)
+            if value < 0:
+                raise ValueError(
+                    "Native work-unit counts must be non-negative"
+                )
+            self.work_units[str(name)] = value
+
     def snapshot(
         self, *, total_seconds: float | None = None
     ) -> dict[str, float]:
@@ -76,6 +110,8 @@ class NativePhaseTimer:
             f"{name}_seconds": float(value)
             for name, value in sorted(self.phase_seconds.items())
         }
+        for name in NATIVE_PHASE_NAMES:
+            snapshot.setdefault(f"{name}_seconds", 0.0)
         snapshot["total_seconds"] = float(
             self.total_seconds() if total_seconds is None else total_seconds
         )
@@ -143,17 +179,52 @@ def enforce_native_performance_budget(
     *,
     workload: str,
     budget: NativePerformanceBudget | None,
+    cache_state: str | None = None,
 ) -> None:
-    """Raise when one measured workload exceeds its declared budget."""
+    """Raise when one measured workload exceeds its declared budget.
+
+    The first process-local joint request owns structural initialization and
+    uses the full-spectrum startup limit. Every warm or exact proposal uses
+    the steady-state joint-MCMC limit.
+    """
 
     if budget is None:
         return
     elapsed = float(elapsed_seconds)
     if elapsed < 0.0 or elapsed != elapsed:
         raise ValueError("Native workload elapsed time must be finite")
-    limit = budget.limit_for(workload)
+    normalized_workload = str(workload).strip().lower()
+    normalized_cache_state = str(cache_state or "").strip().lower()
+    cold_joint_start = (
+        normalized_workload
+        in {
+            "joint",
+            "joint_mcmc",
+            "mcmc",
+        }
+        and normalized_cache_state == "cold"
+    )
+    budget_workload = "full_spectrum" if cold_joint_start else workload
+    limit = budget.limit_for(budget_workload)
     if elapsed > limit:
         raise NativePerformanceBudgetError(
             "Native CMB performance budget exceeded for "
-            f"{workload}: {elapsed:.3f}s > {limit:.3f}s"
+            f"{workload}: {elapsed:.3f}s > {limit:.3f}s",
+            context={
+                "budget_workload": str(budget_workload),
+                "cache_state": normalized_cache_state or None,
+                "elapsed_seconds": elapsed,
+                "limit_seconds": limit,
+                "workload": str(workload),
+            },
         )
+
+
+__all__ = [
+    "NATIVE_PHASE_NAMES",
+    "NativePerformanceBudget",
+    "NativePerformanceBudgetError",
+    "NativePhaseTimer",
+    "enforce_native_performance_budget",
+    "resolve_native_performance_budget",
+]

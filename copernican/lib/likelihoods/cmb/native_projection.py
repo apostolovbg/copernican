@@ -62,10 +62,15 @@ from .native_convergence import (
     BOUNDED_RUNTIME_LIMITS,
     resolve_native_numerical_envelope,
 )
+from .native_errors import (
+    NativeConstraintViolationError,
+    NativeNonFiniteEvolutionError,
+    classify_native_exception,
+    native_failure_context,
+)
 from .native_evolution import (
     _COMPILED_CONTEXT_GLOBALS,
     _build_declared_base_context,
-    _compile_declared_graph_execution_plan,
     _compile_declared_perturbation_contract,
     _compile_equation_program,
     _compile_ordered_context_program,
@@ -81,6 +86,7 @@ from .native_evolution import (
     _validate_generated_scalar_initial_constraints,
     _validate_generated_tensor_initial_constraints,
     _validate_generated_vector_initial_constraints,
+    prepare_native_runtime_assets,
 )
 from .native_performance import (
     NativePhaseTimer,
@@ -1527,9 +1533,15 @@ def _validate_scalar_constraint_histories(
                 f"{residual_name} at k={k_value}"
             )
         if not numpy.all(numpy.isfinite(values)):
-            raise ValueError(
+            raise NativeNonFiniteEvolutionError(
                 "Scalar Einstein residual is non-finite: "
-                f"{residual_name} at k={k_value}"
+                f"{residual_name} at k={k_value}",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(k_value),
+                    "residual": residual_name,
+                    "tolerance": float(tolerances[residual_name]),
+                },
             )
         absolute_values = numpy.abs(values)
         tolerance = tolerances[residual_name]
@@ -1550,10 +1562,25 @@ def _validate_scalar_constraint_histories(
             for anchor_name, fraction in anchors.items()
         }
         if enforcement_active and max_abs > tolerance:
-            raise ValueError(
+            maximum_index = int(numpy.argmax(absolute_values))
+            tolerance_provenance = (
+                "conservation_rule"
+                if residual_name in rule_enforced_residual_names
+                else "accuracy_controls.scalar_constraint_tolerances"
+            )
+            raise NativeConstraintViolationError(
                 "Scalar Einstein constraint exceeded tolerance: "
                 f"{residual_name} at k={k_value} "
-                f"({max_abs} > {tolerance})"
+                f"({max_abs} > {tolerance})",
+                context={
+                    "eta": float(eta_values[maximum_index]),
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(k_value),
+                    "maximum_absolute": max_abs,
+                    "residual": residual_name,
+                    "tolerance": float(tolerance),
+                    "tolerance_provenance": tolerance_provenance,
+                },
             )
         diagnostics[residual_name] = {
             "maximum_absolute": max_abs,
@@ -1567,16 +1594,16 @@ def _validate_scalar_constraint_histories(
     return diagnostics
 
 
-def _compute_custom_cmb_spectrum_data(
+def _compute_custom_cmb_spectrum_data_impl(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     *,
     background_provider: Any | None = None,
     requested_spectra: Iterable[str] | None = None,
+    performance_timer: NativePhaseTimer,
 ) -> CustomCMBSpectrumData:
     """Return transfer functions and spectra for a declared CMB graph."""
 
-    performance_timer = NativePhaseTimer()
     request_started = perf_counter()
     requested_spectrum_names = None
     if requested_spectra is not None:
@@ -1591,22 +1618,21 @@ def _compute_custom_cmb_spectrum_data(
     )
     cached_spectrum = native_cache.get_native_cmb_spectrum(cache_key)
     if cached_spectrum is not None:
-        native_cache.record_native_cmb_performance(
-            {"total_seconds": 0.0},
-            cache_hit=True,
-        )
+        performance_timer.mark_cache_state("exact_cache_hit")
         return _get_cached_custom_cmb_spectrum_data(cache_key)
 
-    graph_cache_before = native_cache.native_cmb_cache_stats()[
-        "declared_graph_execution_plan"
-    ]
+    cache_stats_before = native_cache.native_cmb_cache_stats()
+    graph_cache_before = cache_stats_before["declared_graph_execution_plan"]
+    runtime_asset_cache_before = cache_stats_before["native_runtime_assets"]
     with performance_timer.phase("compilation"):
         perturbation_data = _compile_declared_perturbation_contract(
             contract_or_params
         )
-        execution_plan = _compile_declared_graph_execution_plan(
-            perturbation_data
+        runtime_assets = prepare_native_runtime_assets(
+            str(contract_or_params.get("runtime_signature", "")),
+            perturbation_data,
         )
+        execution_plan = runtime_assets.execution_plan
         envelope_contract = dict(contract_or_params)
         envelope_contract["perturbation_data"] = perturbation_data
         numerical_envelope = resolve_native_numerical_envelope(
@@ -2133,8 +2159,18 @@ def _compute_custom_cmb_spectrum_data(
     runtime_envelope["spectrum_availability"] = FrozenMapping(
         dict(sorted(spectrum_availability.items()))
     )
-    runtime_envelope["static_graph_preparations"] = 1
-    runtime_envelope["contract_static_preparations"] = 1
+    runtime_asset_cache_after = native_cache.native_cmb_cache_stats()[
+        "native_runtime_assets"
+    ]
+    structural_cache_hit = bool(
+        runtime_asset_cache_after["hits"] > runtime_asset_cache_before["hits"]
+    )
+    runtime_envelope["static_graph_preparations"] = int(
+        not structural_cache_hit
+    )
+    runtime_envelope["contract_static_preparations"] = int(
+        not structural_cache_hit
+    )
     runtime_envelope["cosmology_static_preparations"] = 1
     runtime_envelope["request_specific_preparations"] = 1
     runtime_envelope["dynamic_mode_count"] = int(k_values.size)
@@ -2149,10 +2185,25 @@ def _compute_custom_cmb_spectrum_data(
         "native_background"
     ]
     runtime_envelope["graph_plan_cache_hit"] = bool(
-        graph_cache_after["hits"] > graph_cache_before["hits"]
+        structural_cache_hit
+        or graph_cache_after["hits"] > graph_cache_before["hits"]
     )
+    runtime_envelope["runtime_asset_cache_hit"] = structural_cache_hit
     runtime_envelope["background_cache_hit"] = bool(
         background_cache_after["misses"] == background_cache_before["misses"]
+    )
+    runtime_envelope["cosmology_static_preparations"] = int(
+        not runtime_envelope["background_cache_hit"]
+    )
+    performance_timer.mark_cache_state(
+        "warm" if runtime_envelope["graph_plan_cache_hit"] else "cold"
+    )
+    performance_timer.set_work_units(
+        {
+            name: int(value)
+            for name, value in runtime_envelope.items()
+            if str(name).endswith("work_units")
+        }
     )
     runtime_envelope["adaptive_transfer_enabled"] = bool(
         adaptive_controls.transfer_enabled
@@ -4131,7 +4182,10 @@ def _compute_custom_cmb_spectrum_data(
                 )
             return numpy.asarray(residuals, dtype=float)
 
-        state, assigned_targets = _prepare_mode_initial_state(float(k_value))
+        with performance_timer.phase("initial_data"):
+            state, assigned_targets = _prepare_mode_initial_state(
+                float(k_value)
+            )
         if end_boundary_entries:
             assigned_target_set = set(assigned_targets)
             free_target_keys = tuple(
@@ -5221,9 +5275,15 @@ def _compute_custom_cmb_spectrum_data(
                 2 if adaptive_controls.evolution_enabled else 1
             ),
         )
-        direct_envelope["static_graph_preparations"] = 1
-        direct_envelope["contract_static_preparations"] = 1
-        direct_envelope["cosmology_static_preparations"] = 1
+        direct_envelope["static_graph_preparations"] = runtime_envelope[
+            "static_graph_preparations"
+        ]
+        direct_envelope["contract_static_preparations"] = runtime_envelope[
+            "contract_static_preparations"
+        ]
+        direct_envelope["cosmology_static_preparations"] = runtime_envelope[
+            "cosmology_static_preparations"
+        ]
         direct_envelope["request_specific_preparations"] = 1
         direct_envelope["dynamic_mode_count"] = int(direct_k.size)
         direct_envelope["batch_count"] = 0
@@ -5900,18 +5960,13 @@ def _compute_custom_cmb_spectrum_data(
     )
     runtime_envelope["projection_bessel_batch_count"] = int(bessel_batch_count)
     runtime_envelope["projection_bessel_mode_count"] = int(bessel_mode_count)
-    performance_budget = resolve_native_performance_budget(
-        declared_accuracy_controls
-    )
-    enforce_native_performance_budget(
-        elapsed_seconds,
-        workload="full_spectrum",
-        budget=performance_budget,
-    )
     timing_snapshot = performance_timer.snapshot(
         total_seconds=elapsed_seconds,
     )
     runtime_envelope.update(timing_snapshot)
+    performance_budget = resolve_native_performance_budget(
+        declared_accuracy_controls
+    )
     if performance_budget is not None:
         runtime_envelope.update(
             {
@@ -5923,8 +5978,6 @@ def _compute_custom_cmb_spectrum_data(
                 ),
             }
         )
-    native_cache.record_native_cmb_performance(timing_snapshot)
-
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,
         k_grid=k_values,
@@ -5937,3 +5990,77 @@ def _compute_custom_cmb_spectrum_data(
     )
     native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
     return _get_cached_custom_cmb_spectrum_data(cache_key)
+
+
+def _compute_custom_cmb_spectrum_data(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    background_provider: Any | None = None,
+    requested_spectra: Iterable[str] | None = None,
+    workload: str = "full_spectrum",
+    enforce_performance_budget: bool = True,
+) -> CustomCMBSpectrumData:
+    """Execute and account for one native transfer-spectrum request."""
+
+    timer = NativePhaseTimer()
+    started = perf_counter()
+    requested = tuple(str(name) for name in (requested_spectra or ()))
+    context = native_failure_context(
+        contract_or_params,
+        workload=workload,
+        spectra=requested,
+    )
+    try:
+        result = _compute_custom_cmb_spectrum_data_impl(
+            contract_or_params,
+            ells,
+            background_provider=background_provider,
+            requested_spectra=requested_spectra,
+            performance_timer=timer,
+        )
+        elapsed = perf_counter() - started
+        if enforce_performance_budget:
+            budget = resolve_native_performance_budget(
+                _resolve_declared_accuracy_controls(contract_or_params)
+            )
+            enforce_native_performance_budget(
+                elapsed,
+                workload=workload,
+                budget=budget,
+                cache_state=timer.cache_state,
+            )
+    # DEVCOV_ALLOW_BROAD_ONCE native projection normalization boundary.
+    except Exception as exc:
+        elapsed = perf_counter() - started
+        typed_error = classify_native_exception(exc, context=context)
+        timing = timer.snapshot(total_seconds=elapsed)
+        record = native_cache.record_native_cmb_performance(
+            timing,
+            cache_hit=timer.cache_state == "exact_cache_hit",
+            workload=workload,
+            cache_state=timer.cache_state,
+            outcome="failure",
+            stop_phase=timer.failed_phase,
+            work_units=timer.work_units,
+            failure=typed_error.diagnostic(),
+            context=context,
+        )
+        typed_error.add_context(
+            stop_phase=timer.failed_phase,
+            performance_record=record,
+        )
+        if typed_error is exc:
+            raise
+        raise typed_error from exc
+
+    timing = timer.snapshot(total_seconds=elapsed)
+    native_cache.record_native_cmb_performance(
+        timing,
+        cache_hit=timer.cache_state == "exact_cache_hit",
+        workload=workload,
+        cache_state=timer.cache_state,
+        work_units=timer.work_units,
+        context=context,
+    )
+    return result

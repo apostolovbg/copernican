@@ -22,11 +22,15 @@ from copernican.engines.engine_mcmc import (
     _classify_parameter_bounds,
     _estimate_condition_number,
     _initialise_active_walkers,
+    _preflight_initial_model_point,
     _reseed_invalid_walkers,
 )
 from copernican.lib import chain_io
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator
+from copernican.lib.likelihoods.cmb.native_errors import (
+    NativeInitialPointError,
+)
 from copernican.lib.progress import BatchProgressBar
 from copernican.lib.utils import set_random_seed
 
@@ -387,6 +391,70 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(reseeded.shape, initial.shape)
         self.assertTrue(numpy.isfinite(reseeded).all())
         self.assertTrue(numpy.isfinite(reseeded_logp).all())
+
+    def test_initial_point_preflight_rejects_before_walker_creation(self):
+        """A non-finite nominal point must stop before proposals exist."""
+
+        with self.assertRaises(NativeInitialPointError):
+            _preflight_initial_model_point(
+                lambda _parameters: float("-inf"),
+                (0.3, 0.7),
+            )
+
+        plugin = _build_short_chain_plugin()
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.1], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        with (
+            mock.patch.object(
+                module,
+                "_build_joint_logposterior",
+                return_value=(
+                    lambda _parameters: float("-inf"),
+                    mock.Mock(),
+                    mock.Mock(),
+                ),
+            ),
+            mock.patch.object(module, "_initialise_active_walkers") as walkers,
+            self.assertRaises(NativeInitialPointError),
+        ):
+            module.fit_cosmology_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=1,
+                pool_size=1,
+                burn_in_steps=1,
+            )
+        walkers.assert_not_called()
+
+    def test_worker_initializer_prepares_runtime_once(self) -> None:
+        """Spawn workers should install and prepare one callable bundle."""
+
+        prepare_runtime = mock.Mock()
+        posterior = mock.Mock(return_value=-2.5)
+        posterior.like = mock.Mock(prepare_worker_runtime=prepare_runtime)
+        adapter = _ActiveLogProbability(
+            posterior,
+            numpy.asarray((1.0, 2.0)),
+            numpy.asarray((1,), dtype=int),
+        )
+        adapter.prepare_worker_runtime()
+        prepare_runtime.assert_called_once_with()
+        prepare_runtime.reset_mock()
+
+        previous = module._WORKER_LOG_PROBABILITY
+        try:
+            module._initialize_mcmc_worker(adapter)
+            first = module._worker_log_probability(numpy.asarray((3.0,)))
+            second = module._worker_log_probability(numpy.asarray((4.0,)))
+        finally:
+            module._WORKER_LOG_PROBABILITY = previous
+
+        prepare_runtime.assert_called_once_with()
+        self.assertEqual(first, -2.5)
+        self.assertEqual(second, -2.5)
+        self.assertEqual(posterior.call_count, 2)
 
     @mock.patch("copernican.engines.engine_mcmc.BatchProgressBar")
     def test_progress_bar_reports_updates(self, bar_cls) -> None:

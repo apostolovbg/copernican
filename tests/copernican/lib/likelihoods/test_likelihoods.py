@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy
 import pandas
@@ -101,6 +102,27 @@ class LikelihoodTestCase(unittest.TestCase):
         if cov_inv is not None:
             bao_df.attrs["covariance_matrix_inv"] = cov_inv[:3, :3]
         return bao_df
+
+    def test_joint_like_prepares_enabled_worker_runtime(self):
+        """Worker preparation should run once for each enabled component."""
+
+        enabled_prepare = mock.Mock()
+        disabled_prepare = mock.Mock()
+        enabled = mock.Mock(
+            enabled=True,
+            prepare_worker_runtime=enabled_prepare,
+        )
+        disabled = mock.Mock(
+            enabled=False,
+            prepare_worker_runtime=disabled_prepare,
+        )
+        joint = likelihoods.JointLike(
+            {"enabled": enabled, "disabled": disabled}
+        )
+
+        joint.prepare_worker_runtime()
+        enabled_prepare.assert_called_once_with()
+        disabled_prepare.assert_not_called()
 
     def test_component_loglikes_are_finite(self):
         """SNe, BAO and CMB helpers should produce finite log-likelihoods."""

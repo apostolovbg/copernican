@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-13
+**Last Updated:** 2026-08-15
 **Project Version:** 12.0.26
 
 ## Overview
@@ -942,18 +942,18 @@ stages:
 5. `copernican_cmb_solver.py` converts raw spectra to the public units,
    resolves requested-spectrum dependencies, and sends the four-component
    temperature/polarization surface through `native_lensing.py` when lensed
-   outputs are requested. `native_cache.py` stores only results keyed by the
-   declared contract and numerical controls.
+   outputs are requested. `native_cache.py` owns bounded structural,
+   parameter-dependent, and result caches with explicit invalidation rules.
 
-The runtime has three cache layers. Contract-static work contains the
-compiled graph, dependency closure, state-slot layout, collision plan, and
-momentum-grid structure. Cosmology-static work contains the background,
-recombination, visibility, coordinate-rate, and collision histories for one
-bound cosmology. Request-specific work contains the selected multipoles,
-source histories, transfer matrices, and public spectrum surfaces. The
-`NativeRuntimeCacheIdentity` records those three key portions separately, so a
-new multipole request does not invalidate structural or cosmology-static
-entries.
+The runtime has three cache classes. Structural work contains the compiled
+expression and equation plans, dependency closure, state-slot and hierarchy
+layouts, collision plan, and momentum-grid topology. Parameter-dependent
+work contains the background, recombination, visibility, coordinate-rate,
+collision, q-mass, and projection-kernel data for one bound cosmology. Result
+work contains transfer matrices and public spectrum surfaces for one exact
+request. `NativeRuntimeCacheIdentity` records contract-static,
+cosmology-static, and request-specific key portions separately, so a new
+multipole request does not invalidate structural entries.
 
 The spectrum cache identity freezes the full execution-relevant contract view:
 graph structure, bound `param_map` and model-parameter values, declared grids,
@@ -976,13 +976,50 @@ batches, but no batched scalar RHS or alternate scalar hierarchy is permitted.
 q-resolved momentum states and declared vector or tensor states retain their
 declared state-slot layouts.
 
-The envelope also records wall time for `compilation`, `background`,
-`preparation`, `evolution`, `projection`, and `power_spectrum`. Aggregate
-phase totals, including the separate `lensing` phase, are available through
-`native_cmb_performance_stats()`. Cache-hit fields identify whether the graph,
-background, and projection-kernel layers were reused for a fresh request.
-An identical request returns the bounded spectrum cache directly and records a
-cache hit without repeating static or request-specific work.
+The envelope records wall time for `compilation`, `background`,
+`initial_data`, `evolution`, `projection`, `lensing`, and
+`likelihood_assembly`. Every successful or failed request retains all phase
+slots, governed work units, workload identity, cache state, stop phase, and
+structured failure context. `native_cmb_performance_stats()` exposes bounded
+recent records and aggregate phase totals. An identical request returns the
+bounded spectrum cache directly with zero evolution and projection work.
+
+### Runtime Lifecycle And Failure Semantics
+
+`model_coder.py` owns structural compilation. A `NativeCMBRuntime` carries
+recursively read-only model declarations, compiled perturbation data,
+background expression plans, and a complete runtime signature. Binding one
+proposal creates only fresh parameter mappings; it reuses the immutable
+structure without deep-copying or recompiling it.
+
+Spawn-based MCMC pools install one active posterior in each worker through a
+worker initializer. The initializer prepares each enabled model's process-
+local runtime assets once. Proposal tasks call the installed posterior rather
+than serializing the model bundle per task. Structural assets are keyed by
+process and runtime signature. Parameter changes retain expression plans,
+graph topology, hierarchy metadata, state indexes, and q-grid nodes while
+recomputing every affected background, source, transfer, and spectrum value.
+
+The cache inventory classifies each bounded family:
+
+* Structural caches hold declared symbol plans, graph execution plans,
+  process-local runtime assets, and momentum quadrature topology.
+* Parameter caches hold bound momentum metadata, backgrounds, and radial-
+  kernel inputs and values.
+* The result cache holds complete spectrum payloads under full model,
+  parameter, gauge, sector, observable, numerical, multipole, and requested-
+  spectrum identity.
+
+Native failures cross the likelihood boundary as typed errors. A sampled
+point outside a scientifically valid parameter domain returns negative
+infinity and contributes to rate-limited rejection diagnostics. Unsupported
+capabilities, invalid contracts, convergence failures, non-finite evolution,
+constraint violations, performance-budget failures, and implementation
+faults abort execution. Their diagnostics retain model and parameter values,
+gauge, numerical tier, requested spectra, workload, and k or conformal-time
+location when available. The nominal model point is evaluated before walker
+creation or multiprocessing startup, so an invalid initial state cannot
+become an ensemble of rejected proposals.
 
 The pipeline distinguishes declared transfer components from derived angular
 spectra. A transfer component supplies a source role and a projection kernel;
@@ -1053,10 +1090,13 @@ accuracy_controls:
 ```
 
 Measured full-spectrum time is checked against the declared full-spectrum
-budget after projection. The joint-MCMC limit is applied by its bounded smoke
-benchmark because that workload spans multiple likelihood evaluations. A
-budget overrun raises a named performance error rather than publishing a
-partial or misleading spectrum.
+budget after output assembly. Production CMB likelihood calls identify their
+workload as `joint_mcmc`, so every proposal exercises the corresponding limit
+and timing record. The first process-local request includes structural worker
+initialization and uses the full-spectrum startup limit; warm and exact
+proposal requests use the steady-state joint-MCMC limit. A budget overrun
+raises a typed performance error rather than publishing a partial or
+misleading spectrum.
 
 Generated scalar contracts validate Einstein energy, momentum, and shear
 residuals across the accepted evolution history. `scalar_constraint_anchors`

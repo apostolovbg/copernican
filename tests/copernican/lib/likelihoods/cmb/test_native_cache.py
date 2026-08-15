@@ -53,6 +53,25 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             {"node": 1},
         )
 
+        self.assertIsNone(native_cache.get_native_runtime_assets("runtime"))
+        native_cache.set_native_runtime_assets("runtime", {"asset": 1})
+        self.assertEqual(
+            native_cache.get_native_runtime_assets("runtime"),
+            {"asset": 1},
+        )
+
+        self.assertIsNone(
+            native_cache.get_declared_momentum_topology("topology")
+        )
+        native_cache.set_declared_momentum_topology(
+            "topology",
+            {"nodes": 2},
+        )
+        self.assertEqual(
+            native_cache.get_declared_momentum_topology("topology"),
+            {"nodes": 2},
+        )
+
         self.assertIsNone(native_cache.get_declared_momentum_grid("momentum"))
         native_cache.set_declared_momentum_grid(
             "momentum",
@@ -119,6 +138,8 @@ class NativeCacheModuleTestCase(unittest.TestCase):
         stats = native_cache.native_cmb_cache_stats()
         self.assertIn("native_background", stats)
         self.assertIn("native_spectrum", stats)
+        self.assertIn("native_runtime_assets", stats)
+        self.assertIn("declared_momentum_topology", stats)
         self.assertNotIn("custom_background", stats)
         self.assertNotIn("custom_spectrum", stats)
         self.assertEqual(stats["declared_symbol_plan"]["entries"], 1)
@@ -147,8 +168,83 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             0,
         )
         self.assertEqual(
+            cleared_stats["native_runtime_assets"]["entries"],
+            0,
+        )
+        self.assertEqual(
             cleared_stats["declared_momentum_grid"]["entries"],
             0,
+        )
+
+    def test_cache_inventory_and_parameter_invalidation_are_explicit(self):
+        """Parameter invalidation must retain process-local structure."""
+
+        native_cache.clear_native_cmb_caches()
+        native_cache.set_native_runtime_assets("runtime", "assets")
+        native_cache.set_declared_momentum_topology("topology", "nodes")
+        native_cache.set_declared_momentum_grid("grid", "bound-grid")
+        native_cache.set_native_cmb_background("background", "tables")
+        native_cache.set_native_cmb_spectrum("spectrum", "result")
+
+        inventory = native_cache.native_cmb_cache_inventory()
+        self.assertEqual(
+            inventory["native_runtime_assets"]["category"],
+            "structural",
+        )
+        self.assertEqual(
+            inventory["declared_momentum_grid"]["category"],
+            "parameter",
+        )
+        self.assertEqual(
+            inventory["native_spectrum"]["category"],
+            "result",
+        )
+        self.assertGreater(
+            int(inventory["native_runtime_assets"]["owner_pid"]), 0
+        )
+
+        native_cache.clear_native_cmb_parameter_caches()
+        stats = native_cache.native_cmb_cache_stats()
+        self.assertEqual(stats["native_runtime_assets"]["entries"], 1)
+        self.assertEqual(stats["declared_momentum_topology"]["entries"], 1)
+        self.assertEqual(stats["declared_momentum_grid"]["entries"], 0)
+        self.assertEqual(stats["native_background"]["entries"], 0)
+        self.assertEqual(stats["native_spectrum"]["entries"], 0)
+
+    def test_result_and_request_accounting_helpers_are_explicit(self):
+        """Result invalidation and request mutation should stay observable."""
+
+        native_cache.clear_native_cmb_caches()
+        native_cache.set_native_cmb_spectrum("spectrum", "result")
+        native_cache.clear_native_cmb_result_caches()
+        self.assertIsNone(native_cache.get_native_cmb_spectrum("spectrum"))
+
+        native_cache.record_native_cmb_performance(
+            {"projection_seconds": 0.25},
+            workload="joint_mcmc",
+        )
+        native_cache.extend_latest_native_cmb_request_phase("lensing", 0.5)
+        self.assertEqual(
+            native_cache.latest_native_cmb_performance_record()[
+                "phase_seconds"
+            ]["lensing"],
+            0.5,
+        )
+        fail_request = native_cache.fail_latest_native_cmb_request
+        self.assertTrue(callable(fail_request))
+        fail_request(
+            {"category": "test"},
+            stop_phase="lensing",
+        )
+        failed = native_cache.latest_native_cmb_performance_record()
+        self.assertEqual(failed["outcome"], "failure")
+        self.assertEqual(failed["stop_phase"], "lensing")
+
+        topology = {"nodes": 2}
+        native_cache.set_declared_momentum_topology("topology", topology)
+        self.assertIs(
+            native_cache.get_declared_momentum_topology("topology"),
+            topology,
         )
 
     def test_native_cache_source_does_not_import_camb(self):

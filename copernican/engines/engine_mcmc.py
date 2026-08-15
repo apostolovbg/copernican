@@ -65,6 +65,9 @@ from copernican.lib.engine_capabilities import (
     EngineSetting,
 )
 from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican.lib.likelihoods.cmb.native_errors import (
+    NativeInitialPointError,
+)
 from copernican.lib.progress import BatchProgressBar
 from copernican.lib.statistics import (
     calculate_bao_observables,
@@ -204,6 +207,35 @@ class _ActiveLogProbability:
         # execution.
         return float(posterior_value)
 
+    def prepare_worker_runtime(self) -> None:
+        """Prepare the wrapped likelihood's process-local runtime assets."""
+
+        likelihood = getattr(self._posterior, "like", None)
+        prepare = getattr(likelihood, "prepare_worker_runtime", None)
+        if callable(prepare):
+            prepare()
+
+
+_WORKER_LOG_PROBABILITY: _ActiveLogProbability | None = None
+
+
+def _initialize_mcmc_worker(
+    log_probability: _ActiveLogProbability,
+) -> None:
+    """Install one sampler callable and compile worker-local static assets."""
+
+    global _WORKER_LOG_PROBABILITY
+    _WORKER_LOG_PROBABILITY = log_probability
+    log_probability.prepare_worker_runtime()
+
+
+def _worker_log_probability(position: numpy.ndarray) -> float:
+    """Evaluate one proposal using the worker's initialized callable."""
+
+    if _WORKER_LOG_PROBABILITY is None:
+        raise RuntimeError("MCMC worker runtime was not initialized")
+    return _WORKER_LOG_PROBABILITY(position)
+
 
 class _JointLogLikelihood:
     """Picklable adapter that proxies :class:`JointLike.loglike`."""
@@ -232,6 +264,11 @@ class _JointLogLikelihood:
         """Return the combined log-likelihood for ``params``."""
 
         return float(self._joint_like.loglike(params))
+
+    def prepare_worker_runtime(self) -> None:
+        """Prepare enabled likelihood assets in the current worker."""
+
+        self._joint_like.prepare_worker_runtime()
 
 
 class _SamplingProgressReporter:
@@ -468,6 +505,22 @@ def _build_joint_logposterior(
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
     posterior = engine_plugin_validation.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
+
+
+def _preflight_initial_model_point(
+    posterior: Callable[[Sequence[float]], float],
+    parameters: Sequence[float],
+) -> float:
+    """Require a finite initial posterior before any walkers or pool exist."""
+
+    parameter_values = tuple(float(value) for value in parameters)
+    value = float(posterior(parameter_values))
+    if not numpy.isfinite(value):
+        raise NativeInitialPointError(
+            "Initial model point has non-finite posterior probability.",
+            context={"parameters": parameter_values},
+        )
+    return value
 
 
 # Backward compatibility for legacy imports that still reference the
@@ -718,6 +771,7 @@ def fit_cosmology_parameters(
         )
 
     template_params = numpy.clip(initial, lower_all, upper_all)
+    _preflight_initial_model_point(posterior_full, template_params)
     initial_active = template_params[active_indices]
     lower = lower_all[active_indices]
     upper = upper_all[active_indices]
@@ -805,13 +859,20 @@ def fit_cosmology_parameters(
 
         if pool_processes is not None:
             pool = multiprocessing_module.get_context("spawn").Pool(
-                processes=pool_processes
+                processes=pool_processes,
+                initializer=_initialize_mcmc_worker,
+                initargs=(log_probability_active,),
             )
         try:
+            sampler_log_probability = (
+                _worker_log_probability
+                if pool is not None
+                else log_probability_active
+            )
             sampler = emcee.EnsembleSampler(
                 n_walkers,
                 ndim_active,
-                log_probability_active,
+                sampler_log_probability,
                 pool=pool,
             )
             burnin_reporter = _SamplingProgressReporter(

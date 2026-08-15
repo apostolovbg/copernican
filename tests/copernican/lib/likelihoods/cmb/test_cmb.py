@@ -1484,6 +1484,7 @@ def _speedup_contract(contract: dict[str, object]) -> dict[str, object]:
     contract["numerical"].update(
         {
             "eta_sample_count": 128,
+            "evolution_eta_sample_count": 64,
             "source_grid_multiplier": 1,
         }
     )
@@ -1498,6 +1499,19 @@ def _prepare_native_contract(
     return model_coder.prepare_native_cmb_execution_contract(
         copy.deepcopy(contract)
     )
+
+
+def _with_prepared_numerical_overrides(
+    contract: Mapping[str, object],
+    **overrides: object,
+) -> dict[str, object]:
+    """Return a rebound request without mutating frozen runtime assets."""
+
+    rebound = dict(contract)
+    numerical = dict(contract.get("numerical", {}) or {})
+    numerical.update(overrides)
+    rebound["numerical"] = numerical
+    return rebound
 
 
 def _ensure_prepared_native_contract(
@@ -1644,10 +1658,13 @@ def _raw_native_public_spectra(
 
 def _capture_visible_scalar_monopole_history(
     contract: dict[str, object],
-) -> tuple[numpy.ndarray, numpy.ndarray]:
-    """Return the visible scalar monopole history captured from one run."""
+    *,
+    ells: Sequence[int] = (40,),
+    spectra: tuple[str, ...] = ("TT",),
+) -> tuple[numpy.ndarray, numpy.ndarray, dict[str, numpy.ndarray]]:
+    """Return a scalar history and spectra captured from one solver run."""
 
-    native_cache.clear_native_cmb_caches()
+    native_cache.clear_native_cmb_result_caches()
     captured: list[tuple[numpy.ndarray, numpy.ndarray]] = []
     original = native_projection._evaluate_compiled_expression_noerr
 
@@ -1678,15 +1695,15 @@ def _capture_visible_scalar_monopole_history(
         "_evaluate_compiled_expression_noerr",
         side_effect=_capture_monopole_history,
     ):
-        native_projection._compute_custom_cmb_spectrum_data(
+        public_spectra = _raw_native_public_spectra(
             contract,
-            numpy.asarray((40,), dtype=int),
-            requested_spectra=("TT",),
+            numpy.asarray(tuple(ells), dtype=int),
+            spectra=spectra,
         )
 
     if len(captured) != 1:
         raise AssertionError("Expected one visible scalar monopole history")
-    return captured[0]
+    return captured[0][0], captured[0][1], public_spectra
 
 
 def _capture_tensor_source_histories(
@@ -1694,7 +1711,7 @@ def _capture_tensor_source_histories(
 ) -> dict[tuple[str, float], numpy.ndarray]:
     """Return tensor source histories keyed by source name and k mode."""
 
-    native_cache.clear_native_cmb_caches()
+    native_cache.clear_native_cmb_result_caches()
     perturbation_data = contract["perturbation_data"]
     expression_names = {
         entry.expression: str(name)
@@ -1867,6 +1884,8 @@ def _native_scalar_hierarchy_contract(
         "k_max": 0.3,
         "k_sample_count": 18,
         "eta_sample_count": 192,
+        "evolution_eta_sample_count": 128,
+        "evolution_phase_step": 2.0,
         "ode_rtol": 1.0e-5,
         "ode_atol": 1.0e-8,
         "tight_coupling_ratio": 80.0,
@@ -2113,6 +2132,8 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
         "k_max": 0.3,
         "k_sample_count": 18,
         "eta_sample_count": 192,
+        "evolution_eta_sample_count": 128,
+        "evolution_phase_step": 2.0,
         "ode_rtol": 1.0e-5,
         "ode_atol": 1.0e-8,
         "tight_coupling_ratio": 80.0,
@@ -2263,6 +2284,8 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
         "k_max": 0.3,
         "k_sample_count": 18,
         "eta_sample_count": 192,
+        "evolution_eta_sample_count": 128,
+        "evolution_phase_step": 2.0,
         "ode_rtol": 1.0e-5,
         "ode_atol": 1.0e-8,
         "a_min": 1.0e-6,
@@ -3935,13 +3958,16 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         high_decay = _prepare_native_contract(
             _analytic_signal_contract(decay_rate=0.05)
         )
-        for contract in (low_decay, high_decay):
-            contract["numerical"].update(
-                {
-                    "eta_sample_count": 256,
-                    "source_grid_multiplier": 2,
-                }
-            )
+        low_decay = _with_prepared_numerical_overrides(
+            low_decay,
+            eta_sample_count=256,
+            source_grid_multiplier=2,
+        )
+        high_decay = _with_prepared_numerical_overrides(
+            high_decay,
+            eta_sample_count=256,
+            source_grid_multiplier=2,
+        )
         ells = numpy.arange(20, 30, dtype=int)
         low_decay_tt = numpy.asarray(
             native_projection._compute_custom_cmb_spectrum_data(
@@ -4778,7 +4804,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         )
         contract = _prepare_native_contract(contract_data)
-        eta_history, theta_gamma0_history = (
+        eta_history, theta_gamma0_history, _ = (
             _capture_visible_scalar_monopole_history(contract)
         )
         self.assertGreater(float(eta_history[0]), 20.0)
@@ -4817,10 +4843,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         reference_data["numerical"]["initial_redshift"] = 1.0e6
         reference = _prepare_native_contract(reference_data)
 
-        eta_history, theta_gamma0_history = (
+        eta_history, theta_gamma0_history, _ = (
             _capture_visible_scalar_monopole_history(contract)
         )
-        reference_eta, reference_theta_gamma0 = (
+        reference_eta, reference_theta_gamma0, _ = (
             _capture_visible_scalar_monopole_history(reference)
         )
         reference_interp = numpy.interp(
@@ -4856,7 +4882,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         )
         contract = _prepare_native_contract(contract_data)
-        eta_history, _ = _capture_visible_scalar_monopole_history(contract)
+        eta_history, _, _ = _capture_visible_scalar_monopole_history(contract)
         eta_steps = numpy.diff(eta_history)
 
         self.assertGreater(int(eta_history.size), 40)
@@ -5846,8 +5872,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         refined = _prepare_native_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        baseline["numerical"]["source_grid_multiplier"] = 3
-        refined["numerical"]["source_grid_multiplier"] = 4
+        baseline = _with_prepared_numerical_overrides(
+            baseline,
+            source_grid_multiplier=3,
+        )
+        refined = _with_prepared_numerical_overrides(
+            refined,
+            source_grid_multiplier=4,
+        )
         ells = numpy.arange(20, 30, dtype=int)
         baseline_data = native_projection._compute_custom_cmb_spectrum_data(
             baseline,
@@ -6324,8 +6356,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         refined = _prepare_native_contract(
             _speedup_contract(_custom_contract())
         )
-        coarse["numerical"]["eta_sample_count"] = 128
-        refined["numerical"]["eta_sample_count"] = 256
+        coarse = _with_prepared_numerical_overrides(
+            coarse,
+            eta_sample_count=128,
+        )
+        refined = _with_prepared_numerical_overrides(
+            refined,
+            eta_sample_count=256,
+        )
         coarse_background = native_background._build_custom_cmb_background(
             coarse,
             native_background._resolve_custom_cmb_physical_parameters(coarse),
@@ -6495,7 +6533,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_native_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        contract["numerical"]["k_sample_count"] = 64
+        contract = _with_prepared_numerical_overrides(
+            contract,
+            k_sample_count=64,
+        )
         spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
@@ -6695,6 +6736,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_native_runtime_prepares_graph_once_per_spectrum(self) -> None:
         """Static graph preparation must not scale with Fourier modes."""
 
+        native_cache.clear_native_cmb_caches()
         contract = _prepare_native_contract(
             _speedup_contract(_analytic_signal_contract())
         )
@@ -6707,6 +6749,89 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(
             int(envelope["dynamic_mode_count"]),
             int(envelope["k_sample_count"]),
+        )
+
+    def test_native_runtime_reuse_is_exact_and_parameter_safe(self) -> None:
+        """Warm structure must preserve results without stale parameters."""
+
+        native_cache.clear_native_cmb_caches()
+        raw_contract = _speedup_contract(_analytic_signal_contract())
+        contract = _prepare_native_contract(raw_contract)
+        ells = numpy.arange(20, 25, dtype=int)
+
+        cold = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        cold_record = native_cache.latest_native_cmb_performance_record()
+        native_cache.clear_native_cmb_result_caches()
+        warm = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        warm_record = native_cache.latest_native_cmb_performance_record()
+
+        numpy.testing.assert_array_equal(
+            numpy.asarray(cold.spectra["TT"]),
+            numpy.asarray(warm.spectra["TT"]),
+        )
+        self.assertEqual(cold_record["cache_state"], "cold")
+        self.assertEqual(warm_record["cache_state"], "warm")
+        self.assertEqual(
+            int(warm.runtime_envelope["static_graph_preparations"]),
+            0,
+        )
+        self.assertGreater(
+            float(cold_record["phase_seconds"]["compilation_seconds"]),
+            float(warm_record["phase_seconds"]["compilation_seconds"]),
+        )
+
+        exact = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        exact_record = native_cache.latest_native_cmb_performance_record()
+        numpy.testing.assert_array_equal(
+            numpy.asarray(exact.spectra["TT"]),
+            numpy.asarray(warm.spectra["TT"]),
+        )
+        self.assertEqual(exact_record["cache_state"], "exact_cache_hit")
+        self.assertEqual(
+            float(exact_record["phase_seconds"]["evolution_seconds"]),
+            0.0,
+        )
+        self.assertEqual(
+            float(exact_record["phase_seconds"]["projection_seconds"]),
+            0.0,
+        )
+
+        shifted_raw = _speedup_contract(
+            _analytic_signal_contract(source_scale=1.25)
+        )
+        shifted_contract = _prepare_native_contract(shifted_raw)
+        shifted = native_projection._compute_custom_cmb_spectrum_data(
+            shifted_contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        shifted_record = native_cache.latest_native_cmb_performance_record()
+        self.assertEqual(
+            contract["runtime_signature"],
+            shifted_contract["runtime_signature"],
+        )
+        self.assertEqual(shifted_record["cache_state"], "warm")
+        self.assertEqual(
+            int(shifted.runtime_envelope["static_graph_preparations"]),
+            0,
+        )
+        self.assertFalse(
+            numpy.array_equal(
+                numpy.asarray(shifted.spectra["TT"]),
+                numpy.asarray(warm.spectra["TT"]),
+            )
         )
 
     def test_native_projection_batches_radial_recurrence_work(self) -> None:
@@ -9219,9 +9344,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             manifests["gauge_invariant"]["variable_names"],
         )
 
-        histories = {
-            gauge: _capture_visible_scalar_monopole_history(prepared)
+        captured_routes = {
+            gauge: _capture_visible_scalar_monopole_history(
+                prepared,
+                ells=ells,
+                spectra=spectra,
+            )
             for gauge, prepared in prepared_routes.items()
+        }
+        histories = {
+            gauge: captured[:2] for gauge, captured in captured_routes.items()
         }
         baseline_eta, baseline_monopole = histories[routes[0]]
         for gauge in routes[1:]:
@@ -9233,12 +9365,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
 
         spectra_by_gauge = {
-            gauge: cmb.compute_cmb_spectrum_from_contract(
-                prepared,
-                ells,
-                spectra=spectra,
-            )
-            for gauge, prepared in prepared_routes.items()
+            gauge: captured[2] for gauge, captured in captured_routes.items()
         }
         baseline = spectra_by_gauge[routes[0]]
         for gauge in routes[1:]:
@@ -9442,7 +9569,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 }
             )
             contract = _prepare_native_contract(contract_data)
-            _, history = _capture_visible_scalar_monopole_history(contract)
+            _, history, _ = _capture_visible_scalar_monopole_history(contract)
             self.assertTrue(numpy.all(numpy.isfinite(history)))
             histories[mode] = history
 
@@ -9847,6 +9974,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         first_stats = native_cache.native_cmb_cache_stats()[
             "declared_momentum_grid"
         ]
+        first_topology_stats = native_cache.native_cmb_cache_stats()[
+            "declared_momentum_topology"
+        ]
         native_evolution._declared_momentum_grid_context(
             shifted_contract["perturbation_data"],
             model_parameters=shifted_contract["param_map"],
@@ -9856,9 +9986,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         second_stats = native_cache.native_cmb_cache_stats()[
             "declared_momentum_grid"
         ]
+        second_topology_stats = native_cache.native_cmb_cache_stats()[
+            "declared_momentum_topology"
+        ]
 
         self.assertEqual(first_stats["entries"], second_stats["entries"])
         self.assertGreaterEqual(second_stats["hits"], first_stats["hits"] + 1)
+        self.assertEqual(
+            first_topology_stats["entries"],
+            second_topology_stats["entries"],
+        )
+        self.assertGreaterEqual(
+            second_topology_stats["hits"],
+            first_topology_stats["hits"] + 1,
+        )
 
     def test_native_scalar_hierarchy_reuses_structural_runtime_bundle(
         self,
@@ -9930,8 +10071,15 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
     def test_scalar_runtime_has_one_compiled_evolution_authority(self) -> None:
         """The production scalar entry point must use the declared graph."""
 
-        source = inspect.getsource(
+        boundary_source = inspect.getsource(
             native_projection._compute_custom_cmb_spectrum_data
+        )
+        self.assertIn(
+            "_compute_custom_cmb_spectrum_data_impl",
+            boundary_source,
+        )
+        source = inspect.getsource(
+            native_projection._compute_custom_cmb_spectrum_data_impl
         )
         self.assertIn("_mode_rhs", source)
         self.assertIn("_integrate_declared_state_history", source)
@@ -10040,6 +10188,16 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
             set(cmb.__all__),
             {
                 "CMBLike",
+                "NativeCMBError",
+                "NativeConstraintViolationError",
+                "NativeContractError",
+                "NativeConvergenceError",
+                "NativeImplementationError",
+                "NativeInitialPointError",
+                "NativeNonFiniteEvolutionError",
+                "NativeParameterDomainError",
+                "NativePerformanceBudgetError",
+                "NativeUnsupportedCapabilityError",
                 "compute_cmb_spectrum",
                 "compute_cmb_spectrum_cached",
                 "compute_cmb_spectrum_from_contract",
@@ -10063,6 +10221,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         """The likelihood protocol symbols should remain available."""
 
         self.assertTrue(callable(cmb.CMBLike.loglike))
+        self.assertTrue(callable(cmb.CMBLike.prepare_worker_runtime))
+        self.assertTrue(callable(cmb.CMBLike.preflight))
         self.assertTrue(hasattr(cmb.CMBLike.state, "__get__"))
 
     def test_production_package_has_no_reference_solver_imports(self) -> None:

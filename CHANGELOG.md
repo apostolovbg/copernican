@@ -80,6 +80,46 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-15:
+  Change: Implemented typed native CMB failures, complete request evidence,
+  initial-point preflight, immutable runtime binding, process-local worker
+  preparation, bounded structural cache reuse, and bounded hierarchy test
+  grids.
+  Why: Prevented numerical faults from becoming posterior exclusions and
+  removed repeated graph, hierarchy, momentum-topology, and model-bundle
+  work from MCMC proposal execution and test-only source captures.
+  Impact: Distinguishes valid proposal rejection from fatal solver failures,
+  records cold, warm, exact-hit, and failed workloads, and preserves exact
+  parameter-safe spectra while reusing each worker's compiled structure and
+  keeping behavior tests on separate source and evolution grids.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_errors.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/likelihoods/likelihoods.py
+  copernican/lib/model_coder.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_errors.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+  tests/project/lib/test_model_template.py
+
+- 2026-08-15:
   Change: Implemented worker-owned canonical run logging, structured GUI
   event transport, one resolved run identity, and declared compound BAO
   diagonal covariance.

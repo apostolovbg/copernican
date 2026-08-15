@@ -18,7 +18,13 @@ from ...cmb_output import (
     split_cmb_spectrum_name as _split_canonical_spectrum_name,
 )
 from . import native_cache
+from .native_errors import classify_native_exception, native_failure_context
 from .native_lensing import lensed_cls as _lensed_cls
+from .native_performance import (
+    NativePhaseTimer,
+    enforce_native_performance_budget,
+    resolve_native_performance_budget,
+)
 from .native_projection import _compute_custom_cmb_spectrum_data
 
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
@@ -262,13 +268,14 @@ def _resolve_available_spectrum_name(
     return None
 
 
-def _compute_declared_perturbation_spectrum(
+def _compute_declared_perturbation_spectrum_impl(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
     background_payload: Mapping[str, Any] | None = None,
     background_provider: Any | None = None,
+    workload: str = "full_spectrum",
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     """Return spectra from a declared native perturbation contract."""
 
@@ -309,6 +316,8 @@ def _compute_declared_perturbation_spectrum(
         analysis_ell_grid,
         background_provider=background_provider,
         requested_spectra=base_requested_spectra,
+        workload=workload,
+        enforce_performance_budget=False,
     )
     ell_factor = (
         numpy.asarray(custom_data.ell_grid, dtype=numpy.longdouble)
@@ -348,8 +357,14 @@ def _compute_declared_perturbation_spectrum(
                     ),
                 )
             )
+        # DEVCOV_ALLOW_BROAD_ONCE lensing adapter normalization boundary.
+        except Exception as exc:
+            raise classify_native_exception(
+                exc,
+                context={"stop_phase": "lensing"},
+            ) from exc
         finally:
-            native_cache.record_native_cmb_phase(
+            native_cache.extend_latest_native_cmb_request_phase(
                 "lensing",
                 perf_counter() - lensing_started,
             )
@@ -396,3 +411,92 @@ def _compute_declared_perturbation_spectrum(
     if len(result) == 1:
         return next(iter(result.values()))
     return result
+
+
+def _compute_declared_perturbation_spectrum(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    *,
+    spectra: Sequence[str] = ("TT",),
+    background_payload: Mapping[str, Any] | None = None,
+    background_provider: Any | None = None,
+    workload: str = "full_spectrum",
+) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
+    """Return typed, fully accounted native spectra."""
+
+    started = perf_counter()
+    previous_record = native_cache.latest_native_cmb_performance_record()
+    previous_index = (
+        0 if previous_record is None else int(previous_record["request_index"])
+    )
+    context = native_failure_context(
+        contract_or_params,
+        workload=workload,
+        spectra=spectra,
+    )
+    try:
+        result = _compute_declared_perturbation_spectrum_impl(
+            contract_or_params,
+            ells,
+            spectra=spectra,
+            background_payload=background_payload,
+            background_provider=background_provider,
+            workload=workload,
+        )
+        latest = native_cache.latest_native_cmb_performance_record()
+        if (
+            latest is not None
+            and int(latest["request_index"]) > previous_index
+        ):
+            accounted = float(
+                latest["phase_seconds"].get("total_seconds", 0.0)
+            )
+            assembly = max(perf_counter() - started - accounted, 0.0)
+            native_cache.extend_latest_native_cmb_request_phase(
+                "likelihood_assembly",
+                assembly,
+            )
+            latest = native_cache.latest_native_cmb_performance_record()
+            budget = resolve_native_performance_budget(
+                getattr(
+                    contract_or_params.get("perturbation_data"),
+                    "accuracy_controls",
+                    {},
+                )
+                or {}
+            )
+            enforce_native_performance_budget(
+                float(latest["phase_seconds"].get("total_seconds", 0.0)),
+                workload=workload,
+                budget=budget,
+                cache_state=str(latest["cache_state"]),
+            )
+        return result
+    # DEVCOV_ALLOW_BROAD_ONCE public native solver normalization boundary.
+    except Exception as exc:
+        typed_error = classify_native_exception(exc, context=context)
+        latest = native_cache.latest_native_cmb_performance_record()
+        if latest is None or int(latest["request_index"]) <= previous_index:
+            timer = NativePhaseTimer(failed_phase="likelihood_assembly")
+            record = native_cache.record_native_cmb_performance(
+                timer.snapshot(total_seconds=perf_counter() - started),
+                workload=workload,
+                outcome="failure",
+                stop_phase="likelihood_assembly",
+                failure=typed_error.diagnostic(),
+                context=context,
+            )
+        else:
+            native_cache.fail_latest_native_cmb_request(
+                typed_error.diagnostic(),
+                stop_phase=(
+                    typed_error.context.get("stop_phase")
+                    or latest.get("stop_phase")
+                    or "likelihood_assembly"
+                ),
+            )
+            record = native_cache.latest_native_cmb_performance_record()
+        typed_error.add_context(performance_record=record)
+        if typed_error is exc:
+            raise
+        raise typed_error from exc
