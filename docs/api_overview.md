@@ -64,12 +64,17 @@ directly without using the command-line interface. The core modules are:
  but calls expect the `dataset_id`. Each loader logs a short summary
  describing the dataset and whether its covariance matrix was used or
  diagonal errors were applied.
-- `console_output.write(msg)` – unified console printing function that is
- logged verbatim via `logger`.
+- `console_output.write(msg)` – unified console output that becomes one
+ logging record once run logging is configured.
 - `console_output.ask(prompt)` – input helper that records prompts and
  responses in the run log.
-- `logger.setup_logging(log_dir)` – initialise logging and patch
- `print`/`input` so all interactions are captured.
+- `logger.setup_logging(log_dir)` – initialise the worker-owned canonical
+ file and console handlers. Direct `print` and `input` calls are captured
+ without wrapping the process streams.
+- `logger.setup_monitor_logger()` – prepare the GUI's memory-only run-event
+ destination without opening another file.
+- `logger.parse_worker_event(line)` – recover the original severity and
+ message from a structured GUI-worker transport record.
 - `utils.get_timestamp(now=None)` – return a `YYYYMMDD_HHMMSS` string in
  Coordinated Universal Time for consistent filenames and manifests. The helper
  underpins logging, result writers and manifest builders so outputs from CI

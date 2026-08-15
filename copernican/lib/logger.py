@@ -3,47 +3,63 @@
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite.
 
-This module wraps :mod:`logging` configuration so that every run produces a
-fully self-contained run log. Console messages and user prompts are mirrored
-verbatim by patching ``print`` and ``input``; path information is sanitised
-so absolute directories outside the repository are not leaked. Consumers can
-therefore rely on the run log for complete provenance of a session without
-clutter or duplicated lines. Log timestamps are emitted in Coordinated
-Universal Time (UTC) so diagnostics remain comparable across machines in
-different time zones.
+This module configures one worker-owned file log for each run. Console
+messages and user prompts are captured without wrapping ``sys.stdout`` or
+``sys.stderr``, while GUI workers emit structured console records for the
+in-memory Run Monitor. Repository paths may be rendered relative to the
+checkout, but external output paths remain absolute. Log timestamps use
+Coordinated Universal Time (UTC) so diagnostics remain comparable across
+machines.
 """
 
 import builtins
 import importlib
+import json
 import logging
 import os
 import platform
 import sys
 import threading
 import time
-from pathlib import Path
-from typing import Any, TextIO
 
 from .utils import ensure_dir_exists, get_timestamp
 
 _CONSOLE_CAPTURE_STATE = threading.local()
+_WORKER_EVENT_PREFIX = "COPERNICAN_EVENT\t"
 
 
-class _PathFilter(logging.Filter):
-    """Filter that strips absolute paths above the project root."""
+class _PathFormatter(logging.Formatter):
+    """Render repository paths relatively without mutating log records."""
 
-    def __init__(self, base_dir: str):
-        """Store repository root for later path stripping."""
-        super().__init__()
+    def __init__(self, fmt: str, base_dir: str):
+        """Store the repository root used only for rendered file output."""
+        super().__init__(fmt)
         self.base_dir = os.path.abspath(base_dir)
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        """Remove leading ``base_dir`` segments from log messages."""
-        if isinstance(record.msg, str):
-            # Replace absolute base paths with project-relative forms
-            clean = record.msg.replace(self.base_dir + os.sep, "")
-            record.msg = clean.replace(self.base_dir, ".")
-        return True
+    def format(self, record: logging.LogRecord) -> str:
+        """Shorten repository paths in this handler's rendered text."""
+
+        rendered = super().format(record)
+        rendered = rendered.replace(self.base_dir + os.sep, "")
+        return rendered.replace(self.base_dir, ".")
+
+
+class _WorkerEventFormatter(logging.Formatter):
+    """Serialize worker console records for the GUI monitor transport."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Return one parseable event carrying severity and message."""
+
+        message = super().format(record)
+        payload = {
+            "severity": record.levelname,
+            "message": message,
+        }
+        return _WORKER_EVENT_PREFIX + json.dumps(
+            payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
 
 
 class _ConsoleFilter(logging.Filter):
@@ -79,7 +95,7 @@ def _set_console_capture_active(active: bool) -> None:
 
 
 def _patch_builtins(base_dir: str) -> None:
-    """Mirror print and input to the logger with path sanitisation."""
+    """Mirror direct print and input calls without wrapping streams."""
 
     logger = logging.getLogger()
     # Patch each builtin independently so repeated setup calls can recover
@@ -89,22 +105,18 @@ def _patch_builtins(base_dir: str) -> None:
     orig_print = builtins.print
     orig_input = builtins.input
 
-    def _shorten(msg: str) -> str:
-        """Replace absolute paths in ``msg`` with project-relative forms."""
-        base = os.path.abspath(base_dir)
-        return msg.replace(base + os.sep, "").replace(base, ".")
-
-    def _log_console_message(text: str) -> None:
+    def _log_console_message(text: str, level: int = logging.INFO) -> None:
         """Log console lines that would otherwise only hit stdout/stderr."""
 
-        cleaned = _shorten(text).rstrip("\n")
+        cleaned = text.rstrip("\n")
         if not cleaned.strip():
             return
         if _console_capture_active():
             return
         _set_console_capture_active(True)
         try:
-            logger.info(
+            logger.log(
+                level,
                 cleaned,
                 extra={"console_capture": True},
             )
@@ -114,13 +126,17 @@ def _patch_builtins(base_dir: str) -> None:
     def print_patch(*args, **kwargs):
         """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
-        if kwargs.get("file", sys.stdout) is sys.stdout:
+        destination = kwargs.get("file", sys.stdout)
+        if destination is sys.stdout or destination is sys.stderr:
             sep = kwargs.get("sep", " ")
             end = kwargs.get("end", "\n")
             message = sep.join(str(argument) for argument in args)
             if end != "\n":
                 message += end
-            _log_console_message(message)
+            level = (
+                logging.ERROR if destination is sys.stderr else logging.INFO
+            )
+            _log_console_message(message, level)
 
     def input_patch(prompt: str = ""):
         """Proxy ``input`` that logs the prompt and response."""
@@ -135,37 +151,32 @@ def _patch_builtins(base_dir: str) -> None:
         input_patch.__copernican_patched__ = True
         builtins.input = input_patch
 
-    class _StreamProxy:
-        """Proxy that mirrors stream writes to the logger."""
-
-        def __init__(self, stream: TextIO) -> None:
-            """Initialize the proxy with the wrapped stream."""
-            self._stream = stream
-
-        def write(self, text: str) -> None:
-            """Write to the original stream and mirror the text to logs."""
-            self._stream.write(text)
-            if text:
-                _log_console_message(text)
-
-        def flush(self) -> None:
-            """Flush the underlying stream."""
-            self._stream.flush()
-
-        def __getattr__(self, name: str) -> Any:
-            """Forward attribute access to the wrapped stream."""
-            return getattr(self._stream, name)
-
-    if not isinstance(sys.stdout, _StreamProxy):
-        sys.stdout = _StreamProxy(sys.stdout)
-    if not isinstance(sys.stderr, _StreamProxy):
-        sys.stderr = _StreamProxy(sys.stderr)
-
 
 def ensure_console_capture(base_dir: str) -> None:
     """Install the patched ``print``/``input`` functions if needed."""
 
     _patch_builtins(base_dir)
+
+
+def parse_worker_event(line: str) -> tuple[int, str] | None:
+    """Parse one structured GUI-worker console record."""
+
+    if not line.startswith(_WORKER_EVENT_PREFIX):
+        return None
+    try:
+        payload = json.loads(line[len(_WORKER_EVENT_PREFIX) :])
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    message = payload.get("message")
+    severity = payload.get("severity")
+    if not isinstance(message, str) or not isinstance(severity, str):
+        return None
+    level = getattr(logging, severity.upper(), None)
+    if not isinstance(level, int):
+        return None
+    return level, message
 
 
 def setup_logging(
@@ -186,28 +197,38 @@ def setup_logging(
     """
 
     ensure_dir_exists(log_dir)
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    _close_handlers(logger)
-
-    # Name log file using an execution timestamp or explicit tag
     file_tag = log_tag or f"copernican-run_{get_timestamp()}.txt"
     if not file_tag.endswith(".txt"):
         file_tag = f"{file_tag}.txt"
-    log_filename = os.path.join(log_dir, file_tag)
+    log_filename = os.path.abspath(os.path.join(log_dir, file_tag))
 
-    file_handler = logging.FileHandler(log_filename)
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    for handler in logger.handlers:
+        if getattr(handler, "_copernican_run_log_path", None) == log_filename:
+            if base_dir:
+                _patch_builtins(base_dir)
+            return log_filename
+    _close_handlers(logger)
+
+    file_handler = logging.FileHandler(log_filename, encoding="utf-8")
     file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    format_string = "%(asctime)s - %(levelname)s - %(message)s"
+    if base_dir:
+        formatter = _PathFormatter(format_string, base_dir)
+    else:
+        formatter = logging.Formatter(format_string)
     formatter.converter = time.gmtime
     file_handler.setFormatter(formatter)
-    if base_dir:
-        file_handler.addFilter(_PathFilter(base_dir))
+    file_handler._copernican_run_log_path = os.path.abspath(log_filename)
     logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(logging.Formatter("%(message)s"))
+    if os.environ.get("COPERNICAN_GUI_EVENT_STREAM") == "1":
+        console_handler.setFormatter(_WorkerEventFormatter("%(message)s"))
+    else:
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
     # Exclude messages that already appeared on the console via patched
     # ``print``/``input`` calls.
     console_handler.addFilter(_ConsoleFilter())
@@ -223,38 +244,14 @@ def setup_logging(
     return log_filename
 
 
-def setup_monitor_logging(
-    log_dir: str = str(Path.home() / "copernican_output" / ".monitor"),
-    *,
-    log_tag: str | None = None,
-) -> tuple[logging.Logger, str]:
-    """Prepare a dedicated monitor log file and return its logger.
+def setup_monitor_logger() -> logging.Logger:
+    """Return the memory-only logger used by the GUI Run Monitor."""
 
-    The GUI Run Monitor writes to this logger so its tail can be displayed in
-    the console.  The fallback keeps the monitor log under the user's output
-    root instead of the repository root.
-    """
-
-    ensure_dir_exists(log_dir)
     logger_obj = logging.getLogger("copernican.gui.run")
     logger_obj.setLevel(logging.INFO)
     logger_obj.propagate = False
     _close_handlers(logger_obj)
-
-    tag = log_tag or f"monitor_{get_timestamp()}.txt"
-    if not tag.endswith(".txt"):
-        tag = f"{tag}.txt"
-    log_path = os.path.join(log_dir, tag)
-
-    handler = logging.FileHandler(log_path)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    formatter.converter = time.gmtime
-    handler.setFormatter(formatter)
-    handler.addFilter(_PathFilter(str(Path(log_dir).resolve())))
-    logger_obj.addHandler(handler)
-
-    return logger_obj, log_path
+    return logger_obj
 
 
 def log_environment_info(

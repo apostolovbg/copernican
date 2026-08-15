@@ -821,17 +821,12 @@ class CopernicanGUI:
             return None
         return handler.last_anchor()
 
-    def _start_run_logging(self, manifest: dict) -> None:
-        """Initialise run-level logging after confirmation."""
+    def _start_run_logging(self, worker_config: dict) -> None:
+        """Initialise the memory monitor for one worker-owned run log."""
 
-        log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
-        output_root = Path(self._output_root())
-        run_output_dir = output_root / Path(log_tag).stem
-        run_output_dir.mkdir(parents=True, exist_ok=True)
-        self.run_logger, self.run_log_path = logger.setup_monitor_logging(
-            log_dir=str(run_output_dir),
-            log_tag=log_tag,
-        )
+        run_output_dir = Path(worker_config["output_dir"]).resolve()
+        self.run_logger = logger.setup_monitor_logger()
+        self.run_log_path = str(run_output_dir / worker_config["log_name"])
         self._current_run_output_dir = str(run_output_dir)
         self.run_log_handler = _MemoryLogHandler(prefix="run")
         formatter = logging.Formatter(
@@ -840,31 +835,6 @@ class CopernicanGUI:
         formatter.converter = time.gmtime
         self.run_log_handler.setFormatter(formatter)
         self._attach_handler(self.run_logger, self.run_log_handler)
-        selection = manifest.get("selection", {})
-        models = ", ".join(selection.get("models", [])) or "unspecified"
-        engine_meta = selection.get("engine", {})
-        engine_name = engine_meta.get("name", "engine")
-        engine_ver = engine_meta.get("version", "unspecified")
-        datasets = selection.get("datasets", [])
-        dataset_label = ", ".join(datasets) or "none"
-        confirmation = manifest.get("confirmation", {})
-        seed_value = confirmation.get("seed", "unset")
-        plan_desc = confirmation.get("plan", "unspecified")
-        self._log_run_event(
-            (
-                "Run confirmed with manifest: models=%s; sampler=%s v%s; "
-                "datasets=%s; seed=%s; plan=%s"
-            )
-            % (
-                models,
-                engine_name,
-                engine_ver,
-                dataset_label,
-                seed_value,
-                plan_desc,
-            ),
-            logging.INFO,
-        )
 
     def _log_run_event(
         self, message: str, level: int = logging.INFO
@@ -7146,7 +7116,9 @@ class CopernicanGUI:
                 button.configure(state=control_state)
                 alive_control_buttons.append(button)
         self._monitor_control_buttons = alive_control_buttons
-        log_available = bool(self.run_log_path)
+        log_available = bool(
+            self.run_log_path and Path(self.run_log_path).is_file()
+        )
         log_state = (
             tkinter_module.NORMAL if log_available else tkinter_module.DISABLED
         )
@@ -7273,7 +7245,9 @@ class CopernicanGUI:
                 reason="Start confirmed",
             )
             self.summary.manifest_metadata = self._summarise_manifest()
-        self._log_run_event("Run execution started; outputs prepared")
+        self._log_application_event(
+            "Run execution started; outputs prepared", logging.INFO
+        )
         self.status = RunStatus.RUNNING
         self.progress = 0
         self.show_run_monitor()
@@ -7323,7 +7297,7 @@ class CopernicanGUI:
         directory.mkdir(parents=True, exist_ok=True)
         return str(directory / f"gui_progress_{utils.get_timestamp()}.json")
 
-    def _build_worker_config(self) -> dict:
+    def _build_worker_config(self, *, run_start_ts: str) -> dict:
         """Return the serialized configuration passed to the CLI worker."""
 
         if self.manifest_workspace is None:
@@ -7333,10 +7307,14 @@ class CopernicanGUI:
         )
         self._progress_state_path = progress_path
         progress_state.clear_progress(progress_path)
+        log_prefix = "copernican-run"
         return {
             "manifest_path": str(self.manifest_workspace.manifest_path),
-            "output_dir": str(self.manifest_workspace.folder),
+            "output_dir": str(self.manifest_workspace.folder.resolve()),
             "progress_path": progress_path,
+            "run_start_ts": run_start_ts,
+            "log_prefix": log_prefix,
+            "log_name": f"{log_prefix}_{run_start_ts}.txt",
         }
 
     def _write_worker_config(self, config: dict) -> str:
@@ -7405,7 +7383,7 @@ class CopernicanGUI:
         ).start()
 
     def _stream_worker_output(self, process: subprocess.Popen[str]) -> None:
-        """Forward worker stdout into the GUI log."""
+        """Forward worker events into the memory-only GUI monitor."""
 
         if process.stdout is None:
             return
@@ -7415,7 +7393,12 @@ class CopernicanGUI:
                 continue
             if cleaned.startswith("\r"):
                 continue
-            self._log_run_event(cleaned, logging.INFO)
+            worker_event = logger.parse_worker_event(cleaned)
+            if worker_event is None:
+                self._log_run_event(cleaned, logging.INFO)
+                continue
+            level, message = worker_event
+            self._log_run_event(message, level)
 
     def _wait_for_worker(self, process: subprocess.Popen[str]) -> None:
         """Update GUI state when the worker finishes."""
@@ -7735,7 +7718,7 @@ class CopernicanGUI:
     def _open_run_log_file(self) -> None:
         """Open the run log with the desktop default editor."""
 
-        if not self.run_log_path:
+        if not self.run_log_path or not Path(self.run_log_path).is_file():
             self.create_toast(
                 "Run log is not yet available.",
                 severity="WARNING",
@@ -8161,7 +8144,9 @@ class CopernicanGUI:
             f"Manifest finalised for run start: {workspace.manifest_path}"
         )
         try:
-            worker_config = self._build_worker_config()
+            worker_config = self._build_worker_config(
+                run_start_ts=run_start_ts
+            )
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self._log_run_event(str(exc), logging.ERROR)
             self.create_toast(
@@ -8172,7 +8157,7 @@ class CopernicanGUI:
             return
         self.status = RunStatus.CONFIGURING
         self.current_phase = "Configuring"
-        self._start_run_logging(self.pending_manifest)
+        self._start_run_logging(worker_config)
         self.start_run()
         self._launch_worker_process(config=worker_config)
 

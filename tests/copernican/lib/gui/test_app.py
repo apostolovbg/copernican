@@ -650,10 +650,32 @@ def _case_run_log_confirmation_and_anchor_jump(
     gui._persist_manifest_workspace()
     gui.confirm_start_run()
     self.assertIsNotNone(gui.run_log_path)
-    self.assertTrue(os.path.exists(gui.run_log_path))
+    self.assertFalse(os.path.exists(gui.run_log_path))
+    worker_config = gui._last_worker_config  # type: ignore[attr-defined]
+    self.assertEqual(
+        worker_config["run_start_ts"],
+        gui.manifest_workspace.creation_timestamp,
+    )
+    self.assertEqual(
+        worker_config["log_name"],
+        f"copernican-run_{worker_config['run_start_ts']}.txt",
+    )
+    self.assertEqual(
+        Path(worker_config["output_dir"]),
+        gui.manifest_workspace.folder.resolve(),
+    )
+    process = SimpleNamespace(
+        stdout=[
+            "COPERNICAN_EVENT\t"
+            '{"severity":"ERROR","message":"worker failed"}\n'
+        ]
+    )
+    gui._stream_worker_output(process)
     entries = gui.get_run_log_entries()
     self.assertTrue(entries)
     self.assertTrue(entries[0].anchor.startswith("run-"))
+    self.assertEqual(entries[0].severity, "ERROR")
+    self.assertIn("worker failed", entries[0].formatted)
     gui.start_run()
     gui.update_progress(100)
     exported = gui.export_run_logs(tmp_path)

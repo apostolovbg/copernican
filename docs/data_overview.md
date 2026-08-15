@@ -120,9 +120,10 @@ the matrix is absent or ill conditioned.
 *Location:* `copernican/datasets/bao/compound/`.
 *Parser:* `cosmo_parser_compound.py` scans the directory for a YAML file
 and loads its `data_points` table into a `DataFrame`. Numeric columns are
-coerced to floats and rows missing required fields are discarded. No
-covariance matrix is supplied, so the engine assumes uncorrelated errors
-and applies a diagonal covariance during \(\chi^2\) evaluation.
+coerced to floats and rows missing required fields are discarded. Metadata
+declares independent measurement errors and diagonal covariance, which the
+loader validates before \(\chi^2\) evaluation without entering a covariance
+fallback path.
 ## CMB Datasets
 ### Planck 2018 Lite TT/TE/EE
 *Source:* Planck 2018 legacy release.

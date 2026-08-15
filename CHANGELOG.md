@@ -80,6 +80,55 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-15:
+  Change: Implemented worker-owned canonical run logging, structured GUI
+  event transport, one resolved run identity, and declared compound BAO
+  diagonal covariance.
+  Why: Removed duplicate file and stream capture paths, severity loss,
+  external-path rewriting, repeated dataset records, and misleading
+  covariance fallback diagnostics.
+  Impact: Produces one complete CLI or GUI run log, one in-memory monitor
+  stream, one selected-dataset load and hash pass, and one validated compound
+  BAO likelihood contract.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  copernican/datasets/bao/compound/cosmo_parser_compound.py
+  copernican/datasets/bao/compound/metadata_compound.yml
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/bao_compound_dataset_format.md
+  copernican/docs/data_overview.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/run_manifest.md
+  copernican/lib/console_output.py
+  copernican/lib/dataset_registry.py
+  copernican/lib/gui/app.py
+  copernican/lib/gui/run_worker.py
+  copernican/lib/logger.py
+  copernican/lib/run_executor.py
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/architecture.md
+  docs/bao_compound_dataset_format.md
+  docs/data_overview.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/run_manifest.md
+  tests/copernican/datasets/bao/compound/\
+    test_cosmo_parser_compound.py
+  tests/copernican/lib/gui/test_app.py
+  tests/copernican/lib/gui/test_run_worker.py
+  tests/copernican/lib/test_dataset_registry.py
+  tests/copernican/lib/test_logger.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/test_workflow.py
+
+- 2026-08-15:
   Change: Replaced the active roadmap with twelve bounded slices covering
   canonical run logging, dataset contracts, typed native failures, scalar
   constraints, MCMC performance, theory capabilities, USMF2, and corpus

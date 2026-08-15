@@ -258,6 +258,49 @@ class TestRunExecutor(unittest.TestCase):
 
         self.assertEqual(seed_calls, [123])
 
+    def test_manifest_run_has_one_canonical_external_log(self) -> None:
+        """The executor must retain one absolute output and event stream."""
+
+        manifest = self._base_manifest()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_root = Path(tmpdir).resolve()
+            with contextlib.ExitStack() as stack:
+                self._enter_common_patches(stack)
+                stack.enter_context(
+                    mock.patch.object(
+                        run_executor.run_pipeline,
+                        "execute_run_pipeline",
+                        lambda **kwargs: ({}, {}),
+                    )
+                )
+                stack.enter_context(
+                    mock.patch.object(
+                        run_executor.console_output,
+                        "write",
+                        lambda message, **_kwargs: (
+                            run_executor.log_mod.get_logger().info(message)
+                        ),
+                    )
+                )
+                run_executor._PLUGIN_CACHE.clear()
+                run_executor.execute_run_from_manifest(
+                    manifest,
+                    script_dir=Path("/repository/source"),
+                    output_root=output_root,
+                    run_start_ts="20260815_120000",
+                )
+
+            logs = list(output_root.glob("copernican-run_*.txt"))
+            self.assertEqual(len(logs), 1)
+            content = logs[0].read_text(encoding="utf-8")
+            output_message = f"Output directory: {output_root}"
+            self.assertEqual(content.count(output_message), 1)
+            self.assertNotIn("Output directory: .", content)
+            self.assertEqual(content.count("Run confirmed with manifest:"), 1)
+            self.assertEqual(
+                content.count("Dataset sne/pantheon (sne): Pantheon"), 1
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,8 +35,10 @@ class TestLoggerSurface(unittest.TestCase):
                 self.assertTrue(callable(log_mod.ensure_console_capture))
                 self.assertIs(log_mod.get_logger(), root_logger)
                 self.assertTrue(callable(log_mod.log_environment_info))
+                self.assertTrue(callable(log_mod.parse_worker_event))
                 self.assertTrue(callable(log_mod.setup_logging))
-                self.assertTrue(callable(log_mod.setup_monitor_logging))
+                self.assertTrue(callable(log_mod.setup_monitor_logger))
+                self.assertFalse(hasattr(log_mod, "setup_monitor_logging"))
                 self.assertFalse(hasattr(log_mod, "setup_program_logging"))
                 self.assertFalse(hasattr(log_mod, "get_program_logger"))
                 self.assertFalse(hasattr(log_mod, "get_program_log_path"))
@@ -59,20 +61,25 @@ class TestLoggerSurface(unittest.TestCase):
                 builtins.input = lambda prompt="": "answer"
                 log_path = log_mod.setup_logging(
                     log_dir=tmpdir,
-                    base_dir=tmpdir,
+                    base_dir=str(Path(tmpdir) / "repository"),
                     log_tag="logger-test",
                 )
                 self.assertTrue(Path(log_path).exists())
+                self.assertEqual(
+                    log_mod.setup_logging(
+                        log_dir=tmpdir,
+                        base_dir=str(Path(tmpdir) / "repository"),
+                        log_tag="logger-test",
+                    ),
+                    log_path,
+                )
                 print("hello", flush=True)
+                print("failure", file=sys.stderr, flush=True)
                 self.assertEqual(input("prompt: "), "answer")
                 self.assertEqual(builtins.print.__name__, "print_patch")
                 self.assertEqual(builtins.input.__name__, "input_patch")
-                self.assertEqual(sys.stdout.write.__name__, "write")
-                self.assertEqual(sys.stdout.flush.__name__, "flush")
-                self.assertEqual(sys.stderr.write.__name__, "write")
-                self.assertEqual(sys.stderr.flush.__name__, "flush")
-                sys.stdout.flush()
-                sys.stderr.flush()
+                self.assertIs(sys.stdout, original_stdout)
+                self.assertIs(sys.stderr, original_stderr)
                 log_mod.ensure_console_capture(tmpdir)
                 self.assertTrue(
                     getattr(builtins.print, "__copernican_patched__", False)
@@ -81,24 +88,43 @@ class TestLoggerSurface(unittest.TestCase):
                     getattr(builtins.input, "__copernican_patched__", False)
                 )
 
-                monitor_logger, monitor_path = log_mod.setup_monitor_logging(
-                    log_dir=tmpdir,
-                    log_tag="monitor-test",
-                )
+                monitor_logger = log_mod.setup_monitor_logger()
                 self.assertEqual(monitor_logger.name, "copernican.gui.run")
-                self.assertTrue(Path(monitor_path).exists())
+                self.assertEqual(monitor_logger.handlers, [])
 
                 log_mod.log_environment_info(
                     target_logger=log_mod.get_logger(),
                     console=False,
                 )
-                self.assertIn(
-                    "hello", Path(log_path).read_text(encoding="utf-8")
+                root_logger.warning("Output directory: %s", tmpdir)
+                log_text = Path(log_path).read_text(encoding="utf-8")
+                self.assertEqual(
+                    log_text.count("Logging initialized with UTC"), 1
                 )
+                self.assertEqual(log_text.count("hello"), 1)
+                self.assertEqual(log_text.count("failure"), 1)
                 self.assertIn(
                     "prompt: answer",
-                    Path(log_path).read_text(encoding="utf-8"),
+                    log_text,
                 )
+                self.assertIn(f"Output directory: {tmpdir}", log_text)
+
+                worker_formatter = log_mod._WorkerEventFormatter("%(message)s")
+                worker_record = logging.LogRecord(
+                    "copernican",
+                    logging.ERROR,
+                    "logger-test",
+                    1,
+                    "worker failed",
+                    (),
+                    None,
+                )
+                worker_line = worker_formatter.format(worker_record)
+                self.assertEqual(
+                    log_mod.parse_worker_event(worker_line),
+                    (logging.ERROR, "worker failed"),
+                )
+                self.assertIsNone(log_mod.parse_worker_event("plain text"))
             finally:
                 log_mod._close_handlers(root_logger)
                 log_mod._close_handlers(

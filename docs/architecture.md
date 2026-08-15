@@ -110,15 +110,16 @@ guardrails such as policy enforcement and dataset validation.
  they remain the reference for CLI metadata viewers and the GUI **View
  metadata** action.
 ## Logging, Diagnostics, and Signals
-- Logging is initialised early, records Python/OS/package versions, and flushes
- warnings through `copernican.lib.logger`. `console_output` ensures prints and
- inputs route through the logger.
+- The manifest executor initialises one canonical worker log before run
+ events, records Python/OS/package versions, and routes warnings through
+ `copernican.lib.logger`. `console_output` creates one record per message;
+ structured worker events feed the separate GUI memory monitor with their
+ original severity.
 - `faulthandler` plus SIGILL/SIGSEGV/SIGFPE handlers capture stack traces on
  fatal signals and write them to both console and log paths before exiting so
  the per-run monitor log remains complete.
-- Progress updates flush per line to ensure stage updates appear in long
- computations; Stage 2 emits walker updates and the same counter records so
- CLI and GUI log mirrors look identical.
+- Progress state uses a dedicated channel, independent of the canonical log
+ and the GUI event transport, so monitor refreshes cannot duplicate records.
 ## Policies and Documentation Guardrails
 - `AGENTS.md` and repository policy enforce changelog coverage,
   documentation updates, line length, module tests, parser hashes, policy

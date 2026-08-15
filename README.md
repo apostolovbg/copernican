@@ -24,10 +24,10 @@ interactive runs and scripted runs on one configuration surface, with the same
 seed handling, control-model and test-model selection, dataset selection,
 sampler-engine choice, and output layout.
 
-Copernican is built for reproducibility. Every run writes a manifest, logs,
-summary artifacts, plots, and chain outputs into a per-run directory under
-`~/copernican_output/`, so a result can be replayed or audited later without
-guessing which options were used.
+Copernican is built for reproducibility. Every run writes a manifest, one
+canonical run log, summary artifacts, plots, and chain outputs into a per-run
+directory under `~/copernican_output/`, so a result can be replayed or audited
+later without guessing which options were used.
 
 The package includes the model library, trusted dataset parsers, sampler
 engines, validation manifests, and supporting analysis tools needed for the
@@ -263,10 +263,12 @@ than assuming an LCDM control.
 Posterior plotting reads that pair from the saved manifest, and direct
 plotting calls provide the same comparison object.
 
-The Run Monitor streams stdout and stderr into a log box, tails the per-run
-log file, and keeps the cancel controls disabled until a run exists. Metadata
-dialogs open with the system default application and use the same launch
-behavior as the rest of the GUI.
+The run worker is the sole owner of the canonical log file. It sends
+structured severity-preserving events to the Run Monitor's in-memory log box,
+while progress snapshots use a separate channel. GUI forwarding never writes
+back to the worker file, so each event and selected dataset-ingestion record
+appears once. Metadata dialogs open with the system default application and
+use the same launch behavior as the rest of the GUI.
 Run and validation workers use the active interpreter from the directory that
 contains the importable `copernican` package, so source checkouts do not
 require an editable package installation.

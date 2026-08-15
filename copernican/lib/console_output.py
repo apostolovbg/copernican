@@ -3,15 +3,16 @@
 
 """Console I/O helpers shared across the Copernican Suite.
 
-All user facing text is funneled through this module so that the patched
-``print``/``input`` hooks in :mod:`copernican.lib.logger` can capture every
-message exactly once while the helpers centralize which outputs should be
-persisted.  Wrapping the calls keeps the terminal display consistent and
-ensures console text is mirrored to the shared application logger.
+All user-facing text is funneled through this module. Once run logging is
+configured, output becomes a logging record and the configured console
+handler displays it exactly once. Before configuration, the helper writes
+directly to the requested stream. Input remains routed through ``input`` so
+the logger's prompt capture can record interactive exchanges.
 """
 
 from __future__ import annotations
 
+import logging
 import sys
 
 
@@ -27,8 +28,14 @@ def _direct_print(msg: str, *, end: str, error: bool) -> None:
 
 
 def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
-    """Display ``msg`` and let patched streams mirror it to the log."""
+    """Display ``msg`` through the active logger or a direct stream."""
 
+    active_logger = logging.getLogger()
+    if active_logger.handlers:
+        level = logging.ERROR if error else logging.INFO
+        rendered = msg if end == "\n" else f"{msg}{end}"
+        active_logger.log(level, rendered.rstrip("\n"))
+        return
     _direct_print(msg, end=end, error=error)
 
 

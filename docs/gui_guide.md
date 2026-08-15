@@ -124,6 +124,11 @@ The Run Monitor page exposes:
 - Alerts that jump directly to recorded anchors inside the log
 - Buttons to pause, cancel, hard stop or open the output directory once the run
  starts producing files
+The child worker owns the single canonical run log. Its structured console
+transport supplies the in-memory monitor with the original event severity;
+the monitor and progress snapshot channel never write back into that file.
+The GUI resolves one output directory, timestamp, and log name before launch,
+and the CLI manifest executor consumes that same identity.
 All warnings and system messages also appear in the footer status bar, which
 shows the Copernican version on the left and the Python/venv summary on
 the right.

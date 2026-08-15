@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -156,10 +157,26 @@ def execute_run_from_manifest(
     manifest executor.
     """
 
+    output_root = Path(output_root).expanduser().resolve()
+    output_root.mkdir(parents=True, exist_ok=True)
+    effective_start_ts = run_start_ts or os.environ.get(
+        "COPERNICAN_RUN_START_TS"
+    )
+    effective_log_prefix = os.environ.get(
+        "COPERNICAN_RUN_LOG_PREFIX", log_prefix
+    )
+    actual_ts = _resolve_run_timestamp(output_root, effective_start_ts)
+    run_log = log_mod.setup_logging(
+        log_dir=str(output_root),
+        base_dir=str(script_dir),
+        log_tag=f"{effective_log_prefix}_{actual_ts}.txt",
+    )
     log = log_mod.get_logger()
     console_output.write("Manifest-driven run path invoked.")
     config = build_config_from_manifest(manifest)
     utils.set_random_seed(config.seed)
+    _describe_run_confirmation(manifest, config)
+    log.info("Run execution started; outputs prepared")
     log.info(
         "Executing manifest run: seed=%s, models=%s, engine=%s",
         config.seed,
@@ -179,8 +196,6 @@ def execute_run_from_manifest(
     )
     if strict_warnings:
         log.info("Strict warnings enforced via manifest run.")
-    output_root.mkdir(parents=True, exist_ok=True)
-    actual_ts = _resolve_run_timestamp(output_root, run_start_ts)
     manifest_filename = f"run_manifest_{actual_ts}.yml"
     manifest_target = output_root / manifest_filename
     try:
@@ -197,11 +212,6 @@ def execute_run_from_manifest(
         )
     else:
         log.info("Persisted manifest at %s", manifest_target)
-    run_log = log_mod.setup_logging(
-        log_dir=str(output_root),
-        base_dir=str(script_dir),
-        log_tag=f"{log_prefix}_{actual_ts}.txt",
-    )
     console_output.write(
         f"Output directory: {output_root}",
     )
@@ -284,6 +294,28 @@ def execute_run_from_manifest(
         display_progress=display_progress,
         logger=log,
         comparison=comparison,
+    )
+
+
+def _describe_run_confirmation(manifest: dict, config: Any) -> None:
+    """Log the manifest confirmation once from the canonical worker."""
+
+    selection = manifest.get("selection", {}) or {}
+    engine = selection.get("engine", {}) or {}
+    confirmation = manifest.get("confirmation", {}) or {}
+    models = ", ".join(str(model) for model in config.models)
+    datasets = ", ".join(
+        descriptor.dataset_id for descriptor in config.datasets
+    )
+    log_mod.get_logger().info(
+        "Run confirmed with manifest: models=%s; sampler=%s v%s; "
+        "datasets=%s; seed=%s; plan=%s",
+        models or "unspecified",
+        engine.get("name", config.engine.module_name),
+        engine.get("version", "unspecified"),
+        datasets or "none",
+        confirmation.get("seed", config.seed),
+        confirmation.get("plan", "unspecified"),
     )
 
 

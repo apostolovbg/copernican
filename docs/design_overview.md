@@ -162,13 +162,12 @@ console never reports those internal modules as missing; unexpected warnings
 usually mean the managed `.venv` was skipped. A short NumPy/SciPy calculation
 verifies that compiled binaries match the available CPU features before heavy
 work begins.
-Logging is initialised immediately after the cache check. Console messages and
-prompts flow through :mod:`copernican.lib.console_output` so patched `print`
-and `input` hooks in :mod:`copernican.lib.logger` can mirror them into the log
-file without duplication. The logger strips repository paths from messages,
-records system details and timestamps in UTC and keeps a deliberate blank
-spacer after initialisation so Stage 1 banners remain readable without
-redundant status text.
+The manifest executor initialises logging before it emits run events. Console
+messages flow through :mod:`copernican.lib.console_output`, while direct
+`print` and `input` calls are captured without wrapping process streams. The
+worker owns the only run file and emits structured records to the GUI's
+memory-only monitor. Repository paths can be rendered relatively in the file;
+external output paths remain absolute. System details and timestamps use UTC.
 ### Stage 1 orchestration
 Stage 1 focuses on reproducibility and validation:
 * The seed selector honours ``COPERNICAN_SEED`` when set, otherwise offers to
@@ -263,13 +262,12 @@ transforms and likelihood callables into a picklable evaluator suitable for
 spawn-based worker pools on macOS and Linux.
 ## Console and error handling
 All console I/O flows through :mod:`copernican.lib.console_output` so the
-logger can mirror it faithfully. Unicode encoding errors are caught and
-replaced with ASCII fallbacks to keep runs alive on limited terminals. The
-launcher enables `faulthandler` and registers handlers for SIGILL, SIGSEGV and
-SIGFPE so any crash produces a stack trace on both the console and log before
-exiting. All Python warnings are forwarded to the central logger, and the
-``COPERNICAN_STRICT_WARNINGS`` environment variable can promote them to errors
-during CI runs.
+logger records it once. Unicode encoding errors use ASCII replacements on the
+direct pre-logging path. The launcher enables `faulthandler` and registers
+handlers for SIGILL, SIGSEGV and SIGFPE so a crash produces a stack trace on
+the console and canonical log before exiting. Python warnings are forwarded
+to the central logger, and ``COPERNICAN_STRICT_WARNINGS`` can promote them to
+errors during CI runs.
 ## Dependency management and packaging
 The dependency-management surface regenerates the pinned `requirements.lock`
 file and matching license inventory so dependency refreshes stay

@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-14
+**Last Updated:** 2026-08-15
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -21,8 +21,10 @@ Validation runs write their local summary marker to `~/VALIDATION.md`, so
 the package guide in `copernican/validation/README.md` and the GUI validation
 help stay aligned with the runtime path layout.
 
-Troubleshooting should start with the run folder logs and the run logs
-shown in the GUI.
+Troubleshooting should start with the worker-owned canonical log in the run
+folder. The GUI Run Monitor displays the same worker events through a separate
+in-memory transport and preserves their severity, but it does not write a
+second log file.
 If the GUI opens nothing, confirm that the managed `.venv` is active
 and that Copernican was launched with `python -m copernican --gui`.
 Run and validation workers use that interpreter and the package import root.

@@ -220,7 +220,7 @@ TRUSTED_PARSER_DIGESTS = {
         "e4ff86153e53bf0ffc0e4de8c16bf1d4c9c0d36d437595207cda2c543ee71d5f"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "ba7bed0930321dc1a8e0d1fe80c8497b9ccf20dcfb39aef57e6433abb9ca331e"
+        "3517dd1008b4e1684430af3401ed019e6bf52bcb1a9bed350f1af989dfadd7d9"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
         "7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637"
@@ -467,7 +467,14 @@ def _log_dataset_info(dataset_df, data_type, logger):
     logger.info(
         f"Loaded {data_type} dataset '{name}' with {len(dataset_df)} rows.",
     )
-    if "covariance_matrix_inv" in dataset_df.attrs:
+    covariance_model = dataset_df.attrs.get("covariance_model")
+    if covariance_model == "diagonal":
+        logger.info(
+            "%s likelihood uses declared diagonal covariance from "
+            "independent measurement errors.",
+            data_type,
+        )
+    elif "covariance_matrix_inv" in dataset_df.attrs:
         if dataset_df.attrs["covariance_matrix_inv"] is not None:
             logger.info(
                 f"{data_type} covariance matrix inverted successfully.",
@@ -490,6 +497,25 @@ def _validate_bao_covariance(dataset_df, logger):
     """Ensure BAO covariance matrices are symmetric and positive definite."""
 
     inv_cov = dataset_df.attrs.get("covariance_matrix_inv")
+    covariance_model = str(
+        dataset_df.attrs.get("covariance_model", "")
+    ).lower()
+    if covariance_model == "diagonal":
+        if inv_cov is not None:
+            raise ValueError(
+                "Declared diagonal BAO data must not provide a covariance "
+                "matrix."
+            )
+        if "error" not in dataset_df.columns:
+            raise ValueError(
+                "Declared diagonal BAO data require an error column."
+            )
+        errors = numpy.asarray(dataset_df["error"], dtype=float)
+        if numpy.any(~numpy.isfinite(errors)) or numpy.any(errors <= 0.0):
+            raise ValueError(
+                "Declared diagonal BAO errors must be finite and positive."
+            )
+        return False
     if inv_cov is None:
         logger.warning(
             "BAO dataset is missing an inverse covariance matrix; "

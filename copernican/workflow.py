@@ -195,6 +195,8 @@ class LaunchRequest:
     analysis_posterior_output: Path | None = None
     control_model: str | None = None
     test_model: str | None = None
+    run_start_ts: str | None = None
+    run_log_prefix: str = "copernican-run"
 
 
 def _data_root() -> Path:
@@ -221,6 +223,38 @@ def _output_root(override: Path | None = None) -> Path:
     if override is not None:
         return override
     return Path.home() / "copernican_output"
+
+
+def _prepare_manifest_run_logging(launch_request: LaunchRequest) -> None:
+    """Resolve and open the canonical CLI log before run announcements."""
+
+    if (
+        launch_request.mode is not orchestration.LaunchMode.CLI
+        or launch_request.manifest_path is None
+    ):
+        return
+    output_root = (
+        _output_root(launch_request.output_dir).expanduser().resolve()
+    )
+    output_root.mkdir(parents=True, exist_ok=True)
+    run_start_ts = os.environ.get("COPERNICAN_RUN_START_TS")
+    if not run_start_ts:
+        prefix = "copernican-run_"
+        run_start_ts = (
+            output_root.name[len(prefix) :]
+            if output_root.name.startswith(prefix)
+            else utils.get_timestamp()
+        )
+    log_prefix = os.environ.get(
+        "COPERNICAN_RUN_LOG_PREFIX", launch_request.run_log_prefix
+    )
+    launch_request.run_start_ts = run_start_ts
+    launch_request.run_log_prefix = log_prefix
+    log_mod.setup_logging(
+        log_dir=str(output_root),
+        base_dir=SCRIPT_DIR,
+        log_tag=f"{log_prefix}_{run_start_ts}.txt",
+    )
 
 
 def _parser_path_for_dir(data_dir: Path) -> Path | None:
@@ -1364,6 +1398,8 @@ def main_workflow(
         output_root=Path(OUTPUT_BASE_DIR),
         progress_callback=progress_callback,
         strict_warnings=opts.strict_warnings,
+        run_start_ts=getattr(_launch_args, "run_start_ts", None),
+        log_prefix=getattr(_launch_args, "run_log_prefix", "copernican-run"),
     )
 
 
@@ -1487,6 +1523,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     aux_handled, aux_exit = _handle_auxiliary_requests(launch_request)
     if aux_handled:
         return aux_exit
+    _prepare_manifest_run_logging(launch_request)
     _announce_program_start(launch_request, app_logger)
     if launch_request.mode is orchestration.LaunchMode.GUI:
         launch_gui()

@@ -190,7 +190,15 @@ class TestCliUtilities(unittest.TestCase):
             copernican.main_workflow(manifest_path=launch_dir / "manifest.yml")
         load_manifest.assert_called_once()
         execute_run_from_manifest.assert_called_once()
+        self.assertIsNone(
+            execute_run_from_manifest.call_args.kwargs["run_start_ts"]
+        )
+        self.assertEqual(
+            execute_run_from_manifest.call_args.kwargs["log_prefix"],
+            "copernican-run",
+        )
 
+    @mock.patch.object(copernican, "_prepare_manifest_run_logging")
     @mock.patch.object(copernican, "_announce_program_start")
     @mock.patch.object(copernican, "_handle_auxiliary_requests")
     @mock.patch.object(copernican, "_parse_launch_args")
@@ -201,6 +209,7 @@ class TestCliUtilities(unittest.TestCase):
         parse_launch_args,
         handle_auxiliary_requests,
         announce_program_start,
+        prepare_manifest_run_logging,
     ):
         parse_launch_args.return_value = SimpleNamespace(
             mode=copernican.orchestration.LaunchMode.CLI,
@@ -211,6 +220,38 @@ class TestCliUtilities(unittest.TestCase):
         self.assertEqual(result, 0)
         run_cli_launch.assert_called_once()
         announce_program_start.assert_called_once()
+        prepare_manifest_run_logging.assert_called_once_with(
+            parse_launch_args.return_value
+        )
+
+    def test_manifest_logging_resolves_one_cli_identity(self) -> None:
+        """CLI startup and the executor must share one timestamp and log."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            request = copernican.LaunchRequest(
+                mode=copernican.orchestration.LaunchMode.CLI,
+                manifest_path=Path(tmpdir) / "manifest.yml",
+                output_dir=Path(tmpdir),
+            )
+            with (
+                mock.patch.object(
+                    copernican.utils,
+                    "get_timestamp",
+                    return_value="20260815_120000",
+                ),
+                mock.patch.object(
+                    copernican.log_mod, "setup_logging"
+                ) as setup_logging,
+            ):
+                copernican._prepare_manifest_run_logging(request)
+
+            self.assertEqual(request.run_start_ts, "20260815_120000")
+            self.assertEqual(request.run_log_prefix, "copernican-run")
+            setup_logging.assert_called_once_with(
+                log_dir=str(Path(tmpdir).resolve()),
+                base_dir=copernican.SCRIPT_DIR,
+                log_tag="copernican-run_20260815_120000.txt",
+            )
 
     def test_catalogue_summary_reports_counts(self):
         summary = copernican._gather_catalogue_summary()

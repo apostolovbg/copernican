@@ -2,7 +2,9 @@ dataset_name: Compound BAO compilation
 dataset_id: compound_bao_set
 version: "1.0"
 description: >-
-  Compilation of BAO distance measurements without a covariance matrix
+  Compilation of independent BAO distance measurements with declared
+  diagonal covariance
+covariance_model: diagonal
 citation: >-
   Multiple Surveys (see metadata "authors")
 license: >-
@@ -37,5 +39,5 @@ notes: >-
   Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
   DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's
   sound horizon at the drag epoch unless a fiducial r_s is specified
-  (rs_fiducial_Mpc). No covariance matrix is available; uncertainties are
-  treated as uncorrelated.
+  (rs_fiducial_Mpc). The likelihood uses the declared diagonal covariance
+  formed from the independent measurement errors.

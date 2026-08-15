@@ -2,15 +2,15 @@
 This document describes the YAML format used for the **compound** BAO
 dataset shipped with the Copernican. The folder lives under
 `copernican/datasets/bao/compound/` and mirrors the structure expected for
-real BAO sources. JSON files were supported in early versions but have
-been removed so that all datasets use a single YAML representation.
+real BAO sources through the same YAML representation as the other bundled
+table datasets.
 Each dataset is stored in its own directory and contains a single YAML file
 with a `data_points` array. An optional `metadata_*.yml` file mirrors the
 structure used for real datasets, including BibTeX fields. The data loader
 reads this metadata after parsing so the parser itself remains trivial. The
 compound dataset lets developers exercise the BAO pipeline without downloading
-large public releases. A covariance matrix is intentionally omitted;
-uncertainties are treated as uncorrelated.
+large public releases. Its metadata declares independent uncertainties and
+diagonal covariance.
 The accompanying parser registers itself under the dataset ID
 `compound_bao_set` so ``load_bao_data('compound_bao_set')`` locates it directly
 without discovery.
@@ -29,8 +29,9 @@ Example `metadata_compound.yml`:
 ```yaml
 dataset_name: Compound BAO dataset
 dataset_id: compound_bao_set
-description: Compilation of BAO distance measurements without a covariance
-  matrix
+description: Compilation of independent BAO distance measurements with
+  declared diagonal covariance
+covariance_model: diagonal
 citation: N/A
 author: N/A
 title: N/A
@@ -48,8 +49,8 @@ month: N/A
 pages: N/A
 notes: Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
   DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's
-  sound horizon at the drag epoch unless a fiducial r_s is specified. No
-  covariance matrix is available; uncertainties are treated as uncorrelated.
+  sound horizon at the drag epoch unless a fiducial r_s is specified. The
+  likelihood uses diagonal covariance from the independent errors.
 ```
 ## Table of Contents
 - [Usage](#usage)
@@ -60,10 +61,10 @@ demonstrates how BAO observables are encoded without requiring gigabyte-scale
 survey releases. When developing a new parser, model the output DataFrame on
 the structure produced by this example: one row per measurement with columns
 for the observable, its uncertainty and any fiducial sound horizon.
-When a real dataset supplies a covariance matrix the parser should attach the
-inverse matrix to `df.attrs['covariance_matrix_inv']`. For uncorrelated data,
-as shown here, omitting the matrix is sufficient and the engine will fall back
-to diagonal errors. During analysis the engine populates a
+When a dataset supplies a covariance matrix the parser attaches the inverse
+matrix to `df.attrs['covariance_matrix_inv']`. Independent data instead
+declare `covariance_model: diagonal` in metadata and provide finite positive
+errors. During analysis the engine populates a
 `model_prediction` column on the returned DataFrame. The Stage 2 workflow
 reuses the same SNe chain whenever the control and test roles point to the
 identical plugin, ensuring their predictions align in diagnostic plots. The

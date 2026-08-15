@@ -239,7 +239,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice One - Canonical run logging and dataset contracts
+### [closed] Slice One - Canonical run logging and dataset contracts
 
 Purpose:
 

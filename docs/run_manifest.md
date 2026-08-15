@@ -5,6 +5,9 @@ The suite writes a YAML manifest for every evaluation under the run's output
 folder. The file is named `run_manifest_<timestamp>.yml`, where the timestamp
 matches the start-of-run label used by the output directory and per-run log,
 and records:
+The GUI resolves that directory, timestamp, and log name once before it starts
+the worker. The worker owns the canonical file; the GUI monitor receives
+structured events in memory and progress snapshots through a separate path.
 This manifest is the starting point for every run. GUI Drafts remain pending
 until the operator confirms Start Run, at which point the manifest is finalised
 (timestamped to the run directory) and fed to

@@ -349,13 +349,35 @@ class CompoundBaoHashRegressionTest(unittest.TestCase):
     """Verify compound BAO file-hash bookkeeping and logging."""
 
     def test_compound_bao_file_hash_is_attached_and_logged(self) -> None:
-        importlib.import_module(
+        parser_module = importlib.import_module(
             "copernican.datasets.bao.compound.cosmo_parser_compound"
         )
-        with self.assertLogs(level="INFO") as log:
-            bao_dataframe = dataset_registry.load_bao_data(
-                dataset_id="compound_bao_set"
-            )
+        registry_entry = dataset_registry.BAO_PARSER_REGISTRY[
+            "compound_bao_set"
+        ]
+        original_parser = registry_entry["function"]
+        parser_calls = 0
+
+        def counted_parser(*args, **kwargs):
+            nonlocal parser_calls
+            parser_calls += 1
+            return parser_module.parse_bao(*args, **kwargs)
+
+        registry_entry["function"] = counted_parser
+        try:
+            with (
+                mock.patch.object(
+                    dataset_registry,
+                    "collect_dataset_hashes",
+                    wraps=dataset_registry.collect_dataset_hashes,
+                ) as hash_mock,
+                self.assertLogs(level="INFO") as log,
+            ):
+                bao_dataframe = dataset_registry.load_bao_data(
+                    dataset_id="compound_bao_set"
+                )
+        finally:
+            registry_entry["function"] = original_parser
 
         hashes = bao_dataframe.attrs.get("file_hashes", {})
         compound_path = Path("copernican/datasets/bao/compound/compound.yml")
@@ -363,6 +385,19 @@ class CompoundBaoHashRegressionTest(unittest.TestCase):
 
         self.assertEqual(hashes.get("compound.yml"), expected)
         self.assertTrue(any(expected in message for message in log.output))
+        self.assertEqual(parser_calls, 1)
+        self.assertEqual(hash_mock.call_count, 1)
+        self.assertEqual(bao_dataframe.attrs["covariance_model"], "diagonal")
+        self.assertFalse(
+            any("falling back" in message.lower() for message in log.output)
+        )
+        self.assertEqual(
+            sum(
+                "declared diagonal covariance" in message
+                for message in log.output
+            ),
+            1,
+        )
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

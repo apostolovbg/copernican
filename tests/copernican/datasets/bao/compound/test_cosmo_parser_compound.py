@@ -31,6 +31,7 @@ class TestCompoundParser(unittest.TestCase):
         self.assertIn("value", bao_dataframe.columns)
         self.assertIn("error", bao_dataframe.columns)
         self.assertNotIn("covariance_matrix_inv", bao_dataframe.attrs)
+        self.assertEqual(bao_dataframe.attrs["covariance_model"], "diagonal")
         self.assertGreater(len(bao_dataframe["observable_type"].unique()), 1)
 
 

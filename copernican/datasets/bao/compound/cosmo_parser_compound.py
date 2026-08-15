@@ -6,14 +6,13 @@ r"""Parse the *compound* BAO dataset.
 This parser is intentionally lightweight and makes no assumptions about the
 cosmological model. It simply reads the YAML table located in ``data_dir`` and
 returns a :class:`pandas.DataFrame` with the expected columns. A matching
-``metadata_*.yml`` file supplies the human readable dataset name and
+``metadata_*.yml`` file supplies the human-readable dataset name and
 documentation strings which are attached by
-``copernican.lib.dataset_registry.load_bao_data``. The compound dataset does
-**not** ship with a covariance matrix; uncertainties are therefore treated as
-uncorrelated and the engine falls back to a diagonal covariance during the
-:math:`\chi^2` evaluation. A ``rs_fiducial_Mpc`` column may appear in some
-entries but is retained only for reference—no unit conversion is performed so
-that published values are used directly without risking double scaling.
+``copernican.lib.dataset_registry.load_bao_data``. The compound dataset
+declares independent measurements with diagonal covariance. A
+``rs_fiducial_Mpc`` column may appear in some entries but is retained only for
+reference; no unit conversion is performed, so published values are used
+directly without risking double scaling.
 """
 
 import logging
@@ -69,6 +68,8 @@ def parse_bao(data_dir, **kwargs):
         if bao_dataframe.empty:
             logger.error(f"No valid BAO data points after parsing {filepath}.")
             return None
+
+        bao_dataframe.attrs["covariance_model"] = "diagonal"
 
         # Metadata such as dataset name, citation and notes is loaded by
         # ``load_bao_data`` and attached to the DataFrame after this function
