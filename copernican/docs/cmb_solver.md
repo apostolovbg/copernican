@@ -539,6 +539,10 @@ and reconstructs `Psi` from the shear constraint. Its
 `metric_constraint_scale = k^2` is therefore the exact Fourier-space scale,
 not an algebraic low-k bridge. The energy equation remains available through
 `einstein_energy_residual` as an independent runtime diagnostic.
+The shear diagnostic evaluates the equivalent declared
+`metric_constraint_scale * metric_shear_correction` term rather than
+subtracting nearly equal `Phi` and `Psi` values, so the constraint check does
+not lose its physical significance to floating-point cancellation.
 
 Conformal time retains its physical radiation-era origin. The background
 adds the analytic integral below `a_min` to both `eta` and the sound horizon,
@@ -1036,10 +1040,11 @@ The native numerical defaults are `ell_min = 2`, `ell_max = 2500`,
 `eta_sample_count = 1024`. The photon and massless-neutrino hierarchy caps
 default to eight multipoles. Generated scalar evolution uses deterministic
 explicit Runge-Kutta substeps shared by every supported scalar gauge. The
-substep count follows the declared wave-number phase and collision-rate
-histories, so gauge-equivalent routes do not select different numerical
-trajectories. The tight-coupling entry ratio is `50.0`, and the exit ratio
-defaults to `0.1`; both are declared numerical controls. The
+substep count follows the declared wave-number phase history, while exact
+symmetric collision half-steps absorb collision stiffness without redundant
+microsteps after the declared tight-coupling transition. The tight-coupling
+entry ratio is `50.0`, and the exit ratio defaults to `0.1`; both are declared
+numerical controls. The
 `source_grid_multiplier = 2` setting refines the line-of-sight grid. The
 optional
 `evolution_eta_sample_count` controls the maximum number of conformal-time
@@ -1098,16 +1103,43 @@ proposal requests use the steady-state joint-MCMC limit. A budget overrun
 raises a typed performance error rather than publishing a partial or
 misleading spectrum.
 
-Generated scalar contracts validate Einstein energy, momentum, and shear
-residuals across the accepted evolution history. `scalar_constraint_anchors`
-maps names such as `early`, `recombination`, and `late` to normalized
-evolution-grid positions for diagnostics; `scalar_constraint_tolerances`
-sets residual tolerances by residual name. Set
-`scalar_constraint_reference_eta_samples` to the eta-grid size associated
-with those tolerances. Under-resolved grids report diagnostics without
-claiming reference-resolution acceptance, while explicitly declared
-conservation rules remain enforced. Runtime envelopes expose
-`scalar_constraint_diagnostics` with full-history maxima and anchor values.
+Generated scalar contracts first audit the requested k grid against the
+declared numerical limits, then preflight every sorted k mode before any ODE
+work. The preflight solves the coupled energy, momentum, and shear metric
+system and binds its curvature solution into the declared gauge state. Each
+initial residual records every signed equation term and uses the sum of their
+absolute magnitudes as its dimensionally matched normalization scale. The
+initial normalized tolerance is fixed at `0.01` for every supported gauge;
+the solver cannot relax it per mode or skip a high-k request. Runtime envelopes
+expose this evidence as `scalar_initial_constraint_preflight`, including the
+ordered k values, maximum residuals, normalization terms, and provenance.
+
+Generated scalar contracts also validate Einstein energy, momentum, and shear
+residuals across the accepted evolution history.
+`scalar_constraint_anchors` maps names such as `early`, `recombination`, and
+`late` to normalized evolution-grid positions for diagnostics;
+`scalar_constraint_normalization` is fixed to
+`sum_abs_declared_einstein_terms`. At every eta point, a generated residual
+uses the dimensionless measure
+`abs(sum(term_i)) / sum(abs(term_i))`; every denominator term has the same
+units as its residual. `scalar_constraint_tolerances` therefore sets
+normalized residual tolerances by residual name. An explicitly declared
+conservation rule retains its own absolute-tolerance semantics, and the
+runtime records that distinction as `tolerance_kind` and `tolerance_source`.
+
+Set `scalar_constraint_reference_eta_samples` to the eta-grid size associated
+with the normalized tolerances. Under-resolved grids report their residuals
+as deferred rather than claiming a physical acceptance verdict, while
+explicitly declared conservation rules remain enforced. Before declared
+line-of-sight sources are evaluated, generated source histories reconstruct
+the observable metric on the coupled Einstein surface. The runtime records
+the reconstruction count and largest relative metric correction in
+`scalar_constraint_projection`.
+
+Runtime envelopes expose `scalar_constraint_diagnostics` with the full-history
+absolute and normalized maxima, eta location, grid fraction, physical regime,
+signed normalization terms, normalization scale and source, tolerance
+provenance, anchor values, and source-grid and evolution refinement evidence.
 Generated state and residual units are checked before projection.
 
 Adaptive refinement is opt-in through `accuracy_controls`. The canonical
@@ -1149,10 +1181,11 @@ surface while using the same exact sector kernel and declared source
 histories. Source history interpolation remains the bounded default; a
 contract may set `adaptive_source.direct_source_quadrature: true` when it
 explicitly budgets re-evolution on the refined k surface. Evolution refinement
-re-runs declared scalar state and source histories at half the declared
-evolution sample count, then compares finite values at early, recombination,
-and late anchor regions. The runtime envelope records the measured errors,
-anchor values, sample counts, and refinement levels for all enabled surfaces.
+runs coarse, intermediate, and reference histories for the same cosmology and
+compares both adjacent pairs at early, recombination, and late anchor regions.
+The reference verdict uses the intermediate-to-reference comparison; the
+runtime envelope retains both comparisons, measured errors, anchor values,
+sample counts, and refinement levels for all enabled surfaces.
 
 The native projection request resolves the dependency closure of the selected
 `requested_spectra`. It evaluates only the transfer components and source
@@ -1162,7 +1195,8 @@ surface or borrowing another sector.
 
 `adaptive_evolution` requires `evolution_eta_sample_count` and a declared
 scalar evolution graph. Its node bounds apply to the declared fine history,
-and the runtime envelope charges both the fine and coarse integrations. A
+and the runtime envelope charges the coarse, intermediate, and reference
+integrations. A
 strict request raises a named under-resolution error when any physical anchor
 fails the declared absolute or relative tolerance; it never substitutes a
 grid-size response or an empirical spectrum correction.

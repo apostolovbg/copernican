@@ -130,7 +130,7 @@ cmb:
     ell_min: 2
     ell_max: 2000
     k_min: 1.0e-4
-    k_max: 0.3
+    k_max: 0.4
     k_sample_count: 18
     eta_sample_count: 192
     evolution_eta_sample_count: 128
@@ -302,6 +302,7 @@ cmb:
         early: 0.05
         recombination: 0.50
         late: 0.95
+      scalar_constraint_normalization: sum_abs_declared_einstein_terms
       scalar_constraint_reference_eta_samples: 192
       scalar_constraint_tolerances:
         einstein_energy_residual: 3.0e-3
@@ -321,7 +322,7 @@ cmb:
       ell_min: 2
       ell_max: 2000
       k_min: 1.0e-4
-      k_max: 0.3
+      k_max: 0.4
       k_sample_count: 18
       eta_sample_count: 192
       evolution_eta_sample_count: 128

@@ -21,7 +21,7 @@ from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
 from copernican.lib.engine_adapter import PluginValidationError
-from copernican.lib.likelihoods.cmb import cmb
+from copernican.lib.likelihoods.cmb import cmb, native_cache, native_projection
 from copernican.lib.perturbation_contract import PerturbationContractData
 
 # fmt: off
@@ -1122,7 +1122,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                         "ell_min": 2,
                         "ell_max": 20,
                         "k_min": 1.0e-4,
-                        "k_max": 1.0e-3,
+                        "k_max": 1.0e-2,
                         "k_sample_count": 1,
                         "eta_sample_count": 16,
                         "source_grid_multiplier": 1,
@@ -1376,14 +1376,14 @@ class NativeLCDMModelTestCase(unittest.TestCase):
     """Verify that the native LambdaCDM file reaches the native solver."""
 
     @staticmethod
-    def _build_plugin():
+    def _build_plugin(model_name: str = "model_lcdm.yml"):
         """Build the native model through the repository validation path."""
 
         model_path = (
             Path(__file__).resolve().parents[3]
             / "copernican"
             / "models"
-            / "model_lcdm.yml"
+            / model_name
         )
         with tempfile.TemporaryDirectory() as cache_dir:
             cache_path = model_spec_validator.validate_and_cache_model(
@@ -1436,6 +1436,86 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         for values in spectra.values():
             self.assertEqual(values.shape, ell_grid.shape)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_lcdm_and_torg_enforce_reference_scalar_constraints(self) -> None:
+        """Reference histories retain declared scalar closure evidence."""
+
+        for model_name in ("model_lcdm.yml", "model_torg.yml"):
+            plugin = self._build_plugin(model_name)
+            boundary_parameters = list(plugin.INITIAL_GUESSES)
+            boundary_parameters[0] = 50.0
+            for point_name, parameters in (
+                ("interior", plugin.INITIAL_GUESSES),
+                ("lower_hubble_boundary", tuple(boundary_parameters)),
+            ):
+                with self.subTest(
+                    model_name=model_name,
+                    point=point_name,
+                ):
+                    native_cache.clear_native_cmb_caches()
+                    spectrum_data = (
+                        native_projection._compute_custom_cmb_spectrum_data(
+                            plugin.get_cmb_native_runtime(parameters),
+                            numpy.asarray((2, 10, 20), dtype=int),
+                            requested_spectra=("TT",),
+                        )
+                    )
+                    self.assertTrue(
+                        numpy.all(
+                            numpy.isfinite(spectrum_data.spectra["TT"])
+                        )
+                    )
+                    diagnostics = spectrum_data.runtime_envelope[
+                        "scalar_constraint_diagnostics"
+                    ]
+                    self.assertEqual(
+                        set(diagnostics),
+                        {
+                            "einstein_energy_residual",
+                            "einstein_momentum_residual",
+                            "einstein_shear_residual",
+                        },
+                    )
+                    for metrics in diagnostics.values():
+                        self.assertTrue(metrics["enforced"])
+                        self.assertTrue(metrics["reference_resolution_met"])
+                        self.assertEqual(
+                            metrics["resolution_status"],
+                            "reference",
+                        )
+                        self.assertEqual(
+                            metrics["physical_judgement"],
+                            "evaluated",
+                        )
+                        self.assertEqual(
+                            metrics["normalization_source"],
+                            "sum_abs_declared_einstein_terms",
+                        )
+                        self.assertEqual(
+                            metrics["tolerance_kind"],
+                            "normalized",
+                        )
+                        self.assertEqual(
+                            metrics["tolerance_source"],
+                            "accuracy_controls.scalar_constraint_tolerances",
+                        )
+                        self.assertGreaterEqual(
+                            float(metrics["maximum_eta"]),
+                            0.0,
+                        )
+                        self.assertTrue(metrics["normalization_terms"])
+                        self.assertLessEqual(
+                            float(metrics["maximum_normalized"]),
+                            float(metrics["tolerance"]),
+                        )
+                    reconstruction = spectrum_data.runtime_envelope[
+                        "scalar_constraint_projection"
+                    ]
+                    self.assertEqual(
+                        reconstruction["method"],
+                        "source_history_coupled_einstein_reconstruction",
+                    )
+                    self.assertGreater(int(reconstruction["mode_count"]), 0)
 
     def test_native_lcdm_full_spectrum_meets_performance_budget(self) -> None:
         """A full native LCDM request must stay within 180 seconds."""

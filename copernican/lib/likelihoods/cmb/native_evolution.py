@@ -2078,14 +2078,44 @@ def _evaluate_declared_initial_state(
     perturbation_data: Any,
     execution_plan: _DeclaredGraphExecutionPlan,
     base_context: Mapping[str, Any],
+    fixed_state_values: Mapping[tuple[str, str, int], float] | None = None,
 ) -> tuple[numpy.ndarray, tuple[tuple[str, str, int], ...]]:
-    """Return the initial state vector for one Fourier mode."""
+    """Return the initial state vector for one Fourier mode.
+
+    ``fixed_state_values`` supplies an algebraic initial-surface solution for
+    selected state slots.  The remaining declared conditions are still
+    evaluated in dependency order, so conditions coupled to a solved metric
+    value observe the same state that enters evolution.
+    """
 
     runtime_spec = execution_plan.runtime_spec
     state_vector = numpy.zeros(len(runtime_spec.state_slots), dtype=float)
     assigned_targets: list[tuple[str, str, int]] = []
     context = dict(base_context)
     condition_entries = execution_plan.start_condition_entries
+    declared_target_keys = {
+        (
+            str(entry.target.variable),
+            str(entry.target.wrt),
+            int(entry.target.order),
+        )
+        for entry in condition_entries
+    }
+    fixed_values = {
+        (str(variable), str(wrt), int(order)): float(value)
+        for (variable, wrt, order), value in (fixed_state_values or {}).items()
+    }
+    unknown_fixed_targets = sorted(set(fixed_values) - declared_target_keys)
+    if unknown_fixed_targets:
+        raise ValueError(
+            "Declared initial-state constraint solve targeted an undeclared "
+            f"slot: {unknown_fixed_targets[0]}"
+        )
+    if not numpy.all(numpy.isfinite(tuple(fixed_values.values()))):
+        raise ValueError(
+            "Declared initial-state constraint solve produced non-finite "
+            "fixed values"
+        )
     pending = list(condition_entries)
     while pending:
         context = _resolve_declared_graph_context(
@@ -2098,36 +2128,32 @@ def _evaluate_declared_initial_state(
         progress = False
         next_round: list[Any] = []
         for entry in pending:
-            missing = [
-                dependency
-                for dependency in entry.dependencies
-                if dependency not in context
-            ]
-            if missing:
-                next_round.append(entry)
-                continue
-            value = _coerce_numeric_scalar(
-                evaluate_compiled_expression(
-                    entry.compiled_expression,
-                    context,
-                ),
-                name=f"condition '{entry.name}'",
+            target_key = (
+                str(entry.target.variable),
+                str(entry.target.wrt),
+                int(entry.target.order),
             )
-            state_index = runtime_spec.state_index_by_key[
-                (
-                    str(entry.target.variable),
-                    str(entry.target.wrt),
-                    int(entry.target.order),
+            if target_key in fixed_values:
+                value = fixed_values[target_key]
+            else:
+                missing = [
+                    dependency
+                    for dependency in entry.dependencies
+                    if dependency not in context
+                ]
+                if missing:
+                    next_round.append(entry)
+                    continue
+                value = _coerce_numeric_scalar(
+                    evaluate_compiled_expression(
+                        entry.compiled_expression,
+                        context,
+                    ),
+                    name=f"condition '{entry.name}'",
                 )
-            ]
+            state_index = runtime_spec.state_index_by_key[target_key]
             state_vector[state_index] = value
-            assigned_targets.append(
-                (
-                    str(entry.target.variable),
-                    str(entry.target.wrt),
-                    int(entry.target.order),
-                )
-            )
+            assigned_targets.append(target_key)
             if int(entry.target.order) == 0:
                 context[str(entry.target.variable)] = value
             else:
@@ -2155,81 +2181,290 @@ def _evaluate_declared_initial_state(
     return state_vector, tuple(assigned_targets)
 
 
+_GENERATED_SCALAR_INITIAL_CONSTRAINT_TOLERANCE = 1.0e-2
+_SCALAR_EINSTEIN_RESIDUAL_NAMES = (
+    "einstein_energy_residual",
+    "einstein_momentum_residual",
+    "einstein_shear_residual",
+)
+
+
+def _scalar_einstein_constraint_metrics(
+    context: Mapping[str, Any],
+    residual_name: str,
+) -> dict[str, Any]:
+    """Return dimensionally matched terms and normalized residual metrics.
+
+    Each constraint is normalized by the sum of the magnitudes of every term
+    in its declared equation.  This retains the units of the residual while
+    avoiding an arbitrary dimensionless floor in a physical comparison.
+    """
+
+    if residual_name not in _SCALAR_EINSTEIN_RESIDUAL_NAMES:
+        raise ValueError(
+            "Unknown scalar Einstein residual: " f"{residual_name}"
+        )
+    if residual_name not in context:
+        raise ValueError(
+            "Scalar Einstein residual is missing from its context: "
+            f"{residual_name}"
+        )
+
+    stable_shear_closure = False
+    try:
+        acoustic_k_sq = numpy.asarray(context["acoustic_k_sq"], dtype=float)
+        gravity = numpy.asarray(
+            context["einstein_gravity_strength"],
+            dtype=float,
+        )
+        if residual_name == "einstein_energy_residual":
+            term_values = {
+                "metric_laplacian": acoustic_k_sq
+                * numpy.asarray(context["Phi"], dtype=float),
+                "metric_expansion": 3.0
+                * numpy.asarray(context["Hconf"], dtype=float)
+                * numpy.asarray(
+                    context["metric_momentum_constraint"],
+                    dtype=float,
+                ),
+                "density_source": 1.5
+                * gravity
+                * numpy.asarray(context["total_density_source"], dtype=float),
+            }
+        elif residual_name == "einstein_momentum_residual":
+            term_values = {
+                "metric_momentum": acoustic_k_sq
+                * numpy.asarray(
+                    context["metric_momentum_constraint"],
+                    dtype=float,
+                ),
+                "momentum_source": -1.5
+                * gravity
+                * numpy.asarray(
+                    context["total_momentum_source"],
+                    dtype=float,
+                ),
+            }
+        else:
+            stable_shear_closure = {
+                "metric_constraint_scale",
+                "metric_shear_correction",
+            }.issubset(context)
+            if stable_shear_closure:
+                metric_shear = numpy.asarray(
+                    context["metric_constraint_scale"],
+                    dtype=float,
+                ) * numpy.asarray(
+                    context["metric_shear_correction"],
+                    dtype=float,
+                )
+            else:
+                metric_shear = acoustic_k_sq * (
+                    numpy.asarray(context["Phi"], dtype=float)
+                    - numpy.asarray(context["Psi"], dtype=float)
+                )
+            term_values = {
+                "metric_shear": metric_shear,
+                "shear_source": -3.0
+                * gravity
+                * numpy.asarray(context["total_shear_source"], dtype=float),
+            }
+    except KeyError:
+        # A hand-authored diagnostic can still be validated, but generated
+        # scalar contracts must provide the complete term set above.
+        residual_values = numpy.asarray(context[residual_name], dtype=float)
+        scale = numpy.maximum(
+            numpy.abs(residual_values),
+            numpy.finfo(float).tiny,
+        )
+        return {
+            "residual_values": residual_values,
+            "normalized_values": numpy.abs(residual_values) / scale,
+            "normalization_scale": scale,
+            "term_values": {"declared_residual": residual_values},
+            "normalization_source": "residual_magnitude_fallback",
+        }
+
+    residual_values = numpy.asarray(context[residual_name], dtype=float)
+    arrays = numpy.broadcast_arrays(residual_values, *term_values.values())
+    residual_values = arrays[0]
+    term_values = {
+        name: arrays[index + 1] for index, name in enumerate(term_values)
+    }
+    if residual_name == "einstein_shear_residual" and stable_shear_closure:
+        residual_values = sum(term_values.values())
+    normalization_scale = numpy.maximum(
+        sum(numpy.abs(values) for values in term_values.values()),
+        numpy.finfo(float).tiny,
+    )
+    return {
+        "residual_values": residual_values,
+        "normalized_values": numpy.abs(residual_values) / normalization_scale,
+        "normalization_scale": normalization_scale,
+        "term_values": term_values,
+        "normalization_source": "sum_abs_declared_einstein_terms",
+    }
+
+
+def _solve_generated_scalar_initial_einstein_surface(
+    *,
+    perturbation_data: Any,
+    context: Mapping[str, Any],
+    k_value: float,
+) -> dict[str, Any]:
+    """Solve the coupled scalar Einstein surface for one initial context.
+
+    The three algebraic unknowns are the observable curvature potential,
+    metric momentum combination, and lapse potential.  Generated closures
+    represent the latter two in the state graph; the caller binds the solved
+    curvature value back to its gauge-specific state slot and re-evaluates
+    the coupled start conditions.
+    """
+
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    if not manifest_summary.get("generated_scalar_hierarchy"):
+        return {}
+    required_names = (
+        "acoustic_k_sq",
+        "Hconf",
+        "einstein_gravity_strength",
+        "total_density_source",
+        "total_momentum_source",
+        "total_shear_source",
+    )
+    missing_names = tuple(
+        name for name in required_names if name not in context
+    )
+    if missing_names:
+        raise NativeConstraintViolationError(
+            "Generated scalar initial data cannot form the coupled Einstein "
+            "constraint system",
+            context={
+                "gauge": str(getattr(perturbation_data, "gauge", "")),
+                "k": float(k_value),
+                "missing_terms": missing_names,
+            },
+        )
+    acoustic_k_sq = float(context["acoustic_k_sq"])
+    if not numpy.isfinite(acoustic_k_sq) or acoustic_k_sq <= 0.0:
+        raise NativeConstraintViolationError(
+            "Generated scalar initial data require a positive finite k^2 "
+            "constraint scale",
+            context={
+                "gauge": str(getattr(perturbation_data, "gauge", "")),
+                "k": float(k_value),
+                "acoustic_k_sq": acoustic_k_sq,
+            },
+        )
+    hconf = float(context["Hconf"])
+    gravity = float(context["einstein_gravity_strength"])
+    density = float(context["total_density_source"])
+    momentum = float(context["total_momentum_source"])
+    shear = float(context["total_shear_source"])
+    coefficients = numpy.asarray(
+        (
+            (acoustic_k_sq, 3.0 * hconf, 0.0),
+            (0.0, acoustic_k_sq, 0.0),
+            (acoustic_k_sq, 0.0, -acoustic_k_sq),
+        ),
+        dtype=float,
+    )
+    source_terms = numpy.asarray(
+        (
+            -1.5 * gravity * density,
+            1.5 * gravity * momentum,
+            3.0 * gravity * shear,
+        ),
+        dtype=float,
+    )
+    if not numpy.all(numpy.isfinite(coefficients)) or not numpy.all(
+        numpy.isfinite(source_terms)
+    ):
+        raise NativeNonFiniteEvolutionError(
+            "Generated scalar initial Einstein system contains non-finite "
+            f"terms at k={k_value}",
+            context={
+                "gauge": str(getattr(perturbation_data, "gauge", "")),
+                "k": float(k_value),
+            },
+        )
+    try:
+        solution = numpy.linalg.solve(coefficients, source_terms)
+    except numpy.linalg.LinAlgError as error:
+        raise NativeConstraintViolationError(
+            "Generated scalar initial Einstein system is singular",
+            context={
+                "gauge": str(getattr(perturbation_data, "gauge", "")),
+                "k": float(k_value),
+            },
+        ) from error
+    if not numpy.all(numpy.isfinite(solution)):
+        raise NativeNonFiniteEvolutionError(
+            "Generated scalar initial Einstein system produced non-finite "
+            f"metric values at k={k_value}",
+            context={
+                "gauge": str(getattr(perturbation_data, "gauge", "")),
+                "k": float(k_value),
+            },
+        )
+    return {
+        "Phi": float(solution[0]),
+        "metric_momentum_constraint": float(solution[1]),
+        "Psi": float(solution[2]),
+        "coefficient_matrix": coefficients,
+        "source_terms": source_terms,
+    }
+
+
 def _validate_generated_scalar_initial_constraints(
     *,
     perturbation_data: Any,
     context: Mapping[str, Any],
     k_value: float,
-) -> None:
-    """Raise when generated scalar data violate Einstein constraints."""
+) -> dict[str, dict[str, Any]]:
+    """Validate and record generated scalar Einstein initial conditions."""
 
     manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
     if not manifest_summary.get("generated_scalar_hierarchy"):
-        return
+        return {}
 
-    residual_specs = (
-        (
-            "einstein_energy_residual",
-            max(
-                abs(float(context.get("acoustic_k_sq", 0.0) * context["Phi"])),
-                abs(
-                    float(
-                        1.5
-                        * context["einstein_gravity_strength"]
-                        * context["total_density_source"]
-                    )
-                ),
-                1.0,
-            ),
-        ),
-        (
-            "einstein_momentum_residual",
-            max(
-                abs(
-                    float(
-                        context["acoustic_k_sq"]
-                        * context["metric_momentum_constraint"]
-                    )
-                ),
-                abs(
-                    float(
-                        1.5
-                        * context["einstein_gravity_strength"]
-                        * context["total_momentum_source"]
-                    )
-                ),
-                1.0,
-            ),
-        ),
-        (
-            "einstein_shear_residual",
-            max(
-                abs(
-                    float(
-                        context["acoustic_k_sq"]
-                        * (context["Phi"] - context["Psi"])
-                    )
-                ),
-                abs(
-                    float(
-                        4.5
-                        * context["einstein_gravity_strength"]
-                        * context["total_shear_source"]
-                    )
-                ),
-                1.0,
-            ),
-        ),
-    )
-    tolerance = (
-        5.0e-2
-        if str(getattr(perturbation_data, "gauge", "")) == "synchronous"
-        else 1.0e-2
-    )
-    for residual_name, scale in residual_specs:
+    tolerance = _GENERATED_SCALAR_INITIAL_CONSTRAINT_TOLERANCE
+    diagnostics: dict[str, dict[str, Any]] = {}
+    for residual_name in _SCALAR_EINSTEIN_RESIDUAL_NAMES:
         if residual_name not in context:
             continue
-        normalized_residual = abs(float(context[residual_name])) / float(scale)
+        metrics = _scalar_einstein_constraint_metrics(context, residual_name)
+        residual_values = numpy.asarray(
+            metrics["residual_values"],
+            dtype=float,
+        )
+        normalized_values = numpy.asarray(
+            metrics["normalized_values"],
+            dtype=float,
+        )
+        normalization_scale = numpy.asarray(
+            metrics["normalization_scale"],
+            dtype=float,
+        )
+        if residual_values.ndim != 0:
+            raise ValueError(
+                "Generated scalar initial Einstein diagnostics must be "
+                f"scalar values: {residual_name} at k={k_value}"
+            )
+        normalized_residual = float(normalized_values)
+        term_values = {
+            name: float(numpy.asarray(value, dtype=float))
+            for name, value in metrics["term_values"].items()
+        }
+        diagnostic = {
+            "absolute_residual": abs(float(residual_values)),
+            "normalized_residual": normalized_residual,
+            "normalization_scale": float(normalization_scale),
+            "normalization_terms": term_values,
+            "normalization_source": str(metrics["normalization_source"]),
+            "tolerance": float(tolerance),
+            "tolerance_provenance": "generated_initial_fixed_normalized",
+        }
         if not numpy.isfinite(normalized_residual):
             raise NativeNonFiniteEvolutionError(
                 "Generated scalar initial data produced non-finite Einstein "
@@ -2238,8 +2473,7 @@ def _validate_generated_scalar_initial_constraints(
                     "gauge": str(getattr(perturbation_data, "gauge", "")),
                     "k": float(k_value),
                     "residual": residual_name,
-                    "tolerance": float(tolerance),
-                    "tolerance_provenance": "generated_initial_gauge_default",
+                    **diagnostic,
                 },
             )
         if normalized_residual > tolerance:
@@ -2250,12 +2484,11 @@ def _validate_generated_scalar_initial_constraints(
                 context={
                     "gauge": str(getattr(perturbation_data, "gauge", "")),
                     "k": float(k_value),
-                    "normalized_residual": float(normalized_residual),
                     "residual": residual_name,
-                    "tolerance": float(tolerance),
-                    "tolerance_provenance": "generated_initial_gauge_default",
+                    **diagnostic,
                 },
             )
+        diagnostics[residual_name] = diagnostic
 
     for operator_name, operator_entry in (
         getattr(perturbation_data, "collision_operators", {}) or {}
@@ -2284,13 +2517,14 @@ def _validate_generated_scalar_initial_constraints(
         collision_rate = abs(float(context.get("collision_rate", 0.0)))
         if collision_rate <= 1.0e-12:
             continue
-        tolerance = 1.0e-8 * max(1.0, collision_rate)
-        if abs(collision_value) > tolerance:
+        collision_tolerance = 1.0e-8 * max(1.0, collision_rate)
+        if abs(collision_value) > collision_tolerance:
             raise ValueError(
                 "Generated scalar initial collision constraint exceeded "
                 f"tolerance for {operator_name} at k={k_value} "
-                f"({abs(collision_value)} > {tolerance})"
+                f"({abs(collision_value)} > {collision_tolerance})"
             )
+    return diagnostics
 
 
 def _validate_generated_vector_initial_constraints(

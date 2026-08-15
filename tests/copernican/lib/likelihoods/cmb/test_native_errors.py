@@ -256,7 +256,15 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             )
         self.assertEqual(
             initial.exception.context["tolerance_provenance"],
-            "generated_initial_gauge_default",
+            "generated_initial_fixed_normalized",
+        )
+        self.assertEqual(
+            initial.exception.context["normalization_source"],
+            "residual_magnitude_fallback",
+        )
+        self.assertEqual(
+            initial.exception.context["normalization_terms"],
+            {"declared_residual": 0.02},
         )
 
         with self.assertRaises(NativeConstraintViolationError) as evolved:
@@ -278,6 +286,119 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
         self.assertEqual(
             evolved.exception.context["tolerance_provenance"],
             "accuracy_controls.scalar_constraint_tolerances",
+        )
+
+    def test_generated_scalar_initial_surface_solves_all_einstein_terms(
+        self,
+    ) -> None:
+        """A high-k initial solve should satisfy the coupled metric system."""
+
+        perturbation_data = SimpleNamespace(
+            gauge="conformal_newtonian",
+            manifest_summary={"generated_scalar_hierarchy": True},
+        )
+        context = {
+            "acoustic_k_sq": 0.09,
+            "Hconf": 0.4,
+            "einstein_gravity_strength": 0.02,
+            "total_density_source": -0.7,
+            "total_momentum_source": 0.13,
+            "total_shear_source": 0.04,
+        }
+        solution = (
+            native_evolution._solve_generated_scalar_initial_einstein_surface(
+                perturbation_data=perturbation_data,
+                context=context,
+                k_value=0.3,
+            )
+        )
+        resolved_context = {
+            **context,
+            **solution,
+            "einstein_energy_residual": (
+                context["acoustic_k_sq"] * solution["Phi"]
+                + 3.0
+                * context["Hconf"]
+                * solution["metric_momentum_constraint"]
+                + 1.5
+                * context["einstein_gravity_strength"]
+                * context["total_density_source"]
+            ),
+            "einstein_momentum_residual": (
+                context["acoustic_k_sq"]
+                * solution["metric_momentum_constraint"]
+                - 1.5
+                * context["einstein_gravity_strength"]
+                * context["total_momentum_source"]
+            ),
+            "einstein_shear_residual": (
+                context["acoustic_k_sq"] * (solution["Phi"] - solution["Psi"])
+                - 3.0
+                * context["einstein_gravity_strength"]
+                * context["total_shear_source"]
+            ),
+        }
+
+        diagnostics = (
+            native_evolution._validate_generated_scalar_initial_constraints(
+                perturbation_data=perturbation_data,
+                context=resolved_context,
+                k_value=0.3,
+            )
+        )
+
+        self.assertEqual(
+            set(diagnostics),
+            {
+                "einstein_energy_residual",
+                "einstein_momentum_residual",
+                "einstein_shear_residual",
+            },
+        )
+        for metrics in diagnostics.values():
+            self.assertLess(float(metrics["normalized_residual"]), 1.0e-12)
+            self.assertEqual(
+                metrics["normalization_source"],
+                "sum_abs_declared_einstein_terms",
+            )
+
+    def test_shear_metrics_preserve_the_declared_closure_precision(
+        self,
+    ) -> None:
+        """The shear diagnostic must avoid subtracting close potentials."""
+
+        acoustic_k_sq = 0.04
+        gravity = 0.02
+        total_shear_source = 1.0e-12
+        correction = 3.0 * gravity * total_shear_source / acoustic_k_sq
+        phi_value = 1.0
+        psi_value = phi_value - correction
+        context = {
+            "acoustic_k_sq": acoustic_k_sq,
+            "einstein_gravity_strength": gravity,
+            "total_shear_source": total_shear_source,
+            "metric_constraint_scale": acoustic_k_sq,
+            "metric_shear_correction": correction,
+            "Phi": phi_value,
+            "Psi": psi_value,
+            "einstein_shear_residual": (
+                acoustic_k_sq * (phi_value - psi_value)
+                - 3.0 * gravity * total_shear_source
+            ),
+        }
+
+        metrics = native_evolution._scalar_einstein_constraint_metrics(
+            context,
+            "einstein_shear_residual",
+        )
+
+        self.assertLess(
+            float(numpy.max(metrics["normalized_values"])),
+            1.0e-12,
+        )
+        self.assertAlmostEqual(
+            float(metrics["term_values"]["metric_shear"]),
+            3.0 * gravity * total_shear_source,
         )
 
 

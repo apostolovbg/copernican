@@ -2409,11 +2409,12 @@ def _materialize_native_scalar_hierarchy_contract(
             },
             "einstein_shear_residual": {
                 "expression": (
-                    "acoustic_k_sq * (Phi - Psi) - "
+                    "metric_constraint_scale * metric_shear_correction - "
                     "3.0 * einstein_gravity_strength * total_shear_source"
                 ),
                 "description": (
-                    "Scalar Einstein anisotropic-stress residual."
+                    "Scalar Einstein anisotropic-stress residual evaluated "
+                    "from the declared shear closure."
                 ),
                 "units": _INVERSE_MPC_SQUARED_UNITS,
             },
@@ -3000,10 +3001,7 @@ def _materialize_native_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 0,
             },
-            "expression": (
-                "scalar_potential_seed + metric_shear_correction + "
-                "Hconf * gauge_shift_alpha"
-            ),
+            "expression": ("Phi_gi + Hconf * gauge_shift_alpha"),
         }
         initial_conditions["h_sync_metric_seed"] = {
             "target": {

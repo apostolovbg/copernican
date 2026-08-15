@@ -1248,6 +1248,16 @@ cmb:
       scalar_reference_ells:
       - 2
       - 2000
+      scalar_constraint_anchors:
+        early: 0.05
+        recombination: 0.50
+        late: 0.95
+      scalar_constraint_normalization: sum_abs_declared_einstein_terms
+      scalar_constraint_reference_eta_samples: 192
+      scalar_constraint_tolerances:
+        einstein_energy_residual: 3.0e-3
+        einstein_momentum_residual: 1.0e-6
+        einstein_shear_residual: 1.0e-6
       runtime_envelope: bounded
     variables: {}
     derived: {}

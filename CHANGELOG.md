@@ -80,6 +80,50 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-15:
+  Change: Completed generated initial and evolved scalar Einstein constraints
+  with declared normalization and reference-grid convergence evidence.
+  Why: Corrected high-k seeds and valid LCDM and TORG histories that could be
+  judged from under-resolved or unproven scalar residuals.
+  Impact: Enabled interior and boundary model points to retain reproducible
+  constraint provenance, physical locations, refinement diagnostics, and
+  exact collision updates without redundant microstep cost.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_errors.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-15:
+  Change: Implemented coupled generated-scalar Einstein initial-condition
+  preflight across the declared k grid.
+  Why: Corrected high-k seeds that could begin evolution off the declared
+  constraint surface.
+  Impact: Ensured every generated mode records normalized constraint terms
+  before ODE work and invalid k requests fail deterministically.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_errors.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-15:
   Change: Implemented typed native CMB failures, complete request evidence,
   initial-point preflight, immutable runtime binding, process-local worker
   preparation, bounded structural cache reuse, and bounded hierarchy test

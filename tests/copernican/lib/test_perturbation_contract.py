@@ -1835,6 +1835,11 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertIn("einstein_energy_residual", compiled.derived)
         self.assertIn("einstein_momentum_residual", compiled.derived)
         self.assertIn("einstein_shear_residual", compiled.derived)
+        self.assertEqual(
+            compiled.derived["einstein_shear_residual"].expression,
+            "metric_constraint_scale * metric_shear_correction - "
+            "3.0 * einstein_gravity_strength * total_shear_source",
+        )
         context = {
             "a": 0.5,
             "Omega_b0": 0.05,
@@ -1905,6 +1910,20 @@ class PerturbationContractTestCase(unittest.TestCase):
                 )
                 / (0.5 * 0.5)
             ),
+        )
+
+    def test_synchronous_scalar_seed_uses_constraint_metric_state(
+        self,
+    ) -> None:
+        """Synchronous seeds should consume the solved invariant potential."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["gauge"] = "synchronous"
+        compiled = self._compile(contract)
+
+        self.assertEqual(
+            compiled.initial_conditions["eta_sync_metric_seed"].expression,
+            "Phi_gi + Hconf * gauge_shift_alpha",
         )
 
     def test_scalar_hierarchy_materializes_collision_operators(

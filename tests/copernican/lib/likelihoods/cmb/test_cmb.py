@@ -5583,6 +5583,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-6,
         )
 
+    def test_exact_split_collision_phase_refinement_converges(self) -> None:
+        """Exact collision half-steps converge under phase refinement."""
+
+        ells = numpy.arange(20, 45, dtype=int)
+        baseline = _speedup_contract(_split_collision_contract())
+        refined = _speedup_contract(_split_collision_contract())
+        refined["numerical"]["evolution_phase_step"] = 1.0
+        baseline_data = _raw_declared_spectrum_data(baseline, ells)
+        refined_data = _raw_declared_spectrum_data(refined, ells)
+        for spectrum_name in ("TT", "TE", "EE"):
+            with self.subTest(spectrum=spectrum_name):
+                self.assertLess(
+                    _max_relative_delta(
+                        numpy.asarray(
+                            baseline_data.spectra[spectrum_name],
+                            dtype=numpy.longdouble,
+                        ),
+                        numpy.asarray(
+                            refined_data.spectra[spectrum_name],
+                            dtype=numpy.longdouble,
+                        ),
+                    ),
+                    1.0e-3,
+                )
+
     def test_explicit_collision_operator_survives_exact_split_step(
         self,
     ) -> None:
@@ -6020,13 +6045,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
         self.assertGreater(int(report["mode_count"]), 0)
+        self.assertEqual(
+            report["tier_order"],
+            ("coarse", "intermediate", "reference"),
+        )
         self.assertGreater(
             int(report["fine_sample_count"]),
+            int(report["intermediate_sample_count"]),
+        )
+        self.assertGreater(
+            int(report["intermediate_sample_count"]),
             int(report["coarse_sample_count"]),
         )
         self.assertEqual(
             set(report["anchor_relative_errors"]),
             {"early", "recombination", "late"},
+        )
+        evidence = report["refinement_evidence"]
+        self.assertTrue(evidence["same_cosmology"])
+        self.assertEqual(
+            set(evidence["tiers"]),
+            {"coarse", "intermediate", "reference"},
+        )
+        self.assertIn("coarse_to_intermediate", evidence)
+        self.assertIn("intermediate_to_reference", evidence)
+        self.assertEqual(
+            int(
+                spectrum_data.runtime_envelope[
+                    "adaptive_evolution_refinement_levels"
+                ]
+            ),
+            2,
         )
         self.assertGreater(float(report["relative_error"]), 1.0e-2)
         self.assertTrue(numpy.isfinite(float(report["absolute_error"])))
@@ -6063,6 +6112,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
         report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
+        self.assertEqual(
+            report["tier_order"],
+            ("coarse", "intermediate", "reference"),
+        )
+        self.assertGreater(
+            int(report["reference_sample_count"]),
+            int(report["intermediate_sample_count"]),
+        )
+        self.assertGreater(
+            int(report["intermediate_sample_count"]),
+            int(report["coarse_sample_count"]),
+        )
         self.assertLessEqual(float(report["relative_error"]), 1.0e-2)
         self.assertLessEqual(
             max(report["anchor_relative_errors"].values()),
@@ -9060,9 +9121,99 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 set(metrics["anchors"]),
                 {"early", "recombination", "late"},
             )
+            self.assertEqual(
+                set(metrics["normalized_anchors"]),
+                {"early", "recombination", "late"},
+            )
+            self.assertGreaterEqual(float(metrics["maximum_eta"]), 0.0)
+            self.assertIn(
+                metrics["physical_regime"],
+                {"radiation", "recombination", "matter", "late"},
+            )
+            self.assertGreater(float(metrics["normalization_scale"]), 0.0)
+            self.assertTrue(metrics["normalization_terms"])
+            self.assertEqual(
+                metrics["normalization_source"],
+                "sum_abs_declared_einstein_terms",
+            )
+            self.assertIn(
+                metrics["tolerance_kind"],
+                {"absolute", "normalized"},
+            )
+            self.assertEqual(metrics["resolution_status"], "reference")
+            self.assertIn(
+                metrics["physical_judgement"],
+                {"evaluated", "deferred"},
+            )
+
+    def test_generated_scalar_initial_preflight_covers_sorted_k_grid(
+        self,
+    ) -> None:
+        """Every requested scalar mode should pass one pre-ODE preflight."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_native_scalar_hierarchy_contract())
+        )
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        preflight = spectrum_data.runtime_envelope[
+            "scalar_initial_constraint_preflight"
+        ]
+        k_values = tuple(float(value) for value in spectrum_data.k_grid)
+        self.assertTrue(preflight["performed"])
+        self.assertEqual(preflight["failure_order"], "ascending_k")
+        self.assertEqual(preflight["k_values"], tuple(sorted(k_values)))
+        self.assertEqual(preflight["mode_count"], len(set(k_values)))
+        self.assertEqual(
+            set(preflight["residuals"]),
+            {
+                "einstein_energy_residual",
+                "einstein_momentum_residual",
+                "einstein_shear_residual",
+            },
+        )
+        for metrics in preflight["residuals"].values():
             self.assertLessEqual(
-                float(metrics["maximum_absolute"]),
+                float(metrics["maximum_normalized"]),
                 float(metrics["tolerance"]),
+            )
+            self.assertGreater(float(metrics["normalization_scale"]), 0.0)
+            self.assertTrue(metrics["normalization_terms"])
+            self.assertEqual(
+                metrics["normalization_source"],
+                "sum_abs_declared_einstein_terms",
+            )
+
+    def test_projection_k_grid_rejects_undeclared_high_k_request(
+        self,
+    ) -> None:
+        """Projection preflight must not extend beyond declared k limits."""
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "exceeds declared numerical limits",
+        ):
+            native_projection._build_projection_k_grid(
+                ell_arr=numpy.asarray((2, 2_000), dtype=int),
+                background=SimpleNamespace(
+                    eta0=14_000.0,
+                    eta_rec=280.0,
+                    sound_horizon_mpc=145.0,
+                ),
+                numerics=SimpleNamespace(
+                    ell_min=2,
+                    k_min=1.0e-4,
+                    k_max=1.0e-3,
+                    k_sample_count=8,
+                ),
+                perturbation_data=SimpleNamespace(
+                    accuracy_controls={},
+                    manifest_summary={},
+                ),
             )
 
     def test_scalar_constraint_acceptance_is_resolution_aware(
@@ -9090,6 +9241,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertFalse(diagnostics["einstein_energy_residual"]["enforced"])
         self.assertFalse(
             diagnostics["einstein_energy_residual"]["reference_resolution_met"]
+        )
+        self.assertEqual(
+            diagnostics["einstein_energy_residual"]["resolution_status"],
+            "under_resolved",
+        )
+        self.assertEqual(
+            diagnostics["einstein_energy_residual"]["physical_judgement"],
+            "deferred",
+        )
+        self.assertEqual(
+            diagnostics["einstein_energy_residual"]["normalization_source"],
+            "residual_magnitude_fallback",
+        )
+        self.assertEqual(
+            diagnostics["einstein_energy_residual"]["tolerance_kind"],
+            "normalized",
         )
         self.assertGreater(
             float(diagnostics["einstein_energy_residual"]["maximum_absolute"]),

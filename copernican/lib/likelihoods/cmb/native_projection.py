@@ -82,6 +82,8 @@ from .native_evolution import (
     _resolve_declared_graph_context,
     _resolve_declared_graph_context_ordered,
     _resolve_declared_momentum_grid_runtimes,
+    _scalar_einstein_constraint_metrics,
+    _solve_generated_scalar_initial_einstein_surface,
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
     _validate_generated_tensor_initial_constraints,
@@ -96,6 +98,7 @@ from .native_performance import (
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
+_SCALAR_INITIAL_SOLVE_NUMERICAL_TOLERANCE = 1.0e-9
 _BESSEL_WORK_CELL_BUDGET = 8_000_000
 _BESSEL_MAX_MODE_BATCH = 16
 
@@ -503,10 +506,20 @@ def _build_projection_k_grid(
     numerics: Any,
     perturbation_data: Any,
 ) -> numpy.ndarray:
-    """Return the fixed-count native projection k-grid for one run."""
+    """Return a declared-bounds-compliant native projection k-grid."""
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     sample_count = max(8, int(numerics.k_sample_count))
+    declared_k_min = float(numerics.k_min)
+    declared_k_max = float(numerics.k_max)
+    if not numpy.isfinite(declared_k_min) or not numpy.isfinite(
+        declared_k_max
+    ):
+        raise ValueError("Declared numerical k limits must be finite")
+    if declared_k_min <= 0.0 or declared_k_max < declared_k_min:
+        raise ValueError(
+            "Declared numerical k limits must satisfy " "0 < k_min <= k_max"
+        )
     configured_reference_ells = _configured_reference_ells(
         perturbation_data,
         maximum_ell=int(ell_values.max()),
@@ -524,7 +537,7 @@ def _build_projection_k_grid(
     )
     eta0_floor = max(float(background.eta0), 1.0e-6)
     k_min = max(
-        float(numerics.k_min),
+        declared_k_min,
         0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
     )
     eta_rec_distance = max(
@@ -545,14 +558,17 @@ def _build_projection_k_grid(
         # that cannot project to the requested ell range and leaves the
         # visibility-scale Bessel oscillations under-resolved.
         k_floor = max(12.0 * k_min, required_k_max)
-    k_max = max(
-        required_k_max,
-        min(float(numerics.k_max), k_floor),
-    )
+    if k_min > declared_k_max or required_k_max > declared_k_max:
+        raise ValueError(
+            "Requested projection k-grid exceeds declared numerical limits: "
+            f"requested=[{k_min}, {required_k_max}], "
+            f"declared=[{declared_k_min}, {declared_k_max}]"
+        )
+    k_max = max(required_k_max, min(declared_k_max, k_floor))
     if not numpy.isfinite(k_min) or not numpy.isfinite(k_max):
         raise ValueError("Declared projection k-grid requires finite bounds")
     if k_max <= k_min:
-        return numpy.linspace(k_min, k_min, sample_count, dtype=float)
+        return numpy.asarray((k_min,), dtype=float)
 
     projection_ell_values = numpy.linspace(
         grid_ell_min,
@@ -631,22 +647,39 @@ def _build_projection_k_grid(
             ):
                 break
             ordered_nodes.insert(widest_gap_index + 1, midpoint)
-        return numpy.asarray(ordered_nodes, dtype=float)
-    anchor_nodes = tuple(sorted(float(value) for value in k_nodes))
-    phase_points_per_cycle = float(
-        _accuracy_control_value(accuracy_controls, "phase_points_per_cycle")
-        or 8.0
-    )
-    return phase_aware_k_grid(
-        k_min,
-        k_max,
-        minimum_nodes=sample_count,
-        maximum_nodes=sample_count,
-        phase_points_per_cycle=phase_points_per_cycle,
-        eta_distance=eta_rec_distance,
-        sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
-        anchors=anchor_nodes,
-    )
+        result = numpy.asarray(ordered_nodes, dtype=float)
+    else:
+        anchor_nodes = tuple(sorted(float(value) for value in k_nodes))
+        phase_points_per_cycle = float(
+            _accuracy_control_value(
+                accuracy_controls,
+                "phase_points_per_cycle",
+            )
+            or 8.0
+        )
+        result = phase_aware_k_grid(
+            k_min,
+            k_max,
+            minimum_nodes=sample_count,
+            maximum_nodes=sample_count,
+            phase_points_per_cycle=phase_points_per_cycle,
+            eta_distance=eta_rec_distance,
+            sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
+            anchors=anchor_nodes,
+        )
+    if (
+        result.ndim != 1
+        or result.size == 0
+        or not numpy.all(numpy.isfinite(result))
+        or numpy.any(result < declared_k_min)
+        or numpy.any(result > declared_k_max)
+        or (result.size > 1 and numpy.any(numpy.diff(result) <= 0.0))
+    ):
+        raise ValueError(
+            "Requested projection k-grid does not satisfy declared numerical "
+            "limits"
+        )
+    return result
 
 
 def _projection_ell_limit_for_mode(
@@ -1420,6 +1453,48 @@ _DEFAULT_SCALAR_CONSTRAINT_TOLERANCES = {
 }
 
 
+def _scalar_constraint_physical_regime(
+    *,
+    context: Mapping[str, Any],
+    eta_values: numpy.ndarray,
+    index: int,
+    anchors: Mapping[str, float],
+) -> tuple[str, float]:
+    """Classify one residual maximum by background regime and grid fraction."""
+
+    eta_span = max(float(eta_values[-1] - eta_values[0]), 1.0e-30)
+    grid_fraction = float((eta_values[index] - eta_values[0]) / eta_span)
+    visibility = context.get("visibility")
+    if visibility is not None:
+        visibility_values = numpy.asarray(visibility, dtype=float)
+        if visibility_values.shape == eta_values.shape:
+            visibility_peak = float(
+                numpy.max(numpy.abs(visibility_values), initial=0.0)
+            )
+            if (
+                visibility_peak > 0.0
+                and abs(float(visibility_values[index]))
+                >= 0.1 * visibility_peak
+            ):
+                return "recombination", grid_fraction
+    scale_factor = context.get("a")
+    if scale_factor is not None:
+        scale_values = numpy.asarray(scale_factor, dtype=float)
+        if scale_values.shape == eta_values.shape:
+            value = float(scale_values[index])
+            if numpy.isfinite(value) and value <= 3.0e-4:
+                return "radiation", grid_fraction
+            if numpy.isfinite(value) and value < 0.75:
+                return "matter", grid_fraction
+            if numpy.isfinite(value):
+                return "late", grid_fraction
+    anchor_name = min(
+        anchors,
+        key=lambda name: abs(float(anchors[name]) - grid_fraction),
+    )
+    return str(anchor_name), grid_fraction
+
+
 def _validate_scalar_constraint_histories(
     *,
     perturbation_data: Any,
@@ -1428,7 +1503,7 @@ def _validate_scalar_constraint_histories(
     accuracy_controls: Mapping[str, Any],
     k_value: float,
 ) -> dict[str, dict[str, Any]]:
-    """Validate generated Einstein residuals and return anchor metrics."""
+    """Validate normalized scalar residuals with convergence provenance."""
 
     residual_names = tuple(
         name for name in _SCALAR_CONSTRAINT_RESIDUALS if name in context
@@ -1438,6 +1513,15 @@ def _validate_scalar_constraint_histories(
     eta_values = numpy.asarray(eta_grid, dtype=float)
     if eta_values.ndim != 1 or eta_values.size == 0:
         raise ValueError("Scalar constraint validation requires an eta grid")
+    declared_normalization = accuracy_controls.get(
+        "scalar_constraint_normalization",
+        "sum_abs_declared_einstein_terms",
+    )
+    if declared_normalization != "sum_abs_declared_einstein_terms":
+        raise ValueError(
+            "Scalar constraint normalization must be "
+            "'sum_abs_declared_einstein_terms'"
+        )
     raw_reference_count = accuracy_controls.get(
         "scalar_constraint_reference_eta_samples"
     )
@@ -1485,16 +1569,15 @@ def _validate_scalar_constraint_histories(
     if not anchors:
         raise ValueError("Scalar constraint anchors must not be empty")
 
-    tolerances = dict(_DEFAULT_SCALAR_CONSTRAINT_TOLERANCES)
-    rule_enforced_residual_names: set[str] = set()
+    default_tolerances = dict(_DEFAULT_SCALAR_CONSTRAINT_TOLERANCES)
+    rule_tolerances: dict[str, float] = {}
     for _rule_name, rule_entry in (
         getattr(perturbation_data, "conservation_rules", {}) or {}
     ).items():
         expression = str(getattr(rule_entry, "expression", ""))
-        if expression in tolerances:
-            tolerances[expression] = float(rule_entry.tolerance)
-            rule_enforced_residual_names.add(expression)
-    accuracy_enforced_residual_names: set[str] = set()
+        if expression in default_tolerances:
+            rule_tolerances[expression] = float(rule_entry.tolerance)
+    accuracy_tolerances: dict[str, float] = {}
     raw_tolerances = accuracy_controls.get("scalar_constraint_tolerances")
     if raw_tolerances is not None:
         if not isinstance(raw_tolerances, Mapping):
@@ -1504,7 +1587,7 @@ def _validate_scalar_constraint_histories(
             )
         for residual_name, raw_tolerance in raw_tolerances.items():
             residual_key = str(residual_name)
-            if residual_key not in tolerances:
+            if residual_key not in default_tolerances:
                 raise ValueError(
                     "Unknown scalar constraint tolerance: " f"{residual_key}"
                 )
@@ -1519,20 +1602,42 @@ def _validate_scalar_constraint_histories(
                 raise ValueError(
                     "Scalar constraint tolerances must be positive"
                 )
-            tolerances[residual_key] = float(tolerance)
-            accuracy_enforced_residual_names.add(residual_key)
+            accuracy_tolerances[residual_key] = float(tolerance)
 
     diagnostics: dict[str, dict[str, Any]] = {}
     for residual_name in residual_names:
-        values = numpy.asarray(context[residual_name], dtype=float)
+        metrics = _scalar_einstein_constraint_metrics(context, residual_name)
+        values = numpy.asarray(metrics["residual_values"], dtype=float)
+        normalized_values = numpy.asarray(
+            metrics["normalized_values"],
+            dtype=float,
+        )
+        normalization_scale = numpy.asarray(
+            metrics["normalization_scale"],
+            dtype=float,
+        )
         if values.ndim == 0:
             values = numpy.full_like(eta_values, float(values), dtype=float)
+            normalized_values = numpy.full_like(
+                eta_values,
+                float(normalized_values),
+                dtype=float,
+            )
+            normalization_scale = numpy.full_like(
+                eta_values,
+                float(normalization_scale),
+                dtype=float,
+            )
         if values.shape != eta_values.shape:
             raise ValueError(
                 "Scalar Einstein residual has an invalid eta-grid shape: "
                 f"{residual_name} at k={k_value}"
             )
-        if not numpy.all(numpy.isfinite(values)):
+        if not (
+            numpy.all(numpy.isfinite(values))
+            and numpy.all(numpy.isfinite(normalized_values))
+            and numpy.all(numpy.isfinite(normalization_scale))
+        ):
             raise NativeNonFiniteEvolutionError(
                 "Scalar Einstein residual is non-finite: "
                 f"{residual_name} at k={k_value}",
@@ -1540,16 +1645,52 @@ def _validate_scalar_constraint_histories(
                     "gauge": str(getattr(perturbation_data, "gauge", "")),
                     "k": float(k_value),
                     "residual": residual_name,
-                    "tolerance": float(tolerances[residual_name]),
+                    "normalization_source": str(
+                        metrics["normalization_source"]
+                    ),
                 },
             )
         absolute_values = numpy.abs(values)
-        tolerance = tolerances[residual_name]
         max_abs = float(numpy.max(absolute_values))
-        enforcement_active = residual_name in rule_enforced_residual_names or (
-            residual_name in accuracy_enforced_residual_names
-            and reference_resolution_met
+        maximum_absolute_index = int(numpy.argmax(absolute_values))
+        maximum_normalized_index = int(numpy.argmax(normalized_values))
+        maximum_normalized = float(normalized_values[maximum_normalized_index])
+        maximum_regime, maximum_grid_fraction = (
+            _scalar_constraint_physical_regime(
+                context=context,
+                eta_values=eta_values,
+                index=maximum_normalized_index,
+                anchors=anchors,
+            )
         )
+        term_values = {
+            name: numpy.asarray(value, dtype=float)
+            for name, value in metrics["term_values"].items()
+        }
+        term_values_at_maximum = {
+            name: float(
+                values if values.ndim == 0 else value[maximum_normalized_index]
+            )
+            for name, value in term_values.items()
+        }
+        if residual_name in rule_tolerances:
+            tolerance = float(rule_tolerances[residual_name])
+            tolerance_source = "conservation_rule"
+            tolerance_kind = "absolute"
+            enforcement_active = True
+            enforcement_value = max_abs
+        elif residual_name in accuracy_tolerances:
+            tolerance = float(accuracy_tolerances[residual_name])
+            tolerance_source = "accuracy_controls.scalar_constraint_tolerances"
+            tolerance_kind = "normalized"
+            enforcement_active = bool(reference_resolution_met)
+            enforcement_value = maximum_normalized
+        else:
+            tolerance = float(default_tolerances[residual_name])
+            tolerance_source = "native_default_unenforced"
+            tolerance_kind = "normalized"
+            enforcement_active = False
+            enforcement_value = maximum_normalized
         anchor_values = {
             anchor_name: float(
                 absolute_values[
@@ -1561,34 +1702,81 @@ def _validate_scalar_constraint_histories(
             )
             for anchor_name, fraction in anchors.items()
         }
-        if enforcement_active and max_abs > tolerance:
-            maximum_index = int(numpy.argmax(absolute_values))
-            tolerance_provenance = (
-                "conservation_rule"
-                if residual_name in rule_enforced_residual_names
-                else "accuracy_controls.scalar_constraint_tolerances"
+        normalized_anchor_values = {
+            anchor_name: float(
+                normalized_values[
+                    min(
+                        int(round(fraction * (eta_values.size - 1))),
+                        eta_values.size - 1,
+                    )
+                ]
             )
+            for anchor_name, fraction in anchors.items()
+        }
+        resolution_status = (
+            "reference" if reference_resolution_met else "under_resolved"
+        )
+        refinement_evidence = {
+            "source": "scalar_constraint_reference_eta_samples",
+            "reference_eta_samples": int(reference_count),
+            "evaluated_eta_samples": int(values.size),
+            "reference_resolution_met": bool(reference_resolution_met),
+            "resolution_status": resolution_status,
+        }
+        if enforcement_active and enforcement_value > tolerance:
             raise NativeConstraintViolationError(
                 "Scalar Einstein constraint exceeded tolerance: "
                 f"{residual_name} at k={k_value} "
-                f"({max_abs} > {tolerance})",
+                f"({enforcement_value} > {tolerance})",
                 context={
-                    "eta": float(eta_values[maximum_index]),
+                    "eta": float(eta_values[maximum_normalized_index]),
                     "gauge": str(getattr(perturbation_data, "gauge", "")),
                     "k": float(k_value),
                     "maximum_absolute": max_abs,
+                    "maximum_normalized": maximum_normalized,
+                    "normalization_scale": float(
+                        normalization_scale[maximum_normalized_index]
+                    ),
+                    "normalization_terms": term_values_at_maximum,
+                    "normalization_source": str(
+                        metrics["normalization_source"]
+                    ),
+                    "physical_regime": maximum_regime,
                     "residual": residual_name,
                     "tolerance": float(tolerance),
-                    "tolerance_provenance": tolerance_provenance,
+                    "tolerance_kind": tolerance_kind,
+                    "tolerance_provenance": tolerance_source,
+                    "tolerance_source": tolerance_source,
+                    "resolution_status": resolution_status,
+                    "refinement_evidence": refinement_evidence,
                 },
             )
         diagnostics[residual_name] = {
             "maximum_absolute": max_abs,
+            "maximum_absolute_eta": float(eta_values[maximum_absolute_index]),
+            "maximum_normalized": maximum_normalized,
+            "maximum_eta": float(eta_values[maximum_normalized_index]),
+            "maximum_grid_fraction": maximum_grid_fraction,
+            "physical_regime": maximum_regime,
+            "normalization_scale": float(
+                normalization_scale[maximum_normalized_index]
+            ),
+            "normalization_terms": term_values_at_maximum,
+            "normalization_source": str(metrics["normalization_source"]),
             "tolerance": float(tolerance),
+            "tolerance_kind": tolerance_kind,
+            "tolerance_provenance": tolerance_source,
+            "tolerance_source": tolerance_source,
             "enforced": enforcement_active,
             "reference_eta_samples": int(reference_count),
             "reference_resolution_met": bool(reference_resolution_met),
+            "resolution_status": resolution_status,
+            "physical_judgement": (
+                "evaluated" if enforcement_active else "deferred"
+            ),
+            "refinement_evidence": refinement_evidence,
             "anchors": anchor_values,
+            "normalized_anchors": normalized_anchor_values,
             "sample_count": int(values.size),
         }
     return diagnostics
@@ -2149,7 +2337,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         momentum_point_count=int(
             sum(runtime.points.size for runtime in momentum_runtimes)
         ),
-        evolution_multiplier=(2 if adaptive_controls.evolution_enabled else 1),
+        evolution_multiplier=(3 if adaptive_controls.evolution_enabled else 1),
     )
     runtime_envelope["numerical_envelope"] = numerical_envelope.to_dict()
     runtime_envelope["accuracy_tier"] = numerical_envelope.accuracy_tier
@@ -2245,6 +2433,8 @@ def _compute_custom_cmb_spectrum_data_impl(
         contract_or_params
     )
     scalar_constraint_diagnostics: dict[str, dict[str, Any]] = {}
+    scalar_constraint_projection_count = 0
+    scalar_constraint_projection_max_relative_correction = 0.0
     adaptive_k_controls = declared_accuracy_controls.get(
         "adaptive_k_quadrature"
     )
@@ -2374,7 +2564,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         dict[str, Any],
     ] = {}
     scalar_background_context_cache: dict[
-        tuple[int, float], tuple[float, dict[str, float]]
+        tuple[int, float, float], tuple[float, dict[str, float]]
     ] = {}
     momentum_grid_context_cache: dict[float, dict[str, Any]] = {}
 
@@ -2402,7 +2592,11 @@ def _compute_custom_cmb_spectrum_data_impl(
     ) -> tuple[float, dict[str, float]]:
         """Return one interpolated scalar background context."""
 
-        context_key = (int(step_index), float(blend))
+        context_key = (
+            int(step_index),
+            float(blend),
+            float(active_k_value if k_value is None else k_value),
+        )
         cached_context = scalar_background_context_cache.get(context_key)
         if cached_context is not None:
             return cached_context
@@ -3268,10 +3462,26 @@ def _compute_custom_cmb_spectrum_data_impl(
         for runtime in split_collision_runtimes
     }
 
+    metric_constraint_state_key = next(
+        (
+            key
+            for key in (
+                ("Phi", "tau", 0),
+                ("Phi_gi", "tau", 0),
+            )
+            if key in runtime_spec.state_index_by_key
+        ),
+        None,
+    )
+
     def _prepare_mode_initial_state(
         mode_k_value: float,
-    ) -> tuple[numpy.ndarray, set[tuple[str, str, int]]]:
-        """Prepare one mode state without entering its evolution path."""
+    ) -> tuple[
+        numpy.ndarray,
+        tuple[tuple[str, str, int], ...],
+        dict[str, dict[str, Any]],
+    ]:
+        """Prepare one mode state on the declared constraint surface."""
 
         initial_eta, initial_background = _scalar_background_context(
             0,
@@ -3304,7 +3514,79 @@ def _compute_custom_cmb_spectrum_data_impl(
             eta_value=float(initial_eta),
             background_scalars=initial_background,
         )
-        _validate_generated_scalar_initial_constraints(
+        if generated_scalar_hierarchy:
+            if metric_constraint_state_key is None:
+                raise NativeConstraintViolationError(
+                    "Generated scalar initial data do not expose a metric "
+                    "state for the Einstein constraint solve",
+                    context={
+                        "gauge": str(getattr(perturbation_data, "gauge", "")),
+                        "k": float(mode_k_value),
+                    },
+                )
+            for _iteration in range(8):
+                constraint_solution = (
+                    _solve_generated_scalar_initial_einstein_surface(
+                        perturbation_data=perturbation_data,
+                        context=initial_state_context,
+                        k_value=float(mode_k_value),
+                    )
+                )
+                state, assigned_targets = _evaluate_declared_initial_state(
+                    perturbation_data=perturbation_data,
+                    execution_plan=execution_plan,
+                    base_context=initial_context,
+                    fixed_state_values={
+                        metric_constraint_state_key: float(
+                            constraint_solution["Phi"]
+                        )
+                    },
+                )
+                initial_state_context = _build_scalar_state_context(
+                    state,
+                    k_value=float(mode_k_value),
+                    eta_value=float(initial_eta),
+                    background_scalars=initial_background,
+                )
+                maximum_normalized = max(
+                    (
+                        float(
+                            numpy.max(
+                                numpy.asarray(
+                                    _scalar_einstein_constraint_metrics(
+                                        initial_state_context,
+                                        residual_name,
+                                    )["normalized_values"],
+                                    dtype=float,
+                                )
+                            )
+                        )
+                        for residual_name in (
+                            "einstein_energy_residual",
+                            "einstein_momentum_residual",
+                            "einstein_shear_residual",
+                        )
+                        if residual_name in initial_state_context
+                    ),
+                    default=0.0,
+                )
+                if (
+                    maximum_normalized
+                    <= _SCALAR_INITIAL_SOLVE_NUMERICAL_TOLERANCE
+                ):
+                    break
+            else:
+                raise NativeConstraintViolationError(
+                    "Generated scalar initial Einstein solve did not "
+                    "converge on its coupled constraint surface",
+                    context={
+                        "gauge": str(getattr(perturbation_data, "gauge", "")),
+                        "k": float(mode_k_value),
+                        "maximum_normalized": float(maximum_normalized),
+                        "iterations": 8,
+                    },
+                )
+        initial_diagnostics = _validate_generated_scalar_initial_constraints(
             perturbation_data=perturbation_data,
             context=initial_state_context,
             k_value=float(mode_k_value),
@@ -3325,7 +3607,293 @@ def _compute_custom_cmb_spectrum_data_impl(
             context=initial_state_context,
             k_value=float(mode_k_value),
         )
-        return state, assigned_targets
+        return state, assigned_targets, initial_diagnostics
+
+    scalar_initial_constraint_preflight: dict[str, Any] = {
+        "performed": False,
+        "failure_order": "ascending_k",
+        "k_values": (),
+        "mode_count": 0,
+        "residuals": {},
+    }
+
+    def _preflight_generated_scalar_initial_conditions() -> None:
+        """Validate every requested scalar mode before any ODE evolution."""
+
+        nonlocal active_grids
+        nonlocal active_declared_background_histories
+        nonlocal active_coordinate_rate_histories
+        nonlocal active_k_value
+        nonlocal scalar_base_context_cache
+        nonlocal scalar_background_context_cache
+        if not generated_scalar_hierarchy:
+            return
+        ordered_k_values = numpy.sort(
+            numpy.unique(numpy.asarray(k_values, dtype=float))
+        )
+        if (
+            ordered_k_values.ndim != 1
+            or ordered_k_values.size == 0
+            or not numpy.all(numpy.isfinite(ordered_k_values))
+        ):
+            raise ValueError(
+                "Generated scalar initial-condition preflight requires a "
+                "finite requested k grid"
+            )
+        residuals: dict[str, dict[str, Any]] = {}
+        for mode_k_value in ordered_k_values:
+            scalar_base_context_cache = {}
+            scalar_background_context_cache = {}
+            active_k_value = float(mode_k_value)
+            (
+                active_grids,
+                active_declared_background_histories,
+                active_coordinate_rate_histories,
+            ) = _mode_grids_for_k(float(mode_k_value))
+            _, _, mode_diagnostics = _prepare_mode_initial_state(
+                float(mode_k_value)
+            )
+            for residual_name, metrics in mode_diagnostics.items():
+                aggregate = residuals.setdefault(
+                    residual_name,
+                    {
+                        "maximum_normalized": -numpy.inf,
+                        "maximum_absolute": 0.0,
+                        "normalization_scale": 0.0,
+                        "normalization_terms": {},
+                        "normalization_source": "",
+                        "k": 0.0,
+                        "tolerance": float(metrics["tolerance"]),
+                        "tolerance_provenance": str(
+                            metrics["tolerance_provenance"]
+                        ),
+                    },
+                )
+                if float(metrics["normalized_residual"]) > float(
+                    aggregate["maximum_normalized"]
+                ):
+                    aggregate.update(
+                        {
+                            "maximum_normalized": float(
+                                metrics["normalized_residual"]
+                            ),
+                            "maximum_absolute": float(
+                                metrics["absolute_residual"]
+                            ),
+                            "normalization_scale": float(
+                                metrics["normalization_scale"]
+                            ),
+                            "normalization_terms": dict(
+                                metrics["normalization_terms"]
+                            ),
+                            "normalization_source": str(
+                                metrics["normalization_source"]
+                            ),
+                            "k": float(mode_k_value),
+                        }
+                    )
+        scalar_initial_constraint_preflight.update(
+            {
+                "performed": True,
+                "k_values": tuple(float(value) for value in ordered_k_values),
+                "mode_count": int(ordered_k_values.size),
+                "residuals": residuals,
+            }
+        )
+        scalar_base_context_cache = {}
+        scalar_background_context_cache = {}
+        active_grids = dict(source_grids)
+        active_declared_background_histories = (
+            source_declared_background_histories
+        )
+        active_coordinate_rate_histories = source_coordinate_rate_histories
+
+    with performance_timer.phase("initial_data"):
+        _preflight_generated_scalar_initial_conditions()
+
+    def _reconstruct_scalar_constraint_source_histories(
+        source_histories: Mapping[str, numpy.ndarray],
+        *,
+        mode_k_value: float,
+    ) -> dict[str, numpy.ndarray]:
+        """Solve the coupled scalar Einstein surface for source histories.
+
+        The generated metric state remains an ODE bookkeeping variable while
+        declared line-of-sight sources are evaluated from the coupled
+        algebraic Einstein surface.  The declared momentum drive makes the
+        energy solve pointwise, so the reconstruction is performed before
+        diagnostics and source evaluation without finite-difference probes.
+        """
+
+        nonlocal scalar_constraint_projection_count
+        nonlocal scalar_constraint_projection_max_relative_correction
+        if not generated_scalar_hierarchy:
+            return {
+                name: numpy.asarray(values, dtype=float)
+                for name, values in source_histories.items()
+            }
+        if metric_constraint_state_key is None:
+            raise NativeConstraintViolationError(
+                "Generated scalar source histories do not expose a metric "
+                "state for the Einstein reconstruction",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                },
+            )
+        projected_histories = {
+            name: numpy.asarray(values, dtype=float).copy()
+            for name, values in source_histories.items()
+        }
+        state_name = str(metric_constraint_state_key[0])
+        if state_name not in projected_histories:
+            raise NativeConstraintViolationError(
+                "Generated scalar source histories omit the metric state "
+                "required by the Einstein reconstruction",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                    "state": state_name,
+                },
+            )
+
+        def _bind_constraint_metric(
+            histories: dict[str, numpy.ndarray],
+            phi_values: numpy.ndarray,
+            context: Mapping[str, Any],
+        ) -> None:
+            """Bind the reconstructed metric into one history set."""
+
+            histories[state_name] = numpy.asarray(phi_values, dtype=float)
+            if str(getattr(perturbation_data, "gauge", "")) != "synchronous":
+                return
+            if not {
+                "eta_sync_metric",
+                "gauge_shift_alpha",
+            }.issubset(histories):
+                return
+            histories["eta_sync_metric"] = numpy.asarray(
+                phi_values, dtype=float
+            ) + numpy.asarray(context["Hconf"], dtype=float) * numpy.asarray(
+                histories["gauge_shift_alpha"], dtype=float
+            )
+
+        source_context = _build_array_context(
+            projected_histories,
+            k_value=float(mode_k_value),
+        )
+        required_names = (
+            "acoustic_k_sq",
+            "Hconf",
+            "metric_momentum_source_drive",
+            "einstein_gravity_strength",
+            "total_density_source",
+        )
+        missing_names = tuple(
+            name for name in required_names if name not in source_context
+        )
+        if missing_names:
+            raise NativeConstraintViolationError(
+                "Generated scalar source histories cannot reconstruct "
+                "the Einstein energy surface",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                    "missing_terms": missing_names,
+                },
+            )
+        acoustic_k_sq = numpy.asarray(
+            source_context["acoustic_k_sq"],
+            dtype=float,
+        )
+        if not numpy.all(
+            numpy.isfinite(acoustic_k_sq) & (acoustic_k_sq > 0.0)
+        ):
+            raise NativeConstraintViolationError(
+                "Generated scalar source histories require a positive finite "
+                "Einstein k^2 scale",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                },
+            )
+        previous_phi = numpy.asarray(
+            projected_histories[state_name],
+            dtype=float,
+        )
+        energy_source = 3.0 * numpy.asarray(
+            source_context["Hconf"], dtype=float
+        ) * numpy.asarray(
+            source_context["metric_momentum_source_drive"],
+            dtype=float,
+        ) + 1.5 * numpy.asarray(
+            source_context["einstein_gravity_strength"],
+            dtype=float,
+        ) * numpy.asarray(
+            source_context["total_density_source"],
+            dtype=float,
+        )
+        reconstructed_phi = -energy_source / acoustic_k_sq
+        if not numpy.all(numpy.isfinite(reconstructed_phi)):
+            raise NativeNonFiniteEvolutionError(
+                "Generated scalar Einstein reconstruction produced "
+                f"non-finite metric values at k={mode_k_value}",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                },
+            )
+        _bind_constraint_metric(
+            projected_histories,
+            reconstructed_phi,
+            source_context,
+        )
+        reconstructed_context = _build_array_context(
+            projected_histories,
+            k_value=float(mode_k_value),
+        )
+        energy_metrics = _scalar_einstein_constraint_metrics(
+            reconstructed_context,
+            "einstein_energy_residual",
+        )
+        maximum_normalized = float(
+            numpy.max(
+                numpy.asarray(
+                    energy_metrics["normalized_values"],
+                    dtype=float,
+                ),
+                initial=0.0,
+            )
+        )
+        if maximum_normalized > 1.0e-10:
+            raise NativeConstraintViolationError(
+                "Generated scalar source-history Einstein reconstruction did "
+                "not converge",
+                context={
+                    "gauge": str(getattr(perturbation_data, "gauge", "")),
+                    "k": float(mode_k_value),
+                    "iterations": 1,
+                    "maximum_normalized": maximum_normalized,
+                },
+            )
+        correction = numpy.abs(
+            reconstructed_phi - previous_phi
+        ) / numpy.maximum(
+            numpy.maximum(
+                numpy.abs(reconstructed_phi),
+                numpy.abs(previous_phi),
+            ),
+            numpy.finfo(float).tiny,
+        )
+        mode_max_relative_correction = float(
+            numpy.max(correction, initial=0.0)
+        )
+        scalar_constraint_projection_count += 1
+        scalar_constraint_projection_max_relative_correction = max(
+            scalar_constraint_projection_max_relative_correction,
+            mode_max_relative_correction,
+        )
+        return projected_histories
 
     def _evaluate_source_histories(
         mode_k_value: float,
@@ -3369,6 +3937,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                 name: numpy.asarray(history, dtype=float)[indices]
                 for name, history in source_histories.items()
             }
+        evaluation_histories = _reconstruct_scalar_constraint_source_histories(
+            evaluation_histories,
+            mode_k_value=float(mode_k_value),
+        )
         array_context = _build_array_context(
             evaluation_histories,
             k_value=float(mode_k_value),
@@ -3384,13 +3956,13 @@ def _compute_custom_cmb_spectrum_data_impl(
             conservation_context,
             perturbation_data,
             allow_partial=True,
-            eta_grid=source_grids["eta"],
+            eta_grid=active_grids["eta"],
             execution_plan=execution_plan,
         )
         mode_constraint_diagnostics = _validate_scalar_constraint_histories(
             perturbation_data=perturbation_data,
             context=conservation_context,
-            eta_grid=source_grids["eta"],
+            eta_grid=active_grids["eta"],
             accuracy_controls=declared_accuracy_controls,
             k_value=float(mode_k_value),
         )
@@ -3403,8 +3975,32 @@ def _compute_custom_cmb_spectrum_data_impl(
                     residual_name,
                     {
                         "maximum_absolute": 0.0,
+                        "maximum_absolute_eta": 0.0,
+                        "maximum_normalized": -numpy.inf,
+                        "maximum_eta": 0.0,
+                        "maximum_grid_fraction": 0.0,
+                        "physical_regime": "",
+                        "normalization_scale": 0.0,
+                        "normalization_terms": {},
+                        "normalization_source": "",
                         "tolerance": float(mode_metrics["tolerance"]),
+                        "tolerance_kind": str(mode_metrics["tolerance_kind"]),
+                        "tolerance_provenance": str(
+                            mode_metrics["tolerance_provenance"]
+                        ),
+                        "tolerance_source": str(
+                            mode_metrics["tolerance_source"]
+                        ),
+                        "enforced": bool(mode_metrics["enforced"]),
+                        "reference_eta_samples": int(
+                            mode_metrics["reference_eta_samples"]
+                        ),
+                        "reference_resolution_met": True,
+                        "resolution_status": "reference",
+                        "physical_judgement": "evaluated",
+                        "refinement_evidence": {},
                         "anchors": {},
+                        "normalized_anchors": {},
                         "mode_count": 0,
                         "sample_count": 0,
                     },
@@ -3413,6 +4009,59 @@ def _compute_custom_cmb_spectrum_data_impl(
                     float(aggregate["maximum_absolute"]),
                     float(mode_metrics["maximum_absolute"]),
                 )
+                if float(mode_metrics["maximum_normalized"]) > float(
+                    aggregate["maximum_normalized"]
+                ):
+                    aggregate.update(
+                        {
+                            "maximum_normalized": float(
+                                mode_metrics["maximum_normalized"]
+                            ),
+                            "maximum_eta": float(mode_metrics["maximum_eta"]),
+                            "maximum_grid_fraction": float(
+                                mode_metrics["maximum_grid_fraction"]
+                            ),
+                            "physical_regime": str(
+                                mode_metrics["physical_regime"]
+                            ),
+                            "normalization_scale": float(
+                                mode_metrics["normalization_scale"]
+                            ),
+                            "normalization_terms": dict(
+                                mode_metrics["normalization_terms"]
+                            ),
+                            "normalization_source": str(
+                                mode_metrics["normalization_source"]
+                            ),
+                            "tolerance": float(mode_metrics["tolerance"]),
+                            "tolerance_kind": str(
+                                mode_metrics["tolerance_kind"]
+                            ),
+                            "tolerance_provenance": str(
+                                mode_metrics["tolerance_provenance"]
+                            ),
+                            "tolerance_source": str(
+                                mode_metrics["tolerance_source"]
+                            ),
+                            "enforced": bool(mode_metrics["enforced"]),
+                            "refinement_evidence": dict(
+                                mode_metrics["refinement_evidence"]
+                            ),
+                        }
+                    )
+                if float(mode_metrics["maximum_absolute"]) >= float(
+                    aggregate["maximum_absolute"]
+                ):
+                    aggregate["maximum_absolute_eta"] = float(
+                        mode_metrics["maximum_absolute_eta"]
+                    )
+                aggregate["reference_resolution_met"] = bool(
+                    aggregate["reference_resolution_met"]
+                    and mode_metrics["reference_resolution_met"]
+                )
+                if not mode_metrics["reference_resolution_met"]:
+                    aggregate["resolution_status"] = "under_resolved"
+                    aggregate["physical_judgement"] = "deferred"
                 aggregate["mode_count"] = int(aggregate["mode_count"]) + 1
                 aggregate["sample_count"] = int(
                     aggregate["sample_count"]
@@ -3422,6 +4071,18 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ].items():
                     aggregate["anchors"][anchor_name] = max(
                         float(aggregate["anchors"].get(anchor_name, 0.0)),
+                        float(anchor_value),
+                    )
+                for anchor_name, anchor_value in mode_metrics[
+                    "normalized_anchors"
+                ].items():
+                    aggregate["normalized_anchors"][anchor_name] = max(
+                        float(
+                            aggregate["normalized_anchors"].get(
+                                anchor_name,
+                                0.0,
+                            )
+                        ),
                         float(anchor_value),
                     )
         _validate_declared_conservation_rules(
@@ -3744,8 +4405,14 @@ def _compute_custom_cmb_spectrum_data_impl(
             dt: float,
             k_value: float,
             tight_coupling_active: bool,
+            validate_invariants: bool = False,
         ) -> numpy.ndarray:
-            """Return one state vector after the split collision sub-step."""
+            """Return one state vector after the split collision sub-step.
+
+            Conservation rules are evaluated at accepted interval boundaries,
+            where the evolved history is retained, rather than at every
+            provisional split sub-step.
+            """
 
             if dt == 0.0:
                 return numpy.asarray(state_vector, dtype=float)
@@ -3846,13 +4513,14 @@ def _compute_custom_cmb_spectrum_data_impl(
                     )
                     for slot_index in runtime.damping_slot_indices:
                         relaxed[slot_index] *= damping
-                _validate_collision_invariants(
-                    relaxed,
-                    runtime=runtime,
-                    step_index=step_index,
-                    blend=blend,
-                    k_value=float(k_value),
-                )
+                if validate_invariants:
+                    _validate_collision_invariants(
+                        relaxed,
+                        runtime=runtime,
+                        step_index=step_index,
+                        blend=blend,
+                        k_value=float(k_value),
+                    )
             return relaxed
 
         def _advance_declared_interval(
@@ -3878,22 +4546,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                     )
                 ),
             )
-            if not (tight_coupling_active and split_collision_runtimes):
-                start_collision_rate = float(
-                    active_grids["collision_rate"][step_index]
-                )
-                end_collision_rate = float(
-                    active_grids["collision_rate"][step_index + 1]
-                )
-                collision_scale = max(
-                    start_collision_rate,
-                    end_collision_rate,
-                    0.0,
-                )
-                required_substeps = max(
-                    required_substeps,
-                    int(math.ceil(abs(float(dt)) * collision_scale / 0.25)),
-                )
+            # Exact symmetric collision half-steps absorb the collision
+            # stiffness.  Their magnitude must not force the explicit
+            # streaming RK schedule into redundant microsteps after the
+            # declared tight-coupling transition has ended.
             substep_count = 1
             while substep_count < required_substeps:
                 substep_count *= 2
@@ -3970,6 +4626,9 @@ def _compute_custom_cmb_spectrum_data_impl(
                         dt=0.5 * sub_dt,
                         k_value=float(k_value),
                         tight_coupling_active=tight_coupling_active,
+                        validate_invariants=(
+                            substep_index == substep_count - 1
+                        ),
                     )
                     candidate_state = _project_declared_fast_collision_state(
                         candidate_state,
@@ -4183,7 +4842,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             return numpy.asarray(residuals, dtype=float)
 
         with performance_timer.phase("initial_data"):
-            state, assigned_targets = _prepare_mode_initial_state(
+            state, assigned_targets, _ = _prepare_mode_initial_state(
                 float(k_value)
             )
         if end_boundary_entries:
@@ -4377,8 +5036,23 @@ def _compute_custom_cmb_spectrum_data_impl(
     }
     evolution_error = 0.0
     evolution_absolute_error = 0.0
+    evolution_coarse_to_intermediate_error = 0.0
+    evolution_coarse_to_intermediate_absolute_error = 0.0
+    evolution_intermediate_to_reference_error = 0.0
+    evolution_intermediate_to_reference_absolute_error = 0.0
+    evolution_coarse_to_intermediate_anchor_errors: dict[str, float] = {
+        "early": 0.0,
+        "recombination": 0.0,
+        "late": 0.0,
+    }
+    evolution_intermediate_to_reference_anchor_errors: dict[str, float] = {
+        "early": 0.0,
+        "recombination": 0.0,
+        "late": 0.0,
+    }
     evolution_mode_count = 0
     evolution_fine_sample_count = 0
+    evolution_intermediate_sample_count = 0
     evolution_coarse_sample_count = 0
     source_eta_indices = numpy.arange(
         0,
@@ -4795,43 +5469,108 @@ def _compute_custom_cmb_spectrum_data_impl(
                         "evolution_eta_sample_count must be within the "
                         "adaptive_evolution node bounds"
                     )
-                coarse_sample_count = max(32, fine_sample_count // 2)
-                if coarse_sample_count >= fine_sample_count:
+                coarse_sample_count = max(32, fine_sample_count // 4)
+                intermediate_sample_count = max(
+                    coarse_sample_count + 1,
+                    (coarse_sample_count + fine_sample_count) // 2,
+                )
+                if intermediate_sample_count >= fine_sample_count:
                     raise ValueError(
                         "adaptive_evolution requires a refinable "
                         "evolution_eta_sample_count"
                     )
                 coarse_history_sink: dict[str, Any] = {}
+                intermediate_history_sink: dict[str, Any] = {}
                 _evolve_declared_mode(
                     float(k_value),
                     evolution_sample_count_override=coarse_sample_count,
                     history_sink=coarse_history_sink,
                     collect_diagnostics=False,
                 )
-                state_estimate = estimate_history_convergence(
-                    coarse_history_sink["evolution_eta"],
-                    coarse_history_sink["evolution_histories"],
-                    base_history_sink["evolution_eta"],
-                    base_history_sink["evolution_histories"],
-                    relative_tolerance=(
-                        adaptive_controls.evolution_relative_tolerance
-                    ),
-                    absolute_tolerance=(
-                        adaptive_controls.evolution_absolute_tolerance
-                    ),
+                _evolve_declared_mode(
+                    float(k_value),
+                    evolution_sample_count_override=intermediate_sample_count,
+                    history_sink=intermediate_history_sink,
+                    collect_diagnostics=False,
                 )
-                source_estimate = estimate_history_convergence(
-                    coarse_history_sink["source_eta"],
-                    coarse_history_sink["source_histories"],
-                    base_history_sink["source_eta"],
-                    base_history_sink["source_histories"],
-                    relative_tolerance=(
-                        adaptive_controls.evolution_relative_tolerance
-                    ),
-                    absolute_tolerance=(
-                        adaptive_controls.evolution_absolute_tolerance
-                    ),
+
+                def _estimate_evolution_pair(
+                    lower_history_sink: Mapping[str, Any],
+                    higher_history_sink: Mapping[str, Any],
+                ) -> tuple[Any, Any]:
+                    """Compare adjacent deterministic evolution tiers."""
+
+                    state_estimate = estimate_history_convergence(
+                        lower_history_sink["evolution_eta"],
+                        lower_history_sink["evolution_histories"],
+                        higher_history_sink["evolution_eta"],
+                        higher_history_sink["evolution_histories"],
+                        relative_tolerance=(
+                            adaptive_controls.evolution_relative_tolerance
+                        ),
+                        absolute_tolerance=(
+                            adaptive_controls.evolution_absolute_tolerance
+                        ),
+                    )
+                    source_estimate = estimate_history_convergence(
+                        lower_history_sink["source_eta"],
+                        lower_history_sink["source_histories"],
+                        higher_history_sink["source_eta"],
+                        higher_history_sink["source_histories"],
+                        relative_tolerance=(
+                            adaptive_controls.evolution_relative_tolerance
+                        ),
+                        absolute_tolerance=(
+                            adaptive_controls.evolution_absolute_tolerance
+                        ),
+                    )
+                    return state_estimate, source_estimate
+
+                (
+                    coarse_state_estimate,
+                    coarse_source_estimate,
+                ) = _estimate_evolution_pair(
+                    coarse_history_sink,
+                    intermediate_history_sink,
                 )
+                (
+                    state_estimate,
+                    source_estimate,
+                ) = _estimate_evolution_pair(
+                    intermediate_history_sink,
+                    base_history_sink,
+                )
+                for anchor_name in evolution_anchor_errors:
+                    evolution_coarse_to_intermediate_anchor_errors[
+                        anchor_name
+                    ] = max(
+                        evolution_coarse_to_intermediate_anchor_errors[
+                            anchor_name
+                        ],
+                        float(
+                            coarse_state_estimate.anchor_relative_errors[
+                                anchor_name
+                            ]
+                        ),
+                        float(
+                            coarse_source_estimate.anchor_relative_errors[
+                                anchor_name
+                            ]
+                        ),
+                    )
+                    evolution_intermediate_to_reference_anchor_errors[
+                        anchor_name
+                    ] = max(
+                        evolution_intermediate_to_reference_anchor_errors[
+                            anchor_name
+                        ],
+                        float(
+                            state_estimate.anchor_relative_errors[anchor_name]
+                        ),
+                        float(
+                            source_estimate.anchor_relative_errors[anchor_name]
+                        ),
+                    )
                 for anchor_name in evolution_anchor_errors:
                     evolution_anchor_errors[anchor_name] = max(
                         evolution_anchor_errors[anchor_name],
@@ -4851,6 +5590,26 @@ def _compute_custom_cmb_spectrum_data_impl(
                             source_estimate.anchor_absolute_errors[anchor_name]
                         ),
                     )
+                evolution_coarse_to_intermediate_error = max(
+                    evolution_coarse_to_intermediate_error,
+                    coarse_state_estimate.relative_error,
+                    coarse_source_estimate.relative_error,
+                )
+                evolution_coarse_to_intermediate_absolute_error = max(
+                    evolution_coarse_to_intermediate_absolute_error,
+                    coarse_state_estimate.absolute_error,
+                    coarse_source_estimate.absolute_error,
+                )
+                evolution_intermediate_to_reference_error = max(
+                    evolution_intermediate_to_reference_error,
+                    state_estimate.relative_error,
+                    source_estimate.relative_error,
+                )
+                evolution_intermediate_to_reference_absolute_error = max(
+                    evolution_intermediate_to_reference_absolute_error,
+                    state_estimate.absolute_error,
+                    source_estimate.absolute_error,
+                )
                 evolution_error = max(
                     evolution_error,
                     state_estimate.relative_error,
@@ -4865,6 +5624,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                 evolution_fine_sample_count = max(
                     evolution_fine_sample_count,
                     int(base_history_sink["evolution_eta"].size),
+                )
+                evolution_intermediate_sample_count = max(
+                    evolution_intermediate_sample_count,
+                    int(intermediate_history_sink["evolution_eta"].size),
                 )
                 evolution_coarse_sample_count = max(
                     evolution_coarse_sample_count,
@@ -5199,15 +5962,45 @@ def _compute_custom_cmb_spectrum_data_impl(
         runtime_envelope["adaptive_evolution_absolute_error"] = float(
             evolution_absolute_error
         )
-        runtime_envelope["adaptive_evolution_refinement_levels"] = 1
-        runtime_envelope["scalar_evolution_convergence"] = {
-            "relative_error": float(evolution_error),
-            "absolute_error": float(evolution_absolute_error),
-            "anchor_relative_errors": dict(evolution_anchor_errors),
-            "anchor_absolute_errors": dict(evolution_anchor_absolute_errors),
-            "mode_count": int(evolution_mode_count),
-            "fine_sample_count": int(evolution_fine_sample_count),
-            "coarse_sample_count": int(evolution_coarse_sample_count),
+        runtime_envelope["adaptive_evolution_refinement_levels"] = 2
+        evolution_refinement_evidence = {
+            "same_cosmology": True,
+            "tiers": {
+                "coarse": {
+                    "sample_count": int(evolution_coarse_sample_count),
+                },
+                "intermediate": {
+                    "sample_count": int(evolution_intermediate_sample_count),
+                },
+                "reference": {
+                    "sample_count": int(evolution_fine_sample_count),
+                },
+            },
+            "coarse_to_intermediate": {
+                "relative_error": float(
+                    evolution_coarse_to_intermediate_error
+                ),
+                "absolute_error": float(
+                    evolution_coarse_to_intermediate_absolute_error
+                ),
+                "anchor_relative_errors": dict(
+                    evolution_coarse_to_intermediate_anchor_errors
+                ),
+            },
+            "intermediate_to_reference": {
+                "relative_error": float(
+                    evolution_intermediate_to_reference_error
+                ),
+                "absolute_error": float(
+                    evolution_intermediate_to_reference_absolute_error
+                ),
+                "anchor_relative_errors": dict(
+                    evolution_intermediate_to_reference_anchor_errors
+                ),
+                "anchor_absolute_errors": dict(
+                    evolution_anchor_absolute_errors
+                ),
+            },
             "relative_tolerance": float(
                 adaptive_controls.evolution_relative_tolerance
             ),
@@ -5215,6 +6008,31 @@ def _compute_custom_cmb_spectrum_data_impl(
                 adaptive_controls.evolution_absolute_tolerance
             ),
         }
+        runtime_envelope["scalar_evolution_convergence"] = {
+            "tier_order": ("coarse", "intermediate", "reference"),
+            "relative_error": float(evolution_error),
+            "absolute_error": float(evolution_absolute_error),
+            "anchor_relative_errors": dict(evolution_anchor_errors),
+            "anchor_absolute_errors": dict(evolution_anchor_absolute_errors),
+            "mode_count": int(evolution_mode_count),
+            "reference_sample_count": int(evolution_fine_sample_count),
+            "fine_sample_count": int(evolution_fine_sample_count),
+            "intermediate_sample_count": int(
+                evolution_intermediate_sample_count
+            ),
+            "coarse_sample_count": int(evolution_coarse_sample_count),
+            "refinement_evidence": evolution_refinement_evidence,
+            "relative_tolerance": float(
+                adaptive_controls.evolution_relative_tolerance
+            ),
+            "absolute_tolerance": float(
+                adaptive_controls.evolution_absolute_tolerance
+            ),
+        }
+        for metrics in scalar_constraint_diagnostics.values():
+            refinement_evidence = dict(metrics["refinement_evidence"])
+            refinement_evidence["evolution"] = evolution_refinement_evidence
+            metrics["refinement_evidence"] = refinement_evidence
         evolution_estimate = NativeConvergenceEstimate(
             absolute_error=float(evolution_absolute_error),
             relative_error=float(evolution_error),
@@ -5272,7 +6090,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 sum(runtime.points.size for runtime in momentum_runtimes)
             ),
             evolution_multiplier=(
-                2 if adaptive_controls.evolution_enabled else 1
+                3 if adaptive_controls.evolution_enabled else 1
             ),
         )
         direct_envelope["static_graph_preparations"] = runtime_envelope[
@@ -5927,6 +6745,16 @@ def _compute_custom_cmb_spectrum_data_impl(
         spectra_results = adaptive_spectra
 
     elapsed_seconds = perf_counter() - request_started
+    runtime_envelope["scalar_initial_constraint_preflight"] = (
+        scalar_initial_constraint_preflight
+    )
+    runtime_envelope["scalar_constraint_projection"] = {
+        "method": "source_history_coupled_einstein_reconstruction",
+        "mode_count": int(scalar_constraint_projection_count),
+        "maximum_relative_metric_correction": float(
+            scalar_constraint_projection_max_relative_correction
+        ),
+    }
     runtime_envelope["scalar_constraint_diagnostics"] = (
         scalar_constraint_diagnostics
     )

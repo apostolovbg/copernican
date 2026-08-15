@@ -429,7 +429,7 @@ Done when:
 * LCDM and TORG retain finite, responsive native spectra.
 * Structural reuse produces a measured warm-request speedup.
 
-### [open] Slice Four - Generated scalar initial-condition constraints
+### [closed] Slice Four - Generated scalar initial-condition constraints
 
 Purpose:
 
@@ -482,7 +482,7 @@ Done when:
 * No tolerance-only patch or skipped high-k mode is present.
 * LCDM and TORG initial-condition regressions pass within 180 seconds each.
 
-### [open] Slice Five - Evolved scalar constraint convergence
+### [closed] Slice Five - Evolved scalar constraint convergence
 
 Purpose:
 

@@ -41,6 +41,22 @@ inputs, numerical controls, and independent-reference boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
+Before native scalar evolution begins, Copernican audits the requested k grid
+against the model's declared numerical limits and preflights every mode on the
+coupled Einstein constraint surface. The runtime records the ordered mode set,
+residual terms, normalization scales, and constraint provenance with the
+spectrum data so scientific failures can be traced without silently skipping
+high-k modes.
+
+Evolved scalar Einstein residuals use the sum of absolute declared equation
+terms as their dimensionless normalization. Copernican records the maximum
+location and physical regime, tolerance and normalization provenance, and
+coarse-to-intermediate-to-reference convergence evidence; a grid below its
+declared reference eta resolution is reported as under-resolved rather than
+accepted as a physical result.
+The generated shear residual evaluates its declared correction directly so
+nearly equal metric potentials do not create a floating-point-only breach.
+
 All bundled CMB-capable models execute through the Copernican native
 declared-graph CMB engine. The CLI and GUI do not expose a CMB solver or
 backend selector; the selected control and test models provide the physical
@@ -79,9 +95,11 @@ Native MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
 record cold, warm, and exact-hit states with phase timings and work units.
-Only valid parameter-domain exclusions become rejected proposals; contract,
-convergence, non-finite, constraint, capability, and performance failures
-stop execution with typed diagnostics.
+Exact split collision half-steps absorb collision stiffness, so their
+magnitude does not create redundant Runge-Kutta microsteps after a declared
+tight-coupling transition. Only valid parameter-domain exclusions become
+rejected proposals; contract, convergence, non-finite, constraint,
+capability, and performance failures stop execution with typed diagnostics.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
