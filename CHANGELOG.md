@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-14
+**Last Updated:** 2026-08-15
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,73 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-15:
+  Change: Replaced the active roadmap with twelve bounded slices covering
+  canonical run logging, dataset contracts, typed native failures, scalar
+  constraints, MCMC performance, theory capabilities, USMF2, and corpus
+  certification.
+  Why: Corrected the implementation order so production observability,
+  scientific failures, and runtime viability are repaired before theory
+  expansion and final acceptance.
+  Impact: Defines one-session closure criteria, exact reference-manifest
+  coverage, synchronized documentation, and hard 180-second and 1800-second
+  runtime limits for the staged development roadmap.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-15:
+  Change: Reverted the Slice One implementation patch set, reopened the
+  roadmap statuses, and refreshed the mirrored README dates.
+  Why: Restored the repository to the requested baseline while keeping
+  the changelog snapshot and touched documentation aligned with today's
+  gate session.
+  Impact: Preserves the seven-slice PLAN as the active baseline while
+  keeping the README pair date-current and documenting the reverted
+  Slice One files in this gate session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-15:
+  Change: Tightened scalar residual diagnostics, recorded the failure
+  source, and closed Slice One.
+  Why: Reproduced the native run-log breach with exact eta-grid and
+  tolerance-source details so under-resolved grids stay separate from
+  physical breaches.
+  Impact: Runtime failures now expose the residual name, `k` mode, grid
+  size, resolution gate, and tolerance provenance while the mirrored
+  README pair and Slice One status stay aligned.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-15:
+  Change: Replaced the active CMB roadmap with a seven-slice plan for
+  solver diagnostics, capability contracts, any-theory refactoring,
+  USMF2 closure, corpus migration, and final validation.
+  Why: Aligned the plan with the current scalar residual failure surface
+  and the need to extend the native solver without hidden class or
+  backend fallbacks.
+  Impact: Preserved `model_torg.yml` and the current CMB-valid corpus as
+  explicit regressions while documenting the path to make
+  `model_usmf2.yml` CMB-valid.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-08-14:
   Change: Fixed GUI confirmation persistence and isolated GUI test workspaces.
