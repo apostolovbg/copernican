@@ -179,10 +179,10 @@ Schema validity or a low-resolution smoke spectrum does not establish
 production acceptance. Each CMB-valid model must satisfy its declared physics,
 convergence, performance, and observable contracts.
 
-`copernican/models/model_usmf2.yml` remains `valid_for_cmb: false` until its
+`copernican/models/model_usmf2.yml` is `valid_for_cmb: true` after its
 background, perturbation variables, gauge relations, initial conditions,
-closures, sources, observables, and numerical controls are explicit and
-validated.
+closures, sources, observables, and numerical controls passed Slice Twelve's
+native acceptance tests.
 
 The scalar failure surface has two independent contracts:
 
@@ -794,8 +794,8 @@ Acceptance record:
 
 * `cmb_contract` now audits the declared ontology and the complete public
   `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and `EP` capability surface.
-* The nine CMB-enabled bundled models produce complete matrix rows; USMF2
-  remains explicitly unavailable through its model declaration.
+* The nine pre-USMF2 CMB-enabled bundled models produce complete matrix rows;
+  Slice Twelve adds USMF2 through its own declared production closure.
 * Production route metadata is the same native declared graph for every
   model. No theory-name, filename, model-family, or assumed-species routing
   branch was demonstrated.
@@ -942,12 +942,10 @@ Acceptance record:
 * Equation, constraint, closure, source, and initial-condition nodes carry
   provenance notes. Analytic homogeneous, no-shrink, and zero-shear limits are
   recorded under `accuracy_controls` for Slice Twelve.
-* `valid_for_cmb: false` remains unchanged. The graph compiles for schema and
-  dependency checks but is not exposed to production CMB execution until its
-  proposed coefficients and finite hierarchy boundaries are independently
-  implemented and validated.
+* At the end of Slice Eleven, `valid_for_cmb: false` kept the graph out of
+  production CMB execution pending the independent Slice Twelve acceptance.
 
-### [open] Slice Twelve - Implement and validate the USMF2 CMB path
+### [closed] Slice Twelve - Implement and validate the USMF2 CMB path
 
 Purpose:
 
@@ -1003,6 +1001,20 @@ Done when:
 * Its theory-specific identities and constraint bounds pass.
 * Its warm execution meets the governed model budget.
 * `valid_for_cmb: true` is justified by the complete acceptance surface.
+
+Acceptance record:
+
+* USMF2 now compiles and executes through the native declared graph with no
+  CAMB, CLASS, LCDM, or fallback route substitution.
+* Native tests cover finite structured TT/TE/EE/BB/PP/TP/EP spectra, parameter
+  response, default-grid finiteness, declared conservation balance, analytic
+  no-shrink and zero-shear limits, coarse-to-reference history agreement,
+  contradictory or incomplete declarations, and warm execution budget.
+* The shrink-field graph uses the declared conformal Hubble rate for regular
+  initial data and damping, and baryon Thomson acceleration uses its declared
+  momentum-balanced counterpart.
+* `model_usmf2.yml` records `valid_for_cmb: true` and the production validity
+  regime only after the native acceptance tests passed.
 
 ### [open] Slice Thirteen - Migrate and certify the model corpus
 

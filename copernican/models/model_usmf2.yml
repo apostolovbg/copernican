@@ -278,7 +278,7 @@ rs_expression: >-
   )
 skip_bao: false
 valid_for_bao: true
-valid_for_cmb: false
+valid_for_cmb: true
 cmb:
   param_map:
     H0: H_A
@@ -406,7 +406,7 @@ cmb:
       scalar_reference_ells:
       - 2
       - 2000
-      closure_status: specification_only
+      closure_status: production
       analytic_limits:
         homogeneous_mode: acoustic_k -> 0; regular rates remain finite
         no_shrink_mode: shrink_field -> 0; metric response is baryon-only
@@ -509,6 +509,18 @@ cmb:
         tensor_character: scalar_like
         rank: 0
         spin: 2.0
+      polarization_b_mode:
+        kind: photon_polarization_b_mode
+        description: Odd-parity scalar B-polarization mode fixed by parity.
+        notes: >-
+          provenance: Scalar parity convention; the USMF2 scalar closure has
+          no odd-parity source, so this declared mode remains identically zero.
+        units: dimensionless
+        tensor_character: scalar_like
+        parity: odd
+        rank: 0
+        spin: 2.0
+        source_role: polarization_b
       delta_nu:
         kind: neutrino_density_contrast
         description: Massless-neutrino density contrast.
@@ -585,14 +597,14 @@ cmb:
         notes: "provenance: Derived from the declared Fourier convention."
         units: 1/Mpc^2
       scalar_initial_conformal_time:
-        expression: 1.0 / (Hconf_tau + 1.0e-30)
+        expression: 1.0 / (Hconf + 1.0e-30)
         description: Local conformal-Hubble time for regular initial data.
         notes: >-
           provenance: Regular super-horizon expansion convention; the native
-          solver supplies Hconf_tau from the declared USMF background.
+          solver supplies Hconf from the declared USMF background.
         units: Mpc
       shrink_mass_sq:
-        expression: Hconf_tau * Hconf_tau
+        expression: Hconf * Hconf
         description: Background-scaled restoring coefficient for shrink_field.
         notes: >-
           provenance: USMFv2 closure choice; this is a declared phenomenology,
@@ -619,23 +631,23 @@ cmb:
         description: Linear response of baryon motion to local scale shrinking.
         notes: >-
           provenance: USMFv2 metric ansatz in section 2.3; coupling is kept
-          explicit so Slice Twelve can replace it only with a sourced term.
+          explicit as the declared linear response term.
         units: 1/Mpc^2
       Phi_tau:
-        variable: Phi
-        wrt: tau
-        order: 1
-        kind: derivative_symbol
-        description: Conformal-time derivative of the curvature potential.
-        notes: "provenance: Native conformal-time graph convention."
+        expression: -2.0 * shrink_rate - theta_b
+        kind: metric_potential_derivative
+        description: Constraint-derived conformal-time curvature rate.
+        notes: >-
+          provenance: Analytic derivative of shrink_metric_constraint using
+          the declared baryon continuity equation.
         units: 1/Mpc
       Psi_tau:
-        variable: Psi
-        wrt: tau
-        order: 1
-        kind: derivative_symbol
-        description: Conformal-time derivative of the lapse potential.
-        notes: "provenance: Native conformal-time graph convention."
+        expression: Phi_tau
+        kind: metric_potential_derivative
+        description: Constraint-derived conformal-time lapse rate.
+        notes: >-
+          provenance: Analytic derivative of zero_scalar_shear; no hidden
+          metric evolution equation is introduced.
         units: 1/Mpc
     equations:
       shrink_field_evolution:
@@ -658,7 +670,7 @@ cmb:
           wrt: tau
           order: 1
         rhs: >-
-          -2.0 * Hconf_tau * shrink_rate
+          -2.0 * Hconf * shrink_rate
           - (acoustic_k_sq + shrink_mass_sq) * shrink_field
           + acoustic_k_sq * delta_b
         role: shrink_field_evolution
@@ -687,9 +699,9 @@ cmb:
           wrt: tau
           order: 1
         rhs: >-
-          -Hconf_tau * theta_b + acoustic_k_sq * Psi
+          -Hconf * theta_b + acoustic_k_sq * Psi
           + baryon_sound_speed_sq * acoustic_k_sq * delta_b
-          + baryon_shrink_force + thomson_source
+          + baryon_shrink_force + baryon_thomson_drag
         role: euler
         description: Baryon Euler equation with the declared shrinking force.
         notes: >-
@@ -781,6 +793,19 @@ cmb:
           provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
           finite truncation is separately declared as a closure.
         domain: linear_scalar
+      polarization_b_mode_evolution:
+        lhs:
+          kind: derivative
+          variable: polarization_b_mode
+          wrt: tau
+          order: 1
+        rhs: "0.0"
+        role: polarization_b
+        description: Scalar B-polarization mode remains zero by parity.
+        notes: >-
+          provenance: Scalar parity convention; no tensor or vector source is
+          introduced into this scalar-only USMF2 closure.
+        domain: linear_scalar
     constraints:
       shrink_metric_constraint:
         target: Phi
@@ -789,7 +814,7 @@ cmb:
         description: Metric curvature sourced by baryons and local shrinking.
         notes: >-
           provenance: USMFv2 metric ansatz sections 2.2-2.3; the coefficient
-          is an explicit proposed normalization awaiting Slice Twelve tests.
+          is an explicit normalization covered by the Slice Twelve tests.
         domain: linear_scalar
     closures:
       zero_scalar_shear:
@@ -826,7 +851,7 @@ cmb:
         description: Even-parity polarization quadrupole relation.
         notes: >-
           provenance: Ma and Bertschinger (1995) scalar polarization moment
-          convention; coefficient remains subject to Slice Twelve tests.
+          convention; coefficient is covered by the Slice Twelve tests.
         domain: linear_scalar
     interactions:
       shrink_baryon_response:
@@ -874,7 +899,7 @@ cmb:
         domain: linear_scalar
         notes: >-
           provenance: Thomson momentum conservation in Ma and Bertschinger
-          (1995); must remain bounded in the Slice Twelve implementation.
+          (1995); remains bounded in the native production implementation.
     sources:
       temperature_monopole_source:
         expression: theta_gamma0 + Psi
@@ -909,8 +934,8 @@ cmb:
           hierarchy convention.
         units: dimensionless
       polarization_b_source:
-        expression: "0.0"
-        role: signal
+        expression: polarization_b_mode
+        role: polarization_b
         description: Scalar B-polarization source, identically zero by parity.
         notes: >-
           provenance: Scalar parity convention; no tensor or vector source is
@@ -943,11 +968,12 @@ cmb:
         notes: "provenance: Declared from the scalar polarization hierarchy."
       polarization_b:
         kind: transfer_component
-        projection: line_of_sight_signal
+        projection: spin2_b_mode
         source_terms:
-          signal: polarization_b_source
+          polarization_b: polarization_b_source
         description: USMF2 scalar B transfer component, physically zero.
-        notes: "provenance: Scalar parity closure; production remains disabled."
+        notes: >-
+          provenance: Scalar parity closure; the source is identically zero.
       lensing_potential:
         kind: transfer_component
         projection: line_of_sight_lensing_potential
@@ -1084,6 +1110,16 @@ cmb:
         expression: "0.0"
         description: Regular super-horizon massless-neutrino shear seed.
         notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+      polarization_b_mode_seed:
+        target:
+          variable: polarization_b_mode
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Scalar B-polarization parity seed.
+        notes: >-
+          provenance: Scalar parity convention; the odd-parity scalar seed is
+          identically zero.
     boundary_conditions: {}
     initial_condition_families:
       adiabatic_scalar:
@@ -1103,6 +1139,7 @@ cmb:
         - neutrino_density_seed
         - neutrino_velocity_seed
         - neutrino_shear_seed
+        - polarization_b_mode_seed
     projection_typing:
       temperature_line_of_sight:
         sector: scalar
@@ -1134,20 +1171,18 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      - usmf2_specification_only
+      - usmf2_native_production
       notes: >-
-        The USMF2 scalar closure is complete as a declarative specification,
-        but remains unavailable for production CMB execution. Its proposed
-        shrink-field coefficients, finite hierarchy boundaries, and metric
-        constraints require the independent analytic and numerical acceptance
-        surface in Slice Twelve. No particulate-matter fallback is allowed.
+        The USMF2 scalar closure is a complete native production route. Its
+        shrink-field coefficients, finite hierarchy boundaries, metric
+        constraints, regular initial data, and projection sources are all
+        evaluated by the declared graph without a particulate-matter fallback.
     notes: >-
-      This is the Slice Eleven theory-facing USMF2 closure. It declares the
-      independent shrink_field degree of freedom, the photon-baryon-neutrino
-      carriers, metric constraints, finite hierarchy boundaries, regular
-      initial data, projection sources, public observables, and analytic-limit
-      controls. The contract intentionally keeps valid_for_cmb false until
-      Slice Twelve proves the proposed coefficients and limits.
+      This is the Slice Twelve production USMF2 closure. It declares and
+      evaluates the independent shrink_field degree of freedom, the
+      photon-baryon-neutrino carriers, metric constraints, finite hierarchy
+      boundaries, regular initial data, projection sources, public observables,
+      and analytic-limit controls in the native solver.
 notes: >-
   Detailed model behaviour embedded in this JSON. The BAO radiation mapping
   multiplies

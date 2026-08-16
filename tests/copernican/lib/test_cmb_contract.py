@@ -158,7 +158,8 @@ class TestCMBContractExports(unittest.TestCase):
                     model_path.name
                 )
         matrix = cmb_contract.build_cmb_capability_matrix(contracts)
-        self.assertEqual(len(matrix), 9)
+        self.assertEqual(len(matrix), 10)
+        self.assertIn("USMFv2", matrix)
         for audit in matrix.values():
             self.assertEqual(audit.unsupported_observables, ())
             self.assertEqual(

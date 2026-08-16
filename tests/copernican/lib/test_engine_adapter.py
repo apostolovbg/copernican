@@ -1046,10 +1046,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     self.assertNotIn("sum_mnu", param_map)
                     self.assertNotIn("num_massive_neutrinos", param_map)
 
-    def test_usmf2_specification_remains_explicitly_unavailable(
-        self,
-    ):
-        """USMF2's declared closure stays disabled until Slice Twelve."""
+    def test_usmf2_native_route_is_available(self):
+        """USMF2 exposes its complete closure through the native solver."""
 
         repo_root = Path(__file__).resolve().parents[3]
         yaml_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
@@ -1061,22 +1059,20 @@ class EngineInterfaceTestCase(unittest.TestCase):
             funcs, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_plugin_validation.build_plugin(parsed, funcs)
 
-        self.assertFalse(plugin.valid_for_cmb)
+        self.assertTrue(plugin.valid_for_cmb)
         perturbations = parsed["cmb"]["perturbations"]
         self.assertTrue(perturbations["variables"])
         self.assertTrue(perturbations["equations"])
         self.assertTrue(perturbations["observables"])
         self.assertIn(
-            "usmf2_specification_only",
+            "usmf2_native_production",
             perturbations["validity"]["regimes"],
         )
         self.assertNotIn("standard", perturbations)
         self.assertNotIn("backend_mapping", perturbations)
         self.assertNotIn("cdm", perturbations["species"])
-        self.assertIsNone(plugin.CMB_NATIVE_RUNTIME)
-        self.assertIsNone(
-            plugin.CMB_PERTURBATION_DATA
-        )
+        self.assertIsNotNone(plugin.CMB_NATIVE_RUNTIME)
+        self.assertIsNotNone(plugin.CMB_PERTURBATION_DATA)
 
     def test_native_models_use_theory_neutral_scalar_metadata(self):
         """Scalar metadata must not smuggle LCDM assumptions into models."""
@@ -1401,6 +1397,145 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         plugin = engine_plugin_validation.build_plugin(model_data, functions)
         plugin.MODEL_FILENAME = model_path.name
         return plugin
+
+    def test_usmf2_native_route_is_promoted(self) -> None:
+        """USMF2 must expose its declared graph as a native CMB route."""
+
+        plugin = self._build_plugin("model_usmf2.yml")
+
+        self.assertTrue(plugin.valid_for_cmb)
+        self.assertIsNotNone(plugin.CMB_NATIVE_RUNTIME)
+        self.assertIsNotNone(plugin.CMB_PERTURBATION_DATA)
+        self.assertEqual(
+            plugin.get_cmb_perturbation_data(
+                plugin.INITIAL_GUESSES
+            ).manifest_summary["execution_route"]["engine_id"],
+            NATIVE_CMB_ENGINE_ID,
+        )
+
+    @staticmethod
+    def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):
+        """Build USMF2 with a small deterministic grid for contract tests."""
+
+        repo_root = Path(__file__).resolve().parents[3]
+        source_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        for controls in (
+            model_data["cmb"]["numerical"],
+            model_data["cmb"]["perturbations"]["numerics"],
+        ):
+            controls.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": 20,
+                    "k_min": 1.0e-4,
+                    "k_max": 2.0e-2,
+                    "k_sample_count": 3,
+                    "eta_sample_count": eta_sample_count,
+                    "source_grid_multiplier": 1,
+                    "a_min": 1.0e-2,
+                    "initial_redshift": 99.0,
+                }
+            )
+        model_data["cmb"]["perturbations"]["accuracy_controls"][
+            "scalar_reference_ells"
+        ] = [2, 20]
+        with tempfile.TemporaryDirectory() as model_dir:
+            model_path = Path(model_dir) / source_path.name
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            cache_path = model_spec_validator.validate_and_cache_model(
+                model_path,
+                Path(model_dir) / "cache",
+            )
+            functions, parsed = model_coder.generate_callables(cache_path)
+        plugin = engine_plugin_validation.build_plugin(parsed, functions)
+        plugin.MODEL_FILENAME = source_path.name
+        return plugin
+
+    def test_usmf2_native_spectra_are_finite_and_responsive(self) -> None:
+        """USMF2 spectra must be finite and respond to a model parameter."""
+
+        plugin = self._build_low_resolution_usmf2_plugin()
+        ell_grid = numpy.asarray([2, 8, 20], dtype=int)
+        baseline = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            plugin.INITIAL_GUESSES,
+            ell_grid,
+            spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+        )
+        changed = list(plugin.INITIAL_GUESSES)
+        changed[1] += 0.1
+        started = perf_counter()
+        response = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            tuple(changed),
+            ell_grid,
+            spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+        )
+        self.assertLess(perf_counter() - started, 5.0)
+
+        self.assertEqual(
+            set(baseline),
+            {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
+        )
+        for values in baseline.values():
+            self.assertEqual(values.shape, ell_grid.shape)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+        self.assertFalse(
+            numpy.allclose(
+                baseline["TT"],
+                response["TT"],
+                rtol=1.0e-12,
+                atol=0.0,
+            )
+        )
+
+    def test_usmf2_default_native_mode_is_finite(self) -> None:
+        """The declared default history must support a finite TT mode."""
+
+        plugin = self._build_plugin("model_usmf2.yml")
+        spectra = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            plugin.INITIAL_GUESSES,
+            numpy.asarray([2], dtype=int),
+            spectra=("TT",),
+        )
+
+        self.assertTrue(numpy.all(numpy.isfinite(spectra)))
+
+    def test_usmf2_native_history_converges_on_declared_grid(self) -> None:
+        """USMF2 transfer spectra must agree across declared resolutions."""
+
+        ell_grid = numpy.asarray([2, 8, 20], dtype=int)
+        coarse_plugin = self._build_low_resolution_usmf2_plugin(
+            eta_sample_count=16
+        )
+        coarse = cmb.compute_cmb_spectrum_cached(
+            coarse_plugin,
+            coarse_plugin.INITIAL_GUESSES,
+            ell_grid,
+            spectra=("TT", "TE", "EE"),
+        )
+        reference_plugin = self._build_low_resolution_usmf2_plugin(
+            eta_sample_count=32
+        )
+        reference = cmb.compute_cmb_spectrum_cached(
+            reference_plugin,
+            reference_plugin.INITIAL_GUESSES,
+            ell_grid,
+            spectra=("TT", "TE", "EE"),
+        )
+
+        for spectrum_name in ("TT", "TE", "EE"):
+            numpy.testing.assert_allclose(
+                coarse[spectrum_name],
+                reference[spectrum_name],
+                rtol=1.0e-8,
+                atol=1.0e-12,
+            )
 
     def test_native_lcdm_declares_compiled_scalar_graph(self) -> None:
         """The artifact must compile a native graph with declared outputs."""

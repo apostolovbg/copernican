@@ -80,6 +80,43 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Added the explicit parity-zero USMF2 B mode and corpus row.
+  Why: Corrected capability coverage after promoting USMF2 to CMB-valid.
+  Impact: All ten bundled CMB-valid models now expose the public spectrum
+    matrix without an unsupported-observable gap.
+  Files:
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/test_cmb_contract.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-08-16:
+  Change: Implemented and enabled the USMF2 native CMB closure.
+  Why: Defined Slice Twelve's finite, responsive, convergent spectra and
+    declared theory-identity acceptance without fallback routing.
+  Impact: USMF2 executes through the native graph with documented limits,
+    conservation checks, runtime coverage, and production validity metadata.
+  Files:
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-08-16:
   Change: Completed and closed Slice Eleven with a sourced USMF2
   theory-facing perturbation closure and dependency-graph coverage.
   Why: Defined every shrinking-field state, relation, source, initial mode,

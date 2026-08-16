@@ -539,8 +539,8 @@ def _tensor_metadata_only_contract() -> dict[str, object]:
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
 
-    def test_usmf2_declares_complete_nonproduction_closure(self) -> None:
-        """USMF2 must compile its explicit closure while staying disabled."""
+    def test_usmf2_declares_complete_production_closure(self) -> None:
+        """USMF2 must compile its complete native production closure."""
 
         model_path = (
             Path(__file__).resolve().parents[3]
@@ -549,7 +549,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             / "model_usmf2.yml"
         )
         model_data = yaml.safe_load(model_path.read_text(encoding="utf-8"))
-        self.assertFalse(model_data["valid_for_cmb"])
+        self.assertTrue(model_data["valid_for_cmb"])
         perturbations = model_data["cmb"]["perturbations"]
         for section_name in (
             "variables",
@@ -615,6 +615,104 @@ class PerturbationContractTestCase(unittest.TestCase):
             "shrink_mass_sq",
             compiled.dependency_graph_summary.evaluation_order,
         )
+        balance = compiled.conservation_rules["thomson_momentum_balance"]
+        self.assertAlmostEqual(
+            evaluate_compiled_expression(
+                balance.compiled_expression,
+                {
+                    "acoustic_k": 0.2,
+                    "photon_baryon_momentum_ratio": 0.5,
+                    "thomson_drag": 1.2,
+                    "baryon_thomson_drag": -0.36,
+                },
+            ),
+            0.0,
+            places=14,
+        )
+        metric = compiled.constraints["shrink_metric_constraint"]
+        phi = evaluate_compiled_expression(
+            metric.compiled_expression,
+            {"shrink_field": 0.0, "delta_b": 0.8},
+        )
+        self.assertEqual(phi, 0.2)
+        shear = compiled.closures["zero_scalar_shear"]
+        self.assertEqual(
+            evaluate_compiled_expression(
+                shear.compiled_expression,
+                {"Phi": phi},
+            ),
+            phi,
+        )
+        self.assertEqual(
+            evaluate_compiled_expression(
+                compiled.derived["Phi_tau"].compiled_expression,
+                {"shrink_rate": 0.1, "theta_b": 0.2},
+            ),
+            -0.4,
+        )
+
+    def test_usmf2_incomplete_declaration_is_rejected(self) -> None:
+        """Removing a declared state must fail before native execution."""
+
+        model_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / "model_usmf2.yml"
+        )
+        model_data = yaml.safe_load(model_path.read_text(encoding="utf-8"))
+        perturbations = copy.deepcopy(model_data["cmb"]["perturbations"])
+        del perturbations["variables"]["shrink_field"]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "unknown symbol.*shrink_field",
+        ):
+            compile_perturbation_contract(
+                perturbations,
+                model_name=model_data["model_name"],
+                parameter_names=tuple(
+                    parameter.get("python_var", parameter["name"])
+                    for parameter in model_data["parameters"]
+                ),
+                latex_names=tuple(
+                    parameter.get("latex_name", "")
+                    for parameter in model_data["parameters"]
+                ),
+                background_reference_names=tuple(
+                    model_data["cmb"]["background"]["derived"]
+                ),
+            )
+
+    def test_usmf2_contradictory_metric_targets_are_rejected(self) -> None:
+        """A closure may not redefine the constrained metric target."""
+
+        model_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / "model_usmf2.yml"
+        )
+        model_data = yaml.safe_load(model_path.read_text(encoding="utf-8"))
+        perturbations = copy.deepcopy(model_data["cmb"]["perturbations"])
+        perturbations["closures"]["zero_scalar_shear"]["target"] = "Phi"
+
+        with self.assertRaisesRegex(ValueError, "more than once"):
+            compile_perturbation_contract(
+                perturbations,
+                model_name=model_data["model_name"],
+                parameter_names=tuple(
+                    parameter.get("python_var", parameter["name"])
+                    for parameter in model_data["parameters"]
+                ),
+                latex_names=tuple(
+                    parameter.get("latex_name", "")
+                    for parameter in model_data["parameters"]
+                ),
+                background_reference_names=tuple(
+                    model_data["cmb"]["background"]["derived"]
+                ),
+            )
 
     def _compile(
         self, contract: dict[str, object]
