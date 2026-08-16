@@ -36,6 +36,7 @@ class BatchProgressBar:
         progress_listener: Callable[[dict[str, object]], None] | None = None,
         stage_metadata: dict[str, str] | None = None,
         subunit_labels: tuple[str, str] | None = None,
+        walker_total: int | None = None,
     ) -> None:
         """Initialize the progress bar with stage metadata and listeners."""
         self._stage_label = str(stage_label)
@@ -53,6 +54,12 @@ class BatchProgressBar:
         self._current_span = 0
         self._current_step_total = max(self._total_steps, 1)
         self._current_step_processed = 0
+        self._current_walker_processed = 0
+        if walker_total is None:
+            self._default_walker_total = self._current_step_total
+        else:
+            self._default_walker_total = max(int(walker_total), 1)
+        self._current_walker_total = self._default_walker_total
         self._active = False
         self._last_logged_percent = -1
         self._batch_interval: int | None = None
@@ -108,9 +115,14 @@ class BatchProgressBar:
             else None
         )
         eta_text = "unknown" if eta_seconds is None else f"{eta_seconds:.1f}s"
+        if self._subunit_labels is None:
+            unit_label = "steps"
+        else:
+            singular, plural = self._subunit_labels
+            unit_label = singular if total == 1 else plural
         return (
             f"{self._stage_label} batch {self._batch_index}: "
-            f"{processed}/{total} steps completed ({percent}%), "
+            f"{processed}/{total} {unit_label} completed ({percent}%), "
             f"elapsed={elapsed_seconds:.1f}s, "
             f"rate={items_per_second:.2f}/s, eta={eta_text}"
         )
@@ -125,11 +137,22 @@ class BatchProgressBar:
         percent: int,
         batch_fraction: float,
         step_fraction: float,
+        walker_processed: int | None = None,
+        walker_total: int | None = None,
     ) -> None:
         """Notify the optional listener with structured progress data."""
         if self._progress_listener is None:
             return
-        walker_fraction = min(max(step_fraction, 0.0), 1.0)
+        walker_processed = (
+            processed if walker_processed is None else int(walker_processed)
+        )
+        walker_total = (
+            total if walker_total is None else max(int(walker_total), 1)
+        )
+        walker_processed = min(max(walker_processed, 0), walker_total)
+        walker_fraction = walker_processed / max(walker_total, 1)
+        step_remaining = max(int(total) - int(processed), 0)
+        walker_remaining = max(walker_total - walker_processed, 0)
         record = {
             "event": event,
             "stage_label": self._stage_label,
@@ -141,10 +164,16 @@ class BatchProgressBar:
             "batch_percent": percent,
             "batch_fraction": min(max(batch_fraction, 0.0), 1.0),
             "step_index": step_index,
-            "walker_processed": processed,
-            "walker_total": total,
+            "step_processed": processed,
+            "step_total": total,
+            "step_fraction": min(max(step_fraction, 0.0), 1.0),
+            "step_remaining": step_remaining,
+            "walker_processed": walker_processed,
+            "walker_total": walker_total,
             "walker_fraction": walker_fraction,
             "walker_percent": int(round(walker_fraction * 100)),
+            "walker_remaining": walker_remaining,
+            "remaining": step_remaining,
             "status": "active" if self._active else "inactive",
         }
         started_at = self._started_at
@@ -158,7 +187,7 @@ class BatchProgressBar:
             if elapsed_seconds > 0 and processed > 0
             else 0.0
         )
-        remaining = max(int(total) - int(processed), 0)
+        remaining = step_remaining
         eta_seconds = (
             float(remaining) / items_per_second
             if items_per_second > 0
@@ -197,6 +226,8 @@ class BatchProgressBar:
             self._active = self._current_span > 0
             self._current_step_total = max(self._total_steps, 1)
             self._current_step_processed = 0
+            self._current_walker_processed = 0
+            self._current_walker_total = self._default_walker_total
             self._last_logged_percent = 0
             self._started_at = perf_counter()
             self._notify_listener(
@@ -224,6 +255,8 @@ class BatchProgressBar:
             )
             self._current_step_total = walker_total
             self._current_step_processed = 0
+            self._current_walker_processed = 0
+            self._current_walker_total = walker_total
         return self.update(
             step_index,
             processed=0,
@@ -238,6 +271,8 @@ class BatchProgressBar:
         total: int | None = None,
         step_progress: float | None = None,
         force: bool = False,
+        walker_processed: int | None = None,
+        walker_total: int | None = None,
     ) -> str | None:
         """Return the progress summary for the current batch."""
 
@@ -263,6 +298,18 @@ class BatchProgressBar:
                 processed_int = int(processed)
             processed_int = min(max(processed_int, 0), total_int)
             self._current_step_processed = processed_int
+            if walker_processed is None:
+                walker_processed_int = processed_int
+            else:
+                walker_processed_int = int(walker_processed)
+            if walker_total is None:
+                walker_total_int = total_int
+            else:
+                walker_total_int = max(int(walker_total), 1)
+            self._current_walker_processed = min(
+                max(walker_processed_int, 0), walker_total_int
+            )
+            self._current_walker_total = walker_total_int
             if step_progress is None or not math.isfinite(step_progress):
                 step_fraction = (
                     processed_int / max(total_int, 1) if total_int else 0.0
@@ -280,6 +327,8 @@ class BatchProgressBar:
                     percent=percent,
                     batch_fraction=batch_fraction,
                     step_fraction=step_fraction,
+                    walker_processed=self._current_walker_processed,
+                    walker_total=self._current_walker_total,
                 )
                 return None
             self._last_logged_percent = percent
@@ -297,6 +346,8 @@ class BatchProgressBar:
                 percent=percent,
                 batch_fraction=batch_fraction,
                 step_fraction=step_fraction,
+                walker_processed=self._current_walker_processed,
+                walker_total=self._current_walker_total,
             )
             return message
 
@@ -315,6 +366,8 @@ class BatchProgressBar:
                 percent=100,
                 batch_fraction=1.0,
                 step_fraction=1.0,
+                walker_processed=self._current_walker_processed,
+                walker_total=self._current_walker_total,
             )
             self._active = False
             self._current_span = 0
@@ -322,6 +375,8 @@ class BatchProgressBar:
             self._current_end = 0
             self._current_step_total = max(self._total_steps, 1)
             self._current_step_processed = 0
+            self._current_walker_processed = 0
+            self._current_walker_total = self._default_walker_total
             self._started_at = None
             self._last_logged_percent = -1
 

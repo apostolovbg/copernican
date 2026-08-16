@@ -125,6 +125,10 @@ The Run Monitor page exposes:
 - Alerts that jump directly to recorded anchors inside the log
 - Buttons to pause, cancel, hard stop or open the output directory once the run
  starts producing files
+Burn-in and production report completed iterations separately from cumulative
+walker evaluations. Elapsed time, measured rate, remaining work, and ETA use
+the same counters as the CLI, while coalesced refresh callbacks keep the
+monitor responsive and unchanged log tails are not rewritten.
 The child worker owns the single canonical run log. Its structured console
 transport supplies the in-memory monitor with the original event severity;
 the monitor and progress snapshot channel never write back into that file.

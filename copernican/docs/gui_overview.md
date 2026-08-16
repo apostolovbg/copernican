@@ -87,7 +87,8 @@ alert anchored for quick navigation. A “Lock log to latest entry” checkbox
 beside the filters pins the view to the most recent lines whenever you want to
 watch the ensemble finish without manually scrolling back down. That log
 console drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200
-steps completed”) so it shows only batch summaries, and the Cancel/Pause/Hard
+iterations completed”) so it shows only batch summaries, and the
+Cancel/Pause/Hard
 Stop buttons stay disabled (greyed out) until a run starts, after which they
 return to their normal, clickable appearance. The monitor refresh loop
 verifies every progress label, bar and log text widget exists before
@@ -95,9 +96,12 @@ touching it, so switching away from the Run Monitor or Validation tabs no
 longer triggers Tk errors while the background run keeps streaming updates
 uninterrupted.
 Worker-pool launch and walker initialization appear as named phases before
-burn-in, with elapsed time, evaluation rate, and ETA mirrored from the CLI
-progress snapshots. This distinguishes worker runtime preparation and initial
-posterior evaluation from a stalled GUI launch.
+burn-in, with elapsed time, evaluation rate, remaining work, and ETA mirrored
+from the CLI progress snapshots. Burn-in and production report iteration
+progress separately from cumulative walker evaluations, while coalesced
+refresh callbacks and unchanged log tails keep the monitor responsive. This
+distinguishes worker runtime preparation and initial posterior evaluation from
+a stalled GUI launch.
 ## Analysis
 The navigation rail includes an **Analysis** button between Engines and
 Validation. Pressing it opens a 4-tab workspace that mirrors the Settings

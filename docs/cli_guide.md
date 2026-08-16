@@ -75,8 +75,12 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
  and starts the worker. Logs stream to stdout and to the per-run
  `copernican-run_<timestamp>.txt` file in parallel.
 Every stage logs progress and flushes stdout so long optimisations remain
-responsive even on remote terminals. Menu prompts use numbered options to keep
-keyboard-only navigation consistent on macOS, Linux and Windows shells.
+responsive even on remote terminals. Sampling progress counts completed
+burn-in or production iterations separately from cumulative walker
+evaluations; each record includes elapsed time, measured rate, remaining work,
+and ETA. Walker initialization retains its evaluation counter. Menu prompts use
+numbered options to keep keyboard-only navigation consistent on macOS, Linux
+and Windows shells.
 ## Utility Commands
 Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:

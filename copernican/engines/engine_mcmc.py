@@ -424,6 +424,19 @@ class _SamplingProgressReporter:
         return self._scratch
 
 
+class _OrderedPoolMap:
+    """Expose ordered worker mapping with a bounded task chunk size."""
+
+    def __init__(self, pool: object, *, chunksize: int = 1) -> None:
+        """Wrap a multiprocessing pool without changing its lifecycle."""
+        self._pool = pool
+        self._chunksize = max(int(chunksize), 1)
+
+    def map(self, function, iterable):
+        """Map ``function`` in input order using the configured chunk size."""
+        return self._pool.map(function, iterable, chunksize=self._chunksize)
+
+
 def _build_joint_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
@@ -681,6 +694,8 @@ def _run_stage_with_progress(
         label,
         n_steps,
         display=display_progress,
+        subunit_labels=("iteration", "iterations"),
+        walker_total=n_steps * sampler.nwalkers,
         progress_listener=progress_listener,
         stage_metadata=stage_metadata,
     )
@@ -702,9 +717,11 @@ def _run_stage_with_progress(
             state = next(iterator)
             progress_bar.update(
                 idx,
-                processed=sampler.nwalkers,
-                total=sampler.nwalkers,
+                processed=idx,
+                total=n_steps,
                 step_progress=1.0,
+                walker_processed=idx * sampler.nwalkers,
+                walker_total=n_steps * sampler.nwalkers,
             )
             if idx == batch_end and idx < n_steps:
                 progress_bar.finish_batch()
@@ -988,11 +1005,20 @@ def fit_cosmology_parameters(
             )
             worker_progress.start_batch(1, pool_processes)
             pool_started = perf_counter()
-            pool = multiprocessing_module.get_context("spawn").Pool(
-                processes=pool_processes,
-                initializer=_initialize_mcmc_worker,
-                initargs=(log_probability_active,),
-            )
+            worker_flag = "COPERNICAN_MCMC_WORKER"
+            previous_worker_flag = os.environ.get(worker_flag)
+            os.environ[worker_flag] = "1"
+            try:
+                pool = multiprocessing_module.get_context("spawn").Pool(
+                    processes=pool_processes,
+                    initializer=_initialize_mcmc_worker,
+                    initargs=(log_probability_active,),
+                )
+            finally:
+                if previous_worker_flag is None:
+                    os.environ.pop(worker_flag, None)
+                else:
+                    os.environ[worker_flag] = previous_worker_flag
             pool_elapsed = max(perf_counter() - pool_started, 0.0)
             worker_progress.update(
                 pool_processes,
@@ -1059,11 +1085,16 @@ def fit_cosmology_parameters(
                 if pool is not None
                 else log_probability_active
             )
+            sampler_pool = (
+                _OrderedPoolMap(pool, chunksize=1)
+                if pool is not None
+                else None
+            )
             sampler = emcee.EnsembleSampler(
                 n_walkers,
                 ndim_active,
                 sampler_log_probability,
-                pool=pool,
+                pool=sampler_pool,
             )
             phase_seconds["initialization"] = (
                 perf_counter() - initialization_started

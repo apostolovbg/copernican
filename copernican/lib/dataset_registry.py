@@ -393,8 +393,10 @@ def discover_trusted_parsers(
 
 # Discover parsers at import time so that functions like
 # ``load_sne_data`` can simply refer to the registries without
-# additional setup.
-discover_trusted_parsers()
+# additional setup. MCMC spawn workers receive already-loaded likelihood
+# objects, so they skip this immutable catalogue scan during startup.
+if os.environ.get("COPERNICAN_MCMC_WORKER") != "1":
+    discover_trusted_parsers()
 
 # Bundle the registries and logging messages for observable categories whose
 # loaders now share the same control flow.  The shared structure keeps the

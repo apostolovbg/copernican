@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Implemented truthful MCMC progress counters, coalesced GUI
+    refreshes, bounded ordered pool mapping, and worker startup reuse.
+  Why: Prevented misleading stage percentages and removed repeated monitor,
+    parser-discovery, and proposal-scheduling overhead from the baseline path.
+  Impact: CLI and GUI distinguish iterations from walker evaluations while
+    preserving scalar sampling behavior and immutable dataset ownership.
+  Files:
+  copernican/engines/engine_mcmc.py
+  copernican/lib/dataset_registry.py
+  copernican/lib/gui/app.py
+  copernican/lib/progress.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/gui/test_app.py
+  docs/cli_guide.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  copernican/docs/cli_guide.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  README.md
+  copernican/README.md
+  SUPPORT.md
+  copernican/SUPPORT.md
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-08-16:
   Change: Replaced the open roadmap with three detailed native-sampling
     performance slices and removed the obsolete plan copy.
   Why: Consolidated safe runtime acceleration, batch evaluation, and

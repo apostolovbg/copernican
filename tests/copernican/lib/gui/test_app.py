@@ -149,6 +149,35 @@ class TestCopernicanGUI(unittest.TestCase):
     def test_run_monitor_lifecycle(self) -> None:
         _case_run_monitor_lifecycle(self)
 
+    def test_progress_snapshot_refreshes_are_coalesced(self) -> None:
+        """A burst of progress records schedules one UI refresh per view."""
+
+        gui = CopernicanGUI(render=False)
+        callbacks: list[object] = []
+        gui.render = True
+        gui.root = SimpleNamespace(
+            after=lambda _delay, callback: callbacks.append(callback)
+        )
+        snapshot = {"stage_label": "production", "event": "progress_update"}
+        gui._apply_progress_snapshot(snapshot)
+        gui._apply_progress_snapshot(snapshot | {"batch_percent": 10})
+        self.assertEqual(len(callbacks), 2)
+
+    def test_run_log_widget_skips_unchanged_tail(self) -> None:
+        """Repeated monitor refreshes do not rewrite an unchanged log tail."""
+
+        gui = CopernicanGUI(render=False)
+        widget = mock.Mock()
+        widget.yview.return_value = (0.0, 1.0)
+        gui._monitor_log_widget = widget
+        entry = SimpleNamespace(anchor="run-1", formatted="ready")
+        gui.get_run_log_entries = mock.Mock(return_value=[entry])
+        with mock.patch.object(gui, "_widget_is_alive", return_value=True):
+            gui._refresh_run_log_widget()
+            gui._refresh_run_log_widget()
+        self.assertEqual(widget.delete.call_count, 1)
+        self.assertEqual(widget.insert.call_count, 1)
+
     def test_manifest_import_export_round_trip(self) -> None:
         _case_manifest_import_export_round_trip(self)
 

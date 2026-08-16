@@ -483,10 +483,14 @@ class CopernicanGUI:
         self._progress_poll_thread: threading.Thread | None = None
         self._progress_poll_stop: threading.Event | None = None
         self._monitor_refresh_job: str | None = None
+        self._monitor_refresh_pending = False
+        self._validation_refresh_pending = False
         self._progress_status_label: ttk_module.Label | None = None
         self._batch_progressbar: ttk_module.Progressbar | None = None
         self._walker_progressbar: ttk_module.Progressbar | None = None
         self._monitor_log_widget: tkinter_module.Text | None = None
+        self._monitor_log_rendered_tail: tuple[str, ...] | None = None
+        self._monitor_log_rendered_widget: object | None = None
         self._monitor_filter_label: ttk_module.Label | None = None
         self._monitor_log_view_button: ttk_module.Button | None = None
         self._monitor_log_open_button: ttk_module.Button | None = None
@@ -7501,8 +7505,13 @@ class CopernicanGUI:
                 self._validation_last_stage_label = stage_name
         if snapshot.get("stage_label"):
             self.current_phase = snapshot["stage_label"]
-        self._call_on_ui_thread(self._refresh_monitor_widgets)
-        self._call_on_ui_thread(self._refresh_validation_progress_widgets)
+        self._schedule_progress_refresh(
+            "_monitor_refresh_pending", self._refresh_monitor_widgets
+        )
+        self._schedule_progress_refresh(
+            "_validation_refresh_pending",
+            self._refresh_validation_progress_widgets,
+        )
 
     def _stage_label_text(self, snapshot: dict | None) -> str:
         """Return the textual stage label derived from the snapshot."""
@@ -7512,6 +7521,10 @@ class CopernicanGUI:
             label = snapshot.get("stage_label", "Stage")
             event = snapshot.get("event", "").replace("_", " ")
             stage_label = f"{label} – {event}".strip(" –")
+            processed = snapshot.get("step_processed")
+            total = snapshot.get("step_total")
+            if isinstance(processed, int) and isinstance(total, int):
+                stage_label = f"{stage_label} ({processed}/{total})"
         return stage_label
 
     def _widget_is_alive(self, widget: tkinter_module.Widget | None) -> bool:
@@ -7533,6 +7546,25 @@ class CopernicanGUI:
             self.root.after(0, partial(func, *args, **kwargs))
         else:
             func(*args, **kwargs)
+
+    def _schedule_progress_refresh(
+        self, pending_attribute: str, refresh: Callable[[], object]
+    ) -> None:
+        """Coalesce progress refresh callbacks queued on the Tk loop."""
+
+        if getattr(self, pending_attribute):
+            return
+        setattr(self, pending_attribute, True)
+
+        def _run_refresh() -> None:
+            """Run one coalesced refresh and release its pending marker."""
+
+            try:
+                refresh()
+            finally:
+                setattr(self, pending_attribute, False)
+
+        self._call_on_ui_thread(_run_refresh)
 
     def _refresh_monitor_widgets(self) -> None:
         """Update the progress bars, status label and log console."""
@@ -7615,20 +7647,29 @@ class CopernicanGUI:
 
         if not self._widget_is_alive(self._monitor_log_widget):
             self._monitor_log_widget = None
+            self._monitor_log_rendered_tail = None
+            self._monitor_log_rendered_widget = None
             return
         entries = self.get_run_log_entries()
+        rendered_tail = tuple(
+            f"[{entry.anchor}] {entry.formatted}\n" for entry in entries[-200:]
+        )
+        if (
+            self._monitor_log_rendered_widget is self._monitor_log_widget
+            and self._monitor_log_rendered_tail == rendered_tail
+        ):
+            return
         lock_tail = self._monitor_log_lock_var is None or bool(
             self._monitor_log_lock_var.get()
         )
         prev_view = None if lock_tail else self._monitor_log_widget.yview()
         self._monitor_log_widget.configure(state="normal")
         self._monitor_log_widget.delete("1.0", "end")
-        for entry in entries[-200:]:
-            self._monitor_log_widget.insert(
-                "end",
-                f"[{entry.anchor}] {entry.formatted}\n",
-            )
+        for line in rendered_tail:
+            self._monitor_log_widget.insert("end", line)
         self._monitor_log_widget.configure(state="disabled")
+        self._monitor_log_rendered_tail = rendered_tail
+        self._monitor_log_rendered_widget = self._monitor_log_widget
         if lock_tail:
             try:
                 self._monitor_log_widget.yview_moveto(1.0)
@@ -7658,7 +7699,9 @@ class CopernicanGUI:
         """Periodic callback that refreshes monitor widgets."""
 
         self._monitor_refresh_job = None
-        self._refresh_monitor_widgets()
+        self._schedule_progress_refresh(
+            "_monitor_refresh_pending", self._refresh_monitor_widgets
+        )
         if (
             self.status is RunStatus.RUNNING
             and self.render

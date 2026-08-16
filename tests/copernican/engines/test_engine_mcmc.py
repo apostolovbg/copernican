@@ -459,6 +459,67 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertIn("items_per_second", final)
         self.assertIn("eta_seconds", final)
 
+    def test_mcmc_progress_separates_iterations_from_walker_evaluations(self):
+        """MCMC progress reports stage iterations and cumulative walkers."""
+
+        class _Sampler:
+            nwalkers = 4
+
+            def sample(self, _initial_state, *, iterations, progress):
+                if iterations != 3 or progress:
+                    raise AssertionError("unexpected sampler arguments")
+                for _ in range(iterations):
+                    yield object()
+
+        events: list[dict[str, object]] = []
+        logger = logging.getLogger("test.mcmc.progress")
+        state = module._run_stage_with_progress(
+            _Sampler(),
+            numpy.zeros((4, 1)),
+            3,
+            stage_name="production",
+            logger=logger,
+            progress_granularity=3,
+            display_progress=False,
+            progress_listener=events.append,
+        )
+
+        self.assertIsNotNone(state)
+        updates = [
+            event for event in events if event["event"] == "progress_update"
+        ]
+        self.assertEqual(
+            [event["step_processed"] for event in updates], [1, 2, 3]
+        )
+        self.assertTrue(all(event["step_total"] == 3 for event in updates))
+        self.assertEqual(
+            [event["walker_processed"] for event in updates], [4, 8, 12]
+        )
+        self.assertTrue(all(event["walker_total"] == 12 for event in updates))
+        self.assertGreater(updates[0]["step_remaining"], 0)
+        self.assertEqual(updates[-1]["step_remaining"], 0)
+        self.assertTrue(
+            all(event["items_per_second"] > 0 for event in updates)
+        )
+
+    def test_ordered_pool_map_uses_single_item_chunks(self) -> None:
+        """The sampler adapter preserves order while bounding task chunks."""
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.chunksizes: list[int] = []
+
+            def map(self, function, iterable, *, chunksize):
+                self.chunksizes.append(chunksize)
+                return [function(item) for item in iterable]
+
+        pool = _Pool()
+        adapter = module._OrderedPoolMap(pool)
+        self.assertEqual(
+            adapter.map(lambda value: value * 2, [1, 2, 3]), [2, 4, 6]
+        )
+        self.assertEqual(pool.chunksizes, [1])
+
     def test_initial_point_preflight_rejects_before_walker_creation(self):
         """A non-finite nominal point must stop before proposals exist."""
 

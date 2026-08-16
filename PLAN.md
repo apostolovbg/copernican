@@ -294,7 +294,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [open] Slice Thirteen - Baseline and safe acceleration
+### [closed] Slice Thirteen - Baseline and safe acceleration
 
 **Purpose:** Make performance evidence truthful and remove behavior-preserving
 overhead from progress reporting, GUI rendering, worker startup, and proposal

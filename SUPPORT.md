@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-08-16
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -24,7 +24,9 @@ help stay aligned with the runtime path layout.
 Troubleshooting should start with the worker-owned canonical log in the run
 folder. The GUI Run Monitor displays the same worker events through a separate
 in-memory transport and preserves their severity, but it does not write a
-second log file.
+second log file. Sampling progress distinguishes completed iterations from
+cumulative walker evaluations, so partial stages can be diagnosed from the
+same counters shown in the CLI and GUI.
 If the GUI opens nothing, confirm that the managed `.venv` is active
 and that Copernican was launched with `python -m copernican --gui`.
 Run and validation workers use that interpreter and the package import root.
