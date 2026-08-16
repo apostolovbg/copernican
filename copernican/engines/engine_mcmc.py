@@ -227,6 +227,7 @@ def _initialize_mcmc_worker(
     """Install one sampler callable and compile worker-local static assets."""
 
     global _WORKER_LOG_PROBABILITY
+    runtime_started = perf_counter()
     # Keep one numerical thread per worker so BLAS/OpenMP pools cannot multiply
     # the process cap into an unbounded numerical workload.
     for variable in (
@@ -239,6 +240,10 @@ def _initialize_mcmc_worker(
         os.environ[variable] = "1"
     _WORKER_LOG_PROBABILITY = log_probability
     log_probability.prepare_worker_runtime()
+    logging.getLogger().info(
+        "MCMC worker runtime prepared in %.3fs.",
+        max(perf_counter() - runtime_started, 0.0),
+    )
 
 
 def _worker_log_probability(position: numpy.ndarray) -> float:
@@ -247,6 +252,15 @@ def _worker_log_probability(position: numpy.ndarray) -> float:
     if _WORKER_LOG_PROBABILITY is None:
         raise RuntimeError("MCMC worker runtime was not initialized")
     return _WORKER_LOG_PROBABILITY(position)
+
+
+def _worker_indexed_log_probability(
+    item: tuple[int, numpy.ndarray],
+) -> tuple[int, float]:
+    """Evaluate one indexed proposal for unordered progress reporting."""
+
+    index, position = item
+    return int(index), _worker_log_probability(position)
 
 
 class _JointLogLikelihood:
@@ -948,6 +962,7 @@ def fit_cosmology_parameters(
             requested_pool=requested_pool,
             n_walkers=n_walkers,
         )
+        worker_progress = None
         if requested_pool is None:
             if pool_processes is not None:
                 logger.info(
@@ -961,10 +976,35 @@ def fit_cosmology_parameters(
             )
 
         if pool_processes is not None:
+            worker_progress = BatchProgressBar(
+                f"{model_plugin.MODEL_NAME} worker pool",
+                pool_processes,
+                display=display_progress,
+                progress_listener=progress_callback,
+                stage_metadata={
+                    "phase": "worker_pool_launch",
+                    "model": getattr(model_plugin, "MODEL_NAME", ""),
+                },
+            )
+            worker_progress.start_batch(1, pool_processes)
+            pool_started = perf_counter()
             pool = multiprocessing_module.get_context("spawn").Pool(
                 processes=pool_processes,
                 initializer=_initialize_mcmc_worker,
                 initargs=(log_probability_active,),
+            )
+            pool_elapsed = max(perf_counter() - pool_started, 0.0)
+            worker_progress.update(
+                pool_processes,
+                processed=pool_processes,
+                total=pool_processes,
+                force=True,
+            )
+            worker_progress.finish_batch()
+            logger.info(
+                "MCMC worker pool launched: workers=%d, elapsed=%.3fs.",
+                pool_processes,
+                pool_elapsed,
             )
         try:
             initial_log_probability = (
@@ -973,6 +1013,29 @@ def fit_cosmology_parameters(
                 else log_probability_active
             )
             initial_map = pool.map if pool is not None else None
+            unordered_map = pool.imap_unordered if pool is not None else None
+            walker_progress = BatchProgressBar(
+                f"{model_plugin.MODEL_NAME} walker initialization",
+                n_walkers,
+                display=display_progress,
+                progress_listener=progress_callback,
+                stage_metadata={
+                    "phase": "walker_initialization",
+                    "model": getattr(model_plugin, "MODEL_NAME", ""),
+                },
+            )
+            walker_progress.start_batch(1, n_walkers)
+
+            def _report_walker_progress(completed: int, total: int) -> None:
+                """Forward completed initialization evaluations."""
+
+                walker_progress.update(
+                    completed,
+                    processed=completed,
+                    total=total,
+                    force=True,
+                )
+
             initialization_started = perf_counter()
             initial_positions, logp = _initialise_active_walkers(
                 initial_active,
@@ -982,6 +1045,14 @@ def fit_cosmology_parameters(
                 rng,
                 initial_log_probability,
                 map_fn=initial_map,
+                unordered_map_fn=unordered_map,
+                progress_callback=_report_walker_progress,
+            )
+            walker_progress.finish_batch()
+            logger.info(
+                "Walker initialization completed: walkers=%d, elapsed=%.3fs.",
+                n_walkers,
+                max(perf_counter() - initialization_started, 0.0),
             )
             sampler_log_probability = (
                 _worker_log_probability
@@ -1543,6 +1614,8 @@ def _initialise_active_walkers(
     rng: numpy.random.Generator,
     log_probability_fn: Callable[[numpy.ndarray], float],
     map_fn: Callable[..., Any] | None = None,
+    unordered_map_fn: Callable[..., Any] | None = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return initial walker positions with finite log probabilities.
 
@@ -1565,6 +1638,43 @@ def _initialise_active_walkers(
         numpy.isfinite(width), numpy.maximum(width / 10.0, jitter), jitter
     )
 
+    def _evaluate_log_probabilities(
+        proposals: numpy.ndarray,
+    ) -> numpy.ndarray:
+        """Evaluate proposals while reporting completed walker work."""
+
+        total = int(len(proposals))
+        if unordered_map_fn is not None:
+            values = numpy.empty(total, dtype=float)
+            completed = 0
+            indexed_proposals = enumerate(proposals)
+            for index, value in unordered_map_fn(
+                _worker_indexed_log_probability,
+                indexed_proposals,
+                chunksize=1,
+            ):
+                values[int(index)] = float(value)
+                completed += 1
+                if progress_callback is not None:
+                    progress_callback(completed, total)
+            return values
+
+        if map_fn is None:
+            values = numpy.empty(total, dtype=float)
+            for index, proposal in enumerate(proposals):
+                values[index] = float(log_probability_fn(proposal))
+                if progress_callback is not None:
+                    progress_callback(index + 1, total)
+            return values
+
+        values = numpy.asarray(
+            list(map_fn(log_probability_fn, proposals)), dtype=float
+        )
+        if progress_callback is not None:
+            for completed in range(1, total + 1):
+                progress_callback(completed, total)
+        return values
+
     attempts = 0
     scatter_multiplier = 1.0
     while attempts < _MAX_INITIAL_ATTEMPTS:
@@ -1579,12 +1689,7 @@ def _initialise_active_walkers(
             proposals = numpy.clip(proposals, lower, upper)
         proposals[0] = numpy.clip(initial_active, lower, upper)
 
-        if map_fn is None:
-            logp = numpy.array([log_probability_fn(pos) for pos in proposals])
-        else:
-            logp = numpy.asarray(
-                list(map_fn(log_probability_fn, proposals)), dtype=float
-            )
+        logp = _evaluate_log_probabilities(proposals)
         if not numpy.all(numpy.isfinite(logp)):
             scatter_multiplier *= 2.0
             continue

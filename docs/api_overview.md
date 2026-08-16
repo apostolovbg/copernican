@@ -25,6 +25,9 @@ directly without using the command-line interface. The core modules are:
  the GUI progress monitors. The helper keeps stage metadata and the listener
  contract unchanged so every backend can report progress without depending on
  carriage-return renderers or spinner pumps.
+ Each record also carries elapsed seconds, completed-item throughput, and an
+ ETA when a rate is available; MCMC uses the same contract for worker-pool
+ launch and initial walker evaluations before burn-in begins.
 - `copernican.lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir,
   comparison)` –
  render the Stage 2 posterior as an automatically thinned corner plot whose

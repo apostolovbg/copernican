@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import math
 import threading
+from time import perf_counter
 from typing import Callable, Iterator
 
 from copernican.lib import console_output
@@ -56,6 +57,7 @@ class BatchProgressBar:
         self._last_logged_percent = -1
         self._batch_interval: int | None = None
         self._expected_batches = 1
+        self._started_at: float | None = None
 
     def _batch_fraction(self, step_index: int, fraction: float) -> float:
         """Return the normalized position inside the current batch."""
@@ -88,9 +90,29 @@ class BatchProgressBar:
         self, processed: int, total: int, percent: int
     ) -> str:
         """Build the textual progress summary echoed to the console."""
+        started_at = self._started_at
+        elapsed_seconds = (
+            max(perf_counter() - started_at, 0.0)
+            if started_at is not None
+            else 0.0
+        )
+        items_per_second = (
+            float(processed) / elapsed_seconds
+            if elapsed_seconds > 0 and processed > 0
+            else 0.0
+        )
+        remaining = max(int(total) - int(processed), 0)
+        eta_seconds = (
+            float(remaining) / items_per_second
+            if items_per_second > 0
+            else None
+        )
+        eta_text = "unknown" if eta_seconds is None else f"{eta_seconds:.1f}s"
         return (
             f"{self._stage_label} batch {self._batch_index}: "
-            f"{processed}/{total} steps completed ({percent}%)"
+            f"{processed}/{total} steps completed ({percent}%), "
+            f"elapsed={elapsed_seconds:.1f}s, "
+            f"rate={items_per_second:.2f}/s, eta={eta_text}"
         )
 
     def _notify_listener(
@@ -125,6 +147,30 @@ class BatchProgressBar:
             "walker_percent": int(round(walker_fraction * 100)),
             "status": "active" if self._active else "inactive",
         }
+        started_at = self._started_at
+        elapsed_seconds = (
+            max(perf_counter() - started_at, 0.0)
+            if started_at is not None
+            else 0.0
+        )
+        items_per_second = (
+            float(processed) / elapsed_seconds
+            if elapsed_seconds > 0 and processed > 0
+            else 0.0
+        )
+        remaining = max(int(total) - int(processed), 0)
+        eta_seconds = (
+            float(remaining) / items_per_second
+            if items_per_second > 0
+            else None
+        )
+        record.update(
+            {
+                "elapsed_seconds": elapsed_seconds,
+                "items_per_second": items_per_second,
+                "eta_seconds": eta_seconds,
+            }
+        )
         try:
             self._progress_listener(record)
         except (RuntimeError, TypeError, ValueError, KeyError):
@@ -152,6 +198,7 @@ class BatchProgressBar:
             self._current_step_total = max(self._total_steps, 1)
             self._current_step_processed = 0
             self._last_logged_percent = 0
+            self._started_at = perf_counter()
             self._notify_listener(
                 event="batch_start",
                 step_index=self._current_start,
@@ -275,6 +322,7 @@ class BatchProgressBar:
             self._current_end = 0
             self._current_step_total = max(self._total_steps, 1)
             self._current_step_processed = 0
+            self._started_at = None
             self._last_logged_percent = -1
 
     @contextlib.contextmanager

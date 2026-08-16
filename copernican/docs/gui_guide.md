@@ -117,7 +117,8 @@ manifest flows through the exact same orchestration code.
 ## Run Monitor and Diagnostics
 The Run Monitor page exposes:
 - A status label describing the orchestration phase
-- Batch and walker progress bars with live percentages from Stage 2
+- Named worker-pool and walker-initialization phases with live percentages,
+ elapsed rates and ETAs before the Stage 2 sampling batches
 - Manifest metadata lines so you can confirm which assets are running
 - A log viewer with filter buttons (Info/Warnings/Errors) and shortcuts to view
  or open the active log file

@@ -94,6 +94,10 @@ verifies every progress label, bar and log text widget exists before
 touching it, so switching away from the Run Monitor or Validation tabs no
 longer triggers Tk errors while the background run keeps streaming updates
 uninterrupted.
+Worker-pool launch and walker initialization appear as named phases before
+burn-in, with elapsed time, evaluation rate, and ETA mirrored from the CLI
+progress snapshots. This distinguishes worker runtime preparation and initial
+posterior evaluation from a stalled GUI launch.
 ## Analysis
 The navigation rail includes an **Analysis** button between Engines and
 Validation. Pressing it opens a 4-tab workspace that mirrors the Settings

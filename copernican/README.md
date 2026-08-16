@@ -108,6 +108,10 @@ Native MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
 record cold, warm, and exact-hit states with phase timings and work units.
+Sampler progress also reports worker-pool launch and walker initialization
+as explicit phases, including elapsed time, evaluation rate, and ETA in both
+CLI output and GUI progress snapshots. Worker logs record runtime preparation
+duration so expensive startup is distinguishable from posterior evaluation.
 Primordial-only parameter rebounds reuse bounded transfer products and rerun
 only primordial power integration; changed cosmological parameters retain
 separate transfer identities, and adaptive refinement keeps its full path.

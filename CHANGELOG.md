@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Added phase-aware MCMC progress with timing and ETA telemetry.
+  Why: Exposed worker launch and walker initialization instead of leaving
+    CLI and GUI runs at a generic initializing state.
+  Impact: Improved operator visibility into startup and posterior work while
+    exposing initialization throughput before burn-in begins.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/progress.py
+  docs/api_overview.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  tests/copernican/engines/test_engine_mcmc.py
+
+- 2026-08-16:
   Change: Added the explicit parity-zero USMF2 B mode and corpus row.
   Why: Corrected capability coverage after promoting USMF2 to CMB-valid.
   Impact: All ten bundled CMB-valid models now expose the public spectrum

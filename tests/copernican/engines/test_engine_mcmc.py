@@ -393,6 +393,72 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.isfinite(reseeded).all())
         self.assertTrue(numpy.isfinite(reseeded_logp).all())
 
+    def test_initialise_walkers_reports_completed_evaluations(self) -> None:
+        """Walker initialization reports each completed posterior call."""
+
+        lower = numpy.array([0.0, 0.0])
+        upper = numpy.array([1.0, 1.0])
+        rng = numpy.random.default_rng(42)
+        progress: list[tuple[int, int]] = []
+
+        initial, logp_vals = _initialise_active_walkers(
+            numpy.array([0.3, 0.7]),
+            lower,
+            upper,
+            n_walkers=4,
+            rng=rng,
+            log_probability_fn=lambda _position: 0.0,
+            progress_callback=lambda completed, total: progress.append(
+                (completed, total)
+            ),
+        )
+
+        self.assertEqual(initial.shape, (4, 2))
+        self.assertTrue(numpy.isfinite(logp_vals).all())
+        self.assertEqual(progress, [(1, 4), (2, 4), (3, 4), (4, 4)])
+
+    def test_sampler_reports_walker_initialization_phase(self) -> None:
+        """Sampling exposes initialization progress before MCMC stages."""
+
+        plugin = _build_model_plugin("model_lcdm.yml")
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.1], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        events: list[dict[str, object]] = []
+
+        result = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=12,
+            n_steps=1,
+            pool_size=2,
+            burn_in_steps=1,
+            display_progress=False,
+            progress_callback=events.append,
+        )
+
+        initialization_events = [
+            event
+            for event in events
+            if event.get("stage_metadata", {}).get("phase")
+            == "walker_initialization"
+        ]
+        worker_events = [
+            event
+            for event in events
+            if event.get("stage_metadata", {}).get("phase")
+            == "worker_pool_launch"
+        ]
+        self.assertTrue(result["success"])
+        self.assertTrue(worker_events)
+        self.assertTrue(initialization_events)
+        final = initialization_events[-1]
+        self.assertEqual(final["walker_processed"], result["n_walkers"])
+        self.assertEqual(final["walker_total"], result["n_walkers"])
+        self.assertIn("elapsed_seconds", final)
+        self.assertIn("items_per_second", final)
+        self.assertIn("eta_seconds", final)
+
     def test_initial_point_preflight_rejects_before_walker_creation(self):
         """A non-finite nominal point must stop before proposals exist."""
 
@@ -968,6 +1034,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             [record["event"] for record in events],
             ["batch_start", "progress_update", "batch_finish"],
         )
+        self.assertIn("elapsed_seconds", events[-1])
+        self.assertIn("items_per_second", events[-1])
+        self.assertIn("eta_seconds", events[-1])
 
     def test_listener_receives_events_even_when_percent_stalls(self) -> None:
         events: list[dict[str, object]] = []

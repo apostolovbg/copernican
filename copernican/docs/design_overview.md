@@ -206,6 +206,12 @@ completion line before the next batch begins, giving both terminals and log
 files a clear record of progress. If ArviZ is installed the engine records
 R-hat and effective sample sizes for every parameter on each batch; otherwise
 it logs a conservative Gelman–Rubin fallback.
+Before those sampling batches, MCMC emits separate worker-pool and walker-
+initialization phases. Their structured records include elapsed seconds,
+completed evaluations, throughput, and estimated remaining time, so the GUI
+monitor does not remain at a generic “Initialising” state while expensive
+initial posterior points are evaluated. Worker runtime preparation duration
+is logged independently from walker evaluation.
 ### Stage 3–4 post-processing
 BAO and CMB analyses reuse the sampler output. BAO observables are computed
 from maximum-posterior parameters and logged alongside residual norms so
