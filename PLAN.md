@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-08-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -20,7 +20,7 @@ The roadmap begins with the production run boundary, repairs both scalar
 constraint surfaces, establishes a practical MCMC execution budget, and then
 extends the declared theory contract and model corpus.
 
-This roadmap has twelve slices: eleven implementation slices and one final
+This roadmap has fourteen slices: thirteen implementation slices and one final
 acceptance slice. Every slice has a bounded purpose, explicit dependencies,
 targeted tests, and closure criteria suitable for one continuous work session.
 No slice may hide unfinished work behind a green policy gate or defer required
@@ -59,11 +59,13 @@ The target condition is final:
 Slices One through Three establish one trustworthy run boundary, typed native
 failure semantics, complete performance evidence, and process-local structural
 reuse. Slices Four and Five repair generated and evolved scalar constraints.
-Slice Six brings successful native spectra inside the ensemble-sampling
-budget. Slices Seven and Eight audit and complete the declared capability
-surface. Slices Nine and Ten specify and implement the USMF2 CMB closure.
-Slice Eleven certifies the model corpus, and Slice Twelve performs exact CLI,
-GUI-worker, scientific, performance, documentation, and policy acceptance.
+Slice Six establishes the batched native numerical core and cold-spectrum
+budget. Slice Seven completes projection and warm-cache throughput, while
+Slice Eight completes ensemble and reference-run acceptance. Slices Nine and
+Ten audit and complete the declared capability surface. Slices Eleven and
+Twelve specify and implement the USMF2 CMB closure. Slice Thirteen certifies
+the model corpus, and Slice Fourteen performs exact CLI, GUI-worker,
+scientific, performance, documentation, and policy acceptance.
 
 ## Problem Preamble
 
@@ -220,7 +222,7 @@ The following invariants apply to every slice:
   runtime path before rerunning it.
 * Preserve the CMB regression corpus after every solver-facing slice.
 * Run focused LCDM and TORG regressions after every scalar or runtime change.
-* Keep USMF2 outside CMB execution until Slice Ten closes.
+* Keep USMF2 outside CMB execution until Slice Twelve closes.
 * Update code, tests, docs, comments, model prose, templates, and changelog in
   the same slice when their contract changes.
 * Update generated or mirrored artifacts through their owning source.
@@ -539,12 +541,13 @@ Done when:
 * The accepted tolerance follows measured convergence rather than the log.
 * LCDM and TORG meet their scalar and observable acceptance thresholds.
 
-### [open] Slice Six - Native numerical throughput
+### [closed] Slice Six - Batched native numerical core
 
 Purpose:
 
-Bring successful parameter-rebound spectra and the reference ensemble run
-inside the practical MCMC budget without lowering scientific accuracy.
+Establish the batched native evolution and collision core, structural reuse,
+and cold full-spectrum budget without claiming the still-open warm-cache or
+reference-ensemble acceptance.
 
 Depends on:
 
@@ -554,14 +557,13 @@ Probable affected files:
 
 * `copernican/lib/likelihoods/cmb/native_background.py`
 * `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
-* `copernican/lib/likelihoods/cmb/native_performance.py`
 * `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/engines/engine_mcmc.py`
+* `copernican/lib/likelihoods/cmb/native_performance.py`
+* `copernican/lib/likelihoods/cmb/native_projection.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/test_engine_adapter.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_background.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
 * `copernican/docs/cmb_solver.md`
 * `README.md`
 * `copernican/README.md`
@@ -570,35 +572,138 @@ Probable affected files:
 
 Scope:
 
-* Use Slice Two phase evidence to optimize the dominant successful hot path.
-* Batch or vectorize independent k-mode and projection work where numerically
-  equivalent.
-* Remove repeated allocations, interpolation setup, decomposition, and
-  transform construction from inner loops.
-* Reuse bounded work products across spectra requested from the same evolution.
-* Keep adaptive refinement responsive to declared error controls.
-* Govern cold, warm, cache-hit, and full ensemble workloads separately.
+* Use Slice Two phase evidence to optimize batched k-mode evolution and
+  collision updates.
+* Remove repeated stage-context construction and static work from the native
+  evolution hot path.
+* Preserve cache identity, declared numerical tiers, and adaptive error
+  controls while adding workload and phase telemetry.
+* Govern cold full-spectrum work independently from the later warm and
+  ensemble budgets.
 
 Tasks:
 
-* Profile the exact Planck Lite multipole and spectrum request.
-* Optimize phases in measured descending cost order.
-* Add numerical equivalence tests before replacing each kernel path.
-* Verify worker-pool scaling and prevent oversubscription.
-* Make performance-budget enforcement occur at the correct workload boundary.
-* Add a deterministic warm-parameter sample and report median and p95 time.
-* Run the exact reference CLI fixture under the 1800-second limit.
+* Add numerical equivalence tests for batched and scalar evolution paths.
+* Verify LCDM and TORG cold full-spectrum requests on the exact multipole
+  fixture.
+* Record hardware, process count, cache state, requested spectra, multipoles,
+  numerical tier, and phase timings for the cold benchmark.
+* Keep targeted numerical and cache tests within the 180-second limit.
+* Preserve the remaining warm-cache and reference-run criteria for Slices
+  Seven and Eight.
+
+Done when:
+
+* Batched LCDM and TORG evolution and collision results satisfy scalar
+  equivalence and existing convergence thresholds.
+* Cold full-spectrum requests complete within 180 seconds with provenance-
+  complete telemetry.
+* Structural cache reuse is bounded and parameter-dependent state is not
+  reused across unequal parameter points.
+* Every targeted test for this slice completes within 180 seconds.
+
+### [open] Slice Seven - Projection and warm-cache throughput
+
+Purpose:
+
+Complete the projection hot path and bring deterministic parameter-rebound
+and exact-cache requests inside their independent runtime budgets.
+
+Depends on:
+
+* Slice Six.
+
+Probable affected files:
+
+* `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_lensing.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/native_performance.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
+* `copernican/docs/cmb_solver.md`
+* `README.md`
+* `copernican/README.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Batch or reuse Bessel, radial, lensing, and transform work where numerically
+  equivalent.
+* Reuse bounded projection products across spectra from one evolution.
+* Add deterministic warm-parameter and exact-cache performance samples with
+  complete phase and cache telemetry.
+* Preserve the declared accuracy tier and scalar, convergence, and parity
+  results.
+
+Tasks:
+
+* Profile projection and lensing phases on the exact Planck Lite request.
+* Add numerical equivalence tests before replacing each projection kernel.
+* Enforce the warm p95 budget at the parameter-rebound workload boundary.
+* Enforce the subsecond cache-hit budget without evolution or projection.
 * Update performance and operator documentation.
 
 Done when:
 
-* Cold full-spectrum, warm p95, and cache-hit budgets all pass.
-* The reference CLI run completes within 1800 seconds.
+* The deterministic warm-parameter sample has p95 time at or below five
+  seconds on the governed reference host.
+* Exact cache hits perform no evolution or projection work and remain within
+  the recorded subsecond budget.
+* Projection optimizations satisfy the same convergence and parity thresholds.
 * No targeted test exceeds 180 seconds.
-* Optimized spectra satisfy the same convergence and parity thresholds.
-* Performance tests fail on repeated static work or material regressions.
 
-### [open] Slice Seven - Capability audit and compatibility specification
+### [open] Slice Eight - Ensemble and reference-run acceptance
+
+Purpose:
+
+Complete worker-pool throughput and prove the exact reference workload inside
+the end-to-end execution budget.
+
+Depends on:
+
+* Slice Seven.
+
+Probable affected files:
+
+* `copernican/engines/engine_mcmc.py`
+* `copernican/lib/likelihoods/cmb/native_performance.py`
+* `tests/copernican/engines/test_engine_mcmc.py`
+* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/validation/test_runner.py`
+* `copernican/validation/manifests/reference_planck2018.yml`
+* `copernican/docs/cmb_solver.md`
+* `README.md`
+* `copernican/README.md`
+* `CHANGELOG.md`
+* `PLAN.md`
+
+Scope:
+
+* Verify worker-pool scaling and prevent process or numerical oversubscription.
+* Enforce performance budgets at cold, warm, cache-hit, and ensemble workload
+  boundaries, including failed requests.
+* Run the exact reference CLI fixture with the declared models, datasets,
+  seed, sampler, walkers, steps, and pool size.
+
+Tasks:
+
+* Measure pool scaling and resource bounds on the governed reference host.
+* Run the exact reference CLI fixture and retain complete run provenance.
+* Verify no targeted test or required reference phase exceeds its bound.
+* Update validation and operator documentation with the accepted envelope.
+
+Done when:
+
+* The reference CLI run completes within 1800 seconds.
+* Worker-pool scaling is bounded and does not oversubscribe the host.
+* Cold, warm, exact-cache, and ensemble performance budgets all pass with
+  provenance-complete telemetry.
+* Optimized spectra retain the established convergence and parity thresholds.
+
+### [open] Slice Nine - Capability audit and compatibility specification
 
 Purpose:
 
@@ -607,7 +712,7 @@ identify concrete capability gaps without speculative refactoring.
 
 Depends on:
 
-* Slice Six.
+* Slice Eight.
 
 Probable affected files:
 
@@ -645,7 +750,7 @@ Tasks:
 * Add tests for runtime assumptions not represented in the schema.
 * Specify the minimum capability set for TT, TE, EE, BB, PP, TP, and EP.
 * Specify gauge and sector compatibility rules.
-* Record only demonstrated implementation gaps for Slice Eight.
+* Record only demonstrated implementation gaps for Slice Ten.
 * Synchronize both model templates and solver documentation.
 
 Done when:
@@ -654,18 +759,18 @@ Done when:
   universal numerical rule.
 * The expressible theory surface and unsupported combinations are explicit.
 * The model corpus has a machine-testable capability matrix.
-* Slice Eight contains no inferred or open-ended refactor work.
+* Slice Ten contains no inferred or open-ended refactor work.
 
-### [open] Slice Eight - Implement proven capability gaps
+### [open] Slice Ten - Implement proven capability gaps
 
 Purpose:
 
-Implement the finite gap set from Slice Seven so any capability-complete
+Implement the finite gap set from Slice Nine so any capability-complete
 contract expressible by the documented primitives follows one native route.
 
 Depends on:
 
-* Slice Seven.
+* Slice Nine.
 
 Probable affected files:
 
@@ -686,7 +791,7 @@ Probable affected files:
 
 Scope:
 
-* Add only capabilities justified by the Slice Seven audit.
+* Add only capabilities justified by the Slice Nine audit.
 * Remove name-based routing when equivalent contract data exists.
 * Bind background, evolution, source, projection, and observable assembly from
   compiled capability data.
@@ -713,7 +818,7 @@ Done when:
 * The CMB regression corpus retains scientific and performance acceptance.
 * No production backend fallback or compatibility bridge remains.
 
-### [open] Slice Nine - Specify the USMF2 CMB closure
+### [open] Slice Eleven - Specify the USMF2 CMB closure
 
 Purpose:
 
@@ -722,7 +827,7 @@ specification before enabling production CMB execution.
 
 Depends on:
 
-* Slice Eight.
+* Slice Ten.
 
 Probable affected files:
 
@@ -751,7 +856,7 @@ Tasks:
 * Map every theory equation to one contract node with units and provenance.
 * Resolve gauge freedom and constraint closure explicitly.
 * Define analytic limits that can be tested without another production solver.
-* Identify all required capability primitives from Slice Eight.
+* Identify all required capability primitives from Slice Ten.
 * Reject any missing physical relation instead of filling it with LCDM math.
 * Add schema and dependency-graph tests for the proposed closure.
 * Document the theory-facing model-author contract.
@@ -764,16 +869,16 @@ Done when:
 * Analytic identities and limiting cases are testable.
 * No borrowed LCDM species, alias, equation, or source is unexplained.
 
-### [open] Slice Ten - Implement and validate the USMF2 CMB path
+### [open] Slice Twelve - Implement and validate the USMF2 CMB path
 
 Purpose:
 
-Encode the Slice Nine specification and promote USMF2 only after its native
+Encode the Slice Eleven specification and promote USMF2 only after its native
 physics, convergence, observables, and performance pass.
 
 Depends on:
 
-* Slice Nine.
+* Slice Eleven.
 
 Probable affected files:
 
@@ -795,7 +900,7 @@ Probable affected files:
 Scope:
 
 * Implement the complete USMF2 background and perturbation graph.
-* Use only declared capability primitives or explicit Slice Eight extensions.
+* Use only declared capability primitives or explicit Slice Ten extensions.
 * Validate constraints, conservation rules, initial modes, source histories,
   observables, and parameter response.
 * Establish numerical convergence and practical runtime controls.
@@ -806,7 +911,7 @@ Tasks:
 
 * Encode variables, equations, closures, initial conditions, and observables.
 * Add finite and responsive spectrum tests across representative parameters.
-* Add analytic-limit and conservation tests from Slice Nine.
+* Add analytic-limit and conservation tests from Slice Eleven.
 * Add coarse-to-reference convergence tests.
 * Add negative tests for incomplete or contradictory USMF2 declarations.
 * Verify native execution contains no CAMB or LCDM route substitution.
@@ -821,7 +926,7 @@ Done when:
 * Its warm execution meets the governed model budget.
 * `valid_for_cmb: true` is justified by the complete acceptance surface.
 
-### [open] Slice Eleven - Migrate and certify the model corpus
+### [open] Slice Thirteen - Migrate and certify the model corpus
 
 Purpose:
 
@@ -830,7 +935,7 @@ publish one explicit compatibility state for the entire corpus.
 
 Depends on:
 
-* Slice Ten.
+* Slice Twelve.
 
 Probable affected files:
 
@@ -879,7 +984,7 @@ Done when:
 * TORG and USMF2 satisfy their own declared closures.
 * Templates, docs, comments, tests, and manifests agree on the final contract.
 
-### [open] Slice Twelve - End-to-end acceptance and closure
+### [open] Slice Fourteen - End-to-end acceptance and closure
 
 Purpose:
 
@@ -888,7 +993,7 @@ documentation, and repository discipline on one final staged revision.
 
 Depends on:
 
-* Slices One through Eleven.
+* Slices One through Thirteen.
 
 Probable affected files:
 
@@ -941,7 +1046,7 @@ Done when:
 
 ## Completion Standard
 
-The roadmap is complete only when all twelve slices are closed in order and
+The roadmap is complete only when all fourteen slices are closed in order and
 the final revision satisfies the same manifest, physics, performance, logging,
 dataset, model-corpus, documentation, and policy contracts.
 

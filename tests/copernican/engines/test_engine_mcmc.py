@@ -24,6 +24,7 @@ from copernican.engines.engine_mcmc import (
     _initialise_active_walkers,
     _preflight_initial_model_point,
     _reseed_invalid_walkers,
+    _resolve_mcmc_pool_processes,
 )
 from copernican.lib import chain_io
 from copernican.lib import engine_adapter as engine_plugin_validation
@@ -503,6 +504,21 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
         self.assertEqual(res["pool_workers"], 2)
         self.assertGreaterEqual(res["n_walkers"], res["pool_workers"])
+
+    def test_pool_size_is_capped_to_avoid_cpu_oversubscription(self) -> None:
+        """A requested pool must leave one CPU for its parent process."""
+
+        with mock.patch.object(
+            module.multiprocessing_module,
+            "cpu_count",
+            return_value=3,
+        ):
+            worker_count = _resolve_mcmc_pool_processes(
+                requested_pool=8,
+                n_walkers=32,
+            )
+
+        self.assertEqual(worker_count, 2)
 
     def test_log_probability_penalty(self) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")

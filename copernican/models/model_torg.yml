@@ -1084,11 +1084,13 @@ cmb:
   calls: []
   numerical:
     ell_min: 2
-    ell_max: 2000
+    ell_max: 2500
     k_min: 0.0001
-    k_max: 0.3
+    k_max: 1.0
     k_sample_count: 18
     eta_sample_count: 192
+    evolution_eta_sample_count: 192
+    evolution_phase_step: 2.0
     ode_rtol: 1.0e-05
     ode_atol: 1.0e-08
     tight_coupling_ratio: 80.0
@@ -1286,11 +1288,13 @@ cmb:
     boundary_conditions: {}
     numerics:
       ell_min: 2
-      ell_max: 2000
+      ell_max: 2500
       k_min: 0.0001
-      k_max: 0.3
+      k_max: 1.0
       k_sample_count: 18
       eta_sample_count: 192
+      evolution_eta_sample_count: 192
+      evolution_phase_step: 2.0
       ode_rtol: 1.0e-05
       ode_atol: 1.0e-08
       tight_coupling_ratio: 80.0

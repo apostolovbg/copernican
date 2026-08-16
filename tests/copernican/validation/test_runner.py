@@ -38,9 +38,22 @@ class TestImportModule(unittest.TestCase):
         self.assertEqual(comparison["control"]["filename"], "model_lcdm.yml")
         self.assertEqual(
             comparison["test"]["filename"],
-            "model_ref_planck2018.yml",
+            "model_torg.yml",
         )
         self.assertEqual(len(manifest["models"]), 2)
+        self.assertEqual(
+            manifest["selection"]["models"],
+            ["LambdaCDM", "Temporal Opposing Relational Geometry"],
+        )
+        self.assertEqual(
+            list(manifest["datasets"]),
+            ["union3_2025", "compound_bao_set", "planck_2018_lite"],
+        )
+        settings = manifest["configuration"]["run_settings"]
+        self.assertEqual(settings["n_steps"], 10)
+        self.assertEqual(settings["burn_in_steps"], 5)
+        self.assertEqual(settings["n_walkers"], 32)
+        self.assertEqual(settings["pool_size"], 3)
 
         for dataset in manifest["datasets"].values():
             dataset_root = repo_root / dataset["path"]

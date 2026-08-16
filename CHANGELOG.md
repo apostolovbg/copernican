@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-08-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,158 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-16:
+  Change: Corrected native cache identities for structural and parameter
+  reuse.
+  Why: Prevent gauge-specific graph changes from inheriting warm budgets
+  from unrelated native requests.
+  Impact: Updated native performance classification so only compatible
+  structure, background, and request shapes receive warm limits.
+  Files:
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/validation/test_runner.py
+
+- 2026-08-16:
+  Change: Corrected native cache-state classification and generated-mode
+  batching corrections.
+  Why: Align performance enforcement with request boundaries, preserve scalar
+  equivalence for non-final schedules, and update provenance assertions for
+  the declared 2500 multipole limit.
+  Impact: Updated full-spectrum and Planck Lite functional requests so they no
+  longer inherit warm budgets from unrelated request shapes, while generated
+  modes retain finite declared-graph telemetry.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/validation/test_runner.py
+
+- 2026-08-16:
+  Change: Restructured and renumbered the native throughput roadmap slices.
+  Why: Clarified the completed batched core boundary and separated warm-cache
+  and reference-ensemble acceptance into bounded follow-on slices.
+  Impact: Updated PLAN.md so Slice Six can close on its measured evidence and
+  later capability, USMF2, corpus, and final-acceptance slices remain ordered.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/validation/test_runner.py
+
+- 2026-08-16:
+  Change: Updated shared native CMB evolution schedules and momentum-context
+  reuse for scalar throughput.
+  Why: Preserve declared collision and convergence behavior while removing
+  repeated stage-context construction on the successful hot path.
+  Impact: Final LCDM and massive-neutrino requests retain bounded batched
+  evolution telemetry with unchanged cache and numerical contracts.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/validation/test_runner.py
+
+- 2026-08-15:
+  Change: Batched native CMB evolution, collision updates, cache accounting,
+  and bounded MCMC worker reuse; aligned the Planck Lite reference fixture
+  with LCDM and TORG.
+  Why: Reduce repeated numerical work while preserving declared equations,
+  convergence controls, workload-specific budgets, and reproducible inputs.
+  Impact: Native requests expose cold, warm, and exact-cache states; the
+  reference workload uses Union3, compound BAO, Planck Lite, seed 0, 5
+  burn-in steps, 10 production steps, 32 walkers, and pool 3.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_torg.yml
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/validation/test_runner.py
 
 - 2026-08-15:
   Change: Completed generated initial and evolved scalar Einstein constraints

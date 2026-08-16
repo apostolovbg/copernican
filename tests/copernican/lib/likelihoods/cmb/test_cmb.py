@@ -5039,6 +5039,86 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-12,
         )
 
+    def test_vectorized_reionization_quantities_match_scalar_context(self):
+        """Reionization grid evaluation must preserve declared stage values."""
+
+        contract = _prepare_native_contract(
+            _speedup_contract(_custom_contract())
+        )
+        a_values = numpy.asarray((0.05, 0.1, 0.2), dtype=float)
+        z_values = 1.0 / a_values - 1.0
+        n_h_values = numpy.asarray((10.0, 20.0, 30.0), dtype=float)
+        x_h_floor_values = numpy.asarray((0.1, 0.2, 0.3), dtype=float)
+        helium_floor_values = numpy.asarray((0.01, 0.02, 0.03), dtype=float)
+        x_e_floor_values = numpy.asarray((0.11, 0.22, 0.33), dtype=float)
+        hubble_rates = numpy.asarray((1.0e-18, 2.0e-18, 3.0e-18))
+        grid_context = (
+            native_background._resolve_declared_reionization_quantity_grids(
+                contract,
+                a_values=a_values,
+                z_values=z_values,
+                n_h_values=n_h_values,
+                x_h_floor_values=x_h_floor_values,
+                helium_electron_floor_values=helium_floor_values,
+                x_e_floor_values=x_e_floor_values,
+                hubble_rates=hubble_rates,
+                helium_number_ratio=0.08,
+                hubble0_si=2.0e-18,
+                calibration_symbol="reionization_log10_amplitude",
+                calibration_value=4.0,
+            )
+        )
+        quantity_names = (
+            "hydrogen_ionization_rate",
+            "helium_ionization_rate",
+            "helium_double_ionization_rate",
+            "hydrogen_temperature_K",
+            "helium_temperature_K",
+            "helium_double_temperature_K",
+        )
+
+        for index, (a_value, z_value) in enumerate(
+            zip(a_values, z_values, strict=True)
+        ):
+            scalar_context = (
+                native_background._resolve_declared_background_context(
+                    contract,
+                    a_values=float(a_value),
+                    z_values=float(z_value),
+                )
+            )
+            scalar_context.update(
+                {
+                    "n_H": float(n_h_values[index]),
+                    "x_h_floor": float(x_h_floor_values[index]),
+                    "helium_electron_floor": float(helium_floor_values[index]),
+                    "x_e_floor": float(x_e_floor_values[index]),
+                    "neutral_h_floor": max(
+                        1.0 - float(x_h_floor_values[index]),
+                        0.0,
+                    ),
+                    "neutral_he_floor": max(
+                        0.08 - float(helium_floor_values[index]),
+                        0.0,
+                    ),
+                    "helium_number_ratio": 0.08,
+                    "H_SI": float(hubble_rates[index]),
+                    "H0_SI": 2.0e-18,
+                    "reionization_log10_amplitude": 4.0,
+                }
+            )
+            scalar_values = (
+                native_background._resolve_declared_reionization_context(
+                    contract,
+                    base_context=scalar_context,
+                )
+            )
+            for name in quantity_names:
+                self.assertAlmostEqual(
+                    float(grid_context[name][index]),
+                    float(scalar_values[name]),
+                )
+
     def test_bb_and_lensing_targets_run_when_declared(self) -> None:
         """Additional observable targets should run through the graph."""
 
@@ -6921,6 +7001,28 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["projection_bessel_mode_count"]),
         )
 
+    def test_runtime_cache_state_requires_matching_request_shape(self) -> None:
+        """A changed spectrum request is cold, not a warm parameter rebound."""
+
+        native_cache.clear_native_cmb_caches()
+        contract = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
+        native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((20, 25), dtype=int),
+            requested_spectra=("TT",),
+        )
+        native_cache.clear_native_cmb_result_caches()
+        native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((20, 30), dtype=int),
+            requested_spectra=("TT",),
+        )
+        record = native_cache.latest_native_cmb_performance_record()
+        self.assertIsNotNone(record)
+        self.assertEqual(record["cache_state"], "cold")
+
     def test_native_spectrum_cache_identity_covers_runtime_inputs(self):
         """Every result-affecting surface must change cache identity."""
 
@@ -7110,9 +7212,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(envelope["contract_static_preparations"]), 1)
         self.assertEqual(int(envelope["cosmology_static_preparations"]), 1)
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
-        self.assertEqual(int(envelope["batch_count"]), 0)
-        self.assertEqual(int(envelope["batch_mode_count"]), 0)
-        self.assertEqual(int(envelope["batched_rk_stage_count"]), 0)
+        self.assertEqual(int(envelope["batch_count"]), 1)
+        self.assertEqual(
+            int(envelope["batch_mode_count"]),
+            int(envelope["k_sample_count"]),
+        )
+        self.assertGreater(int(envelope["batched_rk_stage_count"]), 0)
         self.assertTrue(
             numpy.all(
                 numpy.isfinite(numpy.asarray(spectrum_data.spectra["TT"]))
@@ -7130,6 +7235,271 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertGreater(
             native_cache.native_cmb_cache_stats()["native_spectrum"]["hits"],
             0,
+        )
+
+    def test_batched_exact_collision_matches_scalar_exact_steps(self) -> None:
+        """Vectorized collision blocks must preserve scalar exact updates."""
+
+        matrices = numpy.asarray(
+            (
+                (
+                    (
+                        (-1.0, 0.5, 0.0, 0.0),
+                        (0.25, -0.125, 0.0, 0.0),
+                        (0.0, 0.0, -0.9, 0.6),
+                        (0.0, 0.0, 0.1, -0.4),
+                    ),
+                    (
+                        (-1.0, 0.25, 0.0, 0.0),
+                        (0.5, -0.25, 0.0, 0.0),
+                        (0.0, 0.0, -0.9, 0.6),
+                        (0.0, 0.0, 0.1, -0.4),
+                    ),
+                )
+            ),
+            dtype=float,
+        ).reshape(2, 4, 4)
+        states = numpy.asarray(
+            ((0.2, -0.4, 0.1, -0.2), (-0.3, 0.6, -0.5, 0.4)),
+            dtype=float,
+        )
+        scales = numpy.asarray((0.75, 1.25), dtype=float)
+        batched = native_projection._exact_batched_linear_collision_step(
+            operator_matrices=matrices,
+            dt=0.125,
+            target_states=states,
+            operator_scales=scales,
+        )
+        expected = numpy.asarray(
+            [
+                native_projection._exact_linear_collision_step(
+                    operator_matrix=matrix,
+                    dt=0.125,
+                    target_state=state,
+                    operator_scale=scale,
+                )
+                for matrix, state, scale in zip(matrices, states, scales)
+            ],
+            dtype=float,
+        )
+
+        numpy.testing.assert_allclose(batched, expected, rtol=1.0e-12)
+
+    def test_compiled_equation_program_is_a_reusable_executor(self) -> None:
+        """Compiled equation plans must run without per-stage exec dispatch."""
+
+        program = native_evolution._compile_equation_program(
+            (
+                (0, "eta", "signal + 1.0", None),
+                (1, "eta", None, 0),
+            )
+        )
+        state_vector = numpy.asarray(
+            ((1.0, 2.0), (3.0, 4.0)),
+            dtype=float,
+        )
+        derivative = numpy.zeros_like(state_vector)
+
+        program(
+            {"signal": numpy.asarray((1.0, 2.0), dtype=float)},
+            state_vector,
+            derivative,
+            {"eta": 2.0},
+        )
+
+        numpy.testing.assert_array_equal(
+            derivative,
+            numpy.asarray(((4.0, 6.0), (2.0, 4.0)), dtype=float),
+        )
+
+    def test_compiled_equation_program_hoists_repeated_context_reads(
+        self,
+    ) -> None:
+        """One batched stage should read each declared input once."""
+
+        class _ReadCountingContext(dict):
+            """Record lookup counts while preserving mapping semantics."""
+
+            def __init__(self, *args, **kwargs):
+                """Initialize the input mapping and empty read counters."""
+
+                super().__init__(*args, **kwargs)
+                self.reads: dict[str, int] = {}
+
+            def __getitem__(self, key):
+                """Record one declared-symbol lookup."""
+
+                normalized = str(key)
+                self.reads[normalized] = self.reads.get(normalized, 0) + 1
+                return super().__getitem__(key)
+
+        context = _ReadCountingContext(
+            repeated=numpy.asarray((2.0, 3.0), dtype=float),
+            offset=numpy.asarray((1.0, 1.0), dtype=float),
+        )
+        coordinate_rates = _ReadCountingContext(
+            eta=2.0,
+        )
+        program = native_evolution._compile_equation_program(
+            (
+                (0, "eta", "repeated * repeated + offset", None),
+                (1, "eta", "repeated - offset", None),
+            )
+        )
+        derivative = numpy.zeros((2, 2), dtype=float)
+
+        program(
+            context,
+            numpy.zeros((2, 2), dtype=float),
+            derivative,
+            coordinate_rates,
+        )
+
+        numpy.testing.assert_array_equal(
+            derivative,
+            numpy.asarray(((10.0, 20.0), (2.0, 4.0)), dtype=float),
+        )
+        self.assertEqual(context.reads, {"offset": 1, "repeated": 1})
+        self.assertEqual(coordinate_rates.reads, {"eta": 1})
+
+    def test_batched_row_equation_program_matches_vector_equations(
+        self,
+    ) -> None:
+        """Scalar row execution must preserve vectorized equation outputs."""
+
+        specifications = (
+            (0, "eta", "signal + offset", None),
+            (1, "eta", "signal * signal", None),
+            (2, "eta", None, 1),
+        )
+        context = {
+            "signal": numpy.asarray((1.0, 2.0, 3.0), dtype=float),
+            "offset": 0.5,
+        }
+        state = numpy.asarray(
+            (
+                (0.0, 0.0, 0.0),
+                (4.0, 5.0, 6.0),
+                (0.0, 0.0, 0.0),
+            ),
+            dtype=float,
+        )
+        coordinate_rates = {"eta": 2.0}
+        vector_derivative = numpy.zeros_like(state)
+        row_derivative = numpy.zeros_like(state)
+
+        native_evolution._compile_equation_program(specifications)(
+            context,
+            state,
+            vector_derivative,
+            coordinate_rates,
+        )
+        native_evolution._compile_batched_row_equation_program(
+            specifications,
+            ("signal",),
+        )(
+            context,
+            state,
+            row_derivative,
+            coordinate_rates,
+        )
+
+        numpy.testing.assert_array_equal(row_derivative, vector_derivative)
+
+    def test_compiled_context_program_is_a_reusable_executor(self) -> None:
+        """Compiled context plans must retain declared suppression behavior."""
+
+        program = native_evolution._compile_ordered_context_program(
+            (
+                ("double_signal", "2.0 * signal"),
+                ("shifted_signal", "double_signal + 1.0"),
+            )
+        )
+        context = {"signal": numpy.asarray((1.0, 2.0), dtype=float)}
+        suppressed = {"double_signal": numpy.zeros(2, dtype=float)}
+        context.update(suppressed)
+
+        program(context, suppressed)
+
+        numpy.testing.assert_array_equal(
+            context["double_signal"],
+            numpy.zeros(2, dtype=float),
+        )
+        numpy.testing.assert_array_equal(
+            context["shifted_signal"],
+            numpy.ones(2, dtype=float),
+        )
+
+    def test_compiled_expression_tuple_reuses_one_context_executor(
+        self,
+    ) -> None:
+        """Compiled expression tuples must preserve declared value order."""
+
+        program = native_evolution._compile_expression_tuple_program(
+            ("signal + 1.0", "2.0 * signal"),
+        )
+
+        values = program({"signal": numpy.asarray((1.0, 2.0), dtype=float)})
+
+        numpy.testing.assert_array_equal(
+            values[0],
+            numpy.asarray((2.0, 3.0), dtype=float),
+        )
+        numpy.testing.assert_array_equal(
+            values[1],
+            numpy.asarray((2.0, 4.0), dtype=float),
+        )
+
+    def test_batched_declared_evolution_matches_scalar_modes(self) -> None:
+        """Batched declared modes must preserve scalar-spectrum convergence."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract(
+                initial_mode="cdm_isocurvature",
+            )
+        )
+        ells = numpy.asarray((20, 60, 120), dtype=int)
+        native_cache.clear_native_cmb_caches()
+        batched = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            ells,
+            requested_spectra=("TT",),
+        )
+        native_cache.clear_native_cmb_caches()
+        with mock.patch.object(
+            native_projection,
+            "_can_batch_declared_evolution",
+            return_value=False,
+        ):
+            scalar = native_projection._compute_custom_cmb_spectrum_data(
+                contract,
+                ells,
+                requested_spectra=("TT",),
+            )
+
+        numpy.testing.assert_allclose(
+            numpy.asarray(batched.spectra["TT"]),
+            numpy.asarray(scalar.spectra["TT"]),
+            rtol=2.0e-5,
+            atol=1.0e-14,
+        )
+
+    def test_batched_rhs_excludes_diagnostic_context_steps(self) -> None:
+        """Batched RK stages must evaluate only equation-required values."""
+
+        contract = _prepare_native_contract(
+            _native_scalar_hierarchy_contract()
+        )
+        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((20, 60, 120), dtype=int),
+            requested_spectra=("TT",),
+        )
+        envelope = spectrum_data.runtime_envelope
+
+        self.assertLess(
+            int(envelope["batched_rhs_value_step_count"]),
+            int(envelope["batched_diagnostic_value_step_count"]),
         )
 
     def test_runtime_envelope_rejects_unbounded_work_units(self) -> None:

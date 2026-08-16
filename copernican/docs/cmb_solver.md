@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-08-16
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1081,27 +1081,28 @@ neutrino family. The option is an explicit numerical control, not a change
 to the equations or collision declarations; contracts that omit it retain
 the staged route and its gauge-equivalent trajectory behavior.
 
-The `bounded` runtime envelope includes the native performance acceptance
-budgets: 180 seconds for a full native spectrum and 60 seconds for the joint
-MCMC smoke workload. A contract may state the values explicitly when it needs
-to make the acceptance policy visible:
+The `bounded` runtime envelope includes separate native performance acceptance
+budgets for cold full-spectrum, warm-parameter, and exact-cache requests. The
+reference limits are 180 seconds, 5 seconds, and 1 second respectively. A
+contract may state the values explicitly when it needs to make the acceptance
+policy visible:
 
 ```yaml
 accuracy_controls:
   runtime_envelope: bounded
   performance_budget:
     full_spectrum_seconds: 180
-    joint_mcmc_seconds: 60
+    warm_parameter_seconds: 5
+    exact_cache_hit_seconds: 1
 ```
 
-Measured full-spectrum time is checked against the declared full-spectrum
-budget after output assembly. Production CMB likelihood calls identify their
-workload as `joint_mcmc`, so every proposal exercises the corresponding limit
-and timing record. The first process-local request includes structural worker
-initialization and uses the full-spectrum startup limit; warm and exact
-proposal requests use the steady-state joint-MCMC limit. A budget overrun
-raises a typed performance error rather than publishing a partial or
-misleading spectrum.
+Measured full-spectrum time is checked against the declared cold budget after
+output assembly. Production CMB likelihood calls classify each request as
+`cold`, `warm`, or `exact`, so structural worker initialization, parameter
+rebound, and complete cache reuse are governed independently. The native
+performance report records deterministic median and p95 samples for each
+workload; a budget overrun raises a typed performance error rather than
+publishing a partial or misleading spectrum.
 
 Generated scalar contracts first audit the requested k grid against the
 declared numerical limits, then preflight every sorted k mode before any ODE

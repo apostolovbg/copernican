@@ -5,9 +5,9 @@ models:
   version: '1.0'
   filename: model_lcdm.yml
   priors: {}
-- name: Planck 2018 Reference LambdaCDM
+- name: Temporal Opposing Relational Geometry
   version: '1.0'
-  filename: model_ref_planck2018.yml
+  filename: model_torg.yml
   priors: {}
 engine:
   name: copernican.engines.engine_mcmc
@@ -28,20 +28,17 @@ datasets:
       for.
     condition_number: null
     type: sne
-  boss_dr12_bao:
-    name: BOSS DR12 BAO Consensus
-    version: DR12
-    path: copernican/datasets/bao/bossdr12
+  compound_bao_set:
+    name: Compound BAO Set
+    version: '1.0'
+    path: copernican/datasets/bao/compound
     hashes:
-      BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
-      BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
-      BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
-      BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
-      cosmo_parser_bossdr12.py: e4ff86153e53bf0ffc0e4de8c16bf1d4c9c0d36d437595207cda2c543ee71d5f
-      metadata_bossdr12.yml: b8ded49f98618f0752b067d66abb4ffc925b8d47cb97d4e4fbc53f37131029fc
+      compound.yml: 13d8a665a340e1b8596d4f65ce0133cd159836a2e2ecb149f7fcabf2c29ce8b2
+      cosmo_parser_compound.py: 3517dd1008b4e1684430af3401ed019e6bf52bcb1a9bed350f1af989dfadd7d9
+      metadata_compound.yml: f53738bb36b6ae12c862cd370f5b0513cb20632318a458a0cca2eaa3f433d906
     independence:
-    - BAO distance measurements are assumed independent of SNe and CMB datasets because
-      overlapping systematics are negligible at the current precision level.
+    - Compound BAO measurements are treated as independent from SNe and CMB
+      summaries because their source covariances are declared within the dataset.
     condition_number: null
     type: bao
   planck_2018_lite:
@@ -63,51 +60,51 @@ status:
   outputs: unprepared
 selection:
   models:
-  - model_lcdm
-  - model_ref_planck2018
+  - LambdaCDM
+  - Temporal Opposing Relational Geometry
   comparison:
     control:
       name: LambdaCDM
       filename: model_lcdm.yml
     test:
-      name: Planck 2018 Reference LambdaCDM
-      filename: model_ref_planck2018.yml
+      name: Temporal Opposing Relational Geometry
+      filename: model_torg.yml
   control_model: LambdaCDM
-  test_model: Planck 2018 Reference LambdaCDM
+  test_model: Temporal Opposing Relational Geometry
   engine:
     name: copernican.engines.engine_mcmc
     version: validation
   datasets:
   - union3_2025
-  - boss_dr12_bao
+  - compound_bao_set
   - planck_2018_lite
 configuration:
   models:
-  - model_lcdm
-  - model_ref_planck2018
+  - LambdaCDM
+  - Temporal Opposing Relational Geometry
   comparison:
     control:
       name: LambdaCDM
       filename: model_lcdm.yml
     test:
-      name: Planck 2018 Reference LambdaCDM
-      filename: model_ref_planck2018.yml
+      name: Temporal Opposing Relational Geometry
+      filename: model_torg.yml
   control_model: LambdaCDM
-  test_model: Planck 2018 Reference LambdaCDM
+  test_model: Temporal Opposing Relational Geometry
   engine:
     name: copernican.engines.engine_mcmc
     version: validation
   datasets:
   - union3_2025
-  - boss_dr12_bao
+  - compound_bao_set
   - planck_2018_lite
-  notes: Native LambdaCDM control and fixed Planck 2018 reference validation.
+  notes: Native LambdaCDM control and TORG comparison using the exact reference workload.
   run_settings:
     engine_kind: mcmc
-    n_steps: 50
-    burn_in_steps: 10
-    n_walkers: 64
-    pool_size: 4
+    n_steps: 10
+    burn_in_steps: 5
+    n_walkers: 32
+    pool_size: 3
     display_progress: true
 confirmation:
   seed: 0

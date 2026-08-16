@@ -7,21 +7,18 @@ the GUI and CLI use for ordinary analyses. The manifest files live under
 `copernican/validation/manifests/`, and the canonical manifest
 `reference_planck2018.yml` compares the canonical native
 `copernican/models/model_lcdm.yml` control with the fixed-parameter
-`copernican/models/model_ref_planck2018.yml` test model against the publicly
-released Union Through UNITY 2000 SNe, BOSS DR12 BAO, and Planck 2018 Lite
-datasets. The manifest records both model roles and current hashes for every
-dataset asset consumed by the validation run.
+`copernican/models/model_torg.yml` test model against the bundled Union
+Through UNITY 2000 SNe, compound BAO, and Planck 2018 Lite datasets. Its exact
+reference workload uses seed 0, five burn-in steps, ten production steps, 32
+walkers, and a three-worker pool. The manifest records both model roles and
+current hashes for every dataset asset consumed by the validation run.
 
 ## Reference model
-`copernican/models/model_ref_planck2018.yml` fixes the Hubble constant,
-matter/baryon densities, photon density, effective neutrino number and
-recombination redshift to the values reported in Planck Collaboration VI
-(2018, Table 2). Each prior is declared as a `fixed` value so the run also
-records the reference trace, the plotter draws the canonical comparison lines,
-and the corner output highlights the sameness even though the parameters do
-not wander. Because the parameters remain numerically locked, the manifest run
-is deterministic, reproducible across environments and provides
-the golden dataset used for validation and regression tracking.
+`copernican/models/model_torg.yml` supplies the declared Temporal Opposing
+Relational Geometry comparison contract. The LCDM control and TORG test run
+through the same native CMB engine, so the reference fixture exercises both
+the scalar spectrum path and the model-comparison pipeline rather than a
+fixed-parameter surrogate.
 
 ## Running validation
 1. Activate the managed environment and run `python -m copernican` from the

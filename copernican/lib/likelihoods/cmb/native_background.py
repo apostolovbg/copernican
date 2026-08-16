@@ -460,6 +460,92 @@ def _resolve_declared_reionization_context(
     )
 
 
+def _resolve_declared_reionization_quantity_grids(
+    contract: Mapping[str, Any],
+    *,
+    a_values: numpy.ndarray,
+    z_values: numpy.ndarray,
+    n_h_values: numpy.ndarray,
+    x_h_floor_values: numpy.ndarray,
+    helium_electron_floor_values: numpy.ndarray,
+    x_e_floor_values: numpy.ndarray,
+    hubble_rates: numpy.ndarray,
+    helium_number_ratio: float,
+    hubble0_si: float,
+    calibration_symbol: str | None,
+    calibration_value: float | None,
+) -> dict[str, numpy.ndarray]:
+    """Resolve declared reionization quantities on one shared stage grid."""
+
+    a_grid = numpy.asarray(a_values, dtype=float)
+    if a_grid.ndim != 1 or a_grid.size == 0:
+        raise ValueError(
+            "Reionization quantity grids require one non-empty axis"
+        )
+    named_values = {
+        "z": z_values,
+        "n_H": n_h_values,
+        "x_h_floor": x_h_floor_values,
+        "helium_electron_floor": helium_electron_floor_values,
+        "x_e_floor": x_e_floor_values,
+        "H_SI": hubble_rates,
+    }
+    normalized_values: dict[str, numpy.ndarray] = {}
+    for name, values in named_values.items():
+        array = numpy.asarray(values, dtype=float)
+        if array.shape != a_grid.shape or not numpy.all(numpy.isfinite(array)):
+            raise ValueError(
+                "Reionization quantity grid has an invalid shape or values: "
+                f"{name}"
+            )
+        normalized_values[name] = array
+    background_context = _resolve_declared_background_context(
+        contract,
+        a_values=a_grid,
+        z_values=normalized_values["z"],
+    )
+    reionization_context = dict(background_context)
+    reionization_context.update(normalized_values)
+    reionization_context.update(
+        {
+            "neutral_h_floor": numpy.maximum(
+                1.0 - normalized_values["x_h_floor"],
+                0.0,
+            ),
+            "neutral_he_floor": numpy.maximum(
+                float(helium_number_ratio)
+                - normalized_values["helium_electron_floor"],
+                0.0,
+            ),
+            "helium_number_ratio": float(helium_number_ratio),
+            "H0_SI": float(hubble0_si),
+        }
+    )
+    if calibration_symbol is not None and calibration_value is not None:
+        reionization_context[calibration_symbol] = float(calibration_value)
+    resolved = _resolve_declared_reionization_context(
+        contract,
+        base_context=reionization_context,
+    )
+    normalized_context: dict[str, numpy.ndarray] = {}
+    for name, value in resolved.items():
+        array = numpy.asarray(value, dtype=float)
+        if array.ndim == 0:
+            array = numpy.full(a_grid.shape, float(array), dtype=float)
+        elif array.shape != a_grid.shape:
+            raise ValueError(
+                "Declared reionization quantity has an invalid grid shape: "
+                f"{name}"
+            )
+        if not numpy.all(numpy.isfinite(array)):
+            raise ValueError(
+                "Declared reionization quantity produced non-finite values: "
+                f"{name}"
+            )
+        normalized_context[str(name)] = numpy.asarray(array, dtype=float)
+    return normalized_context
+
+
 def _resolve_declared_recombination_context(
     contract: Mapping[str, Any],
     *,
@@ -1504,9 +1590,14 @@ def _custom_cmb_spectrum_cache_key(
         )
     return native_cache.NativeRuntimeCacheIdentity(
         contract_static=_freeze_for_cache(
-            _contract_cache_view(contract_or_params)
+            _contract_structural_cache_view(contract_or_params)
         ),
-        cosmology_static=_custom_cmb_provider_key(background_provider),
+        cosmology_static=(
+            _custom_cmb_provider_key(background_provider),
+            _freeze_for_cache(
+                _contract_dynamic_cache_view(contract_or_params)
+            ),
+        ),
         request_specific=(ell_key, requested_key),
     )
 
@@ -1536,6 +1627,37 @@ def _contract_cache_view(
             if key != "model_name"
         }
     return view
+
+
+def _contract_structural_cache_view(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return the runtime structure without bound parameter values."""
+
+    view = dict(_contract_cache_view(contract))
+    for parameter_group in ("param_map", "model_parameters"):
+        raw_values = view.get(parameter_group)
+        if isinstance(raw_values, Mapping):
+            view[parameter_group] = tuple(
+                sorted(str(name) for name in raw_values)
+            )
+    runtime_signature = str(contract.get("runtime_signature", "")).strip()
+    if runtime_signature:
+        view["runtime_signature"] = runtime_signature
+    return view
+
+
+def _contract_dynamic_cache_view(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return bound values that distinguish parameter-specific results."""
+
+    dynamic_values: dict[str, Any] = {}
+    for parameter_group in ("param_map", "model_parameters"):
+        raw_values = contract.get(parameter_group)
+        if isinstance(raw_values, Mapping):
+            dynamic_values[parameter_group] = dict(raw_values)
+    return dynamic_values
 
 
 def _expression_symbol_name(expression: str) -> str | None:
@@ -2985,6 +3107,7 @@ def _build_custom_cmb_background(
         state_vector: numpy.ndarray,
         *,
         calibration_value: float | None,
+        declared_quantities: Mapping[str, float] | None = None,
         a_left: float,
         a_right: float,
         floor_h_left: float,
@@ -3041,16 +3164,19 @@ def _build_custom_cmb_background(
             helium_number_ratio - floor_he - delta_he_single - delta_he_double,
             0.0,
         )
-        reionization_context = _resolve_stage_reionization_quantities(
-            a_value=float(a_value),
-            z_value=z_value,
-            n_h_value=n_h_value,
-            x_h_floor=floor_h,
-            helium_electron_floor=floor_he,
-            x_e_floor=x_e_floor,
-            hubble_rate=hubble_rate,
-            calibration_value=calibration_value,
-        )
+        if declared_quantities is None:
+            reionization_context = _resolve_stage_reionization_quantities(
+                a_value=float(a_value),
+                z_value=z_value,
+                n_h_value=n_h_value,
+                x_h_floor=floor_h,
+                helium_electron_floor=floor_he,
+                x_e_floor=x_e_floor,
+                hubble_rate=hubble_rate,
+                calibration_value=calibration_value,
+            )
+        else:
+            reionization_context = declared_quantities
         if not reionization_context:
             return numpy.zeros(3, dtype=float)
         for required_name in (
@@ -3121,6 +3247,59 @@ def _build_custom_cmb_background(
             dtype=float,
         ) / max(a_value * hubble_rate, 1.0e-30)
 
+    reionization_stage_grid_cache: dict[
+        float | None,
+        tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]],
+    ] = {}
+
+    def _reionization_stage_quantity_grids(
+        calibration_value: float | None,
+    ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
+        """Return endpoint and midpoint declared quantities for one trial."""
+
+        cached = reionization_stage_grid_cache.get(calibration_value)
+        if cached is not None:
+            return cached
+        stage_z_values = numpy.full_like(
+            a_grid,
+            float(z_grid[-1]),
+            dtype=float,
+        )
+        endpoint_values = _resolve_declared_reionization_quantity_grids(
+            contract,
+            a_values=a_grid,
+            z_values=stage_z_values,
+            n_h_values=n_H_grid,
+            x_h_floor_values=x_h_grid,
+            helium_electron_floor_values=helium_floor_grid,
+            x_e_floor_values=x_e_recomb_grid,
+            hubble_rates=hydrogen_rate_grid,
+            helium_number_ratio=helium_number_ratio,
+            hubble0_si=hubble0_si,
+            calibration_symbol=calibration_symbol,
+            calibration_value=calibration_value,
+        )
+        midpoint_values = _resolve_declared_reionization_quantity_grids(
+            contract,
+            a_values=0.5 * (a_grid[:-1] + a_grid[1:]),
+            z_values=stage_z_values[:-1],
+            n_h_values=0.5 * (n_H_grid[:-1] + n_H_grid[1:]),
+            x_h_floor_values=0.5 * (x_h_grid[:-1] + x_h_grid[1:]),
+            helium_electron_floor_values=0.5
+            * (helium_floor_grid[:-1] + helium_floor_grid[1:]),
+            x_e_floor_values=0.5
+            * (x_e_recomb_grid[:-1] + x_e_recomb_grid[1:]),
+            hubble_rates=0.5
+            * (hydrogen_rate_grid[:-1] + hydrogen_rate_grid[1:]),
+            helium_number_ratio=helium_number_ratio,
+            hubble0_si=hubble0_si,
+            calibration_symbol=calibration_symbol,
+            calibration_value=calibration_value,
+        )
+        cached = (endpoint_values, midpoint_values)
+        reionization_stage_grid_cache[calibration_value] = cached
+        return cached
+
     def _integrate_reionization_history(
         calibration_value: float | None,
     ) -> tuple[numpy.ndarray, float, float]:
@@ -3132,6 +3311,33 @@ def _build_custom_cmb_background(
                 0.0,
                 0.0,
             )
+        endpoint_quantities, midpoint_quantities = (
+            _reionization_stage_quantity_grids(calibration_value)
+        )
+        state_quantity_names = (
+            "hydrogen_ionization_rate",
+            "helium_ionization_rate",
+            "helium_double_ionization_rate",
+            "hydrogen_temperature_K",
+            "helium_temperature_K",
+            "helium_double_temperature_K",
+        )
+        endpoint_stage_values = tuple(
+            {
+                name: float(values[index])
+                for name, values in endpoint_quantities.items()
+                if name in state_quantity_names
+            }
+            for index in range(a_grid.size)
+        )
+        midpoint_stage_values = tuple(
+            {
+                name: float(values[index])
+                for name, values in midpoint_quantities.items()
+                if name in state_quantity_names
+            }
+            for index in range(a_grid.size - 1)
+        )
         state = numpy.zeros(3, dtype=float)
         delta_h_grid = numpy.zeros_like(z_grid, dtype=float)
         delta_he_single_grid = numpy.zeros_like(z_grid, dtype=float)
@@ -3151,6 +3357,7 @@ def _build_custom_cmb_background(
             def _stage_derivative(
                 stage_a: float,
                 stage_state: numpy.ndarray,
+                declared_quantities: Mapping[str, float],
             ) -> numpy.ndarray:
                 """Return one RK4 stage for the reionization state."""
 
@@ -3158,6 +3365,7 @@ def _build_custom_cmb_background(
                     stage_a,
                     stage_state,
                     calibration_value=calibration_value,
+                    declared_quantities=declared_quantities,
                     a_left=a_left,
                     a_right=a_right,
                     floor_h_left=float(x_h_grid[index]),
@@ -3172,19 +3380,26 @@ def _build_custom_cmb_background(
                     rate_right=float(hydrogen_rate_grid[index + 1]),
                 )
 
-            slope_start = _stage_derivative(a_left, state)
+            slope_start = _stage_derivative(
+                a_left,
+                state,
+                endpoint_stage_values[index],
+            )
             midpoint_a = a_left + 0.5 * step
             slope_mid_a = _stage_derivative(
                 midpoint_a,
                 state + 0.5 * step * slope_start,
+                midpoint_stage_values[index],
             )
             slope_mid_b = _stage_derivative(
                 midpoint_a,
                 state + 0.5 * step * slope_mid_a,
+                midpoint_stage_values[index],
             )
             slope_end = _stage_derivative(
                 a_right,
                 state + step * slope_mid_b,
+                endpoint_stage_values[index + 1],
             )
             candidate_state = state + (step / 6.0) * (
                 slope_start + 2.0 * slope_mid_a + 2.0 * slope_mid_b + slope_end
@@ -3260,29 +3475,75 @@ def _build_custom_cmb_background(
         return reionization_history_cache[calibration_value]
 
     if target_reionization_tau is not None:
-        _, lower_tau, _ = _get_reionization_history(calibration_lower)
-        _, upper_tau, _ = _get_reionization_history(calibration_upper)
-        lower_offset = lower_tau - target_reionization_tau
-        upper_offset = upper_tau - target_reionization_tau
-        if lower_offset == 0.0:
-            chosen_calibration = calibration_lower
-        elif upper_offset == 0.0:
-            chosen_calibration = calibration_upper
-        elif lower_offset * upper_offset > 0.0:
-            raise ValueError(
-                "Declared reionization calibration range does not bracket "
-                "the requested optical depth."
+        calibration_seed_key = (
+            _freeze_for_cache(reionization_section),
+            str(calibration_symbol),
+            float(target_reionization_tau),
+            float(calibration_lower),
+            float(calibration_upper),
+        )
+
+        def _calibration_offset(value: float) -> float:
+            """Return the optical-depth residual for one trial amplitude."""
+
+            return float(
+                _get_reionization_history(float(value))[1]
+                - target_reionization_tau
             )
-        else:
-            chosen_calibration = float(
-                brentq(
-                    lambda value: _get_reionization_history(value)[1]
-                    - target_reionization_tau,
-                    calibration_lower,
-                    calibration_upper,
-                    maxiter=96,
+
+        chosen_calibration: float | None = None
+        warm_seed = native_cache.get_reionization_calibration_seed(
+            calibration_seed_key
+        )
+        if warm_seed is not None and (
+            calibration_lower < warm_seed < calibration_upper
+        ):
+            local_lower = max(calibration_lower, warm_seed - 1.0)
+            local_upper = min(calibration_upper, warm_seed + 1.0)
+            seed_offset = _calibration_offset(warm_seed)
+            if seed_offset == 0.0:
+                chosen_calibration = warm_seed
+            else:
+                local_lower_offset = _calibration_offset(local_lower)
+                local_upper_offset = _calibration_offset(local_upper)
+                if local_lower_offset == 0.0:
+                    chosen_calibration = local_lower
+                elif local_upper_offset == 0.0:
+                    chosen_calibration = local_upper
+                elif local_lower_offset * local_upper_offset < 0.0:
+                    chosen_calibration = float(
+                        brentq(
+                            _calibration_offset,
+                            local_lower,
+                            local_upper,
+                            maxiter=96,
+                        )
+                    )
+        if chosen_calibration is None:
+            lower_offset = _calibration_offset(calibration_lower)
+            upper_offset = _calibration_offset(calibration_upper)
+            if lower_offset == 0.0:
+                chosen_calibration = calibration_lower
+            elif upper_offset == 0.0:
+                chosen_calibration = calibration_upper
+            elif lower_offset * upper_offset > 0.0:
+                raise ValueError(
+                    "Declared reionization calibration range does not bracket "
+                    "the requested optical depth."
                 )
-            )
+            else:
+                chosen_calibration = float(
+                    brentq(
+                        _calibration_offset,
+                        calibration_lower,
+                        calibration_upper,
+                        maxiter=96,
+                    )
+                )
+        native_cache.set_reionization_calibration_seed(
+            calibration_seed_key,
+            chosen_calibration,
+        )
         reionization_xe_grid, reionization_tau, z_reion = (
             _get_reionization_history(chosen_calibration)
         )

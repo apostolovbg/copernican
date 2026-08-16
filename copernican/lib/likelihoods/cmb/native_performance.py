@@ -22,19 +22,34 @@ NATIVE_PHASE_NAMES = (
 
 @dataclass(frozen=True, slots=True)
 class NativePerformanceBudget:
-    """Declare the wall-time limits for accepted native workloads."""
+    """Declare the wall-time limits for accepted native cache states."""
 
     full_spectrum_seconds: float = 180.0
-    joint_mcmc_seconds: float = 60.0
+    warm_parameter_seconds: float = 5.0
+    exact_cache_hit_seconds: float = 1.0
 
     def limit_for(self, workload: str) -> float:
         """Return the positive limit for one named workload."""
 
         normalized = str(workload).strip().lower()
-        if normalized in {"full", "full_spectrum", "native_spectrum"}:
+        if normalized in {
+            "cold",
+            "cold_full_spectrum",
+            "full",
+            "full_spectrum",
+            "native_spectrum",
+        }:
             return float(self.full_spectrum_seconds)
-        if normalized in {"joint", "joint_mcmc", "mcmc"}:
-            return float(self.joint_mcmc_seconds)
+        if normalized in {
+            "joint",
+            "joint_mcmc",
+            "mcmc",
+            "warm",
+            "warm_parameter",
+        }:
+            return float(self.warm_parameter_seconds)
+        if normalized in {"cache_hit", "exact", "exact_cache_hit"}:
+            return float(self.exact_cache_hit_seconds)
         raise ValueError(f"Unknown native performance workload: {workload}")
 
 
@@ -154,6 +169,12 @@ def resolve_native_performance_budget(
             "cmb.perturbations.accuracy_controls.performance_budget must be "
             "a mapping or the preset 'bounded'"
         )
+    if "joint_mcmc_seconds" in raw_budget:
+        raise ValueError(
+            "cmb.perturbations.accuracy_controls.performance_budget."
+            "joint_mcmc_seconds was removed; use "
+            "warm_parameter_seconds"
+        )
     return NativePerformanceBudget(
         full_spectrum_seconds=_positive_seconds(
             raw_budget.get("full_spectrum_seconds"),
@@ -163,13 +184,21 @@ def resolve_native_performance_budget(
             ),
             default=180.0,
         ),
-        joint_mcmc_seconds=_positive_seconds(
-            raw_budget.get("joint_mcmc_seconds"),
+        warm_parameter_seconds=_positive_seconds(
+            raw_budget.get("warm_parameter_seconds"),
             name=(
                 "cmb.perturbations.accuracy_controls.performance_budget."
-                "joint_mcmc_seconds"
+                "warm_parameter_seconds"
             ),
-            default=60.0,
+            default=5.0,
+        ),
+        exact_cache_hit_seconds=_positive_seconds(
+            raw_budget.get("exact_cache_hit_seconds"),
+            name=(
+                "cmb.perturbations.accuracy_controls.performance_budget."
+                "exact_cache_hit_seconds"
+            ),
+            default=1.0,
         ),
     )
 
@@ -183,9 +212,9 @@ def enforce_native_performance_budget(
 ) -> None:
     """Raise when one measured workload exceeds its declared budget.
 
-    The first process-local joint request owns structural initialization and
-    uses the full-spectrum startup limit. Every warm or exact proposal uses
-    the steady-state joint-MCMC limit.
+    Cache state defines the measured workload boundary. Cold requests own
+    structural setup, warm requests are parameter rebounds, and exact hits
+    must not redo numerical work.
     """
 
     if budget is None:
@@ -193,18 +222,18 @@ def enforce_native_performance_budget(
     elapsed = float(elapsed_seconds)
     if elapsed < 0.0 or elapsed != elapsed:
         raise ValueError("Native workload elapsed time must be finite")
-    normalized_workload = str(workload).strip().lower()
-    normalized_cache_state = str(cache_state or "").strip().lower()
-    cold_joint_start = (
-        normalized_workload
-        in {
-            "joint",
-            "joint_mcmc",
-            "mcmc",
-        }
-        and normalized_cache_state == "cold"
-    )
-    budget_workload = "full_spectrum" if cold_joint_start else workload
+    normalized_cache_state = str(cache_state or "cold").strip().lower()
+    budget_workloads = {
+        "cold": "full_spectrum",
+        "warm": "warm_parameter",
+        "exact_cache_hit": "exact_cache_hit",
+    }
+    try:
+        budget_workload = budget_workloads[normalized_cache_state]
+    except KeyError as exc:
+        raise ValueError(
+            "Native performance cache state is invalid: " f"{cache_state}"
+        ) from exc
     limit = budget.limit_for(budget_workload)
     if elapsed > limit:
         raise NativePerformanceBudgetError(

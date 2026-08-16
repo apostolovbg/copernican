@@ -69,15 +69,17 @@ from .native_errors import (
     native_failure_context,
 )
 from .native_evolution import (
-    _COMPILED_CONTEXT_GLOBALS,
     _build_declared_base_context,
+    _compile_batched_row_equation_program,
     _compile_declared_perturbation_contract,
     _compile_equation_program,
+    _compile_expression_tuple_program,
     _compile_ordered_context_program,
     _compute_tight_coupling_drag,
     _declared_momentum_grid_context,
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
+    _integrate_batched_rk4,
     _nonuniform_gradient,
     _resolve_declared_graph_context,
     _resolve_declared_graph_context_ordered,
@@ -101,6 +103,58 @@ _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
 _SCALAR_INITIAL_SOLVE_NUMERICAL_TOLERANCE = 1.0e-9
 _BESSEL_WORK_CELL_BUDGET = 8_000_000
 _BESSEL_MAX_MODE_BATCH = 16
+
+
+def _can_batch_declared_evolution(
+    *,
+    generated_scalar_hierarchy: bool,
+    shared_mode_grids_enabled: bool,
+    mode_count: int,
+    has_momentum_runtimes: bool,
+    has_end_boundaries: bool,
+    adaptive_evolution_enabled: bool,
+    adaptive_source_enabled: bool,
+    adaptive_transfer_enabled: bool,
+    adaptive_projection_enabled: bool,
+    adaptive_k_enabled: bool,
+    continuous_collision_solver: bool,
+    state_slots: Iterable[Any],
+    collision_runtimes: Iterable[Any],
+) -> bool:
+    """Return whether declared modes share the vectorized RK capability.
+
+    The batch path preserves the scalar executor for contracts with adaptive
+    histories, non-shared grids, transformed coordinates, or conditional
+    collision activation.  Those contracts require independently staged
+    scalar control rather than a common explicit schedule.
+    """
+
+    if not (
+        generated_scalar_hierarchy
+        and shared_mode_grids_enabled
+        and int(mode_count) > 1
+    ):
+        return False
+    if (
+        has_end_boundaries
+        or adaptive_evolution_enabled
+        or adaptive_source_enabled
+        or adaptive_transfer_enabled
+        or adaptive_projection_enabled
+        or adaptive_k_enabled
+        or continuous_collision_solver
+    ):
+        return False
+    if any(
+        str(getattr(slot, "wrt", ""))
+        not in _LEGACY_DECLARED_EVOLUTION_COORDINATES
+        for slot in state_slots
+    ):
+        return False
+    return all(
+        str(getattr(runtime, "activation_strategy", "")) == "always"
+        for runtime in collision_runtimes
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -771,6 +825,215 @@ def _exact_linear_collision_step(
     except (numpy.linalg.LinAlgError, FloatingPointError):
         pass
     return numpy.asarray(expm(scaled_matrix) @ state, dtype=float)
+
+
+def _exact_batched_two_state_blocks(
+    blocks: numpy.ndarray,
+    block_states: numpy.ndarray,
+) -> numpy.ndarray | None:
+    """Apply exact two-state exponentials to a batch of mode rows."""
+
+    leading_diagonal = blocks[:, 0, 0]
+    trailing_diagonal = blocks[:, 1, 1]
+    upper = blocks[:, 0, 1]
+    lower = blocks[:, 1, 0]
+    trace_half = 0.5 * (leading_diagonal + trailing_diagonal)
+    centered_diagonal = 0.5 * (leading_diagonal - trailing_diagonal)
+    discriminant = numpy.square(centered_diagonal) + upper * lower
+    centered_action = numpy.empty_like(block_states, dtype=float)
+    centered_action[:, 0] = (
+        centered_diagonal * block_states[:, 0] + upper * block_states[:, 1]
+    )
+    centered_action[:, 1] = (
+        lower * block_states[:, 0] - centered_diagonal * block_states[:, 1]
+    )
+    if numpy.all(discriminant >= 0.0):
+        delta = numpy.sqrt(discriminant)
+        sinh_over_delta = numpy.ones_like(delta)
+        nonzero_delta = delta > 1.0e-14
+        sinh_over_delta[nonzero_delta] = (
+            numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
+        )
+        evolved_real = numpy.exp(trace_half)[:, None] * (
+            numpy.cosh(delta)[:, None] * block_states
+            + sinh_over_delta[:, None] * centered_action
+        )
+        if numpy.all(numpy.isfinite(evolved_real)):
+            return numpy.asarray(evolved_real, dtype=float)
+
+    delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
+    evolved = numpy.empty(block_states.shape, dtype=complex)
+    nearly_degenerate = numpy.abs(delta) <= 1.0e-14
+    if numpy.any(nearly_degenerate):
+        indices = numpy.flatnonzero(nearly_degenerate)
+        evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
+            block_states[indices] + centered_action[indices]
+        )
+    if numpy.any(~nearly_degenerate):
+        indices = numpy.flatnonzero(~nearly_degenerate)
+        plus = numpy.exp(trace_half[indices] + delta[indices])
+        minus = numpy.exp(trace_half[indices] - delta[indices])
+        evolved[indices] = 0.5 * (
+            (plus + minus)[:, None] * block_states[indices]
+            + ((plus - minus) / delta[indices])[:, None]
+            * centered_action[indices]
+        )
+    real_evolved = numpy.real_if_close(evolved, tol=1000)
+    if numpy.iscomplexobj(real_evolved) or not numpy.all(
+        numpy.isfinite(real_evolved)
+    ):
+        return None
+    return numpy.asarray(real_evolved, dtype=float)
+
+
+def _exact_batched_linear_collision_step(
+    *,
+    operator_matrices: numpy.ndarray,
+    dt: float,
+    target_states: numpy.ndarray,
+    operator_scales: numpy.ndarray,
+    assume_block_diagonal: bool = False,
+) -> numpy.ndarray:
+    """Return exact collision updates for compatible mode-row matrices.
+
+    The declared scalar hierarchy uses independent one- and two-state
+    collision blocks.  Evaluate those blocks together so a shared Fourier
+    batch does not repeat a small eigensystem decomposition for every row.
+    Unstructured declarations retain the scalar exact operator per row.
+    """
+
+    matrices = numpy.asarray(operator_matrices, dtype=float)
+    states = numpy.asarray(target_states, dtype=float)
+    scales = numpy.asarray(operator_scales, dtype=float)
+    if matrices.ndim != 3 or matrices.shape[1] != matrices.shape[2]:
+        raise ValueError("Batched collision matrices must be square mode rows")
+    mode_count, state_count, _ = matrices.shape
+    if states.shape != (mode_count, state_count):
+        raise ValueError("Batched collision states do not match matrices")
+    if scales.shape != (mode_count,):
+        raise ValueError("Batched collision scales do not match matrices")
+    if not (
+        numpy.all(numpy.isfinite(matrices))
+        and numpy.all(numpy.isfinite(states))
+        and numpy.all(numpy.isfinite(scales))
+    ):
+        raise ValueError("Batched collision inputs must be finite")
+    if float(dt) == 0.0 or state_count == 0:
+        return states.copy()
+
+    scaled_matrices = matrices * scales[:, numpy.newaxis, numpy.newaxis]
+    scaled_matrices *= float(dt)
+
+    if assume_block_diagonal and state_count == 4:
+        if numpy.all(scaled_matrices[:, :2, 2:] == 0.0) and numpy.all(
+            scaled_matrices[:, 2:, :2] == 0.0
+        ):
+            leading = _exact_batched_two_state_blocks(
+                scaled_matrices[:, :2, :2],
+                states[:, :2],
+            )
+            trailing = _exact_batched_two_state_blocks(
+                scaled_matrices[:, 2:, 2:],
+                states[:, 2:],
+            )
+            if leading is not None and trailing is not None:
+                return numpy.concatenate((leading, trailing), axis=1)
+
+    def _apply_two_state_blocks(
+        blocks: numpy.ndarray,
+        block_states: numpy.ndarray,
+    ) -> numpy.ndarray | None:
+        """Apply the scalar two-state exponential formula to every row."""
+
+        leading_diagonal = blocks[:, 0, 0]
+        trailing_diagonal = blocks[:, 1, 1]
+        upper = blocks[:, 0, 1]
+        lower = blocks[:, 1, 0]
+        trace_half = 0.5 * (leading_diagonal + trailing_diagonal)
+        centered_diagonal = 0.5 * (leading_diagonal - trailing_diagonal)
+        discriminant = numpy.square(centered_diagonal) + upper * lower
+        centered_action = numpy.empty_like(block_states, dtype=float)
+        centered_action[:, 0] = (
+            centered_diagonal * block_states[:, 0] + upper * block_states[:, 1]
+        )
+        centered_action[:, 1] = (
+            lower * block_states[:, 0] - centered_diagonal * block_states[:, 1]
+        )
+        if numpy.all(discriminant >= 0.0):
+            delta = numpy.sqrt(discriminant)
+            sinh_over_delta = numpy.ones_like(delta)
+            nonzero_delta = delta > 1.0e-14
+            sinh_over_delta[nonzero_delta] = (
+                numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
+            )
+            evolved_real = numpy.exp(trace_half)[:, None] * (
+                numpy.cosh(delta)[:, None] * block_states
+                + sinh_over_delta[:, None] * centered_action
+            )
+            if numpy.all(numpy.isfinite(evolved_real)):
+                return numpy.asarray(evolved_real, dtype=float)
+
+        delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
+        evolved = numpy.empty(block_states.shape, dtype=complex)
+        nearly_degenerate = numpy.abs(delta) <= 1.0e-14
+        if numpy.any(nearly_degenerate):
+            indices = numpy.flatnonzero(nearly_degenerate)
+            evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
+                block_states[indices] + centered_action[indices]
+            )
+        if numpy.any(~nearly_degenerate):
+            indices = numpy.flatnonzero(~nearly_degenerate)
+            plus = numpy.exp(trace_half[indices] + delta[indices])
+            minus = numpy.exp(trace_half[indices] - delta[indices])
+            evolved[indices] = 0.5 * (
+                (plus + minus)[:, None] * block_states[indices]
+                + ((plus - minus) / delta[indices])[:, None]
+                * centered_action[indices]
+            )
+        real_evolved = numpy.real_if_close(evolved, tol=1000)
+        if numpy.iscomplexobj(real_evolved) or not numpy.all(
+            numpy.isfinite(real_evolved)
+        ):
+            return None
+        return numpy.asarray(real_evolved, dtype=float)
+
+    batched_result: numpy.ndarray | None = None
+    if state_count == 1:
+        batched_result = numpy.exp(scaled_matrices[:, 0, 0])[:, None] * states
+    elif state_count == 2:
+        batched_result = _apply_two_state_blocks(scaled_matrices, states)
+    elif (
+        state_count == 4
+        and numpy.all(scaled_matrices[:, :2, 2:] == 0.0)
+        and numpy.all(scaled_matrices[:, 2:, :2] == 0.0)
+    ):
+        leading = _apply_two_state_blocks(
+            scaled_matrices[:, :2, :2],
+            states[:, :2],
+        )
+        trailing = _apply_two_state_blocks(
+            scaled_matrices[:, 2:, 2:],
+            states[:, 2:],
+        )
+        if leading is not None and trailing is not None:
+            batched_result = numpy.concatenate((leading, trailing), axis=1)
+    if batched_result is not None and numpy.all(
+        numpy.isfinite(batched_result)
+    ):
+        return numpy.asarray(batched_result, dtype=float)
+
+    return numpy.asarray(
+        [
+            _exact_linear_collision_step(
+                operator_matrix=matrix,
+                dt=float(dt),
+                target_state=state,
+                operator_scale=float(scale),
+            )
+            for matrix, state, scale in zip(matrices, states, scales)
+        ],
+        dtype=float,
+    )
 
 
 def _structured_collision_action(
@@ -1829,12 +2092,27 @@ def _compute_custom_cmb_spectrum_data_impl(
     value_steps_by_name = {
         str(step.output_name): step for step in execution_plan.value_steps
     }
-    stage_required_names: set[str] = {
+    equation_direct_names: set[str] = {
         str(dependency)
         for slot_plan in execution_plan.equation_slot_plans
         if slot_plan.compiled_rhs is not None
         for dependency in slot_plan.compiled_rhs.dependencies
     }
+    equation_required_names = set(equation_direct_names)
+    pending_required_names = list(equation_required_names)
+    while pending_required_names:
+        dependency_name = pending_required_names.pop()
+        value_step = value_steps_by_name.get(dependency_name)
+        if value_step is None:
+            continue
+        for dependency in value_step.dependencies:
+            dependency_name = str(dependency)
+            if dependency_name in equation_required_names:
+                continue
+            equation_required_names.add(dependency_name)
+            pending_required_names.append(dependency_name)
+
+    stage_required_names = set(equation_required_names)
     stage_required_names.update(
         {
             "einstein_energy_residual",
@@ -1868,6 +2146,11 @@ def _compute_custom_cmb_spectrum_data_impl(
         step
         for step in execution_plan.derivative_steps
         if step.output_name in stage_required_names
+    )
+    equation_stage_derivative_steps = tuple(
+        step
+        for step in execution_plan.derivative_steps
+        if step.output_name in equation_required_names
     )
     stage_value_steps = tuple(
         step
@@ -2366,6 +2649,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["batch_mode_count"] = 0
     runtime_envelope["batched_rk_stage_count"] = 0
     runtime_envelope["batched_max_substeps"] = 0
+    runtime_envelope["batched_schedule_correction_mode_count"] = 0
     graph_cache_after = native_cache.native_cmb_cache_stats()[
         "declared_graph_execution_plan"
     ]
@@ -2383,8 +2667,29 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["cosmology_static_preparations"] = int(
         not runtime_envelope["background_cache_hit"]
     )
+    previous_request_identity = (
+        native_cache.latest_native_cmb_request_identity()
+    )
+    same_request_shape = bool(
+        previous_request_identity is not None
+        and previous_request_identity.contract_static
+        == cache_key.contract_static
+        and previous_request_identity.request_specific
+        == cache_key.request_specific
+    )
+    # A structural graph hit alone does not make a request a warm parameter
+    # rebound: a new background or graph changes the numerical work. Classify
+    # warm only when the compiled structure, parameter-dependent background,
+    # and request shape are reusable; otherwise the full-spectrum budget owns
+    # the request.
     performance_timer.mark_cache_state(
-        "warm" if runtime_envelope["graph_plan_cache_hit"] else "cold"
+        "warm"
+        if (
+            runtime_envelope["graph_plan_cache_hit"]
+            and runtime_envelope["background_cache_hit"]
+            and same_request_shape
+        )
+        else "cold"
     )
     performance_timer.set_work_units(
         {
@@ -3235,16 +3540,11 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
             try:
-                # security-scanner: allow validated declared program execution.
-                exec(  # nosec B102 - expressions passed AST validation.
-                    equation_program,
-                    _COMPILED_CONTEXT_GLOBALS,
-                    {
-                        "context": scalar_context,
-                        "state_vector": effective_state_vector,
-                        "derivative": derivative,
-                        "coordinate_rates": coordinate_rates,
-                    },
+                equation_program(
+                    scalar_context,
+                    effective_state_vector,
+                    derivative,
+                    coordinate_rates,
                 )
             except (KeyError, NameError, TypeError, ValueError) as exc:
                 raise ValueError(
@@ -3401,6 +3701,11 @@ def _compute_custom_cmb_spectrum_data_impl(
         for step in execution_plan.value_steps
         if step not in state_dependent_value_steps
     )
+    batched_rhs_value_steps = tuple(
+        step
+        for step in state_dependent_value_steps
+        if str(step.output_name) in equation_required_names
+    )
 
     def _compile_value_program(value_steps: tuple[Any, ...]) -> Any | None:
         """Compile one reusable direct-assignment context program."""
@@ -3424,7 +3729,16 @@ def _compute_custom_cmb_spectrum_data_impl(
     state_dependent_context_program = _compile_value_program(
         state_dependent_value_steps
     )
+    batched_rhs_context_program = _compile_value_program(
+        batched_rhs_value_steps
+    )
     stage_context_program = _compile_value_program(stage_value_steps)
+    runtime_envelope["batched_rhs_value_step_count"] = int(
+        len(batched_rhs_value_steps)
+    )
+    runtime_envelope["batched_diagnostic_value_step_count"] = int(
+        len(state_dependent_value_steps)
+    )
     static_collision_runtimes = {
         runtime.name: not (
             set(runtime.rate_expression.dependencies)
@@ -5012,6 +5326,984 @@ def _compute_custom_cmb_spectrum_data_impl(
             }
         return source_histories, source_arrays
 
+    def _evolve_declared_modes_batched(
+        mode_k_values: numpy.ndarray,
+    ) -> dict[int, dict[str, numpy.ndarray]]:
+        """Evolve compatible declared modes through one shared RK schedule.
+
+        The compiled declaration remains the numerical authority: the batch
+        transposes the state layout so the existing equation program evaluates
+        every independent Fourier mode in one NumPy operation.  Contracts
+        outside that capability retain the scalar evolution path.
+        """
+
+        nonlocal active_grids
+        nonlocal active_declared_background_histories
+        nonlocal active_coordinate_rate_histories
+        nonlocal active_k_value
+        nonlocal scalar_base_context_cache
+        nonlocal scalar_background_context_cache
+
+        continuous_collision_control = declared_accuracy_controls.get(
+            "continuous_collision_solver"
+        )
+        if continuous_collision_control is not None and not isinstance(
+            continuous_collision_control,
+            bool,
+        ):
+            raise ValueError(
+                "cmb.perturbations.accuracy_controls."
+                "continuous_collision_solver must be a boolean"
+            )
+        continuous_collision_solver = bool(
+            continuous_collision_control
+            and split_collision_runtimes
+            and "massive_neutrino"
+            not in set(manifest_summary.get("hierarchy_family_names", ()))
+            and all(
+                runtime.integration_strategy in {"exact", "implicit"}
+                for runtime in split_collision_runtimes
+            )
+        )
+        k_values_batch = numpy.asarray(mode_k_values, dtype=float)
+        if k_values_batch.ndim != 1 or not numpy.all(
+            numpy.isfinite(k_values_batch)
+        ):
+            raise ValueError("Batched CMB evolution requires finite k modes")
+        if not _can_batch_declared_evolution(
+            generated_scalar_hierarchy=generated_scalar_hierarchy,
+            shared_mode_grids_enabled=shared_generated_mode_grids_enabled,
+            mode_count=int(k_values_batch.size),
+            has_momentum_runtimes=bool(momentum_runtimes),
+            has_end_boundaries=bool(execution_plan.end_condition_entries),
+            adaptive_evolution_enabled=adaptive_controls.evolution_enabled,
+            adaptive_source_enabled=adaptive_controls.source_enabled,
+            adaptive_transfer_enabled=adaptive_controls.transfer_enabled,
+            adaptive_projection_enabled=adaptive_controls.projection_enabled,
+            adaptive_k_enabled=adaptive_k_enabled,
+            continuous_collision_solver=continuous_collision_solver,
+            state_slots=runtime_spec.state_slots,
+            collision_runtimes=split_collision_runtimes,
+        ):
+            return {}
+        if not all(
+            state_independent_collision_runtimes.get(runtime.name, False)
+            for runtime in split_collision_runtimes
+        ):
+            return {}
+
+        grouped_modes: dict[bytes, dict[str, Any]] = {}
+        for mode_index, mode_k_value in enumerate(k_values_batch):
+            mode_grids = _mode_grids_for_k(float(mode_k_value))
+            eta_values = numpy.asarray(mode_grids[0]["eta"], dtype=float)
+            group = grouped_modes.setdefault(
+                eta_values.tobytes(),
+                {
+                    "indices": [],
+                    "k_values": [],
+                    "grids": mode_grids,
+                },
+            )
+            group["indices"].append(int(mode_index))
+            group["k_values"].append(float(mode_k_value))
+
+        results: dict[int, dict[str, numpy.ndarray]] = {}
+        for group in grouped_modes.values():
+            if len(group["indices"]) < 2:
+                continue
+            (
+                active_grids,
+                active_declared_background_histories,
+                active_coordinate_rate_histories,
+            ) = group["grids"]
+            active_k_value = float(group["k_values"][0])
+            scalar_base_context_cache = {}
+            scalar_background_context_cache = {}
+            local_k_values = numpy.asarray(group["k_values"], dtype=float)
+            mode_count = int(local_k_values.size)
+            initial_states = []
+            for mode_k_value in local_k_values:
+                initial_state, _, _ = _prepare_mode_initial_state(
+                    float(mode_k_value)
+                )
+                initial_states.append(initial_state)
+            states = numpy.asarray(initial_states, dtype=float)
+            if states.ndim != 2 or states.shape[0] != mode_count:
+                raise ValueError("Batched CMB initial states have wrong shape")
+
+            base_context_cache: dict[tuple[int, float], dict[str, Any]] = {}
+            momentum_grid_context_cache: dict[float, dict[str, Any]] = {}
+            collision_metadata_cache: dict[
+                tuple[str, int, float],
+                tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray | None],
+            ] = {}
+            fast_collision_solver_cache: dict[str, tuple[Any, ...]] = {}
+            batched_suppressed_collision_outputs = {
+                output_name: numpy.zeros(mode_count, dtype=float)
+                for runtime in split_collision_runtimes
+                for output_name in (runtime.name, runtime.counterpart)
+                if output_name is not None
+            }
+            collision_expression_programs = {
+                runtime.name: _compile_expression_tuple_program(
+                    (
+                        str(runtime.rate_expression.expression),
+                        *(
+                            str(entry.expression)
+                            for matrix_row in runtime.matrix
+                            for entry in matrix_row
+                        ),
+                        *(
+                            ()
+                            if runtime.damping_coefficient is None
+                            else (str(runtime.damping_coefficient.expression),)
+                        ),
+                    )
+                )
+                for runtime in split_collision_runtimes
+            }
+            batch_static_context: dict[str, Any] = dict(source_parameters)
+            for name, value in _physical_runtime_scalars(
+                physical_params
+            ).items():
+                batch_static_context.setdefault(name, float(value))
+            batch_static_context["tight_coupling_ratio"] = float(
+                numerics.tight_coupling_ratio
+            )
+            batch_seed_values = numpy.asarray(
+                [
+                    _declared_runtime_seed(
+                        k_value=float(mode_k_value),
+                        physical_params=physical_params,
+                        model_parameters=source_parameters,
+                    )
+                    for mode_k_value in local_k_values
+                ],
+                dtype=float,
+            )
+            batch_coordinate_rates = {
+                str(slot_plan.wrt): 1.0
+                for slot_plan in execution_plan.equation_slot_plans
+            }
+            momentum_context_by_stage: dict[
+                tuple[int, float], dict[str, Any]
+            ] = {}
+            batched_row_program: Any | None = None
+            batched_row_vector_names: tuple[str, ...] | None = None
+
+            def _batch_base_context(
+                step_index: int,
+                blend: float,
+            ) -> dict[str, Any]:
+                """Return the vectorized state-independent graph context."""
+
+                cache_key = (int(step_index), float(blend))
+                cached = base_context_cache.get(cache_key)
+                if cached is not None:
+                    return cached
+                eta_value, background_scalars = _scalar_background_context(
+                    int(step_index),
+                    float(blend),
+                    k_value=float(local_k_values[0]),
+                )
+                context = dict(batch_static_context)
+                context.update(background_scalars)
+                context["k"] = local_k_values
+                context["seed"] = batch_seed_values
+                context["a_initial"] = float(background_scalars["a"])
+                context["eta_initial"] = float(eta_value)
+                context["sound_horizon"] = float(
+                    background_scalars["sound_horizon"]
+                )
+                context["sound_speed_sq"] = float(
+                    background_scalars["sound_speed_sq"]
+                )
+                context["collision_rate"] = float(
+                    background_scalars["collision_rate"]
+                )
+                context["free_streaming"] = float(
+                    background_scalars["free_streaming"]
+                )
+                if momentum_runtimes:
+                    momentum_context = momentum_context_by_stage.get(cache_key)
+                    if momentum_context is None:
+                        scale_factor = float(background_scalars["a"])
+                        momentum_context = momentum_grid_context_cache.get(
+                            scale_factor
+                        )
+                        if momentum_context is None:
+                            momentum_context = _declared_momentum_grid_context(
+                                perturbation_data,
+                                model_parameters=source_parameters,
+                                physical_params=physical_params,
+                                scale_factor=scale_factor,
+                            )
+                            momentum_grid_context_cache[scale_factor] = (
+                                momentum_context
+                            )
+                    context.update(momentum_context)
+                collision_rate = float(context["collision_rate"])
+                coupling_cap = numpy.maximum(
+                    local_k_values * float(numerics.tight_coupling_ratio),
+                    1.0e-12,
+                )
+                context["tight_coupling_drag"] = collision_rate / (
+                    1.0 + collision_rate / coupling_cap
+                )
+                cached = _resolve_declared_graph_context_ordered(
+                    context,
+                    perturbation_data,
+                    allow_partial=True,
+                    eta_grid=None,
+                    execution_plan=execution_plan,
+                    value_steps=state_independent_value_steps,
+                    use_compiled_program=True,
+                    compiled_value_program=state_independent_context_program,
+                )
+                base_context_cache[cache_key] = cached
+                return cached
+
+            def _batched_state_context(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                suppress_split_collision: bool = True,
+                include_diagnostics: bool = False,
+            ) -> dict[str, Any]:
+                """Bind all state rows into one vector-valued graph context."""
+
+                context = dict(_batch_base_context(step_index, blend))
+                state_columns = numpy.asarray(state_rows, dtype=float).T
+                for slot in runtime_spec.state_slots:
+                    if slot.order == 0:
+                        name = slot.variable
+                    else:
+                        name = f"__d{slot.order}_{slot.variable}_{slot.wrt}"
+                    context[name] = state_columns[slot.index]
+                suppressed_outputs = (
+                    batched_suppressed_collision_outputs
+                    if suppress_split_collision
+                    else {}
+                )
+                return _resolve_declared_graph_context_ordered(
+                    context,
+                    perturbation_data,
+                    allow_partial=True,
+                    eta_grid=None,
+                    execution_plan=execution_plan,
+                    derivative_steps=(
+                        stage_derivative_steps
+                        if include_diagnostics
+                        else equation_stage_derivative_steps
+                    ),
+                    value_steps=(
+                        state_dependent_value_steps
+                        if include_diagnostics
+                        else batched_rhs_value_steps
+                    ),
+                    suppressed_outputs=suppressed_outputs,
+                    use_compiled_program=True,
+                    compiled_value_program=(
+                        state_dependent_context_program
+                        if include_diagnostics
+                        else batched_rhs_context_program
+                    ),
+                )
+
+            def _batch_rhs(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Evaluate declared mode derivatives across all batch rows."""
+
+                del active
+                context = _batched_state_context(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                )
+                state_columns = numpy.asarray(state_rows, dtype=float).T
+                derivative_columns = numpy.zeros_like(
+                    state_columns,
+                    dtype=float,
+                )
+                equation_executor = equation_program
+                if mode_count <= 5:
+                    vector_names = tuple(
+                        name
+                        for name in sorted(equation_direct_names)
+                        if numpy.asarray(context[name]).shape == (mode_count,)
+                    )
+                    nonlocal batched_row_program
+                    nonlocal batched_row_vector_names
+                    if batched_row_vector_names is None:
+                        batched_row_vector_names = vector_names
+                        batched_row_program = (
+                            _compile_batched_row_equation_program(
+                                equation_program_specs,
+                                vector_names,
+                            )
+                        )
+                    if vector_names == batched_row_vector_names:
+                        equation_executor = batched_row_program
+                with numpy.errstate(
+                    divide="ignore",
+                    invalid="ignore",
+                    over="ignore",
+                ):
+                    try:
+                        equation_executor(
+                            context,
+                            state_columns,
+                            derivative_columns,
+                            batch_coordinate_rates,
+                        )
+                    except (KeyError, NameError, TypeError, ValueError) as exc:
+                        raise ValueError(
+                            "Declared batched CMB equation program failed "
+                            f"at step_index={step_index}"
+                        ) from exc
+                derivative = derivative_columns.T
+                if not numpy.all(numpy.isfinite(derivative)):
+                    bad = numpy.argwhere(~numpy.isfinite(derivative))[0]
+                    raise ValueError(
+                        "Declared batched CMB evolution produced a "
+                        "non-finite derivative at "
+                        f"mode_index={int(bad[0])}, "
+                        f"state_index={int(bad[1])}"
+                    )
+                return derivative
+
+            def _batch_collision_metadata(
+                *,
+                runtime: _CompiledCollisionOperatorRuntime,
+                step_index: int,
+                blend: float,
+            ) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray | None]:
+                """Resolve one declared collision matrix for every mode row."""
+
+                metadata_key = (
+                    runtime.name,
+                    int(step_index),
+                    float(blend),
+                )
+                cached = collision_metadata_cache.get(metadata_key)
+                if cached is not None:
+                    return cached
+                context = _batch_base_context(step_index, blend)
+                expression_values = collision_expression_programs[
+                    runtime.name
+                ](context)
+
+                def _mode_values(value: Any, *, name: str) -> numpy.ndarray:
+                    """Return one scalar declaration value per mode row."""
+
+                    values = numpy.asarray(value, dtype=float)
+                    if values.ndim == 0:
+                        values = numpy.full(
+                            mode_count,
+                            float(values),
+                            dtype=float,
+                        )
+                    if values.shape != (mode_count,):
+                        raise ValueError(
+                            "Declared batched collision value has the "
+                            f"wrong shape for {name}: {values.shape}"
+                        )
+                    return values
+
+                collision_rate = _mode_values(
+                    expression_values[0],
+                    name=f"collision operator '{runtime.name}' rate",
+                )
+                matrix = numpy.empty(
+                    (
+                        mode_count,
+                        len(runtime.matrix),
+                        len(runtime.matrix[0]),
+                    ),
+                    dtype=float,
+                )
+                value_index = 1
+                for row_index, matrix_row in enumerate(runtime.matrix):
+                    for column_index, _entry in enumerate(matrix_row):
+                        matrix[:, row_index, column_index] = _mode_values(
+                            expression_values[value_index],
+                            name=(
+                                "collision operator "
+                                f"'{runtime.name}' matrix entry"
+                            ),
+                        )
+                        value_index += 1
+                damping_coefficient = None
+                if runtime.damping_coefficient is not None:
+                    damping_coefficient = _mode_values(
+                        expression_values[value_index],
+                        name=(
+                            "collision operator "
+                            f"'{runtime.name}' damping coefficient"
+                        ),
+                    )
+                if not numpy.all(numpy.isfinite(collision_rate)):
+                    raise ValueError(
+                        "Declared batched collision value is non-finite for "
+                        f"collision operator '{runtime.name}' rate"
+                    )
+                if not numpy.all(numpy.isfinite(matrix)):
+                    raise ValueError(
+                        "Declared batched collision value is non-finite for "
+                        f"collision operator '{runtime.name}' matrix"
+                    )
+                if damping_coefficient is not None and not numpy.all(
+                    numpy.isfinite(damping_coefficient)
+                ):
+                    raise ValueError(
+                        "Declared batched collision value is non-finite for "
+                        f"collision operator '{runtime.name}' damping "
+                        "coefficient"
+                    )
+                metadata = (collision_rate, matrix, damping_coefficient)
+                collision_metadata_cache[metadata_key] = metadata
+                return metadata
+
+            def _validate_batch_collision_invariants(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+            ) -> None:
+                """Validate all declared collision rules in one graph pass."""
+
+                rule_names = tuple(
+                    sorted(
+                        {
+                            rule_name
+                            for runtime in split_collision_runtimes
+                            for rule_name in runtime.conservation_rule_names
+                        }
+                    )
+                )
+                if not rule_names:
+                    return
+                context = _batched_state_context(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                    suppress_split_collision=False,
+                    include_diagnostics=True,
+                )
+                _validate_declared_conservation_rules(
+                    perturbation_data=perturbation_data,
+                    context=context,
+                    k_value=float(local_k_values[0]),
+                    rule_names=rule_names,
+                )
+
+            def _apply_split_collision_steps(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                dt: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Apply the exact declared collision half-step per row."""
+
+                if dt == 0.0 or not split_collision_runtimes:
+                    return numpy.asarray(state_rows, dtype=float)
+                relaxed = numpy.asarray(state_rows, dtype=float).copy()
+                for runtime in split_collision_runtimes:
+                    collision_rates, matrices, damping_coefficients = (
+                        _batch_collision_metadata(
+                            runtime=runtime,
+                            step_index=step_index,
+                            blend=blend,
+                        )
+                    )
+                    active_rows = numpy.asarray(active, dtype=bool)
+                    apply_rows = numpy.flatnonzero(
+                        ~(active_rows & bool(runtime.fast_manifold))
+                    )
+                    if apply_rows.size == 0:
+                        continue
+                    nonzero_rows = apply_rows[
+                        numpy.abs(collision_rates[apply_rows]) > 1.0e-12
+                    ]
+                    if nonzero_rows.size == 0:
+                        continue
+                    target_indices = numpy.asarray(
+                        runtime.target_slot_indices,
+                        dtype=int,
+                    )
+                    target_states = relaxed[
+                        numpy.ix_(nonzero_rows, target_indices)
+                    ]
+                    if runtime.integration_strategy == "exact":
+                        evolved_states = _exact_batched_linear_collision_step(
+                            operator_matrices=matrices[nonzero_rows],
+                            dt=float(dt),
+                            target_states=target_states,
+                            operator_scales=collision_rates[nonzero_rows],
+                            assume_block_diagonal=(
+                                target_indices.size == 4
+                                and numpy.all(
+                                    matrices[nonzero_rows, :2, 2:] == 0.0
+                                )
+                                and numpy.all(
+                                    matrices[nonzero_rows, 2:, :2] == 0.0
+                                )
+                            ),
+                        )
+                    elif runtime.integration_strategy == "implicit":
+                        operator = (
+                            numpy.eye(target_indices.size, dtype=float)[
+                                numpy.newaxis, :, :
+                            ]
+                            - float(dt) * matrices[nonzero_rows]
+                        )
+                        evolved_states = numpy.linalg.solve(
+                            operator,
+                            target_states[:, :, numpy.newaxis],
+                        )[:, :, 0]
+                    else:
+                        raise ValueError(
+                            "Declared collision operator reached an "
+                            "unsupported split strategy: "
+                            f"{runtime.name}"
+                        )
+                    if not numpy.all(numpy.isfinite(evolved_states)):
+                        raise ValueError(
+                            "Declared collision operator produced non-finite "
+                            f"batched state updates: {runtime.name}"
+                        )
+                    relaxed[numpy.ix_(nonzero_rows, target_indices)] = (
+                        evolved_states
+                    )
+                    if runtime.damping_slot_indices:
+                        if damping_coefficients is None:
+                            raise ValueError(
+                                "Declared exact collision operator omitted a "
+                                f"damping coefficient: {runtime.name}"
+                            )
+                        damping_indices = numpy.asarray(
+                            runtime.damping_slot_indices,
+                            dtype=int,
+                        )
+                        damping = numpy.exp(
+                            collision_rates[nonzero_rows]
+                            * damping_coefficients[nonzero_rows]
+                            * float(dt)
+                        )
+                        damping_target = relaxed[
+                            numpy.ix_(nonzero_rows, damping_indices)
+                        ]
+                        damping_target *= damping[:, numpy.newaxis]
+                return relaxed
+
+            def _project_fast_collision_state(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Project active rows onto declared fast collision manifolds.
+
+                The projection restores each active row's declared constraint.
+                """
+
+                if not numpy.any(active) or not split_collision_runtimes:
+                    return numpy.asarray(state_rows, dtype=float)
+                projected = numpy.asarray(state_rows, dtype=float).copy()
+                for runtime in split_collision_runtimes:
+                    if (
+                        not runtime.fast_manifold
+                        or runtime.integration_strategy != "exact"
+                    ):
+                        continue
+                    collision_rates, matrices, damping_coefficients = (
+                        _batch_collision_metadata(
+                            runtime=runtime,
+                            step_index=step_index,
+                            blend=blend,
+                        )
+                    )
+                    forcing = _batch_rhs(
+                        projected,
+                        step_index=step_index,
+                        blend=blend,
+                        active=active,
+                    )
+                    for row_index in numpy.flatnonzero(active):
+                        row_number = int(row_index)
+                        collision_rate = float(collision_rates[row_number])
+                        matrix = matrices[row_number]
+                        damping_coefficient = (
+                            None
+                            if damping_coefficients is None
+                            else float(damping_coefficients[row_number])
+                        )
+                        if (
+                            not numpy.isfinite(collision_rate)
+                            or collision_rate <= 1.0e-12
+                        ):
+                            continue
+                        if not numpy.all(numpy.isfinite(matrix)):
+                            raise ValueError(
+                                "Declared collision operator produced a "
+                                "non-finite matrix before batched fast "
+                                f"projection: {runtime.name}"
+                            )
+                        target_indices = tuple(runtime.target_slot_indices)
+                        damping_indices = tuple(
+                            index
+                            for index in runtime.damping_slot_indices
+                            if index not in target_indices
+                        )
+                        if target_indices:
+                            target_state = (
+                                _solve_declared_fast_collision_target(
+                                    matrix,
+                                    forcing[
+                                        int(row_index), list(target_indices)
+                                    ],
+                                    projected[
+                                        int(row_index),
+                                        list(target_indices),
+                                    ],
+                                    float(collision_rate),
+                                    solver_cache=fast_collision_solver_cache,
+                                )
+                            )
+                            projected[
+                                int(row_index),
+                                list(target_indices),
+                            ] = target_state
+                        if damping_indices:
+                            if damping_coefficient is None:
+                                raise ValueError(
+                                    "Declared exact collision operator "
+                                    "omitted a damping coefficient: "
+                                    f"{runtime.name}"
+                                )
+                            if abs(float(damping_coefficient)) <= 1.0e-12:
+                                raise ValueError(
+                                    "Declared exact collision operator has "
+                                    "a zero damping coefficient: "
+                                    f"{runtime.name}"
+                                )
+                            projected[
+                                int(row_index),
+                                list(damping_indices),
+                            ] = -forcing[
+                                int(row_index),
+                                list(damping_indices),
+                            ] / (
+                                float(collision_rate)
+                                * float(damping_coefficient)
+                            )
+                _validate_batch_collision_invariants(
+                    projected,
+                    step_index=step_index,
+                    blend=blend,
+                )
+                if not numpy.all(numpy.isfinite(projected)):
+                    raise ValueError(
+                        "Declared batched fast collision projection produced "
+                        "non-finite state values"
+                    )
+                return projected
+
+            def _batch_pre_step(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                dt: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Apply one initial Strang-split collision half-step."""
+
+                return _apply_split_collision_steps(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                    dt=dt,
+                    active=active,
+                )
+
+            def _batch_post_step(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                dt: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Finish a split step and restore fast collision constraints.
+
+                The post-step path returns the state to the fast manifold.
+                """
+
+                relaxed = _apply_split_collision_steps(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                    dt=dt,
+                    active=active,
+                )
+                return _project_fast_collision_state(
+                    relaxed,
+                    step_index=step_index,
+                    blend=blend,
+                    active=active,
+                )
+
+            def _batch_record_step(
+                state_rows: numpy.ndarray,
+                *,
+                step_index: int,
+                blend: float,
+                active: numpy.ndarray,
+            ) -> numpy.ndarray:
+                """Record a finite grid state after its fast projection."""
+
+                projected = _project_fast_collision_state(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                    active=active,
+                )
+                _validate_batch_collision_invariants(
+                    projected,
+                    step_index=step_index,
+                    blend=blend,
+                )
+                return projected
+
+            eta_values = numpy.asarray(active_grids["eta"], dtype=float)
+            interval_count = max(int(eta_values.size) - 1, 0)
+            active_intervals = numpy.zeros(
+                (mode_count, interval_count),
+                dtype=bool,
+            )
+            for row_index, mode_k_value in enumerate(local_k_values):
+                active_mode = _tight_coupling_is_active(
+                    active=False,
+                    collision_rate=float(active_grids["collision_rate"][0]),
+                    k_value=float(mode_k_value),
+                    tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+                    exit_ratio=float(numerics.tight_coupling_exit_ratio),
+                )
+                for step_index in range(interval_count):
+                    active_intervals[row_index, step_index] = active_mode
+                    active_mode = _tight_coupling_is_active(
+                        active=active_mode,
+                        collision_rate=float(
+                            active_grids["collision_rate"][step_index + 1]
+                        ),
+                        k_value=float(mode_k_value),
+                        tight_coupling_ratio=float(
+                            numerics.tight_coupling_ratio
+                        ),
+                        exit_ratio=float(numerics.tight_coupling_exit_ratio),
+                    )
+            dt_values = numpy.diff(eta_values)
+            required_substeps = numpy.maximum(
+                1,
+                numpy.ceil(
+                    numpy.abs(dt_values)[numpy.newaxis, :]
+                    * numpy.abs(local_k_values)[:, numpy.newaxis]
+                    / float(numerics.evolution_phase_step)
+                ).astype(int),
+            )
+            scalar_substeps = numpy.ones_like(required_substeps)
+            for row_index in range(mode_count):
+                for step_index in range(interval_count):
+                    requested = max(
+                        int(required_substeps[row_index, step_index]),
+                        1,
+                    )
+                    substep_count = 1
+                    while substep_count < requested:
+                        substep_count *= 2
+                    scalar_substeps[row_index, step_index] = substep_count
+            batch_substeps = numpy.ones(interval_count, dtype=int)
+            for step_index in range(interval_count):
+                requested = max(
+                    int(numpy.max(required_substeps[:, step_index])),
+                    1,
+                )
+                substep_count = 1
+                while substep_count < requested:
+                    substep_count *= 2
+                batch_substeps[step_index] = substep_count
+            if momentum_runtimes:
+                stage_keys: list[tuple[int, float]] = [(0, 0.0)]
+                seen_stage_keys = {(0, 0.0)}
+                for step_index in range(interval_count):
+                    substep_count = int(batch_substeps[step_index])
+                    for substep_index in range(substep_count):
+                        for blend in (
+                            substep_index / float(substep_count),
+                            (substep_index + 0.5) / float(substep_count),
+                            (substep_index + 1.0) / float(substep_count),
+                        ):
+                            stage_key = (int(step_index), float(blend))
+                            if stage_key not in seen_stage_keys:
+                                seen_stage_keys.add(stage_key)
+                                stage_keys.append(stage_key)
+                    record_key = (int(step_index + 1), 0.0)
+                    if record_key not in seen_stage_keys:
+                        seen_stage_keys.add(record_key)
+                        stage_keys.append(record_key)
+                stage_scales = numpy.asarray(
+                    [
+                        float(
+                            _scalar_background_context(
+                                step_index,
+                                blend,
+                                k_value=float(local_k_values[0]),
+                            )[1]["a"]
+                        )
+                        for step_index, blend in stage_keys
+                    ],
+                    dtype=float,
+                )
+                batch_momentum_context = _declared_momentum_grid_context(
+                    perturbation_data,
+                    model_parameters=source_parameters,
+                    physical_params=physical_params,
+                    scale_factor=stage_scales,
+                )
+                stage_count = len(stage_keys)
+                for stage_index, stage_key in enumerate(stage_keys):
+                    stage_context: dict[str, Any] = {}
+                    for name, value in batch_momentum_context.items():
+                        array_value = numpy.asarray(value)
+                        if (
+                            array_value.ndim > 0
+                            and array_value.shape[0] == stage_count
+                        ):
+                            stage_context[name] = array_value[stage_index]
+                        else:
+                            stage_context[name] = value
+                    momentum_context_by_stage[stage_key] = stage_context
+            schedule_matches = numpy.all(
+                scalar_substeps == batch_substeps[numpy.newaxis, :],
+                axis=1,
+            )
+            common_schedule_allowed = bool(
+                momentum_runtimes
+                or generated_scalar_hierarchy
+                or declared_accuracy_controls.get("accuracy_tier") == "final"
+            )
+            if (
+                int(numpy.count_nonzero(schedule_matches)) < 2
+                and not common_schedule_allowed
+            ):
+                for mode_index, mode_k_value in zip(
+                    group["indices"],
+                    local_k_values,
+                    strict=True,
+                ):
+                    _, scalar_source_arrays = _evolve_declared_mode(
+                        float(mode_k_value),
+                        collect_diagnostics=False,
+                    )
+                    results[int(mode_index)] = scalar_source_arrays
+                continue
+            histories, _, batch_stats = _integrate_batched_rk4(
+                states,
+                eta_values,
+                required_substeps=required_substeps,
+                active_intervals=active_intervals,
+                rhs=_batch_rhs,
+                pre_step=_batch_pre_step,
+                post_step=_batch_post_step,
+                record_step=_batch_record_step,
+            )
+            runtime_envelope["batch_count"] = (
+                int(runtime_envelope["batch_count"]) + 1
+            )
+            runtime_envelope["batch_mode_count"] = int(
+                runtime_envelope["batch_mode_count"]
+            ) + int(batch_stats.mode_count)
+            runtime_envelope["batched_rk_stage_count"] = int(
+                runtime_envelope["batched_rk_stage_count"]
+            ) + int(batch_stats.rk_stage_count)
+            runtime_envelope["batched_max_substeps"] = max(
+                int(runtime_envelope["batched_max_substeps"]),
+                int(batch_stats.maximum_substeps),
+            )
+            schedule_correction_required = bool(
+                generated_scalar_hierarchy
+                and declared_accuracy_controls.get("accuracy_tier") != "final"
+            )
+            history_names = tuple(
+                slot.variable
+                for slot in runtime_spec.state_slots
+                if slot.order == 0
+            )
+            source_eta = numpy.asarray(source_grids["eta"], dtype=float)
+            for row_index, mode_index in enumerate(group["indices"]):
+                source_histories = {
+                    name: numpy.asarray(
+                        histories[row_index, :, slot.index],
+                        dtype=float,
+                    )
+                    for name in history_names
+                    for slot in runtime_spec.state_slots
+                    if slot.variable == name and slot.order == 0
+                }
+                if not numpy.array_equal(eta_values, source_eta):
+                    source_histories = {
+                        name: numpy.asarray(
+                            numpy.interp(source_eta, eta_values, values),
+                            dtype=float,
+                        )
+                        for name, values in source_histories.items()
+                    }
+                mode_k_value = float(local_k_values[row_index])
+                if schedule_correction_required and not numpy.array_equal(
+                    scalar_substeps[row_index],
+                    batch_substeps,
+                ):
+                    runtime_envelope[
+                        "batched_schedule_correction_mode_count"
+                    ] = (
+                        int(
+                            runtime_envelope[
+                                "batched_schedule_correction_mode_count"
+                            ]
+                        )
+                        + 1
+                    )
+                    _, scalar_source_arrays = _evolve_declared_mode(
+                        mode_k_value,
+                        collect_diagnostics=False,
+                    )
+                    results[int(mode_index)] = scalar_source_arrays
+                    continue
+                results[int(mode_index)] = _evaluate_source_histories(
+                    mode_k_value,
+                    source_histories,
+                    required_source_names=required_source_names,
+                )
+
+        scalar_base_context_cache = {}
+        scalar_background_context_cache = {}
+        active_grids = dict(source_grids)
+        active_declared_background_histories = (
+            source_declared_background_histories
+        )
+        active_coordinate_rate_histories = source_coordinate_rate_histories
+        return results
+
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 512 if use_streaming_projection else 128
     kernel_cache_before = native_cache.native_cmb_cache_stats()[
@@ -5076,6 +6368,9 @@ def _compute_custom_cmb_spectrum_data_impl(
         projection_coarse_weights = _simpson_weights(
             source_grids["eta"][source_eta_indices]
         )
+
+    with performance_timer.phase("evolution"):
+        batched_mode_source_arrays = _evolve_declared_modes_batched(k_values)
 
     mode_projection_metadata: dict[
         int,
@@ -5171,10 +6466,14 @@ def _compute_custom_cmb_spectrum_data_impl(
                 )
 
         if use_streaming_projection:
-            mode_source_arrays: dict[int, dict[str, numpy.ndarray]] = {}
+            mode_source_arrays = dict(batched_mode_source_arrays)
             for k_index, k_value in enumerate(k_values):
-                with performance_timer.phase("evolution"):
-                    _, source_arrays = _evolve_declared_mode(float(k_value))
+                source_arrays = mode_source_arrays.get(int(k_index))
+                if source_arrays is None:
+                    with performance_timer.phase("evolution"):
+                        _, source_arrays = _evolve_declared_mode(
+                            float(k_value)
+                        )
                 _record_source_history_diagnostics(source_arrays)
                 mode_source_arrays[int(k_index)] = source_arrays
 
@@ -5408,11 +6707,14 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
             else None
         )
+        source_arrays = batched_mode_source_arrays.get(int(k_index))
+        if source_arrays is None:
+            with performance_timer.phase("evolution"):
+                _, source_arrays = _evolve_declared_mode(
+                    float(k_value),
+                    history_sink=base_history_sink,
+                )
         with performance_timer.phase("evolution"):
-            _, source_arrays = _evolve_declared_mode(
-                float(k_value),
-                history_sink=base_history_sink,
-            )
             _record_source_history_diagnostics(source_arrays)
             if adaptive_controls.source_enabled:
                 if base_history_sink is None:
@@ -6801,8 +8103,11 @@ def _compute_custom_cmb_spectrum_data_impl(
                 "performance_budget_full_spectrum_seconds": float(
                     performance_budget.full_spectrum_seconds
                 ),
-                "performance_budget_joint_mcmc_seconds": float(
-                    performance_budget.joint_mcmc_seconds
+                "performance_budget_warm_parameter_seconds": float(
+                    performance_budget.warm_parameter_seconds
+                ),
+                "performance_budget_exact_cache_hit_seconds": float(
+                    performance_budget.exact_cache_hit_seconds
                 ),
             }
         )

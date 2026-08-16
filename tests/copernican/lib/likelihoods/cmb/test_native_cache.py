@@ -89,6 +89,18 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             {"a": 1.0},
         )
 
+        self.assertIsNone(
+            native_cache.get_reionization_calibration_seed("reionization")
+        )
+        native_cache.set_reionization_calibration_seed(
+            "reionization",
+            2.5,
+        )
+        self.assertEqual(
+            native_cache.get_reionization_calibration_seed("reionization"),
+            2.5,
+        )
+
         self.assertIsNone(native_cache.get_native_cmb_spectrum("spec"))
         native_cache.set_native_cmb_spectrum("spec", {"tt": 2.0})
         self.assertEqual(
@@ -247,6 +259,32 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             topology,
         )
 
+    def test_warm_performance_quantiles_are_deterministic(self):
+        """Warm acceptance samples must report stable median and p95 values."""
+
+        native_cache.clear_native_cmb_caches()
+        self.assertTrue(
+            callable(native_cache.native_cmb_performance_quantiles)
+        )
+        self.assertTrue(
+            callable(native_cache.set_reionization_calibration_seed)
+        )
+        for elapsed_seconds in (1.0, 2.0, 3.0, 4.0, 5.0):
+            native_cache.record_native_cmb_performance(
+                {"total_seconds": elapsed_seconds},
+                workload="joint_mcmc",
+                cache_state="warm",
+            )
+
+        report = native_cache.native_cmb_performance_quantiles(
+            workload="joint_mcmc",
+            cache_state="warm",
+        )
+
+        self.assertEqual(report["sample_count"], 5)
+        self.assertEqual(report["median_seconds"], 3.0)
+        self.assertEqual(report["p95_seconds"], 4.8)
+
     def test_native_cache_source_does_not_import_camb(self):
         """The native cache module should remain CAMB-free."""
 
@@ -282,6 +320,24 @@ class NativeCacheModuleTestCase(unittest.TestCase):
         )
         self.assertNotEqual(hash(identity), hash(changed_request))
         self.assertEqual(identity.execution_engine, NATIVE_CMB_ENGINE_ID)
+
+        native_cache.clear_native_cmb_caches()
+        native_cache.remember_native_cmb_request_identity(identity)
+        self.assertEqual(
+            native_cache.latest_native_cmb_request_identity(),
+            identity,
+        )
+        native_cache.set_native_cmb_spectrum(identity, "spectrum")
+        self.assertEqual(
+            native_cache.latest_native_cmb_request_identity(),
+            identity,
+        )
+        native_cache.clear_native_cmb_result_caches()
+        self.assertEqual(
+            native_cache.latest_native_cmb_request_identity(),
+            identity,
+        )
+        native_cache.clear_native_cmb_caches()
 
 
 if __name__ == "__main__":  # pragma: no cover

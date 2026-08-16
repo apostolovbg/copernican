@@ -63,6 +63,53 @@ class _ContextNameRewriter(ast.NodeTransformer):
         )
 
 
+class _ContextAliasRewriter(ast.NodeTransformer):
+    """Rewrite declared symbols to preloaded private local names."""
+
+    def __init__(self, aliases: Mapping[str, str]) -> None:
+        """Record the local alias assigned to each declared input."""
+
+        self._aliases = dict(aliases)
+
+    def visit_Name(self, node: ast.Name) -> ast.AST:
+        """Keep approved globals and replace context names with locals."""
+
+        if node.id in _ALLOWED_CONSTANTS or node.id in _ALLOWED_MATH_FUNCS:
+            return node
+        return ast.copy_location(
+            ast.Name(id=self._aliases[node.id], ctx=node.ctx),
+            node,
+        )
+
+
+def _private_local_aliases(
+    names: set[str],
+    *,
+    prefix: str,
+) -> dict[str, str]:
+    """Return collision-free local aliases for declared runtime names."""
+
+    occupied = {
+        *names,
+        "context",
+        "state_vector",
+        "derivative",
+        "coordinate_rates",
+        "row_index",
+    }
+    aliases: dict[str, str] = {}
+    alias_index = 0
+    for name in sorted(names):
+        alias = f"{prefix}{alias_index}"
+        while alias in occupied:
+            alias_index += 1
+            alias = f"{prefix}{alias_index}"
+        aliases[name] = alias
+        occupied.add(alias)
+        alias_index += 1
+    return aliases
+
+
 def _compile_declared_perturbation_contract(
     contract: Mapping[str, Any],
 ):
@@ -384,10 +431,66 @@ def _compile_ordered_context_program(
                 orelse=[],
             )
         )
-    module = ast.fix_missing_locations(
-        ast.Module(body=statements, type_ignores=[])
+    executor = ast.FunctionDef(
+        name="_execute_declared_context",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(arg="context"),
+                ast.arg(arg="suppressed_outputs"),
+            ],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=statements or [ast.Pass()],
+        decorator_list=[],
     )
-    return compile(module, "<declared-cmb-context>", "exec")
+    module = ast.fix_missing_locations(
+        ast.Module(body=[executor], type_ignores=[])
+    )
+    namespace = dict(_COMPILED_CONTEXT_GLOBALS)
+    # security-scanner: allow generated code execution
+    exec(  # nosec B102 - expressions passed AST validation.
+        compile(module, "<declared-cmb-context>", "exec"),
+        namespace,
+    )
+    return namespace["_execute_declared_context"]
+
+
+@lru_cache(maxsize=256)
+def _compile_expression_tuple_program(
+    expressions: tuple[str, ...],
+) -> Any:
+    """Compile several validated expressions into one context executor."""
+
+    values: list[ast.expr] = []
+    for expression in expressions:
+        expression_node = copy.deepcopy(_parse_safe_expression(expression))
+        expression_node = _ContextNameRewriter().visit(expression_node)
+        values.append(ast.fix_missing_locations(expression_node).body)
+    executor = ast.FunctionDef(
+        name="_execute_declared_expression_tuple",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[ast.arg(arg="context")],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=[ast.Return(value=ast.Tuple(elts=values, ctx=ast.Load()))],
+        decorator_list=[],
+    )
+    module = ast.fix_missing_locations(
+        ast.Module(body=[executor], type_ignores=[])
+    )
+    namespace = dict(_COMPILED_CONTEXT_GLOBALS)
+    # security-scanner: allow generated code execution
+    exec(  # nosec B102 - expressions passed AST validation.
+        compile(module, "<declared-cmb-expression-tuple>", "exec"),
+        namespace,
+    )
+    return namespace["_execute_declared_expression_tuple"]
 
 
 @lru_cache(maxsize=128)
@@ -396,8 +499,57 @@ def _compile_equation_program(
 ) -> Any:
     """Compile direct scalar assignments for one declared state layout."""
 
-    statements: list[ast.stmt] = []
-    for state_index, wrt_name, expression, promote_from_index in slot_specs:
+    parsed_expressions: list[ast.Expression | None] = []
+    context_names: set[str] = set()
+    for _, _, expression, _ in slot_specs:
+        if expression is None:
+            parsed_expressions.append(None)
+            continue
+        expression_node = copy.deepcopy(_parse_safe_expression(expression))
+        parsed_expressions.append(expression_node)
+        context_names.update(
+            node.id
+            for node in ast.walk(expression_node)
+            if isinstance(node, ast.Name)
+            and node.id not in _ALLOWED_CONSTANTS
+            and node.id not in _ALLOWED_MATH_FUNCS
+        )
+    context_aliases = _private_local_aliases(
+        context_names,
+        prefix="_context_value_",
+    )
+    rate_aliases = _private_local_aliases(
+        {str(wrt_name) for _, wrt_name, _, _ in slot_specs},
+        prefix="_coordinate_rate_",
+    )
+    statements: list[ast.stmt] = [
+        ast.Assign(
+            targets=[ast.Name(id=alias, ctx=ast.Store())],
+            value=ast.Subscript(
+                value=ast.Name(id="context", ctx=ast.Load()),
+                slice=ast.Constant(name),
+                ctx=ast.Load(),
+            ),
+        )
+        for name, alias in context_aliases.items()
+    ]
+    statements.extend(
+        ast.Assign(
+            targets=[ast.Name(id=alias, ctx=ast.Store())],
+            value=ast.Subscript(
+                value=ast.Name(id="coordinate_rates", ctx=ast.Load()),
+                slice=ast.Constant(name),
+                ctx=ast.Load(),
+            ),
+        )
+        for name, alias in rate_aliases.items()
+    )
+    for (
+        state_index,
+        wrt_name,
+        expression,
+        promote_from_index,
+    ), expression_node in zip(slot_specs, parsed_expressions, strict=True):
         if expression is None:
             if promote_from_index is None:
                 raise ValueError(
@@ -410,16 +562,18 @@ def _compile_equation_program(
                 ctx=ast.Load(),
             )
         else:
-            expression_node = copy.deepcopy(_parse_safe_expression(expression))
-            expression_node = _ContextNameRewriter().visit(expression_node)
+            if expression_node is None:  # pragma: no cover - internal guard.
+                raise ValueError("Declared equation expression is missing")
+            expression_node = _ContextAliasRewriter(context_aliases).visit(
+                expression_node
+            )
             expression_node = ast.fix_missing_locations(expression_node)
             value_node = expression_node.body
         value_node = ast.BinOp(
             left=value_node,
             op=ast.Mult(),
-            right=ast.Subscript(
-                value=ast.Name(id="coordinate_rates", ctx=ast.Load()),
-                slice=ast.Constant(str(wrt_name)),
+            right=ast.Name(
+                id=rate_aliases[str(wrt_name)],
                 ctx=ast.Load(),
             ),
         )
@@ -435,10 +589,235 @@ def _compile_equation_program(
                 value=value_node,
             )
         )
-    module = ast.fix_missing_locations(
-        ast.Module(body=statements, type_ignores=[])
+    executor = ast.FunctionDef(
+        name="_execute_equations",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(arg="context"),
+                ast.arg(arg="state_vector"),
+                ast.arg(arg="derivative"),
+                ast.arg(arg="coordinate_rates"),
+            ],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=statements or [ast.Pass()],
+        decorator_list=[],
     )
-    return compile(module, "<declared-cmb-equations>", "exec")
+    module = ast.fix_missing_locations(
+        ast.Module(body=[executor], type_ignores=[])
+    )
+    namespace = dict(_COMPILED_CONTEXT_GLOBALS)
+    # security-scanner: allow generated code execution
+    exec(  # nosec B102 - expressions passed AST validation.
+        compile(module, "<declared-cmb-equations>", "exec"),
+        namespace,
+    )
+    return namespace["_execute_equations"]
+
+
+class _BatchedRowContextAliasRewriter(ast.NodeTransformer):
+    """Bind vector-valued declaration inputs to one batch-row scalar."""
+
+    def __init__(
+        self,
+        aliases: Mapping[str, str],
+        vector_names: frozenset[str],
+    ) -> None:
+        """Record the preloaded aliases and their vector-valued names."""
+
+        self._aliases = dict(aliases)
+        self._vector_names = frozenset(vector_names)
+
+    def visit_Name(self, node: ast.Name) -> ast.AST:
+        """Select one row for vector inputs and retain scalar inputs."""
+
+        if node.id in _ALLOWED_CONSTANTS or node.id in _ALLOWED_MATH_FUNCS:
+            return node
+        alias = ast.Name(id=self._aliases[node.id], ctx=node.ctx)
+        if node.id not in self._vector_names:
+            return ast.copy_location(alias, node)
+        return ast.copy_location(
+            ast.Subscript(
+                value=alias,
+                slice=ast.Name(id="row_index", ctx=ast.Load()),
+                ctx=node.ctx,
+            ),
+            node,
+        )
+
+
+@lru_cache(maxsize=128)
+def _compile_batched_row_equation_program(
+    slot_specs: tuple[tuple[int, str, str | None, int | None], ...],
+    vector_context_names: tuple[str, ...],
+) -> Any:
+    """Compile a scalar-row executor for small compatible mode batches."""
+
+    parsed_expressions: list[ast.Expression | None] = []
+    context_names: set[str] = set()
+    for _, _, expression, _ in slot_specs:
+        if expression is None:
+            parsed_expressions.append(None)
+            continue
+        expression_node = copy.deepcopy(_parse_safe_expression(expression))
+        parsed_expressions.append(expression_node)
+        context_names.update(
+            node.id
+            for node in ast.walk(expression_node)
+            if isinstance(node, ast.Name)
+            and node.id not in _ALLOWED_CONSTANTS
+            and node.id not in _ALLOWED_MATH_FUNCS
+        )
+    vector_names = frozenset(vector_context_names)
+    if not vector_names <= context_names:
+        raise ValueError(
+            "Batched row equation inputs must be declared equation names"
+        )
+    context_aliases = _private_local_aliases(
+        context_names,
+        prefix="_context_value_",
+    )
+    rate_aliases = _private_local_aliases(
+        {str(wrt_name) for _, wrt_name, _, _ in slot_specs},
+        prefix="_coordinate_rate_",
+    )
+    statements: list[ast.stmt] = [
+        ast.Assign(
+            targets=[ast.Name(id=alias, ctx=ast.Store())],
+            value=ast.Subscript(
+                value=ast.Name(id="context", ctx=ast.Load()),
+                slice=ast.Constant(name),
+                ctx=ast.Load(),
+            ),
+        )
+        for name, alias in context_aliases.items()
+    ]
+    statements.extend(
+        ast.Assign(
+            targets=[ast.Name(id=alias, ctx=ast.Store())],
+            value=ast.Subscript(
+                value=ast.Name(id="coordinate_rates", ctx=ast.Load()),
+                slice=ast.Constant(name),
+                ctx=ast.Load(),
+            ),
+        )
+        for name, alias in rate_aliases.items()
+    )
+    row_rewriter = _BatchedRowContextAliasRewriter(
+        context_aliases,
+        vector_names,
+    )
+    row_statements: list[ast.stmt] = []
+    for (
+        state_index,
+        wrt_name,
+        expression,
+        promote_from_index,
+    ), expression_node in zip(slot_specs, parsed_expressions, strict=True):
+        if expression is None:
+            if promote_from_index is None:
+                raise ValueError(
+                    "Declared state slot lacks an equation or promotion "
+                    f"source: {state_index}"
+                )
+            value_node: ast.expr = ast.Subscript(
+                value=ast.Subscript(
+                    value=ast.Name(id="state_vector", ctx=ast.Load()),
+                    slice=ast.Constant(int(promote_from_index)),
+                    ctx=ast.Load(),
+                ),
+                slice=ast.Name(id="row_index", ctx=ast.Load()),
+                ctx=ast.Load(),
+            )
+        else:
+            if expression_node is None:  # pragma: no cover - internal guard.
+                raise ValueError("Declared equation expression is missing")
+            expression_node = row_rewriter.visit(expression_node)
+            expression_node = ast.fix_missing_locations(expression_node)
+            value_node = expression_node.body
+        row_statements.append(
+            ast.Assign(
+                targets=[
+                    ast.Subscript(
+                        value=ast.Name(id="derivative", ctx=ast.Load()),
+                        slice=ast.Tuple(
+                            elts=[
+                                ast.Constant(int(state_index)),
+                                ast.Name(
+                                    id="row_index",
+                                    ctx=ast.Load(),
+                                ),
+                            ],
+                            ctx=ast.Load(),
+                        ),
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.BinOp(
+                    left=value_node,
+                    op=ast.Mult(),
+                    right=ast.Name(
+                        id=rate_aliases[str(wrt_name)],
+                        ctx=ast.Load(),
+                    ),
+                ),
+            )
+        )
+    statements.append(
+        ast.For(
+            target=ast.Name(id="row_index", ctx=ast.Store()),
+            iter=ast.Call(
+                func=ast.Name(id="range", ctx=ast.Load()),
+                args=[
+                    ast.Subscript(
+                        value=ast.Attribute(
+                            value=ast.Name(
+                                id="state_vector",
+                                ctx=ast.Load(),
+                            ),
+                            attr="shape",
+                            ctx=ast.Load(),
+                        ),
+                        slice=ast.Constant(1),
+                        ctx=ast.Load(),
+                    )
+                ],
+                keywords=[],
+            ),
+            body=row_statements,
+            orelse=[],
+        )
+    )
+    executor = ast.FunctionDef(
+        name="_execute_batched_row_equations",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(arg="context"),
+                ast.arg(arg="state_vector"),
+                ast.arg(arg="derivative"),
+                ast.arg(arg="coordinate_rates"),
+            ],
+            kwonlyargs=[],
+            kw_defaults=[],
+            defaults=[],
+        ),
+        body=statements or [ast.Pass()],
+        decorator_list=[],
+    )
+    module = ast.fix_missing_locations(
+        ast.Module(body=[executor], type_ignores=[])
+    )
+    namespace = {**_COMPILED_CONTEXT_GLOBALS, "range": range}
+    # security-scanner: allow generated code execution
+    exec(  # nosec B102 - expressions passed AST validation.
+        compile(module, "<declared-cmb-batched-row-equations>", "exec"),
+        namespace,
+    )
+    return namespace["_execute_batched_row_equations"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -2019,15 +2398,7 @@ def _resolve_declared_graph_context_ordered(
                 value_specs
             )
         try:
-            # security-scanner: allow validated declared program execution.
-            exec(  # nosec B102 - expressions passed AST validation.
-                compiled_value_program,
-                _COMPILED_CONTEXT_GLOBALS,
-                {
-                    "context": context,
-                    "suppressed_outputs": suppressed,
-                },
-            )
+            compiled_value_program(context, suppressed)
         except (NameError, ValueError):
             return _resolve_declared_graph_context(
                 context,

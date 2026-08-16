@@ -192,6 +192,41 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             atol=1.0e-14,
         )
 
+    def test_sparse_high_order_bessel_batch_matches_reference(self):
+        """Sparse high-order requests must retain the SciPy radial values."""
+
+        ell_signature = (0, 1, 2, 80, 400, 1600)
+        x_values = numpy.asarray((1.0e-8, 0.2, 12.0, 250.0, 1800.0))
+        values, derivatives = (
+            native_background._compute_spherical_bessel_batch(
+                ell_signature,
+                x_values,
+            )
+        )
+        ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
+        expected_values = native_background.spherical_jn(
+            ell_array,
+            x_values[None, :],
+        )
+        expected_derivatives = native_background.spherical_jn(
+            ell_array,
+            x_values[None, :],
+            derivative=True,
+        )
+
+        numpy.testing.assert_allclose(
+            values,
+            expected_values,
+            rtol=1.0e-10,
+            atol=1.0e-14,
+        )
+        numpy.testing.assert_allclose(
+            derivatives,
+            expected_derivatives,
+            rtol=1.0e-10,
+            atol=1.0e-14,
+        )
+
     def test_projection_kernels_preserve_signed_parity_and_zero_limits(self):
         """All sector kernels remain finite and parity-consistent at ends."""
 

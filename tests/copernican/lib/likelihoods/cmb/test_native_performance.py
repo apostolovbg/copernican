@@ -8,8 +8,8 @@ from copernican.lib.likelihoods.cmb import native_performance
 class NativePerformanceModuleTestCase(unittest.TestCase):
     """Exercise native workload budgets and phase accounting."""
 
-    def test_bounded_budget_exposes_required_workload_limits(self):
-        """The bounded preset must expose both acceptance budgets."""
+    def test_bounded_budget_exposes_required_cache_state_limits(self):
+        """The bounded preset must expose every accepted cache-state limit."""
 
         budget = native_performance.resolve_native_performance_budget(
             {"runtime_envelope": "bounded"}
@@ -25,10 +25,8 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
             native_performance.NativePerformanceBudget,
         )
         self.assertEqual(budget.limit_for("full_spectrum"), 180.0)
-        self.assertEqual(
-            budget.limit_for("joint_mcmc"),
-            60.0,
-        )
+        self.assertEqual(budget.limit_for("warm_parameter"), 5.0)
+        self.assertEqual(budget.limit_for("exact_cache_hit"), 1.0)
 
     def test_phase_timer_accumulates_named_work(self):
         """Phase timing must retain separate compilation and projection."""
@@ -48,11 +46,12 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
         self.assertEqual(snapshot["total_seconds"], 0.5)
 
     def test_budget_rejects_overrun_with_workload_name(self):
-        """An over-budget run must fail with the measured workload."""
+        """An over-budget warm request must retain its workload label."""
 
         budget = native_performance.NativePerformanceBudget(
             full_spectrum_seconds=1.0,
-            joint_mcmc_seconds=0.5,
+            warm_parameter_seconds=0.5,
+            exact_cache_hit_seconds=0.25,
         )
         with self.assertRaisesRegex(
             native_performance.NativePerformanceBudgetError,
@@ -62,14 +61,16 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
                 0.75,
                 workload="joint_mcmc",
                 budget=budget,
+                cache_state="warm",
             )
 
-    def test_cold_joint_start_uses_startup_budget_only_once(self):
-        """Structural startup and warm proposal limits must stay distinct."""
+    def test_cache_state_selects_the_matching_budget(self):
+        """Cold, warm, and exact requests must retain distinct limits."""
 
         budget = native_performance.NativePerformanceBudget(
             full_spectrum_seconds=1.0,
-            joint_mcmc_seconds=0.5,
+            warm_parameter_seconds=0.5,
+            exact_cache_hit_seconds=0.25,
         )
         native_performance.enforce_native_performance_budget(
             0.75,
@@ -85,6 +86,15 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
                 workload="joint_mcmc",
                 budget=budget,
                 cache_state="warm",
+            )
+        with self.assertRaises(
+            native_performance.NativePerformanceBudgetError
+        ):
+            native_performance.enforce_native_performance_budget(
+                0.3,
+                workload="joint_mcmc",
+                budget=budget,
+                cache_state="exact_cache_hit",
             )
 
     def test_unbounded_controls_do_not_invent_wall_time_limit(self):

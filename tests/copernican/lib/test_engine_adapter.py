@@ -1560,7 +1560,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         self.assertTrue(route["ready"])
         self.assertEqual(
             model_entry["native_cmb_numerical_settings"]["ell_max"],
-            2000,
+            2500,
         )
         numerical_envelope = model_entry["native_cmb_numerical_envelope"]
         self.assertEqual(numerical_envelope["accuracy_tier"], "final")

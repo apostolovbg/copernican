@@ -536,6 +536,7 @@ def _reseed_invalid_walkers(
     upper: numpy.ndarray,
     rng: numpy.random.Generator,
     log_probability_fn: Callable[[numpy.ndarray], float],
+    map_fn: Callable[..., Any] | None = None,
     reference_position: numpy.ndarray | None = None,
     max_attempts: int = 8,
 ) -> tuple[numpy.ndarray, numpy.ndarray]:
@@ -593,9 +594,14 @@ def _reseed_invalid_walkers(
         jitter = rng.standard_normal((bad_idx.size, centre.size))
         proposals = centre + jitter * numpy.maximum(spread, 1e-3)
         proposals = numpy.clip(proposals, lower, upper)
-        new_log_prob = numpy.array(
-            [log_probability_fn(pos) for pos in proposals]
-        )
+        if map_fn is None:
+            new_log_prob = numpy.array(
+                [log_probability_fn(pos) for pos in proposals]
+            )
+        else:
+            new_log_prob = numpy.asarray(
+                list(map_fn(log_probability_fn, proposals)), dtype=float
+            )
         finite = numpy.isfinite(new_log_prob)
         coords[bad_idx[finite]] = proposals[finite]
         log_prob[bad_idx[finite]] = new_log_prob[finite]
@@ -698,6 +704,26 @@ def _run_stage_with_progress(
     return state
 
 
+def _resolve_mcmc_pool_processes(
+    *,
+    requested_pool: int | None,
+    n_walkers: int,
+) -> int | None:
+    """Return a bounded worker count that leaves one CPU for the parent."""
+
+    try:
+        cpu_total = int(multiprocessing_module.cpu_count())
+    except NotImplementedError:
+        cpu_total = 1
+    available_workers = min(max(cpu_total - 1, 0), int(n_walkers))
+    if requested_pool is None:
+        return available_workers if available_workers > 1 else None
+    requested_workers = int(requested_pool)
+    if requested_workers <= 1:
+        return None
+    return min(requested_workers, available_workers) or None
+
+
 def fit_cosmology_parameters(
     sne_data_df: Any,
     model_plugin: Any,
@@ -787,14 +813,16 @@ def fit_cosmology_parameters(
 
     ndim_active = active_indices.size
     requested_pool = pool_size if pool_size not in (None, 0) else None
-    pool_processes: int | None = requested_pool
-
     # ``emcee`` requires at least ``2 * ndim`` walkers.  Honour that rule and
-    # also guarantee that a user-specified worker pool never idles because
-    # the ensemble is too small.
+    # ensure the bounded worker pool never idles because the ensemble is too
+    # small.
     minimum_walkers = max(2 * ndim_active, 2)
-    if requested_pool is not None:
-        minimum_walkers = max(minimum_walkers, int(requested_pool))
+    candidate_pool_processes = _resolve_mcmc_pool_processes(
+        requested_pool=requested_pool,
+        n_walkers=max(n_walkers, minimum_walkers),
+    )
+    if candidate_pool_processes is not None:
+        minimum_walkers = max(minimum_walkers, candidate_pool_processes)
 
     n_walkers = max(n_walkers, minimum_walkers)
     logger.info(
@@ -808,6 +836,7 @@ def fit_cosmology_parameters(
     log_prob_chain: numpy.ndarray | None = None
     flat_log_prob: numpy.ndarray | None = None
     acceptance_fraction: numpy.ndarray | None = None
+    pool_processes: int | None = None
 
     burn_in = (
         burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
@@ -820,42 +849,22 @@ def fit_cosmology_parameters(
             template_params,
             active_indices,
         )
-        try:
-            initial_positions, logp = _initialise_active_walkers(
-                initial_active,
-                lower,
-                upper,
-                n_walkers,
-                rng,
-                log_probability_active,
-            )
-        except RuntimeError as exc:
-            logger.error("%s", exc)
-            return {"success": False, "samples": None}
-
         pool = None
-        pool_processes = requested_pool
-        if pool_processes is None:
-            try:
-                cpu_total = multiprocessing_module.cpu_count()
-            except NotImplementedError:
-                cpu_total = 1
-            if cpu_total > 1:
-                pool_processes = min(max(cpu_total - 1, 1), n_walkers)
-                if pool_processes <= 1:
-                    pool_processes = None
+        pool_processes = _resolve_mcmc_pool_processes(
+            requested_pool=requested_pool,
+            n_walkers=n_walkers,
+        )
+        if requested_pool is None:
             if pool_processes is not None:
                 logger.info(
                     "Auto-configured multiprocessing pool with %d worker(s).",
                     pool_processes,
                 )
-        elif pool_processes > 1:
+        elif pool_processes is not None:
             logger.info(
-                "Using requested multiprocessing pool with %d worker(s).",
+                "Using bounded multiprocessing pool with %d worker(s).",
                 pool_processes,
             )
-        else:
-            pool_processes = None
 
         if pool_processes is not None:
             pool = multiprocessing_module.get_context("spawn").Pool(
@@ -864,6 +873,21 @@ def fit_cosmology_parameters(
                 initargs=(log_probability_active,),
             )
         try:
+            initial_log_probability = (
+                _worker_log_probability
+                if pool is not None
+                else log_probability_active
+            )
+            initial_map = pool.map if pool is not None else None
+            initial_positions, logp = _initialise_active_walkers(
+                initial_active,
+                lower,
+                upper,
+                n_walkers,
+                rng,
+                initial_log_probability,
+                map_fn=initial_map,
+            )
             sampler_log_probability = (
                 _worker_log_probability
                 if pool is not None
@@ -904,7 +928,8 @@ def fit_cosmology_parameters(
                     lower=lower,
                     upper=upper,
                     rng=rng,
-                    log_probability_fn=log_probability_active,
+                    log_probability_fn=initial_log_probability,
+                    map_fn=initial_map,
                     reference_position=initial_active,
                 )
             except RuntimeError as exc:
@@ -1390,6 +1415,7 @@ def _initialise_active_walkers(
     n_walkers: int,
     rng: numpy.random.Generator,
     log_probability_fn: Callable[[numpy.ndarray], float],
+    map_fn: Callable[..., Any] | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Return initial walker positions with finite log probabilities.
 
@@ -1426,7 +1452,12 @@ def _initialise_active_walkers(
             proposals = numpy.clip(proposals, lower, upper)
         proposals[0] = numpy.clip(initial_active, lower, upper)
 
-        logp = numpy.array([log_probability_fn(pos) for pos in proposals])
+        if map_fn is None:
+            logp = numpy.array([log_probability_fn(pos) for pos in proposals])
+        else:
+            logp = numpy.asarray(
+                list(map_fn(log_probability_fn, proposals)), dtype=float
+            )
         if not numpy.all(numpy.isfinite(logp)):
             scatter_multiplier *= 2.0
             continue

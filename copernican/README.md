@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-15
+**Last Updated:** 2026-08-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -100,6 +100,13 @@ magnitude does not create redundant Runge-Kutta microsteps after a declared
 tight-coupling transition. Only valid parameter-domain exclusions become
 rejected proposals; contract, convergence, non-finite, constraint,
 capability, and performance failures stop execution with typed diagnostics.
+
+Native CMB performance budgets are enforced separately at the workload
+boundary:
+180 seconds for a cold full spectrum, 5 seconds for a warm parameter rebound,
+and 1 second for an exact cache hit. Reports retain deterministic median and
+p95 samples for each state, so practical MCMC throughput remains visible
+without weakening numerical accuracy or silently reusing stale results.
 
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
