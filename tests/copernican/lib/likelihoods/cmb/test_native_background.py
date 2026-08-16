@@ -82,6 +82,31 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             numpy.array_equal(spectrum_data.C_l_EE, numpy.array([9.0, 10.0]))
         )
 
+    def test_custom_transfer_payload_is_read_only(self):
+        """Transfer-only payloads should freeze grids and component arrays."""
+
+        transfer_data = native_background.CustomCMBTransferData(
+            ell_grid=numpy.array([20.0, 30.0]),
+            k_grid=numpy.array([0.1, 0.2]),
+            transfer_components={
+                "temperature": numpy.array([[1.0, 2.0], [3.0, 4.0]])
+            },
+            runtime_envelope={"accuracy_tier": "final"},
+        )
+
+        self.assertIs(
+            type(transfer_data),
+            native_background.CustomCMBTransferData,
+        )
+        self.assertEqual(
+            transfer_data.runtime_envelope["accuracy_tier"],
+            "final",
+        )
+        self.assertFalse(transfer_data.ell_grid.flags.writeable)
+        self.assertFalse(
+            transfer_data.transfer_components["temperature"].flags.writeable
+        )
+
     def test_spectrum_payload_is_read_only_and_missing_values_fail(self):
         """Cached outputs must not fabricate or permit mutated spectra."""
 

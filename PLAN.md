@@ -602,7 +602,7 @@ Done when:
   reused across unequal parameter points.
 * Every targeted test for this slice completes within 180 seconds.
 
-### [open] Slice Seven - Projection and warm-cache throughput
+### [closed] Slice Seven - Projection and warm-cache throughput
 
 Purpose:
 

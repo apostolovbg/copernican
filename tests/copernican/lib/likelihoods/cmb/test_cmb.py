@@ -5503,6 +5503,82 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(second_stats["entries"], first_stats["entries"])
         self.assertGreater(second_stats["hits"], first_stats["hits"])
 
+    def test_warm_projection_reuses_radial_kernel_batches(self) -> None:
+        """Warm parameter requests must skip repeated Bessel batches."""
+
+        native_cache.clear_native_cmb_caches()
+        baseline = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted["param_map"]["As"] *= 1.1
+        ells = numpy.arange(20, 45, dtype=int)
+        first = native_projection._compute_custom_cmb_spectrum_data(
+            baseline,
+            ells,
+            requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
+        )
+        second = native_projection._compute_custom_cmb_spectrum_data(
+            shifted,
+            ells,
+            requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
+        )
+
+        self.assertGreater(
+            int(first.runtime_envelope["projection_bessel_batch_count"]),
+            0,
+        )
+        self.assertEqual(
+            int(second.runtime_envelope["projection_bessel_batch_count"]),
+            0,
+        )
+        self.assertGreater(
+            int(second.runtime_envelope["projection_kernel_cache_hits"]),
+            0,
+        )
+
+    def test_warm_parameter_reuses_transfer_products(self) -> None:
+        """Primordial rebinds must reuse evolution and projection products."""
+
+        native_cache.clear_native_cmb_caches()
+        baseline = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted = _prepare_native_contract(
+            _speedup_contract(_custom_contract(include_lensing=True))
+        )
+        shifted["param_map"]["As"] *= 1.1
+        ells = numpy.arange(20, 45, dtype=int)
+        spectra = ("TT", "TE", "EE", "PP", "TP", "EP")
+        first = native_projection._compute_custom_cmb_spectrum_data(
+            baseline,
+            ells,
+            requested_spectra=spectra,
+        )
+        second = native_projection._compute_custom_cmb_spectrum_data(
+            shifted,
+            ells,
+            requested_spectra=spectra,
+        )
+
+        self.assertTrue(second.runtime_envelope["transfer_cache_hit"])
+        self.assertEqual(
+            float(second.runtime_envelope["evolution_seconds"]),
+            0.0,
+        )
+        self.assertEqual(
+            float(second.runtime_envelope["projection_seconds"]),
+            0.0,
+        )
+        self.assertFalse(
+            numpy.array_equal(
+                numpy.asarray(first.spectra["TT"]),
+                numpy.asarray(second.spectra["TT"]),
+            )
+        )
+
     def test_bb_requires_declared_b_mode_transfer_component(self) -> None:
         """BB should fail clearly when no odd-parity transfer is declared."""
 

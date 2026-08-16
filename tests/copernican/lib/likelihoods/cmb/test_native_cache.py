@@ -108,6 +108,20 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             {"tt": 2.0},
         )
 
+        self.assertIsNone(native_cache.get_native_cmb_transfer("transfer"))
+        native_cache.set_native_cmb_transfer(
+            "transfer",
+            {"temperature": numpy.ones((2, 2))},
+        )
+        self.assertTrue(
+            numpy.array_equal(
+                native_cache.get_native_cmb_transfer("transfer")[
+                    "temperature"
+                ],
+                numpy.ones((2, 2)),
+            )
+        )
+
         x_values = numpy.array([0.1, 0.2])
         native_cache.store_bessel_inputs("xsig", x_values)
         self.assertTrue(
@@ -150,6 +164,7 @@ class NativeCacheModuleTestCase(unittest.TestCase):
         stats = native_cache.native_cmb_cache_stats()
         self.assertIn("native_background", stats)
         self.assertIn("native_spectrum", stats)
+        self.assertIn("native_transfer", stats)
         self.assertIn("native_runtime_assets", stats)
         self.assertIn("declared_momentum_topology", stats)
         self.assertNotIn("custom_background", stats)

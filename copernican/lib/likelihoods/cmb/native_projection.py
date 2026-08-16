@@ -42,12 +42,14 @@ from .native_background import (
     _C_LIGHT_KM_S,
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
     CustomCMBSpectrumData,
+    CustomCMBTransferData,
     _accuracy_control_value,
     _build_custom_cmb_background,
     _coerce_numeric_scalar,
     _compute_spherical_bessel_batch,
     _compute_spherical_bessel_mode_batch,
     _custom_cmb_spectrum_cache_key,
+    _custom_cmb_transfer_cache_key,
     _CustomCMBPhysicalParameters,
     _DeclaredProjectionKernelBatch,
     _get_cached_custom_cmb_spectrum_data,
@@ -1171,6 +1173,49 @@ def _primordial_power_grid_for_observable(
         amplitude = float(physical_params.primordial_amplitude)
         exponent = float(physical_params.primordial_spectral_index) - 1.0
     return amplitude * numpy.power(k_values / 0.05, exponent)
+
+
+def _integrate_declared_spectra(
+    *,
+    physical_params: _CustomCMBPhysicalParameters,
+    perturbation_data: Any,
+    power_spectrum_observables: Mapping[str, Any],
+    transfer_components: Mapping[str, numpy.ndarray],
+    k_values: numpy.ndarray,
+    log_k_values: numpy.ndarray,
+) -> dict[str, numpy.ndarray]:
+    """Integrate declared spectra from transfer products and current tilt."""
+
+    spectra_results: dict[str, numpy.ndarray] = {}
+    for (
+        observable_name,
+        observable_entry,
+    ) in power_spectrum_observables.items():
+        primordial_grid = _primordial_power_grid_for_observable(
+            physical_params=physical_params,
+            perturbation_data=perturbation_data,
+            observable_entry=observable_entry,
+            k_values=k_values,
+        )
+        primary = numpy.asarray(
+            transfer_components[str(observable_entry.primary)],
+            dtype=numpy.longdouble,
+        )
+        secondary = numpy.asarray(
+            transfer_components[str(observable_entry.secondary)],
+            dtype=numpy.longdouble,
+        )
+        spectra_results[observable_name] = _integrate_power_spectrum(
+            primordial_grid=primordial_grid,
+            log_k_values=log_k_values,
+            primary=primary,
+            secondary=secondary,
+            auto_spectrum=(
+                str(observable_entry.primary)
+                == str(observable_entry.secondary)
+            ),
+        )
+    return spectra_results
 
 
 def _declared_graph_projection(
@@ -6304,6 +6349,116 @@ def _compute_custom_cmb_spectrum_data_impl(
         active_coordinate_rate_histories = source_coordinate_rate_histories
         return results
 
+    transfer_cache_reuse_allowed = not (
+        adaptive_controls.transfer_enabled
+        or adaptive_controls.source_enabled
+        or adaptive_controls.projection_enabled
+        or adaptive_controls.evolution_enabled
+        or adaptive_k_enabled
+        or k_values.size < 2
+    )
+    transfer_cache_key = _custom_cmb_transfer_cache_key(
+        contract_or_params,
+        ell_arr,
+        background_provider,
+        requested_spectra=requested_spectrum_names,
+    )
+    cached_transfer = (
+        native_cache.get_native_cmb_transfer(transfer_cache_key)
+        if transfer_cache_reuse_allowed
+        else None
+    )
+    if cached_transfer is not None and (
+        not numpy.array_equal(cached_transfer.ell_grid, ell_arr)
+        or not numpy.array_equal(cached_transfer.k_grid, k_values)
+        or set(cached_transfer.transfer_components)
+        != set(transfer_component_observables)
+    ):
+        cached_transfer = None
+    if cached_transfer is not None:
+        transfer_components = {
+            name: numpy.asarray(cached_transfer.transfer_components[name])
+            for name in transfer_component_observables
+        }
+        for key in (
+            "scalar_initial_constraint_preflight",
+            "scalar_constraint_projection",
+            "scalar_constraint_diagnostics",
+            "declared_source_history_roles",
+            "declared_source_history_sample_count",
+            "declared_source_history_finite",
+            "declared_source_history_convergence",
+            "declared_source_history_max_abs",
+            "numerical_envelope",
+            "accuracy_tier",
+            "lensing_sampling_factor",
+            "projection_kernel_cache_keys",
+        ):
+            if key in cached_transfer.runtime_envelope:
+                runtime_envelope[key] = cached_transfer.runtime_envelope[key]
+        runtime_envelope["transfer_cache_hit"] = True
+        runtime_envelope["transfer_cache_preparations"] = 0
+        runtime_envelope["projection_kernel_cache_hits"] = 0
+        runtime_envelope["projection_bessel_batch_count"] = 0
+        runtime_envelope["projection_bessel_mode_count"] = 0
+        runtime_envelope["declared_source_history_mode_count"] = 0
+        projection_kernel_cache_hits = 0
+        for kernel_cache_key in runtime_envelope.get(
+            "projection_kernel_cache_keys", ()
+        ):
+            if (
+                native_cache.get_declared_projection_kernel_batch(
+                    kernel_cache_key
+                )
+                is not None
+            ):
+                projection_kernel_cache_hits += 1
+        runtime_envelope["projection_kernel_cache_hits"] = (
+            projection_kernel_cache_hits
+        )
+        log_k_values = numpy.log(k_values)
+        with performance_timer.phase("power_spectrum"):
+            spectra_results = _integrate_declared_spectra(
+                physical_params=physical_params,
+                perturbation_data=perturbation_data,
+                power_spectrum_observables=power_spectrum_observables,
+                transfer_components=transfer_components,
+                k_values=k_values,
+                log_k_values=log_k_values,
+            )
+        elapsed_seconds = perf_counter() - request_started
+        timing_snapshot = performance_timer.snapshot(
+            total_seconds=elapsed_seconds,
+        )
+        runtime_envelope.update(timing_snapshot)
+        performance_budget = resolve_native_performance_budget(
+            declared_accuracy_controls
+        )
+        if performance_budget is not None:
+            runtime_envelope.update(
+                {
+                    "performance_budget_full_spectrum_seconds": float(
+                        performance_budget.full_spectrum_seconds
+                    ),
+                    "performance_budget_warm_parameter_seconds": float(
+                        performance_budget.warm_parameter_seconds
+                    ),
+                    "performance_budget_exact_cache_hit_seconds": float(
+                        performance_budget.exact_cache_hit_seconds
+                    ),
+                }
+            )
+        spectrum_data = CustomCMBSpectrumData(
+            ell_grid=ell_arr,
+            k_grid=k_values,
+            transfer_components=FrozenMapping(transfer_components),
+            spectra=FrozenMapping(spectra_results),
+            runtime_envelope=FrozenMapping(runtime_envelope),
+            spectrum_availability=FrozenMapping(spectrum_availability),
+        )
+        native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
+        return _get_cached_custom_cmb_spectrum_data(cache_key)
+
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 512 if use_streaming_projection else 128
     kernel_cache_before = native_cache.native_cmb_cache_stats()[
@@ -6444,8 +6599,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ell_signature = tuple(
                     int(ell_value) for ell_value in ell_arr[batch_indices]
                 )
+                sector_key = (
+                    ("all",)
+                    if streaming_projection_sectors is None
+                    else tuple(sorted(streaming_projection_sectors))
+                )
                 cached = native_cache.get_declared_projection_kernel_batch(
-                    (ell_signature, x_signature)
+                    (ell_signature, x_signature, sector_key)
                 )
                 if cached is None:
                     missing_kernel = True
@@ -6693,6 +6853,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                                 precomputed_bessel=(
                                     precomputed_projection_bessel
                                 ),
+                                required_sectors=streaming_projection_sectors,
                             )
                         )
 
@@ -7107,34 +7268,14 @@ def _compute_custom_cmb_spectrum_data_impl(
 
     spectra_results: dict[str, numpy.ndarray] = {}
     with performance_timer.phase("power_spectrum"):
-        for (
-            observable_name,
-            observable_entry,
-        ) in power_spectrum_observables.items():
-            primordial_grid = _primordial_power_grid_for_observable(
-                physical_params=physical_params,
-                perturbation_data=perturbation_data,
-                observable_entry=observable_entry,
-                k_values=k_values,
-            )
-            primary = numpy.asarray(
-                transfer_components[str(observable_entry.primary)],
-                dtype=numpy.longdouble,
-            )
-            secondary = numpy.asarray(
-                transfer_components[str(observable_entry.secondary)],
-                dtype=numpy.longdouble,
-            )
-            spectra_results[observable_name] = _integrate_power_spectrum(
-                primordial_grid=primordial_grid,
-                log_k_values=log_k_values,
-                primary=primary,
-                secondary=secondary,
-                auto_spectrum=(
-                    str(observable_entry.primary)
-                    == str(observable_entry.secondary)
-                ),
-            )
+        spectra_results = _integrate_declared_spectra(
+            physical_params=physical_params,
+            perturbation_data=perturbation_data,
+            power_spectrum_observables=power_spectrum_observables,
+            transfer_components=transfer_components,
+            k_values=k_values,
+            log_k_values=log_k_values,
+        )
 
     if adaptive_controls.transfer_enabled and k_values.size >= 5:
         coarse_k_indices = numpy.arange(0, int(k_values.size), 2, dtype=int)
@@ -8088,6 +8229,21 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["projection_kernel_cache_hits"] = int(
         kernel_cache_after["hits"] - kernel_cache_before["hits"]
     )
+    projection_sector_key = (
+        ("all",)
+        if streaming_projection_sectors is None
+        else tuple(sorted(streaming_projection_sectors))
+    )
+    runtime_envelope["projection_kernel_cache_keys"] = tuple(
+        (
+            ell_signature,
+            mode_projection_metadata[int(k_index)][1],
+            projection_sector_key,
+        )
+        for k_index, kernel_batches in mode_kernel_batches.items()
+        for ell_signature in kernel_batches
+        if int(k_index) in mode_projection_metadata
+    )
     runtime_envelope["projection_bessel_batch_count"] = int(bessel_batch_count)
     runtime_envelope["projection_bessel_mode_count"] = int(bessel_mode_count)
     timing_snapshot = performance_timer.snapshot(
@@ -8110,6 +8266,16 @@ def _compute_custom_cmb_spectrum_data_impl(
                     performance_budget.exact_cache_hit_seconds
                 ),
             }
+        )
+    if transfer_cache_reuse_allowed:
+        native_cache.set_native_cmb_transfer(
+            transfer_cache_key,
+            CustomCMBTransferData(
+                ell_grid=ell_arr,
+                k_grid=k_values,
+                transfer_components=transfer_components,
+                runtime_envelope=runtime_envelope,
+            ),
         )
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,

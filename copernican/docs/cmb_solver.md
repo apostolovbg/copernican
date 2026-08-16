@@ -967,6 +967,17 @@ remain part of that sequence. Changing any one of these inputs produces a
 different request identity, while an identical request returns the same
 read-only payload.
 
+Primordial-only parameter rebounds use a separate bounded transfer cache.
+Changes to the scalar amplitude, scalar tilt, tensor ratio, or tensor tilt
+reuse the bound background, evolution, and projection products, then rerun
+only the declared primordial power integration. The transfer identity retains
+all non-primordial parameter values, multipoles, sectors, and requested
+spectra, so a changed cosmology cannot inherit stale transfer functions.
+Adaptive refinement controls disable this reuse and retain their complete
+convergence path. Transfer-cache hits report zero evolution and projection
+work while preserving the source-history and numerical provenance from the
+cached product.
+
 Each scalar mode uses the compiled equation program. A graph without split
 collision operators uses one implicit BDF solve on the declared continuous
 evolution grid, so stiff declared terms do not require an unbounded explicit

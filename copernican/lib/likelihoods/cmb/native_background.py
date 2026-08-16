@@ -971,6 +971,41 @@ class CustomCMBSpectrumData:
 
 
 @dataclass(frozen=True, slots=True)
+class CustomCMBTransferData:
+    """Cache transfer products independently from primordial spectra."""
+
+    ell_grid: numpy.ndarray
+    k_grid: numpy.ndarray
+    transfer_components: Mapping[str, numpy.ndarray]
+    runtime_envelope: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Freeze transfer arrays and diagnostic mappings in the cache."""
+
+        ell_grid = numpy.asarray(self.ell_grid)
+        k_grid = numpy.asarray(self.k_grid)
+        ell_grid.setflags(write=False)
+        k_grid.setflags(write=False)
+        transfer_components = {}
+        for name, values in self.transfer_components.items():
+            array = numpy.asarray(values)
+            array.setflags(write=False)
+            transfer_components[str(name)] = array
+        object.__setattr__(self, "ell_grid", ell_grid)
+        object.__setattr__(self, "k_grid", k_grid)
+        object.__setattr__(
+            self,
+            "transfer_components",
+            FrozenMapping(transfer_components),
+        )
+        object.__setattr__(
+            self,
+            "runtime_envelope",
+            FrozenMapping(self.runtime_envelope),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class _DeclaredProjectionKernelBatch:
     """Cache scalar, vector, and tensor radial projection kernels."""
 
@@ -1596,6 +1631,71 @@ def _custom_cmb_spectrum_cache_key(
             _custom_cmb_provider_key(background_provider),
             _freeze_for_cache(
                 _contract_dynamic_cache_view(contract_or_params)
+            ),
+        ),
+        request_specific=(ell_key, requested_key),
+    )
+
+
+_PRIMORDIAL_CACHE_PARAMETER_NAMES = frozenset(
+    name
+    for name in _PHYSICAL_QUANTITY_ALIASES["primordial_amplitude"]
+    + _PHYSICAL_QUANTITY_ALIASES["primordial_spectral_index"]
+    + _PHYSICAL_QUANTITY_ALIASES["tensor_to_scalar_ratio"]
+    + _PHYSICAL_QUANTITY_ALIASES["tensor_spectral_index"]
+)
+_PRIMORDIAL_CACHE_PARAMETER_NAMES_LOWER = frozenset(
+    name.lower() for name in _PRIMORDIAL_CACHE_PARAMETER_NAMES
+)
+
+
+def _contract_transfer_dynamic_cache_view(
+    contract: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    """Return bound parameters that can change transfer products."""
+
+    dynamic_values: dict[str, Any] = {}
+    for parameter_group in ("param_map", "model_parameters"):
+        raw_values = contract.get(parameter_group)
+        if not isinstance(raw_values, Mapping):
+            continue
+        dynamic_values[parameter_group] = {
+            str(name): value
+            for name, value in raw_values.items()
+            if str(name) not in _PRIMORDIAL_CACHE_PARAMETER_NAMES
+            and str(name).lower()
+            not in _PRIMORDIAL_CACHE_PARAMETER_NAMES_LOWER
+        }
+    return dynamic_values
+
+
+def _custom_cmb_transfer_cache_key(
+    contract_or_params: Mapping[str, Any],
+    ells: Iterable[int],
+    background_provider: Any | None,
+    requested_spectra: Iterable[str] | None = None,
+) -> native_cache.NativeRuntimeCacheIdentity:
+    """Return a cache key for transfer products before primordial scaling."""
+
+    ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
+    requested_key = None
+    if requested_spectra is not None:
+        requested_key = tuple(
+            sorted(
+                {
+                    canonical_cmb_spectrum_name(name)
+                    for name in requested_spectra
+                }
+            )
+        )
+    return native_cache.NativeRuntimeCacheIdentity(
+        contract_static=_freeze_for_cache(
+            _contract_structural_cache_view(contract_or_params)
+        ),
+        cosmology_static=(
+            _custom_cmb_provider_key(background_provider),
+            _freeze_for_cache(
+                _contract_transfer_dynamic_cache_view(contract_or_params)
             ),
         ),
         request_specific=(ell_key, requested_key),

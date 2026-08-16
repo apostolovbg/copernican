@@ -80,6 +80,26 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Implemented bounded transfer-product reuse for primordial rebounds
+  and projection-kernel batch reuse.
+  Why: Reduce warm parameter work while preserving declared spectra,
+  convergence, parity, and cache identity boundaries.
+  Impact: Updated native CMB telemetry and operator documentation so warm
+  requests skip evolution and projection work and remain within budget.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+
+- 2026-08-16:
   Change: Corrected native cache identities for structural and parameter
   reuse.
   Why: Prevent gauge-specific graph changes from inheriting warm budgets

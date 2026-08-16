@@ -123,6 +123,10 @@ _DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
 _NATIVE_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
 _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE = _BoundedCacheStore(limit=128)
 _NATIVE_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
+_NATIVE_CMB_TRANSFER_CACHE = _BoundedCacheStore(
+    limit=16,
+    max_bytes=64 * 1024 * 1024,
+)
 _NATIVE_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
 _NATIVE_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
 _NATIVE_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
@@ -143,6 +147,10 @@ def _numpy_payload_bytes(value: Any) -> int:
 
     if isinstance(value, numpy.ndarray):
         return int(value.nbytes)
+    if isinstance(value, Mapping):
+        return sum(_numpy_payload_bytes(item) for item in value.values())
+    if isinstance(value, (tuple, list)):
+        return sum(_numpy_payload_bytes(item) for item in value)
     dataclass_fields = getattr(value, "__dataclass_fields__", None)
     if dataclass_fields is None:
         return 0
@@ -260,6 +268,18 @@ def set_native_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
 
     _NATIVE_CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
     remember_native_cmb_request_identity(cache_key)
+
+
+def get_native_cmb_transfer(cache_key: Any):
+    """Return one cached transfer-product payload when present."""
+
+    return _NATIVE_CMB_TRANSFER_CACHE.get(cache_key)
+
+
+def set_native_cmb_transfer(cache_key: Any, transfer_data: Any) -> None:
+    """Store one bounded transfer-product payload."""
+
+    _NATIVE_CMB_TRANSFER_CACHE.set(cache_key, transfer_data)
 
 
 def remember_native_cmb_request_identity(cache_key: Any) -> None:
@@ -538,6 +558,7 @@ def clear_native_cmb_parameter_caches() -> None:
         _NATIVE_CMB_BACKGROUND_CACHE,
         _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE,
         _NATIVE_CMB_SPECTRUM_CACHE,
+        _NATIVE_CMB_TRANSFER_CACHE,
         _NATIVE_CMB_BESSEL_INPUT_CACHE,
         _NATIVE_CMB_BESSEL_VALUE_CACHE,
         _NATIVE_CMB_BESSEL_BATCH_CACHE,
@@ -562,6 +583,7 @@ def clear_native_cmb_caches() -> None:
         _NATIVE_CMB_BACKGROUND_CACHE,
         _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE,
         _NATIVE_CMB_SPECTRUM_CACHE,
+        _NATIVE_CMB_TRANSFER_CACHE,
         _NATIVE_CMB_BESSEL_INPUT_CACHE,
         _NATIVE_CMB_BESSEL_VALUE_CACHE,
         _NATIVE_CMB_BESSEL_BATCH_CACHE,
@@ -593,6 +615,7 @@ def native_cmb_cache_stats() -> dict[str, dict[str, int]]:
             _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE.snapshot()
         ),
         "native_spectrum": _NATIVE_CMB_SPECTRUM_CACHE.snapshot(),
+        "native_transfer": _NATIVE_CMB_TRANSFER_CACHE.snapshot(),
         "bessel_inputs": _NATIVE_CMB_BESSEL_INPUT_CACHE.snapshot(),
         "bessel_values": _NATIVE_CMB_BESSEL_VALUE_CACHE.snapshot(),
         "declared_projection_kernel_batch": (
@@ -616,6 +639,7 @@ def native_cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
         "bessel_values": "parameter",
         "declared_projection_kernel_batch": "parameter",
         "native_spectrum": "result",
+        "native_transfer": "parameter",
     }
     snapshots = native_cmb_cache_stats()
     return {

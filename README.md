@@ -95,6 +95,9 @@ Native MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
 record cold, warm, and exact-hit states with phase timings and work units.
+Primordial-only parameter rebounds reuse bounded transfer products and rerun
+only primordial power integration; changed cosmological parameters retain
+separate transfer identities, and adaptive refinement keeps its full path.
 Exact split collision half-steps absorb collision stiffness, so their
 magnitude does not create redundant Runge-Kutta microsteps after a declared
 tight-coupling transition. Only valid parameter-domain exclusions become
