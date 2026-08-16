@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
+from ...cmb_contract import audit_cmb_capabilities, require_cmb_capability
 from ...cmb_output import (
     canonical_cmb_spectrum_name as _canonical_spectrum_name,
 )
@@ -268,6 +269,31 @@ def _resolve_available_spectrum_name(
     return None
 
 
+def _preflight_requested_capabilities(
+    perturbation_data: Any,
+    requested_spectra: Sequence[str],
+) -> None:
+    """Reject unsupported public spectra before background construction."""
+
+    audit = audit_cmb_capabilities(perturbation_data)
+    declared_spectra = {
+        _canonical_spectrum_name(name)
+        for name, entry in perturbation_data.observables.items()
+        if entry.kind == "angular_power_spectrum"
+    }
+    for requested_name in requested_spectra:
+        lensed, _component, base_name = _split_canonical_spectrum_name(
+            requested_name
+        )
+        if lensed:
+            for dependency in ("TT", "TE", "EE", "PP"):
+                require_cmb_capability(audit, dependency)
+            continue
+        if requested_name in declared_spectra or base_name in declared_spectra:
+            continue
+        require_cmb_capability(audit, base_name)
+
+
 def _compute_declared_perturbation_spectrum_impl(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -293,6 +319,10 @@ def _compute_declared_perturbation_spectrum_impl(
         raise ValueError("Requested CMB spectra must not be empty")
     canonical_requested_spectra = tuple(
         _canonical_spectrum_name(name) for name in requested_spectra
+    )
+    _preflight_requested_capabilities(
+        perturbation_data,
+        canonical_requested_spectra,
     )
     needs_lensing = any(
         _is_lensed_requested_spectrum(spectrum_name)

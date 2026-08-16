@@ -98,6 +98,9 @@ unavailable matrix row. `require_cmb_capability` rejects that row before
 execution with the model name and the concrete missing declaration; unknown
 public names receive the supported-spectrum list. These diagnostics define
 the unsupported-combination boundary without substituting a standard model.
+The solver invokes this audit before constructing the declared background, so
+an unsupported request cannot spend work on background tables or mode
+evolution before failing.
 
 For a non-radiation-dominated early background, the generated regular scalar
 series scales its leading time powers with the local conformal-Hubble time.

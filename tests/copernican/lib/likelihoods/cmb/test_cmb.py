@@ -5585,7 +5585,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract())
         with self.assertRaisesRegex(
             ValueError,
-            "does not provide requested spectra",
+            "Unsupported CMB observable 'BB'",
         ):
             cmb.compute_cmb_spectrum_from_contract(
                 contract,
@@ -6425,6 +6425,27 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 requested_spectra=("XX",),
             )
 
+    def test_solver_rejects_unknown_spectrum_before_background(self) -> None:
+        """Unsupported spectra fail before native background construction."""
+
+        contract = _speedup_contract(_custom_contract())
+        contract["model_name"] = "UnknownSpectrumPreflight"
+        prepared = _prepare_native_contract(contract)
+        with mock.patch.object(
+            native_cmb_solver,
+            "_compute_custom_cmb_spectrum_data",
+            side_effect=AssertionError("background must not be constructed"),
+        ):
+            with self.assertRaisesRegex(
+                ValueError,
+                "Unsupported CMB observable 'XX'",
+            ):
+                native_cmb_solver._compute_declared_perturbation_spectrum(
+                    prepared,
+                    numpy.asarray((20, 23), dtype=int),
+                    spectra=("XX",),
+                )
+
     def test_requested_spectrum_filters_unrelated_source_evaluation(
         self,
     ) -> None:
@@ -7193,7 +7214,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
         self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
-        with self.assertRaisesRegex(ValueError, "does not provide.*TT"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Unsupported CMB observable 'TT'",
+        ):
             cmb.compute_cmb_spectrum_from_contract(
                 prepared,
                 ells,

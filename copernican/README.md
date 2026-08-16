@@ -47,6 +47,9 @@ machine-testable model-by-capability matrix for `TT`, `TE`, `EE`, `BB`, `PP`,
 roles, and early unsupported-combination diagnostics from declarations rather
 than theory names or model filenames.
 
+Native spectrum requests run that capability preflight before background
+construction, so unsupported observables fail without beginning evolution.
+
 Before native scalar evolution begins, Copernican audits the requested k grid
 against the model's declared numerical limits and preflights every mode on the
 coupled Einstein constraint surface. The runtime records the ordered mode set,

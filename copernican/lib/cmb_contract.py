@@ -364,7 +364,7 @@ def require_cmb_capability(
     if not row.available:
         detail = row.reason or "declared capability is incomplete"
         raise ValueError(
-            f"CMB observable '{name}' is unsupported for model "
+            f"Unsupported CMB observable '{name}' for model "
             f"'{audit.model_name}': {detail}"
         )
     return row

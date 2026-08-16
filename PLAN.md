@@ -802,7 +802,7 @@ Acceptance record:
 * The demonstrated Slice Ten gap set is empty. Any future Slice Ten work
   must begin with a new failing contract test and an amended finite gap list.
 
-### [open] Slice Ten - Implement proven capability gaps
+### [closed] Slice Ten - Implement proven capability gaps
 
 Purpose:
 
@@ -842,6 +842,13 @@ Scope:
 * Reject unsupported combinations before background or mode evolution.
 * Keep native production execution independent of test reference engines.
 
+Finite gap record:
+
+* The first Slice Ten contract test demonstrated that unsupported requested
+  spectra were rejected inside projection, after native background setup.
+* This slice is limited to capability-audit preflight in the solver, with no
+  new observable or hierarchy primitives.
+
 Tasks:
 
 * Implement each recorded schema, compiler, and runtime delta.
@@ -857,9 +864,22 @@ Done when:
 
 * Capability-complete contracts execute without theory-name routing.
 * Semantic role renaming preserves results.
+* Unsupported requested spectra fail through the declared capability audit
+  before background or mode evolution begins.
 * Unsupported combinations fail before expensive numerical work.
 * The CMB regression corpus retains scientific and performance acceptance.
 * No production backend fallback or compatibility bridge remains.
+
+Acceptance record:
+
+* The solver now preflights every requested public spectrum against compiled
+  capability data before constructing native background tables.
+* Unknown names and incomplete standard observables fail with actionable
+  `Unsupported CMB observable` diagnostics; no reference engine or fallback
+  route is involved.
+* The finite gap is closed without adding new hierarchy or observable
+  primitives. Existing declared scalar, vector, tensor, collision, and
+  interaction limits remain governed by the compiled contract tests.
 
 ### [open] Slice Eleven - Specify the USMF2 CMB closure
 

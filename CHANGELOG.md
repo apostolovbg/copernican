@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Added compiled-capability preflight for native CMB spectrum
+  requests and closed Slice Ten with the finite unsupported-request gap.
+  Why: Reject unknown or incomplete observables before background tables and
+  mode evolution consume numerical work.
+  Impact: Native requests now emit actionable unsupported-capability
+  diagnostics through the single declared graph without fallback engines.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-16:
   Change: Added a declaration-driven CMB capability audit and corpus matrix,
   and closed Slice Nine with an explicit empty gap set for Slice Ten.
   Why: Make observable completeness, sector compatibility, and unsupported
