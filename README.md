@@ -34,6 +34,10 @@ engines, validation manifests, and supporting analysis tools needed for the
 full workflow. Every bundled CMB model declares the native graph contract;
 models with available CMB output use the same native solver, while a model
 without a defensible perturbation closure reports CMB output as unavailable.
+USMF2 now records its theory-facing shrink-field closure, sourced initial
+conditions, metric constraints, projection sources, and public observables in
+that same contract while remaining unavailable until its Slice Twelve
+implementation proves the proposed equations.
 
 The CMB subsystem's physical state convention, hierarchy equations, collision
 operators, gauge routes, line-of-sight sources, spectrum units, lensing

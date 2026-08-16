@@ -45,6 +45,11 @@ description: |
     perturbation closure. Keep the native contract descriptive, and expose
     CMB output as unavailable rather than substituting a standard model or
     returning fabricated zero spectra.
+  * A specification-only model may keep `valid_for_cmb: false` after declaring
+    a complete theory-facing graph. In that case, use `notes` on every
+    equation, constraint, closure, source, and initial condition to record
+    provenance, and use `accuracy_controls` for analytic limits and promotion
+    gates that a later implementation must prove.
   * Production contracts do not select a solver. Route keys such as
     `backend`, `standard`, and `backend_mapping` are invalid because every
     accepted CMB contract executes through the native declared graph.

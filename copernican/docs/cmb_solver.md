@@ -44,8 +44,9 @@ conservation rule, regular adiabatic initial family, projection typing, and
 numerical controls. The compiler materializes the common scalar hierarchy
 from this metadata, so model-specific background expressions feed one solver
 without a backend branch. USMF declares its physical species and
-native contract but marks CMB output unavailable until its shrinking-matter
-perturbation closure is specified.
+native contract and now carries a complete theory-facing shrinking-matter
+closure specification. It still marks CMB output unavailable until Slice
+Twelve proves the proposed equations, limits, and runtime controls.
 
 The bundled ontology is explicit at the model boundary:
 
@@ -58,14 +59,40 @@ The bundled ontology is explicit at the model boundary:
 * QRSF and TORG declare photons, baryons, and neutrinos without a CDM species.
   Their named matter-density, matter-momentum, and baryon-Euler closures
   provide baryon-locked relational sources.
-* USMF declares photons, baryons, and massless neutrinos but reports CMB
-  output as unavailable because it has no linear shrinking-matter closure.
+* USMF declares photons, baryons, and massless neutrinos plus one explicit
+  shrink-field scalar degree of freedom. Its sourced equations, constraints,
+  initial family, projections, and observables are specification-only; CMB
+  output remains unavailable until the next implementation slice validates
+  them.
 
 The compiler materializes equations, common line-of-sight sources,
 observables, and regular initial data only for those declared species and
 hierarchy families. It does not create `omch2`, `Omega_c0`, `delta_c`, or
 `theta_c` for a contract without CDM, and it does not create q-resolved
 massive-neutrino states for a contract without that family.
+
+## USMF2 Theory-Facing Specification
+
+`model_usmf2.yml` is the theory-facing closure record for the Unified
+Shrinking Matter Framework version 2. It keeps `valid_for_cmb: false` while
+the proposed equations are independently implemented and tested. The
+contract nevertheless compiles as a complete graph so the future production
+slice cannot silently invent missing physics.
+
+The graph declares one dimensionless `shrink_field` and its conformal-time
+rate, baryon density and velocity, photon temperature moments, massless
+neutrino moments, and the two conformal-Newtonian metric potentials. Its
+`shrink_metric_constraint` is the only metric constraint target, while the
+`zero_scalar_shear` closure supplies the lapse potential. Photon and neutrino
+hierarchy tails are explicit closure nodes rather than implicit zeros.
+
+Every USMF2 equation, constraint, closure, source, and initial condition has
+a provenance note. Ma and Bertschinger (1995) is cited for the shared gauge,
+fluid, collisionless hierarchy, and line-of-sight conventions; the
+shrink-field response, metric normalization, and finite tails are marked as
+USMF2 closure choices. The `accuracy_controls.analytic_limits` entries name
+the homogeneous, no-shrink, and zero-shear limits that Slice Twelve must
+prove before enabling native CMB output.
 
 ## Capability Audit
 `copernican.lib.cmb_contract.audit_cmb_capabilities` is the authoritative

@@ -402,26 +402,707 @@ cmb:
         closure: free_streaming_scalar
         default_l_max: 5
         multipole_symbol: nu_l
+    accuracy_controls:
+      scalar_reference_ells:
+      - 2
+      - 2000
+      closure_status: specification_only
+      analytic_limits:
+        homogeneous_mode: acoustic_k -> 0; regular rates remain finite
+        no_shrink_mode: shrink_field -> 0; metric response is baryon-only
+        zero_shear_mode: Psi - Phi -> 0 under the declared closure
+      promotion_requirements:
+      - prove the shrink-field constraint residual over the declared k grid
+      - compare the homogeneous and no-shrink analytic limits
+      - derive a convergent hierarchy boundary instead of assuming zero tails
+      runtime_envelope: bounded
+    variables:
+      shrink_field:
+        kind: scale_factor_perturbation
+        description: >-
+          Dimensionless perturbation of the local universal scaling factor
+          alpha_U at fixed universal coordinates.
+        notes: >-
+          provenance: USMFv2 model description sections 2.2-2.3; this is the
+          only additional scalar degree of freedom in the proposed closure.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      shrink_rate:
+        kind: scale_factor_rate
+        description: Conformal-time derivative of shrink_field.
+        notes: >-
+          provenance: USMFv2 model description section 2.3; rate is defined
+          with respect to the native conformal-time coordinate tau.
+        units: 1/Mpc
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      delta_b:
+        kind: density_contrast
+        description: Baryon density contrast in the local shrinking frame.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          baryon fluid convention; no cold-dark-matter state is introduced.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_b:
+        kind: velocity_divergence
+        description: Baryon velocity divergence.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          conformal-Newtonian baryon convention.
+        units: 1/Mpc
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_gamma0:
+        kind: photon_temperature_monopole
+        description: Photon temperature monopole.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          photon Boltzmann hierarchy.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_gamma1:
+        kind: photon_temperature_dipole
+        description: Photon temperature dipole.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          photon Boltzmann hierarchy.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_gamma2:
+        kind: photon_temperature_quadrupole
+        description: Photon temperature quadrupole.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          photon Boltzmann hierarchy.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_gamma3:
+        kind: photon_temperature_octopole
+        description: Truncated photon temperature octopole.
+        notes: >-
+          provenance: USMFv2 closure choice; the finite hierarchy boundary
+          is explicit and must be replaced or justified before promotion.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      e_gamma2:
+        kind: photon_polarization_e_quadrupole
+        description: Even-parity photon polarization quadrupole.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          polarization hierarchy convention.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 2.0
+      delta_nu:
+        kind: neutrino_density_contrast
+        description: Massless-neutrino density contrast.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          collisionless massless-neutrino hierarchy.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      theta_nu:
+        kind: neutrino_velocity_divergence
+        description: Massless-neutrino velocity divergence.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          collisionless massless-neutrino hierarchy.
+        units: 1/Mpc
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      sigma_nu:
+        kind: neutrino_anisotropic_stress
+        description: Massless-neutrino scalar anisotropic stress.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          collisionless massless-neutrino hierarchy.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      nu_l3:
+        kind: neutrino_higher_multipole
+        description: Truncated massless-neutrino third multipole.
+        notes: >-
+          provenance: USMFv2 closure choice; the finite hierarchy boundary
+          is explicit and must be replaced or justified before promotion.
+        units: dimensionless
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      Phi:
+        kind: metric_potential_phi
+        description: Spatial-curvature potential in conformal Newtonian gauge.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          USMF shrink_field supplies the additional scalar source.
+        units: dimensionless
+        gauge_role: curvature_potential
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+      Psi:
+        kind: metric_potential_psi
+        description: Lapse potential in conformal Newtonian gauge.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          equality with Phi is an explicit zero-shear closure assumption.
+        units: dimensionless
+        gauge_role: newtonian_potential
+        tensor_character: scalar_like
+        rank: 0
+        spin: 0.0
+    derived:
+      acoustic_k:
+        expression: k
+        description: Scalar Fourier wave number.
+        notes: >-
+          provenance: Native solver coordinate convention; k is the Fourier
+          wave number in inverse Mpc.
+        units: 1/Mpc
+      acoustic_k_sq:
+        expression: acoustic_k * acoustic_k
+        description: Squared scalar Fourier wave number.
+        notes: "provenance: Derived from the declared Fourier convention."
+        units: 1/Mpc^2
+      scalar_initial_conformal_time:
+        expression: 1.0 / (Hconf_tau + 1.0e-30)
+        description: Local conformal-Hubble time for regular initial data.
+        notes: >-
+          provenance: Regular super-horizon expansion convention; the native
+          solver supplies Hconf_tau from the declared USMF background.
+        units: Mpc
+      shrink_mass_sq:
+        expression: Hconf_tau * Hconf_tau
+        description: Background-scaled restoring coefficient for shrink_field.
+        notes: >-
+          provenance: USMFv2 closure choice; this is a declared phenomenology,
+          not a borrowed particulate matter mass.
+        units: 1/Mpc^2
+      photon_baryon_momentum_ratio:
+        expression: (4.0 * Omega_gamma0) / (3.0 * Omega_b0 * a + 1.0e-30)
+        description: Photon-to-baryon momentum-density ratio.
+        notes: >-
+          provenance: Thomson momentum conservation in Ma and Bertschinger
+          (1995), with the USMF background references.
+        units: dimensionless
+      thomson_source:
+        expression: >-
+          collision_rate * ((theta_b / (acoustic_k + 1.0e-30)) / 3.0
+          - theta_gamma1)
+        description: Photon-baryon Thomson source used by both fluids.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          duplicated as a derived source so the graph has one dependency.
+        units: 1/Mpc
+      baryon_shrink_force:
+        expression: acoustic_k_sq * shrink_field
+        description: Linear response of baryon motion to local scale shrinking.
+        notes: >-
+          provenance: USMFv2 metric ansatz in section 2.3; coupling is kept
+          explicit so Slice Twelve can replace it only with a sourced term.
+        units: 1/Mpc^2
+      Phi_tau:
+        variable: Phi
+        wrt: tau
+        order: 1
+        kind: derivative_symbol
+        description: Conformal-time derivative of the curvature potential.
+        notes: "provenance: Native conformal-time graph convention."
+        units: 1/Mpc
+      Psi_tau:
+        variable: Psi
+        wrt: tau
+        order: 1
+        kind: derivative_symbol
+        description: Conformal-time derivative of the lapse potential.
+        notes: "provenance: Native conformal-time graph convention."
+        units: 1/Mpc
+    equations:
+      shrink_field_evolution:
+        lhs:
+          kind: derivative
+          variable: shrink_field
+          wrt: tau
+          order: 1
+        rhs: shrink_rate
+        role: shrink_field_evolution
+        description: First-order definition of the shrinking perturbation rate.
+        notes: >-
+          provenance: USMFv2 local-scale ansatz; this equation defines the
+          perturbation state rather than importing a matter fluid.
+        domain: linear_scalar
+      shrink_rate_evolution:
+        lhs:
+          kind: derivative
+          variable: shrink_rate
+          wrt: tau
+          order: 1
+        rhs: >-
+          -2.0 * Hconf_tau * shrink_rate
+          - (acoustic_k_sq + shrink_mass_sq) * shrink_field
+          + acoustic_k_sq * delta_b
+        role: shrink_field_evolution
+        description: Proposed linear response equation for local shrinking.
+        notes: >-
+          provenance: USMFv2 closure choice based on the section 2.2 density
+          modulation; no LCDM matter equation is used.
+        domain: linear_scalar
+      baryon_density_evolution:
+        lhs:
+          kind: derivative
+          variable: delta_b
+          wrt: tau
+          order: 1
+        rhs: -theta_b + 3.0 * Phi_tau
+        role: continuity
+        description: Baryon continuity equation in the declared gauge.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          with the USMF metric potential constraint.
+        domain: linear_scalar
+      baryon_velocity_evolution:
+        lhs:
+          kind: derivative
+          variable: theta_b
+          wrt: tau
+          order: 1
+        rhs: >-
+          -Hconf_tau * theta_b + acoustic_k_sq * Psi
+          + baryon_sound_speed_sq * acoustic_k_sq * delta_b
+          + baryon_shrink_force + thomson_source
+        role: euler
+        description: Baryon Euler equation with the declared shrinking force.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) baryon Euler convention;
+          baryon_shrink_force is the only USMF-specific response term.
+        domain: linear_scalar
+      photon_monopole_evolution:
+        lhs:
+          kind: derivative
+          variable: theta_gamma0
+          wrt: tau
+          order: 1
+        rhs: -acoustic_k * theta_gamma1 + Phi_tau
+        role: photon_continuity
+        description: Photon temperature monopole equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          metric driving is supplied by the USMF constraint.
+        domain: linear_scalar
+      photon_dipole_evolution:
+        lhs:
+          kind: derivative
+          variable: theta_gamma1
+          wrt: tau
+          order: 1
+        rhs: >-
+          acoustic_k * (theta_gamma0 / 3.0 - 2.0 * theta_gamma2 / 3.0)
+          + acoustic_k * Psi + thomson_source
+        role: photon_boltzmann
+        description: Photon temperature dipole equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          with the declared Thomson source.
+        domain: linear_scalar
+      photon_quadrupole_evolution:
+        lhs:
+          kind: derivative
+          variable: theta_gamma2
+          wrt: tau
+          order: 1
+        rhs: >-
+          (2.0 / 5.0) * acoustic_k * theta_gamma1
+          - (3.0 / 5.0) * acoustic_k * theta_gamma3
+          - collision_rate * theta_gamma2
+        role: photon_boltzmann
+        description: Photon temperature quadrupole equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          finite truncation is separately declared as a closure.
+        domain: linear_scalar
+      neutrino_density_evolution:
+        lhs:
+          kind: derivative
+          variable: delta_nu
+          wrt: tau
+          order: 1
+        rhs: -4.0 * theta_nu / 3.0 + 4.0 * Phi_tau
+        role: neutrino_boltzmann
+        description: Collisionless massless-neutrino density equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          collisionless hierarchy convention.
+        domain: linear_scalar
+      neutrino_velocity_evolution:
+        lhs:
+          kind: derivative
+          variable: theta_nu
+          wrt: tau
+          order: 1
+        rhs: acoustic_k_sq * (0.25 * delta_nu + Psi - sigma_nu)
+        role: neutrino_boltzmann
+        description: Collisionless massless-neutrino velocity equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072,
+          collisionless hierarchy convention.
+        domain: linear_scalar
+      neutrino_shear_evolution:
+        lhs:
+          kind: derivative
+          variable: sigma_nu
+          wrt: tau
+          order: 1
+        rhs: >-
+          (4.0 / 15.0) * theta_nu
+          - (3.0 / 10.0) * acoustic_k * nu_l3
+        role: neutrino_boltzmann
+        description: Collisionless massless-neutrino shear equation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          finite truncation is separately declared as a closure.
+        domain: linear_scalar
+    constraints:
+      shrink_metric_constraint:
+        target: Phi
+        expression: -0.5 * shrink_field + 0.25 * delta_b
+        role: constraint
+        description: Metric curvature sourced by baryons and local shrinking.
+        notes: >-
+          provenance: USMFv2 metric ansatz sections 2.2-2.3; the coefficient
+          is an explicit proposed normalization awaiting Slice Twelve tests.
+        domain: linear_scalar
+    closures:
+      zero_scalar_shear:
+        target: Psi
+        expression: Phi
+        role: metric_shear_closure
+        description: Zero anisotropic-stress metric closure for the proposed mode.
+        notes: >-
+          provenance: USMFv2 closure assumption; it is not inferred from a
+          missing species and must be challenged before production use.
+        domain: linear_scalar
+      photon_octopole_truncation:
+        target: theta_gamma3
+        expression: "0.0"
+        role: hierarchy_closure
+        description: Explicit finite photon hierarchy boundary.
+        notes: >-
+          provenance: USMFv2 specification boundary; zero is a declared
+          numerical closure, not an untracked generated state.
+        domain: linear_scalar
+      neutrino_octopole_truncation:
+        target: nu_l3
+        expression: "0.0"
+        role: hierarchy_closure
+        description: Explicit finite neutrino hierarchy boundary.
+        notes: >-
+          provenance: USMFv2 specification boundary; zero is a declared
+          numerical closure, not an untracked generated state.
+        domain: linear_scalar
+      polarization_quadrupole_closure:
+        target: e_gamma2
+        expression: theta_gamma2 / 4.0
+        role: polarization_closure
+        description: Even-parity polarization quadrupole relation.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) scalar polarization moment
+          convention; coefficient remains subject to Slice Twelve tests.
+        domain: linear_scalar
+    interactions:
+      shrink_baryon_response:
+        sector: scalar
+        species:
+        - baryon
+        expression: baryon_shrink_force
+        description: Declared coupling from shrinking scale to baryon motion.
+        notes: >-
+          provenance: USMFv2 local-density modulation in section 2.2; this
+          interaction is not represented as a synthetic extra species.
     collision_operators:
       thomson_drag:
         sector: scalar
         species:
         - photon
         - baryon
-        expression: collision_rate * ((theta_b / acoustic_k) / 3.0 - theta_gamma1)
+        expression: thomson_source
         counterpart: baryon_thomson_drag
+        rate_expression: collision_rate
+        activation_strategy: tight_coupling
+        notes: >-
+          provenance: Ma and Bertschinger (1995), arXiv:astro-ph/9506072;
+          momentum counterpart is declared below.
+      baryon_thomson_drag:
+        sector: scalar
+        species:
+        - photon
+        - baryon
+        expression: >-
+          -3.0 * acoustic_k * photon_baryon_momentum_ratio * thomson_source
+        counterpart: thomson_drag
+        rate_expression: collision_rate
+        activation_strategy: tight_coupling
+        notes: >-
+          provenance: Thomson momentum conservation from Ma and Bertschinger
+          (1995); the opposite sign is explicit in the declared graph.
     conservation_rules:
-      thomson_drag_balance:
+      thomson_momentum_balance:
         kind: absolute_max
-        expression: 3.0 * acoustic_k * photon_baryon_momentum_ratio * thomson_drag
+        expression: >-
+          3.0 * acoustic_k * photon_baryon_momentum_ratio * thomson_drag
           + baryon_thomson_drag
         tolerance: 1.0e-12
-        domain: scalar
+        domain: linear_scalar
+        notes: >-
+          provenance: Thomson momentum conservation in Ma and Bertschinger
+          (1995); must remain bounded in the Slice Twelve implementation.
+    sources:
+      temperature_monopole_source:
+        expression: theta_gamma0 + Psi
+        role: monopole
+        description: Intrinsic temperature plus lapse source.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) line-of-sight source
+          convention, with the USMF metric closure.
+        units: dimensionless
+      temperature_doppler_source:
+        expression: theta_b / (acoustic_k + 1.0e-30)
+        role: doppler
+        description: Baryon Doppler source for temperature projection.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) line-of-sight source
+          convention.
+        units: dimensionless
+      temperature_isw_source:
+        expression: Phi_tau + Psi_tau
+        role: isw
+        description: Integrated metric time-variation source.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) integrated Sachs-Wolfe
+          convention; USMF time dependence enters through Phi and Psi.
+        units: 1/Mpc
+      polarization_e_source:
+        expression: e_gamma2
+        role: polarization
+        description: Even-parity polarization source.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) scalar polarization
+          hierarchy convention.
+        units: dimensionless
+      polarization_b_source:
+        expression: "0.0"
+        role: signal
+        description: Scalar B-polarization source, identically zero by parity.
+        notes: >-
+          provenance: Scalar parity convention; no tensor or vector source is
+          smuggled into this scalar-only USMF2 closure.
+        units: dimensionless
+      lensing_potential_source:
+        expression: Phi + Psi
+        role: potential
+        description: Weyl-potential source for scalar lensing.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) metric convention; the
+          USMF-specific metric response is already in Phi and Psi.
+        units: dimensionless
+    observables:
+      temperature:
+        kind: transfer_component
+        projection: line_of_sight_temperature
+        source_terms:
+          monopole: temperature_monopole_source
+          doppler: temperature_doppler_source
+          isw: temperature_isw_source
+        description: USMF2 scalar temperature transfer component.
+        notes: "provenance: Declared from the scalar source graph above."
+      polarization_e:
+        kind: transfer_component
+        projection: line_of_sight_polarization_e
+        source_terms:
+          polarization: polarization_e_source
+        description: USMF2 even-parity polarization transfer component.
+        notes: "provenance: Declared from the scalar polarization hierarchy."
+      polarization_b:
+        kind: transfer_component
+        projection: line_of_sight_signal
+        source_terms:
+          signal: polarization_b_source
+        description: USMF2 scalar B transfer component, physically zero.
+        notes: "provenance: Scalar parity closure; production remains disabled."
+      lensing_potential:
+        kind: transfer_component
+        projection: line_of_sight_lensing_potential
+        source_terms:
+          potential: lensing_potential_source
+        description: USMF2 scalar lensing-potential transfer component.
+        notes: "provenance: Declared from the Weyl-potential source."
+      TT:
+        kind: angular_power_spectrum
+        primary: temperature
+        secondary: temperature
+        units: muK^2
+        notes: "provenance: Public scalar temperature spectrum contract."
+      TE:
+        kind: angular_power_spectrum
+        primary: temperature
+        secondary: polarization_e
+        units: muK^2
+        notes: "provenance: Public scalar temperature-polarization contract."
+      EE:
+        kind: angular_power_spectrum
+        primary: polarization_e
+        secondary: polarization_e
+        units: muK^2
+        notes: "provenance: Public scalar E-polarization contract."
+      BB:
+        kind: angular_power_spectrum
+        primary: polarization_b
+        secondary: polarization_b
+        units: muK^2
+        notes: "provenance: Public scalar B-polarization parity contract."
+      PP:
+        kind: angular_power_spectrum
+        primary: lensing_potential
+        secondary: lensing_potential
+        units: dimensionless
+        notes: "provenance: Public scalar lensing-potential contract."
+      TP:
+        kind: angular_power_spectrum
+        primary: temperature
+        secondary: lensing_potential
+        units: dimensionless
+        notes: "provenance: Public scalar temperature-lensing contract."
+      EP:
+        kind: angular_power_spectrum
+        primary: polarization_e
+        secondary: lensing_potential
+        units: dimensionless
+        notes: "provenance: Public scalar polarization-lensing contract."
+    initial_conditions:
+      shrink_field_seed:
+        target:
+          variable: shrink_field
+          wrt: tau
+          order: 0
+        expression: seed
+        description: Regular adiabatic seed for local scale shrinking.
+        notes: >-
+          provenance: USMFv2 regular-mode assumption; normalization is the
+          primordial scalar seed supplied by the native runtime.
+      shrink_rate_seed:
+        target:
+          variable: shrink_rate
+          wrt: tau
+          order: 0
+        expression: acoustic_k * scalar_initial_conformal_time * seed
+        description: Regular growing-mode shrink-rate seed.
+        notes: >-
+          provenance: USMFv2 regular-mode ansatz; the conformal-Hubble scale
+          makes the initial rate finite as k tends to zero.
+      baryon_density_seed:
+        target:
+          variable: delta_b
+          wrt: tau
+          order: 0
+        expression: 0.75 * seed
+        description: Adiabatic baryon density seed.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) adiabatic scalar ratios,
+          applied to the declared baryon sector only.
+      baryon_velocity_seed:
+        target:
+          variable: theta_b
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Regular super-horizon baryon velocity seed.
+        notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+      photon_monopole_seed:
+        target:
+          variable: theta_gamma0
+          wrt: tau
+          order: 0
+        expression: seed
+        description: Adiabatic photon monopole seed.
+        notes: "provenance: Ma and Bertschinger (1995) adiabatic scalar ratios."
+      photon_dipole_seed:
+        target:
+          variable: theta_gamma1
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Regular super-horizon photon dipole seed.
+        notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+      photon_quadrupole_seed:
+        target:
+          variable: theta_gamma2
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Regular super-horizon photon quadrupole seed.
+        notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+      neutrino_density_seed:
+        target:
+          variable: delta_nu
+          wrt: tau
+          order: 0
+        expression: seed
+        description: Adiabatic massless-neutrino density seed.
+        notes: "provenance: Ma and Bertschinger (1995) adiabatic scalar ratios."
+      neutrino_velocity_seed:
+        target:
+          variable: theta_nu
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Regular super-horizon massless-neutrino velocity seed.
+        notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+      neutrino_shear_seed:
+        target:
+          variable: sigma_nu
+          wrt: tau
+          order: 0
+        expression: "0.0"
+        description: Regular super-horizon massless-neutrino shear seed.
+        notes: "provenance: Ma and Bertschinger (1995) regular-mode limit."
+    boundary_conditions: {}
     initial_condition_families:
       adiabatic_scalar:
         sector: scalar
-        description: Regular adiabatic growing scalar mode.
-        members: []
+        description: Regular USMF2 adiabatic scalar family.
+        notes: >-
+          provenance: Ma and Bertschinger (1995) regular scalar mode for the
+          photon-baryon-neutrino sector plus the USMF shrink_field seed.
+        members:
+        - shrink_field_seed
+        - shrink_rate_seed
+        - baryon_density_seed
+        - baryon_velocity_seed
+        - photon_monopole_seed
+        - photon_dipole_seed
+        - photon_quadrupole_seed
+        - neutrino_density_seed
+        - neutrino_velocity_seed
+        - neutrino_shear_seed
     projection_typing:
       temperature_line_of_sight:
         sector: scalar
@@ -434,20 +1115,8 @@ cmb:
         - transfer_component
         parity: even
         spin: 0.0
-    accuracy_controls:
-      scalar_reference_ells:
-      - 2
-      - 2000
-      runtime_envelope: bounded
-    variables: {}
-    derived: {}
-    equations: {}
-    constraints: {}
-    closures: {}
-    sources: {}
-    observables: {}
-    initial_conditions: {}
-    boundary_conditions: {}
+        description: Scalar temperature projection typing.
+        notes: "provenance: Native declared projection convention."
     numerics:
       ell_min: 2
       ell_max: 2000
@@ -465,12 +1134,20 @@ cmb:
       regimes:
       - linear
       - native_scalar_hierarchy
-      notes: CMB output is unavailable without a declared perturbation closure.
+      - usmf2_specification_only
+      notes: >-
+        The USMF2 scalar closure is complete as a declarative specification,
+        but remains unavailable for production CMB execution. Its proposed
+        shrink-field coefficients, finite hierarchy boundaries, and metric
+        constraints require the independent analytic and numerical acceptance
+        surface in Slice Twelve. No particulate-matter fallback is allowed.
     notes: >-
-      The model declares no defensible linear perturbation closure for the
-      shrinking-matter mechanism. CMB output is unavailable until that
-      closure is specified; the native solver does not substitute a
-      particulate matter sector.
+      This is the Slice Eleven theory-facing USMF2 closure. It declares the
+      independent shrink_field degree of freedom, the photon-baryon-neutrino
+      carriers, metric constraints, finite hierarchy boundaries, regular
+      initial data, projection sources, public observables, and analytic-limit
+      controls. The contract intentionally keeps valid_for_cmb false until
+      Slice Twelve proves the proposed coefficients and limits.
 notes: >-
   Detailed model behaviour embedded in this JSON. The BAO radiation mapping
   multiplies

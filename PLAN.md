@@ -881,7 +881,7 @@ Acceptance record:
   primitives. Existing declared scalar, vector, tensor, collision, and
   interaction limits remain governed by the compiled contract tests.
 
-### [open] Slice Eleven - Specify the USMF2 CMB closure
+### [closed] Slice Eleven - Specify the USMF2 CMB closure
 
 Purpose:
 
@@ -931,6 +931,21 @@ Done when:
 * Initial conditions and observables have sourced definitions.
 * Analytic identities and limiting cases are testable.
 * No borrowed LCDM species, alias, equation, or source is unexplained.
+
+Acceptance record:
+
+* USMF2 now declares one shrink-field degree of freedom, its conformal-time
+  rate, baryon/photon/massless-neutrino states, metric constraints, hierarchy
+  boundaries, interactions, collision balance, and public projections.
+* Every evolved state has an equation and sourced regular initial condition;
+  every algebraic target has one explicit constraint or closure node.
+* Equation, constraint, closure, source, and initial-condition nodes carry
+  provenance notes. Analytic homogeneous, no-shrink, and zero-shear limits are
+  recorded under `accuracy_controls` for Slice Twelve.
+* `valid_for_cmb: false` remains unchanged. The graph compiles for schema and
+  dependency checks but is not exposed to production CMB execution until its
+  proposed coefficients and finite hierarchy boundaries are independently
+  implemented and validated.
 
 ### [open] Slice Twelve - Implement and validate the USMF2 CMB path
 

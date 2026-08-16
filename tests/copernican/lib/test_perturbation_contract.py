@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import copy
 import unittest
+from pathlib import Path
 from unittest import mock
+
+import yaml
 
 import copernican.lib.perturbation_contract as perturbation_contract_module
 from copernican.lib.perturbation_contract import (
@@ -535,6 +538,83 @@ def _tensor_metadata_only_contract() -> dict[str, object]:
 
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
+
+    def test_usmf2_declares_complete_nonproduction_closure(self) -> None:
+        """USMF2 must compile its explicit closure while staying disabled."""
+
+        model_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / "model_usmf2.yml"
+        )
+        model_data = yaml.safe_load(model_path.read_text(encoding="utf-8"))
+        self.assertFalse(model_data["valid_for_cmb"])
+        perturbations = model_data["cmb"]["perturbations"]
+        for section_name in (
+            "variables",
+            "derived",
+            "equations",
+            "constraints",
+            "closures",
+            "sources",
+            "observables",
+            "initial_conditions",
+        ):
+            with self.subTest(section=section_name):
+                self.assertTrue(perturbations[section_name])
+        self.assertNotIn("cdm", perturbations["species"])
+        self.assertIn("shrink_field", perturbations["variables"])
+        self.assertIn(
+            "shrink_field_evolution",
+            perturbations["equations"],
+        )
+        self.assertIn(
+            "shrink_metric_constraint",
+            perturbations["constraints"],
+        )
+        self.assertIn(
+            "adiabatic_scalar",
+            perturbations["initial_condition_families"],
+        )
+        self.assertTrue(
+            all(
+                "provenance:" in str(entry.get("notes", ""))
+                for section_name in (
+                    "equations",
+                    "constraints",
+                    "closures",
+                    "sources",
+                    "initial_conditions",
+                )
+                for entry in perturbations[section_name].values()
+            )
+        )
+        parameter_names = [
+            parameter.get("python_var", parameter["name"])
+            for parameter in model_data["parameters"]
+        ]
+        latex_names = [
+            parameter.get("latex_name", "")
+            for parameter in model_data["parameters"]
+        ]
+        compiled = compile_perturbation_contract(
+            perturbations,
+            model_name=model_data["model_name"],
+            parameter_names=parameter_names,
+            latex_names=latex_names,
+            background_reference_names=tuple(
+                model_data["cmb"]["background"]["derived"]
+            ),
+        )
+        self.assertEqual(
+            compiled.dependency_graph_summary.equation_names,
+            tuple(sorted(perturbations["equations"])),
+        )
+        self.assertIn(
+            "shrink_mass_sq",
+            compiled.dependency_graph_summary.evaluation_order,
+        )
 
     def _compile(
         self, contract: dict[str, object]

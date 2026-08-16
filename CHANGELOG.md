@@ -80,6 +80,26 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Completed and closed Slice Eleven with a sourced USMF2
+  theory-facing perturbation closure and dependency-graph coverage.
+  Why: Defined every shrinking-field state, relation, source, initial mode,
+  observable, analytic limit, and promotion boundary before implementation.
+  Impact: USMF2 now compiles as a complete declarative specification while
+  `valid_for_cmb: false` keeps unproven physics out of production execution.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  docs/model_template.yml
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/test_engine_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-16:
   Change: Added compiled-capability preflight for native CMB spectrum
   requests and closed Slice Ten with the finite unsupported-request gap.
   Why: Reject unknown or incomplete observables before background tables and

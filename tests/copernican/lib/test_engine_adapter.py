@@ -1046,10 +1046,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     self.assertNotIn("sum_mnu", param_map)
                     self.assertNotIn("num_massive_neutrinos", param_map)
 
-    def test_model_without_perturbation_closure_is_explicitly_unavailable(
+    def test_usmf2_specification_remains_explicitly_unavailable(
         self,
     ):
-        """Models without a declared closure must not expose fake CMB data."""
+        """USMF2's declared closure stays disabled until Slice Twelve."""
 
         repo_root = Path(__file__).resolve().parents[3]
         yaml_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
@@ -1063,6 +1063,13 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         self.assertFalse(plugin.valid_for_cmb)
         perturbations = parsed["cmb"]["perturbations"]
+        self.assertTrue(perturbations["variables"])
+        self.assertTrue(perturbations["equations"])
+        self.assertTrue(perturbations["observables"])
+        self.assertIn(
+            "usmf2_specification_only",
+            perturbations["validity"]["regimes"],
+        )
         self.assertNotIn("standard", perturbations)
         self.assertNotIn("backend_mapping", perturbations)
         self.assertNotIn("cdm", perturbations["species"])
