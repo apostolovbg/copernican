@@ -41,6 +41,12 @@ inputs, numerical controls, and independent-reference boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
+The compiled contract audit in `copernican.lib.cmb_contract` produces a
+machine-testable model-by-capability matrix for `TT`, `TE`, `EE`, `BB`, `PP`,
+`TP`, and `EP`. It derives species, sectors, hierarchy families, projection
+roles, and early unsupported-combination diagnostics from declarations rather
+than theory names or model filenames.
+
 Before native scalar evolution begins, Copernican audits the requested k grid
 against the model's declared numerical limits and preflights every mode on the
 coupled Einstein constraint surface. The runtime records the ordered mode set,

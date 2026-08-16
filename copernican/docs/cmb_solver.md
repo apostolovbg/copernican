@@ -67,6 +67,38 @@ hierarchy families. It does not create `omch2`, `Omega_c0`, `delta_c`, or
 `theta_c` for a contract without CDM, and it does not create q-resolved
 massive-neutrino states for a contract without that family.
 
+## Capability Audit
+`copernican.lib.cmb_contract.audit_cmb_capabilities` is the authoritative
+machine-readable audit for a compiled perturbation contract. It reports the
+declared gauge, sectors, species, hierarchy families, collision operators,
+interactions, closures, initial-condition families, projection typing, and
+observable names. `build_cmb_capability_matrix` applies the same audit to the
+bundled model corpus, keyed by the declared model name. Neither function uses
+a theory name, model filename, model family, or assumed species to select a
+route; the execution route is the universal native declared graph recorded in
+the compiled manifest. The audit also records background references, numerical
+controls, and which standard hierarchies were legitimately materialized from
+the declaration.
+
+The public capability matrix has one row for each requested spectrum. The
+minimum transfer roles are:
+
+* `TT`: temperature with temperature.
+* `TE`: temperature with even polarization.
+* `EE`: even polarization with even polarization.
+* `BB`: odd polarization with odd polarization.
+* `PP`: scalar lensing potential with scalar lensing potential.
+* `TP`: temperature with scalar lensing potential.
+* `EP`: even polarization with scalar lensing potential.
+
+The compiled angular-spectrum observable must bind those transfer roles, and
+`PP`, `TP`, and `EP` must remain scalar-sector combinations. A missing
+observable, transfer component, role, or compatible sector produces an
+unavailable matrix row. `require_cmb_capability` rejects that row before
+execution with the model name and the concrete missing declaration; unknown
+public names receive the supported-spectrum list. These diagnostics define
+the unsupported-combination boundary without substituting a standard model.
+
 For a non-radiation-dominated early background, the generated regular scalar
 series scales its leading time powers with the local conformal-Hubble time.
 This keeps the declared Einstein constraints valid for theory-specific

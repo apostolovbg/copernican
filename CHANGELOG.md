@@ -80,6 +80,25 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Added a declaration-driven CMB capability audit and corpus matrix,
+  and closed Slice Nine with an explicit empty gap set for Slice Ten.
+  Why: Make observable completeness, sector compatibility, and unsupported
+  combinations machine-testable without theory-name or filename routing.
+  Impact: Compiled contracts now expose deterministic capability rows and
+  actionable early diagnostics for `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and
+  `EP`.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  docs/model_template.yml
+  copernican/lib/cmb_contract.py
+  tests/copernican/lib/test_cmb_contract.py
+
+- 2026-08-16:
   Change: Revised Slice Eight and final timing acceptance around a declared
   reference-host qualification while preserving the exact workload controls.
   Why: Keep local implementation criteria achievable without weakening the

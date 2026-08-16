@@ -376,6 +376,10 @@ notes: |
   * Review the compiled species and source names against the theory before
     enabling CMB output. A native graph is valid only when every emitted
     state and source has an explicit physical origin.
+  * Use `cmb_contract.audit_cmb_capabilities` after compilation to record the
+    declared model matrix. The public `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and
+    `EP` rows require their typed transfer roles; do not infer capabilities
+    from a theory name, model filename, model family, or assumed species.
   * Declared perturbation expressions can use the declared variables, the
     background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`, `tau_dot`,
     `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,

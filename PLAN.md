@@ -731,7 +731,7 @@ Done when:
   and reported with provenance-complete telemetry.
 * Optimized spectra retain the established convergence and parity thresholds.
 
-### [open] Slice Nine - Capability audit and compatibility specification
+### [closed] Slice Nine - Capability audit and compatibility specification
 
 Purpose:
 
@@ -790,12 +790,24 @@ Done when:
 * The model corpus has a machine-testable capability matrix.
 * Slice Ten contains no inferred or open-ended refactor work.
 
+Acceptance record:
+
+* `cmb_contract` now audits the declared ontology and the complete public
+  `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and `EP` capability surface.
+* The nine CMB-enabled bundled models produce complete matrix rows; USMF2
+  remains explicitly unavailable through its model declaration.
+* Production route metadata is the same native declared graph for every
+  model. No theory-name, filename, model-family, or assumed-species routing
+  branch was demonstrated.
+* The demonstrated Slice Ten gap set is empty. Any future Slice Ten work
+  must begin with a new failing contract test and an amended finite gap list.
+
 ### [open] Slice Ten - Implement proven capability gaps
 
 Purpose:
 
-Implement the finite gap set from Slice Nine so any capability-complete
-contract expressible by the documented primitives follows one native route.
+Implement only a finite capability gap demonstrated by a new contract test
+and recorded in this plan; Slice Nine found no current gap to implement.
 
 Depends on:
 
@@ -820,7 +832,9 @@ Probable affected files:
 
 Scope:
 
-* Add only capabilities justified by the Slice Nine audit.
+* Add only capabilities justified by a recorded Slice Nine audit result.
+* Do not begin speculative refactoring while the demonstrated gap set is
+  empty.
 * Remove name-based routing when equivalent contract data exists.
 * Bind background, evolution, source, projection, and observable assembly from
   compiled capability data.
