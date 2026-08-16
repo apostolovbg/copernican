@@ -80,6 +80,19 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Replaced the open roadmap with three detailed native-sampling
+    performance slices and removed the obsolete plan copy.
+  Why: Consolidated safe runtime acceleration, batch evaluation, and
+    scientifically validated delayed acceptance into the smallest workable
+    sequence.
+  Impact: Establishes exact scalar execution as the reference while making
+    correctness, scientific, and performance acceptance explicit.
+  Files:
+  PLAN.md
+  PLAN_old.md
+  CHANGELOG.md
+
+- 2026-08-16:
   Change: Added phase-aware MCMC progress with timing and ETA telemetry.
   Why: Exposed worker launch and walker initialization instead of leaving
     CLI and GUI runs at a generic initializing state.

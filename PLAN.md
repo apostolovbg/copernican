@@ -14,1141 +14,688 @@ This opening section is managed by DevCovenant.
 Use `PLAN.md` to track active implementation work below this block.
 <!-- DEVCOV:END -->
 
-Use this plan to make the manifest-driven native CMB workflow correct,
-observable, performant, capability-driven, and scientifically complete.
-The roadmap begins with the production run boundary, repairs both scalar
-constraint surfaces, establishes a practical MCMC execution budget, and then
-extends the declared theory contract and model corpus.
+> **For agentic workers:** Execute the slices in order and use the
+> repository gate workflow. Each slice has independent implementation,
+> correctness, scientific, and performance acceptance evidence.
 
-This roadmap has fourteen slices: thirteen implementation slices and one final
-acceptance slice. Every slice has a bounded purpose, explicit dependencies,
-targeted tests, and closure criteria suitable for one continuous work session.
-No slice may hide unfinished work behind a green policy gate or defer required
-correctness to an unnamed follow-up.
+**Goal:** Reduce native CMB MCMC runtime while preserving the exact scalar
+sampler as the scientific reference and adding only validated acceleration
+paths.
 
-The target condition is final:
+**Architecture:** The exact scalar native CMB path remains the default and
+reference implementation. First remove observable runtime overhead and make
+measurements trustworthy. Then add an ordered batch/vectorized evaluation
+contract. Finally add an explicit opt-in surrogate/delayed-acceptance path
+whose second-stage exact evaluation preserves the target distribution.
 
-* CLI and GUI launches execute one shared manifest workflow.
-* One worker owns the canonical run log and output directory.
-* Dataset discovery, loading, integrity checks, and hashing occur once per run.
-* Native likelihood failures have typed, scientifically meaningful outcomes.
-* Generated initial data and evolved scalar histories satisfy documented
-  Einstein constraints across the accepted parameter domain.
-* Native CMB evaluations are fast enough for ensemble sampling.
-* Solver behavior is selected by declared mathematical capabilities rather
-  than theory names or borrowed model-family assumptions.
-* Every CMB-valid model executes through the native path without a production
-  CAMB or CLASS fallback.
-* `model_usmf2.yml` becomes CMB-valid only through a sourced, explicit, and
-  independently tested perturbation closure.
-* The exact reference GUI and CLI run is reproducible, with its 1800-second
-  timing qualified on the declared reference host.
+**Tech Stack:** Python 3.11, NumPy, SciPy, emcee, multiprocessing, Tk, native
+declared-graph CMB execution, focused unittest suites, and DevCovenant.
+
+## Global Constraints
+
+* Do not change branches, create branches, or alter the repository workflow.
+* Keep the native declared-graph solver as the only production CMB backend.
+* Keep the exact scalar sampler as the default and the reference path.
+* Do not broaden parameter-dependent cache keys across unequal parameter
+  points.
+* Do not lower a declared accuracy tier or physical resolution to manufacture
+  a timing result.
+* Do not introduce a production CAMB or CLASS fallback.
+* Batch evaluation must preserve input ordering and per-item diagnostics.
+* A failed batch item must not corrupt or hide the result of another item.
+* Surrogate and delayed-acceptance execution must be explicit opt-in.
+* A surrogate may reject a proposal cheaply only when the exact correction
+  remains mathematically valid.
+* Correctness and scientific validation are separate acceptance surfaces from
+  performance measurement.
+* The `copernican.validation` package and its full-corpus workload are not an
+  acceptance dependency for these slices.
+* Use bounded focused tests and scientific reference fixtures; do not impose
+  an unmeetable full-run wall-clock gate on this host.
+* Record hardware, process count, numerical threads, model, dataset, seed,
+  cache state, requested spectra, and phase timings for every benchmark.
+* Preserve root and package documentation synchronization when user-facing
+  behavior changes.
+* Update code, tests, comments, docstrings, documentation, and changelog in
+  the same slice when their contracts change.
+* Stage all changes after each completed slice.
+* Do not commit or push unless explicitly instructed.
 
 ## Table of Contents
 
 * [Overview](#overview)
 * [Problem Preamble](#problem-preamble)
-* [Reference Workload](#reference-workload)
-* [Scientific and Runtime Baseline](#scientific-and-runtime-baseline)
-* [Acceptance Invariants](#acceptance-invariants)
+* [Baseline and Measurement Contract](#baseline-and-measurement-contract)
+* [Scientific Safety Contract](#scientific-safety-contract)
 * [Execution Rules](#execution-rules)
 * [Execution Slices](#execution-slices)
 * [Completion Standard](#completion-standard)
 
 ## Overview
 
-Slices One through Three establish one trustworthy run boundary, typed native
-failure semantics, complete performance evidence, and process-local structural
-reuse. Slices Four and Five repair generated and evolved scalar constraints.
-Slice Six establishes the batched native numerical core and cold-spectrum
-budget. Slice Seven completes projection and warm-cache throughput, while
-Slice Eight completes ensemble and direct reference-workload acceptance.
-Slices Nine and
-Ten audit and complete the declared capability surface. Slices Eleven and
-Twelve specify and implement the USMF2 CMB closure. Slice Thirteen certifies
-the model corpus, and Slice Fourteen performs exact CLI, GUI-worker,
-scientific, performance, documentation, and policy acceptance.
+This plan replaces the previous open-ended performance work with three
+numbered slices. The slices are intentionally the smallest safe decomposition
+that keeps the two algorithmic changes independently reviewable:
+
+* Slice Thirteen establishes trustworthy measurements and applies
+  behavior-preserving runtime optimizations.
+* Slice Fourteen introduces batch/vectorized native evaluation and validates
+  it independently against scalar execution and scientific references.
+* Slice Fifteen introduces an opt-in surrogate/delayed-acceptance sampler and
+  validates its mathematical and scientific behavior independently.
+
+The slices must remain separate even though they share benchmark fixtures.
+Batch evaluation changes execution structure. Delayed acceptance changes the
+proposal decision process. Combining them would make numerical regressions,
+posterior bias, and performance changes impossible to attribute cleanly.
+
+The plan does not require a full production MCMC run on this development
+machine. It requires bounded, reproducible workloads that measure the same
+phases and compare the same scientific outputs. A host-qualified end-to-end
+run may be recorded separately when suitable hardware is available.
+
+The target condition is:
+
+* Progress logs and GUI telemetry report completed MCMC steps, walker work,
+  elapsed time, throughput, and ETA using consistent counters.
+* GUI rendering and progress persistence do not materially contend with the
+  native worker pool.
+* Worker startup and proposal scheduling avoid avoidable discovery and
+  straggler overhead.
+* Scalar and batch native CMB evaluation produce equivalent spectra,
+  likelihoods, diagnostics, and failure classifications.
+* The batch path reuses only parameter-independent structure and preserves
+  parameter-dependent isolation.
+* The exact scalar sampler remains available as a switchable reference for
+  every model and dataset.
+* The delayed-acceptance path is exact in distribution when enabled, rejects
+  uncertain surrogate predictions safely, and records every exact correction.
+* Performance improvements are reported with phase-level evidence rather than
+  misleading cumulative rates or unqualified wall-clock claims.
 
 ## Problem Preamble
 
-The production workflow combines GUI orchestration, a CLI worker, trusted
-dataset loaders, model plugins, ensemble samplers, and the native CMB engine.
-Correctness therefore depends on more than a finite spectrum from one isolated
-declared-graph solver call.
+The current live-run evidence identifies four separate costs.
 
-The reference run exposes six independent failure classes:
+### Misleading progress accounting
 
-* The GUI monitor and CLI worker both write representations of the same
-  records, producing duplicate messages, severity changes, and conflicting
-  output-directory text.
-* The compound BAO dataset deliberately uses independent diagonal errors, but
-  runtime text describes that declared statistical model as a fallback.
-* Native CMB evaluations take long enough that a small ensemble run becomes a
-  multi-hour workload.
-* MCMC handling converts broad solver exceptions to `-inf` and emits an error
-  for each rejected point, without separating an invalid proposal from a
-  solver invariant failure.
-* Generated scalar initial data can violate their normalized Einstein
-  constraint before evolution.
-* Evolved scalar histories can exceed a separate model-declared Einstein
-  residual tolerance.
+`copernican/engines/engine_mcmc.py` reports each MCMC iteration with the
+walker count as both `processed` and `total`. `BatchProgressBar` then divides
+that constant count by cumulative stage time. The displayed rate therefore
+falls by construction, and the displayed ETA is zero even when the stage has
+many iterations remaining.
 
-The model-extension objective is related but distinct. The perturbation
-contract contains declarations for sectors, species, gauges, interactions,
-collision operators, initial-condition families, projection typing, and
-observables. The roadmap audits those primitives before changing the runtime,
-implements only demonstrated capability gaps, and uses the resulting contract
-to specify and implement the USMF2 CMB closure.
+This is an observability defect, not a solver optimization. It must be fixed
+before timing comparisons are trusted.
 
-The roadmap does not treat a tolerance increase, a swallowed exception, a
-test-only shortcut, or a production backend fallback as a solution.
+### GUI and progress contention
 
-## Reference Workload
+The GUI polls the progress file every 0.5 seconds and schedules monitor and
+validation redraws for each changed record. A second periodic refresh also
+runs at the same cadence. Monitor refreshes rewrite the entire visible log
+tail, causing Tk text and label rendering to compete with native CMB workers.
+Progress persistence also flushes and fsyncs every update.
 
-The production acceptance fixture is one saved manifest with these exact
-selections:
+The GUI must remain responsive, but it must not redraw or sync more often than
+the operator-visible state requires.
 
-* Control model: `copernican/models/model_lcdm.yml`.
-* Test model: `copernican/models/model_torg.yml`.
-* SNe dataset: `union3_2025`.
-* BAO dataset: `compound_bao_set`.
-* CMB dataset: `planck_2018_lite`.
-* Sampler: `copernican.engines.engine_mcmc`.
-* Seed: `0`.
-* Burn-in steps: `5`.
-* Production steps: `10`.
-* Walkers: `32`.
-* Worker pool: `3`.
+### Worker scheduling and startup overhead
 
-The workload requires roughly 960 model likelihood evaluations before any
-reseed or retry work. With three workers and a hard 1800-second end-to-end
-limit, a warm native CMB evaluation must remain near five seconds at the
-95th percentile on the reference host. A 60-second or 180-second evaluation
-budget is not a practical MCMC budget. The workload identity and provenance
-are locally testable; its wall-time qualification is host-dependent and is
-not a local implementation-slice gate.
+The MCMC engine uses a spawned pool. Worker initialization repeats dataset
+discovery, and the main emcee path uses ordered pool mapping with default
+chunking. Red-blue proposal waves contain expensive, variable-duration CMB
+evaluations, so default chunks can leave workers idle behind a straggler.
 
-The runtime acceptance envelope is:
+These changes are behavior-preserving and belong in the first slice.
 
-* One cold full-spectrum request completes within 180 seconds.
-* One warm parameter-rebound request completes within five seconds at the
-  95th percentile of the deterministic acceptance sample.
-* One exact cache hit performs no evolution or projection work and completes
-  within a subsecond cache-hit budget recorded by the performance test.
-* The direct reference CLI and GUI-worker harnesses reproduce the exact
-  workload and emit complete timing provenance.
-* The complete repository test workflow completes within 1800 seconds on the
-  governed reference environment.
-* No individual targeted test is allowed to run for more than 180 seconds.
+### Cold parameter-dependent CMB work
 
-Timing tests must record hardware, process count, cold or warm state, cache
-statistics, requested spectra, multipole range, numerical tier, and phase
-timings. A wall-time assertion without that provenance is not sufficient.
+The native runtime plan and structural graph assets are reusable per worker,
+but continuous MCMC proposals rarely hit exact spectrum, transfer, or
+background cache keys. Each unique proposal can rebuild recombination,
+reionization calibration, perturbation evolution, and line-of-sight
+projection for the requested spectra.
 
-## Reference-host qualification
+Batch evaluation and delayed acceptance may reduce repeated work, but neither
+may reuse unequal parameter-dependent state without an explicit numerical
+error contract. This is why both algorithmic paths require their own
+correctness and scientific validation surfaces.
 
-The 1800-second end-to-end requirement is a product qualification performed
-on a declared reference host, not an implementation requirement for every
-developer machine. The qualification record must include CPU count, Python
-runtime, numerical-thread settings, sampler controls, model and dataset
-identity, phase timings, and complete output provenance. When the declared
-host profile is unavailable, the direct workload harness reports
-`pending-reference-host` rather than claiming pass or converting the local
-machine into a release gate. No slice may lower physical controls, change the
-workload, or suppress a failed timing result to manufacture qualification.
+## Baseline and Measurement Contract
 
-## Scientific and Runtime Baseline
+Every slice uses the same baseline identity and records it in its evidence.
 
-The native solver is the production CMB backend. CAMB remains available only
-to independent test references and parity fixtures. Production modules must
-not import, invoke, or silently fall back to CAMB or CLASS.
+### Exact reference path
 
-The following model manifests form the CMB regression corpus:
+The reference path is:
 
-* `copernican/models/model_lcdm.yml`
-* `copernican/models/model_lcdm_mnu.yml`
-* `copernican/models/model_qauc.yml`
-* `copernican/models/model_qrsf.yml`
-* `copernican/models/model_ref_planck2018.yml`
-* `copernican/models/model_tog.yml`
-* `copernican/models/model_torg.yml`
-* `copernican/models/model_w0wa.yml`
-* `copernican/models/model_wcdm.yml`
+* `copernican/engines/engine_mcmc.py`;
+* `copernican/lib/likelihoods/cmb/cmb.py`;
+* the native declared-graph solver and its existing cache identities;
+* the selected model and datasets from the confirmed manifest;
+* scalar, one-contract-at-a-time likelihood evaluation;
+* no surrogate, delayed acceptance, or approximate cache reuse.
 
-Schema validity or a low-resolution smoke spectrum does not establish
-production acceptance. Each CMB-valid model must satisfy its declared physics,
-convergence, performance, and observable contracts.
+The reference path remains the default when no new execution mode is declared.
 
-`copernican/models/model_usmf2.yml` is `valid_for_cmb: true` after its
-background, perturbation variables, gauge relations, initial conditions,
-closures, sources, observables, and numerical controls passed Slice Twelve's
-native acceptance tests.
+### Bounded runtime fixtures
 
-The scalar failure surface has two independent contracts:
+Use existing focused tests and fixtures wherever possible. The benchmark
+matrix must include:
 
-* Generated initial data use normalized Einstein residuals before ODE
-  evolution.
-* Evolved histories use model-declared residual diagnostics across the source
-  grid.
+* one cold native CMB spectrum request;
+* one repeated exact request;
+* one changed-parameter request with the same structural contract;
+* one bounded MCMC step over the current walker shape;
+* one bounded walker-initialization phase;
+* one headless worker run and one GUI-worker smoke run;
+* one representative LCDM reference point and one non-LCDM reference point;
+* all requested spectra used by the selected CMB dataset.
 
-These contracts may use different normalization and acceptance bounds only
-when the distinction is explicit, dimensionally sound, and supported by
-convergence evidence.
+The current production-style controls may be used for identity, but a local
+benchmark must not require the entire multi-hour chain to complete. Every
+measurement must state whether it is cold, warm, exact-cache, scalar, batch,
+surrogate, or delayed-acceptance execution.
 
-The runtime exposes both `full_spectrum` and `joint_mcmc` performance budgets.
-Every caller must propagate its workload identity, and enforcement must cover
-successful and failed requests. Measuring only the end of a successful
-full-spectrum call does not govern MCMC execution.
+### Required evidence fields
 
-## Acceptance Invariants
+Each timing record must include:
 
-The following invariants apply to every slice:
+* model manifest identity and manifest hash;
+* dataset identifiers and dataset hashes;
+* sampler, seed, active parameter names, walker count, and pool size;
+* Python, NumPy, SciPy, emcee, and operating-system versions;
+* CPU count and numerical-thread environment;
+* requested spectra, observed multipoles, k-grid, eta-grid, and accuracy tier;
+* cold/warm/cache state and cache hit/miss counts;
+* compilation, background, evolution, source, projection, likelihood, and
+  serialization phase durations when available;
+* scalar or batch item count and per-item status;
+* GUI enabled or headless execution mode.
 
-* The confirmed manifest is the single source of run configuration.
-* GUI and CLI use the same executor, plugin loading, dataset loading, and
-  sampler pipeline.
-* The worker is the only canonical run-log file writer.
-* GUI monitoring consumes worker events without appending duplicate worker
-  records to the canonical file.
-* Every selected dataset parser and hash collector executes once per run.
-* A dataset with declared independent errors uses diagonal covariance by
-  contract, not by exception fallback.
-* Parameter-domain rejection returns deterministic `-inf` without an error
-  storm.
-* Contract, implementation, and numerical-invariant failures abort the run
-  with typed diagnostics; they are not converted into posterior exclusions.
-* Accuracy controls are not weakened to fit one observed failure.
-* Static runtime assets are reused only when their complete structural
-  identity matches.
-* Parameter-dependent state is never reused across unequal parameter points.
-* Performance work preserves the declared numerical accuracy tier and physics
-  outputs.
-* Capability routing uses declared primitives and fails before expensive work
-  when a requested combination is unsupported.
-* CAMB parity references remain test-only and independent of native results.
-* Root and package README files remain synchronized.
+No speed claim is accepted from an elapsed-time number without this context.
+
+## Scientific Safety Contract
+
+The exact scalar result is the comparison authority.
+
+### Numerical equivalence
+
+For every new execution mode, compare scalar and accelerated outputs at the
+same parameter points. Reuse the solver's existing absolute and relative
+tolerances; do not introduce looser tolerances solely for the new path.
+Compare:
+
+* every requested CMB spectrum and its multipole support;
+* finite values, shape, ordering, and spectrum availability metadata;
+* background and perturbation diagnostics;
+* native failure type, phase, and parameter attribution;
+* likelihood and chi-squared values;
+* cache identity and provenance fields.
+
+### Scientific validation
+
+Correctness validation checks API behavior and numerical equivalence.
+Scientific validation separately checks that the accelerated path preserves
+the observables and inferences used by the project. It must include:
+
+* representative LCDM and non-LCDM models;
+* TT, TE, and EE where available, plus every additional declared observable;
+* finite and parameter-responsive spectra;
+* peak and trough locations at the sampled multipoles;
+* residuals against the exact native scalar reference;
+* chi-squared and derived distance or acoustic observables;
+* short independent chains with posterior summary and convergence
+  comparisons when a sampler path changes proposal decisions;
+* exact-call count, acceptance, and effective-sample-size evidence for any
+  performance claim.
+
+These checks are bounded focused scientific fixtures. They are not a request
+to run the long `copernican.validation` corpus as a hidden acceptance gate.
+
+### Failure and fallback behavior
+
+The scalar path must remain available when an accelerated mode is disabled,
+unsupported, uncertain, or diagnostically invalid. A surrogate prediction
+must never be silently promoted to an exact result. A batch item must carry
+its own typed failure without changing the classification of neighboring
+items. A delayed-acceptance stage must perform the exact second-stage test
+whenever the surrogate stage accepts a candidate.
 
 ## Execution Rules
 
-* Execute slices strictly in order.
-* Complete each slice in one continuous work session.
-* Do not create hidden sub-slices, partial closure claims, or deferred cleanup.
-* Reproduce each defect with a bounded targeted test before changing behavior.
-* Stop a targeted test that reaches 180 seconds and repair the underlying
-  runtime path before rerunning it.
-* Preserve the CMB regression corpus after every solver-facing slice.
-* Run focused LCDM and TORG regressions after every scalar or runtime change.
-* Keep USMF2 outside CMB execution until Slice Twelve closes.
-* Update code, tests, docs, comments, model prose, templates, and changelog in
-  the same slice when their contract changes.
-* Update generated or mirrored artifacts through their owning source.
+* Execute Slices Thirteen, Fourteen, and Fifteen strictly in order.
+* Do not begin an algorithmic slice until the preceding slice's exact-output
+  baseline and acceptance record are complete.
+* Keep exact scalar execution as the default throughout the roadmap.
+* Keep batch and delayed-acceptance modes behind explicit configuration until
+  their separate acceptance records are complete.
+* Reproduce each defect with a bounded focused test before changing behavior.
+* Stop a focused test that exceeds 180 seconds and repair or narrow the
+  fixture before rerunning it.
+* Do not use a full validation-suite run as a substitute for the acceptance
+  matrix defined here.
+* Preserve all existing native CMB, scalar-constraint, capability, and model
+  corpus tests relevant to the touched code.
+* Update user-facing documentation for observable CLI, GUI, sampler, or
+  output changes.
+* Update `CHANGELOG.md` for every completed slice and record only touched
+  paths in its Files block.
 * Stage all changes after each completed slice.
-* Do not commit or push unless explicitly instructed.
-* A green `devcovenant gate --verify` proves repository discipline only; each
-  slice must separately satisfy its implementation acceptance criteria.
-* Stop at a green `devcovenant gate --verify` for the operator-owned full
-  `devcovenant run` and `devcovenant gate --close` unless explicitly directed
-  otherwise.
+* Run `source .venv/bin/activate && python -m devcovenant gate --verify`
+  before the operator-owned workflow run.
+* Stop at a green gate verification for the operator-owned `devcovenant run`
+  and `gate --close` unless explicitly directed otherwise.
 
 Task markers mean:
 
 * `[open]` identifies active roadmap work.
 * `[closed]` identifies work completed in substance and acceptance evidence.
 
-The `copernican.validation` package is not an acceptance dependency for any
-slice. Slice acceptance uses focused unit, engine, pipeline, CLI, and
-GUI-worker tests plus direct governed workload measurements. The reference
-manifest remains a configuration fixture, but it is never executed through a
-validation-suite wrapper.
-
 ## Execution Slices
 
-### [closed] Slice One - Canonical run logging and dataset contracts
+### [open] Slice Thirteen - Baseline and safe acceleration
 
-Purpose:
+**Purpose:** Make performance evidence truthful and remove behavior-preserving
+overhead from progress reporting, GUI rendering, worker startup, and proposal
+scheduling.
 
-Make a manifest run produce one authoritative record stream, one output
-location, and one dataset-ingestion pass before changing solver behavior.
+**Depends on:** Existing exact scalar native CMB and MCMC paths.
 
-Depends on:
+**Probable affected files:**
 
-* The reference manifest and managed environment.
-
-Probable affected files:
-
-* `copernican/lib/logger.py`
-* `copernican/lib/console_output.py`
+* `copernican/engines/engine_mcmc.py`
+* `copernican/lib/progress.py`
+* `copernican/lib/progress_state.py`
 * `copernican/lib/gui/app.py`
-* `copernican/lib/gui/run_worker.py`
-* `copernican/lib/run_executor.py`
-* `copernican/lib/dataset_registry.py`
-* `copernican/datasets/bao/compound/cosmo_parser_compound.py`
-* `copernican/datasets/bao/compound/metadata_compound.yml`
-* `tests/copernican/lib/test_logger.py`
+* `copernican/workflow.py`
+* `tests/copernican/engines/test_engine_mcmc.py`
+* `tests/copernican/lib/test_progress.py`
+* `tests/copernican/lib/test_progress_state.py`
 * `tests/copernican/lib/gui/test_app.py`
-* `tests/copernican/lib/test_run_executor.py`
-* `tests/copernican/lib/test_dataset_registry.py`
-* `tests/copernican/datasets/bao/compound/test_cosmo_parser_compound.py`
+* `tests/copernican/lib/gui/test_run_worker.py`
+* `tests/copernican/lib/test_workflow.py`
+* `docs/cli_guide.md`
+* `docs/gui_guide.md`
+* `docs/gui_overview.md`
+* `copernican/docs/cli_guide.md`
+* `copernican/docs/gui_guide.md`
+* `copernican/docs/gui_overview.md`
 * `README.md`
 * `copernican/README.md`
 * `CHANGELOG.md`
 * `PLAN.md`
 
-Scope:
+**Interfaces and invariants:**
 
-* Assign canonical run-log ownership to the worker process.
-* Keep the GUI application log, in-memory monitor, progress channel, and
-  canonical run log as distinct destinations.
-* Pass one resolved run directory, timestamp, and log identity to the worker.
-* Prevent stdout forwarding from writing a second copy into the worker file.
-* Preserve worker severity when the GUI displays an event.
-* Remove path rewriting that turns the selected output directory into `.`.
-* Ensure selected datasets are loaded and hashed once.
-* Represent compound BAO errors as declared diagonal covariance.
+* MCMC stage progress reports completed sampler iterations separately from
+  walker evaluations.
+* Walker initialization continues to report completed walker evaluations.
+* Progress JSON, CLI text, and GUI labels derive from the same counters.
+* A progress update may be coalesced for display but must not reorder or lose
+  the final stage state.
+* GUI refresh work is coalesced onto the Tk thread and does not rewrite an
+  unchanged log tail.
+* Pool mapping preserves result order and exception semantics.
+* Worker startup does not rediscover immutable datasets once per proposal.
 
-Tasks:
+**Tasks:**
 
-* Define a structured worker event or parseable transport record for GUI
-  monitoring.
-* Remove duplicate `print`, stream-proxy, logger, and monitor capture paths.
-* Add call-count tests for parser loading and file hashing.
-* Add log-content tests that reject duplicate records and severity changes.
-* Add output-path tests for absolute external run directories.
-* Replace the compound BAO fallback warning with one informational statement
-  describing the declared diagonal likelihood.
-* Keep CLI-only logging complete without a GUI monitor.
-* Update run and dataset documentation.
+1. Add focused regression tests that distinguish MCMC iteration progress from
+   walker progress, including elapsed, rate, remaining work, and ETA.
+2. Change `_run_stage_with_progress` to pass iteration totals for burn-in and
+   production stages while retaining walker totals for initialization.
+3. Verify progress listeners and `gui_progress_*.json` expose consistent
+   `step_index`, `step_total`, `walker_processed`, `walker_total`, elapsed,
+   rate, and ETA fields.
+4. Add tests for repeated identical progress snapshots and prove that the GUI
+   does not schedule redundant redraw work for unchanged state.
+5. Coalesce monitor and validation refresh callbacks while retaining the
+   operator-visible stage, status, controls, and final log tail.
+6. Update the monitor log widget incrementally or only when its visible tail
+   changes; preserve tail locking, scrolling, and severity rendering.
+7. Keep progress-file persistence atomic and verify that bounded update
+   frequency does not lose the final `batch_finish` record.
+8. Separate worker-pool proposal mapping from initialization mapping and
+   benchmark ordered `chunksize=1` scheduling against the current mapping.
+9. Keep the scheduling variant only if it preserves ordered results,
+   exception propagation, seeded scalar likelihoods, and improves the
+   bounded proposal benchmark.
+10. Remove repeated dataset discovery from worker hot paths without changing
+    dataset identity, hashes, or parser ownership.
+11. Run the bounded scalar, MCMC, CLI, and GUI-worker fixtures in headless and
+    rendered modes and record the required evidence fields.
+12. Update CLI and GUI documentation to describe truthful progress fields and
+    the distinction between initialization, burn-in, and production.
 
-Done when:
+**Correctness acceptance:**
 
-* One canonical run log exists in the selected run directory.
-* Every logical event appears once with its original severity.
-* The log contains one output directory and never reports `.` for an external
-  output directory.
-* Each selected dataset loads and hashes exactly once.
-* Compound BAO uses diagonal errors without a fallback warning.
-* CLI and GUI tests prove the same manifest reaches the same executor.
+* Existing scalar spectra, likelihoods, failures, seeds, and sampler state
+  remain unchanged within current tolerances.
+* Progress tests show iteration counts and walker counts in their correct
+  fields, with nonzero remaining work before stage completion.
+* GUI tests prove no duplicate canonical log records and no lost final state.
+* Worker startup still loads each selected dataset with the same hash and
+  parser result.
+* Ordered pool results and typed failures match the pre-change behavior.
 
-### [closed] Slice Two - Native failure taxonomy and performance evidence
+**Performance acceptance:**
 
-Purpose:
+* The benchmark record includes phase timings and CPU/process evidence.
+* The progress rate is a measured rate for completed work rather than
+  `constant_count / cumulative_elapsed`.
+* GUI rendering and progress persistence no longer dominate the sampled
+  worker interval in the rendered benchmark.
+* The selected pool scheduling change improves median or p95 proposal time;
+  an ineffective variant is removed rather than recorded as an optimization.
+* No local full-chain wall-clock claim is required.
 
-Create a typed likelihood boundary and complete timing evidence so expected
-proposal rejection, model incompatibility, and solver failure cannot be
-confused.
+**Done when:**
 
-Depends on:
+* All focused tests pass with the exact scalar native path selected.
+* Headless and GUI-worker evidence are present and explain their overhead.
+* The progress log no longer reports impossible `32/32 steps` updates at
+  partial stage percentages.
+* The measured safe optimizations are staged and the slice is marked closed.
 
-* Slice One.
+### [open] Slice Fourteen - Batch and vectorized native evaluation
 
-Probable affected files:
+**Purpose:** Add an ordered batch evaluation contract that reuses safe static
+structure and vectorizes parameter-independent numerical work without
+changing the exact scalar scientific result.
+
+**Depends on:** Slice Thirteen and its scalar baseline evidence.
+
+**Probable affected files:**
 
 * `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/likelihoods/cmb/native_performance.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
+* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
+* `copernican/lib/likelihoods/cmb/native_background.py`
+* `copernican/lib/likelihoods/cmb/native_evolution.py`
 * `copernican/lib/likelihoods/cmb/native_projection.py`
+* `copernican/lib/likelihoods/cmb/native_cache.py`
 * `copernican/engines/engine_mcmc.py`
-* `copernican/lib/run_pipeline.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
-* `tests/copernican/lib/test_run_pipeline.py`
-* `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Define typed errors for parameter-domain rejection, unsupported capability,
-  contract invalidity, convergence failure, non-finite evolution, constraint
-  violation, and performance-budget violation.
-* Return `-inf` only for scientifically valid parameter-domain rejection.
-* Abort on contract, implementation, or numerical-invariant failures.
-* Rate-limit or aggregate expected proposal diagnostics.
-* Propagate `full_spectrum` or `joint_mcmc` workload identity from the caller.
-* Record phase timing and work-unit accounting for success and failure.
-* Capture cache state and the point at which a failed request stopped.
-
-Tasks:
-
-* Replace broad exception conversion in `CMBLike.loglike` with typed handling.
-* Add an initial-point preflight before walker creation.
-* Record compilation, background, initial-data, evolution, projection,
-  lensing, and likelihood-assembly timings through `finally`-safe accounting.
-* Make the runtime envelope identify cold, warm, and exact-cache-hit requests.
-* Add deterministic tests for every error category and MCMC response.
-* Add a bounded reproducer for both reference scalar failures.
-* Record parameter values, k mode, eta location when available, gauge,
-  numerical tier, requested spectra, and tolerance provenance.
-* Update failure and performance documentation.
-
-Done when:
-
-* Expected out-of-domain proposals return `-inf` without repeated errors.
-* Solver invariant failures stop the run instead of changing the posterior.
-* The initial model point is checked before multiprocessing begins.
-* Both scalar failure surfaces have stable, distinct diagnostics.
-* Failed requests retain complete phase and work-unit timing.
-* The declared `joint_mcmc` budget is exercised by production likelihood code.
-
-### [closed] Slice Three - Runtime lifecycle and structural reuse
-
-Purpose:
-
-Ensure every worker builds structural solver assets once and performs only
-parameter-dependent work for each MCMC proposal.
-
-Depends on:
-
-* Slice Two.
-
-Probable affected files:
-
-* `copernican/lib/model_coder.py`
-* `copernican/lib/engine_adapter.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/engines/engine_mcmc.py`
-* `tests/copernican/lib/test_model_coder.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Separate structural compilation from scalar parameter binding.
-* Initialize process-local immutable runtime assets once per model and worker.
-* Reuse expression plans, topology, hierarchy metadata, index maps, quadrature
-  topology, and parameter-independent projection geometry.
-* Recompute every parameter-dependent background, source, and spectrum value.
-* Preserve complete cache identity across model, gauge, sector, observable,
-  numerical tier, requested multipoles, and parameter inputs.
-* Prevent multiprocessing spawn from rebuilding static assets per proposal.
-
-Tasks:
-
-* Inventory every cache family as structural, parameter-dependent, or result.
-* Add worker initialization for control and test model runtime bundles.
-* Remove contract recompilation and graph materialization from proposal loops.
-* Make cache ownership explicit and bounded.
-* Add miss, hit, eviction, process-isolation, and parameter-invalidation tests.
-* Add work-count tests that fail if structural compilation repeats.
-* Compare cold and warm spectra bit-for-bit at identical numerical controls.
-* Update runtime lifecycle documentation.
-
-Done when:
-
-* Each worker compiles each model structure once.
-* Warm parameter changes perform no structural recompilation.
-* Exact cache hits perform no evolution or projection work.
-* Unequal parameters cannot receive stale backgrounds or spectra.
-* LCDM and TORG retain finite, responsive native spectra.
-* Structural reuse produces a measured warm-request speedup.
-
-### [closed] Slice Four - Generated scalar initial-condition constraints
-
-Purpose:
-
-Repair the regular scalar mode generator so every requested k mode begins on
-the declared Einstein constraint surface before expensive evolution.
-
-Depends on:
-
-* Slice Three.
-
-Probable affected files:
-
-* `copernican/lib/perturbation_contract.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/models/model_lcdm.yml`
-* `copernican/models/model_torg.yml`
-* `tests/copernican/lib/test_perturbation_contract.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Reproduce the normalized energy residual at the high-k reference mode.
-* Audit requested k-grid construction against declared numerical limits.
-* Derive generated scalar seeds from the complete regular-mode constraints.
-* Preserve gauge-specific relations without hidden Newtonian variables.
-* Validate all initial contexts before evolving the first mode.
-* Keep the normalized initial-condition tolerance fixed unless an independent
-  convergence derivation changes its definition.
-
-Tasks:
-
-* Record every term and normalization scale in each initial residual.
-* Test superhorizon and high-k seed behavior separately.
-* Solve coupled initial algebraic constraints rather than patching one state.
-* Verify adiabatic and supported isocurvature families independently.
-* Add full-k-grid preflight with deterministic failure ordering.
-* Compare Newtonian, synchronous, and gauge-invariant routes where supported.
-* Prove seed changes alter physical mode content rather than only diagnostics.
-* Update initial-condition documentation.
-
-Done when:
-
-* The reference `0.012948... > 0.01` failure is eliminated at its source.
-* Every generated scalar mode satisfies its normalized initial constraints.
-* Invalid declarations fail before any ODE solve.
-* No tolerance-only patch or skipped high-k mode is present.
-* LCDM and TORG initial-condition regressions pass within 180 seconds each.
-
-### [closed] Slice Five - Evolved scalar constraint convergence
-
-Purpose:
-
-Repair or rebaseline evolved Einstein residuals through convergence evidence,
-with one documented normalization and provenance contract per residual.
-
-Depends on:
-
-* Slice Four.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/models/model_lcdm.yml`
-* `copernican/models/model_torg.yml`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/project/lib/camb_reference.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Reproduce every reference energy-residual breach near the declared bound.
-* Record the eta position and physical regime of each maximum.
-* Establish whether each residual is absolute, relative, or dimensionless.
-* Sweep eta resolution, k resolution, hierarchy truncation, ODE tolerance,
-  tight-coupling transitions, and source-grid refinement independently.
-* Separate discretization error from an inconsistent equation or closure.
-* Derive the accepted bound from converged behavior without naming a desired
-  replacement value in advance.
-
-Tasks:
-
-* Add deterministic convergence fixtures for LCDM and TORG.
-* Compare coarse, intermediate, and reference tiers using the same cosmology.
-* Test representative interior and boundary points from the accepted priors.
-* Correct equations, transition matching, interpolation, or normalization
-  wherever residuals fail to converge.
-* Store tolerance source, normalization source, maximum location, and
-  refinement evidence in the runtime envelope.
-* Keep independent CAMB comparisons test-only and secondary to constraint
-  closure.
-* Update scalar constraint documentation.
-
-Done when:
-
-* The reference `0.003`-class failures do not occur for valid converged points.
-* Every enforced residual has a dimensionally coherent definition.
-* Under-resolved requests are identified before being judged as physical
-  failures.
-* The accepted tolerance follows measured convergence rather than the log.
-* LCDM and TORG meet their scalar and observable acceptance thresholds.
-
-### [closed] Slice Six - Batched native numerical core
-
-Purpose:
-
-Establish the batched native evolution and collision core, structural reuse,
-and cold full-spectrum budget without claiming the still-open warm-cache or
-reference-ensemble acceptance.
-
-Depends on:
-
-* Slice Five.
-
-Probable affected files:
-
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/lib/likelihoods/cmb/native_performance.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
+* `tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py`
 * `tests/copernican/lib/likelihoods/cmb/test_native_background.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_evolution.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_projection.py`
 * `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
+* `tests/copernican/engines/test_engine_mcmc.py`
+* `tests/copernican/lib/test_engine_adapter.py`
+* `docs/cmb_solver.md`
 * `copernican/docs/cmb_solver.md`
+* `docs/cli_guide.md`
+* `copernican/docs/cli_guide.md`
 * `README.md`
 * `copernican/README.md`
 * `CHANGELOG.md`
 * `PLAN.md`
 
-Scope:
+**Batch contract:**
 
-* Use Slice Two phase evidence to optimize batched k-mode evolution and
-  collision updates.
-* Remove repeated stage-context construction and static work from the native
-  evolution hot path.
-* Preserve cache identity, declared numerical tiers, and adaptive error
-  controls while adding workload and phase telemetry.
-* Govern cold full-spectrum work independently from the later warm and
-  ensemble budgets.
+Add a native batch entry point with the following contract:
 
-Tasks:
+```python
+compute_cmb_spectrum_batch(
+    contracts: Sequence[Mapping[str, Any]],
+    ells: Iterable[int],
+    *,
+    background_provider: Any | None = None,
+    requested_spectra: Iterable[str] | None = None,
+) -> tuple[NativeCMBBatchResult, ...]
+```
 
-* Add numerical equivalence tests for batched and scalar evolution paths.
-* Verify LCDM and TORG cold full-spectrum requests on the exact multipole
-  fixture.
-* Record hardware, process count, cache state, requested spectra, multipoles,
-  numerical tier, and phase timings for the cold benchmark.
-* Keep targeted numerical and cache tests within the 180-second limit.
-* Preserve the remaining warm-cache and reference-run criteria for Slices
-  Seven and Eight.
+Each `NativeCMBBatchResult` contains the input index, either one native
+spectrum result or one typed failure, the performance envelope, and cache
+provenance. Results are returned in input order regardless of worker
+completion order. A single-item batch must be numerically equivalent to the
+existing scalar call.
 
-Done when:
+**Interfaces and invariants:**
 
-* Batched LCDM and TORG evolution and collision results satisfy scalar
-  equivalence and existing convergence thresholds.
-* Cold full-spectrum requests complete within 180 seconds with provenance-
-  complete telemetry.
-* Structural cache reuse is bounded and parameter-dependent state is not
-  reused across unequal parameter points.
-* Every targeted test for this slice completes within 180 seconds.
+* Structural graph assets, fixed grids, and projection kernels are shared
+  only when their complete structural identity matches.
+* Background, perturbation, source, and transfer state that depends on a
+  parameter value remains isolated per batch item unless a documented exact
+  vectorized representation is used.
+* A batch item may return a domain rejection, typed solver failure, or success
+  without changing neighboring items.
+* Cache statistics distinguish shared structural reuse from per-item result
+  reuse.
+* The scalar public path remains the default until this slice closes.
 
-### [closed] Slice Seven - Projection and warm-cache throughput
+**Tasks:**
 
-Purpose:
+1. Add result and failure datatypes with stable serialization and input-index
+   provenance.
+2. Add a scalar-to-batch adapter so the new contract is testable before any
+   vectorized kernel is introduced.
+3. Add tests for one, two, and multiple-item batches, preserving order and
+   exact per-item diagnostics.
+4. Add mixed valid, domain-invalid, and solver-failing batch fixtures and
+   verify isolation of all outcomes.
+5. Identify structural graph, grid, Bessel, and projection data that can be
+   shared without parameter-dependent approximation.
+6. Implement vectorized operations only over those proven shared dimensions;
+   keep parameter-dependent state in an explicit batch axis or per-item
+   record.
+7. Add cache-identity tests proving unequal cosmologies cannot retrieve one
+   another's parameter-dependent background or transfer data.
+8. Integrate bounded batch calls into the MCMC evaluation adapter behind an
+   explicit execution setting, preserving scalar fallback.
+9. Compare scalar and batch spectra at representative LCDM and non-LCDM
+   points for every supported requested spectrum.
+10. Compare scalar and batch likelihoods, chi-squared values, diagnostics,
+    failure types, and manifest provenance.
+11. Add scientific fixtures for finite response, acoustic peak locations,
+    TT/TE/EE residuals, and every additional declared observable used by the
+    selected models.
+12. Benchmark scalar versus batch cold, warm, and repeated-structure cases
+    with the evidence fields in this plan.
+13. Keep the batch setting disabled by default until all acceptance sections
+    pass and the exact scalar comparison record is complete.
+14. Update solver, CLI, and package documentation with the batch contract,
+    ordering guarantee, failure behavior, and opt-in setting.
 
-Complete the projection hot path and bring deterministic parameter-rebound
-and exact-cache requests inside their independent runtime budgets.
+**Correctness acceptance:**
 
-Depends on:
+* Batch size one matches scalar output, metadata, cache state, and failures.
+* Batch sizes greater than one match independent scalar calls within the
+  existing numerical tolerances and preserve input order.
+* Mixed failures are isolated and retain typed diagnostics.
+* Repeated batches do not leak parameter-dependent state between items.
+* Serial and worker-backed batch execution agree.
+* The scalar default path and all existing CMB regression tests remain green.
 
-* Slice Six.
+**Scientific acceptance:**
 
-Probable affected files:
+* Representative LCDM and non-LCDM spectra are finite and responsive.
+* TT, TE, EE, and every selected additional observable agree with scalar
+  native references within the existing tolerance contract.
+* Peak and trough locations do not move beyond the declared comparison
+  tolerance.
+* Chi-squared and derived observables agree with scalar references.
+* Any changed numerical phase has a recorded residual and convergence record.
 
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/native_lensing.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/lib/likelihoods/cmb/native_performance.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
-* `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+**Performance acceptance:**
 
-Scope:
+* The batch benchmark reports per-item and total phase timings.
+* A batch speedup is claimed only when it improves measured throughput for a
+  repeated-structure workload without degrading scalar-equivalent output.
+* Cache and vectorization effects are reported separately from process-pool
+  effects.
+* No full production-chain timing gate is required on this host.
 
-* Batch or reuse Bessel, radial, lensing, and transform work where numerically
-  equivalent.
-* Reuse bounded projection products across spectra from one evolution.
-* Add deterministic warm-parameter and exact-cache performance samples with
-  complete phase and cache telemetry.
-* Preserve the declared accuracy tier and scalar, convergence, and parity
-  results.
+**Done when:**
 
-Tasks:
+* The batch contract is implemented, independently tested, scientifically
+  compared, and documented.
+* The opt-in batch MCMC fixture completes with equivalent scalar results and
+  a measured throughput record.
+* The scalar default remains available and unchanged.
+* The slice is marked closed only after correctness and scientific evidence
+  are both complete.
 
-* Profile projection and lensing phases on the exact Planck Lite request.
-* Add numerical equivalence tests before replacing each projection kernel.
-* Enforce the warm p95 budget at the parameter-rebound workload boundary.
-* Enforce the subsecond cache-hit budget without evolution or projection.
-* Update performance and operator documentation.
+### [open] Slice Fifteen - Surrogate and delayed-acceptance sampling
 
-Done when:
+**Purpose:** Add one explicit opt-in surrogate-assisted delayed-acceptance
+path that reduces exact CMB calls while preserving the target distribution
+through exact second-stage correction.
 
-* The deterministic warm-parameter sample has p95 time at or below five
-  seconds on the governed reference host.
-* Exact cache hits perform no evolution or projection work and remain within
-  the recorded subsecond budget.
-* Projection optimizations satisfy the same convergence and parity thresholds.
-* No targeted test exceeds 180 seconds.
+**Depends on:** Slices Thirteen and Fourteen, including their exact-output and
+scientific reference records.
 
-### [closed] Slice Eight - Ensemble and direct reference-workload acceptance
-
-Purpose:
-
-Complete worker-pool throughput and make the exact reference workload
-reproducible without coupling local implementation to a host-specific timing
-qualification.
-
-Depends on:
-
-* Slice Seven.
-
-Probable affected files:
+**Probable affected files:**
 
 * `copernican/engines/engine_mcmc.py`
+* `copernican/engines/surrogate.py`
+* `copernican/lib/engine_capabilities.py`
+* `copernican/lib/run_config.py`
+* `copernican/lib/run_manifest.py`
+* `copernican/lib/likelihoods/cmb/cmb.py`
 * `copernican/lib/likelihoods/cmb/native_performance.py`
 * `tests/copernican/engines/test_engine_mcmc.py`
+* `tests/copernican/engines/test_surrogate.py`
+* `tests/copernican/lib/test_engine_capabilities.py`
+* `tests/copernican/lib/test_run_config.py`
+* `tests/copernican/lib/test_run_manifest.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/lib/run_executor.py`
-* `copernican/lib/run_pipeline.py`
-* `tests/copernican/lib/test_run_executor.py`
-* `tests/copernican/lib/test_run_pipeline.py`
+* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
+* `tests/project/lib/test_core.py`
+* `docs/cli_guide.md`
+* `docs/cmb_solver.md`
+* `docs/design_overview.md`
+* `copernican/docs/cli_guide.md`
 * `copernican/docs/cmb_solver.md`
+* `copernican/docs/design_overview.md`
 * `README.md`
 * `copernican/README.md`
 * `CHANGELOG.md`
 * `PLAN.md`
 
-Scope:
-
-* Verify worker-pool scaling and prevent process or numerical oversubscription.
-* Enforce performance budgets at cold, warm, cache-hit, and ensemble workload
-  boundaries, including failed requests.
-* Exercise the exact reference workload through the shared executor and MCMC
-  engine without the validation-suite package, retaining its declared model,
-  dataset, seed, sampler, walker, step, and pool controls.
-
-Tasks:
-
-* Measure pool scaling and resource bounds with bounded direct engine fixtures.
-* Exercise the direct reference workload harness and retain complete
-  provenance without invoking the validation-suite package.
-* Verify no targeted test or required local phase exceeds its bound.
-* Update operator documentation with the accepted envelope.
-
-Done when:
-
-* The direct reference workload harness reproduces the exact controls and
-  emits complete timing and provenance records.
-* Worker-pool scaling is bounded and does not oversubscribe the host.
-* Cold, warm, exact-cache, and ensemble budget boundaries are instrumented
-  and reported with provenance-complete telemetry.
-* Optimized spectra retain the established convergence and parity thresholds.
-
-### [closed] Slice Nine - Capability audit and compatibility specification
-
-Purpose:
-
-Define the exact expressible theory surface from the implemented contract and
-identify concrete capability gaps without speculative refactoring.
-
-Depends on:
-
-* Slice Eight.
-
-Probable affected files:
-
-* `copernican/lib/cmb_contract.py`
-* `copernican/lib/perturbation_contract.py`
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
-* `copernican/lib/engine_adapter.py`
-* `copernican/docs/cmb_solver.md`
-* `copernican/docs/model_template.yml`
-* `docs/model_template.yml`
-* `tests/copernican/lib/test_cmb_contract.py`
-* `tests/copernican/lib/test_perturbation_contract.py`
-* `tests/copernican/lib/test_model_spec_validator.py`
-* `tests/copernican/lib/test_model_coder.py`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Inventory background, sector, species, gauge, hierarchy, interaction,
-  collision, closure, initial-mode, projection, lensing, and observable
-  primitives.
-* Identify every theory-name, filename, model-family, and assumed-species
-  branch in production CMB execution.
-* Distinguish legitimate generated standard hierarchies from hidden routing.
-* Define capability completeness for each requested observable.
-* Define unsupported combinations and their early failure messages.
-* Produce a model-by-capability matrix for the full corpus.
-
-Tasks:
-
-* Trace each manifest field from direct run configuration through compilation
-  and execution.
-* Add tests for declared capabilities that exist but are ignored at runtime.
-* Add tests for runtime assumptions not represented in the schema.
-* Specify the minimum capability set for TT, TE, EE, BB, PP, TP, and EP.
-* Specify gauge and sector compatibility rules.
-* Record only demonstrated implementation gaps for Slice Ten.
-* Synchronize both model templates and solver documentation.
-
-Done when:
-
-* Every production routing decision maps to declared data or a documented
-  universal numerical rule.
-* The expressible theory surface and unsupported combinations are explicit.
-* The model corpus has a machine-testable capability matrix.
-* Slice Ten contains no inferred or open-ended refactor work.
-
-Acceptance record:
-
-* `cmb_contract` now audits the declared ontology and the complete public
-  `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and `EP` capability surface.
-* The nine pre-USMF2 CMB-enabled bundled models produce complete matrix rows;
-  Slice Twelve adds USMF2 through its own declared production closure.
-* Production route metadata is the same native declared graph for every
-  model. No theory-name, filename, model-family, or assumed-species routing
-  branch was demonstrated.
-* The demonstrated Slice Ten gap set is empty. Any future Slice Ten work
-  must begin with a new failing contract test and an amended finite gap list.
-
-### [closed] Slice Ten - Implement proven capability gaps
-
-Purpose:
-
-Implement only a finite capability gap demonstrated by a new contract test
-and recorded in this plan; Slice Nine found no current gap to implement.
-
-Depends on:
-
-* Slice Nine.
-
-Probable affected files:
-
-* `copernican/lib/cmb_contract.py`
-* `copernican/lib/perturbation_contract.py`
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
-* `copernican/lib/engine_adapter.py`
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/test_cmb_contract.py`
-* `tests/copernican/lib/test_perturbation_contract.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Add only capabilities justified by a recorded Slice Nine audit result.
-* Do not begin speculative refactoring while the demonstrated gap set is
-  empty.
-* Remove name-based routing when equivalent contract data exists.
-* Bind background, evolution, source, projection, and observable assembly from
-  compiled capability data.
-* Preserve generated hierarchy helpers as explicit opt-in materializers.
-* Reject unsupported combinations before background or mode evolution.
-* Keep native production execution independent of test reference engines.
-
-Finite gap record:
-
-* The first Slice Ten contract test demonstrated that unsupported requested
-  spectra were rejected inside projection, after native background setup.
-* This slice is limited to capability-audit preflight in the solver, with no
-  new observable or hierarchy primitives.
-
-Tasks:
-
-* Implement each recorded schema, compiler, and runtime delta.
-* Add renamed-variable tests so semantic roles do not depend on identifiers.
-* Add representative scalar, vector, tensor, collisionless, and interacting
-  analytic limits where declared.
-* Add unsupported-capability tests with exact actionable diagnostics.
-* Re-run LCDM and TORG scientific and performance acceptance.
-* Remove superseded routing rather than preserving compatibility bridges.
-* Update model author documentation and templates.
-
-Done when:
-
-* Capability-complete contracts execute without theory-name routing.
-* Semantic role renaming preserves results.
-* Unsupported requested spectra fail through the declared capability audit
-  before background or mode evolution begins.
-* Unsupported combinations fail before expensive numerical work.
-* The CMB regression corpus retains scientific and performance acceptance.
-* No production backend fallback or compatibility bridge remains.
-
-Acceptance record:
-
-* The solver now preflights every requested public spectrum against compiled
-  capability data before constructing native background tables.
-* Unknown names and incomplete standard observables fail with actionable
-  `Unsupported CMB observable` diagnostics; no reference engine or fallback
-  route is involved.
-* The finite gap is closed without adding new hierarchy or observable
-  primitives. Existing declared scalar, vector, tensor, collision, and
-  interaction limits remain governed by the compiled contract tests.
-
-### [closed] Slice Eleven - Specify the USMF2 CMB closure
-
-Purpose:
-
-Create a scientifically sourced, internally complete USMF2 perturbation
-specification before enabling production CMB execution.
-
-Depends on:
-
-* Slice Ten.
-
-Probable affected files:
-
-* `copernican/models/model_usmf2.yml`
-* `copernican/docs/cmb_solver.md`
-* `copernican/docs/model_template.yml`
-* `docs/model_template.yml`
-* `tests/copernican/lib/test_model_spec_validator.py`
-* `tests/copernican/lib/test_perturbation_contract.py`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Identify authoritative equations and conventions for the USMF2 background
-  and perturbations.
-* Declare independent variables, dynamical variables, algebraic relations,
-  gauge roles, species, interactions, and closures.
-* Declare regular initial-condition families and their normalization.
-* Declare source terms, projection typing, primordial inputs, and observables.
-* Declare conservation identities, limiting cases, and numerical controls.
-* Keep `valid_for_cmb: false` throughout this specification slice.
-
-Tasks:
-
-* Map every theory equation to one contract node with units and provenance.
-* Resolve gauge freedom and constraint closure explicitly.
-* Define analytic limits that can be tested without another production solver.
-* Identify all required capability primitives from Slice Ten.
-* Reject any missing physical relation instead of filling it with LCDM math.
-* Add schema and dependency-graph tests for the proposed closure.
-* Document the theory-facing model-author contract.
-
-Done when:
-
-* The USMF2 closure is complete on paper and in declarative contract shape.
-* Every evolved degree of freedom has an equation or explicit closure.
-* Initial conditions and observables have sourced definitions.
-* Analytic identities and limiting cases are testable.
-* No borrowed LCDM species, alias, equation, or source is unexplained.
-
-Acceptance record:
-
-* USMF2 now declares one shrink-field degree of freedom, its conformal-time
-  rate, baryon/photon/massless-neutrino states, metric constraints, hierarchy
-  boundaries, interactions, collision balance, and public projections.
-* Every evolved state has an equation and sourced regular initial condition;
-  every algebraic target has one explicit constraint or closure node.
-* Equation, constraint, closure, source, and initial-condition nodes carry
-  provenance notes. Analytic homogeneous, no-shrink, and zero-shear limits are
-  recorded under `accuracy_controls` for Slice Twelve.
-* At the end of Slice Eleven, `valid_for_cmb: false` kept the graph out of
-  production CMB execution pending the independent Slice Twelve acceptance.
-
-### [closed] Slice Twelve - Implement and validate the USMF2 CMB path
-
-Purpose:
-
-Encode the Slice Eleven specification and promote USMF2 only after its native
-physics, convergence, observables, and performance pass.
-
-Depends on:
-
-* Slice Eleven.
-
-Probable affected files:
-
-* `copernican/models/model_usmf2.yml`
-* `copernican/lib/cmb_contract.py`
-* `copernican/lib/perturbation_contract.py`
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `tests/copernican/lib/test_model_spec_validator.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Implement the complete USMF2 background and perturbation graph.
-* Use only declared capability primitives or explicit Slice Ten extensions.
-* Validate constraints, conservation rules, initial modes, source histories,
-  observables, and parameter response.
-* Establish numerical convergence and practical runtime controls.
-* Flip `valid_for_cmb` only after every acceptance test passes.
-* Preserve USMF2 mathematics without a model-family fallback.
-
-Tasks:
-
-* Encode variables, equations, closures, initial conditions, and observables.
-* Add finite and responsive spectrum tests across representative parameters.
-* Add analytic-limit and conservation tests from Slice Eleven.
-* Add coarse-to-reference convergence tests.
-* Add negative tests for incomplete or contradictory USMF2 declarations.
-* Verify native execution contains no CAMB or LCDM route substitution.
-* Add USMF2 to the bounded runtime and cache-identity tests.
-* Update user and solver documentation.
-
-Done when:
-
-* USMF2 compiles and executes through the native declared graph.
-* Its spectra are finite, structured, parameter-responsive, and convergent.
-* Its theory-specific identities and constraint bounds pass.
-* Its warm execution meets the governed model budget.
-* `valid_for_cmb: true` is justified by the complete acceptance surface.
-
-Acceptance record:
-
-* USMF2 now compiles and executes through the native declared graph with no
-  CAMB, CLASS, LCDM, or fallback route substitution.
-* Native tests cover finite structured TT/TE/EE/BB/PP/TP/EP spectra, parameter
-  response, default-grid finiteness, declared conservation balance, analytic
-  no-shrink and zero-shear limits, coarse-to-reference history agreement,
-  contradictory or incomplete declarations, and warm execution budget.
-* The shrink-field graph uses the declared conformal Hubble rate for regular
-  initial data and damping, and baryon Thomson acceleration uses its declared
-  momentum-balanced counterpart.
-* `model_usmf2.yml` records `valid_for_cmb: true` and the production validity
-  regime only after the native acceptance tests passed.
-
-### [open] Slice Thirteen - Migrate and certify the model corpus
-
-Purpose:
-
-Bring every model manifest and template into the final capability contract and
-publish one explicit compatibility state for the entire corpus.
-
-Depends on:
-
-* Slice Twelve.
-
-Probable affected files:
-
-* `copernican/models/*.yml`
-* `copernican/docs/model_template.yml`
-* `docs/model_template.yml`
-* `copernican/lib/model_spec_validator.py`
-* `copernican/lib/model_coder.py`
-* `tests/copernican/lib/test_model_spec_validator.py`
-* `tests/copernican/lib/test_model_coder.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `copernican/docs/cmb_solver.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-Scope:
-
-* Audit every model against the final capability and observable requirements.
-* Remove unexplained LCDM descriptions, species, aliases, and equations from
-  theories whose physics does not contain them.
-* Preserve theory-neutral declarations in LCDM where no model-specific wording
-  is required.
-* Keep non-CMB models explicitly excluded with precise capability reasons.
-* Exercise all intended CMB models through the native path.
-* Keep the two model-template files synchronized through their owning source.
-
-Tasks:
-
-* Generate and review the complete model compatibility matrix.
-* Migrate manifests that require explicit capability declarations.
-* Add corpus tests for acceptance, compilation, native smoke execution,
-  parameter response, and unsupported-state reporting.
-* Re-run scalar, tensor, vector, neutrino, gauge, lensing, and observable
-  regressions for applicable models.
-* Verify model prose describes each theory accurately.
-* Verify CAMB appears only in independent test-reference surfaces.
-* Update package-facing and repository-facing documentation separately.
-
-Done when:
-
-* Every model is CMB-valid or explicitly excluded for a documented reason.
-* Every CMB-valid model executes only through the native solver.
-* No manifest silently borrows another theory's physics.
-* TORG and USMF2 satisfy their own declared closures.
-* Templates, docs, comments, tests, and manifests agree on the final contract.
-
-### [open] Slice Fourteen - End-to-end acceptance and closure
-
-Purpose:
-
-Prove the complete product workflow, scientific matrix, performance envelope,
-documentation, and repository discipline on one final staged revision.
-
-Depends on:
-
-* Slices One through Thirteen.
-
-Probable affected files:
-
-* `PLAN.md`
-* `CHANGELOG.md`
-* Any source, test, model, template, or documentation file requiring a final
-  substantive correction.
-
-Scope:
-
-* Run bounded targeted tests for every slice acceptance contract.
-* Run the exact reference manifest through direct CLI and GUI-worker paths;
-  do not invoke the validation-suite package.
-* Verify one canonical log, one output directory, and one dataset-ingestion
-  pass in each path.
-* Verify both control and test chains execute and produce comparison outputs.
-* Verify scientific constraints, parity metrics, capability failures, and
-  corpus status.
-* Verify all runtime budget boundaries and produce the reference-host
-  qualification record when the declared host profile is available.
-* Audit code, docs, comments, docstrings, tests, configuration, managed assets,
-  mirrors, consistency, performance, and architecture.
-
-Tasks:
-
-* Run the complete targeted unit, integration, scientific, and performance
-  matrix without an individual test exceeding 180 seconds.
-* Run the direct reference CLI workflow and inspect its manifest, log, results,
-  and timing artifacts; record `pending-reference-host` when qualification
-  hardware is unavailable.
-* Run the reference GUI-worker workflow and compare its effective manifest and
-  results with CLI.
-* Confirm expected proposal rejection is summarized and solver failures are
-  absent.
-* Confirm no production CAMB or CLASS import or fallback exists.
-* Confirm root and package README synchronization and model-template sync.
-* Mark all slices closed only after implementation acceptance is complete.
-* Run `devcovenant gate --verify` until green.
-* Stage the complete final state for the operator-owned workflow run and gate
-  close.
-
-Done when:
-
-* The reference CLI and GUI-worker runs both reproduce the exact workload and
-  agree on their outputs; their 1800-second timing verdict is either
-  host-qualified or explicitly `pending-reference-host`.
-* Their selected models, datasets, numerical controls, outputs, and results
-  agree.
-* Logs contain no duplicates, severity changes, conflicting paths, constraint
-  failures, or unexpected fallbacks.
-* Every CMB-valid model passes the final native corpus matrix.
-* USMF2 is enabled only with its complete theory-specific closure.
-* The complete repository test workflow passes within 1800 seconds.
-* `devcovenant gate --verify` is green on the staged final state.
+**Surrogate contract:**
+
+The surrogate is a deterministic local interpolant over normalized active
+parameters, built only from exact native evaluations. It reports a prediction,
+an uncertainty or support diagnostic, and the exact-sample provenance used to
+make that prediction. It must force an exact evaluation when the candidate is
+outside its declared domain or lacks sufficient local support.
+
+The default sampler remains exact. The surrogate setting must be explicit in
+the confirmed manifest and must appear in run provenance, cache identity, and
+the output manifest.
+
+**Delayed-acceptance contract:**
+
+Stage one evaluates the surrogate and applies only the declared cheap-stage
+screen. A candidate that survives stage one receives an exact native CMB
+evaluation. The second-stage decision uses the delayed-acceptance correction
+for the same proposal density and target log probability. A surrogate value
+is never written as an exact native likelihood.
+
+Every proposal record must identify whether it was screened, exactly
+corrected, rejected for insufficient support, or rejected by the exact stage.
+Surrogate construction must not consume hidden random state or alter the
+exact sampler's seed stream when the mode is disabled.
+
+**Tasks:**
+
+1. Add a surrogate result type containing prediction, uncertainty, support,
+   training-sample identities, and domain status.
+2. Add deterministic normalized-parameter support checks and exact fallback
+   for unsupported or uncertain candidates.
+3. Add an explicit delayed-acceptance configuration and manifest provenance;
+   reject unknown or incomplete settings before sampling begins.
+4. Implement the stage-one screen and exact stage-two correction without
+   changing the scalar path when the setting is disabled.
+5. Add exact-call, proposal, screen, correction, and rejection counters to
+   sampler and native performance records.
+6. Add analytic target tests covering Gaussian, correlated, bounded, and
+   invalid-domain proposals.
+7. Add tests proving that surrogate-disabled execution matches the exact
+   sampler's seeded scalar evaluations and acceptance decisions.
+8. Add tests proving uncertain support, surrogate failure, and exact solver
+   failure fall back or classify deterministically without silent acceptance.
+9. Add native CMB fixtures comparing exact and delayed-acceptance spectra,
+   likelihoods, diagnostics, and correction records at fixed points.
+10. Run independent bounded chains for representative LCDM and non-LCDM
+    models and compare posterior summaries, correlations, acceptance,
+    convergence, and effective sample size with exact chains.
+11. Confirm that delayed acceptance reduces exact CMB calls or improves ESS
+    per second without changing the scientific comparison results.
+12. Keep the feature opt-in until all mathematical and scientific acceptance
+    evidence is complete.
+13. Document the approximation boundary, exact fallback, correction rule,
+    provenance fields, and limitations in package-facing and repository-facing
+    documentation.
+
+**Correctness acceptance:**
+
+* Surrogate-disabled results match the exact scalar sampler under the same
+  seed and manifest.
+* A forced-exact surrogate produces the exact scalar result.
+* Unsupported, uncertain, and failed surrogate predictions trigger the
+  declared exact fallback or typed rejection.
+* Stage-two correction uses the exact target and preserves proposal-density
+  accounting.
+* Analytic target chains recover the known distribution within predefined
+  bounded-fixture tolerances.
+* Every proposal decision is attributable in the sampler and native records.
+
+**Scientific acceptance:**
+
+* Native spectra and likelihoods agree with exact scalar references at fixed
+  parameter points.
+* Representative exact and delayed-acceptance chains agree in posterior
+  summaries, correlations, acceptance behavior, convergence diagnostics, and
+  derived observables within predefined comparison tolerances.
+* No model-specific constraint, conservation, or observable regression is
+  hidden by surrogate screening.
+* The exact scalar chain remains the comparison authority for every report.
+
+**Performance acceptance:**
+
+* Reports include exact-call reduction, surrogate cost, exact correction cost,
+  wall time, acceptance, and effective sample size per second.
+* A speedup is accepted only when scientific and mathematical validation has
+  already passed.
+* A surrogate that is faster but scientifically biased is rejected and the
+  opt-in mode remains disabled.
+* No local full-chain wall-clock threshold is used as a substitute for these
+  records.
+
+**Done when:**
+
+* The opt-in delayed-acceptance path is mathematically specified,
+  implemented, tested against analytic targets, and compared with the exact
+  native CMB sampler.
+* Its scientific and performance records are complete.
+* Exact scalar execution remains the documented default and fallback.
+* The slice is marked closed only after both correctness and scientific
+  validation are independently green.
 
 ## Completion Standard
 
-The roadmap is complete only when all fourteen slices are closed in order and
-the final revision satisfies the same manifest, physics, performance, logging,
-dataset, model-corpus, documentation, and policy contracts.
+The roadmap is complete only when all three slices are closed in order.
 
-A green policy gate, a finite smoke spectrum, or an isolated parity fixture is
-not sufficient by itself. Completion requires the exact production comparison
-workflow to finish both model chains through the native declared-graph solver
-without hidden fallback behavior. The 1800-second timing verdict is attached
-to the declared reference-host qualification record; a local implementation
-run may remain explicitly `pending-reference-host` until that host is
-available.
+Completion requires:
+
+* truthful progress and phase-level timing evidence;
+* safe runtime improvements with exact scalar equivalence;
+* an independently validated batch/vectorized contract;
+* an independently validated opt-in surrogate/delayed-acceptance sampler;
+* separate correctness and scientific acceptance records for both algorithmic
+  slices;
+* preserved native CMB capability, constraint, observable, and failure
+  contracts;
+* no production CAMB or CLASS fallback;
+* no hidden full-validation-suite dependency;
+* documentation, comments, tests, manifests, mirrors, and changelog aligned;
+* a green `devcovenant gate --verify` on the staged revision.
+
+A green policy gate, a faster benchmark, a finite spectrum, or a matching
+single-point likelihood is not sufficient by itself. The work is complete
+only when the exact scalar reference and each accelerated execution mode have
+their own evidence and the accelerated modes satisfy both correctness and
+scientific acceptance.
