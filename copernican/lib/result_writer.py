@@ -116,6 +116,13 @@ def save_summary(
             if sampling_entry is None:
                 sampling_entry = {}
             sampling_entry[out_key] = _to_serialisable(sampling_value)
+        ensemble_performance = res.get("ensemble_performance")
+        if ensemble_performance is not None:
+            if sampling_entry is None:
+                sampling_entry = {}
+            sampling_entry["ensemble_performance"] = _to_serialisable(
+                ensemble_performance
+            )
         summary[role] = {
             "model": model_name,
             "parameters": {k: _to_serialisable(v) for k, v in params.items()},

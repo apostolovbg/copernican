@@ -111,6 +111,14 @@ and 1 second for an exact cache hit. Reports retain deterministic median and
 p95 samples for each state, so practical MCMC throughput remains visible
 without weakening numerical accuracy or silently reusing stale results.
 
+Ensemble fit results also retain an `ensemble_performance` record with total
+and per-stage timings, requested and effective worker counts, the CPU-derived
+worker limit, nominal proposal evaluations, and failed-request counts. Spawned
+workers request one numerical thread, and the record marks any process or
+numerical oversubscription. The reference validation manifest fixes seed 0,
+five burn-in steps, ten production steps, 32 walkers, and a three-worker pool;
+its copied run manifest and parameter summary preserve this provenance.
+
 Copernican ships as a managed Python application. The repository keeps the
 bootstrap interpreter, virtual environment, and locked dependencies in view so
 source checkouts and installed copies follow the same launch path.

@@ -849,37 +849,38 @@ def _exact_batched_two_state_blocks(
     centered_action[:, 1] = (
         lower * block_states[:, 0] - centered_diagonal * block_states[:, 1]
     )
-    if numpy.all(discriminant >= 0.0):
-        delta = numpy.sqrt(discriminant)
-        sinh_over_delta = numpy.ones_like(delta)
-        nonzero_delta = delta > 1.0e-14
-        sinh_over_delta[nonzero_delta] = (
-            numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
-        )
-        evolved_real = numpy.exp(trace_half)[:, None] * (
-            numpy.cosh(delta)[:, None] * block_states
-            + sinh_over_delta[:, None] * centered_action
-        )
-        if numpy.all(numpy.isfinite(evolved_real)):
-            return numpy.asarray(evolved_real, dtype=float)
+    with numpy.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        if numpy.all(discriminant >= 0.0):
+            delta = numpy.sqrt(discriminant)
+            sinh_over_delta = numpy.ones_like(delta)
+            nonzero_delta = delta > 1.0e-14
+            sinh_over_delta[nonzero_delta] = (
+                numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
+            )
+            evolved_real = numpy.exp(trace_half)[:, None] * (
+                numpy.cosh(delta)[:, None] * block_states
+                + sinh_over_delta[:, None] * centered_action
+            )
+            if numpy.all(numpy.isfinite(evolved_real)):
+                return numpy.asarray(evolved_real, dtype=float)
 
-    delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
-    evolved = numpy.empty(block_states.shape, dtype=complex)
-    nearly_degenerate = numpy.abs(delta) <= 1.0e-14
-    if numpy.any(nearly_degenerate):
-        indices = numpy.flatnonzero(nearly_degenerate)
-        evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
-            block_states[indices] + centered_action[indices]
-        )
-    if numpy.any(~nearly_degenerate):
-        indices = numpy.flatnonzero(~nearly_degenerate)
-        plus = numpy.exp(trace_half[indices] + delta[indices])
-        minus = numpy.exp(trace_half[indices] - delta[indices])
-        evolved[indices] = 0.5 * (
-            (plus + minus)[:, None] * block_states[indices]
-            + ((plus - minus) / delta[indices])[:, None]
-            * centered_action[indices]
-        )
+        delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
+        evolved = numpy.empty(block_states.shape, dtype=complex)
+        nearly_degenerate = numpy.abs(delta) <= 1.0e-14
+        if numpy.any(nearly_degenerate):
+            indices = numpy.flatnonzero(nearly_degenerate)
+            evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
+                block_states[indices] + centered_action[indices]
+            )
+        if numpy.any(~nearly_degenerate):
+            indices = numpy.flatnonzero(~nearly_degenerate)
+            plus = numpy.exp(trace_half[indices] + delta[indices])
+            minus = numpy.exp(trace_half[indices] - delta[indices])
+            evolved[indices] = 0.5 * (
+                (plus + minus)[:, None] * block_states[indices]
+                + ((plus - minus) / delta[indices])[:, None]
+                * centered_action[indices]
+            )
     real_evolved = numpy.real_if_close(evolved, tol=1000)
     if numpy.iscomplexobj(real_evolved) or not numpy.all(
         numpy.isfinite(real_evolved)
@@ -961,37 +962,38 @@ def _exact_batched_linear_collision_step(
         centered_action[:, 1] = (
             lower * block_states[:, 0] - centered_diagonal * block_states[:, 1]
         )
-        if numpy.all(discriminant >= 0.0):
-            delta = numpy.sqrt(discriminant)
-            sinh_over_delta = numpy.ones_like(delta)
-            nonzero_delta = delta > 1.0e-14
-            sinh_over_delta[nonzero_delta] = (
-                numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
-            )
-            evolved_real = numpy.exp(trace_half)[:, None] * (
-                numpy.cosh(delta)[:, None] * block_states
-                + sinh_over_delta[:, None] * centered_action
-            )
-            if numpy.all(numpy.isfinite(evolved_real)):
-                return numpy.asarray(evolved_real, dtype=float)
+        with numpy.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            if numpy.all(discriminant >= 0.0):
+                delta = numpy.sqrt(discriminant)
+                sinh_over_delta = numpy.ones_like(delta)
+                nonzero_delta = delta > 1.0e-14
+                sinh_over_delta[nonzero_delta] = (
+                    numpy.sinh(delta[nonzero_delta]) / delta[nonzero_delta]
+                )
+                evolved_real = numpy.exp(trace_half)[:, None] * (
+                    numpy.cosh(delta)[:, None] * block_states
+                    + sinh_over_delta[:, None] * centered_action
+                )
+                if numpy.all(numpy.isfinite(evolved_real)):
+                    return numpy.asarray(evolved_real, dtype=float)
 
-        delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
-        evolved = numpy.empty(block_states.shape, dtype=complex)
-        nearly_degenerate = numpy.abs(delta) <= 1.0e-14
-        if numpy.any(nearly_degenerate):
-            indices = numpy.flatnonzero(nearly_degenerate)
-            evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
-                block_states[indices] + centered_action[indices]
-            )
-        if numpy.any(~nearly_degenerate):
-            indices = numpy.flatnonzero(~nearly_degenerate)
-            plus = numpy.exp(trace_half[indices] + delta[indices])
-            minus = numpy.exp(trace_half[indices] - delta[indices])
-            evolved[indices] = 0.5 * (
-                (plus + minus)[:, None] * block_states[indices]
-                + ((plus - minus) / delta[indices])[:, None]
-                * centered_action[indices]
-            )
+            delta = numpy.sqrt(numpy.asarray(discriminant, dtype=complex))
+            evolved = numpy.empty(block_states.shape, dtype=complex)
+            nearly_degenerate = numpy.abs(delta) <= 1.0e-14
+            if numpy.any(nearly_degenerate):
+                indices = numpy.flatnonzero(nearly_degenerate)
+                evolved[indices] = numpy.exp(trace_half[indices])[:, None] * (
+                    block_states[indices] + centered_action[indices]
+                )
+            if numpy.any(~nearly_degenerate):
+                indices = numpy.flatnonzero(~nearly_degenerate)
+                plus = numpy.exp(trace_half[indices] + delta[indices])
+                minus = numpy.exp(trace_half[indices] - delta[indices])
+                evolved[indices] = 0.5 * (
+                    (plus + minus)[:, None] * block_states[indices]
+                    + ((plus - minus) / delta[indices])[:, None]
+                    * centered_action[indices]
+                )
         real_evolved = numpy.real_if_close(evolved, tol=1000)
         if numpy.iscomplexobj(real_evolved) or not numpy.all(
             numpy.isfinite(real_evolved)

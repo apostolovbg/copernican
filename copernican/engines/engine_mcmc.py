@@ -36,7 +36,9 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as multiprocessing_module
+import os
 import warnings
+from time import perf_counter
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
@@ -225,6 +227,16 @@ def _initialize_mcmc_worker(
     """Install one sampler callable and compile worker-local static assets."""
 
     global _WORKER_LOG_PROBABILITY
+    # Keep one numerical thread per worker so BLAS/OpenMP pools cannot multiply
+    # the process cap into an unbounded numerical workload.
+    for variable in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ[variable] = "1"
     _WORKER_LOG_PROBABILITY = log_probability
     log_probability.prepare_worker_runtime()
 
@@ -724,6 +736,57 @@ def _resolve_mcmc_pool_processes(
     return min(requested_workers, available_workers) or None
 
 
+def _mcmc_cpu_count() -> int:
+    """Return a positive CPU count for sampler resource accounting."""
+
+    try:
+        return max(1, int(multiprocessing_module.cpu_count()))
+    except (NotImplementedError, TypeError, ValueError):
+        return 1
+
+
+def _ensemble_performance_envelope(
+    *,
+    started: float,
+    phase_seconds: dict[str, float],
+    requested_pool_workers: int,
+    pool_workers: int,
+    cpu_count: int,
+    n_walkers: int,
+    burn_in_steps: int,
+    production_steps: int,
+    failed_requests: int = 0,
+) -> dict[str, object]:
+    """Build serialisable timing and worker-resource provenance."""
+
+    elapsed = max(0.0, perf_counter() - started)
+    worker_limit = min(max(cpu_count - 1, 0), max(int(n_walkers), 0))
+    oversubscribed = pool_workers > worker_limit
+    nominal_evaluations = (
+        n_walkers
+        * (max(int(burn_in_steps), 0) + max(int(production_steps), 0))
+        + n_walkers
+    )
+    return {
+        "workload": "ensemble_mcmc",
+        "elapsed_seconds": elapsed,
+        "phase_seconds": {
+            name: max(0.0, float(value))
+            for name, value in phase_seconds.items()
+        },
+        "requested_pool_workers": int(requested_pool_workers),
+        "pool_workers": int(pool_workers),
+        "cpu_count": int(cpu_count),
+        "worker_limit": int(worker_limit),
+        "numerical_threads_per_worker": 1,
+        "oversubscribed": bool(oversubscribed),
+        "nominal_evaluations": int(nominal_evaluations),
+        "failed_requests": int(max(0, failed_requests)),
+        "budget_seconds": 1800.0,
+        "budget_passed": bool(elapsed <= 1800.0 and not oversubscribed),
+    }
+
+
 def fit_cosmology_parameters(
     sne_data_df: Any,
     model_plugin: Any,
@@ -754,6 +817,37 @@ def fit_cosmology_parameters(
     """
 
     logger = logging.getLogger()
+    ensemble_started = perf_counter()
+    phase_seconds = {
+        "initialization": 0.0,
+        "burn_in": 0.0,
+        "production": 0.0,
+    }
+    cpu_count = _mcmc_cpu_count()
+    requested_pool_workers = int(pool_size or 0)
+
+    def _failure_result(
+        *,
+        pool_workers: int = 0,
+        burn_steps: int = 0,
+    ) -> dict[str, object]:
+        """Return a failure payload with the same resource provenance."""
+
+        return {
+            "success": False,
+            "samples": None,
+            "ensemble_performance": _ensemble_performance_envelope(
+                started=ensemble_started,
+                phase_seconds=phase_seconds,
+                requested_pool_workers=requested_pool_workers,
+                pool_workers=pool_workers,
+                cpu_count=cpu_count,
+                n_walkers=n_walkers,
+                burn_in_steps=burn_steps,
+                production_steps=n_steps,
+            ),
+        }
+
     engine_plugin_validation.validate_plugin(model_plugin)
 
     posterior_full, loglike_full, joint_like = _build_joint_logposterior(
@@ -772,14 +866,14 @@ def fit_cosmology_parameters(
     ndim_total = len(initial)
     if ndim_total == 0 or len(bounds) != ndim_total:
         logger.error("Model plugin missing parameter definitions")
-        return {"success": False, "samples": None}
+        return _failure_result()
 
     try:
         lower_all, upper_all, fixed_mask = _classify_parameter_bounds(
             bounds, logger=logger
         )
     except ValueError:
-        return {"success": False, "samples": None}
+        return _failure_result()
     active_mask = ~fixed_mask
     active_indices = numpy.flatnonzero(active_mask)
     fixed_indices = numpy.flatnonzero(fixed_mask)
@@ -879,6 +973,7 @@ def fit_cosmology_parameters(
                 else log_probability_active
             )
             initial_map = pool.map if pool is not None else None
+            initialization_started = perf_counter()
             initial_positions, logp = _initialise_active_walkers(
                 initial_active,
                 lower,
@@ -899,12 +994,16 @@ def fit_cosmology_parameters(
                 sampler_log_probability,
                 pool=pool,
             )
+            phase_seconds["initialization"] = (
+                perf_counter() - initialization_started
+            )
             burnin_reporter = _SamplingProgressReporter(
                 names,
                 template_params,
                 active_indices,
                 progress_granularity=progress_granularity,
             )
+            burn_in_started = perf_counter()
             last = _run_stage_with_progress(
                 sampler,
                 initial_positions,
@@ -921,6 +1020,7 @@ def fit_cosmology_parameters(
                     "model": getattr(model_plugin, "MODEL_NAME", ""),
                 },
             )
+            phase_seconds["burn_in"] = perf_counter() - burn_in_started
             try:
                 coords, log_prob = _reseed_invalid_walkers(
                     last.coords,
@@ -934,7 +1034,10 @@ def fit_cosmology_parameters(
                 )
             except RuntimeError as exc:
                 logger.error("%s", exc)
-                return {"success": False, "samples": None}
+                return _failure_result(
+                    pool_workers=int(pool_processes or 0),
+                    burn_steps=burn_in,
+                )
             sampler.reset()
             production_reporter = _SamplingProgressReporter(
                 names,
@@ -942,6 +1045,7 @@ def fit_cosmology_parameters(
                 active_indices,
                 progress_granularity=progress_granularity,
             )
+            production_started = perf_counter()
             _run_stage_with_progress(
                 sampler,
                 coords,
@@ -958,6 +1062,7 @@ def fit_cosmology_parameters(
                     "model": getattr(model_plugin, "MODEL_NAME", ""),
                 },
             )
+            phase_seconds["production"] = perf_counter() - production_started
         finally:
             if pool is not None:
                 pool.close()
@@ -1033,6 +1138,27 @@ def fit_cosmology_parameters(
     total_points = sne_points + bao_points + cmb_points
     dof = total_points - ndim_total
     reduced = chi2_best / dof if dof > 0 else numpy.nan
+
+    failed_requests = 0
+    for component in components.values():
+        component_metadata = component.get("metadata", {})
+        try:
+            failed_requests += int(
+                component_metadata.get("proposal_rejections", 0)
+            )
+        except (TypeError, ValueError):
+            continue
+    ensemble_performance = _ensemble_performance_envelope(
+        started=ensemble_started,
+        phase_seconds=phase_seconds,
+        requested_pool_workers=requested_pool_workers,
+        pool_workers=int(pool_processes or 0),
+        cpu_count=cpu_count,
+        n_walkers=n_walkers,
+        burn_in_steps=burn_in,
+        production_steps=n_steps,
+        failed_requests=failed_requests,
+    )
 
     log_prior_best = float("-inf")
     if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
@@ -1209,6 +1335,7 @@ def fit_cosmology_parameters(
         "n_walkers": int(n_walkers),
         "autocorrelation_time": autocorr,
         "pool_workers": int(pool_processes or 0),
+        "ensemble_performance": ensemble_performance,
         "diagnostics": diagnostics,
         "progress_granularity": int(progress_granularity),
         "likelihood_state": likelihood_state,

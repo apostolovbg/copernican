@@ -1115,6 +1115,27 @@ performance report records deterministic median and p95 samples for each
 workload; a budget overrun raises a typed performance error rather than
 publishing a partial or misleading spectrum.
 
+### Ensemble acceptance and resource envelope
+
+The MCMC engine records an `ensemble_performance` payload for every fit,
+including failed fits. It reports total elapsed time, initialization,
+burn-in, and production timings, the requested and effective pool sizes,
+the CPU-derived worker limit, nominal proposal evaluations, and failed
+proposal requests. The effective pool is bounded by
+`min(requested_pool, max(cpu_count - 1, 0), n_walkers)`; an unset or unit pool
+runs in the parent process. Spawned workers request one numerical thread so
+process and BLAS/OpenMP parallelism cannot multiply into host oversubscription.
+The payload marks `oversubscribed` and `budget_passed` explicitly and uses the
+1800-second end-to-end ensemble acceptance budget.
+
+The governed reference manifest is deterministic: it compares LambdaCDM with
+TORG using Union3, compound BAO, and Planck 2018 Lite, seed 0, five burn-in
+steps, ten production steps, 32 walkers, and a three-worker pool. The copied
+manifest and parameter summary retain this workload identity and its timing
+record. Rejected stiff collision rows suppress expected floating-point
+overflow warnings; finite-result checks still determine whether a request is
+accepted or fails with typed native diagnostics.
+
 Generated scalar contracts first audit the requested k grid against the
 declared numerical limits, then preflight every sorted k mode before any ODE
 work. The preflight solves the coupled energy, momentum, and shear metric

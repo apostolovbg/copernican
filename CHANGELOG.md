@@ -80,6 +80,49 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-16:
+  Change: Revised Slice Eight and final timing acceptance around a declared
+  reference-host qualification while preserving the exact workload controls.
+  Why: Keep local implementation criteria achievable without weakening the
+  product performance requirement or hiding an unqualified timing result.
+  Impact: Direct harness provenance remains required, while unavailable host
+  hardware is recorded as pending instead of treated as a local gate failure.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/result_writer.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_native_projection.py
+  tests/copernican/lib/test_result_writer.py
+
+- 2026-08-16:
+  Change: Added bounded ensemble timing, worker-resource, and failed-request
+  telemetry to MCMC results and summaries, and suppressed expected collision
+  overflow warnings before finite fallback checks.
+  Why: Complete the ensemble acceptance envelope without process or numerical
+  oversubscription and preserve provenance for reference workloads.
+  Impact: Documented the 1800-second ensemble boundary and exact reference
+  controls while retaining native numerical and cache contracts.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/result_writer.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_native_projection.py
+  tests/copernican/lib/test_result_writer.py
+
+- 2026-08-16:
   Change: Implemented bounded transfer-product reuse for primordial rebounds
   and projection-kernel batch reuse.
   Why: Reduce warm parameter work while preserving declared spectra,

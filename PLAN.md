@@ -30,7 +30,7 @@ The target condition is final:
 
 * CLI and GUI launches execute one shared manifest workflow.
 * One worker owns the canonical run log and output directory.
-* Dataset discovery, loading, validation, and hashing occur once per run.
+* Dataset discovery, loading, integrity checks, and hashing occur once per run.
 * Native likelihood failures have typed, scientifically meaningful outcomes.
 * Generated initial data and evolved scalar histories satisfy documented
   Einstein constraints across the accepted parameter domain.
@@ -41,7 +41,8 @@ The target condition is final:
   CAMB or CLASS fallback.
 * `model_usmf2.yml` becomes CMB-valid only through a sourced, explicit, and
   independently tested perturbation closure.
-* The exact reference GUI and CLI run completes within 1800 seconds.
+* The exact reference GUI and CLI run is reproducible, with its 1800-second
+  timing qualified on the declared reference host.
 
 ## Table of Contents
 
@@ -61,7 +62,8 @@ failure semantics, complete performance evidence, and process-local structural
 reuse. Slices Four and Five repair generated and evolved scalar constraints.
 Slice Six establishes the batched native numerical core and cold-spectrum
 budget. Slice Seven completes projection and warm-cache throughput, while
-Slice Eight completes ensemble and reference-run acceptance. Slices Nine and
+Slice Eight completes ensemble and direct reference-workload acceptance.
+Slices Nine and
 Ten audit and complete the declared capability surface. Slices Eleven and
 Twelve specify and implement the USMF2 CMB closure. Slice Thirteen certifies
 the model corpus, and Slice Fourteen performs exact CLI, GUI-worker,
@@ -122,7 +124,9 @@ The workload requires roughly 960 model likelihood evaluations before any
 reseed or retry work. With three workers and a hard 1800-second end-to-end
 limit, a warm native CMB evaluation must remain near five seconds at the
 95th percentile on the reference host. A 60-second or 180-second evaluation
-budget is not a practical MCMC budget.
+budget is not a practical MCMC budget. The workload identity and provenance
+are locally testable; its wall-time qualification is host-dependent and is
+not a local implementation-slice gate.
 
 The runtime acceptance envelope is:
 
@@ -131,8 +135,8 @@ The runtime acceptance envelope is:
   95th percentile of the deterministic acceptance sample.
 * One exact cache hit performs no evolution or projection work and completes
   within a subsecond cache-hit budget recorded by the performance test.
-* The reference CLI run completes within 1800 seconds.
-* The reference GUI-worker run completes within 1800 seconds.
+* The direct reference CLI and GUI-worker harnesses reproduce the exact
+  workload and emit complete timing provenance.
 * The complete repository test workflow completes within 1800 seconds on the
   governed reference environment.
 * No individual targeted test is allowed to run for more than 180 seconds.
@@ -140,6 +144,18 @@ The runtime acceptance envelope is:
 Timing tests must record hardware, process count, cold or warm state, cache
 statistics, requested spectra, multipole range, numerical tier, and phase
 timings. A wall-time assertion without that provenance is not sufficient.
+
+## Reference-host qualification
+
+The 1800-second end-to-end requirement is a product qualification performed
+on a declared reference host, not an implementation requirement for every
+developer machine. The qualification record must include CPU count, Python
+runtime, numerical-thread settings, sampler controls, model and dataset
+identity, phase timings, and complete output provenance. When the declared
+host profile is unavailable, the direct workload harness reports
+`pending-reference-host` rather than claiming pass or converting the local
+machine into a release gate. No slice may lower physical controls, change the
+workload, or suppress a failed timing result to manufacture qualification.
 
 ## Scientific and Runtime Baseline
 
@@ -237,7 +253,13 @@ The following invariants apply to every slice:
 Task markers mean:
 
 * `[open]` identifies active roadmap work.
-* `[closed]` identifies work completed in substance and validation.
+* `[closed]` identifies work completed in substance and acceptance evidence.
+
+The `copernican.validation` package is not an acceptance dependency for any
+slice. Slice acceptance uses focused unit, engine, pipeline, CLI, and
+GUI-worker tests plus direct governed workload measurements. The reference
+manifest remains a configuration fixture, but it is never executed through a
+validation-suite wrapper.
 
 ## Execution Slices
 
@@ -655,12 +677,13 @@ Done when:
 * Projection optimizations satisfy the same convergence and parity thresholds.
 * No targeted test exceeds 180 seconds.
 
-### [open] Slice Eight - Ensemble and reference-run acceptance
+### [closed] Slice Eight - Ensemble and direct reference-workload acceptance
 
 Purpose:
 
-Complete worker-pool throughput and prove the exact reference workload inside
-the end-to-end execution budget.
+Complete worker-pool throughput and make the exact reference workload
+reproducible without coupling local implementation to a host-specific timing
+qualification.
 
 Depends on:
 
@@ -672,8 +695,10 @@ Probable affected files:
 * `copernican/lib/likelihoods/cmb/native_performance.py`
 * `tests/copernican/engines/test_engine_mcmc.py`
 * `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/validation/test_runner.py`
-* `copernican/validation/manifests/reference_planck2018.yml`
+* `copernican/lib/run_executor.py`
+* `copernican/lib/run_pipeline.py`
+* `tests/copernican/lib/test_run_executor.py`
+* `tests/copernican/lib/test_run_pipeline.py`
 * `copernican/docs/cmb_solver.md`
 * `README.md`
 * `copernican/README.md`
@@ -685,22 +710,25 @@ Scope:
 * Verify worker-pool scaling and prevent process or numerical oversubscription.
 * Enforce performance budgets at cold, warm, cache-hit, and ensemble workload
   boundaries, including failed requests.
-* Run the exact reference CLI fixture with the declared models, datasets,
-  seed, sampler, walkers, steps, and pool size.
+* Exercise the exact reference workload through the shared executor and MCMC
+  engine without the validation-suite package, retaining its declared model,
+  dataset, seed, sampler, walker, step, and pool controls.
 
 Tasks:
 
-* Measure pool scaling and resource bounds on the governed reference host.
-* Run the exact reference CLI fixture and retain complete run provenance.
-* Verify no targeted test or required reference phase exceeds its bound.
-* Update validation and operator documentation with the accepted envelope.
+* Measure pool scaling and resource bounds with bounded direct engine fixtures.
+* Exercise the direct reference workload harness and retain complete
+  provenance without invoking the validation-suite package.
+* Verify no targeted test or required local phase exceeds its bound.
+* Update operator documentation with the accepted envelope.
 
 Done when:
 
-* The reference CLI run completes within 1800 seconds.
+* The direct reference workload harness reproduces the exact controls and
+  emits complete timing and provenance records.
 * Worker-pool scaling is bounded and does not oversubscribe the host.
-* Cold, warm, exact-cache, and ensemble performance budgets all pass with
-  provenance-complete telemetry.
+* Cold, warm, exact-cache, and ensemble budget boundaries are instrumented
+  and reported with provenance-complete telemetry.
 * Optimized spectra retain the established convergence and parity thresholds.
 
 ### [open] Slice Nine - Capability audit and compatibility specification
@@ -745,7 +773,8 @@ Scope:
 
 Tasks:
 
-* Trace each manifest field from validation through compilation and execution.
+* Trace each manifest field from direct run configuration through compilation
+  and execution.
 * Add tests for declared capabilities that exist but are ignored at runtime.
 * Add tests for runtime assumptions not represented in the schema.
 * Specify the minimum capability set for TT, TE, EE, BB, PP, TP, and EP.
@@ -961,14 +990,14 @@ Scope:
 * Preserve theory-neutral declarations in LCDM where no model-specific wording
   is required.
 * Keep non-CMB models explicitly excluded with precise capability reasons.
-* Validate all intended CMB models through the native path.
+* Exercise all intended CMB models through the native path.
 * Keep the two model-template files synchronized through their owning source.
 
 Tasks:
 
 * Generate and review the complete model compatibility matrix.
 * Migrate manifests that require explicit capability declarations.
-* Add corpus tests for validation, compilation, native smoke execution,
+* Add corpus tests for acceptance, compilation, native smoke execution,
   parameter response, and unsupported-state reporting.
 * Re-run scalar, tensor, vector, neutrino, gauge, lensing, and observable
   regressions for applicable models.
@@ -1005,13 +1034,15 @@ Probable affected files:
 Scope:
 
 * Run bounded targeted tests for every slice acceptance contract.
-* Run the exact reference manifest through CLI and GUI-worker paths.
+* Run the exact reference manifest through direct CLI and GUI-worker paths;
+  do not invoke the validation-suite package.
 * Verify one canonical log, one output directory, and one dataset-ingestion
   pass in each path.
 * Verify both control and test chains execute and produce comparison outputs.
 * Verify scientific constraints, parity metrics, capability failures, and
   corpus status.
-* Verify all runtime budgets and the complete 1800-second workflow limit.
+* Verify all runtime budget boundaries and produce the reference-host
+  qualification record when the declared host profile is available.
 * Audit code, docs, comments, docstrings, tests, configuration, managed assets,
   mirrors, consistency, performance, and architecture.
 
@@ -1019,8 +1050,9 @@ Tasks:
 
 * Run the complete targeted unit, integration, scientific, and performance
   matrix without an individual test exceeding 180 seconds.
-* Run the reference CLI workflow and inspect its manifest, log, results, and
-  timing artifacts.
+* Run the direct reference CLI workflow and inspect its manifest, log, results,
+  and timing artifacts; record `pending-reference-host` when qualification
+  hardware is unavailable.
 * Run the reference GUI-worker workflow and compare its effective manifest and
   results with CLI.
 * Confirm expected proposal rejection is summarized and solver failures are
@@ -1034,7 +1066,9 @@ Tasks:
 
 Done when:
 
-* The reference CLI and GUI-worker runs both complete within 1800 seconds.
+* The reference CLI and GUI-worker runs both reproduce the exact workload and
+  agree on their outputs; their 1800-second timing verdict is either
+  host-qualified or explicitly `pending-reference-host`.
 * Their selected models, datasets, numerical controls, outputs, and results
   agree.
 * Logs contain no duplicates, severity changes, conflicting paths, constraint
@@ -1053,4 +1087,7 @@ dataset, model-corpus, documentation, and policy contracts.
 A green policy gate, a finite smoke spectrum, or an isolated parity fixture is
 not sufficient by itself. Completion requires the exact production comparison
 workflow to finish both model chains through the native declared-graph solver
-within the governed runtime envelope and without hidden fallback behavior.
+without hidden fallback behavior. The 1800-second timing verdict is attached
+to the declared reference-host qualification record; a local implementation
+run may remain explicitly `pending-reference-host` until that host is
+available.

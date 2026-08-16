@@ -505,6 +505,39 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(res["pool_workers"], 2)
         self.assertGreaterEqual(res["n_walkers"], res["pool_workers"])
 
+    def test_sampler_reports_bounded_ensemble_performance(self) -> None:
+        """Fit results retain stage timing and worker-bound provenance."""
+
+        plugin = _build_model_plugin("model_lcdm.yml")
+        sne_df = pandas.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        result = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=2,
+            pool_size=1,
+            burn_in_steps=2,
+            display_progress=False,
+        )
+
+        envelope = result["ensemble_performance"]
+        self.assertEqual(envelope["workload"], "ensemble_mcmc")
+        self.assertEqual(envelope["requested_pool_workers"], 1)
+        self.assertEqual(envelope["pool_workers"], 0)
+        self.assertGreaterEqual(envelope["cpu_count"], 1)
+        self.assertFalse(envelope["oversubscribed"])
+        self.assertEqual(envelope["budget_seconds"], 1800.0)
+        self.assertTrue(envelope["budget_passed"])
+        self.assertGreaterEqual(envelope["elapsed_seconds"], 0.0)
+        for phase in ("initialization", "burn_in", "production"):
+            self.assertGreaterEqual(envelope["phase_seconds"][phase], 0.0)
+
     def test_pool_size_is_capped_to_avoid_cpu_oversubscription(self) -> None:
         """A requested pool must leave one CPU for its parent process."""
 

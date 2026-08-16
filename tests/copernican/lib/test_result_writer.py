@@ -98,6 +98,12 @@ class TestResultWriter(unittest.TestCase):
                         expected_walkers,
                     )
                     self.assertEqual(sampling.get("pool_workers"), 0)
+                    performance = sampling.get("ensemble_performance")
+                    self.assertIsInstance(performance, dict)
+                    self.assertEqual(
+                        performance.get("workload"), "ensemble_mcmc"
+                    )
+                    self.assertIn("phase_seconds", performance)
 
 
 class PublicSymbolCoverageTestCase(unittest.TestCase):

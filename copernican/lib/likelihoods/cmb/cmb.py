@@ -378,6 +378,7 @@ class CMBLike(LikelihoodProtocol):
             metadata={
                 "covariance": "full",
                 "points": int(self._observed.size),
+                "proposal_rejections": self._proposal_rejection_count,
             },
         )
         return loglike
