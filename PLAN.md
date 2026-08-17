@@ -548,7 +548,7 @@ existing scalar call.
 * The slice is marked closed only after correctness and scientific evidence
   are both complete.
 
-### [open] Slice Fifteen - Surrogate and delayed-acceptance sampling
+### [closed] Slice Fifteen - Surrogate and delayed-acceptance sampling
 
 **Purpose:** Add one explicit opt-in surrogate-assisted delayed-acceptance
 path that reduces exact CMB calls while preserving the target distribution
@@ -685,6 +685,27 @@ exact sampler's seed stream when the mode is disabled.
 * Exact scalar execution remains the documented default and fallback.
 * The slice is marked closed only after both correctness and scientific
   validation are independently green.
+
+**Completion record:**
+
+* `DeterministicLocalSurrogate` provides normalized bounded interpolation,
+  deterministic support diagnostics, exact-sample identities, and a stable
+  cache identity. Outside-domain, insufficient-support, uncertain, and
+  exact-target failure cases require or record an exact fallback.
+* `DelayedAcceptanceController` applies a surrogate stage-one screen followed
+  by the exact target correction for the same proposal density. It records
+  proposal decisions, exact calls, corrections, rejections, support fallback,
+  and typed exact failures without treating surrogate values as exact data.
+* Delayed acceptance is explicit in the MCMC engine and manifest settings,
+  rejects unknown controls, persists compact sampling provenance, and leaves
+  the seeded scalar path unchanged when disabled. Analytic Gaussian,
+  correlated, bounded, invalid-domain, and native fixed-point correction
+  fixtures pass with finite exact outputs and attributable records.
+* The bounded opt-in MCMC fixture records exact-call and proposal counters,
+  training identities, cache identity, phase timing, acceptance, and the
+  complete proposal stream. Repository and package documentation describe
+  the approximation boundary, fallback behavior, correction rule, and
+  opt-in limitations. No full `copernican.validation` workload is required.
 
 ## Completion Standard
 

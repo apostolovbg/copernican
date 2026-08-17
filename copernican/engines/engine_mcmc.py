@@ -39,7 +39,7 @@ import multiprocessing as multiprocessing_module
 import os
 import warnings
 from time import perf_counter
-from typing import Any, Callable, Iterable, Iterator, Sequence
+from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
 try:  # pragma: no cover - compatibility shim
@@ -61,6 +61,11 @@ import emcee
 import numpy
 import pandas
 
+from copernican.engines.surrogate import (
+    DelayedAcceptanceController,
+    DeterministicLocalSurrogate,
+    validate_delayed_acceptance_config,
+)
 from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib.engine_capabilities import (
     EngineProgressChunk,
@@ -140,6 +145,26 @@ ENGINE_SETTINGS = (
         dtype="int",
         default=0,
         hint="0=disabled",
+    ),
+    EngineSetting(
+        key="delayed_acceptance",
+        label="Delayed acceptance",
+        description=(
+            "Opt-in deterministic surrogate screening with exact correction."
+        ),
+        dtype="bool",
+        default=False,
+        hint="false=exact scalar",
+    ),
+    EngineSetting(
+        key="surrogate_config",
+        label="Surrogate configuration",
+        description=(
+            "Mapping of support, uncertainty, training, and proposal controls."
+        ),
+        dtype="str",
+        default=None,
+        hint="only with delayed acceptance",
     ),
 )
 ENGINE_PROGRESS_CHUNKS = (
@@ -905,6 +930,123 @@ def _ensemble_performance_envelope(
     }
 
 
+def _run_delayed_acceptance_chain(
+    *,
+    initial_active: numpy.ndarray,
+    lower: numpy.ndarray,
+    upper: numpy.ndarray,
+    n_walkers: int,
+    burn_in_steps: int,
+    production_steps: int,
+    rng: numpy.random.Generator,
+    exact_log_probability: Callable[[numpy.ndarray], float],
+    config: dict[str, Any],
+    logger: logging.Logger,
+) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, dict[str, Any]]:
+    """Run bounded random-walk delayed acceptance for one opt-in chain."""
+
+    started = perf_counter()
+    initial_positions, initial_logp = _initialise_active_walkers(
+        initial_active,
+        lower,
+        upper,
+        n_walkers,
+        rng,
+        exact_log_probability,
+    )
+    surrogate = DeterministicLocalSurrogate(
+        lower,
+        upper,
+        min_support=config["min_support"],
+        neighbor_count=config["neighbor_count"],
+        uncertainty_threshold=config["uncertainty_threshold"],
+        max_samples=config["max_samples"],
+    )
+    for index, (position, value) in enumerate(
+        zip(initial_positions, initial_logp)
+    ):
+        surrogate.add_exact_sample(
+            position,
+            float(value),
+            sample_id=f"initial-{index:06d}",
+        )
+    controller = DelayedAcceptanceController(
+        exact_log_probability,
+        surrogate,
+        rng=rng,
+        proposal_scale=config["proposal_scale"],
+    )
+    widths = upper - lower
+    proposal_width = numpy.where(numpy.isfinite(widths), widths, 1.0) * float(
+        config["proposal_scale"]
+    )
+    current_positions = numpy.asarray(initial_positions, dtype=float).copy()
+    current_logp = numpy.asarray(initial_logp, dtype=float).copy()
+    production_chain = numpy.empty(
+        (max(int(production_steps), 1), n_walkers, initial_active.size),
+        dtype=float,
+    )
+    production_logp = numpy.empty(
+        (max(int(production_steps), 1), n_walkers),
+        dtype=float,
+    )
+    production_accepts = 0
+    production_proposals = 0
+
+    total_stages = (
+        ("burn_in", max(int(burn_in_steps), 0)),
+        ("production", max(int(production_steps), 1)),
+    )
+    for phase, steps in total_stages:
+        for step_index in range(steps):
+            for walker_index in range(n_walkers):
+                proposal = current_positions[walker_index] + rng.normal(
+                    0.0,
+                    proposal_width,
+                    size=initial_active.size,
+                )
+                proposal = numpy.clip(proposal, lower, upper)
+                outcome = controller.step(
+                    current_positions[walker_index],
+                    current_logp[walker_index],
+                    proposal,
+                )
+                current_positions[walker_index] = outcome.params
+                current_logp[walker_index] = outcome.exact_log_probability
+                controller.proposal_records[-1]["phase"] = phase
+                if phase == "production":
+                    production_proposals += 1
+                    production_accepts += int(outcome.accepted)
+            if phase == "production":
+                production_chain[step_index] = current_positions
+                production_logp[step_index] = current_logp
+        logger.info(
+            "Delayed-acceptance %s completed: steps=%d, walkers=%d.",
+            phase,
+            steps,
+            n_walkers,
+        )
+
+    counters = dict(controller.counters)
+    counters["exact_calls"] += len(initial_positions)
+    counters["training_exact_calls"] = len(initial_positions)
+    counters["rejected"] = counters["proposals"] - counters["accepted"]
+    counters["production_accepted"] = production_accepts
+    counters["production_proposals"] = production_proposals
+    counters["elapsed_seconds"] = max(perf_counter() - started, 0.0)
+    counters["enabled"] = True
+    counters["cache_identity"] = surrogate.cache_identity
+    counters["configuration"] = dict(config)
+    counters["training_sample_ids"] = list(surrogate.training_sample_ids)
+    counters["proposal_records"] = list(controller.proposal_records)
+    acceptance = numpy.full(
+        n_walkers,
+        production_accepts / max(production_proposals, 1),
+        dtype=float,
+    )
+    return production_chain, production_logp, acceptance, counters
+
+
 def fit_cosmology_parameters(
     sne_data_df: Any,
     model_plugin: Any,
@@ -919,6 +1061,9 @@ def fit_cosmology_parameters(
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     cmb_batch_size: int = 0,
+    delayed_acceptance: bool | Mapping[str, Any] = False,
+    surrogate_config: Mapping[str, Any] | None = None,
+    delayed_acceptance_config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -943,6 +1088,43 @@ def fit_cosmology_parameters(
         logger.info(
             "Native CMB batch adapter enabled: max batch size=%d.",
             cmb_batch_size,
+        )
+    if isinstance(delayed_acceptance, Mapping):
+        if (
+            surrogate_config is not None
+            or delayed_acceptance_config is not None
+        ):
+            raise ValueError(
+                "delayed-acceptance settings were provided more than once"
+            )
+        delayed_settings = dict(delayed_acceptance)
+        enabled = delayed_settings.pop("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ValueError("delayed_acceptance.enabled must be boolean")
+        if not enabled and delayed_settings:
+            raise ValueError(
+                "disabled delayed acceptance cannot include surrogate settings"
+            )
+        surrogate_config = delayed_settings if enabled else None
+        delayed_acceptance = enabled
+    if delayed_acceptance_config is not None:
+        if surrogate_config is not None:
+            raise ValueError(
+                "surrogate_config and delayed_acceptance_config are aliases"
+            )
+        surrogate_config = delayed_acceptance_config
+    delayed_acceptance = bool(delayed_acceptance)
+    delayed_config = (
+        validate_delayed_acceptance_config(surrogate_config)
+        if delayed_acceptance
+        else None
+    )
+    if not delayed_acceptance and surrogate_config is not None:
+        raise ValueError("surrogate_config requires delayed_acceptance=True")
+    if delayed_acceptance:
+        logger.info(
+            "Delayed-acceptance sampler enabled: surrogate identity controls "
+            "are explicit and exact corrections are recorded."
         )
     ensemble_started = perf_counter()
     phase_seconds = {
@@ -974,6 +1156,15 @@ def fit_cosmology_parameters(
                 production_steps=n_steps,
                 cmb_batch_size=cmb_batch_size,
             ),
+            "delayed_acceptance": {
+                "enabled": bool(delayed_acceptance),
+                "configuration": dict(delayed_config or {}),
+                "exact_calls": 0,
+                "proposals": 0,
+                "accepted": 0,
+                "rejected": 0,
+                "proposal_records": [],
+            },
         }
 
     engine_plugin_validation.validate_plugin(model_plugin)
@@ -1065,8 +1256,48 @@ def fit_cosmology_parameters(
         burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
     )
     burn_in = max(1, int(burn_in))
+    delayed_stats: dict[str, Any] = {
+        "enabled": False,
+        "configuration": {},
+        "exact_calls": 0,
+        "proposals": 0,
+        "accepted": 0,
+        "rejected": 0,
+        "proposal_records": [],
+    }
 
-    if not fixed_only:
+    if delayed_acceptance:
+        if fixed_only:
+            raise ValueError(
+                "delayed acceptance requires at least one active parameter"
+            )
+        log_probability_active = _ActiveLogProbability(
+            posterior_full,
+            template_params,
+            active_indices,
+        )
+        (
+            chain_active,
+            log_prob_chain,
+            acceptance_fraction,
+            delayed_stats,
+        ) = _run_delayed_acceptance_chain(
+            initial_active=initial_active,
+            lower=lower,
+            upper=upper,
+            n_walkers=n_walkers,
+            burn_in_steps=burn_in,
+            production_steps=n_steps,
+            rng=rng,
+            exact_log_probability=log_probability_active,
+            config=delayed_config or {},
+            logger=logger,
+        )
+        phase_seconds["production"] = float(
+            delayed_stats.get("elapsed_seconds", 0.0)
+        )
+        flat_log_prob = log_prob_chain.reshape(-1)
+    elif not fixed_only:
         log_probability_active = _ActiveLogProbability(
             posterior_full,
             template_params,
@@ -1370,6 +1601,11 @@ def fit_cosmology_parameters(
             0.0 if sampler_pool is None else sampler_pool.batch_elapsed_seconds
         ),
     )
+    ensemble_performance["delayed_acceptance"] = {
+        key: value
+        for key, value in delayed_stats.items()
+        if key != "proposal_records"
+    }
 
     log_prior_best = float("-inf")
     if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
@@ -1547,6 +1783,7 @@ def fit_cosmology_parameters(
         "autocorrelation_time": autocorr,
         "pool_workers": int(pool_processes or 0),
         "ensemble_performance": ensemble_performance,
+        "delayed_acceptance": delayed_stats,
         "diagnostics": diagnostics,
         "progress_granularity": int(progress_granularity),
         "likelihood_state": likelihood_state,
@@ -1578,6 +1815,9 @@ def fit_sne_parameters(
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     cmb_batch_size: int = 0,
+    delayed_acceptance: bool | Mapping[str, Any] = False,
+    surrogate_config: Mapping[str, Any] | None = None,
+    delayed_acceptance_config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compatibility wrapper for :func:`fit_cosmology_parameters`.
 
@@ -1609,6 +1849,9 @@ def fit_sne_parameters(
         display_progress=display_progress,
         progress_callback=progress_callback,
         cmb_batch_size=cmb_batch_size,
+        delayed_acceptance=delayed_acceptance,
+        surrogate_config=surrogate_config,
+        delayed_acceptance_config=delayed_acceptance_config,
     )
 
 
@@ -1623,6 +1866,7 @@ __all__ = [
     "compute_cmb_spectrum_from_contract",
     "fit_cosmology_parameters",
     "fit_sne_parameters",
+    "validate_delayed_acceptance_config",
 ]
 
 

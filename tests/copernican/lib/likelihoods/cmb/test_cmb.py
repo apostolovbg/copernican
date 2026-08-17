@@ -18,6 +18,10 @@ import pandas
 from scipy.integrate import quad as scipy_quad
 from scipy.linalg import expm
 
+from copernican.engines.surrogate import (
+    DelayedAcceptanceController,
+    DeterministicLocalSurrogate,
+)
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
 from copernican.lib.likelihoods.cmb import (
@@ -4329,6 +4333,64 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Fast runtime-response coverage for declared-graph execution."""
+
+    def test_delayed_acceptance_native_correction_matches_scalar_reference(
+        self,
+    ) -> None:
+        """Exact correction preserves a fixed native scalar spectrum target."""
+
+        ells = numpy.asarray((20, 30), dtype=int)
+        reference_contract = _prepare_native_contract(
+            _speedup_contract(_analytic_signal_contract())
+        )
+        reference_spectrum = cmb.compute_cmb_spectrum_from_contract(
+            reference_contract,
+            ells,
+            spectra=("TT",),
+        )
+
+        def exact_target(params):
+            contract = _prepare_native_contract(
+                _speedup_contract(
+                    _analytic_signal_contract(source_scale=float(params[0]))
+                )
+            )
+            spectrum = cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                ells,
+                spectra=("TT",),
+            )
+            residual = numpy.asarray(spectrum) - numpy.asarray(
+                reference_spectrum
+            )
+            return -0.5 * float(numpy.dot(residual, residual))
+
+        surrogate = DeterministicLocalSurrogate(
+            lower=(0.5,),
+            upper=(1.5,),
+            min_support=2,
+            uncertainty_threshold=1.0e99,
+        )
+        surrogate.add_exact_sample(
+            (0.8,), exact_target((0.8,)), sample_id="left"
+        )
+        surrogate.add_exact_sample(
+            (1.2,), exact_target((1.2,)), sample_id="right"
+        )
+        controller = DelayedAcceptanceController(
+            exact_target,
+            surrogate,
+            rng=numpy.random.default_rng(8),
+        )
+        controller.rng = mock.Mock(random=mock.Mock(return_value=0.0))
+        outcome = controller.step((1.2,), exact_target((1.2,)), (1.2,))
+
+        self.assertTrue(outcome.exact_called)
+        self.assertTrue(
+            numpy.isclose(outcome.exact_log_probability, exact_target((1.2,)))
+        )
+        self.assertTrue(controller.proposal_records)
+        self.assertIn("exact_called", controller.proposal_records[-1])
 
     def test_native_los_simpson_weights_integrate_nonuniform_quadratic(
         self,

@@ -280,7 +280,7 @@ def execute_run_from_manifest(
     sampling_plan = dict(config.run_settings.settings or {})
     sampling_plan.setdefault("engine_kind", config.run_settings.engine_kind)
     display_progress = bool(sampling_plan.pop("display_progress", True))
-    run_pipeline.execute_run_pipeline(
+    pipeline_result = run_pipeline.execute_run_pipeline(
         control_model_plugin=control_plugin,
         test_model_plugin=test_plugin,
         engine_module=engine_module,
@@ -295,6 +295,24 @@ def execute_run_from_manifest(
         logger=log,
         comparison=comparison,
     )
+    if isinstance(pipeline_result, tuple) and len(pipeline_result) >= 2:
+        control_result, test_result = pipeline_result[:2]
+        manifest.setdefault("provenance", {})["sampling"] = {
+            "control": _sampling_provenance(control_result),
+            "test": _sampling_provenance(test_result),
+        }
+        try:
+            run_manifest.save_manifest(
+                manifest,
+                str(output_root),
+                target_path=manifest_target,
+            )
+        except (OSError, ValueError, TypeError) as exc:
+            log.warning(
+                "Failed to persist sampling provenance in %s: %s",
+                manifest_target,
+                exc,
+            )
 
 
 def _describe_run_confirmation(manifest: dict, config: Any) -> None:
@@ -317,6 +335,51 @@ def _describe_run_confirmation(manifest: dict, config: Any) -> None:
         confirmation.get("seed", config.seed),
         confirmation.get("plan", "unspecified"),
     )
+
+
+def _sampling_provenance(result: Any) -> dict[str, Any]:
+    """Return compact sampler provenance for the persisted run manifest."""
+
+    if not isinstance(result, dict):
+        return {}
+    delayed = result.get("delayed_acceptance")
+    if not isinstance(delayed, dict):
+        delayed = {}
+    delayed_fields = {
+        key: delayed.get(key)
+        for key in (
+            "enabled",
+            "configuration",
+            "cache_identity",
+            "exact_calls",
+            "training_exact_calls",
+            "proposals",
+            "accepted",
+            "rejected",
+            "exact_corrections",
+            "exact_rejections",
+            "support_fallbacks",
+            "exact_failures",
+        )
+        if key in delayed
+    }
+    envelope = result.get("ensemble_performance")
+    envelope_fields = {}
+    if isinstance(envelope, dict):
+        envelope_fields = {
+            key: envelope.get(key)
+            for key in (
+                "cmb_batch_size",
+                "batch_count",
+                "batch_items",
+                "elapsed_seconds",
+            )
+            if key in envelope
+        }
+    return {
+        "delayed_acceptance": delayed_fields,
+        "ensemble_performance": envelope_fields,
+    }
 
 
 def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:

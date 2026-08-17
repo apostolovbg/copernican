@@ -201,6 +201,10 @@ def execute_run_pipeline(
 
     plan_kind = str(sampling_plan.get("engine_kind", "mcmc")).lower()
     if plan_kind == "nested":
+        if sampling_plan.get("delayed_acceptance", False):
+            raise ValueError(
+                "delayed acceptance is supported only by the MCMC engine"
+            )
         sampling_live = int(sampling_plan["n_live_points"])
         sampling_max_iter = int(sampling_plan["max_iterations"])
         sampling_tol = float(sampling_plan["evidence_tolerance"])
@@ -227,16 +231,21 @@ def execute_run_pipeline(
         sampling_walkers = int(sampling_plan["n_walkers"])
         sampling_pool = sampling_plan.get("pool_size")
         sampling_cmb_batch = int(sampling_plan.get("cmb_batch_size", 0))
+        sampling_delayed_acceptance = bool(
+            sampling_plan.get("delayed_acceptance", False)
+        )
+        sampling_surrogate_config = sampling_plan.get("surrogate_config")
 
         pool_label = sampling_pool if sampling_pool is not None else "auto"
         logger.info(
             "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
-            "pool=%s, cmb_batch=%d",
+            "pool=%s, cmb_batch=%d, delayed_acceptance=%s",
             sampling_steps,
             sampling_burn_in,
             sampling_walkers,
             pool_label,
             sampling_cmb_batch,
+            sampling_delayed_acceptance,
         )
         console_output.write(
             f"Configured sampler: steps {sampling_steps}, burn-in "
@@ -247,6 +256,10 @@ def execute_run_pipeline(
         )
         console_output.write(
             f"CMB batch size {sampling_cmb_batch or 'disabled'}."
+        )
+        console_output.write(
+            "Delayed acceptance "
+            f"{'enabled' if sampling_delayed_acceptance else 'disabled'}."
         )
 
     fit_fn, _ = resolve_fit_function(engine_module)
@@ -290,6 +303,8 @@ def execute_run_pipeline(
             display_progress=display_progress,
             progress_callback=progress_callback,
             cmb_batch_size=sampling_cmb_batch,
+            delayed_acceptance=sampling_delayed_acceptance,
+            surrogate_config=sampling_surrogate_config,
         )
 
     control_file = getattr(control_model_plugin, "MODEL_FILENAME", "")
@@ -353,6 +368,8 @@ def execute_run_pipeline(
                 display_progress=display_progress,
                 progress_callback=progress_callback,
                 cmb_batch_size=sampling_cmb_batch,
+                delayed_acceptance=sampling_delayed_acceptance,
+                surrogate_config=sampling_surrogate_config,
             )
         console_output.write(
             f"Completed test-model sampling for "

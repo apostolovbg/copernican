@@ -80,6 +80,33 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-17:
+  Change: Implemented an explicit deterministic surrogate and exact
+    delayed-acceptance sampler with attributable correction records.
+  Why: Added mathematically exact stage-two correction, bounded analytic and
+    native fixtures, and compact manifest provenance for the opt-in path.
+  Impact: Preserved seeded scalar sampling as the default while enabling
+    measured exact-call reduction with safe fallback and scientific records.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/run_manifest.md
+  copernican/engines/engine_mcmc.py
+  copernican/engines/surrogate.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_pipeline.py
+  docs/cli_guide.md
+  docs/run_manifest.md
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/engines/test_surrogate.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_run_executor.py
+
+- 2026-08-17:
   Change: Updated current documentation dates and changelog metadata.
   Why: Refreshed touched documentation for the current gate verification
     session.

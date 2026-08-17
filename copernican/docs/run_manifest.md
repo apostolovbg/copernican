@@ -1,6 +1,5 @@
 # Run Manifest
 **Project Version:** 12.0.26
-
 The suite writes a YAML manifest for every evaluation under the run's output
 folder. The file is named `run_manifest_<timestamp>.yml`, where the timestamp
 matches the start-of-run label used by the output directory and per-run log,
@@ -51,6 +50,11 @@ when output directories change.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
  burn-in, production steps, pool/core hints and nested-sampling parameters
  stay tied to the manifest that produced a run.
+- Completed fits add compact sampler provenance under
+  ``provenance.sampling``. Delayed-acceptance runs record their explicit
+  configuration, surrogate cache identity, exact-call and correction counts,
+  support fallbacks, and rejection totals without embedding the full proposal
+  record stream in the manifest.
 - The Git commit hash and whether the tree was dirty.
 - Lifecycle and retention metadata under ``status`` indicating whether outputs
  were prepared, paused, cancelled, aborted or completed and whether artefacts

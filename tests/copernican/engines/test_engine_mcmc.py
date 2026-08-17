@@ -299,6 +299,89 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertGreater(envelope["batch_items"], 0)
         self.assertGreater(envelope["batch_items_per_second"], 0.0)
 
+    def test_delayed_acceptance_is_explicit_and_records_exact_corrections(
+        self,
+    ) -> None:
+        """The opt-in sampler records every exact delayed-acceptance stage."""
+
+        plugin = _build_short_chain_plugin()
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        result = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=3,
+            pool_size=1,
+            burn_in_steps=1,
+            display_progress=False,
+            delayed_acceptance=True,
+            surrogate_config={
+                "min_support": 2,
+                "uncertainty_threshold": 100.0,
+                "proposal_scale": 0.1,
+            },
+        )
+
+        self.assertTrue(result["success"])
+        provenance = result["delayed_acceptance"]
+        self.assertTrue(provenance["enabled"])
+        self.assertGreater(provenance["exact_calls"], 0)
+        self.assertEqual(
+            provenance["proposals"],
+            provenance["accepted"] + provenance["rejected"],
+        )
+        self.assertTrue(provenance["proposal_records"])
+        self.assertTrue(provenance["cache_identity"].startswith("surrogate:"))
+
+    def test_delayed_acceptance_rejects_unknown_configuration(self) -> None:
+        """Unknown approximation settings fail before a chain is started."""
+
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            module.validate_delayed_acceptance_config(
+                {"unknown_setting": True}
+            )
+
+    def test_delayed_acceptance_disabled_preserves_exact_seeded_chain(self):
+        """The disabled mode remains the exact scalar sampler reference."""
+
+        plugin = _build_short_chain_plugin()
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        set_random_seed(73)
+        reference = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=3,
+            pool_size=1,
+            burn_in_steps=1,
+            display_progress=False,
+        )
+        set_random_seed(73)
+        explicit = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=3,
+            pool_size=1,
+            burn_in_steps=1,
+            display_progress=False,
+            delayed_acceptance=False,
+        )
+
+        self.assertTrue(
+            numpy.array_equal(reference["samples"], explicit["samples"])
+        )
+        self.assertTrue(
+            numpy.array_equal(
+                reference["log_probability"], explicit["log_probability"]
+            )
+        )
+        self.assertFalse(explicit["delayed_acceptance"]["enabled"])
+
     def test_legacy_fit_alias_warns_and_runs(self) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(

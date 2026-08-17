@@ -93,6 +93,22 @@ input index, one spectrum or typed failure, performance details, and cache
 provenance. A failed item does not change neighboring results. The contract
 currently adapts the exact scalar executor; the scalar path remains the
 default and the MCMC `cmb_batch_size` setting is disabled at `0`.
+
+### Delayed-acceptance sampling
+
+The MCMC `delayed_acceptance` setting is an explicit opt-in and defaults to
+`false`. It accepts an optional `surrogate_config` mapping with normalized
+parameter support, neighbor count, uncertainty threshold, training-sample
+limit, and proposal scale controls. The deterministic surrogate is trained
+only from exact target evaluations. Unsupported or uncertain candidates are
+sent directly to the exact scalar evaluator; candidates that pass the cheap
+screen receive the exact second-stage delayed-acceptance correction.
+
+Every proposal is recorded as screened, exactly corrected, support-fallback,
+or exact-failure. The result summary and copied run manifest retain the exact
+call count, correction and rejection counters, training-sample identities,
+configuration, and surrogate cache identity. Setting `delayed_acceptance` to
+`false` leaves the seeded exact scalar sampler unchanged.
 ## Utility Commands
 Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:

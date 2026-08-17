@@ -7,6 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import yaml
+
 from copernican.lib import run_executor
 
 
@@ -152,6 +154,100 @@ class TestRunExecutor(unittest.TestCase):
         sampling_plan = pipeline_calls[0]["sampling_plan"]
         self.assertEqual(sampling_plan["engine_kind"], "mcmc")
         self.assertTrue(pipeline_calls[0]["display_progress"])
+
+    def test_execute_run_from_manifest_preserves_delayed_acceptance_settings(
+        self,
+    ) -> None:
+        """Explicit surrogate settings survive manifest execution setup."""
+
+        manifest = self._base_manifest()
+        manifest["configuration"]["run_settings"] = {
+            "engine_kind": "mcmc",
+            "n_steps": 2,
+            "burn_in_steps": 1,
+            "n_walkers": 4,
+            "delayed_acceptance": True,
+            "surrogate_config": {"min_support": 2},
+        }
+        pipeline_calls = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with contextlib.ExitStack() as stack:
+                self._enter_common_patches(stack)
+                stack.enter_context(
+                    mock.patch.object(
+                        run_executor.run_pipeline,
+                        "execute_run_pipeline",
+                        lambda **kwargs: pipeline_calls.append(kwargs),
+                    )
+                )
+                run_executor._PLUGIN_CACHE.clear()
+                run_executor.execute_run_from_manifest(
+                    manifest,
+                    script_dir=Path("."),
+                    output_root=Path(tmpdir),
+                )
+
+        settings = pipeline_calls[0]["sampling_plan"]
+        self.assertTrue(settings["delayed_acceptance"])
+        self.assertEqual(settings["surrogate_config"]["min_support"], 2)
+
+    def test_execute_run_from_manifest_persists_sampling_provenance(
+        self,
+    ) -> None:
+        """Fit counters and cache identity are copied into the manifest."""
+
+        manifest = self._base_manifest()
+        manifest["configuration"]["run_settings"] = {
+            "engine_kind": "mcmc",
+            "n_steps": 2,
+            "burn_in_steps": 1,
+            "n_walkers": 4,
+            "delayed_acceptance": True,
+        }
+        fake_results = (
+            {
+                "delayed_acceptance": {
+                    "enabled": True,
+                    "cache_identity": "surrogate:test",
+                    "exact_calls": 12,
+                    "proposal_records": [{"stage": "exact_correction"}],
+                },
+                "ensemble_performance": {"elapsed_seconds": 1.25},
+            },
+            {
+                "delayed_acceptance": {"enabled": False},
+                "ensemble_performance": {"elapsed_seconds": 1.0},
+            },
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with contextlib.ExitStack() as stack:
+                self._enter_common_patches(stack)
+                stack.enter_context(
+                    mock.patch.object(
+                        run_executor.run_pipeline,
+                        "execute_run_pipeline",
+                        lambda **kwargs: fake_results,
+                    )
+                )
+                run_executor._PLUGIN_CACHE.clear()
+                run_executor.execute_run_from_manifest(
+                    manifest,
+                    script_dir=Path("."),
+                    output_root=Path(tmpdir),
+                )
+            manifest_files = list(Path(tmpdir).glob("run_manifest_*.yml"))
+            self.assertEqual(len(manifest_files), 1)
+            saved = yaml.safe_load(manifest_files[0].read_text())
+
+        sampling = saved["provenance"]["sampling"]
+        self.assertEqual(
+            sampling["control"]["delayed_acceptance"]["cache_identity"],
+            "surrogate:test",
+        )
+        self.assertNotIn(
+            "proposal_records",
+            sampling["control"]["delayed_acceptance"],
+        )
 
     def test_execute_run_from_manifest_accepts_external_yaml_model(
         self,

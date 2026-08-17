@@ -115,6 +115,13 @@ scalar-to-batch adapter, so parameter-dependent state remains isolated while
 shared-structure and vectorized kernels are validated independently.
 The MCMC engine exposes `cmb_batch_size` as an explicit opt-in setting;
 the default `0` keeps the exact scalar sampler and fallback path unchanged.
+The separate `delayed_acceptance` setting is disabled by default. When enabled
+explicitly, a deterministic normalized-parameter surrogate screens proposals,
+forces exact evaluation outside its support, and applies an exact second-stage
+correction to every proposal that survives the screen. Proposal decisions,
+exact-call counts, support fallbacks, correction counters, and the surrogate
+cache identity are retained in the result and run manifest; no surrogate value
+is ever recorded as an exact native likelihood.
 Sampler progress also reports worker-pool launch and walker initialization
 as explicit phases, including elapsed time, measured rate, remaining work, and
 ETA in both CLI output and GUI progress snapshots. Burn-in and production

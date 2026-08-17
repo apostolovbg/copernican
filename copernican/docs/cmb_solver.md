@@ -34,6 +34,22 @@ default and preserves the scalar reference path. A value greater than one
 uses bounded ordered worker batches while retaining the scalar fallback for
 serial execution and any unsupported batch capability.
 
+## Delayed-acceptance boundary
+
+The separate MCMC `delayed_acceptance` setting is disabled by default. When
+enabled, the deterministic normalized-parameter surrogate is trained only
+from exact native target evaluations. A candidate outside the declared domain
+or without sufficient local support is evaluated exactly. A candidate that
+passes the surrogate screen is also evaluated exactly and accepted only after
+the mathematically required second-stage correction for the same proposal
+density. Surrogate predictions are never promoted to exact native spectra or
+likelihoods.
+
+The sampler records each proposal stage, exact-call count, support fallback,
+exact correction, rejection, training-sample identity, configuration, and
+surrogate cache identity in result and manifest provenance. Disabling the
+setting preserves the seeded exact scalar chain and its cache behavior.
+
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
 dimensionless perturbations are Fourier amplitudes in the same plane-wave
