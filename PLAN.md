@@ -18,716 +18,433 @@ Use `PLAN.md` to track active implementation work below this block.
 > repository gate workflow. Each slice has independent implementation,
 > correctness, scientific, and performance acceptance evidence.
 
-**Goal:** Reduce native CMB MCMC runtime while preserving the exact scalar
-sampler as the scientific reference and adding only validated acceleration
-paths.
+**Goal:** Establish a clean exact solver and sampler architecture.
 
-**Architecture:** The exact scalar native CMB path remains the default and
-reference implementation. First remove observable runtime overhead and make
-measurements trustworthy. Then add an ordered batch/vectorized evaluation
-contract. Finally add an explicit opt-in surrogate/delayed-acceptance path
-whose second-stage exact evaluation preserves the target distribution.
+**Architecture:** Copernican exposes independent sampler and CMB-solver
+contracts. The current MCMC and nested implementations become sampler
+backends, and the current declared-graph numerical path becomes CCMBS
+(Copernican Cosmic Microwave Background Solver). Both samplers consume the
+same injected CMB solver and likelihood contracts; a later plan may add
+CCMBS-Taichi and a Taichi sampler without changing those public boundaries.
 
-**Tech Stack:** Python 3.11, NumPy, SciPy, emcee, multiprocessing, Tk, native
-declared-graph CMB execution, focused unittest suites, and DevCovenant.
+**Tech Stack:** Python 3.11, NumPy, SciPy, emcee, multiprocessing, Tk,
+declared-graph CMB execution, focused unittest suites, and DevCovenant. This
+plan does not add Taichi or require a GPU; it makes the interfaces and
+provenance Taichi-ready.
 
 ## Global Constraints
 
-* Do not change branches, create branches, or alter the repository workflow.
-* Keep the native declared-graph solver as the only production CMB backend.
-* Keep the exact scalar sampler as the default and the reference path.
-* Do not broaden parameter-dependent cache keys across unequal parameter
-  points.
-* Do not lower a declared accuracy tier or physical resolution to manufacture
-  a timing result.
+* Do not change branches, create branches, or alter repository workflow.
+* Remove surrogate and delayed-acceptance production behavior completely.
+* Keep exact scalar evaluation as the scientific reference and default.
+* Keep the current NumPy/SciPy declared-graph implementation numerically
+  unchanged except where dependency injection or naming requires movement.
 * Do not introduce a production CAMB or CLASS fallback.
-* Batch evaluation must preserve input ordering and per-item diagnostics.
-* A failed batch item must not corrupt or hide the result of another item.
-* Surrogate and delayed-acceptance execution must be explicit opt-in.
-* A surrogate may reject a proposal cheaply only when the exact correction
-  remains mathematically valid.
-* Correctness and scientific validation are separate acceptance surfaces from
-  performance measurement.
-* The `copernican.validation` package and its full-corpus workload are not an
-  acceptance dependency for these slices.
-* Use bounded focused tests and scientific reference fixtures; do not impose
-  an unmeetable full-run wall-clock gate on this host.
-* Record hardware, process count, numerical threads, model, dataset, seed,
-  cache state, requested spectra, and phase timings for every benchmark.
-* Preserve root and package documentation synchronization when user-facing
-  behavior changes.
-* Update code, tests, comments, docstrings, documentation, and changelog in
-  the same slice when their contracts change.
-* Stage all changes after each completed slice.
-* Do not commit or push unless explicitly instructed.
+* Both MCMC and nested sampling must evaluate CMB likelihoods through the
+  selected solver contract.
+* CCMBS is the default solver identity for the current reference backend.
+* Solver selection and sampler selection are independent manifest choices.
+* Batch evaluation must preserve input ordering, per-item diagnostics, typed
+  failures, and parameter-dependent cache isolation.
+* Do not broaden parameter-dependent cache keys across unequal parameter
+  points or lower numerical accuracy to manufacture performance evidence.
+* Do not add Taichi as a dependency in this plan. A later plan owns the
+  Taichi implementation, device matrix, and GPU acceptance evidence.
+* Treat Vulkan as the first AMD-capable Taichi target; never assume CUDA is
+  available on an AMD device.
+* Internal identifiers, module stems, manifest keys, and repository paths must
+  not use the legacy `engine` or `cosmo` prefixes after migration.
+* Scientific prose may use “cosmology” and “cosmological”.
+  Filenames may retain source names only with explicit provenance.
+* Forward-only compatibility applies: do not leave hidden aliases, legacy
+  readers, or silent translation paths behind after migration.
+* Full `copernican.validation` workloads are not acceptance dependencies.
+  Use bounded focused tests and fixed scientific reference fixtures.
+* Preserve root/package documentation synchronization and update changelog,
+  comments, docstrings, tests, and generated mirrors in the same slice.
+* Stage all changes after each completed slice. Do not commit or push unless
+  explicitly instructed.
 
 ## Table of Contents
 
 * [Overview](#overview)
-* [Problem Preamble](#problem-preamble)
-* [Baseline and Measurement Contract](#baseline-and-measurement-contract)
-* [Scientific Safety Contract](#scientific-safety-contract)
+* [Current State and Decisions](#current-state-and-decisions)
+* [Target Architecture](#target-architecture)
+* [Naming and Migration Contract](#naming-and-migration-contract)
+* [Scientific and Performance Contract](#scientific-and-performance-contract)
 * [Execution Rules](#execution-rules)
 * [Execution Slices](#execution-slices)
 * [Completion Standard](#completion-standard)
 
 ## Overview
 
-This plan replaces the previous open-ended performance work with three
-numbered slices. The slices are intentionally the smallest safe decomposition
-that keeps the two algorithmic changes independently reviewable:
+This plan deliberately has two slices, the minimum useful decomposition for a
+cross-cutting migration of terminology and runtime boundaries:
 
-* Slice Thirteen establishes trustworthy measurements and applies
-  behavior-preserving runtime optimizations.
-* Slice Fourteen introduces batch/vectorized native evaluation and validates
-  it independently against scalar execution and scientific references.
-* Slice Fifteen introduces an opt-in surrogate/delayed-acceptance sampler and
-  validates its mathematical and scientific behavior independently.
+* Slice One removes the discarded approximation path and migrates all sampler
+  terminology, public configuration, manifests, discovery, tests, and docs.
+* Slice Two introduces the selectable CCMBS solver contract and routes both
+  current samplers through it while preserving the exact reference behavior.
 
-The slices must remain separate even though they share benchmark fixtures.
-Batch evaluation changes execution structure. Delayed acceptance changes the
-proposal decision process. Combining them would make numerical regressions,
-posterior bias, and performance changes impossible to attribute cleanly.
+The later Taichi plan starts only after these two slices are closed. It will
+add a Taichi sampler and CCMBS-Taichi implementation behind the contracts
+defined here. It must not reopen the naming migration or redesign manifest
+selection while implementing GPU kernels.
 
-The plan does not require a full production MCMC run on this development
-machine. It requires bounded, reproducible workloads that measure the same
-phases and compare the same scientific outputs. A host-qualified end-to-end
-run may be recorded separately when suitable hardware is available.
+## Current State and Decisions
 
-The target condition is:
+The current runtime has two sampling modules under
+`copernican/engines/`: an ensemble MCMC implementation and a nested-sampling
+implementation. Both already construct joint SNe, BAO, and CMB likelihoods,
+but their public names, discovery metadata, configuration fields, and
+documentation describe them as engines. The shared adapter is also named as
+an engine adapter even though it primarily builds model contracts.
 
-* Progress logs and GUI telemetry report completed MCMC steps, walker work,
-  elapsed time, throughput, and ETA using consistent counters.
-* GUI rendering and progress persistence do not materially contend with the
-  native worker pool.
-* Worker startup and proposal scheduling avoid avoidable discovery and
-  straggler overhead.
-* Scalar and batch native CMB evaluation produce equivalent spectra,
-  likelihoods, diagnostics, and failure classifications.
-* The batch path reuses only parameter-independent structure and preserves
-  parameter-dependent isolation.
-* The exact scalar sampler remains available as a switchable reference for
-  every model and dataset.
-* The delayed-acceptance path is exact in distribution when enabled, rejects
-  uncertain surrogate predictions safely, and records every exact correction.
-* Performance improvements are reported with phase-level evidence rather than
-  misleading cumulative rates or unqualified wall-clock claims.
+The current CMB path is a declared-graph NumPy/SciPy implementation reached
+through `copernican/lib/likelihoods/cmb/cmb.py` and
+`copernican_cmb_solver.py`. Its identity is hard-coded as the native CMB
+engine in manifests and GUI text. The migration gives this implementation a
+stable CCMBS identity and moves solver selection to an explicit registry.
 
-## Problem Preamble
+The surrogate and delayed-acceptance path is not part of the target
+architecture. It approximates the full joint posterior, changes the sampler
+algorithm, and introduces a separate scientific validation burden. Remove its
+configuration, code, provenance, tests, documentation, and plan references;
+do not replace it with a no-op alias.
 
-The current live-run evidence identifies four separate costs.
+The exact scalar sampler, exact CMB spectra, likelihood ordering, native
+failure taxonomy, cache identities, and declared numerical envelope remain
+the comparison authority. A short run can prove workflow plumbing, but not
+posterior convergence or scientific validity.
 
-### Misleading progress accounting
+## Target Architecture
 
-`copernican/engines/engine_mcmc.py` reports each MCMC iteration with the
-walker count as both `processed` and `total`. `BatchProgressBar` then divides
-that constant count by cumulative stage time. The displayed rate therefore
-falls by construction, and the displayed ETA is zero even when the stage has
-many iterations remaining.
+### Sampler package
 
-This is an observability defect, not a solver optimization. It must be fixed
-before timing comparisons are trusted.
+The canonical package is `copernican/samplers/`. The current modules migrate
+as follows:
 
-### GUI and progress contention
+* `engine_mcmc.py` becomes `sampler_mcmc.py`.
+* `engine_nested.py` becomes `sampler_nested.py`.
+* `ENGINE_KIND`, `ENGINE_LABEL`, `ENGINE_VERSION`, `ENGINE_SETTINGS`, and
+  `ENGINE_PROGRESS_CHUNKS` become `SAMPLER_KIND`, `SAMPLER_LABEL`,
+  `SAMPLER_VERSION`, `SAMPLER_SETTINGS`, and `SAMPLER_PROGRESS_CHUNKS`.
+* `fit_cosmology_parameters` becomes the canonical `sample_parameters`
+  callable in both sampler modules.
+* `fit_sne_parameters`, `resolve_fit_function`, and related compatibility
+  names are removed rather than retained as legacy aliases.
 
-The GUI polls the progress file every 0.5 seconds and schedules monitor and
-validation redraws for each changed record. A second periodic refresh also
-runs at the same cadence. Monitor refreshes rewrite the entire visible log
-tail, causing Tk text and label rendering to compete with native CMB workers.
-Progress persistence also flushes and fsyncs every update.
+The sampler resolver accepts one canonical callable and one capability
+descriptor. A sampler receives model plugins, datasets, a selected CMB
+solver, sampling settings, a seed, and progress callbacks. It returns the
+existing result shape with sampler-neutral parameter and diagnostic names.
+The two samplers may differ internally, but neither may import a concrete
+CCMBS implementation directly.
 
-The GUI must remain responsive, but it must not redraw or sync more often than
-the operator-visible state requires.
+### Model adapter package
 
-### Worker scheduling and startup overhead
+`copernican/lib/engine_adapter.py` is renamed to a model-oriented adapter,
+with `EnginePlugin` and `engine_plugin_validation` renamed accordingly. This
+adapter owns model metadata, priors, distance functions, and the immutable
+declared CMB contract; it is not a sampler and must not retain sampler
+terminology.
 
-The MCMC engine uses a spawned pool. Worker initialization repeats dataset
-discovery, and the main emcee path uses ordered pool mapping with default
-chunking. Red-blue proposal waves contain expensive, variable-duration CMB
-evaluations, so default chunks can leave workers idle behind a straggler.
+`copernican/lib/engine_capabilities.py` becomes sampler capabilities. Its
+public types and resolver names use `SamplerSetting`,
+`SamplerProgressChunk`, `SamplerCapabilities`, and
+`get_sampler_capabilities`.
 
-These changes are behavior-preserving and belong in the first slice.
+### CCMBS solver contract
 
-### Cold parameter-dependent CMB work
+Introduce a solver protocol and registry under the CMB likelihood package.
+The protocol must expose:
 
-The native runtime plan and structural graph assets are reusable per worker,
-but continuous MCMC proposals rarely hit exact spectrum, transfer, or
-background cache keys. Each unique proposal can rebuild recombination,
-reionization calibration, perturbation evolution, and line-of-sight
-projection for the requested spectra.
+* a stable solver identifier and human label;
+* scalar spectrum evaluation from a prepared model contract;
+* ordered batch evaluation with one typed result per input;
+* capability metadata for supported spectra, grids, accuracy tiers, and
+  execution backends;
+* cache and phase-timing provenance;
+* typed domain, convergence, non-finite, and performance failures;
+* a preparation hook for immutable structural assets and a cleanup hook for
+  device or worker resources.
 
-Batch evaluation and delayed acceptance may reduce repeated work, but neither
-may reuse unequal parameter-dependent state without an explicit numerical
-error contract. This is why both algorithmic paths require their own
-correctness and scientific validation surfaces.
+The current implementation becomes the reference CCMBS backend. Use a stable
+identity such as `ccmbs_numpy` internally and the user-facing label
+`CCMBS — Copernican Cosmic Microwave Background Solver`. The public solver
+name is CCMBS; “NumPy/SciPy reference backend” describes its
+implementation, not a second scientific model.
 
-## Baseline and Measurement Contract
+`cmb.py`, likelihood classes, posterior construction, and both samplers must
+receive a solver object or registry-resolved solver. The default resolver
+returns CCMBS, so existing callers retain exact behavior when no solver is
+declared. A manifest may select a registered solver explicitly, and the
+resolved solver identity must be written to run and result provenance.
 
-Every slice uses the same baseline identity and records it in its evidence.
+The later Taichi implementation will register beside the reference backend,
+for example as `ccmbs_taichi`. It must consume the same prepared contract and
+return the same public result and failure shapes. No Taichi code belongs in
+this plan.
 
-### Exact reference path
+### Selection and execution flow
 
-The reference path is:
+The manifest uses independent selections:
 
-* `copernican/engines/engine_mcmc.py`;
-* `copernican/lib/likelihoods/cmb/cmb.py`;
-* the native declared-graph solver and its existing cache identities;
-* the selected model and datasets from the confirmed manifest;
-* scalar, one-contract-at-a-time likelihood evaluation;
-* no surrogate, delayed acceptance, or approximate cache reuse.
+```yaml
+selection:
+  sampler:
+    name: copernican.samplers.sampler_mcmc
+  cmb_solver:
+    id: ccmbs_numpy
+```
 
-The reference path remains the default when no new execution mode is declared.
+The run configuration, GUI builder, CLI confirmation, executor, pipeline,
+result writer, and run manifest all use `sampler` and `cmb_solver`. The
+pipeline resolves both before constructing the control and test posterior,
+then passes the same solver contract to MCMC or nested sampling. A solver is
+not selected implicitly from the sampler, and a sampler is not selected from
+the CMB model.
 
-### Bounded runtime fixtures
+For a future GPU backend, the solver owns one device context per process and
+offers batched exact evaluation. The MCMC ensemble wave is the natural batch
+boundary. Nested sampling remains sequential in its evidence update, but its
+candidate likelihood calls use the same scalar/batch contract when batching is
+safe. The plan must not create one GPU context per multiprocessing worker.
 
-Use existing focused tests and fixtures wherever possible. The benchmark
-matrix must include:
+## Naming and Migration Contract
 
-* one cold native CMB spectrum request;
-* one repeated exact request;
-* one changed-parameter request with the same structural contract;
-* one bounded MCMC step over the current walker shape;
-* one bounded walker-initialization phase;
-* one headless worker run and one GUI-worker smoke run;
-* one representative LCDM reference point and one non-LCDM reference point;
-* all requested spectra used by the selected CMB dataset.
+### Legacy sampler vocabulary
 
-The current production-style controls may be used for identity, but a local
-benchmark must not require the entire multi-hour chain to complete. Every
-measurement must state whether it is cold, warm, exact-cache, scalar, batch,
-surrogate, or delayed-acceptance execution.
+Replace all repository-owned uses of the following names in code, tests,
+manifests, generated output, docs, comments, and GUI text:
 
-### Required evidence fields
+* `engines/`, `engine_mcmc`, `engine_nested`, and `engine_*.py` discovery;
+* `EnginePlugin`, `EngineSetting`, `EngineCapabilities`, and
+  `get_engine_capabilities`;
+* `engine`, `engine_kind`, `engine_module`, and `ENGINE_*` configuration keys;
+* “sampler engine”, “CMB engine”, and “native engine” labels.
 
-Each timing record must include:
+The canonical user-facing terms are “sampler”, “CMB solver”, and
+“CCMBS”.
+Tests must assert the new manifest and provenance keys rather than accepting
+both old and new shapes.
 
-* model manifest identity and manifest hash;
-* dataset identifiers and dataset hashes;
-* sampler, seed, active parameter names, walker count, and pool size;
-* Python, NumPy, SciPy, emcee, and operating-system versions;
-* CPU count and numerical-thread environment;
-* requested spectra, observed multipoles, k-grid, eta-grid, and accuracy tier;
-* cold/warm/cache state and cache hit/miss counts;
-* compilation, background, evolution, source, projection, likelihood, and
-  serialization phase durations when available;
-* scalar or batch item count and per-item status;
-* GUI enabled or headless execution mode.
+### CMB solver vocabulary
 
-No speed claim is accepted from an elapsed-time number without this context.
+Replace `NATIVE_CMB_ENGINE_ID`, `NATIVE_CMB_ENGINE_LABEL`, and related
+hard-coded strings with CCMBS identifiers and labels. Rename
+`copernican_cmb_solver.py` to a CCMBS-named module, update imports and public
+exports, and keep the mathematical implementation unchanged in the first
+slice that touches it. The solver registry owns selection; the likelihood
+entrypoint no longer claims that CCMBS is the only possible solver.
 
-## Scientific Safety Contract
+### `cosmo` prefix cleanup
 
-The exact scalar result is the comparison authority.
+Inventory every `cosmo`-prefixed Python identifier, module stem, internal
+manifest key, and repository-owned path. Rename parser modules to a neutral
+dataset parser convention, rename parameter variables and result fields to
+`model` or `parameter` terminology, and update discovery and all references.
 
-### Numerical equivalence
+Do not mechanically rename scientific prose containing “cosmology” or
+“cosmological”. Do not silently rename immutable upstream data artifacts:
+either preserve their source filenames in a documented allowlist or create a
+repository-owned neutral alias while retaining the original filename and
+hash in provenance. The final stale-name scan must report every exception.
 
-For every new execution mode, compare scalar and accelerated outputs at the
-same parameter points. Reuse the solver's existing absolute and relative
-tolerances; do not introduce looser tolerances solely for the new path.
-Compare:
+### Approximation removal
 
-* every requested CMB spectrum and its multipole support;
-* finite values, shape, ordering, and spectrum availability metadata;
-* background and perturbation diagnostics;
-* native failure type, phase, and parameter attribution;
-* likelihood and chi-squared values;
-* cache identity and provenance fields.
+Remove `copernican/engines/surrogate.py`, the delayed-acceptance branches and
+arguments in sampler and pipeline APIs, surrogate configuration validation,
+manifest/result provenance fields, GUI controls, and all surrogate tests and
+docs. Remove the corresponding plan slice and acceptance claims. A manifest
+that still requests delayed acceptance must fail as an unsupported setting;
+the runtime must not silently ignore it or reinterpret it as exact sampling.
 
-### Scientific validation
+## Scientific and Performance Contract
 
-Correctness validation checks API behavior and numerical equivalence.
-Scientific validation separately checks that the accelerated path preserves
-the observables and inferences used by the project. It must include:
+The exact CCMBS scalar result is authoritative for every comparison. Fixed
+point spectra must preserve requested names, multipole ordering, sectors,
+lensed/unlensed distinctions, diagnostics, and typed failures. Likelihoods,
+priors, constraints, cache identities, and result serialization must remain
+unchanged after sampler and solver injection.
 
-* representative LCDM and non-LCDM models;
-* TT, TE, and EE where available, plus every additional declared observable;
-* finite and parameter-responsive spectra;
-* peak and trough locations at the sampled multipoles;
-* residuals against the exact native scalar reference;
-* chi-squared and derived distance or acoustic observables;
-* short independent chains with posterior summary and convergence
-  comparisons when a sampler path changes proposal decisions;
-* exact-call count, acceptance, and effective-sample-size evidence for any
-  performance claim.
+Every bounded benchmark records model and dataset identity, seed, sampler,
+solver, requested spectra, numerical grids, accuracy tier, cache state,
+process/thread settings, phase timings, scalar/batch item counts, and
+GUI/headless mode. A faster elapsed number without this context is not
+accepted. Full `copernican.validation` workloads are not an acceptance
+dependency.
 
-These checks are bounded focused scientific fixtures. They are not a request
-to run the long `copernican.validation` corpus as a hidden acceptance gate.
-
-### Failure and fallback behavior
-
-The scalar path must remain available when an accelerated mode is disabled,
-unsupported, uncertain, or diagnostically invalid. A surrogate prediction
-must never be silently promoted to an exact result. A batch item must carry
-its own typed failure without changing the classification of neighboring
-items. A delayed-acceptance stage must perform the exact second-stage test
-whenever the surrogate stage accepts a candidate.
+The later Taichi plan must independently demonstrate Vulkan/AMD device
+availability, kernel correctness, CPU/reference parity, precision, and
+throughput. This plan only defines the array, preparation, capability, and
+diagnostic seams needed for that implementation.
 
 ## Execution Rules
 
-* Execute Slices Thirteen, Fourteen, and Fifteen strictly in order.
-* Do not begin an algorithmic slice until the preceding slice's exact-output
-  baseline and acceptance record are complete.
-* Keep exact scalar execution as the default throughout the roadmap.
-* Keep batch and delayed-acceptance modes behind explicit configuration until
-  their separate acceptance records are complete.
-* Reproduce each defect with a bounded focused test before changing behavior.
-* Stop a focused test that exceeds 180 seconds and repair or narrow the
-  fixture before rerunning it.
-* Do not use a full validation-suite run as a substitute for the acceptance
-  matrix defined here.
-* Preserve all existing native CMB, scalar-constraint, capability, and model
-  corpus tests relevant to the touched code.
-* Update user-facing documentation for observable CLI, GUI, sampler, or
-  output changes.
-* Update `CHANGELOG.md` for every completed slice and record only touched
-  paths in its Files block.
-* Stage all changes after each completed slice.
-* Run `source .venv/bin/activate && python -m devcovenant gate --verify`
-  before the operator-owned workflow run.
-* Stop at a green gate verification for the operator-owned `devcovenant run`
-  and `gate --close` unless explicitly directed otherwise.
+1. Open a DevCovenant gate before edits and clear all gate complaints.
+2. Work from the active `.venv` for policy commands and focused tests.
+3. Complete the slices in order; do not start Slice Two if Slice One's
+   naming and approximation-removal acceptance is incomplete.
+4. Update implementation, tests, docs, comments, docstrings, manifests,
+   mirrors, and changelog together whenever a contract changes.
+5. Use bounded focused tests and exact scientific fixtures; do not run the
+   full validation workload as a substitute for acceptance.
+6. Stage all changes at the end of each slice.
+7. Run `source .venv/bin/activate && python -m devcovenant gate --verify`
+   on the staged revision before reporting the slice complete.
+8. Do not run `devcovenant run`, commit, or push unless explicitly requested
+   for that turn.
 
 Task markers mean:
 
-* `[open]` identifies active roadmap work.
+* `[planned]` identifies work to be executed in a future gate.
 * `[closed]` identifies work completed in substance and acceptance evidence.
 
 ## Execution Slices
 
-### [closed] Slice Thirteen - Baseline and safe acceleration
+### [planned] Slice One — Sampler vocabulary and exact-path cleanup
 
-**Purpose:** Make performance evidence truthful and remove behavior-preserving
-overhead from progress reporting, GUI rendering, worker startup, and proposal
-scheduling.
+**Purpose:** Remove the discarded surrogate path and migrate all public and
+internal sampler terminology without changing exact numerical behavior.
 
-**Depends on:** Existing exact scalar native CMB and MCMC paths.
+**Files and surfaces:**
 
-**Probable affected files:**
+* rename `copernican/engines/` and its MCMC/nested modules;
+* rename sampler capability, model-adapter, configuration, manifest,
+  executor, pipeline, workflow, GUI, CLI, and result-writer symbols;
+* migrate sampler tests and discovery fixtures;
+* remove `surrogate.py`, delayed-acceptance branches, settings, aliases,
+  provenance, tests, docs, and generated references;
+* inventory and rename internal `cosmo` prefixes with documented source-file
+  exceptions;
+* update `README.md`, `copernican/README.md`, package/repository docs,
+  `SPEC.md`, manifests, mirrors, and `CHANGELOG.md`.
 
-* `copernican/engines/engine_mcmc.py`
-* `copernican/lib/progress.py`
-* `copernican/lib/progress_state.py`
-* `copernican/lib/gui/app.py`
-* `copernican/workflow.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
-* `tests/copernican/lib/test_progress.py`
-* `tests/copernican/lib/test_progress_state.py`
-* `tests/copernican/lib/gui/test_app.py`
-* `tests/copernican/lib/gui/test_run_worker.py`
-* `tests/copernican/lib/test_workflow.py`
-* `docs/cli_guide.md`
-* `docs/gui_guide.md`
-* `docs/gui_overview.md`
-* `copernican/docs/cli_guide.md`
-* `copernican/docs/gui_guide.md`
-* `copernican/docs/gui_overview.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
+**Implementation tasks:**
 
-**Interfaces and invariants:**
+1. Build a complete old-to-new symbol, path, manifest-key, and documentation
+   inventory before moving files; record immutable source-name exceptions.
+2. Move sampler modules and tests, replace discovery and imports, and expose
+   only `SAMPLER_*` metadata plus `sample_parameters`.
+3. Rename model adapter and sampler capability types so no sampler contract
+   depends on an `Engine*` class or `engine_*` module.
+4. Remove delayed-acceptance and surrogate arguments from every public call
+   path, reject stale requests explicitly, and delete the approximation
+   implementation and its tests.
+5. Rename run configuration and manifest selection fields from `engine` to
+   `sampler`, update GUI/CLI labels, and rewrite result provenance.
+6. Rename internal `cosmo` prefixes, update parser discovery and dataset
+   references, and preserve source-artifact hashes for allowlisted names.
+7. Run focused sampler, manifest, GUI, dataset discovery, and exact seeded
+   chain tests; run a stale-name scan with only the documented exceptions.
 
-* MCMC stage progress reports completed sampler iterations separately from
-  walker evaluations.
-* Walker initialization continues to report completed walker evaluations.
-* Progress JSON, CLI text, and GUI labels derive from the same counters.
-* A progress update may be coalesced for display but must not reorder or lose
-  the final stage state.
-* GUI refresh work is coalesced onto the Tk thread and does not rewrite an
-  unchanged log tail.
-* Pool mapping preserves result order and exception semantics.
-* Worker startup does not rediscover immutable datasets once per proposal.
+**Acceptance:**
 
-**Tasks:**
+* No production import, setting, manifest field, GUI control, or provenance
+  record supports surrogate or delayed acceptance.
+* MCMC and nested modules are discoverable as samplers and expose the same
+  canonical callable shape.
+* Existing exact scalar fixtures produce the same samples, likelihoods,
+  spectra, failures, and serialization values under the renamed API.
+* No legacy engine alias or silent `cosmo` compatibility path remains.
+* The stale-name scan is empty except for explicitly documented upstream
+  source filenames and ordinary scientific prose.
 
-1. Add focused regression tests that distinguish MCMC iteration progress from
-   walker progress, including elapsed, rate, remaining work, and ETA.
-2. Change `_run_stage_with_progress` to pass iteration totals for burn-in and
-   production stages while retaining walker totals for initialization.
-3. Verify progress listeners and `gui_progress_*.json` expose consistent
-   `step_index`, `step_total`, `walker_processed`, `walker_total`, elapsed,
-   rate, and ETA fields.
-4. Add tests for repeated identical progress snapshots and prove that the GUI
-   does not schedule redundant redraw work for unchanged state.
-5. Coalesce monitor and validation refresh callbacks while retaining the
-   operator-visible stage, status, controls, and final log tail.
-6. Update the monitor log widget incrementally or only when its visible tail
-   changes; preserve tail locking, scrolling, and severity rendering.
-7. Keep progress-file persistence atomic and verify that bounded update
-   frequency does not lose the final `batch_finish` record.
-8. Separate worker-pool proposal mapping from initialization mapping and
-   benchmark ordered `chunksize=1` scheduling against the current mapping.
-9. Keep the scheduling variant only if it preserves ordered results,
-   exception propagation, seeded scalar likelihoods, and improves the
-   bounded proposal benchmark.
-10. Remove repeated dataset discovery from worker hot paths without changing
-    dataset identity, hashes, or parser ownership.
-11. Run the bounded scalar, MCMC, CLI, and GUI-worker fixtures in headless and
-    rendered modes and record the required evidence fields.
-12. Update CLI and GUI documentation to describe truthful progress fields and
-    the distinction between initialization, burn-in, and production.
+### [planned] Slice Two — CCMBS registry and solver-injected samplers
 
-**Correctness acceptance:**
+**Purpose:** Make the current exact CMB implementation a selectable CCMBS
+solver and route both samplers through a Taichi-ready solver contract.
 
-* Existing scalar spectra, likelihoods, failures, seeds, and sampler state
-  remain unchanged within current tolerances.
-* Progress tests show iteration counts and walker counts in their correct
-  fields, with nonzero remaining work before stage completion.
-* GUI tests prove no duplicate canonical log records and no lost final state.
-* Worker startup still loads each selected dataset with the same hash and
-  parser result.
-* Ordered pool results and typed failures match the pre-change behavior.
+**Files and surfaces:**
 
-**Performance acceptance:**
+* create the CMB solver protocol, capability descriptor, registry, and
+  selection validation;
+* rename and adapt the current declared-graph implementation as the CCMBS
+  NumPy/SciPy reference backend;
+* update `cmb.py`, CMB likelihoods, posterior construction, sampler modules,
+  run configuration, manifest, executor, pipeline, GUI, and result writer;
+* add scalar/batch solver contract tests, solver-selection tests, and paired
+  MCMC/nested CMB fixtures;
+* update solver documentation, package/repository README mirrors, and the
+  changelog.
 
-* The benchmark record includes phase timings and CPU/process evidence.
-* The progress rate is a measured rate for completed work rather than
-  `constant_count / cumulative_elapsed`.
-* GUI rendering and progress persistence no longer dominate the sampled
-  worker interval in the rendered benchmark.
-* The selected pool scheduling change improves median or p95 proposal time;
-  an ineffective variant is removed rather than recorded as an optimization.
-* No local full-chain wall-clock claim is required.
-
-**Done when:**
-
-* All focused tests pass with the exact scalar native path selected.
-* Headless and GUI-worker evidence are present and explain their overhead.
-* The progress log no longer reports impossible `32/32 steps` updates at
-  partial stage percentages.
-* The measured safe optimizations are staged and the slice is marked closed.
-
-### [closed] Slice Fourteen - Batch and vectorized native evaluation
-
-**Purpose:** Add an ordered batch evaluation contract that reuses safe static
-structure and vectorizes parameter-independent numerical work without
-changing the exact scalar scientific result.
-
-**Depends on:** Slice Thirteen and its scalar baseline evidence.
-
-**Probable affected files:**
-
-* `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/likelihoods/cmb/copernican_cmb_solver.py`
-* `copernican/lib/likelihoods/cmb/native_background.py`
-* `copernican/lib/likelihoods/cmb/native_evolution.py`
-* `copernican/lib/likelihoods/cmb/native_projection.py`
-* `copernican/lib/likelihoods/cmb/native_cache.py`
-* `copernican/engines/engine_mcmc.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_background.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_evolution.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_projection.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_cache.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
-* `tests/copernican/lib/test_engine_adapter.py`
-* `docs/cmb_solver.md`
-* `copernican/docs/cmb_solver.md`
-* `docs/cli_guide.md`
-* `copernican/docs/cli_guide.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-**Batch contract:**
-
-Add a native batch entry point with the following contract:
+**Required interfaces:**
 
 ```python
-compute_cmb_spectrum_batch(
-    contracts: Sequence[Mapping[str, Any]],
-    ells: Iterable[int],
-    *,
-    background_provider: Any | None = None,
-    requested_spectra: Iterable[str] | None = None,
-) -> tuple[NativeCMBBatchResult, ...]
+class CMBSolverProtocol(Protocol):
+    solver_id: str
+    solver_label: str
+
+    def capabilities(self) -> Mapping[str, object]: ...
+    def prepare(self, contract: Mapping[str, object]) -> object: ...
+    def evaluate(
+        self, prepared: object, ells: Sequence[int], *,
+        spectra: Sequence[str], workload: str,
+    ) -> CMBResult: ...
+    def evaluate_batch(
+        self, prepared: Sequence[object], ells: Sequence[int], *,
+        spectra: Sequence[str], workload: str,
+    ) -> tuple[CMBResult, ...]: ...
 ```
 
-Each `NativeCMBBatchResult` contains the input index, either one native
-spectrum result or one typed failure, the performance envelope, and cache
-provenance. Results are returned in input order regardless of worker
-completion order. A single-item batch must be numerically equivalent to the
-existing scalar call.
+The exact result type carries spectra, requested ordering, diagnostics, cache
+provenance, phase timings, and a typed failure when evaluation is unsuccessful.
+The reference solver may implement `evaluate_batch` by ordered scalar
+adaptation, but it must satisfy the same isolation contract a future Taichi
+backend will use.
 
-**Interfaces and invariants:**
+**Implementation tasks:**
 
-* Structural graph assets, fixed grids, and projection kernels are shared
-  only when their complete structural identity matches.
-* Background, perturbation, source, and transfer state that depends on a
-  parameter value remains isolated per batch item unless a documented exact
-  vectorized representation is used.
-* A batch item may return a domain rejection, typed solver failure, or success
-  without changing neighboring items.
-* Cache statistics distinguish shared structural reuse from per-item result
-  reuse.
-* The scalar public path remains the default until this slice closes.
+1. Define the protocol, result type, capability schema, registry, and default
+   CCMBS resolver without changing numerical kernels.
+2. Move the current declared-graph executor behind the CCMBS reference
+   adapter and preserve all existing cache identities and error classifiers.
+3. Inject the resolved solver into CMB likelihood and posterior factories;
+   remove direct concrete-solver imports from both sampler modules.
+4. Add independent `sampler` and `cmb_solver` manifest configuration, resolve
+   both before control/test sampling, and persist their identities and
+   capabilities in run provenance.
+5. Route MCMC and nested sampling through the same solver-aware likelihood
+   construction and verify both with CMB-enabled bounded fixtures.
+6. Verify scalar/batch ordering, fixed-point numerical parity, typed failures,
+   cache isolation, and result serialization for the CCMBS reference.
+7. Add a backend capability/probe seam that can later report Taichi Vulkan or
+   AMDGPU devices without importing Taichi in this plan.
 
-**Tasks:**
+**Acceptance:**
 
-1. Add result and failure datatypes with stable serialization and input-index
-   provenance.
-2. Add a scalar-to-batch adapter so the new contract is testable before any
-   vectorized kernel is introduced.
-3. Add tests for one, two, and multiple-item batches, preserving order and
-   exact per-item diagnostics.
-4. Add mixed valid, domain-invalid, and solver-failing batch fixtures and
-   verify isolation of all outcomes.
-5. Identify structural graph, grid, Bessel, and projection data that can be
-   shared without parameter-dependent approximation.
-6. Implement vectorized operations only over those proven shared dimensions;
-   keep parameter-dependent state in an explicit batch axis or per-item
-   record.
-7. Add cache-identity tests proving unequal cosmologies cannot retrieve one
-   another's parameter-dependent background or transfer data.
-8. Integrate bounded batch calls into the MCMC evaluation adapter behind an
-   explicit execution setting, preserving scalar fallback.
-9. Compare scalar and batch spectra at representative LCDM and non-LCDM
-   points for every supported requested spectrum.
-10. Compare scalar and batch likelihoods, chi-squared values, diagnostics,
-    failure types, and manifest provenance.
-11. Add scientific fixtures for finite response, acoustic peak locations,
-    TT/TE/EE residuals, and every additional declared observable used by the
-    selected models.
-12. Benchmark scalar versus batch cold, warm, and repeated-structure cases
-    with the evidence fields in this plan.
-13. Keep the batch setting disabled by default until all acceptance sections
-    pass and the exact scalar comparison record is complete.
-14. Update solver, CLI, and package documentation with the batch contract,
-    ordering guarantee, failure behavior, and opt-in setting.
-
-**Correctness acceptance:**
-
-* Batch size one matches scalar output, metadata, cache state, and failures.
-* Batch sizes greater than one match independent scalar calls within the
-  existing numerical tolerances and preserve input order.
-* Mixed failures are isolated and retain typed diagnostics.
-* Repeated batches do not leak parameter-dependent state between items.
-* Serial and worker-backed batch execution agree.
-* The scalar default path and all existing CMB regression tests remain green.
-
-**Scientific acceptance:**
-
-* Representative LCDM and non-LCDM spectra are finite and responsive.
-* TT, TE, EE, and every selected additional observable agree with scalar
-  native references within the existing tolerance contract.
-* Peak and trough locations do not move beyond the declared comparison
-  tolerance.
-* Chi-squared and derived observables agree with scalar references.
-* Any changed numerical phase has a recorded residual and convergence record.
-
-**Performance acceptance:**
-
-* The batch benchmark reports per-item and total phase timings.
-* A batch speedup is claimed only when it improves measured throughput for a
-  repeated-structure workload without degrading scalar-equivalent output.
-* Cache and vectorization effects are reported separately from process-pool
-  effects.
-* No full production-chain timing gate is required on this host.
-
-**Done when:**
-
-* The batch contract is implemented, independently tested, scientifically
-  compared, and documented.
-* The opt-in batch MCMC fixture completes with equivalent scalar results and
-  a measured throughput record.
-
-**Completion record:**
-
-* `NativeCMBBatchResult` provides stable JSON diagnostics, ordered indices,
-  typed failures, performance envelopes, and cache provenance.
-* The public batch entry point adapts the exact scalar solver and the CMB
-  likelihood, joint likelihood, posterior, and worker pool preserve ordered
-  scalar-equivalent evaluation. `cmb_batch_size=0` remains the default.
-* Focused batch, likelihood, posterior, joint-likelihood, and MCMC tests pass;
-  existing likelihood and MCMC suites remain green. Documentation describes
-  the ordering, isolation, provenance, and opt-in behavior.
-* The scalar default remains available and unchanged.
-* The slice is marked closed only after correctness and scientific evidence
-  are both complete.
-
-### [closed] Slice Fifteen - Surrogate and delayed-acceptance sampling
-
-**Purpose:** Add one explicit opt-in surrogate-assisted delayed-acceptance
-path that reduces exact CMB calls while preserving the target distribution
-through exact second-stage correction.
-
-**Depends on:** Slices Thirteen and Fourteen, including their exact-output and
-scientific reference records.
-
-**Probable affected files:**
-
-* `copernican/engines/engine_mcmc.py`
-* `copernican/engines/surrogate.py`
-* `copernican/lib/engine_capabilities.py`
-* `copernican/lib/run_config.py`
-* `copernican/lib/run_manifest.py`
-* `copernican/lib/likelihoods/cmb/cmb.py`
-* `copernican/lib/likelihoods/cmb/native_performance.py`
-* `tests/copernican/engines/test_engine_mcmc.py`
-* `tests/copernican/engines/test_surrogate.py`
-* `tests/copernican/lib/test_engine_capabilities.py`
-* `tests/copernican/lib/test_run_config.py`
-* `tests/copernican/lib/test_run_manifest.py`
-* `tests/copernican/lib/likelihoods/cmb/test_cmb.py`
-* `tests/copernican/lib/likelihoods/cmb/test_native_performance.py`
-* `tests/project/lib/test_core.py`
-* `docs/cli_guide.md`
-* `docs/cmb_solver.md`
-* `docs/design_overview.md`
-* `copernican/docs/cli_guide.md`
-* `copernican/docs/cmb_solver.md`
-* `copernican/docs/design_overview.md`
-* `README.md`
-* `copernican/README.md`
-* `CHANGELOG.md`
-* `PLAN.md`
-
-**Surrogate contract:**
-
-The surrogate is a deterministic local interpolant over normalized active
-parameters, built only from exact native evaluations. It reports a prediction,
-an uncertainty or support diagnostic, and the exact-sample provenance used to
-make that prediction. It must force an exact evaluation when the candidate is
-outside its declared domain or lacks sufficient local support.
-
-The default sampler remains exact. The surrogate setting must be explicit in
-the confirmed manifest and must appear in run provenance, cache identity, and
-the output manifest.
-
-**Delayed-acceptance contract:**
-
-Stage one evaluates the surrogate and applies only the declared cheap-stage
-screen. A candidate that survives stage one receives an exact native CMB
-evaluation. The second-stage decision uses the delayed-acceptance correction
-for the same proposal density and target log probability. A surrogate value
-is never written as an exact native likelihood.
-
-Every proposal record must identify whether it was screened, exactly
-corrected, rejected for insufficient support, or rejected by the exact stage.
-Surrogate construction must not consume hidden random state or alter the
-exact sampler's seed stream when the mode is disabled.
-
-**Tasks:**
-
-1. Add a surrogate result type containing prediction, uncertainty, support,
-   training-sample identities, and domain status.
-2. Add deterministic normalized-parameter support checks and exact fallback
-   for unsupported or uncertain candidates.
-3. Add an explicit delayed-acceptance configuration and manifest provenance;
-   reject unknown or incomplete settings before sampling begins.
-4. Implement the stage-one screen and exact stage-two correction without
-   changing the scalar path when the setting is disabled.
-5. Add exact-call, proposal, screen, correction, and rejection counters to
-   sampler and native performance records.
-6. Add analytic target tests covering Gaussian, correlated, bounded, and
-   invalid-domain proposals.
-7. Add tests proving that surrogate-disabled execution matches the exact
-   sampler's seeded scalar evaluations and acceptance decisions.
-8. Add tests proving uncertain support, surrogate failure, and exact solver
-   failure fall back or classify deterministically without silent acceptance.
-9. Add native CMB fixtures comparing exact and delayed-acceptance spectra,
-   likelihoods, diagnostics, and correction records at fixed points.
-10. Run independent bounded chains for representative LCDM and non-LCDM
-    models and compare posterior summaries, correlations, acceptance,
-    convergence, and effective sample size with exact chains.
-11. Confirm that delayed acceptance reduces exact CMB calls or improves ESS
-    per second without changing the scientific comparison results.
-12. Keep the feature opt-in until all mathematical and scientific acceptance
-    evidence is complete.
-13. Document the approximation boundary, exact fallback, correction rule,
-    provenance fields, and limitations in package-facing and repository-facing
-    documentation.
-
-**Correctness acceptance:**
-
-* Surrogate-disabled results match the exact scalar sampler under the same
-  seed and manifest.
-* A forced-exact surrogate produces the exact scalar result.
-* Unsupported, uncertain, and failed surrogate predictions trigger the
-  declared exact fallback or typed rejection.
-* Stage-two correction uses the exact target and preserves proposal-density
-  accounting.
-* Analytic target chains recover the known distribution within predefined
-  bounded-fixture tolerances.
-* Every proposal decision is attributable in the sampler and native records.
-
-**Scientific acceptance:**
-
-* Native spectra and likelihoods agree with exact scalar references at fixed
-  parameter points.
-* Representative exact and delayed-acceptance chains agree in posterior
-  summaries, correlations, acceptance behavior, convergence diagnostics, and
-  derived observables within predefined comparison tolerances.
-* No model-specific constraint, conservation, or observable regression is
-  hidden by surrogate screening.
-* The exact scalar chain remains the comparison authority for every report.
-
-**Performance acceptance:**
-
-* Reports include exact-call reduction, surrogate cost, exact correction cost,
-  wall time, acceptance, and effective sample size per second.
-* A speedup is accepted only when scientific and mathematical validation has
-  already passed.
-* A surrogate that is faster but scientifically biased is rejected and the
-  opt-in mode remains disabled.
-* No local full-chain wall-clock threshold is used as a substitute for these
-  records.
-
-**Done when:**
-
-* The opt-in delayed-acceptance path is mathematically specified,
-  implemented, tested against analytic targets, and compared with the exact
-  native CMB sampler.
-* Its scientific and performance records are complete.
-* Exact scalar execution remains the documented default and fallback.
-* The slice is marked closed only after both correctness and scientific
-  validation are independently green.
-
-**Completion record:**
-
-* `DeterministicLocalSurrogate` provides normalized bounded interpolation,
-  deterministic support diagnostics, exact-sample identities, and a stable
-  cache identity. Outside-domain, insufficient-support, uncertain, and
-  exact-target failure cases require or record an exact fallback.
-* `DelayedAcceptanceController` applies a surrogate stage-one screen followed
-  by the exact target correction for the same proposal density. It records
-  proposal decisions, exact calls, corrections, rejections, support fallback,
-  and typed exact failures without treating surrogate values as exact data.
-* Delayed acceptance is explicit in the MCMC engine and manifest settings,
-  rejects unknown controls, persists compact sampling provenance, and leaves
-  the seeded scalar path unchanged when disabled. Analytic Gaussian,
-  correlated, bounded, invalid-domain, and native fixed-point correction
-  fixtures pass with finite exact outputs and attributable records.
-* The bounded opt-in MCMC fixture records exact-call and proposal counters,
-  training identities, cache identity, phase timing, acceptance, and the
-  complete proposal stream. Repository and package documentation describe
-  the approximation boundary, fallback behavior, correction rule, and
-  opt-in limitations. No full `copernican.validation` workload is required.
-
+* CCMBS is the documented default solver and the current exact implementation
+  remains the numerical reference.
+* MCMC and nested samplers both run CMB likelihoods through the selected
+  solver, with no hard-coded solver identity in either sampler.
+* A manifest can select CCMBS explicitly, and an unknown solver fails before
+  expensive sampling begins.
+* Ordered scalar and batch results, diagnostics, typed failures, caches, and
+  spectra remain equivalent to the pre-migration reference.
+* Solver capabilities and provenance are complete enough for a later Taichi
+  Vulkan implementation to register without changing sampler contracts.
 ## Completion Standard
 
-The roadmap is complete only when all three slices are closed in order.
+This plan is complete only when both slices are closed in order and the
+staged revision has a green `gate --verify`.
 
 Completion requires:
 
-* truthful progress and phase-level timing evidence;
-* safe runtime improvements with exact scalar equivalence;
-* an independently validated batch/vectorized contract;
-* an independently validated opt-in surrogate/delayed-acceptance sampler;
-* separate correctness and scientific acceptance records for both algorithmic
-  slices;
-* preserved native CMB capability, constraint, observable, and failure
-  contracts;
-* no production CAMB or CLASS fallback;
-* no hidden full-validation-suite dependency;
-* documentation, comments, tests, manifests, mirrors, and changelog aligned;
-* a green `devcovenant gate --verify` on the staged revision.
+* no surrogate or delayed-acceptance production path;
+* sampler terminology and paths used consistently across code, manifests,
+  GUI, CLI, tests, docs, and generated output;
+* no unapproved internal `engine` or `cosmo` prefixes;
+* exact scalar CCMBS reference behavior preserved;
+* independent sampler and CMB-solver selection in manifests;
+* both MCMC and nested sampling using the selected solver contract;
+* ordered batch, cache, failure, diagnostics, and provenance contracts
+  preserved;
+* Taichi-ready array, capability, preparation, and device seams without a
+  Taichi implementation or dependency;
+* root/package documentation, comments, tests, mirrors, and changelog aligned.
 
-A green policy gate, a faster benchmark, a finite spectrum, or a matching
-single-point likelihood is not sufficient by itself. The work is complete
-only when the exact scalar reference and each accelerated execution mode have
-their own evidence and the accelerated modes satisfy both correctness and
-scientific acceptance.
+A green policy gate or a finite spectrum is not proof of scientific validity.
+The next Taichi plan must independently demonstrate Vulkan/AMD device
+availability, kernel correctness, CPU/reference parity, numerical precision,
+and measured throughput before enabling a GPU backend as a production option.

@@ -80,6 +80,17 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-17:
+  Change: Replaced the performance roadmap with a two-slice sampler and
+    solver migration plan.
+  Why: Removed surrogate and delayed-acceptance scope and aligned future work
+    with exact CCMBS infrastructure and AMD/Vulkan Taichi readiness.
+  Impact: Defined the sampler rename, selectable solver boundary, and exact
+    reference acceptance required before the later GPU implementation.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-08-17:
   Change: Removed the unsupported surrogate mapping knob from the generic
     GUI engine settings and preserved manifest-only advanced configuration.
   Why: Prevented an unconfigured mapping from being serialized as `0.0` and
