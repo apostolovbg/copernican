@@ -108,7 +108,9 @@ Every proposal is recorded as screened, exactly corrected, support-fallback,
 or exact-failure. The result summary and copied run manifest retain the exact
 call count, correction and rejection counters, training-sample identities,
 configuration, and surrogate cache identity. Setting `delayed_acceptance` to
-`false` leaves the seeded exact scalar sampler unchanged.
+`false` leaves the seeded exact scalar sampler unchanged. The GUI exposes the
+boolean opt-in; advanced `surrogate_config` mappings belong in the confirmed
+manifest rather than the scalar run-settings controls.
 ## Utility Commands
 Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:

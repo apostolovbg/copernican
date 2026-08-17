@@ -156,16 +156,6 @@ ENGINE_SETTINGS = (
         default=False,
         hint="false=exact scalar",
     ),
-    EngineSetting(
-        key="surrogate_config",
-        label="Surrogate configuration",
-        description=(
-            "Mapping of support, uncertainty, training, and proposal controls."
-        ),
-        dtype="str",
-        default=None,
-        hint="only with delayed acceptance",
-    ),
 )
 ENGINE_PROGRESS_CHUNKS = (
     EngineProgressChunk(name="burn_in", label="Burn-in"),

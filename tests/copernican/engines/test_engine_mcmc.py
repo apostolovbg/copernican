@@ -175,6 +175,16 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(module.ENGINE_SETTINGS)
         self.assertTrue(module.ENGINE_PROGRESS_CHUNKS)
 
+    def test_engine_settings_use_gui_supported_scalar_types(self) -> None:
+        """The GUI must not render mapping settings as numeric knobs."""
+
+        unsupported = [
+            setting.key
+            for setting in module.ENGINE_SETTINGS
+            if setting.dtype not in {"bool", "int", "float"}
+        ]
+        self.assertEqual(unsupported, [])
+
     def test_active_log_probability_rebuilds_full_vector(self) -> None:
         def posterior(arr):
             return float(numpy.sum(arr))

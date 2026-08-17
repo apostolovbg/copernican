@@ -122,6 +122,8 @@ correction to every proposal that survives the screen. Proposal decisions,
 exact-call counts, support fallbacks, correction counters, and the surrogate
 cache identity are retained in the result and run manifest; no surrogate value
 is ever recorded as an exact native likelihood.
+The GUI exposes the scalar opt-in switch; advanced `surrogate_config` mappings
+are supplied through a confirmed manifest.
 Sampler progress also reports worker-pool launch and walker initialization
 as explicit phases, including elapsed time, measured rate, remaining work, and
 ETA in both CLI output and GUI progress snapshots. Burn-in and production

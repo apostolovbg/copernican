@@ -80,6 +80,22 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-17:
+  Change: Removed the unsupported surrogate mapping knob from the generic
+    GUI engine settings and preserved manifest-only advanced configuration.
+  Why: Prevented an unconfigured mapping from being serialized as `0.0` and
+    rejected by the exact scalar sampler.
+  Impact: Restored default GUI runs while retaining explicit delayed-acceptance
+    manifests and documented the configuration boundary.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cli_guide.md
+  copernican/engines/engine_mcmc.py
+  docs/cli_guide.md
+  tests/copernican/engines/test_engine_mcmc.py
+
+- 2026-08-17:
   Change: Implemented an explicit deterministic surrogate and exact
     delayed-acceptance sampler with attributable correction records.
   Why: Added mathematically exact stage-two correction, bounded analytic and
