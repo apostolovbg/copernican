@@ -18,7 +18,8 @@ Use `PLAN.md` to track active implementation work below this block.
 > repository gate workflow. Each slice has independent implementation,
 > correctness, scientific, and performance acceptance evidence.
 
-**Goal:** Establish a clean exact solver and sampler architecture.
+**Goal:** Establish a clean exact solver and sampler architecture with a
+numerically converged CCMBS reference path.
 
 **Architecture:** Copernican exposes independent sampler and CMB-solver
 contracts. The current MCMC and nested implementations become sampler
@@ -38,7 +39,8 @@ provenance Taichi-ready.
 * Remove surrogate and delayed-acceptance production behavior completely.
 * Keep exact scalar evaluation as the scientific reference and default.
 * Keep the current NumPy/SciPy declared-graph implementation numerically
-  unchanged except where dependency injection or naming requires movement.
+  unchanged except where dependency injection, naming, or an explicitly
+  recorded production convergence floor requires movement.
 * Do not introduce a production CAMB or CLASS fallback.
 * Both MCMC and nested sampling must evaluate CMB likelihoods through the
   selected solver contract.
@@ -116,6 +118,17 @@ The exact scalar sampler, exact CMB spectra, likelihood ordering, native
 failure taxonomy, cache identities, and declared numerical envelope remain
 the comparison authority. A short run can prove workflow plumbing, but not
 posterior convergence or scientific validity.
+
+The bundled production scalar graphs use at least 64 transfer-wave-number
+nodes. The former 18-node setting is retained only by bounded low-resolution
+fixtures that explicitly exercise contract behavior; it is not an acceptable
+production reference because it changes the spectrum materially as the
+requested multipole range is refined.
+
+This floor closes transfer-grid instability, not absolute scalar calibration.
+Fixed-point reference anchors must still establish source normalization,
+temperature-polarization sign, and cross-spectrum parity before CCMBS is
+declared scientifically equivalent to the independent reference fixture.
 
 ## Target Architecture
 
@@ -412,6 +425,11 @@ backend will use.
 7. Add a backend capability/probe seam that can later report Taichi Vulkan or
    AMDGPU devices without importing Taichi in this plan.
 
+8. Preserve the production CCMBS transfer-grid floor: bundled scalar model
+   contracts declare `minimum_k_sample_count: 64` and set their numerical
+   `k_sample_count` to at least that value. Add a focused regression test so
+   future solver injection cannot reintroduce the unstable 18-node path.
+
 **Acceptance:**
 
 * CCMBS is the documented default solver and the current exact implementation
@@ -436,6 +454,8 @@ Completion requires:
   GUI, CLI, tests, docs, and generated output;
 * no unapproved internal `engine` or `cosmo` prefixes;
 * exact scalar CCMBS reference behavior preserved;
+* bundled production scalar CCMBS contracts use the declared 64-node transfer
+  floor and reject under-resolved production settings;
 * independent sampler and CMB-solver selection in manifests;
 * both MCMC and nested sampling using the selected solver contract;
 * ordered batch, cache, failure, diagnostics, and provenance contracts

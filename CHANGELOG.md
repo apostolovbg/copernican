@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-17:
+  Change: Updated production native CMB transfer grids to 64 k nodes and
+    added a regression guard for the converged scalar quadrature floor.
+  Why: Corrected the materially unstable spectra produced by the previous
+    18-node production grid as the requested multipole range changed.
+  Impact: Bundled CMB models now reject the under-resolved transfer setup
+    before sampling and use a stable bounded reference grid.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/test_engine_adapter.py
+
+- 2026-08-17:
   Change: Replaced the performance roadmap with a two-slice sampler and
     solver migration plan.
   Why: Removed surrogate and delayed-acceptance scope and aligned future work

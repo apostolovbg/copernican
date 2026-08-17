@@ -1087,7 +1087,7 @@ cmb:
     ell_max: 2500
     k_min: 0.0001
     k_max: 1.0
-    k_sample_count: 18
+    k_sample_count: 64
     eta_sample_count: 192
     evolution_eta_sample_count: 192
     evolution_phase_step: 2.0
@@ -1247,6 +1247,7 @@ cmb:
         parity: even
         spin: 0.0
     accuracy_controls:
+      minimum_k_sample_count: 64
       scalar_reference_ells:
       - 2
       - 2000
@@ -1291,7 +1292,7 @@ cmb:
       ell_max: 2500
       k_min: 0.0001
       k_max: 1.0
-      k_sample_count: 18
+      k_sample_count: 64
       eta_sample_count: 192
       evolution_eta_sample_count: 192
       evolution_phase_step: 2.0

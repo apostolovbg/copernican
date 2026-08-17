@@ -1134,6 +1134,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 model_data["cmb"]["perturbations"][
                     "accuracy_controls"
                 ]["scalar_reference_ells"] = [2, 20]
+                model_data["cmb"]["perturbations"]["accuracy_controls"][
+                    "minimum_k_sample_count"
+                ] = 1
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_path = Path(temp_dir) / model_name
                     temp_path.write_text(
@@ -1440,6 +1443,9 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         model_data["cmb"]["perturbations"]["accuracy_controls"][
             "scalar_reference_ells"
         ] = [2, 20]
+        model_data["cmb"]["perturbations"]["accuracy_controls"][
+            "minimum_k_sample_count"
+        ] = 1
         with tempfile.TemporaryDirectory() as model_dir:
             model_path = Path(model_dir) / source_path.name
             model_path.write_text(
@@ -1727,6 +1733,18 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             ]["compiler"],
             "copernican.lib.model_coder.compile_native_cmb_runtime",
         )
+
+    def test_native_lcdm_declares_converged_scalar_transfer_grid(self) -> None:
+        """Production LCDM must not use the under-resolved 18-node grid."""
+
+        plugin = self._build_plugin()
+        runtime = plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
+        perturbation_data = runtime["perturbation_data"]
+        controls = perturbation_data.accuracy_controls
+        numerics = perturbation_data.numerics
+
+        self.assertEqual(int(controls["minimum_k_sample_count"]), 64)
+        self.assertGreaterEqual(int(numerics["k_sample_count"]), 64)
 
 
 if __name__ == "__main__":
