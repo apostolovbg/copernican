@@ -188,6 +188,28 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(numpy.allclose(full, numpy.array([4.0, 2.0, 5.0])))
         self.assertEqual(adapter(numpy.array([4.0, 5.0])), 11.0)
 
+    def test_active_log_probability_evaluates_batch_in_order(self) -> None:
+        """Batch adapter preserves full-vector assembly and result order."""
+
+        posterior = mock.Mock()
+        posterior.evaluate_batch.return_value = (11.0, 13.0)
+        adapter = _ActiveLogProbability(
+            posterior,
+            numpy.array([1.0, 2.0, 3.0]),
+            numpy.array([0, 2]),
+        )
+
+        values = adapter.evaluate_batch(numpy.array([[4.0, 5.0], [6.0, 7.0]]))
+
+        self.assertEqual(values, (11.0, 13.0))
+        assembled = posterior.evaluate_batch.call_args.args[0]
+        self.assertTrue(
+            numpy.array_equal(
+                assembled,
+                numpy.array([[4.0, 2.0, 5.0], [6.0, 2.0, 7.0]]),
+            )
+        )
+
     def test_sampler_produces_netcdf(self) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -251,6 +273,31 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(diagnostics["rhat"][fixed_name], 1.0)
         self.assertEqual(diagnostics["ess_bulk"][fixed_name], total_draws)
         self.assertEqual(diagnostics["ess_tail"][fixed_name], total_draws)
+
+    def test_opt_in_batch_fixture_records_ordered_batch_metrics(self) -> None:
+        """The bounded opt-in fixture completes and records its throughput."""
+
+        plugin = _build_model_plugin("model_lcdm.yml")
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        result = module.fit_cosmology_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=2,
+            pool_size=2,
+            burn_in_steps=1,
+            cmb_batch_size=2,
+            display_progress=False,
+        )
+
+        self.assertTrue(result["success"])
+        envelope = result["ensemble_performance"]
+        self.assertEqual(envelope["cmb_batch_size"], 2)
+        self.assertGreater(envelope["batch_count"], 0)
+        self.assertGreater(envelope["batch_items"], 0)
+        self.assertGreater(envelope["batch_items_per_second"], 0.0)
 
     def test_legacy_fit_alias_warns_and_runs(self) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
@@ -519,6 +566,33 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             adapter.map(lambda value: value * 2, [1, 2, 3]), [2, 4, 6]
         )
         self.assertEqual(pool.chunksizes, [1])
+
+    def test_ordered_pool_map_uses_bounded_batch_function(self) -> None:
+        """Opt-in batches stay ordered and are bounded by batch size."""
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[list[int]] = []
+
+            def map(self, function, iterable, *, chunksize):
+                del chunksize
+                items = list(iterable)
+                self.calls.extend(items)
+                return [function(item) for item in items]
+
+        pool = _Pool()
+        adapter = module._OrderedPoolMap(
+            pool,
+            batch_size=2,
+            batch_function=lambda values: [value * 2 for value in values],
+        )
+        self.assertEqual(
+            adapter.map(lambda value: value * 3, [1, 2, 3, 4, 5]),
+            [2, 4, 6, 8, 10],
+        )
+        self.assertEqual(pool.calls, [[1, 2], [3, 4], [5]])
+        self.assertEqual(adapter.batch_count, 3)
+        self.assertEqual(adapter.batch_items, 5)
 
     def test_initial_point_preflight_rejects_before_walker_creation(self):
         """A non-finite nominal point must stop before proposals exist."""

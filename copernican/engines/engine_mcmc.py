@@ -131,6 +131,16 @@ ENGINE_SETTINGS = (
         dtype="bool",
         default=True,
     ),
+    EngineSetting(
+        key="cmb_batch_size",
+        label="CMB batch size",
+        description=(
+            "Opt-in bounded native CMB batches; zero keeps scalar evaluation."
+        ),
+        dtype="int",
+        default=0,
+        hint="0=disabled",
+    ),
 )
 ENGINE_PROGRESS_CHUNKS = (
     EngineProgressChunk(name="burn_in", label="Burn-in"),
@@ -209,6 +219,23 @@ class _ActiveLogProbability:
         # execution.
         return float(posterior_value)
 
+    def evaluate_batch(self, positions: numpy.ndarray) -> tuple[float, ...]:
+        """Evaluate a bounded ordered batch in the active parameter space."""
+
+        coordinates = numpy.asarray(positions, dtype=float)
+        if coordinates.ndim == 1:
+            coordinates = coordinates[numpy.newaxis, :]
+        full_vectors = numpy.asarray(
+            [self.assemble_full(position) for position in coordinates],
+            dtype=float,
+        )
+        evaluate_batch = getattr(self._posterior, "evaluate_batch", None)
+        if callable(evaluate_batch):
+            values = evaluate_batch(full_vectors)
+        else:
+            values = [self._posterior(vector) for vector in full_vectors]
+        return tuple(float(value) for value in values)
+
     def prepare_worker_runtime(self) -> None:
         """Prepare the wrapped likelihood's process-local runtime assets."""
 
@@ -254,6 +281,16 @@ def _worker_log_probability(position: numpy.ndarray) -> float:
     return _WORKER_LOG_PROBABILITY(position)
 
 
+def _worker_batch_log_probability(
+    positions: numpy.ndarray,
+) -> tuple[float, ...]:
+    """Evaluate one bounded proposal batch in the worker process."""
+
+    if _WORKER_LOG_PROBABILITY is None:
+        raise RuntimeError("MCMC worker runtime was not initialized")
+    return _WORKER_LOG_PROBABILITY.evaluate_batch(positions)
+
+
 def _worker_indexed_log_probability(
     item: tuple[int, numpy.ndarray],
 ) -> tuple[int, float]:
@@ -290,6 +327,13 @@ class _JointLogLikelihood:
         """Return the combined log-likelihood for ``params``."""
 
         return float(self._joint_like.loglike(params))
+
+    def evaluate_batch(
+        self, params_batch: Sequence[Sequence[float]]
+    ) -> tuple[float, ...]:
+        """Evaluate a parameter batch through the joint likelihood."""
+
+        return self._joint_like.loglike_batch(params_batch)
 
     def prepare_worker_runtime(self) -> None:
         """Prepare enabled likelihood assets in the current worker."""
@@ -427,13 +471,43 @@ class _SamplingProgressReporter:
 class _OrderedPoolMap:
     """Expose ordered worker mapping with a bounded task chunk size."""
 
-    def __init__(self, pool: object, *, chunksize: int = 1) -> None:
+    def __init__(
+        self,
+        pool: object,
+        *,
+        chunksize: int = 1,
+        batch_size: int = 0,
+        batch_function: (
+            Callable[[numpy.ndarray], Sequence[float]] | None
+        ) = None,
+    ) -> None:
         """Wrap a multiprocessing pool without changing its lifecycle."""
         self._pool = pool
         self._chunksize = max(int(chunksize), 1)
+        self._batch_size = max(int(batch_size), 0)
+        self._batch_function = batch_function
+        self.batch_count = 0
+        self.batch_items = 0
+        self.batch_elapsed_seconds = 0.0
 
     def map(self, function, iterable):
         """Map ``function`` in input order using the configured chunk size."""
+        if self._batch_size > 1 and self._batch_function is not None:
+            items = list(iterable)
+            batches = [
+                items[start : start + self._batch_size]
+                for start in range(0, len(items), self._batch_size)
+            ]
+            started = perf_counter()
+            batch_results = self._pool.map(
+                self._batch_function,
+                batches,
+                chunksize=self._chunksize,
+            )
+            self.batch_count += len(batches)
+            self.batch_items += len(items)
+            self.batch_elapsed_seconds += max(perf_counter() - started, 0.0)
+            return [value for result in batch_results for value in result]
         return self._pool.map(function, iterable, chunksize=self._chunksize)
 
 
@@ -787,6 +861,10 @@ def _ensemble_performance_envelope(
     burn_in_steps: int,
     production_steps: int,
     failed_requests: int = 0,
+    cmb_batch_size: int = 0,
+    batch_count: int = 0,
+    batch_items: int = 0,
+    batch_elapsed_seconds: float = 0.0,
 ) -> dict[str, object]:
     """Build serialisable timing and worker-resource provenance."""
 
@@ -813,6 +891,15 @@ def _ensemble_performance_envelope(
         "oversubscribed": bool(oversubscribed),
         "nominal_evaluations": int(nominal_evaluations),
         "failed_requests": int(max(0, failed_requests)),
+        "cmb_batch_size": int(max(0, cmb_batch_size)),
+        "batch_count": int(max(0, batch_count)),
+        "batch_items": int(max(0, batch_items)),
+        "batch_elapsed_seconds": max(0.0, float(batch_elapsed_seconds)),
+        "batch_items_per_second": (
+            float(batch_items) / float(batch_elapsed_seconds)
+            if batch_elapsed_seconds > 0 and batch_items > 0
+            else 0.0
+        ),
         "budget_seconds": 1800.0,
         "budget_passed": bool(elapsed <= 1800.0 and not oversubscribed),
     }
@@ -831,6 +918,7 @@ def fit_cosmology_parameters(
     burn_in_steps: int | None = None,
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
+    cmb_batch_size: int = 0,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -848,6 +936,14 @@ def fit_cosmology_parameters(
     """
 
     logger = logging.getLogger()
+    cmb_batch_size = max(int(cmb_batch_size), 0)
+    if cmb_batch_size == 1:
+        cmb_batch_size = 0
+    if cmb_batch_size > 1:
+        logger.info(
+            "Native CMB batch adapter enabled: max batch size=%d.",
+            cmb_batch_size,
+        )
     ensemble_started = perf_counter()
     phase_seconds = {
         "initialization": 0.0,
@@ -876,6 +972,7 @@ def fit_cosmology_parameters(
                 n_walkers=n_walkers,
                 burn_in_steps=burn_steps,
                 production_steps=n_steps,
+                cmb_batch_size=cmb_batch_size,
             ),
         }
 
@@ -957,6 +1054,7 @@ def fit_cosmology_parameters(
     )
 
     sampler: emcee.EnsembleSampler | None = None
+    sampler_pool: _OrderedPoolMap | None = None
     chain_active: numpy.ndarray | None = None
     log_prob_chain: numpy.ndarray | None = None
     flat_log_prob: numpy.ndarray | None = None
@@ -1086,7 +1184,12 @@ def fit_cosmology_parameters(
                 else log_probability_active
             )
             sampler_pool = (
-                _OrderedPoolMap(pool, chunksize=1)
+                _OrderedPoolMap(
+                    pool,
+                    chunksize=1,
+                    batch_size=cmb_batch_size,
+                    batch_function=_worker_batch_log_probability,
+                )
                 if pool is not None
                 else None
             )
@@ -1260,6 +1363,12 @@ def fit_cosmology_parameters(
         burn_in_steps=burn_in,
         production_steps=n_steps,
         failed_requests=failed_requests,
+        cmb_batch_size=cmb_batch_size,
+        batch_count=(0 if sampler_pool is None else sampler_pool.batch_count),
+        batch_items=0 if sampler_pool is None else sampler_pool.batch_items,
+        batch_elapsed_seconds=(
+            0.0 if sampler_pool is None else sampler_pool.batch_elapsed_seconds
+        ),
     )
 
     log_prior_best = float("-inf")
@@ -1468,6 +1577,7 @@ def fit_sne_parameters(
     burn_in_steps: int | None = None,
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
+    cmb_batch_size: int = 0,
 ) -> dict[str, Any]:
     """Compatibility wrapper for :func:`fit_cosmology_parameters`.
 
@@ -1498,6 +1608,7 @@ def fit_sne_parameters(
         burn_in_steps=burn_in_steps,
         display_progress=display_progress,
         progress_callback=progress_callback,
+        cmb_batch_size=cmb_batch_size,
     )
 
 

@@ -296,6 +296,23 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertAlmostEqual(joint_loglike, component_sum, places=8)
         self.assertAlmostEqual(joint.state["chi2"], chi2_sum, places=8)
 
+    def test_joint_loglike_batch_uses_batch_capable_cmb_component(self):
+        """Joint batches preserve order and combine non-CMB components."""
+
+        sne_like = mock.Mock(enabled=True)
+        sne_like.loglike.side_effect = (-1.0, -2.0)
+        cmb_like = mock.Mock(enabled=True)
+        cmb_like.loglike_batch.return_value = (-3.0, -4.0)
+        joint = likelihoods.JointLike(
+            {"sne": sne_like, "cmb": cmb_like},
+            config={"sne": True, "cmb": True},
+        )
+
+        values = joint.loglike_batch(((1.0,), (2.0,)))
+
+        self.assertEqual(values, (-4.0, -6.0))
+        cmb_like.loglike_batch.assert_called_once_with([(1.0,), (2.0,)])
+
     def test_joint_like_respects_toggles(self):
         """Disabled datasets contribute zero log-likelihood and χ²."""
 

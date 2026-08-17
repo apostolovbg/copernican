@@ -10825,6 +10825,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
             set(cmb.__all__),
             {
                 "CMBLike",
+                "NativeCMBBatchResult",
                 "NativeCMBError",
                 "NativeConstraintViolationError",
                 "NativeContractError",
@@ -10836,12 +10837,14 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "NativePerformanceBudgetError",
                 "NativeUnsupportedCapabilityError",
                 "compute_cmb_spectrum",
+                "compute_cmb_spectrum_batch",
                 "compute_cmb_spectrum_cached",
                 "compute_cmb_spectrum_from_contract",
             },
         )
         self.assertTrue(hasattr(cmb, "CMBLike"))
         self.assertTrue(callable(cmb.compute_cmb_spectrum))
+        self.assertTrue(callable(cmb.compute_cmb_spectrum_batch))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_from_contract))
         self.assertFalse(hasattr(cmb, "compute_camb_background_observables"))
@@ -10858,6 +10861,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         """The likelihood protocol symbols should remain available."""
 
         self.assertTrue(callable(cmb.CMBLike.loglike))
+        self.assertTrue(callable(cmb.CMBLike.loglike_batch))
         self.assertTrue(callable(cmb.CMBLike.prepare_worker_runtime))
         self.assertTrue(callable(cmb.CMBLike.preflight))
         self.assertTrue(hasattr(cmb.CMBLike.state, "__get__"))

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-16
+**Last Updated:** 2026-08-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -108,6 +108,13 @@ Native MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
 record cold, warm, and exact-hit states with phase timings and work units.
+The public `compute_cmb_spectrum_batch` contract evaluates an ordered
+sequence of native contracts and returns one serializable result per input,
+including typed failures and cache provenance. It starts as an exact
+scalar-to-batch adapter, so parameter-dependent state remains isolated while
+shared-structure and vectorized kernels are validated independently.
+The MCMC engine exposes `cmb_batch_size` as an explicit opt-in setting;
+the default `0` keeps the exact scalar sampler and fallback path unchanged.
 Sampler progress also reports worker-pool launch and walker initialization
 as explicit phases, including elapsed time, measured rate, remaining work, and
 ETA in both CLI output and GUI progress snapshots. Burn-in and production

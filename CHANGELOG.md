@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-16
+**Last Updated:** 2026-08-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,61 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-17:
+  Change: Updated current documentation dates and changelog metadata.
+  Why: Refreshed touched documentation for the current gate verification
+    session.
+  Impact: Synchronized repository metadata now satisfies current-date
+    tracking policy.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/engines/engine_mcmc.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/native_batch.py
+  copernican/lib/likelihoods/likelihoods.py
+  copernican/lib/posterior.py
+  copernican/lib/run_pipeline.py
+  docs/cli_guide.md
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_native_batch.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_posterior.py
+
+- 2026-08-16:
+  Change: Added ordered native CMB batch results, typed failure isolation,
+    cache provenance, and opt-in bounded MCMC batch mapping.
+  Why: Established a testable batch contract while retaining the exact scalar
+    sampler as the default scientific reference.
+  Impact: Callers can compare ordered scalar-equivalent batches and enable
+    bounded worker batches without changing default run behavior.
+  Files:
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/native_batch.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/likelihoods.py
+  copernican/lib/posterior.py
+  copernican/engines/engine_mcmc.py
+  copernican/lib/run_pipeline.py
+  tests/copernican/lib/likelihoods/cmb/test_native_batch.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/engines/test_engine_mcmc.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_posterior.py
+  docs/cli_guide.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  README.md
+  copernican/README.md
+  PLAN.md
+  CHANGELOG.md
 
 - 2026-08-16:
   Change: Implemented truthful MCMC progress counters, coalesced GUI

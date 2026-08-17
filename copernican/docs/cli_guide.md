@@ -54,7 +54,10 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
 5. **Sampler engine** – Choose a sampler backend from `copernican/engines/`.
  The default is `copernican/engines/engine_mcmc.py` unless you
  override it. Sampler metadata (walkers, burn-in, production steps, pool
- size) is gathered immediately after the choice. When a selected sampler
+ size, and the optional CMB batch size) is gathered immediately after the
+ choice. The MCMC `cmb_batch_size` setting defaults to `0`, preserving exact
+ scalar evaluation; values greater than one opt into bounded ordered native
+ batches with per-item typed failures. When a selected sampler
  engine detects that every parameter is fixed (for example, when the
  validation manifest runs `Planck 2018 Reference LambdaCDM`), the sampler
  mirrors the reference values, fabricates identical chains, and
@@ -81,6 +84,15 @@ evaluations; each record includes elapsed time, measured rate, remaining work,
 and ETA. Walker initialization retains its evaluation counter. Menu prompts use
 numbered options to keep keyboard-only navigation consistent on macOS, Linux
 and Windows shells.
+
+### Native CMB batch evaluation
+
+The native solver exposes `compute_cmb_spectrum_batch` for callers that need
+ordered evaluation of multiple contracts. Each returned item carries its
+input index, one spectrum or typed failure, performance details, and cache
+provenance. A failed item does not change neighboring results. The contract
+currently adapts the exact scalar executor; the scalar path remains the
+default and the MCMC `cmb_batch_size` setting is disabled at `0`.
 ## Utility Commands
 Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:

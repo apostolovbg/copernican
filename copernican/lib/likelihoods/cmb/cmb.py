@@ -16,7 +16,9 @@ from ...cmb_output import (
 )
 from ...model_coder import prepare_native_cmb_execution_contract
 from ..likelihoods import LikelihoodProtocol, LikelihoodState
+from . import native_cache
 from .copernican_cmb_solver import _compute_declared_perturbation_spectrum
+from .native_batch import NativeCMBBatchResult
 from .native_errors import (
     NativeContractError,
     NativeInitialPointError,
@@ -69,6 +71,7 @@ def compute_cmb_spectrum_from_contract(
     *,
     spectra: Sequence[str] = ("TT",),
     workload: str = "full_spectrum",
+    background_provider: Any | None = None,
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
@@ -89,7 +92,120 @@ def compute_cmb_spectrum_from_contract(
         ells,
         spectra=spectra,
         workload=workload,
+        background_provider=background_provider,
     )
+
+
+def _batch_cache_provenance(
+    before: Mapping[str, Mapping[str, int]],
+    after: Mapping[str, Mapping[str, int]],
+    *,
+    include_identity: bool = True,
+) -> dict[str, Any]:
+    """Summarize shared and parameter-dependent cache activity for one item."""
+
+    inventory = native_cache.native_cmb_cache_inventory()
+    caches: dict[str, dict[str, Any]] = {}
+    for name, after_stats in after.items():
+        before_stats = before.get(name, {})
+        caches[name] = {
+            "category": inventory.get(name, {}).get("category", "unknown"),
+            "entries": int(after_stats.get("entries", 0)),
+            "hits": int(after_stats.get("hits", 0))
+            - int(before_stats.get("hits", 0)),
+            "misses": int(after_stats.get("misses", 0))
+            - int(before_stats.get("misses", 0)),
+            "evictions": int(after_stats.get("evictions", 0))
+            - int(before_stats.get("evictions", 0)),
+        }
+    identity = (
+        native_cache.latest_native_cmb_request_identity()
+        if include_identity
+        else None
+    )
+    identity_payload = None
+    if identity is not None:
+        identity_payload = {
+            "contract_static": repr(identity.contract_static),
+            "cosmology_static": repr(identity.cosmology_static),
+            "request_specific": repr(identity.request_specific),
+            "execution_engine": str(identity.execution_engine),
+        }
+    return {
+        "cache_identity": identity_payload,
+        "caches": caches,
+    }
+
+
+def compute_cmb_spectrum_batch(
+    contracts: Sequence[Mapping[str, Any]],
+    ells: Iterable[int],
+    *,
+    background_provider: Any | None = None,
+    requested_spectra: Iterable[str] | None = None,
+) -> tuple[NativeCMBBatchResult, ...]:
+    """Evaluate native CMB contracts in order with isolated typed outcomes.
+
+    The first implementation deliberately adapts the exact scalar executor
+    item-by-item. This establishes the ordering, failure, cache, and
+    serialization contract before any shared numerical kernel is enabled.
+    """
+
+    ell_values = tuple(int(ell) for ell in ells)
+    spectra = tuple(str(name) for name in (requested_spectra or ("TT",)))
+    results: list[NativeCMBBatchResult] = []
+    for index, contract in enumerate(contracts):
+        before_cache = native_cache.native_cmb_cache_stats()
+        before_requests = int(
+            native_cache.native_cmb_performance_stats().get("requests", 0)
+        )
+        try:
+            spectrum = compute_cmb_spectrum_from_contract(
+                contract,
+                ell_values,
+                spectra=spectra,
+                background_provider=background_provider,
+            )
+            failure = None
+        # DEVCOV_ALLOW_BROAD_ONCE batch item boundary: isolate native failures.
+        except Exception as exc:
+            failure = classify_native_exception(
+                exc,
+                context=native_failure_context(
+                    contract,
+                    workload="full_spectrum",
+                    spectra=spectra,
+                ),
+            )
+            failure.add_context(batch_index=index)
+            spectrum = None
+        after_cache = native_cache.native_cmb_cache_stats()
+        performance_record = (
+            native_cache.latest_native_cmb_performance_record()
+        )
+        after_requests = int(
+            native_cache.native_cmb_performance_stats().get("requests", 0)
+        )
+        if after_requests <= before_requests:
+            performance_record = None
+        performance = (
+            {} if performance_record is None else dict(performance_record)
+        )
+        performance.setdefault("batch_index", index)
+        results.append(
+            NativeCMBBatchResult(
+                index=index,
+                spectrum=spectrum,
+                failure=failure,
+                performance_envelope=performance,
+                cache_provenance=_batch_cache_provenance(
+                    before_cache,
+                    after_cache,
+                    include_identity=performance_record is not None,
+                ),
+            )
+        )
+    return tuple(results)
 
 
 def compute_cmb_spectrum_cached(
@@ -306,6 +422,103 @@ class CMBLike(LikelihoodProtocol):
                 return self._reject_parameter_point(typed_error, logger=logger)
             raise typed_error from exc
 
+        return self._loglike_from_theory(theory, requested_spectra)
+
+    def loglike_batch(
+        self, params_batch: Sequence[Sequence[float]]
+    ) -> tuple[float, ...]:
+        """Evaluate ordered parameter points through the native batch API."""
+
+        if not self.enabled:
+            self._state = LikelihoodState(chi2=0.0, loglike=0.0)
+            return tuple(0.0 for _ in params_batch)
+        if self._setup_error is not None:
+            self._state = LikelihoodState()
+            raise NativeContractError(self._setup_error)
+
+        logger = logging.getLogger()
+        requested_spectra = self._observed_spectra or ("TT",)
+        contracts: list[Mapping[str, Any]] = []
+        positions: list[int] = []
+        values = [float("-inf")] * len(params_batch)
+        for index, params in enumerate(params_batch):
+            domain_error = self._parameter_domain_error(params)
+            if domain_error is not None:
+                values[index] = self._reject_parameter_point(
+                    domain_error,
+                    logger=logger,
+                )
+                continue
+            try:
+                native_contract = _resolve_plugin_cmb_contract(
+                    self.plugin,
+                    params,
+                )
+                native_contract = _with_extra_params(
+                    native_contract,
+                    self._extra_params_cached,
+                )
+                if not isinstance(native_contract, Mapping):
+                    raise NativeContractError(
+                        "(cmb_like): Model native CMB runtime must be a "
+                        "mapping."
+                    )
+                native_contract = prepare_native_cmb_execution_contract(
+                    native_contract
+                )
+            # DEVCOV_ALLOW_BROAD_ONCE batch boundary: isolate failures.
+            except Exception as exc:
+                typed_error = classify_native_exception(
+                    exc,
+                    context={"workload": "joint_mcmc"},
+                )
+                if isinstance(typed_error, NativeParameterDomainError):
+                    values[index] = self._reject_parameter_point(
+                        typed_error,
+                        logger=logger,
+                    )
+                    continue
+                raise typed_error from exc
+            positions.append(index)
+            contracts.append(native_contract)
+
+        if contracts:
+            results = compute_cmb_spectrum_batch(
+                contracts,
+                self._ells,
+                background_provider=self.plugin,
+                requested_spectra=requested_spectra,
+            )
+            for position, result in zip(positions, results):
+                if result.failure is not None:
+                    if isinstance(
+                        result.failure,
+                        NativeParameterDomainError,
+                    ):
+                        values[position] = self._reject_parameter_point(
+                            result.failure,
+                            logger=logger,
+                        )
+                        continue
+                    raise result.failure
+                values[position] = self._loglike_from_theory(
+                    result.spectrum,
+                    requested_spectra,
+                )
+        return tuple(float(value) for value in values)
+
+    def _loglike_from_theory(
+        self,
+        theory: numpy.ndarray | Mapping[str, numpy.ndarray] | None,
+        requested_spectra: Sequence[str],
+    ) -> float:
+        """Assemble one native theory result into the CMB likelihood."""
+
+        if theory is None:
+            self._state = LikelihoodState()
+            raise NativeContractError(
+                "(cmb_like): Native CMB batch returned no spectrum."
+            )
         if isinstance(theory, Mapping):
             try:
                 theory_vector = assemble_cmb_theory_vector(
@@ -486,7 +699,9 @@ class CMBLike(LikelihoodProtocol):
 
 __all__ = [
     "CMBLike",
+    "NativeCMBBatchResult",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
+    "compute_cmb_spectrum_batch",
     "compute_cmb_spectrum_from_contract",
 ]

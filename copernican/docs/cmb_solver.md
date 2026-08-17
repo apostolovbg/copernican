@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-16
+**Last Updated:** 2026-08-17
 **Project Version:** 12.0.26
 
 ## Overview
@@ -17,6 +17,22 @@ must preserve the meaning of states, source terms, gauge labels, and public
 spectra defined here. A model may declare a native contract while marking CMB
 output unavailable when its theory has no defensible linear perturbation
 closure.
+
+## Ordered batch contract
+
+Callers that evaluate several cosmologies may use
+`compute_cmb_spectrum_batch(contracts, ells, requested_spectra=...)`. Results
+retain input order and carry the input index, either a native spectrum or a
+typed failure, a performance envelope, and cache provenance. A domain or
+solver failure is isolated to its item and cannot replace a neighboring
+result. The initial implementation is an exact scalar-to-batch adapter; it
+therefore shares only identities that the native cache already proves safe and
+does not approximate parameter-dependent background or transfer state.
+
+The MCMC engine accepts `cmb_batch_size` as an explicit setting. `0` is the
+default and preserves the scalar reference path. A value greater than one
+uses bounded ordered worker batches while retaining the scalar fallback for
+serial execution and any unsupported batch capability.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All

@@ -31,15 +31,18 @@ class PosteriorEvaluator:
     transforms: tuple[Callable[[float], Any] | None, ...] | None
     logger: logging.Logger
 
-    def __call__(self, params: Sequence[float]) -> float:
-        """Transform parameters and evaluate the log posterior."""
+    def _prepare(
+        self, params: Sequence[float]
+    ) -> tuple[tuple[float, ...], float] | None:
+        """Transform one point and return values plus its log prior."""
+
         try:
             raw_values = tuple(float(param_val) for param_val in params)
         except (TypeError, ValueError):
             self.logger.debug(
                 "(PosteriorEvaluator): received non-numeric params"
             )
-            return float("-inf")
+            return None
 
         transformed: list[float] = []
         log_jacobian = 0.0
@@ -63,7 +66,7 @@ class PosteriorEvaluator:
                 self.logger.debug(
                     "(PosteriorEvaluator): transform %d failed: %s", idx, exc
                 )
-                return float("-inf")
+                return None
             if isinstance(result, tuple):
                 if len(result) != 2:
                     self.logger.debug(
@@ -71,7 +74,7 @@ class PosteriorEvaluator:
                         idx,
                         result,
                     )
-                    return float("-inf")
+                    return None
                 new_val, jac = result
             else:
                 new_val, jac = result, 0.0
@@ -83,7 +86,7 @@ class PosteriorEvaluator:
                     "(PosteriorEvaluator): transform %d produced non-float",
                     idx,
                 )
-                return float("-inf")
+                return None
 
         bounds = self.bounds
         if bounds is not None:
@@ -93,9 +96,9 @@ class PosteriorEvaluator:
                 except IndexError:
                     low_val = high_val = None
                 if low_val is not None and transformed_value < low_val:
-                    return float("-inf")
+                    return None
                 if high_val is not None and transformed_value > high_val:
-                    return float("-inf")
+                    return None
 
         log_prior = log_jacobian
         for transformed_value, prior in zip_longest(
@@ -105,13 +108,48 @@ class PosteriorEvaluator:
                 continue
             density = prior.log_density(transformed_value)
             if not math.isfinite(density):
-                return float("-inf")
+                return None
             log_prior += density
+        return tuple(transformed), float(log_prior)
+
+    def __call__(self, params: Sequence[float]) -> float:
+        """Transform parameters and evaluate the log posterior."""
+        prepared = self._prepare(params)
+        if prepared is None:
+            return float("-inf")
+        transformed, log_prior = prepared
 
         like_value = self.like(transformed)
         if not math.isfinite(like_value):
             return float("-inf")
         return float(like_value + log_prior)
+
+    def evaluate_batch(
+        self, params_batch: Sequence[Sequence[float]]
+    ) -> tuple[float, ...]:
+        """Evaluate an ordered batch with exact prior and bound handling."""
+
+        prepared: list[tuple[tuple[float, ...], float] | None] = [
+            self._prepare(params) for params in params_batch
+        ]
+        valid = [entry for entry in prepared if entry is not None]
+        evaluate_batch = getattr(self.like, "evaluate_batch", None)
+        if callable(evaluate_batch) and valid:
+            like_values = iter(evaluate_batch([entry[0] for entry in valid]))
+        else:
+            like_values = iter(self.like(entry[0]) for entry in valid)
+
+        values: list[float] = []
+        for entry in prepared:
+            if entry is None:
+                values.append(float("-inf"))
+                continue
+            like_value = float(next(like_values))
+            if not math.isfinite(like_value):
+                values.append(float("-inf"))
+            else:
+                values.append(float(like_value + entry[1]))
+        return tuple(values)
 
 
 def make_logposterior(

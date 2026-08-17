@@ -226,14 +226,17 @@ def execute_run_pipeline(
         sampling_burn_in = int(sampling_plan["burn_in_steps"])
         sampling_walkers = int(sampling_plan["n_walkers"])
         sampling_pool = sampling_plan.get("pool_size")
+        sampling_cmb_batch = int(sampling_plan.get("cmb_batch_size", 0))
 
         pool_label = sampling_pool if sampling_pool is not None else "auto"
         logger.info(
-            "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, pool=%s",
+            "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
+            "pool=%s, cmb_batch=%d",
             sampling_steps,
             sampling_burn_in,
             sampling_walkers,
             pool_label,
+            sampling_cmb_batch,
         )
         console_output.write(
             f"Configured sampler: steps {sampling_steps}, burn-in "
@@ -241,6 +244,9 @@ def execute_run_pipeline(
         )
         console_output.write(
             f"Walker ensemble {sampling_walkers}, pool {pool_label}."
+        )
+        console_output.write(
+            f"CMB batch size {sampling_cmb_batch or 'disabled'}."
         )
 
     fit_fn, _ = resolve_fit_function(engine_module)
@@ -283,6 +289,7 @@ def execute_run_pipeline(
             burn_in_steps=sampling_burn_in,
             display_progress=display_progress,
             progress_callback=progress_callback,
+            cmb_batch_size=sampling_cmb_batch,
         )
 
     control_file = getattr(control_model_plugin, "MODEL_FILENAME", "")
@@ -345,6 +352,7 @@ def execute_run_pipeline(
                 burn_in_steps=sampling_burn_in,
                 display_progress=display_progress,
                 progress_callback=progress_callback,
+                cmb_batch_size=sampling_cmb_batch,
             )
         console_output.write(
             f"Completed test-model sampling for "

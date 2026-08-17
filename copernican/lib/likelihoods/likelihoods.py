@@ -137,6 +137,42 @@ class JointLike(LikelihoodProtocol):
         )
         return total_loglike
 
+    def loglike_batch(
+        self, params_batch: Sequence[Sequence[float]]
+    ) -> tuple[float, ...]:
+        """Evaluate an ordered batch while sharing batch-capable components."""
+
+        batch_items = list(params_batch)
+        if not batch_items:
+            return ()
+        cmb = self.components.get("cmb")
+        cmb_batch = getattr(cmb, "loglike_batch", None)
+        if not callable(cmb_batch) or not getattr(cmb, "enabled", True):
+            return tuple(self.loglike(params) for params in batch_items)
+
+        cmb_values = tuple(float(value) for value in cmb_batch(batch_items))
+        totals = [0.0] * len(batch_items)
+        for index, params in enumerate(batch_items):
+            total = cmb_values[index]
+            if not math.isfinite(total):
+                totals[index] = float("-inf")
+                continue
+            for name, component in self.components.items():
+                if name == "cmb":
+                    continue
+                use_component = getattr(component, "enabled", True)
+                if name in getattr(self, "_toggles", {}):
+                    use_component = use_component and self._toggles[name]
+                    component.enabled = use_component
+                if use_component:
+                    value = float(component.loglike(params))
+                    if not math.isfinite(value):
+                        total = float("-inf")
+                        break
+                    total += value
+            totals[index] = total
+        return tuple(totals)
+
     @property
     def state(self) -> Mapping[str, Any]:
         """Return diagnostics captured during the last evaluation."""

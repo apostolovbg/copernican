@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-16
+**Last Updated:** 2026-08-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -398,7 +398,7 @@ scheduling.
   partial stage percentages.
 * The measured safe optimizations are staged and the slice is marked closed.
 
-### [open] Slice Fourteen - Batch and vectorized native evaluation
+### [closed] Slice Fourteen - Batch and vectorized native evaluation
 
 **Purpose:** Add an ordered batch evaluation contract that reuses safe static
 structure and vectorizes parameter-independent numerical work without
@@ -533,6 +533,17 @@ existing scalar call.
   compared, and documented.
 * The opt-in batch MCMC fixture completes with equivalent scalar results and
   a measured throughput record.
+
+**Completion record:**
+
+* `NativeCMBBatchResult` provides stable JSON diagnostics, ordered indices,
+  typed failures, performance envelopes, and cache provenance.
+* The public batch entry point adapts the exact scalar solver and the CMB
+  likelihood, joint likelihood, posterior, and worker pool preserve ordered
+  scalar-equivalent evaluation. `cmb_batch_size=0` remains the default.
+* Focused batch, likelihood, posterior, joint-likelihood, and MCMC tests pass;
+  existing likelihood and MCMC suites remain green. Documentation describes
+  the ordering, isolation, provenance, and opt-in behavior.
 * The scalar default remains available and unchanged.
 * The slice is marked closed only after correctness and scientific evidence
   are both complete.
