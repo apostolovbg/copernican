@@ -366,7 +366,7 @@ _INVERSE_MPC_CUBED_UNITS = "1/Mpc^3"
 _LINE_OF_SIGHT_SOURCE_UNITS = "1/Mpc"
 
 
-def _has_explicit_native_runtime_graph(
+def _has_explicit_declared_runtime_graph(
     contract: Mapping[str, Any],
 ) -> bool:
     """Return ``True`` when ``contract`` already declares runtime nodes."""
@@ -1107,12 +1107,12 @@ def _materialize_bounded_derived_sum(
     return " + ".join(active_names)
 
 
-def _materialize_native_scalar_hierarchy_contract(
+def _materialize_declared_scalar_hierarchy_contract(
     contract: Mapping[str, Any],
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated scalar hierarchy contract when metadata is enough."""
 
-    if _has_explicit_native_runtime_graph(contract):
+    if _has_explicit_declared_runtime_graph(contract):
         return contract, False
 
     sectors = contract.get("sectors", {}) or {}
@@ -1253,7 +1253,7 @@ def _materialize_native_scalar_hierarchy_contract(
         ]
         if len(matches) > 1:
             raise ValueError(
-                f"Native scalar hierarchy permits one '{role}' source "
+                f"Declared scalar hierarchy permits one '{role}' source "
                 "closure"
             )
         if not matches:
@@ -1261,7 +1261,7 @@ def _materialize_native_scalar_hierarchy_contract(
         expression = matches[0]
         if not isinstance(expression, str) or not expression.strip():
             raise ValueError(
-                f"Native scalar hierarchy '{role}' source closure must "
+                f"Declared scalar hierarchy '{role}' source closure must "
                 "declare an expression"
             )
         return expression
@@ -1727,7 +1727,7 @@ def _materialize_native_scalar_hierarchy_contract(
         closure_name = str(family_entry.get("closure", "")).strip()
         if closure_name != "free_streaming_scalar":
             raise ValueError(
-                "Native scalar hierarchy family "
+                "Declared scalar hierarchy family "
                 f"'{family_name}' must declare the supported terminal "
                 "closure 'free_streaming_scalar'"
             )
@@ -3179,12 +3179,12 @@ def _materialize_native_scalar_hierarchy_contract(
     return materialized, True
 
 
-def _materialize_native_vector_hierarchy_contract(
+def _materialize_declared_vector_hierarchy_contract(
     contract: Mapping[str, Any],
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated vector hierarchy contract when metadata is enough."""
 
-    if _has_explicit_native_runtime_graph(contract):
+    if _has_explicit_declared_runtime_graph(contract):
         return contract, False
 
     sectors = contract.get("sectors", {}) or {}
@@ -4067,12 +4067,12 @@ def _materialize_native_vector_hierarchy_contract(
     return materialized, True
 
 
-def _materialize_native_tensor_hierarchy_contract(
+def _materialize_declared_tensor_hierarchy_contract(
     contract: Mapping[str, Any],
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated tensor hierarchy contract when metadata is enough."""
 
-    if _has_explicit_native_runtime_graph(contract):
+    if _has_explicit_declared_runtime_graph(contract):
         return contract, False
 
     sectors = contract.get("sectors", {}) or {}
@@ -4949,7 +4949,7 @@ class PerturbationSpeciesData:
 
 @dataclass(frozen=True, slots=True)
 class PerturbationHierarchyFamilyData:
-    """Immutable hierarchy-family metadata for native CMB contracts."""
+    """Immutable hierarchy-family metadata for declared CMB contracts."""
 
     name: str
     sector: str | None = None
@@ -5056,7 +5056,7 @@ class PerturbationInitialConditionFamilyData:
 
 @dataclass(frozen=True, slots=True)
 class PerturbationProjectionTypingData:
-    """Immutable projection-typing metadata for native observables."""
+    """Immutable projection-typing metadata for declared observables."""
 
     name: str
     sector: str | None = None
@@ -5262,7 +5262,7 @@ def _evaluate_compiled_expression_noerr(
 ) -> Any:
     """Evaluate one compiled expression against ``env`` without errstate."""
 
-    # Native evolution evaluates the same validated expressions millions of
+    # Declared evolution evaluates the same validated expressions millions of
     # times.  Python bytecode avoids allocating a stack program for every
     # call while retaining the restricted AST and globals contract.
     # security-scanner: allow validated expression evaluation.
@@ -6776,7 +6776,7 @@ def _build_manifest_summary(
         "execution_route": _build_execution_route_summary(),
         "compilation_ownership": {
             "compiler": (
-                "copernican.lib.model_coder.compile_native_cmb_runtime"
+                "copernican.lib.model_coder.compile_declared_cmb_runtime"
             ),
             "compiled_upstream": True,
             "hot_path_recompilation_allowed": False,
@@ -6804,13 +6804,13 @@ def _build_manifest_summary(
 
 
 def _build_execution_route_summary() -> dict[str, Any]:
-    """Return the single native execution-route metadata surface."""
+    """Return the single declared execution-route metadata surface."""
 
     return {
         "solver_id": CCMBS_ID,
         "solver_label": CCMBS_LABEL,
         "runtime_module": (
-            "copernican.lib.likelihoods.cmb.copernican_cmb_solver"
+            "copernican.lib.likelihoods.cmb.orchestrators.ccmbs"
         ),
         "ready": True,
     }
@@ -6829,13 +6829,13 @@ def compile_perturbation_contract(
     if not isinstance(contract, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
     contract, materialized_scalar_hierarchy = (
-        _materialize_native_scalar_hierarchy_contract(contract)
+        _materialize_declared_scalar_hierarchy_contract(contract)
     )
     contract, materialized_vector_hierarchy = (
-        _materialize_native_vector_hierarchy_contract(contract)
+        _materialize_declared_vector_hierarchy_contract(contract)
     )
     contract, materialized_tensor_hierarchy = (
-        _materialize_native_tensor_hierarchy_contract(contract)
+        _materialize_declared_tensor_hierarchy_contract(contract)
     )
 
     cache_key = (
@@ -6875,7 +6875,7 @@ def compile_perturbation_contract(
         raise ValueError("cmb.perturbations.contract_version must be an int")
     if contract_version != 2:
         raise ValueError(
-            "Native perturbations must declare contract_version: 2"
+            "Declared perturbations must declare contract_version: 2"
         )
 
     gauge = _validate_string(
@@ -8409,7 +8409,7 @@ def compile_perturbation_contract(
                     mode=initial_mode,
                 ),
                 "description": (
-                    "Auto-generated native initial condition for "
+                    "Auto-generated declared initial condition for "
                     f"{initial_mode}."
                 ),
             }
@@ -8640,18 +8640,18 @@ def compile_perturbation_contract(
             )
 
     if not variable_entries:
-        raise ValueError("Native perturbations must declare variables")
+        raise ValueError("Declared perturbations must declare variables")
     if not equation_entries:
-        raise ValueError("Native perturbations must declare equations")
+        raise ValueError("Declared perturbations must declare equations")
     if not initial_condition_entries and not boundary_condition_entries:
         raise ValueError(
-            "Native perturbations must declare initial_conditions or "
+            "Declared perturbations must declare initial_conditions or "
             "boundary_conditions"
         )
     if not observable_entries:
-        raise ValueError("Native perturbations must declare observables")
+        raise ValueError("Declared perturbations must declare observables")
     if not sections["validity"]:
-        raise ValueError("Native perturbations must declare validity")
+        raise ValueError("Declared perturbations must declare validity")
 
     validity_notes = _validate_optional_string(
         sections["validity"].get("notes"),
@@ -8662,7 +8662,9 @@ def compile_perturbation_contract(
     if validity_regimes is not None:
         regimes = _validate_regimes(validity_regimes)
     else:
-        raise ValueError("Native perturbations must declare validity.regimes")
+        raise ValueError(
+            "Declared perturbations must declare validity.regimes"
+        )
     validity_data = PerturbationValidityData(
         regimes=regimes,
         notes=validity_notes,
@@ -8794,7 +8796,7 @@ def compile_perturbation_contract(
             for variable, wrt, order in missing_initial_targets
         )
         raise ValueError(
-            "Native perturbations are missing required initial "
+            "Declared perturbations are missing required initial "
             f"conditions: {readable}"
         )
 

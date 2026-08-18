@@ -360,14 +360,14 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: TOG spectra use the declared temporal-opposition background.
     notes: The scalar graph couples declared matter and radiation species to
       the volume-activated temporal-opposition expansion law.
 notes: >-
   This model uses the TOG volume-activation law. The background temporal
   factor is A(a) = [1 - exp(-(a / a_T)**3)] /
-  [1 - exp(-(1 / a_T)**3)]. The native CMB contract evaluates the derived
+  [1 - exp(-(1 / a_T)**3)]. The declared CMB contract evaluates the derived
   expansion law directly through its declared background and perturbation
   graph.
 

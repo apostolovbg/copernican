@@ -118,7 +118,7 @@ cmb:
       regimes:
         - synthetic_integration
     notes: >-
-      Minimal native signal graph for deterministic integration coverage.
+      Minimal declared signal graph for deterministic integration coverage.
 likelihood:
   independent_sne_bao: true
 equations:

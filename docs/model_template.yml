@@ -20,17 +20,18 @@ description: |
     parameter (2.5–3.5) so the radiation term evaluates as `Omega_gamma *
     (1 + 0.2271 * Neff)` when constructing both `Hz_expression` and
     `rs_expression`. This keeps BAO plots, CSV exports, likelihood calls,
-    and native CMB backgrounds aligned while letting relativistic species
+    and declared CMB backgrounds aligned while letting relativistic species
     float.
-  * The `cmb` block is the structured native execution contract. Keep scalar
+  * The `cmb` block is the structured declared execution contract. Keep scalar
     inputs in `param_map`, declare numerical grids in `grids`, put evaluated
     expressions in `values`, list reviewed graph calls in `calls`, and define
-    the native background and perturbation graph in the same block.
-  * `cmb.numerical` declares native runtime controls such as ell and k bounds,
+    the declared background and perturbation graph in the same block.
+  * `cmb.numerical` declares declared runtime controls such as ell and k
+    bounds,
     sampling counts, ODE tolerances, tight-coupling settings, and the initial
     redshift. Repeat the controls under `cmb.perturbations.numerics` when the
     hierarchy compiler must use them while materializing the graph.
-  * `valid_for_cmb: true` requires a complete structured contract. A native
+  * `valid_for_cmb: true` requires a complete structured contract. A declared
     model uses `calls: []` unless it declares reviewed adapter metadata, and
     its perturbation contract must provide typed graph metadata, physical
     sources, projections, initial conditions, and validity metadata.
@@ -42,7 +43,7 @@ description: |
     declared background changes the baryon-locked scalar source. Do not
     represent a relational or effective response as a synthetic species.
   * Set `valid_for_cmb: false` when the theory lacks a defensible linear
-    perturbation closure. Keep the native contract descriptive, and expose
+    perturbation closure. Keep the declared contract descriptive, and expose
     CMB output as unavailable rather than substituting a standard model or
     returning fabricated zero spectra.
   * A specification-only model may keep `valid_for_cmb: false` after declaring
@@ -52,7 +53,7 @@ description: |
     gates that a later implementation must prove.
   * Production contracts do not select a solver. Route keys such as
     `backend`, `standard`, and `backend_mapping` are invalid because every
-    accepted CMB contract executes through the native declared graph.
+    accepted CMB contract executes through the declared graph.
 abstract: |
   A concise abstract describing the model. Mention the key parameters, the
   physical motivation and which datasets the model was designed to confront.
@@ -111,7 +112,7 @@ parameters:
     bounds: [2.5, 3.5]
     unit: ""
     latex_name: N_{\rm eff}
-    definition: Sampled relativistic neutrino count used by the native CMB
+    definition: Sampled relativistic neutrino count used by the declared CMB
       background and independent reference fixtures.
     prior:
       type: uniform
@@ -363,11 +364,11 @@ cmb:
       notes: Template declared-math perturbation graph.
     notes: >-
       This template demonstrates the forward-only declared-math graph
-      contract executed by the native CMB solver.
+      contract executed by the declared CMB solver.
 notes: |
   * Use the radiation term `Omega_gamma * (1 + 0.2271 * Neff)` whenever you
     need the relativistic energy density; doing so keeps BAO diagnostics, CSV
-    exports, native CMB backgrounds, and reference inputs in sync.
+    exports, declared CMB backgrounds, and reference inputs in sync.
   * The template lists uniform, gaussian, loguniform and fixed priors so you
     can see all supported options. Always repeat the definition, unit and
     latex name to make the cached YAML readable.
@@ -375,11 +376,11 @@ notes: |
     every parameter you defined. If you need a new parameter, add it to the
     `parameters` list first and give it the same metadata everywhere else.
   * Use `units` on declared variables, derived symbols, source terms, and
-    observables whenever the convention is fixed. The canonical native CMB
+    observables whenever the convention is fixed. The canonical declared CMB
     sign, gauge, source, and spectrum conventions live in
     `copernican/docs/cmb_solver.md`.
   * Review the compiled species and source names against the theory before
-    enabling CMB output. A native graph is valid only when every emitted
+    enabling CMB output. A declared graph is valid only when every emitted
     state and source has an explicit physical origin.
   * Use `cmb_contract.audit_cmb_capabilities` after compilation to record the
     declared model matrix. The public `TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and
@@ -406,10 +407,10 @@ notes: |
     reviewed `custom_line_of_sight` kernels with explicit source-role
     contracts.
   * `cmb.background.derived` may expose expansion, density, pressure,
-    equation-of-state, or curvature quantities directly. The native solver
+    equation-of-state, or curvature quantities directly. The declared solver
     consumes those declared outputs first and only derives required physical
     scalars when the contract makes that possible.
-    `cmb.background.recombination.quantities` may also override the native
+    `cmb.background.recombination.quantities` may also override the declared
     hydrogen recombination hook, but when present it must define
     `hydrogen_temperature_K`, `hydrogen_alpha_B`, `beta_continuum`, and
     `peebles_c`.
@@ -425,20 +426,21 @@ notes: |
     `required_projection_roles` explicitly.
   * `cmb.perturbations.accuracy_controls` can require minimum `ell`, `k`,
     `eta`, hierarchy, source-grid, and momentum-grid coverage, and may
-    declare `runtime_envelope.maximum_*_work_units` limits so native runs
+    declare `runtime_envelope.maximum_*_work_units` limits so declared runs
     fail before drifting back into unmanaged workloads.
   * Angular power-spectrum observables only name their `primary` and
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance
     stays honest.
   * Run manifests record the declared graph summary plus background,
-    recombination, and native execution provenance. Treat those manifest
+    recombination, and declared execution provenance. Treat those manifest
     blocks as the execution proof surface.
   * Mention which datasets the model targets, how the priors were chosen and
     any reproducibility instructions inside `description`/`notes` so the file
     remains the sole source of truth.
   * When advertising BAO support the baryon density should hover near 0.04
-    (±0.01) so DM/rs predictions stay compatible with the BOSS DR12 comparisons
+    (±0.01) so DM/rs predictions stay compatible with the BOSS DR12
+    comparisons
     that powering the χ² residual regression. Adjust `Omega_b` intentionally
     and rerun the BAO test whenever you take the value outside this window.
   * Set `skip_bao: true` when you intentionally leave BAO disabled. Leaving the

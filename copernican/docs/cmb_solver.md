@@ -1,20 +1,29 @@
-# Native CMB Solver Convention
+# Declared CMB Solver Convention
 **Last Updated:** 2026-08-18
 **Project Version:** 12.0.26
 
 ## Overview
-This document is the canonical physical convention for Copernican's native
+This document is the canonical physical convention for Copernican's declared
 CMB solver path. Every bundled production CMB model uses one route-neutral
-declared graph with no solver selector or backend fallback.
+declared graph selected through the CMB solver registry. CCMBS is the default
+reference backend; solver selection never adds a backend fallback.
 
 The production execution identity is
 `ccmbs_numpy`, displayed as CCMBS — Copernican Cosmic Microwave Background
-Solver. CLI and GUI workflows select control and test model
-contracts and a sampler; they do not expose a CMB-sampler choice.
+Solver. CLI and GUI workflows select control and test model contracts, a
+sampler, and the registered CMB solver. The default manifest selection is
+`selection.cmb_solver.id: ccmbs_numpy`.
+
+The public solver boundary is implemented by `CMBSolverProtocol`. It
+separates immutable contract preparation from scalar and ordered batch
+evaluation, and every `CMBResult` carries requested order, diagnostics, cache
+provenance, phase timings, solver identity, and a typed failure when
+evaluation cannot complete. A future `ccmbs_taichi` backend can register
+beside CCMBS without changing samplers or likelihood callers.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
-spectra defined here. A model may declare a native contract while marking CMB
+spectra defined here. A model may declare a declared contract while marking CMB
 output unavailable when its theory has no defensible linear perturbation
 closure.
 
@@ -22,11 +31,12 @@ closure.
 
 Callers that evaluate several cosmologies may use
 `compute_cmb_spectrum_batch(contracts, ells, requested_spectra=...)`. Results
-retain input order and carry the input index, either a native spectrum or a
+retain input order and carry the input index, either a declared spectrum or a
 typed failure, a performance envelope, and cache provenance. A domain or
 solver failure is isolated to its item and cannot replace a neighboring
 result. The initial implementation is an exact scalar-to-batch adapter; it
-therefore shares only identities that the native cache already proves safe and
+therefore shares only identities that the declared cache already proves safe
+and
 does not approximate parameter-dependent background or transfer state.
 
 The MCMC sampler accepts `cmb_batch_size` as an explicit setting. `0` is the
@@ -34,22 +44,22 @@ default and preserves the scalar reference path. A value greater than one
 uses bounded ordered worker batches while retaining the scalar fallback for
 serial execution and any unsupported batch capability.
 
-The native route uses conformal time `tau`, conformal distance
+The declared route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
 dimensionless perturbations are Fourier amplitudes in the same plane-wave
-convention used by the declared graph compiler and the native line-of-sight
+convention used by the declared graph compiler and the declared line-of-sight
 integrator.
 
-## Native Model Declarations
-`copernican/models/model_lcdm.yml` is the canonical native LambdaCDM
+## Declared Model Declarations
+`copernican/models/model_lcdm.yml` is the canonical declared LambdaCDM
 declaration. It defines the background and recombination inputs, scalar
 species and hierarchy families, Thomson coupling, adiabatic initial data,
 projection typing, and a bounded numerical envelope. The model compiles its
-generated scalar hierarchy through the same native runtime described below.
+generated scalar hierarchy through the same declared runtime described below.
 
 Its perturbation contract contains physical declarations only. Keys such as
 `backend`, `standard`, and `backend_mapping` are rejected rather than used to
-select another solver. Production output comes from the native declared graph
+select another solver. Production output comes from the declared graph
 and does not call CAMB or CLASS.
 
 Available bundled CMB models use the same contract shape. Their model files
@@ -60,8 +70,8 @@ conservation rule, regular adiabatic initial family, projection typing, and
 numerical controls. The compiler materializes the common scalar hierarchy
 from this metadata, so model-specific background expressions feed one solver
 without a backend branch. USMF declares its physical species and
-native contract and now carries a complete theory-facing shrinking-matter
-closure specification. Its CMB output is enabled only through the native
+declared contract and now carries a complete theory-facing shrinking-matter
+closure specification. Its CMB output is enabled only through the declared
 declared graph after the equations, limits, and runtime controls pass the
 Slice Twelve acceptance tests.
 
@@ -78,7 +88,7 @@ The bundled ontology is explicit at the model boundary:
   provide baryon-locked relational sources.
 * USMF2 declares photons, baryons, and massless neutrinos plus one explicit
   shrink-field scalar degree of freedom. Its sourced equations, constraints,
-  initial family, projections, and observables execute through the native
+  initial family, projections, and observables execute through the declared
   declared graph without importing LCDM matter or a reference backend.
 
 The compiler materializes equations, common line-of-sight sources,
@@ -92,7 +102,7 @@ massive-neutrino states for a contract without that family.
 `model_usmf2.yml` is the production closure record for the Unified Shrinking
 Matter Framework version 2. It sets `valid_for_cmb: true` only because the
 proposed equations are independently implemented and tested through the
-native declared graph. The contract does not invent missing physics or route
+declared graph. The contract does not invent missing physics or route
 to a reference backend.
 
 The graph declares one dimensionless `shrink_field` and its conformal-time
@@ -108,7 +118,7 @@ fluid, collisionless hierarchy, and line-of-sight conventions; the
 shrink-field response, metric normalization, and finite tails are marked as
 USMF2 closure choices. The `accuracy_controls.analytic_limits` entries name
 the homogeneous, no-shrink, and zero-shear limits covered by the production
-contract tests. The native runtime also checks finite source histories,
+contract tests. The declared runtime also checks finite source histories,
 parameter response, declared conservation balance, and coarse-to-reference
 history agreement.
 
@@ -120,7 +130,7 @@ interactions, closures, initial-condition families, projection typing, and
 observable names. `build_cmb_capability_matrix` applies the same audit to the
 bundled model corpus, keyed by the declared model name. Neither function uses
 a theory name, model filename, model family, or assumed species to select a
-route; the execution route is the universal native declared graph recorded in
+route; the execution route is the universal declared graph recorded in
 the compiled manifest. The audit also records background references, numerical
 controls, and which standard hierarchies were legitimately materialized from
 the declaration.
@@ -169,7 +179,7 @@ reusable numerical data; they never store or substitute observable results.
 The runtime envelope governs requested work before evolution begins. It
 rejects unbounded or under-declared state, grid, hierarchy, source, and
 projection work rather than lowering the declared physical calculation.
-Scalar execution remains native and does not import or call CAMB or CLASS;
+Scalar execution remains declared and does not import or call CAMB or CLASS;
 those packages appear only in independent scientific reference tests.
 
 ## Scalar Metric Convention
@@ -188,7 +198,7 @@ ds^2 = a(tau)^2 [
 `Phi` is the spatial-curvature potential.
 Both are dimensionless.
 
-The native contract names and units are:
+The declared contract names and units are:
 
 - `Phi`, `phi_aux`, `metric_potential_phi`
   Curvature potential `Phi`. Units: dimensionless.
@@ -216,15 +226,15 @@ ds^2 = a(tau)^2 [
 ]
 ```
 
-The native placeholder names are:
+The declared placeholder names are:
 
 - `h_sync_metric`
   Synchronous trace perturbation `h`. Units: dimensionless.
 - `eta_sync_metric`
   Synchronous shear perturbation `eta`. Units: dimensionless.
 
-## Native State Convention
-The native state meanings are fixed as follows.
+## Declared State Convention
+The declared state meanings are fixed as follows.
 
 ### Photon Temperature
 `theta_gamma0`, `theta_gamma1`, `theta_gamma2`, ... are the photon
@@ -338,7 +348,7 @@ the massive-neutrino species and hierarchy family.
 The canonical vector metric amplitude is `sigma_vector`, the transverse shear
 variable propagated by the vector Einstein system. It is dimensionless.
 
-The native matter and radiation vector states are:
+The declared matter and radiation vector states are:
 
 - `v_b_vector`, `v_c_vector`
   Baryon and optional CDM vorticity amplitudes. `v_c_vector` is present only
@@ -365,7 +375,7 @@ Vector temperature uses the two flat-space radial families
 `sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
 the corresponding spin-1 radial limits.
 The scalar E-mode line-of-sight source applies the CAMB `15/2` normalization
-to the declared `visibility * polarization_moment` before the native spin-2
+to the declared `visibility * polarization_moment` before the declared spin-2
 projection. The scalar radial window carries the standard spin-2 factorial
 prefactor and `j_l / x^2`.
 
@@ -397,7 +407,7 @@ The canonical tensor metric amplitude is `h_tensor`, with the explicit
 conformal-time derivative `h_tensor_tau = d h_tensor / d eta`.
 `h_tensor` is dimensionless and `h_tensor_tau` has units `1/Mpc`.
 
-The native tensor radiation states are:
+The declared tensor radiation states are:
 
 - `pi_gamma_tensor`, `pi_nu_tensor`
   Photon and massless-neutrino tensor temperature quadrupoles. Units:
@@ -458,7 +468,7 @@ polarization, and neutrino hierarchy depths from the working depth changes
 accepted tensor source histories by less than one percent.
 
 ## Optical Depth And Visibility
-The native optical-depth convention is:
+The declared optical-depth convention is:
 
 ```text
 tau(tau_obs) = integral from tau_obs to eta0 of a n_e sigma_T d tau
@@ -554,7 +564,7 @@ the adiabatic family and the selected isocurvature series for each
 isocurvature family, so q-resolved states do not inherit an unrelated
 adiabatic seed.
 
-Before integrating one generated scalar mode, the native runtime
+Before integrating one generated scalar mode, the declared runtime
 evaluates the starting Einstein energy, momentum, and shear residuals and
 the declared fast-manifold collision expressions. It also evaluates the
 declared conservation rules at the start surface. Non-finite or
@@ -636,7 +646,7 @@ converts primordial curvature into the radiation-era curvature and lapse
 potentials using the declared relativistic-neutrino fraction.
 The default hydrogen recombination quantities use the photon temperature
 before Compton decoupling and the adiabatically cooled matter temperature
-afterward. The native case-B coefficient includes the standard RECFAST
+afterward. The declared case-B coefficient includes the standard RECFAST
 multilevel-atom correction, while declared recombination quantity hooks
 remain authoritative.
 Helium Saha fractions are iterated to convergence so neutral helium does not
@@ -711,7 +721,7 @@ density, pressure, momentum, and shear are fixed to thermal physical
 normalization.
 
 ### Tight Coupling And Collision Splitting
-The native scalar integrator compiles every declared collision operator
+The declared scalar integrator compiles every declared collision operator
 into one runtime block before evolution begins.
 Each block resolves its target state slots, `rate_expression`, linear
 coefficients or matrix entries, counterpart bookkeeping, and the declared
@@ -735,12 +745,12 @@ with hysteretic exit at
 The entry multiplier is `cmb.perturbations.numerics.tight_coupling_ratio`;
 the exit multiplier is the separately declared
 `cmb.perturbations.numerics.tight_coupling_exit_ratio`, which must be
-strictly between zero and one. The native runtime does not infer an exit
+strictly between zero and one. The declared runtime does not infer an exit
 threshold from a hidden scalar constant.
 
 Within and outside the fast-manifold regime,
 `copernican/lib/perturbation_contract.py` and
-`copernican/lib/likelihoods/cmb/native_projection.py` advance the exact
+`copernican/lib/likelihoods/cmb/runtime/projection.py` advance the exact
 Thomson block from the compiled `exact_form`.
 While the threshold is active, the runtime derives first-order fast states
 from the declared collision matrix and the forcing produced by the same
@@ -764,7 +774,7 @@ compiled split block with `integration_strategy: exact` and a declared
 `exact_form`, or with `integration_strategy: implicit` and a declared
 `linear_block`.
 Several compiled collision blocks may run in the same evolution interval, and
-the native solver suppresses only the selected split-operator outputs
+the declared solver suppresses only the selected split-operator outputs
 instead of zeroing shared symbols such as `collision_rate`.
 After every exact, implicit, or fast-manifold update, the runtime evaluates
 the conservation rules attached to that collision block. A non-finite or
@@ -796,7 +806,7 @@ S_B = 0 for scalar modes
 S_phi = Phi + Psi
 ```
 
-The native photon multipoles use the same temperature and polarization
+The declared photon multipoles use the same temperature and polarization
 normalization as the declared reference hierarchy. The generated scalar
 source uses the factors above, and the photon contribution to the Einstein
 shear source is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
@@ -846,7 +856,7 @@ second conformal-time derivative history and projected with the ordinary
 spherical-Bessel kernel. This preserves the canonical line-of-sight source
 normalization.
 
-During tight coupling, the native hierarchy evolves one photon-baryon
+During tight coupling, the declared hierarchy evolves one photon-baryon
 velocity by the declared momentum-weighted combination of the photon and
 baryon Euler equations. The closure then restores `theta_b = 3 k
 theta_gamma,1` and the declared first-order quadrupole relations. This keeps
@@ -872,7 +882,7 @@ S_B^V = -15 g P_V / 2
 `vector_polarization_b_source`; the radial factors are applied by the
 sector-specific projection kernels. The vector temperature route selects the
 `T1` family, while the vector `E` and `B` routes select their dedicated
-spin-2 families. The native line-of-sight projector keeps the same sign and
+spin-2 families. The declared line-of-sight projector keeps the same sign and
 parity convention across sectors: temperature sources are even, `E` is even,
 `B` is odd, and lensing uses the Weyl-potential sum `Phi + Psi`.
 
@@ -880,7 +890,7 @@ The canonical tensor source decomposition is written in the CAMB tensor
 transfer convention. The generated hierarchy evolves the tensor metric
 wave and uses the physical photon polarization moment
 `P_T = 0.1 pi_gamma_tensor + 0.6 E_gamma,2`. The tensor source
-normalizations below also include the native primordial-power conversion
+normalizations below also include the declared primordial-power conversion
 (`P_h = P_T/6`) and the tensor radial-kernel normalization:
 
 ```text
@@ -895,7 +905,7 @@ S_B^T = (15/2) sqrt(3/8) g P_T
 `tensor_temperature_source`, `tensor_polarization_e_source`, and
 `tensor_polarization_b_source`. The tensor temperature radial kernel carries
 the complementary `sqrt(3/8)` and spin-2 factorial factor. The `15/8`
-temperature coefficient is the native tensor polarization-moment conversion
+temperature coefficient is the declared tensor polarization-moment conversion
 used by the transfer convention. The photon quadrupole and E/B hierarchy
 coefficients follow the tensor equations used by CAMB, including the exact
 two-state Thomson block for `pi_gamma_tensor` and `E_gamma,2`. The terminal
@@ -905,8 +915,8 @@ as in the reference
 hierarchy.
 
 ## Public Spectrum Convention
-The native projection layer integrates raw transfer functions into raw
-`C_ell` values. The public solver then applies the native output convention.
+The declared projection layer integrates raw transfer functions into raw
+`C_ell` values. The public solver then applies the declared output convention.
 
 For `TT`, `TE`, `EE`, `BB`, and the exact lensed temperature-like spectra:
 
@@ -919,7 +929,7 @@ with units `muK^2`.
 For `TP` and `EP`:
 
 ```text
-Native TP or EP = ell (ell + 1) C_ell^{X phi} / (2 pi)
+Declared TP or EP = ell (ell + 1) C_ell^{X phi} / (2 pi)
 ```
 
 These cross-surfaces are dimensionless, matching the independent
@@ -933,7 +943,7 @@ baseline and still generates lensing-induced `lensed_BB` from the declared
 E-mode and lensing-potential spectra.
 
 For `PP`, the public solver returns the exact `clpp` normalization consumed
-by the native curved-sky remapper:
+by the declared curved-sky remapper:
 
 ```text
 PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
@@ -945,8 +955,8 @@ PP = clpp = [ell (ell + 1)]^2 C_ell^{phiphi} / (2 pi)
 `muK^2` `D_ell` convention as their unlensed counterparts.
 
 Lensed public requests are expanded to one contiguous zero-based analysis
-surface before remapping. The exact lensed assembler passes only native
-unlensed `TT`, `TE`, `EE`, optional `BB`, and native `PP` into the remapper;
+surface before remapping. The exact lensed assembler passes only declared
+unlensed `TT`, `TE`, `EE`, optional `BB`, and declared `PP` into the remapper;
 it then selects the requested multipoles. Sparse requests therefore cannot
 change the remapping calculation or bypass declared odd-parity input.
 
@@ -957,7 +967,7 @@ Gauss-Legendre nodes. Its `sampling_factor` is a declared quadrature control;
 raising it refines interpolation without changing spectrum normalization or
 injecting a reference output.
 
-Native projection quadrature starts from the declared numerical ell range and
+Declared projection quadrature starts from the declared numerical ell range and
 reference multipoles rather than from the subset requested by one caller.
 This keeps a spectrum's k integration stable when callers request a sparse
 surface such as `TT` at selected multipoles or request the complete lensed
@@ -973,7 +983,7 @@ declared node budget instead of adding an unbounded high-k tail. Reference-ell
 anchors remain explicit inputs to the bounded grid. Contracts without this
 control retain the bounded anchor-and-gap grid.
 
-Single-sector native routes also expose matching component aliases such as
+Single-sector declared routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
 The tensor route reads `r` as the tensor-to-scalar amplitude ratio and `nt`
 as the tensor spectral index when constructing the primordial tensor power
@@ -1002,31 +1012,31 @@ including repeated and noncontiguous multipoles. Plot, diagnostic, and CSV
 surfaces use the same canonical metadata, so scalar, vector, tensor, total,
 lensed, unlensed, lensing-potential, and diagnostic outputs remain separate.
 
-## Native Execution Pipeline
+## Declared Execution Pipeline
 
-The native route is a declared-graph execution path with five physical
+The declared route is a declared-graph execution path with five physical
 stages:
 
-1. `copernican/lib/likelihoods/cmb/cmb.py` accepts only a prepared native
+1. `copernican/lib/likelihoods/cmb/cmb.py` accepts only a prepared declared
    runtime or a route-neutral declared contract and validates it before any
    spectrum is built.
-2. `native_background.py` resolves the expansion, conformal-time, optical-
+2. `runtime/background.py` resolves the expansion, conformal-time, optical-
    depth, visibility, recombination, and sound-horizon tables. The table
    carries interpolation functions for the quantities sampled by evolution
    and projection.
-3. `native_evolution.py` compiles hierarchy families, declared collision
+3. `runtime/evolution.py` compiles hierarchy families, declared collision
    blocks, initial modes, gauge roles, and q-resolved momentum grids. Each
    wave number is evolved through the declared state surface; production
    execution does not call an external Boltzmann backend.
-4. `native_projection.py` evaluates transfer histories on the fixed numerical
+4. `runtime/projection.py` evaluates transfer histories on the fixed numerical
    envelope, applies the scalar, vector, or tensor line-of-sight kernels, and
    integrates the transfer products into raw angular spectra. The source
    history and radial-kernel conventions in this document determine the sign,
    parity, and normalization of each transfer.
-5. `copernican_cmb_solver.py` converts raw spectra to the public units,
+5. `orchestrators/ccmbs.py` converts raw spectra to the public units,
    resolves requested-spectrum dependencies, and sends the four-component
-   temperature/polarization surface through `native_lensing.py` when lensed
-   outputs are requested. `native_cache.py` owns bounded structural,
+   temperature/polarization surface through `lensing.py` when lensed
+   outputs are requested. `runtime/cache.py` owns bounded structural,
    parameter-dependent, and result caches with explicit invalidation rules.
 
 The runtime has three cache classes. Structural work contains the compiled
@@ -1035,7 +1045,7 @@ layouts, collision plan, and momentum-grid topology. Parameter-dependent
 work contains the background, recombination, visibility, coordinate-rate,
 collision, q-mass, and projection-kernel data for one bound cosmology. Result
 work contains transfer matrices and public spectrum surfaces for one exact
-request. `NativeRuntimeCacheIdentity` records contract-static,
+request. `DeclaredRuntimeCacheIdentity` records contract-static,
 cosmology-static, and request-specific key portions separately, so a new
 multipole request does not invalidate structural entries.
 
@@ -1075,13 +1085,13 @@ The envelope records wall time for `compilation`, `background`,
 `initial_data`, `evolution`, `projection`, `lensing`, and
 `likelihood_assembly`. Every successful or failed request retains all phase
 slots, governed work units, workload identity, cache state, stop phase, and
-structured failure context. `native_cmb_performance_stats()` exposes bounded
+structured failure context. `declared_cmb_performance_stats()` exposes bounded
 recent records and aggregate phase totals. An identical request returns the
 bounded spectrum cache directly with zero evolution and projection work.
 
 ### Runtime Lifecycle And Failure Semantics
 
-`model_coder.py` owns structural compilation. A `NativeCMBRuntime` carries
+`model_coder.py` owns structural compilation. A `DeclaredCMBRuntime` carries
 recursively read-only model declarations, compiled perturbation data,
 background expression plans, and a complete runtime signature. Binding one
 proposal creates only fresh parameter mappings; it reuses the immutable
@@ -1105,7 +1115,7 @@ The cache inventory classifies each bounded family:
   parameter, gauge, sector, observable, numerical, multipole, and requested-
   spectrum identity.
 
-Native failures cross the likelihood boundary as typed errors. A sampled
+Declared failures cross the likelihood boundary as typed errors. A sampled
 point outside a scientifically valid parameter domain returns negative
 infinity and contributes to rate-limited rejection diagnostics. Unsupported
 capabilities, invalid contracts, convergence failures, non-finite evolution,
@@ -1126,7 +1136,7 @@ result.
 
 ## Numerical Controls And Runtime Envelope
 
-The native numerical defaults are `ell_min = 2`, `ell_max = 2500`,
+The declared numerical defaults are `ell_min = 2`, `ell_max = 2500`,
 `k_min = 1.0e-5`, `k_max = 0.4`, `k_sample_count = 64`, and
 `eta_sample_count = 1024`. The photon and massless-neutrino hierarchy caps
 default to eight multipoles. Generated scalar evolution uses deterministic
@@ -1158,7 +1168,7 @@ tensor source.
 
 Accuracy controls can require minimum ell, k, eta, hierarchy, source-grid,
 and momentum-grid coverage. A declared `runtime_envelope` can also cap
-evolution, projection, and total work units. The native runtime validates
+evolution, projection, and total work units. The declared runtime validates
 those limits before the expensive per-wave-number integration begins. A
 momentum-grid declaration supplies the q nodes and weights for a massive or
 other momentum-resolved hierarchy; minimum counts are checked against the
@@ -1172,7 +1182,8 @@ neutrino family. The option is an explicit numerical control, not a change
 to the equations or collision declarations; contracts that omit it retain
 the staged route and its gauge-equivalent trajectory behavior.
 
-The `bounded` runtime envelope includes separate native performance acceptance
+The `bounded` runtime envelope includes separate declared performance
+acceptance
 budgets for cold full-spectrum, warm-parameter, and exact-cache requests. The
 reference limits are 180 seconds, 5 seconds, and 1 second respectively. A
 contract may state the values explicitly when it needs to make the acceptance
@@ -1190,7 +1201,7 @@ accuracy_controls:
 Measured full-spectrum time is checked against the declared cold budget after
 output assembly. Production CMB likelihood calls classify each request as
 `cold`, `warm`, or `exact`, so structural worker initialization, parameter
-rebound, and complete cache reuse are governed independently. The native
+rebound, and complete cache reuse are governed independently. The declared
 performance report records deterministic median and p95 samples for each
 workload; a budget overrun raises a typed performance error rather than
 publishing a partial or misleading spectrum.
@@ -1214,7 +1225,7 @@ steps, ten production steps, 32 walkers, and a three-worker pool. The copied
 manifest and parameter summary retain this workload identity and its timing
 record. Rejected stiff collision rows suppress expected floating-point
 overflow warnings; finite-result checks still determine whether a request is
-accepted or fails with typed native diagnostics.
+accepted or fails with typed declared diagnostics.
 
 Generated scalar contracts first audit the requested k grid against the
 declared numerical limits, then preflight every sorted k mode before any ODE
@@ -1300,7 +1311,7 @@ The reference verdict uses the intermediate-to-reference comparison; the
 runtime envelope retains both comparisons, measured errors, anchor values,
 sample counts, and refinement levels for all enabled surfaces.
 
-The native projection request resolves the dependency closure of the selected
+The declared projection request resolves the dependency closure of the selected
 `requested_spectra`. It evaluates only the transfer components and source
 terms needed by those spectra. An unavailable requested spectrum raises an
 explicit availability error before evolution rather than returning an empty
@@ -1369,12 +1380,12 @@ line-of-sight anchors use positive local trapezoid panels when generalized
 Simpson weights would become negative.
 
 Run manifests expose the complete result as
-`native_cmb_numerical_envelope` and repeat it under the native runtime
+`declared_cmb_numerical_envelope` and repeat it under the declared runtime
 summary as `numerical_envelope`. Runtime spectrum payloads carry the same
 resolved envelope, the selected tier, and the lensing sampling factor. This
 keeps validation output tied to the controls that produced it.
 
-The native LCDM absolute-parity contract uses
+The declared LCDM absolute-parity contract uses
 `tight_coupling_ratio: 1600.0`. This value keeps the generated scalar route
 on the exact split Thomson evolution and declaration-driven fast-manifold
 projection for the reference surface. Lower values are
@@ -1392,14 +1403,14 @@ a mass response ratio.
 
 ## Scalar Absolute Parity
 
-The absolute reference contract uses one fixed native LCDM-family cosmology
-and an independently constructed CAMB reference. The native call is made
+The absolute reference contract uses one fixed declared LCDM-family cosmology
+and an independently constructed CAMB reference. The declared call is made
 through the production declared-graph route; the reference helper is confined
 to the scientific test module and never calls the production solver. The
 comparison is absolute over the declared multipole surfaces rather than a
 response ratio or an externally calibrated output.
 
-The acceptance surface includes native `TT`, `TE`, and `EE`, the lensing
+The acceptance surface includes declared `TT`, `TE`, and `EE`, the lensing
 potential `PP`, and the declared `TP` and `EP` cross-surfaces. The acceptance
 contract also defines acoustic peak locations and `TE` zero crossings.
 Auto-spectra use fractional median and 90th-percentile errors with a
@@ -1409,10 +1420,10 @@ well-defined.
 
 The scalar source uses the independent-reference coefficients `5 / 2` and
 `15 / 2` for the temperature quadrupole terms and polarization source. The
-native `polarization_moment` uses the same normalization as the declared
+declared `polarization_moment` uses the same normalization as the declared
 reference hierarchy, so no post-projection conversion is applied.
 
-Native projection preparation reuses bounded Bessel and projection-kernel
+Declared projection preparation reuses bounded Bessel and projection-kernel
 caches. Projection kernels are evaluated in ell batches so a high-multipole
 request does not allocate one unbounded ell-by-time work array. The cache
 budget is part of runtime behavior, while the absolute parity thresholds
@@ -1431,7 +1442,7 @@ than to every sector and every Fourier mode in the request.
 ## Tensor Absolute Parity
 
 The tensor acceptance surface uses the fixed reference cosmology with
-`r = 0.1`, `nt = 0`, and massless neutrinos. Native tensor evolution and
+`r = 0.1`, `nt = 0`, and massless neutrinos. Declared tensor evolution and
 projection run through the production declared graph with 96 k nodes on the
 contiguous `ell = 0..70` remapping surface. Absolute comparisons use the
 declared reference multipoles `ell = 40, 50, 70`; they are not tensor-amplitude
@@ -1441,11 +1452,12 @@ The independent test helper constructs CAMB directly and reads unlensed
 tensor `TT`, `EE`, and `BB` from `get_tensor_cls`. CAMB 1.6 defines its total
 CMB surface as lensed scalar plus tensor. The tensor contribution to that
 lensed total is therefore isolated as
-`get_total_cls - get_lensed_scalar_cls`. The helper neither imports the native
+`get_total_cls - get_lensed_scalar_cls`. The helper neither imports the
+declared
 projection layer nor calls the production CMB facade.
 
-The native lensed comparison remaps tensor-only `TT`, `TE`, `EE`, and `BB`
-with the independently evolved native scalar `PP` surface. Every native
+The declared lensed comparison remaps tensor-only `TT`, `TE`, `EE`, and `BB`
+with the independently evolved declared scalar `PP` surface. Every declared
 unlensed and lensed tensor auto-spectrum has a median fractional error at or
 below ten percent against its independent CAMB surface. The accepted
 `lensed_BB` remains finite and positive, so exact remapping cannot discard the
@@ -1454,11 +1466,11 @@ declared primordial tensor B-mode.
 
 ## Reference Cosmology And Acceptance Boundary
 
-The native absolute-reference checks use a route-neutral declared contract
+The declared absolute-reference checks use a route-neutral declared contract
 with the following cosmological inputs: `H0 = 67.4`, `ombh2 = 0.02237`,
 `omch2 = 0.12`, `Tcmb = 2.7255 K`, `YHe = 0.245`, `Neff = 3.046`,
 `As = 2.1e-9`, `ns = 0.965`, and `tau = 0.054`. CAMB is constructed only
-inside the scientific tests; production native modules do not import or call
+inside the scientific tests; production declared modules do not import or call
 it.
 
 The accepted background-reference limits are conformal age and sound-horizon
@@ -1467,7 +1479,7 @@ width error at `3%`, recombination median and 90th-percentile electron-fraction
 errors at `2%` and `5%`, and reionization optical-depth error at `1%`.
 The reference surface also contains independent CAMB fixtures,
 projection-kernel limits, and exact-remapper normalization checks. The tensor
-fixture establishes the native unlensed and lensed `TT`, `EE`, and `BB`
+fixture establishes the declared unlensed and lensed `TT`, `EE`, and `BB`
 ten-percent median boundary. Scalar, lensing-potential, massive-neutrino,
 gauge, and vector acceptance use their own declared surfaces and thresholds
 in `PLAN.md`.

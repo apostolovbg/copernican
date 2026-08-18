@@ -50,12 +50,13 @@ described throughout this document.
  ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
  unavailable the code falls back to a conservative Gelman–Rubin summary while
  logging the downgrade. CMB contracts use the declared-math graph CCMBS
- solver in
+ solver through the registry in
  `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public likelihood
- surface and `copernican_cmb_solver.py` owns native internal orchestration.
- Production code has no external solver route.
- `native_background.py`, `native_evolution.py`,
- `native_projection.py`, and `native_cache.py` split the native path
+ surface, `orchestrators/ccmbs.py` owns declared execution coordination,
+ `solvers/` owns backend selection, and `runtime/` owns numerical helpers.
+ Solver selection remains independent from sampler selection.
+ `runtime/background.py`, `runtime/evolution.py`,
+ `runtime/projection.py`, and `runtime/cache.py` split the declared path
  into background tables, declared evolution, line-of-sight projection,
  and bounded cache ownership. Nested sampling and ensemble MCMC both rely
  on the shared Stage 2 helper so the counter lines and listener events
@@ -65,7 +66,7 @@ described throughout this document.
  :class:`copernican.lib.model_adapter.ModelPlugin` so multiprocessing pools
  can reconstruct Stage 2 state deterministically. Adapter validation allows
  only vetted attributes and functions and preserves constants, transforms,
- priors and structured native CMB contracts exactly as written in the model
+ priors and structured declared CMB contracts exactly as written in the model
  file.
 * `copernican/datasets/` curates vetted catalogues with parser code and
  metadata that record citations, licensing information and SHA256
@@ -93,12 +94,11 @@ described throughout this document.
  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
  pre-fills model, dataset, and sampler selections for iterative
  experiments.
-## Native CCMBS Solver
+## Declared CCMBS Solver
 CMB contracts use the declared-math graph CCMBS solver in
-`copernican/lib/likelihoods/cmb/` without a solver selector.
-The stable execution identity is `ccmbs_numpy`. User
-interfaces select control and test model contracts plus a sampler;
-they do not select a CMB solver.
+`copernican/lib/likelihoods/cmb/` through the selectable solver registry.
+The stable default execution identity is `ccmbs_numpy`. User interfaces keep
+control/test model, sampler, and CMB solver selections independent.
 * One immutable graph carries variables, derived quantities,
  differential equations, algebraic constraints, closures, source terms,
  initial conditions, observable mappings, validity notes, and numerical
@@ -119,12 +119,12 @@ they do not select a CMB solver.
  optical depth. The background tables expose `x_e(z)`, `n_e(z)`,
  optical depth `tau(eta)`, `tau_dot`, and the visibility function
  `g(eta) = -tau_dot * exp(-tau)`.
-* The package split keeps the native boundary explicit:
- `native_background.py` owns background-state construction,
- `native_evolution.py` owns compiled graph stepping,
- `native_projection.py` owns transfer projection and spectrum assembly,
- and `native_cache.py` owns bounded cache storage plus reset and
- diagnostics helpers for tests and long-lived sessions.
+* The package split keeps the declared boundary explicit:
+ `runtime/background.py` owns background-state construction,
+ `runtime/evolution.py` owns compiled graph stepping,
+ `runtime/projection.py` owns transfer projection and spectrum assembly,
+ `runtime/cache.py` owns bounded cache storage, and the remaining runtime
+ modules own adaptive grids, convergence, performance, and lensing helpers.
 * Perturbations evolve whichever declared variables expose differential
  equations. Constraints and closures resolve algebraic targets inside the
  same graph before the declared observables are projected.
@@ -150,7 +150,7 @@ they do not select a CMB solver.
 * The spectra are built from the primordial power law
  `P_R(k) = A_s * (k / k_pivot) ** (n_s - 1)` and integrated into `TT`,
  `TE`, `EE`, and any declared `BB`, lensing-potential, or model-defined
- transfer target. The native path keeps the numerical settings explicit and
+ transfer target. The declared path keeps the numerical settings explicit and
  rejects unsupported sectors, missing declared equations, and theory-specific
  solver keys before any spectrum is produced.
 ## Stage-by-stage flow
@@ -178,7 +178,7 @@ Stage 1 focuses on reproducibility and validation:
  :mod:`copernican.lib.model_spec_validator` and compiles the expressions into
  NumPy-ready callables through :mod:`copernican.lib.model_coder`. Sampler
  adapters built with :func:`copernican.lib.model_adapter.build_plugin`
- collect bounds, priors, transforms, and optional structured native CMB
+ collect bounds, priors, transforms, and optional structured declared CMB
  contracts.
  Validation errors are aggregated and displayed as bullet points before the
  user is asked whether to restart Stage 1 or exit entirely.
@@ -261,7 +261,7 @@ includes required attributes and functions listed in
 :mod:`copernican.lib.model_adapter`; validation errors identify missing hooks
 and incompatible contracts, preventing samplers from receiving incomplete
 models. The perturbation compiler produces a typed IR that records the
-declared derivative equations, derived symbols, dependencies, and native
+declared derivative equations, derived symbols, dependencies, and declared
 execution summary before any scientific execution begins. Posterior
 evaluation routes through
 :func:`copernican.lib.posterior.make_logposterior`, which merges priors,

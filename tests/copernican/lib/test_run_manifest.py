@@ -13,14 +13,14 @@ from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.version import get_version
 
 
-def _dummy_native_runtime():
-    """Return one native runtime summary fixture for manifest tests."""
+def _dummy_declared_runtime():
+    """Return one declared runtime summary fixture for manifest tests."""
 
     return SimpleNamespace(
-        runtime_signature="native-cmb-runtime:dummy",
+        runtime_signature="declared-cmb-runtime:dummy",
         compile_diagnostics=SimpleNamespace(
-            runtime_signature="native-cmb-runtime:dummy",
-            compiler="copernican.lib.model_coder.compile_native_cmb_runtime",
+            runtime_signature="declared-cmb-runtime:dummy",
+            compiler="copernican.lib.model_coder.compile_declared_cmb_runtime",
             compiled_upstream=True,
             hot_path_recompilation_allowed=False,
             parameter_names=("p1",),
@@ -101,11 +101,11 @@ def _dummy_plugin():
             "boundary_conditions": {},
             "validity": {
                 "regimes": ["linear"],
-                "notes": "Uses the native declared graph.",
+                "notes": "Uses the declared graph.",
             },
-            "notes": "Native declared graph manifest fixture.",
+            "notes": "Declared graph manifest fixture.",
         },
-        CMB_NATIVE_RUNTIME=_dummy_native_runtime(),
+        CMB_DECLARED_RUNTIME=_dummy_declared_runtime(),
         CMB_PERTURBATION_DATA=SimpleNamespace(
             model_name="DummyModel",
             contract_version=2,
@@ -139,7 +139,7 @@ def _dummy_plugin():
             numerics={},
             validity=SimpleNamespace(
                 regimes=("linear",),
-                notes="Uses native declared graph.",
+                notes="Uses declared graph.",
             ),
             interactions={"photon_baryon_drag": object()},
             conservation_rules={"density_balance": object()},
@@ -158,8 +158,7 @@ def _dummy_plugin():
                         "CCMBS — Copernican Cosmic Microwave Background Solver"
                     ),
                     "runtime_module": (
-                        "copernican.lib.likelihoods.cmb."
-                        "copernican_cmb_solver"
+                        "copernican.lib.likelihoods.cmb.orchestrators." "ccmbs"
                     ),
                     "ready": True,
                 },
@@ -244,6 +243,14 @@ class TestRunManifest(unittest.TestCase):
                 ["DummyModel", "DummyModel"],
             )
             self.assertEqual(loaded["selection"]["sampler"]["name"], "sampler")
+            self.assertEqual(
+                loaded["selection"]["cmb_solver"]["id"], "ccmbs_numpy"
+            )
+            self.assertEqual(loaded["cmb_solver"]["solver_id"], "ccmbs_numpy")
+            self.assertEqual(
+                loaded["cmb_solver"]["capabilities"]["execution_backend"],
+                "cpu",
+            )
             self.assertEqual(loaded["selection"]["datasets"], ["ds"])
             self.assertEqual(len(loaded["git"]["commit"]), 40)
             self.assertIn("dirty", loaded["git"])
@@ -341,23 +348,23 @@ class TestRunManifest(unittest.TestCase):
                 ["equation:continuity_x"],
             )
             self.assertEqual(
-                model_entry["native_cmb_execution"]["solver_id"],
+                model_entry["declared_cmb_execution"]["solver_id"],
                 CCMBS_ID,
             )
             self.assertNotIn("backend", model_entry)
             self.assertNotIn("perturbation_standard", model_entry)
             self.assertIn(
                 "background_derived_names",
-                model_entry["native_cmb_background_manifest_summary"],
+                model_entry["declared_cmb_background_manifest_summary"],
             )
             self.assertIn(
                 "Omega_b0",
-                model_entry["native_cmb_background_manifest_summary"][
+                model_entry["declared_cmb_background_manifest_summary"][
                     "background_derived_names"
                 ],
             )
             self.assertEqual(
-                model_entry["native_cmb_background_manifest_summary"][
+                model_entry["declared_cmb_background_manifest_summary"][
                     "background_recombination_quantity_names"
                 ],
                 [
@@ -369,18 +376,18 @@ class TestRunManifest(unittest.TestCase):
             )
             self.assertIn(
                 "photon_fraction_today",
-                model_entry["native_cmb_background_manifest_summary"][
+                model_entry["declared_cmb_background_manifest_summary"][
                     "background_quantity_role_names"
                 ]["density"],
             )
             self.assertEqual(
-                model_entry["native_cmb_background_manifest_summary"][
+                model_entry["declared_cmb_background_manifest_summary"][
                     "reionization_calibration"
                 ]["symbol"],
                 "reionization_log10_amplitude",
             )
             self.assertEqual(
-                model_entry["native_cmb_background_manifest_summary"][
+                model_entry["declared_cmb_background_manifest_summary"][
                     "recombination_runtime"
                 ]["declared_quantity_names"],
                 [
@@ -391,44 +398,44 @@ class TestRunManifest(unittest.TestCase):
                 ],
             )
             self.assertEqual(
-                model_entry["native_cmb_graph_manifest_summary"][
+                model_entry["declared_cmb_graph_manifest_summary"][
                     "transfer_component_contracts"
                 ]["temperature"]["declared_projection"],
                 "line_of_sight_temperature",
             )
             self.assertEqual(
-                model_entry["native_cmb_graph_manifest_summary"][
+                model_entry["declared_cmb_graph_manifest_summary"][
                     "angular_power_spectrum_targets"
                 ]["TT"]["primary"],
                 "temperature",
             )
             self.assertEqual(
-                model_entry["native_cmb_runtime_manifest_summary"][
+                model_entry["declared_cmb_runtime_manifest_summary"][
                     "execution_route"
                 ]["solver_id"],
                 CCMBS_ID,
             )
             self.assertEqual(
-                model_entry["native_cmb_runtime_manifest_summary"][
+                model_entry["declared_cmb_runtime_manifest_summary"][
                     "runtime_signature"
                 ],
-                "native-cmb-runtime:dummy",
+                "declared-cmb-runtime:dummy",
             )
-            self.assertIn("native_cmb_numerical_envelope", model_entry)
+            self.assertIn("declared_cmb_numerical_envelope", model_entry)
             self.assertIn(
                 "numerical_envelope",
-                model_entry["native_cmb_runtime_manifest_summary"],
+                model_entry["declared_cmb_runtime_manifest_summary"],
             )
             self.assertIsNone(
-                model_entry["native_cmb_numerical_envelope"]["accuracy_tier"]
+                model_entry["declared_cmb_numerical_envelope"]["accuracy_tier"]
             )
             self.assertIn(
                 "reionization_calibration",
-                model_entry["native_cmb_runtime_manifest_summary"],
+                model_entry["declared_cmb_runtime_manifest_summary"],
             )
 
-    def test_manifest_records_native_execution_route(self) -> None:
-        """Native declared runs should record the sole prediction route."""
+    def test_manifest_records_declared_execution_route(self) -> None:
+        """Declared runs should record the sole prediction route."""
 
         manifest = run_manifest.build_manifest(
             models=_dummy_model_records(),
@@ -440,7 +447,7 @@ class TestRunManifest(unittest.TestCase):
 
         model_entry = manifest["cmb"]["models"][0]
         self.assertEqual(
-            model_entry["native_cmb_execution"]["solver_id"],
+            model_entry["declared_cmb_execution"]["solver_id"],
             CCMBS_ID,
         )
         self.assertEqual(
@@ -457,19 +464,19 @@ class TestRunManifest(unittest.TestCase):
         )
         self.assertNotIn(
             "uses_camb_prediction",
-            model_entry["native_cmb_execution"],
+            model_entry["declared_cmb_execution"],
         )
         self.assertEqual(
-            model_entry["native_cmb_runtime_manifest_summary"][
+            model_entry["declared_cmb_runtime_manifest_summary"][
                 "execution_route"
             ]["runtime_module"],
-            "copernican.lib.likelihoods.cmb.copernican_cmb_solver",
+            "copernican.lib.likelihoods.cmb.orchestrators.ccmbs",
         )
         self.assertEqual(
-            model_entry["native_cmb_runtime_manifest_summary"][
+            model_entry["declared_cmb_runtime_manifest_summary"][
                 "compile_diagnostics"
             ]["compiler"],
-            "copernican.lib.model_coder.compile_native_cmb_runtime",
+            "copernican.lib.model_coder.compile_declared_cmb_runtime",
         )
 
     def test_manifest_import_export_cycle(self) -> None:

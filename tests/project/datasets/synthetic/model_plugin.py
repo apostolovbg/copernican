@@ -99,7 +99,7 @@ def _sound_horizon(hubble_constant: float, matter_density_0: float) -> float:
 
 
 def build_plugin():
-    """Build the synthetic plugin through the native CMB adapter."""
+    """Build the synthetic plugin through the declared CMB adapter."""
 
     model_data = yaml.safe_load(filesystem_helpers.read_text(_MODEL_PATH))
     model_data["filename"] = os.fspath(_MODEL_PATH)

@@ -33,6 +33,10 @@ import pandas
 
 from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican.lib.likelihoods.cmb.solvers.registry import (
+    resolve_cmb_solver,
+    solver_provenance,
+)
 from copernican.lib.progress import BatchProgressBar
 from copernican.lib.sampler_capabilities import (
     SamplerProgressChunk,
@@ -154,6 +158,7 @@ def _build_joint_logposterior(
     sne_data_df: Any,
     bao_data_df: Any | None,
     cmb_data_df: Any | None,
+    cmb_solver: Any | str | None = None,
 ) -> tuple[
     model_plugin_validation.PosteriorEvaluator, JointLike, Sequence[str]
 ]:
@@ -201,6 +206,7 @@ def _build_joint_logposterior(
         cmb_data_df if cmb_data_df is not None else pandas.DataFrame(),
         model_plugin,
         enabled=cmb_enabled,
+        cmb_solver=cmb_solver,
     )
 
     likelihood_config = dict(
@@ -356,6 +362,7 @@ def sample_parameters(
     enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
+    cmb_solver: Any | str | None = None,
 ) -> Mapping[str, Any]:
     """Return posterior samples and diagnostics using nested sampling.
 
@@ -366,11 +373,13 @@ def sample_parameters(
     """
 
     logger = logging.getLogger(__name__)
+    selected_cmb_solver = resolve_cmb_solver(cmb_solver)
     posterior, joint_like, param_names = _build_joint_logposterior(
         model_plugin,
         sne_data_df,
         bao_data_df,
         cmb_data_df,
+        selected_cmb_solver,
     )
 
     lower, upper, initial = _prepare_bounds(
@@ -399,7 +408,11 @@ def sample_parameters(
             n_live_points,
             len(live_points),
         )
-        return {"success": False, "samples": None}
+        return {
+            "success": False,
+            "samples": None,
+            "cmb_solver": solver_provenance(selected_cmb_solver),
+        }
 
     log_width = 0.0
     log_evidence = float("-inf")
@@ -513,7 +526,11 @@ def sample_parameters(
             log_evidence = _logsumexp_pair(log_evidence, tail_weight)
 
     if not samples:
-        return {"success": False, "samples": None}
+        return {
+            "success": False,
+            "samples": None,
+            "cmb_solver": solver_provenance(selected_cmb_solver),
+        }
 
     points = numpy.array([sample.params for sample in samples], dtype=float)
     log_posterior = numpy.array(
@@ -621,6 +638,7 @@ def sample_parameters(
             "cmb": cmb_points,
             "total": total_points,
         },
+        "cmb_solver": solver_provenance(selected_cmb_solver),
     }
 
 

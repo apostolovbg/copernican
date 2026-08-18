@@ -369,18 +369,18 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: wCDM spectra use the declared constant-w background.
     notes: The scalar graph couples declared matter and radiation species to
       the constant-w dark-energy expansion law.
 notes: >-
   The constant-w dark energy couples to the same densities that feed
   the BAO and CMB integrals; deviations from -1 show up both in the
-  H(z) polynomial and in the declared native background. Curvature and w_de
+  H(z) polynomial and in the declared background. Curvature and w_de
   share the same redshift leverage, which exposes the degeneracy
   between curvature and running dark energy while keeping the matter
   density anchored to the baryon fraction. The radiation term
   multiplies Omega_gamma by (1 + 0.2271 * Neff) so BAO residuals map
-  to the native CMB background that supplies the likelihood.
+  to the declared CMB background that supplies the likelihood.
 title: wCDM model for controlled curvature+DE
 date: '2025-12-06'

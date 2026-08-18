@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
+from .cmb_identity import CCMBS_ID, CCMBS_LABEL
+from .likelihoods.cmb.solvers.registry import (
+    resolve_cmb_solver,
+    solver_provenance,
+)
 from .model_selection import ComparisonRequest, comparison_from_manifest
 
 
@@ -31,6 +36,15 @@ class SamplerDescriptor:
 
 
 @dataclass(frozen=True)
+class CMBSolverDescriptor:
+    """Describe the CMB solver selected for a run."""
+
+    solver_id: str
+    label: str
+    capabilities: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
 class RunSettings:
     """Sampler or inference settings captured on the manifest."""
 
@@ -45,6 +59,7 @@ class RunConfig:
     seed: int
     models: Sequence[str]
     sampler: SamplerDescriptor
+    cmb_solver: CMBSolverDescriptor
     datasets: Sequence[DatasetDescriptor]
     run_settings: RunSettings
     comparison: ComparisonRequest
@@ -75,6 +90,11 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
         )
     configuration = manifest.get("configuration", {})
     sampler_meta = selection.get("sampler", {})
+    solver_meta = selection.get("cmb_solver", {})
+    if not solver_meta:
+        solver_meta = manifest.get("cmb_solver", {}) or {}
+    selected_solver = resolve_cmb_solver(solver_meta or {"id": CCMBS_ID})
+    solver_snapshot = solver_provenance(selected_solver)
     datasets_meta = manifest.get("datasets", {})
     run_settings = configuration.get("run_settings", {})
     settings = {
@@ -100,6 +120,11 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
                 "name", "copernican.samplers.sampler_mcmc"
             ),
             version=sampler_meta.get("version", "unknown"),
+        ),
+        cmb_solver=CMBSolverDescriptor(
+            solver_id=str(solver_snapshot["solver_id"]),
+            label=str(solver_snapshot["solver_label"] or CCMBS_LABEL),
+            capabilities=dict(solver_snapshot["capabilities"]),
         ),
         datasets=datasets,
         run_settings=RunSettings(

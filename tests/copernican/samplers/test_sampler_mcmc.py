@@ -18,9 +18,7 @@ import xarray as xarray_dataset
 from copernican.lib import chain_io
 from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator
-from copernican.lib.likelihoods.cmb.native_errors import (
-    NativeInitialPointError,
-)
+from copernican.lib.likelihoods.cmb.errors import InitialPointError
 from copernican.lib.progress import BatchProgressBar
 from copernican.lib.utils import set_random_seed
 from copernican.samplers import sampler_mcmc as module
@@ -39,10 +37,10 @@ from copernican.samplers.sampler_mcmc import (
 def _build_model_plugin(
     yaml_filename: str,
     *,
-    compact_native: bool = False,
-    fixed_native: bool = False,
+    compact_declared: bool = False,
+    fixed_declared: bool = False,
 ):
-    """Return a validated plugin with optional bounded native test controls."""
+    """Return a plugin with optional bounded declared test controls."""
 
     models_dir = Path(__file__).resolve().parents[3] / "copernican" / "models"
     yaml_path = models_dir / yaml_filename
@@ -52,9 +50,9 @@ def _build_model_plugin(
             cache_dir,
         )
         func_dict, parsed = model_coder.generate_callables(cache_path)
-    if compact_native:
-        # The joint-likelihood test exercises native execution repeatedly.
-        # Keep that fixture explicitly native while bounding its declared
+    if compact_declared:
+        # The joint-likelihood test exercises declared execution repeatedly.
+        # Keep that fixture explicitly declared while bounding its declared
         # accuracy tier so the test measures likelihood behavior, not a
         # production full-range spectrum on every proposal.
         numerical = parsed["cmb"]["numerical"]
@@ -99,7 +97,7 @@ def _build_model_plugin(
                 }
             )
     plugin = model_plugin_validation.build_plugin(parsed, func_dict)
-    if fixed_native:
+    if fixed_declared:
         plugin.PARAMETER_BOUNDS = tuple(
             (float(value), float(value)) for value in plugin.INITIAL_GUESSES
         )
@@ -148,7 +146,7 @@ def _build_short_chain_plugin():
         CMB_PARAM_MAP={},
         CMB_PERTURBATION_CONTRACT={},
         CMB_PERTURBATION_DATA=None,
-        CMB_NATIVE_RUNTIME=None,
+        CMB_DECLARED_RUNTIME=None,
         LIKELIHOOD_CONFIG={},
         MODEL_EQUATIONS_LATEX_SN=(),
         MODEL_EQUATIONS_LATEX_BAO=(),
@@ -607,7 +605,7 @@ class TestSamplerMcmc(unittest.TestCase):
     def test_initial_point_preflight_rejects_before_walker_creation(self):
         """A non-finite nominal point must stop before proposals exist."""
 
-        with self.assertRaises(NativeInitialPointError):
+        with self.assertRaises(InitialPointError):
             _preflight_initial_model_point(
                 lambda _parameters: float("-inf"),
                 (0.3, 0.7),
@@ -628,7 +626,7 @@ class TestSamplerMcmc(unittest.TestCase):
                 ),
             ),
             mock.patch.object(module, "_initialise_active_walkers") as walkers,
-            self.assertRaises(NativeInitialPointError),
+            self.assertRaises(InitialPointError),
         ):
             module.sample_parameters(
                 sne_df,
@@ -968,8 +966,8 @@ class TestSamplerMcmc(unittest.TestCase):
     def test_joint_fit_component_chi2_totals(self) -> None:
         plugin = _build_model_plugin(
             "model_lcdm.yml",
-            compact_native=True,
-            fixed_native=True,
+            compact_declared=True,
+            fixed_declared=True,
         )
         sne_df = pandas.DataFrame(
             {

@@ -1,4 +1,4 @@
-"""Runtime timing and acceptance budgets for the native CMB solver."""
+"""Runtime timing and acceptance budgets for the declared CMB solver."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Iterator, Mapping
 
-from .native_errors import NativePerformanceBudgetError
+from ..errors import PerformanceBudgetError
 
-NATIVE_PHASE_NAMES = (
+CMB_PHASE_NAMES = (
     "compilation",
     "background",
     "initial_data",
@@ -21,8 +21,8 @@ NATIVE_PHASE_NAMES = (
 
 
 @dataclass(frozen=True, slots=True)
-class NativePerformanceBudget:
-    """Declare the wall-time limits for accepted native cache states."""
+class PerformanceBudget:
+    """Declare the wall-time limits for accepted declared cache states."""
 
     full_spectrum_seconds: float = 180.0
     warm_parameter_seconds: float = 5.0
@@ -37,7 +37,7 @@ class NativePerformanceBudget:
             "cold_full_spectrum",
             "full",
             "full_spectrum",
-            "native_spectrum",
+            "declared_spectrum",
         }:
             return float(self.full_spectrum_seconds)
         if normalized in {
@@ -50,12 +50,12 @@ class NativePerformanceBudget:
             return float(self.warm_parameter_seconds)
         if normalized in {"cache_hit", "exact", "exact_cache_hit"}:
             return float(self.exact_cache_hit_seconds)
-        raise ValueError(f"Unknown native performance workload: {workload}")
+        raise ValueError(f"Unknown declared performance workload: {workload}")
 
 
 @dataclass(slots=True)
-class NativePhaseTimer:
-    """Accumulate wall time for named native execution phases."""
+class PhaseTimer:
+    """Accumulate wall time for named declared execution phases."""
 
     phase_seconds: dict[str, float] = field(default_factory=dict)
     failed_phase: str | None = None
@@ -86,7 +86,9 @@ class NativePhaseTimer:
 
         value = float(elapsed_seconds)
         if value < 0.0:
-            raise ValueError("Native phase elapsed time must be non-negative")
+            raise ValueError(
+                "Declared phase elapsed time must be non-negative"
+            )
         phase_name = str(name)
         self.phase_seconds[phase_name] = (
             self.phase_seconds.get(phase_name, 0.0) + value
@@ -102,7 +104,7 @@ class NativePhaseTimer:
 
         normalized = str(state).strip().lower()
         if normalized not in {"cold", "warm", "exact_cache_hit"}:
-            raise ValueError(f"Unknown native cache state: {state}")
+            raise ValueError(f"Unknown declared cache state: {state}")
         self.cache_state = normalized
 
     def set_work_units(self, work_units: Mapping[str, Any]) -> None:
@@ -112,7 +114,7 @@ class NativePhaseTimer:
             value = int(raw_value)
             if value < 0:
                 raise ValueError(
-                    "Native work-unit counts must be non-negative"
+                    "Declared work-unit counts must be non-negative"
                 )
             self.work_units[str(name)] = value
 
@@ -125,7 +127,7 @@ class NativePhaseTimer:
             f"{name}_seconds": float(value)
             for name, value in sorted(self.phase_seconds.items())
         }
-        for name in NATIVE_PHASE_NAMES:
+        for name in CMB_PHASE_NAMES:
             snapshot.setdefault(f"{name}_seconds", 0.0)
         snapshot["total_seconds"] = float(
             self.total_seconds() if total_seconds is None else total_seconds
@@ -151,10 +153,10 @@ def _positive_seconds(value: Any, *, name: str, default: float) -> float:
     return result
 
 
-def resolve_native_performance_budget(
+def resolve_performance_budget(
     accuracy_controls: Mapping[str, Any] | None,
-) -> NativePerformanceBudget | None:
-    """Resolve an optional native wall-time budget from accuracy controls."""
+) -> PerformanceBudget | None:
+    """Resolve an optional declared wall-time budget from accuracy controls."""
 
     controls = accuracy_controls or {}
     raw_budget = controls.get("performance_budget")
@@ -175,7 +177,7 @@ def resolve_native_performance_budget(
             "joint_mcmc_seconds was removed; use "
             "warm_parameter_seconds"
         )
-    return NativePerformanceBudget(
+    return PerformanceBudget(
         full_spectrum_seconds=_positive_seconds(
             raw_budget.get("full_spectrum_seconds"),
             name=(
@@ -203,11 +205,11 @@ def resolve_native_performance_budget(
     )
 
 
-def enforce_native_performance_budget(
+def enforce_performance_budget(
     elapsed_seconds: float,
     *,
     workload: str,
-    budget: NativePerformanceBudget | None,
+    budget: PerformanceBudget | None,
     cache_state: str | None = None,
 ) -> None:
     """Raise when one measured workload exceeds its declared budget.
@@ -221,7 +223,7 @@ def enforce_native_performance_budget(
         return
     elapsed = float(elapsed_seconds)
     if elapsed < 0.0 or elapsed != elapsed:
-        raise ValueError("Native workload elapsed time must be finite")
+        raise ValueError("Declared workload elapsed time must be finite")
     normalized_cache_state = str(cache_state or "cold").strip().lower()
     budget_workloads = {
         "cold": "full_spectrum",
@@ -232,12 +234,12 @@ def enforce_native_performance_budget(
         budget_workload = budget_workloads[normalized_cache_state]
     except KeyError as exc:
         raise ValueError(
-            "Native performance cache state is invalid: " f"{cache_state}"
+            "Declared performance cache state is invalid: " f"{cache_state}"
         ) from exc
     limit = budget.limit_for(budget_workload)
     if elapsed > limit:
-        raise NativePerformanceBudgetError(
-            "Native CMB performance budget exceeded for "
+        raise PerformanceBudgetError(
+            "Declared CMB performance budget exceeded for "
             f"{workload}: {elapsed:.3f}s > {limit:.3f}s",
             context={
                 "budget_workload": str(budget_workload),
@@ -250,10 +252,10 @@ def enforce_native_performance_budget(
 
 
 __all__ = [
-    "NATIVE_PHASE_NAMES",
-    "NativePerformanceBudget",
-    "NativePerformanceBudgetError",
-    "NativePhaseTimer",
-    "enforce_native_performance_budget",
-    "resolve_native_performance_budget",
+    "CMB_PHASE_NAMES",
+    "PerformanceBudget",
+    "PerformanceBudgetError",
+    "PhaseTimer",
+    "enforce_performance_budget",
+    "resolve_performance_budget",
 ]

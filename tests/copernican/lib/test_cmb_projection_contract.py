@@ -21,10 +21,10 @@ from copernican.lib.cmb_projection_contract import (
 class CMBProjectionContractTestCase(unittest.TestCase):
     """Validate projection-role contracts for declared observables."""
 
-    def test_supported_projection_list_includes_native_components(
+    def test_supported_projection_list_includes_declared_components(
         self,
     ) -> None:
-        """The supported surface should list native dispatch keys."""
+        """The supported surface should list declared dispatch keys."""
 
         self.assertIn(
             "line_of_sight_temperature",
@@ -139,7 +139,7 @@ class CMBProjectionContractTestCase(unittest.TestCase):
         self.assertEqual(spec.required_roles, ("potential",))
         self.assertEqual(spec.allowed_roles, ("potential", "signal"))
 
-    def test_kernel_spec_lookup_returns_native_contract(self) -> None:
+    def test_kernel_spec_lookup_returns_declared_contract(self) -> None:
         """Kernel lookups should expose immutable runtime metadata."""
 
         spec = get_declared_projection_kernel_spec("spin2_e_window")
@@ -152,8 +152,8 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             "Spin-2 even-parity polarization kernel.",
         )
 
-    def test_projection_spec_lookup_returns_native_contract(self) -> None:
-        """Projection lookups should expose the native immutable contracts."""
+    def test_projection_spec_lookup_returns_declared_contract(self) -> None:
+        """Projection lookups expose the declared immutable contracts."""
 
         spec = get_declared_projection_spec("spin2_b_mode")
 

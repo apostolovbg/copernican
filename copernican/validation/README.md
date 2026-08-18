@@ -5,7 +5,7 @@
 The validation suite runs *real* manifests through the same pipeline that
 the GUI and CLI use for ordinary analyses. The manifest files live under
 `copernican/validation/manifests/`, and the canonical manifest
-`reference_planck2018.yml` compares the canonical native
+`reference_planck2018.yml` compares the canonical CCMBS
 `copernican/models/model_lcdm.yml` control with the fixed-parameter
 `copernican/models/model_torg.yml` test model against the bundled Union
 Through UNITY 2000 SNe, compound BAO, and Planck 2018 Lite datasets. Its exact
@@ -16,7 +16,7 @@ current hashes for every dataset asset consumed by the validation run.
 ## Reference model
 `copernican/models/model_torg.yml` supplies the declared Temporal Opposing
 Relational Geometry comparison contract. The LCDM control and TORG test run
-through the same native CMB solver, so the reference fixture exercises both
+through the same CCMBS solver, so the reference fixture exercises both
 the scalar spectrum path and the model-comparison pipeline rather than a
 fixed-parameter reference fixtures.
 

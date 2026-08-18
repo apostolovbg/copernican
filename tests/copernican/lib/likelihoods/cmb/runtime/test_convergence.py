@@ -1,4 +1,4 @@
-"""Focused tests for native CMB cross-sector numerical convergence."""
+"""Focused tests for declared CMB cross-sector numerical convergence."""
 
 from __future__ import annotations
 
@@ -8,17 +8,17 @@ from types import SimpleNamespace
 
 import numpy
 
-from copernican.lib.likelihoods.cmb.native_convergence import (
+from copernican.lib.likelihoods.cmb.runtime.convergence import (
     FINAL_HIERARCHY_RELATIVE_TOLERANCE,
     FINAL_Q_GRID_RELATIVE_TOLERANCE,
     FINAL_SPECTRUM_RELATIVE_TOLERANCES,
-    NativeConvergenceReport,
-    NativeNumericalEnvelope,
-    NativeRefinementMetric,
+    ConvergenceReport,
+    NumericalEnvelope,
+    RefinementMetric,
     evaluate_control_refinement,
     evaluate_spectrum_refinement,
-    require_native_convergence,
-    resolve_native_numerical_envelope,
+    require_convergence,
+    resolve_declared_numerical_envelope,
 )
 
 
@@ -84,7 +84,7 @@ def _final_tier_contract() -> dict[str, object]:
     }
 
 
-class NativeConvergenceTestCase(unittest.TestCase):
+class ConvergenceTestCase(unittest.TestCase):
     """Validate final accuracy tiers and physical refinement reports."""
 
     def test_public_symbols_expose_final_thresholds(self) -> None:
@@ -97,15 +97,9 @@ class NativeConvergenceTestCase(unittest.TestCase):
         self.assertEqual(FINAL_SPECTRUM_RELATIVE_TOLERANCES["lensed_BB"], 0.05)
         self.assertEqual(FINAL_Q_GRID_RELATIVE_TOLERANCE, 0.02)
         self.assertEqual(FINAL_HIERARCHY_RELATIVE_TOLERANCE, 0.01)
-        self.assertEqual(
-            NativeNumericalEnvelope.__name__, "NativeNumericalEnvelope"
-        )
-        self.assertEqual(
-            NativeConvergenceReport.__name__, "NativeConvergenceReport"
-        )
-        self.assertEqual(
-            NativeRefinementMetric.__name__, "NativeRefinementMetric"
-        )
+        self.assertEqual(NumericalEnvelope.__name__, "NumericalEnvelope")
+        self.assertEqual(ConvergenceReport.__name__, "ConvergenceReport")
+        self.assertEqual(RefinementMetric.__name__, "RefinementMetric")
         self.assertEqual(
             evaluate_control_refinement.__name__,
             "evaluate_control_refinement",
@@ -114,7 +108,7 @@ class NativeConvergenceTestCase(unittest.TestCase):
     def test_final_tier_records_every_physical_control_family(self) -> None:
         """The final envelope records grids, sectors, hierarchies, and q."""
 
-        envelope = resolve_native_numerical_envelope(_final_tier_contract())
+        envelope = resolve_declared_numerical_envelope(_final_tier_contract())
         payload = envelope.to_dict()
 
         self.assertEqual(payload["accuracy_tier"], "final")
@@ -165,7 +159,7 @@ class NativeConvergenceTestCase(unittest.TestCase):
             )
         }
 
-        envelope = resolve_native_numerical_envelope(contract)
+        envelope = resolve_declared_numerical_envelope(contract)
 
         self.assertEqual(envelope.sectors, ("scalar",))
 
@@ -189,14 +183,14 @@ class NativeConvergenceTestCase(unittest.TestCase):
                 contract["numerical"][control_name] = value
                 contract["perturbation_data"].numerics[control_name] = value
                 with self.assertRaisesRegex(ValueError, "under-resolved"):
-                    resolve_native_numerical_envelope(contract)
+                    resolve_declared_numerical_envelope(contract)
 
         contract = _final_tier_contract()
         contract["perturbation_data"].numerics["momentum_grids"][
             "massive_neutrino_default"
         ]["count"] = 15
         with self.assertRaisesRegex(ValueError, "momentum_grids"):
-            resolve_native_numerical_envelope(contract)
+            resolve_declared_numerical_envelope(contract)
 
     def test_final_tier_requires_a_bounded_runtime_envelope(self) -> None:
         """A named final tier cannot silently omit bounded work limits."""
@@ -206,7 +200,7 @@ class NativeConvergenceTestCase(unittest.TestCase):
             "accuracy_tier": "final"
         }
         with self.assertRaisesRegex(ValueError, "runtime_envelope"):
-            resolve_native_numerical_envelope(contract)
+            resolve_declared_numerical_envelope(contract)
 
     def test_unknown_accuracy_tier_fails_loudly(self) -> None:
         """Unknown tiers cannot downgrade the final physical envelope."""
@@ -215,7 +209,7 @@ class NativeConvergenceTestCase(unittest.TestCase):
         accuracy_controls = contract["perturbation_data"].accuracy_controls
         accuracy_controls["accuracy_tier"] = "fast"
         with self.assertRaisesRegex(ValueError, "must be 'final'"):
-            resolve_native_numerical_envelope(contract)
+            resolve_declared_numerical_envelope(contract)
 
     def test_spectrum_report_uses_normalized_te_and_final_thresholds(
         self,
@@ -245,7 +239,7 @@ class NativeConvergenceTestCase(unittest.TestCase):
         self.assertTrue(report.converged)
         self.assertEqual(set(report.metrics), set(fine))
         self.assertLess(report.metrics["TE"].relative_error, 0.02)
-        require_native_convergence(report)
+        require_convergence(report)
 
     def test_control_report_rejects_q_and_hierarchy_drift(self) -> None:
         """Q-grid and hierarchy refinements retain their named thresholds."""
@@ -266,9 +260,9 @@ class NativeConvergenceTestCase(unittest.TestCase):
         self.assertFalse(q_metric.converged)
         self.assertFalse(hierarchy_metric.converged)
         with self.assertRaisesRegex(ValueError, "q grid"):
-            require_native_convergence(q_metric)
+            require_convergence(q_metric)
         with self.assertRaisesRegex(ValueError, "tensor hierarchy"):
-            require_native_convergence(hierarchy_metric)
+            require_convergence(hierarchy_metric)
 
     def test_refinement_metric_remains_finite_at_spectrum_zeroes(self) -> None:
         """Relative L-infinity refinement must tolerate physical zeroes."""

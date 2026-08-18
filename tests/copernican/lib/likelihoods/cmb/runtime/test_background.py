@@ -1,19 +1,19 @@
-"""Focused tests for the native CMB background module."""
+"""Focused tests for the declared CMB background module."""
 
 import unittest
 from pathlib import Path
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import (
-    native_background,
-    native_cache,
-    native_projection,
+from copernican.lib.likelihoods.cmb.runtime import (
+    background,
+    cache,
+    projection,
 )
 
 
-class NativeBackgroundModuleTestCase(unittest.TestCase):
-    """Exercise native background helpers directly."""
+class BackgroundModuleTestCase(unittest.TestCase):
+    """Exercise declared background helpers directly."""
 
     def test_manifest_summary_tracks_declared_background_metadata(self):
         """Manifest summaries should report declared background details."""
@@ -30,10 +30,8 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             "param_map": {},
         }
 
-        summary = (
-            native_background._summarize_declared_background_manifest_summary(
-                contract
-            )
+        summary = background._summarize_declared_background_manifest_summary(
+            contract
         )
 
         self.assertIn("H", summary["background_derived_names"])
@@ -41,14 +39,12 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             summary["recombination_runtime"]["hydrogen_model"],
             "peebles_case_b_ode",
         )
-        self.assertTrue(
-            hasattr(native_background._CustomCMBBackgroundData, "sample")
-        )
+        self.assertTrue(hasattr(background._CustomCMBBackgroundData, "sample"))
 
     def test_custom_spectrum_accessors_return_named_payloads(self):
         """Spectrum payload accessors should expose stable arrays."""
 
-        spectrum_data = native_background.CustomCMBSpectrumData(
+        spectrum_data = background.CustomCMBSpectrumData(
             ell_grid=numpy.array([20.0, 30.0]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -64,7 +60,7 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
 
         self.assertIs(
             type(spectrum_data),
-            native_background.CustomCMBSpectrumData,
+            background.CustomCMBSpectrumData,
         )
         self.assertTrue(
             numpy.array_equal(spectrum_data.Delta_l_T, numpy.array([1.0, 2.0]))
@@ -85,7 +81,7 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
     def test_custom_transfer_payload_is_read_only(self):
         """Transfer-only payloads should freeze grids and component arrays."""
 
-        transfer_data = native_background.CustomCMBTransferData(
+        transfer_data = background.CustomCMBTransferData(
             ell_grid=numpy.array([20.0, 30.0]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -96,7 +92,7 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
 
         self.assertIs(
             type(transfer_data),
-            native_background.CustomCMBTransferData,
+            background.CustomCMBTransferData,
         )
         self.assertEqual(
             transfer_data.runtime_envelope["accuracy_tier"],
@@ -110,7 +106,7 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
     def test_spectrum_payload_is_read_only_and_missing_values_fail(self):
         """Cached outputs must not fabricate or permit mutated spectra."""
 
-        spectrum_data = native_background.CustomCMBSpectrumData(
+        spectrum_data = background.CustomCMBSpectrumData(
             ell_grid=numpy.array([20, 30]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -129,12 +125,10 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
         with self.assertRaises(TypeError):
             spectrum_data.spectra["TT"] = numpy.zeros(2)
 
-    def test_native_background_source_does_not_import_camb(self):
-        """The native background module should remain CAMB-free."""
+    def test_background_source_does_not_import_camb(self):
+        """The declared background module should remain CAMB-free."""
 
-        source_text = Path(native_background.__file__).read_text(
-            encoding="utf-8"
-        )
+        source_text = Path(background.__file__).read_text(encoding="utf-8")
         self.assertNotIn("import camb", source_text)
 
     def test_mode_bessel_batch_matches_individual_grids(self):
@@ -150,17 +144,15 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
             dtype=float,
         )
         batched_values, batched_derivatives = (
-            native_background._compute_spherical_bessel_mode_batch(
+            background._compute_spherical_bessel_mode_batch(
                 ell_signature,
                 mode_x,
             )
         )
         for mode_index, x_values in enumerate(mode_x):
-            values, derivatives = (
-                native_background._compute_spherical_bessel_batch(
-                    ell_signature,
-                    x_values,
-                )
+            values, derivatives = background._compute_spherical_bessel_batch(
+                ell_signature,
+                x_values,
             )
             numpy.testing.assert_allclose(
                 batched_values[:, mode_index, :],
@@ -182,19 +174,17 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
 
         ell_signature = (0, 1, 2, 5, 12)
         x_values = numpy.asarray((-2.5, -0.4, 0.0, 0.4, 2.5))
-        values, derivatives = (
-            native_background._compute_spherical_bessel_batch(
-                ell_signature,
-                x_values,
-            )
+        values, derivatives = background._compute_spherical_bessel_batch(
+            ell_signature,
+            x_values,
         )
         ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
         positive_x = numpy.abs(x_values)
-        expected_values = native_background.spherical_jn(
+        expected_values = background.spherical_jn(
             ell_array,
             positive_x[None, :],
         )
-        expected_derivatives = native_background.spherical_jn(
+        expected_derivatives = background.spherical_jn(
             ell_array,
             positive_x[None, :],
             derivative=True,
@@ -222,18 +212,16 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
 
         ell_signature = (0, 1, 2, 80, 400, 1600)
         x_values = numpy.asarray((1.0e-8, 0.2, 12.0, 250.0, 1800.0))
-        values, derivatives = (
-            native_background._compute_spherical_bessel_batch(
-                ell_signature,
-                x_values,
-            )
+        values, derivatives = background._compute_spherical_bessel_batch(
+            ell_signature,
+            x_values,
         )
         ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
-        expected_values = native_background.spherical_jn(
+        expected_values = background.spherical_jn(
             ell_array,
             x_values[None, :],
         )
-        expected_derivatives = native_background.spherical_jn(
+        expected_derivatives = background.spherical_jn(
             ell_array,
             x_values[None, :],
             derivative=True,
@@ -257,13 +245,11 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
 
         x_values = numpy.asarray((-1.25, 0.0, 1.25), dtype=float)
         x_signature = "slice-twenty-two-kernel-endpoints"
-        native_cache.store_bessel_inputs(x_signature, x_values)
-        kernel_batch = (
-            native_background._get_cached_declared_projection_kernel_batch(
-                (2, 3),
-                x_signature,
-                required_sectors=("vector", "tensor"),
-            )
+        cache.store_bessel_inputs(x_signature, x_values)
+        kernel_batch = background._get_cached_declared_projection_kernel_batch(
+            (2, 3),
+            x_signature,
+            required_sectors=("vector", "tensor"),
         )
         for array in (
             kernel_batch.j_l_second_derivative,
@@ -326,18 +312,16 @@ class NativeBackgroundModuleTestCase(unittest.TestCase):
         """The projector must reject a sector before multiplying histories."""
 
         x_signature = "slice-twenty-two-sector-rejection"
-        native_cache.store_bessel_inputs(
+        cache.store_bessel_inputs(
             x_signature,
             numpy.asarray((0.5, 1.0), dtype=float),
         )
-        kernel_batch = (
-            native_background._get_cached_declared_projection_kernel_batch(
-                (2,),
-                x_signature,
-            )
+        kernel_batch = background._get_cached_declared_projection_kernel_batch(
+            (2,),
+            x_signature,
         )
         with self.assertRaisesRegex(ValueError, "incompatible with sector"):
-            native_projection._declared_graph_projection(
+            projection._declared_graph_projection(
                 projection="line_of_sight_vector_temperature",
                 kernel="spherical_bessel_window",
                 sector="scalar",

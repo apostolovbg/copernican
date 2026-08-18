@@ -1,4 +1,4 @@
-"""Focused tests for the native CMB evolution module."""
+"""Focused tests for the declared CMB evolution module."""
 
 import ast
 import unittest
@@ -7,11 +7,7 @@ from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import (
-    native_background,
-    native_cache,
-    native_evolution,
-)
+from copernican.lib.likelihoods.cmb.runtime import background, cache, evolution
 from copernican.lib.perturbation_contract import compile_perturbation_contract
 
 
@@ -115,13 +111,13 @@ def _compiled_graph_fixture():
     )
 
 
-class NativeEvolutionModuleTestCase(unittest.TestCase):
-    """Exercise native evolution helpers directly."""
+class EvolutionModuleTestCase(unittest.TestCase):
+    """Exercise declared evolution helpers directly."""
 
     def test_context_name_rewriter_maps_runtime_names(self):
         """The generated context program must rewrite declared names."""
 
-        rewriter = native_evolution._ContextNameRewriter()
+        rewriter = evolution._ContextNameRewriter()
         runtime_name = rewriter.visit_Name(
             ast.Name(id="delta_x", ctx=ast.Load())
         )
@@ -144,40 +140,36 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             side_effect=AssertionError("recompilation should not run"),
         ):
-            compiled = (
-                native_evolution._compile_declared_perturbation_contract(
-                    contract
-                )
+            compiled = evolution._compile_declared_perturbation_contract(
+                contract
             )
 
         self.assertIs(compiled, payload)
 
     def test_missing_precompiled_payload_fails_loudly(self):
-        """Native execution should reject raw contracts without payloads."""
+        """Declared execution should reject raw contracts without payloads."""
 
         with self.assertRaisesRegex(
             ValueError,
             "precompiled perturbation_data",
         ):
-            native_evolution._compile_declared_perturbation_contract({})
+            evolution._compile_declared_perturbation_contract({})
 
     def test_declared_graph_context_uses_compiled_expression_plans(self):
         """Declared graph resolution should avoid AST re-interpretation."""
 
         perturbation_data = _compiled_graph_fixture()
-        execution_plan = (
-            native_evolution._compile_declared_graph_execution_plan(
-                perturbation_data
-            )
+        execution_plan = evolution._compile_declared_graph_execution_plan(
+            perturbation_data
         )
         context = {"delta_x": 2.0}
 
         with mock.patch.object(
-            native_background,
+            background,
             "_evaluate_safe_expression",
             side_effect=AssertionError("compiled graph plan should run"),
         ):
-            resolved = native_evolution._resolve_declared_graph_context(
+            resolved = evolution._resolve_declared_graph_context(
                 context,
                 perturbation_data,
                 allow_partial=False,
@@ -192,50 +184,46 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
     def test_runtime_assets_compile_once_per_process_signature(self):
         """Repeated worker preparation should reuse one structural bundle."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         perturbation_data = _compiled_graph_fixture()
-        compiler = native_evolution._compile_declared_graph_execution_plan
+        compiler = evolution._compile_declared_graph_execution_plan
         with mock.patch.object(
-            native_evolution,
+            evolution,
             "_compile_declared_graph_execution_plan",
             wraps=compiler,
         ) as compile_plan:
-            first = native_evolution.prepare_native_runtime_assets(
+            first = evolution.prepare_runtime_assets(
                 "runtime:test",
                 perturbation_data,
             )
-            second = native_evolution.prepare_native_runtime_assets(
+            second = evolution.prepare_runtime_assets(
                 "runtime:test",
                 perturbation_data,
             )
 
         self.assertIs(first, second)
         compile_plan.assert_called_once_with(perturbation_data)
-        third = native_evolution.prepare_native_runtime_assets(
+        third = evolution.prepare_runtime_assets(
             "runtime:test", perturbation_data
         )
         self.assertIs(third, first)
         self.assertGreater(first.owner_pid, 0)
-        stats = native_cache.native_cmb_cache_stats()["native_runtime_assets"]
+        stats = cache.cmb_cache_stats()["runtime_assets"]
         self.assertEqual(stats["entries"], 1)
         self.assertEqual(stats["hits"], 2)
 
     def test_runtime_assets_are_isolated_by_process_owner(self):
         """A process identity change must materialize a distinct bundle."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         perturbation_data = _compiled_graph_fixture()
-        with mock.patch.object(
-            native_evolution.os, "getpid", return_value=101
-        ):
-            first = native_evolution.prepare_native_runtime_assets(
+        with mock.patch.object(evolution.os, "getpid", return_value=101):
+            first = evolution.prepare_runtime_assets(
                 "runtime:test",
                 perturbation_data,
             )
-        with mock.patch.object(
-            native_evolution.os, "getpid", return_value=202
-        ):
-            second = native_evolution.prepare_native_runtime_assets(
+        with mock.patch.object(evolution.os, "getpid", return_value=202):
+            second = evolution.prepare_runtime_assets(
                 "runtime:test",
                 perturbation_data,
             )
@@ -244,12 +232,10 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
         self.assertEqual(first.owner_pid, 101)
         self.assertEqual(second.owner_pid, 202)
 
-    def test_native_evolution_source_does_not_import_camb(self):
-        """The native evolution module should remain CAMB-free."""
+    def test_evolution_source_does_not_import_camb(self):
+        """The declared evolution module should remain CAMB-free."""
 
-        source_text = Path(native_evolution.__file__).read_text(
-            encoding="utf-8"
-        )
+        source_text = Path(evolution.__file__).read_text(encoding="utf-8")
         self.assertNotIn("import camb", source_text)
 
     def test_batched_rk4_uses_one_shared_schedule(self):
@@ -267,14 +253,14 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
             calls.append((int(step_index), float(blend), state.shape))
             return state
 
-        first = native_evolution._integrate_batched_rk4(
+        first = evolution._integrate_batched_rk4(
             initial,
             eta_grid,
             required_substeps=required_substeps,
             active_intervals=active,
             rhs=rhs,
         )
-        second = native_evolution._integrate_batched_rk4(
+        second = evolution._integrate_batched_rk4(
             initial,
             eta_grid,
             required_substeps=required_substeps,
@@ -285,7 +271,7 @@ class NativeEvolutionModuleTestCase(unittest.TestCase):
         histories, final_states, stats = first
         self.assertIsInstance(
             stats,
-            native_evolution.NativeBatchedEvolutionStats,
+            evolution.BatchedEvolutionStats,
         )
         self.assertEqual(stats.mode_count, 2)
         self.assertEqual(stats.interval_count, 2)

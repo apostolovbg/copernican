@@ -10,11 +10,11 @@ directly without using the command-line interface. The core modules are:
  into Python callables.
 - `model_adapter.build_plugin(parsed_data, funcs)` – construct an
  :class:`copernican.lib.model_adapter.ModelPlugin` instance with dataset
- toggles, priors, bounds, distance functions, and a compiled native CMB
+ toggles, priors, bounds, distance functions, and a compiled declared CMB
  runtime ready for sampler consumption.
 - `copernican.lib.model_adapter` – home of the picklable adapter dataclass,
  `ModelPlugin.CMB_CONTRACT`, `ModelPlugin.CMB_PERTURBATION_CONTRACT`,
- `ModelPlugin.CMB_PERTURBATION_DATA`, `ModelPlugin.CMB_NATIVE_RUNTIME`,
+ `ModelPlugin.CMB_PERTURBATION_DATA`, `ModelPlugin.CMB_DECLARED_RUNTIME`,
  `REQUIRED_ATTRIBUTES`, and `REQUIRED_FUNCTIONS`. Import it when building
  custom tooling that needs to confirm interface compliance.
 - `copernican.lib.progress` – shared progress reporting helpers. Sampler
@@ -59,7 +59,8 @@ directly without using the command-line interface. The core modules are:
  finite values for physically meaningful proposals so MCMC reseeding can fall
  back to them reliably. Structured CMB contracts are required in the
  production path. Every accepted contract routes to the declared-math graph
- sampler, while solver selectors and incomplete graphs raise clear errors
+ sampler, while unknown solver selectors and incomplete graphs raise clear
+ errors
  instead of selecting a fallback implementation.
  - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
  `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -116,18 +117,18 @@ execution route or an output-label assumption. Plotting functions require the
 comparison request, while `analysis.plot_posterior` resolves it from the
 saved run manifest or accepts it explicitly.
 ## CMB Likelihood Helpers
-The helpers in `copernican.lib.likelihoods.cmb` expose one native production
+The helpers in `copernican.lib.likelihoods.cmb` expose one declared production
 path. The package-level `cmb.py` entrypoint validates a prepared runtime or a
-route-neutral contract and delegates to `copernican_cmb_solver.py` for native
-declared-graph execution. `native_background.py` owns the declared background,
-recombination, and reionization tables; `native_evolution.py` owns the
-compiled declared-graph evolution plan; `native_projection.py` owns the
-line-of-sight transfer and spectrum assembly; and `native_cache.py` owns
+route-neutral contract and delegates to `orchestrators/ccmbs.py` for
+declared-graph execution. `runtime/background.py` owns the declared background,
+recombination, and reionization tables; `runtime/evolution.py` owns the
+compiled declared-graph evolution plan; `runtime/projection.py` owns the
+line-of-sight transfer and spectrum assembly; and `runtime/cache.py` owns
  bounded cache state plus reset and diagnostics helpers.
 `copernican.lib.cmb_identity` exposes the stable production identity
 `ccmbs_numpy`. CLI and GUI callers select model roles and
 a sampler; they do not select a CMB solver.
-`model_adapter.py` hands the precompiled native runtime into that package
+`model_adapter.py` hands the precompiled declared runtime into that package
 directly, so repeated calls avoid rebuilding static graph structure
 before the declared solver evolves graph variables,
 rebuilds the recombination visibility function, integrates the declared
@@ -139,10 +140,11 @@ unrequested, and physical-zero remapping inputs. Undeclared outputs raise
 errors, and cached arrays are read-only. The spectrum cache identity includes
 the graph, bound parameters, grids, accuracy controls, canonical requested
 spectra, and ordered multipole sequence.
-The native contract is a single graph declaration. It exposes
+The declared contract is a single graph declaration. It exposes
 variables, derived quantities, equations, constraints, closures, source
 terms, initial conditions, boundary conditions, observables, validity
-domains, and numerical requirements without a solver-family selector.
+domains, and numerical requirements independently from the selected solver
+backend.
 Declared equations, constraints, closures, sources, and conditions may
 reference the background symbols `a`, `z`, `eta`, `H`, `Hconf`, `tau`,
 `tau_dot`, `visibility`, `k`, `seed`, `sound_horizon`, `sound_speed`,
@@ -220,7 +222,7 @@ helpers assume this step has succeeded, so validation should occur
 once before any iterative evaluation begins. Samplers expect the attributes
 listed in ``copernican.lib.model_adapter.REQUIRED_ATTRIBUTES``. The resulting
 :class:`ModelPlugin` exposes distance functions, CMB helpers, initial
-parameter guesses, the structured native contract derived from the model YAML
+parameter guesses, the structured declared contract derived from the model YAML
 and the compiled perturbation IR while remaining fully picklable for
 multiprocessing workloads.
 ## Table of Contents

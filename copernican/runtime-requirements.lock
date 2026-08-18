@@ -11,8 +11,8 @@ astropy==6.0.0 \
     --hash=sha256:af67850f0476e04e78a1e5d96b767cd7f484c15fa9e684fed7f7c1277883bfbe
     # via -r pyproject.toml
 
-astropy-iers-data==0.2026.8.3.0.53.6 \
-    --hash=sha256:89cfc77a74050af3d3723544a6c0c4632b72a900e0e02bd7b647a6152e8c56da
+astropy-iers-data==0.2026.8.10.0.32.39 \
+    --hash=sha256:04239afd6e9615165b84da1b84d73f03ca473f0ddf53b516c260e27349a95d03
     # via -r pyproject.toml
 
 attrs==26.1.0 \

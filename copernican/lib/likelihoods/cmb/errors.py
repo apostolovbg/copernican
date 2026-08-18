@@ -1,14 +1,14 @@
-"""Typed failure taxonomy for native CMB execution."""
+"""Typed failure taxonomy for declared CMB execution."""
 
 from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
 
-class NativeCMBError(ValueError):
-    """Base class for native failures that must cross likelihood boundaries."""
+class CMBError(ValueError):
+    """Base class for declared failures that cross likelihood boundaries."""
 
-    category = "native_failure"
+    category = "cmb_failure"
     proposal_rejection = False
 
     def __init__(
@@ -22,7 +22,7 @@ class NativeCMBError(ValueError):
         super().__init__(str(message))
         self.context = dict(context or {})
 
-    def add_context(self, **entries: Any) -> "NativeCMBError":
+    def add_context(self, **entries: Any) -> "CMBError":
         """Fill absent diagnostic fields and return this exception."""
 
         for key, value in entries.items():
@@ -41,63 +41,63 @@ class NativeCMBError(ValueError):
         }
 
 
-class NativeParameterDomainError(NativeCMBError):
+class ParameterDomainError(CMBError):
     """Identify a scientifically valid rejection of one parameter point."""
 
     category = "parameter_domain"
     proposal_rejection = True
 
 
-class NativeUnsupportedCapabilityError(NativeCMBError):
+class UnsupportedCapabilityError(CMBError):
     """Identify a requested capability absent from the declared graph."""
 
     category = "unsupported_capability"
 
 
-class NativeContractError(NativeCMBError):
+class ContractError(CMBError):
     """Identify an invalid model, dataset, or execution contract."""
 
     category = "contract_invalidity"
 
 
-class NativeConvergenceError(NativeCMBError):
+class ConvergenceError(CMBError):
     """Identify a numerical solve or refinement that did not converge."""
 
     category = "convergence_failure"
 
 
-class NativeNonFiniteEvolutionError(NativeCMBError):
-    """Identify non-finite native states, sources, or spectra."""
+class NonFiniteEvolutionError(CMBError):
+    """Identify non-finite declared states, sources, or spectra."""
 
     category = "nonfinite_evolution"
 
 
-class NativeConstraintViolationError(NativeCMBError):
+class ConstraintViolationError(CMBError):
     """Identify a declared physical or numerical constraint violation."""
 
     category = "constraint_violation"
 
 
-class NativePerformanceBudgetError(NativeCMBError):
-    """Identify a native request that exceeded its workload budget."""
+class PerformanceBudgetError(CMBError):
+    """Identify a declared request that exceeded its workload budget."""
 
     category = "performance_budget"
 
 
-class NativeImplementationError(NativeCMBError):
+class ImplementationError(CMBError):
     """Identify an unexpected implementation or infrastructure fault."""
 
     category = "implementation_failure"
 
 
-class NativeInitialPointError(NativeParameterDomainError):
+class InitialPointError(ParameterDomainError):
     """Identify a configured initial point rejected before walker creation."""
 
     category = "initial_point_rejection"
     proposal_rejection = False
 
 
-def native_failure_context(
+def failure_context(
     contract: Mapping[str, Any] | None,
     *,
     workload: str,
@@ -143,60 +143,60 @@ def native_failure_context(
     }
 
 
-def classify_native_exception(
+def classify_exception(
     exc: BaseException,
     *,
     context: Mapping[str, Any] | None = None,
-) -> NativeCMBError:
-    """Translate an untyped internal exception at the native boundary."""
+) -> CMBError:
+    """Translate an untyped internal exception at the declared boundary."""
 
-    if isinstance(exc, NativeCMBError):
+    if isinstance(exc, CMBError):
         if context:
             exc.add_context(**dict(context))
         return exc
 
     message = str(exc)
     normalized = message.casefold()
-    error_type: type[NativeCMBError]
+    error_type: type[CMBError]
     if "performance budget" in normalized:
-        error_type = NativePerformanceBudgetError
+        error_type = PerformanceBudgetError
     elif "non-finite" in normalized or "nonfinite" in normalized:
-        error_type = NativeNonFiniteEvolutionError
+        error_type = NonFiniteEvolutionError
     elif (
         "failed to converge" in normalized
         or "did not converge" in normalized
         or "under-resolved" in normalized
         or "incomplete state history" in normalized
     ):
-        error_type = NativeConvergenceError
+        error_type = ConvergenceError
     elif (
         "constraint" in normalized
         or "conservation rule exceeded" in normalized
     ):
-        error_type = NativeConstraintViolationError
+        error_type = ConstraintViolationError
     elif (
         "unsupported" in normalized
         or "does not provide requested" in normalized
     ):
-        error_type = NativeUnsupportedCapabilityError
+        error_type = UnsupportedCapabilityError
     elif isinstance(exc, (KeyError, TypeError, ValueError)):
-        error_type = NativeContractError
+        error_type = ContractError
     else:
-        error_type = NativeImplementationError
+        error_type = ImplementationError
     return error_type(message, context=context)
 
 
 __all__ = [
-    "NativeCMBError",
-    "NativeConstraintViolationError",
-    "NativeContractError",
-    "NativeConvergenceError",
-    "NativeImplementationError",
-    "NativeInitialPointError",
-    "NativeNonFiniteEvolutionError",
-    "NativeParameterDomainError",
-    "NativePerformanceBudgetError",
-    "NativeUnsupportedCapabilityError",
-    "classify_native_exception",
-    "native_failure_context",
+    "CMBError",
+    "ConstraintViolationError",
+    "ContractError",
+    "ConvergenceError",
+    "ImplementationError",
+    "InitialPointError",
+    "NonFiniteEvolutionError",
+    "ParameterDomainError",
+    "PerformanceBudgetError",
+    "UnsupportedCapabilityError",
+    "classify_exception",
+    "failure_context",
 ]

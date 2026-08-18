@@ -1537,7 +1537,7 @@ class CopernicanGUI:
         return str(Path.home() / "copernican_output")
 
     def _launch_folder(self, path: str) -> None:
-        """Open ``path`` in the native file manager when rendering."""
+        """Open ``path`` in the declared file manager when rendering."""
 
         if not self.render:
             return
@@ -2970,7 +2970,7 @@ class CopernicanGUI:
             "Base run directory:", self._analysis_comparison_base_var
         )
         _render_selector(
-            "Alternative run directory:", self._analysis_comparison_alt_var
+            "Alternate run directory:", self._analysis_comparison_alt_var
         )
 
         self._analysis_comparison_status_label = ttk_module.Label(
@@ -5192,7 +5192,7 @@ class CopernicanGUI:
             container,
             text=(
                 "Choose the sampler used to explore both selected "
-                "models. CMB-capable models use the Copernican native "
+                "models. CMB-capable models use the Copernican declared "
                 "declared-graph CCMBS solver."
             ),
             wraplength=720,
@@ -8552,7 +8552,11 @@ class CopernicanGUI:
         if sampler_meta.get("version"):
             sampler_desc += f" v{sampler_meta['version']}"
         summary.append(f"Sampler: {sampler_desc}")
-        summary.append(f"CMB solver: {CCMBS_LABEL}")
+        cmb_solver_meta = selection.get("cmb_solver", {}) or {}
+        cmb_solver_desc = cmb_solver_meta.get(
+            "label", cmb_solver_meta.get("id", CCMBS_LABEL)
+        )
+        summary.append(f"CMB solver: {cmb_solver_desc}")
         dataset_lines = []
         for dataset_id, dataset in self.pending_manifest.get(
             "datasets", {}

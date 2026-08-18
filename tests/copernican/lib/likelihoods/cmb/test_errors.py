@@ -1,4 +1,4 @@
-"""Tests for typed native CMB failures and request accounting."""
+"""Tests for typed declared CMB failures and request accounting."""
 
 import logging
 import unittest
@@ -8,26 +8,22 @@ from unittest import mock
 import numpy
 import pandas
 
-from copernican.lib.likelihoods.cmb import (
-    cmb,
-    native_cache,
-    native_evolution,
-    native_projection,
+from copernican.lib.likelihoods.cmb import cmb
+from copernican.lib.likelihoods.cmb.errors import (
+    CMBError,
+    ConstraintViolationError,
+    ContractError,
+    ConvergenceError,
+    ImplementationError,
+    InitialPointError,
+    NonFiniteEvolutionError,
+    ParameterDomainError,
+    PerformanceBudgetError,
+    UnsupportedCapabilityError,
+    classify_exception,
+    failure_context,
 )
-from copernican.lib.likelihoods.cmb.native_errors import (
-    NativeCMBError,
-    NativeConstraintViolationError,
-    NativeContractError,
-    NativeConvergenceError,
-    NativeImplementationError,
-    NativeInitialPointError,
-    NativeNonFiniteEvolutionError,
-    NativeParameterDomainError,
-    NativePerformanceBudgetError,
-    NativeUnsupportedCapabilityError,
-    classify_native_exception,
-    native_failure_context,
-)
+from copernican.lib.likelihoods.cmb.runtime import cache, evolution, projection
 
 
 def _cmb_dataframe() -> pandas.DataFrame:
@@ -38,36 +34,32 @@ def _cmb_dataframe() -> pandas.DataFrame:
     return frame
 
 
-class NativeErrorTaxonomyTestCase(unittest.TestCase):
+class CMBErrorTaxonomyTestCase(unittest.TestCase):
     """Exercise typed failures at the production likelihood boundary."""
 
     def test_error_base_exposes_context_and_diagnostic_contract(self) -> None:
         """The base error should preserve additive structured diagnostics."""
 
-        error = NativeCMBError("failure", context={"model": "A"})
+        error = CMBError("failure", context={"model": "A"})
         self.assertIs(error.add_context(gauge="newtonian"), error)
-        self.assertEqual(error.diagnostic()["category"], "native_failure")
+        self.assertEqual(error.diagnostic()["category"], "cmb_failure")
 
     def test_required_error_classes_preserve_taxonomy_relationships(
         self,
     ) -> None:
-        """Every public failure class should remain a native CMB error."""
+        """Every public failure class should remain a declared CMB error."""
 
-        self.assertTrue(issubclass(NativeContractError, NativeCMBError))
-        self.assertTrue(issubclass(NativeConvergenceError, NativeCMBError))
-        self.assertTrue(issubclass(NativeImplementationError, NativeCMBError))
-        self.assertTrue(issubclass(NativeInitialPointError, NativeCMBError))
-        self.assertTrue(
-            issubclass(NativePerformanceBudgetError, NativeCMBError)
-        )
-        self.assertTrue(
-            issubclass(NativeUnsupportedCapabilityError, NativeCMBError)
-        )
+        self.assertTrue(issubclass(ContractError, CMBError))
+        self.assertTrue(issubclass(ConvergenceError, CMBError))
+        self.assertTrue(issubclass(ImplementationError, CMBError))
+        self.assertTrue(issubclass(InitialPointError, CMBError))
+        self.assertTrue(issubclass(PerformanceBudgetError, CMBError))
+        self.assertTrue(issubclass(UnsupportedCapabilityError, CMBError))
 
     def test_failure_context_and_classifier_are_structured(self) -> None:
         """Boundary helpers should retain request identity and error type."""
 
-        context_builder = native_failure_context
+        context_builder = failure_context
         self.assertTrue(callable(context_builder))
         context = context_builder(
             {"model_name": "Model A"},
@@ -76,8 +68,8 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
         )
         self.assertEqual(context["model_name"], "Model A")
         self.assertIsInstance(
-            classify_native_exception(ValueError("invalid contract")),
-            NativeContractError,
+            classify_exception(ValueError("invalid contract")),
+            ContractError,
         )
 
     def test_internal_failures_classify_into_distinct_categories(self) -> None:
@@ -86,33 +78,33 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
         cases = (
             (
                 ValueError("requested unsupported projection"),
-                NativeUnsupportedCapabilityError,
+                UnsupportedCapabilityError,
             ),
             (
                 ValueError("contract did not converge"),
-                NativeConvergenceError,
+                ConvergenceError,
             ),
             (
                 ValueError("evolution produced non-finite values"),
-                NativeNonFiniteEvolutionError,
+                NonFiniteEvolutionError,
             ),
             (
                 ValueError("Einstein constraint exceeded tolerance"),
-                NativeConstraintViolationError,
+                ConstraintViolationError,
             ),
             (
-                ValueError("native performance budget exceeded"),
-                NativePerformanceBudgetError,
+                ValueError("declared performance budget exceeded"),
+                PerformanceBudgetError,
             ),
-            (ValueError("invalid contract field"), NativeContractError),
+            (ValueError("invalid contract field"), ContractError),
             (
                 RuntimeError("unexpected runtime fault"),
-                NativeImplementationError,
+                ImplementationError,
             ),
         )
         for raw_error, expected_type in cases:
             with self.subTest(expected_type=expected_type.__name__):
-                typed = classify_native_exception(
+                typed = classify_exception(
                     raw_error,
                     context={"workload": "joint_mcmc"},
                 )
@@ -135,13 +127,13 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             ),
             mock.patch.object(
                 cmb,
-                "prepare_native_cmb_execution_contract",
+                "prepare_cmb_execution_contract",
                 return_value=contract,
             ),
             mock.patch.object(
                 cmb,
                 "_compute_declared_perturbation_spectrum",
-                side_effect=NativeParameterDomainError("outside domain"),
+                side_effect=ParameterDomainError("outside domain"),
             ) as spectrum,
             self.assertLogs(level="DEBUG") as captured,
         ):
@@ -163,15 +155,15 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             ),
             mock.patch.object(
                 cmb,
-                "prepare_native_cmb_execution_contract",
+                "prepare_cmb_execution_contract",
                 return_value=contract,
             ),
             mock.patch.object(
                 cmb,
                 "_compute_declared_perturbation_spectrum",
-                side_effect=NativeConstraintViolationError("broken invariant"),
+                side_effect=ConstraintViolationError("broken invariant"),
             ),
-            self.assertRaises(NativeConstraintViolationError),
+            self.assertRaises(ConstraintViolationError),
         ):
             likelihood.loglike((1.0,))
 
@@ -188,7 +180,7 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
     def test_failed_request_retains_phase_and_workload_evidence(self) -> None:
         """A failed request must preserve all phase slots and stop location."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
 
         def _fail(*args, performance_timer, **kwargs):
             del args, kwargs
@@ -198,20 +190,20 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
 
         with (
             mock.patch.object(
-                native_projection,
+                projection,
                 "_compute_custom_cmb_spectrum_data_impl",
                 side_effect=_fail,
             ),
-            self.assertRaises(NativeNonFiniteEvolutionError),
+            self.assertRaises(NonFiniteEvolutionError),
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
+            projection._compute_custom_cmb_spectrum_data(
                 {"model_name": "FailureModel"},
                 (20,),
                 requested_spectra=("TT",),
                 workload="joint_mcmc",
             )
 
-        record = native_cache.latest_native_cmb_performance_record()
+        record = cache.latest_cmb_performance_record()
         self.assertEqual(record["workload"], "joint_mcmc")
         self.assertEqual(record["outcome"], "failure")
         self.assertEqual(record["stop_phase"], "evolution")
@@ -248,8 +240,8 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             "total_momentum_source": 0.0,
             "total_shear_source": 0.0,
         }
-        with self.assertRaises(NativeConstraintViolationError) as initial:
-            native_evolution._validate_generated_scalar_initial_constraints(
+        with self.assertRaises(ConstraintViolationError) as initial:
+            evolution._validate_generated_scalar_initial_constraints(
                 perturbation_data=perturbation_data,
                 context=initial_context,
                 k_value=0.4,
@@ -267,8 +259,8 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             {"declared_residual": 0.02},
         )
 
-        with self.assertRaises(NativeConstraintViolationError) as evolved:
-            native_projection._validate_scalar_constraint_histories(
+        with self.assertRaises(ConstraintViolationError) as evolved:
+            projection._validate_scalar_constraint_histories(
                 perturbation_data=perturbation_data,
                 context={
                     "einstein_energy_residual": numpy.asarray((0.0, 0.004))
@@ -305,12 +297,10 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             "total_momentum_source": 0.13,
             "total_shear_source": 0.04,
         }
-        solution = (
-            native_evolution._solve_generated_scalar_initial_einstein_surface(
-                perturbation_data=perturbation_data,
-                context=context,
-                k_value=0.3,
-            )
+        solution = evolution._solve_generated_scalar_initial_einstein_surface(
+            perturbation_data=perturbation_data,
+            context=context,
+            k_value=0.3,
         )
         resolved_context = {
             **context,
@@ -339,12 +329,10 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             ),
         }
 
-        diagnostics = (
-            native_evolution._validate_generated_scalar_initial_constraints(
-                perturbation_data=perturbation_data,
-                context=resolved_context,
-                k_value=0.3,
-            )
+        diagnostics = evolution._validate_generated_scalar_initial_constraints(
+            perturbation_data=perturbation_data,
+            context=resolved_context,
+            k_value=0.3,
         )
 
         self.assertEqual(
@@ -387,7 +375,7 @@ class NativeErrorTaxonomyTestCase(unittest.TestCase):
             ),
         }
 
-        metrics = native_evolution._scalar_einstein_constraint_metrics(
+        metrics = evolution._scalar_einstein_constraint_metrics(
             context,
             "einstein_shear_residual",
         )

@@ -1,4 +1,4 @@
-"""Internal cache ownership for the native declared-graph CMB path."""
+"""Internal cache ownership for the declared-graph CMB path."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ _CacheValue = TypeVar("_CacheValue")
 
 
 @dataclass(frozen=True, slots=True)
-class _NativeCacheSnapshot:
-    """One immutable snapshot of one bounded native cache."""
+class _CacheSnapshot:
+    """One immutable snapshot of one bounded declared cache."""
 
     entries: int
     limit: int
@@ -26,7 +26,7 @@ class _NativeCacheSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeRuntimeCacheIdentity:
+class RuntimeCacheIdentity:
     """Name the static and request-specific portions of a runtime cache key."""
 
     contract_static: Any
@@ -90,7 +90,7 @@ class _BoundedCacheStore(Generic[_CacheValue]):
     def snapshot(self) -> dict[str, int]:
         """Return entry counts and accounting counters for this cache."""
 
-        snapshot = _NativeCacheSnapshot(
+        snapshot = _CacheSnapshot(
             entries=len(self._store),
             limit=self.limit,
             hits=self.hits,
@@ -117,29 +117,29 @@ class _BoundedCacheStore(Generic[_CacheValue]):
 
 _DECLARED_SYMBOL_PLAN_CACHE = _BoundedCacheStore(limit=256)
 _DECLARED_GRAPH_EXECUTION_PLAN_CACHE = _BoundedCacheStore(limit=256)
-_NATIVE_RUNTIME_ASSET_CACHE = _BoundedCacheStore(limit=32)
+_CMB_RUNTIME_ASSET_CACHE = _BoundedCacheStore(limit=32)
 _DECLARED_MOMENTUM_TOPOLOGY_CACHE = _BoundedCacheStore(limit=128)
 _DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
-_NATIVE_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
-_NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE = _BoundedCacheStore(limit=128)
-_NATIVE_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
-_NATIVE_CMB_TRANSFER_CACHE = _BoundedCacheStore(
+_CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
+_CMB_REIONIZATION_CALIBRATION_SEED_CACHE = _BoundedCacheStore(limit=128)
+_CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
+_CMB_TRANSFER_CACHE = _BoundedCacheStore(
     limit=16,
     max_bytes=64 * 1024 * 1024,
 )
-_NATIVE_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
-_NATIVE_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
-_NATIVE_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
+_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
+_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
+_CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
     limit=512,
     max_bytes=32 * 1024 * 1024,
 )
 _PROJECTION_BATCH_CACHE_MAX_BYTES = 8 * 1024 * 1024
-_NATIVE_PERFORMANCE_PHASE_SECONDS: dict[str, float] = {}
-_NATIVE_PERFORMANCE_REQUESTS = 0
-_NATIVE_PERFORMANCE_CACHE_HITS = 0
-_NATIVE_PERFORMANCE_FAILURES = 0
-_NATIVE_PERFORMANCE_RECORDS: deque[dict[str, Any]] = deque(maxlen=256)
-_LAST_NATIVE_CMB_REQUEST_IDENTITY: NativeRuntimeCacheIdentity | None = None
+_CMB_PERFORMANCE_PHASE_SECONDS: dict[str, float] = {}
+_CMB_PERFORMANCE_REQUESTS = 0
+_CMB_PERFORMANCE_CACHE_HITS = 0
+_CMB_PERFORMANCE_FAILURES = 0
+_CMB_PERFORMANCE_RECORDS: deque[dict[str, Any]] = deque(maxlen=256)
+_LAST_CMB_REQUEST_IDENTITY: RuntimeCacheIdentity | None = None
 
 
 def _numpy_payload_bytes(value: Any) -> int:
@@ -187,16 +187,16 @@ def set_declared_graph_execution_plan(
     _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.set(cache_key, compiled_plan)
 
 
-def get_native_runtime_assets(cache_key: Any):
+def get_runtime_assets(cache_key: Any):
     """Return one process-local immutable runtime asset bundle."""
 
-    return _NATIVE_RUNTIME_ASSET_CACHE.get(cache_key)
+    return _CMB_RUNTIME_ASSET_CACHE.get(cache_key)
 
 
-def set_native_runtime_assets(cache_key: Any, runtime_assets: Any) -> None:
+def set_runtime_assets(cache_key: Any, runtime_assets: Any) -> None:
     """Store one process-local immutable runtime asset bundle."""
 
-    _NATIVE_RUNTIME_ASSET_CACHE.set(cache_key, runtime_assets)
+    _CMB_RUNTIME_ASSET_CACHE.set(cache_key, runtime_assets)
 
 
 def get_declared_momentum_topology(cache_key: Any):
@@ -223,22 +223,22 @@ def set_declared_momentum_grid(cache_key: Any, runtime_bundle: Any) -> None:
     _DECLARED_MOMENTUM_GRID_CACHE.set(cache_key, runtime_bundle)
 
 
-def get_native_cmb_background(cache_key: Any):
-    """Return one cached native background payload when present."""
+def get_cmb_background(cache_key: Any):
+    """Return one cached declared background payload when present."""
 
-    return _NATIVE_CMB_BACKGROUND_CACHE.get(cache_key)
+    return _CMB_BACKGROUND_CACHE.get(cache_key)
 
 
-def set_native_cmb_background(cache_key: Any, background_data: Any) -> None:
-    """Store one native background payload."""
+def set_cmb_background(cache_key: Any, background_data: Any) -> None:
+    """Store one declared background payload."""
 
-    _NATIVE_CMB_BACKGROUND_CACHE.set(cache_key, background_data)
+    _CMB_BACKGROUND_CACHE.set(cache_key, background_data)
 
 
 def get_reionization_calibration_seed(cache_key: Any) -> float | None:
     """Return one bounded warm-start seed for optical-depth calibration."""
 
-    cached = _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE.get(cache_key)
+    cached = _CMB_REIONIZATION_CALIBRATION_SEED_CACHE.get(cache_key)
     return None if cached is None else float(cached)
 
 
@@ -251,72 +251,72 @@ def set_reionization_calibration_seed(
     value = float(calibration_value)
     if not numpy.isfinite(value):
         raise ValueError("Reionization calibration seed must be finite")
-    _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE.set(cache_key, value)
+    _CMB_REIONIZATION_CALIBRATION_SEED_CACHE.set(cache_key, value)
 
 
-def get_native_cmb_spectrum(cache_key: Any):
-    """Return one cached native spectrum payload when present."""
+def get_cmb_spectrum(cache_key: Any):
+    """Return one cached declared spectrum payload when present."""
 
-    cached = _NATIVE_CMB_SPECTRUM_CACHE.get(cache_key)
+    cached = _CMB_SPECTRUM_CACHE.get(cache_key)
     if cached is not None:
-        remember_native_cmb_request_identity(cache_key)
+        remember_cmb_request_identity(cache_key)
     return cached
 
 
-def set_native_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
-    """Store one native spectrum payload."""
+def set_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
+    """Store one declared spectrum payload."""
 
-    _NATIVE_CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
-    remember_native_cmb_request_identity(cache_key)
+    _CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
+    remember_cmb_request_identity(cache_key)
 
 
-def get_native_cmb_transfer(cache_key: Any):
+def get_cmb_transfer(cache_key: Any):
     """Return one cached transfer-product payload when present."""
 
-    return _NATIVE_CMB_TRANSFER_CACHE.get(cache_key)
+    return _CMB_TRANSFER_CACHE.get(cache_key)
 
 
-def set_native_cmb_transfer(cache_key: Any, transfer_data: Any) -> None:
+def set_cmb_transfer(cache_key: Any, transfer_data: Any) -> None:
     """Store one bounded transfer-product payload."""
 
-    _NATIVE_CMB_TRANSFER_CACHE.set(cache_key, transfer_data)
+    _CMB_TRANSFER_CACHE.set(cache_key, transfer_data)
 
 
-def remember_native_cmb_request_identity(cache_key: Any) -> None:
-    """Record the most recent native spectrum request shape."""
+def remember_cmb_request_identity(cache_key: Any) -> None:
+    """Record the most recent declared spectrum request shape."""
 
-    global _LAST_NATIVE_CMB_REQUEST_IDENTITY
-    if not isinstance(cache_key, NativeRuntimeCacheIdentity):
+    global _LAST_CMB_REQUEST_IDENTITY
+    if not isinstance(cache_key, RuntimeCacheIdentity):
         return
-    _LAST_NATIVE_CMB_REQUEST_IDENTITY = cache_key
+    _LAST_CMB_REQUEST_IDENTITY = cache_key
 
 
-def latest_native_cmb_request_identity() -> NativeRuntimeCacheIdentity | None:
-    """Return the most recent native spectrum request identity."""
+def latest_cmb_request_identity() -> RuntimeCacheIdentity | None:
+    """Return the most recent declared spectrum request identity."""
 
-    return _LAST_NATIVE_CMB_REQUEST_IDENTITY
+    return _LAST_CMB_REQUEST_IDENTITY
 
 
 def get_bessel_inputs(x_signature: str) -> numpy.ndarray | None:
     """Return one cached x-grid keyed by its stable signature."""
 
-    return _NATIVE_CMB_BESSEL_INPUT_CACHE.get(x_signature)
+    return _CMB_BESSEL_INPUT_CACHE.get(x_signature)
 
 
 def store_bessel_inputs(x_signature: str, x_values: numpy.ndarray) -> None:
     """Store one x-grid and prune dependent Bessel caches on eviction."""
 
-    before_keys = set(_NATIVE_CMB_BESSEL_INPUT_CACHE._store)
-    _NATIVE_CMB_BESSEL_INPUT_CACHE.set(x_signature, x_values)
-    after_keys = set(_NATIVE_CMB_BESSEL_INPUT_CACHE._store)
+    before_keys = set(_CMB_BESSEL_INPUT_CACHE._store)
+    _CMB_BESSEL_INPUT_CACHE.set(x_signature, x_values)
+    after_keys = set(_CMB_BESSEL_INPUT_CACHE._store)
     evicted_signatures = before_keys - after_keys
     for stale_signature in evicted_signatures:
-        _NATIVE_CMB_BESSEL_VALUE_CACHE.prune(
+        _CMB_BESSEL_VALUE_CACHE.prune(
             lambda key, stale_signature=stale_signature: (
                 key[1] == stale_signature
             )
         )
-        _NATIVE_CMB_BESSEL_BATCH_CACHE.prune(
+        _CMB_BESSEL_BATCH_CACHE.prune(
             lambda key, stale_signature=stale_signature: (
                 key[1] == stale_signature
             )
@@ -326,19 +326,19 @@ def store_bessel_inputs(x_signature: str, x_values: numpy.ndarray) -> None:
 def get_bessel_values(cache_key: Any):
     """Return one cached spherical-Bessel pair when present."""
 
-    return _NATIVE_CMB_BESSEL_VALUE_CACHE.get(cache_key)
+    return _CMB_BESSEL_VALUE_CACHE.get(cache_key)
 
 
 def set_bessel_values(cache_key: Any, values: Any) -> None:
     """Store one spherical-Bessel pair."""
 
-    _NATIVE_CMB_BESSEL_VALUE_CACHE.set(cache_key, values)
+    _CMB_BESSEL_VALUE_CACHE.set(cache_key, values)
 
 
 def get_declared_projection_kernel_batch(cache_key: Any):
     """Return one cached ell-batched kernel pack when present."""
 
-    return _NATIVE_CMB_BESSEL_BATCH_CACHE.get(cache_key)
+    return _CMB_BESSEL_BATCH_CACHE.get(cache_key)
 
 
 def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
@@ -346,10 +346,10 @@ def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
 
     if _numpy_payload_bytes(batch) > _PROJECTION_BATCH_CACHE_MAX_BYTES:
         return
-    _NATIVE_CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
+    _CMB_BESSEL_BATCH_CACHE.set(cache_key, batch)
 
 
-def record_native_cmb_performance(
+def record_cmb_performance(
     phase_seconds: Mapping[str, float],
     *,
     cache_hit: bool = False,
@@ -361,38 +361,38 @@ def record_native_cmb_performance(
     failure: Mapping[str, Any] | None = None,
     context: Mapping[str, Any] | None = None,
 ) -> Mapping[str, Any]:
-    """Record one native request's phase timings and cache outcome."""
+    """Record one declared request's phase timings and cache outcome."""
 
-    global _NATIVE_PERFORMANCE_REQUESTS
-    global _NATIVE_PERFORMANCE_CACHE_HITS
-    global _NATIVE_PERFORMANCE_FAILURES
-    _NATIVE_PERFORMANCE_REQUESTS += 1
+    global _CMB_PERFORMANCE_REQUESTS
+    global _CMB_PERFORMANCE_CACHE_HITS
+    global _CMB_PERFORMANCE_FAILURES
+    _CMB_PERFORMANCE_REQUESTS += 1
     if cache_hit:
-        _NATIVE_PERFORMANCE_CACHE_HITS += 1
+        _CMB_PERFORMANCE_CACHE_HITS += 1
     normalized_outcome = str(outcome).strip().lower()
     if normalized_outcome not in {"success", "failure"}:
         raise ValueError(
-            "Native performance outcome must be success or failure"
+            "Declared performance outcome must be success or failure"
         )
     if normalized_outcome == "failure":
-        _NATIVE_PERFORMANCE_FAILURES += 1
+        _CMB_PERFORMANCE_FAILURES += 1
     normalized_cache_state = (
         "exact_cache_hit" if cache_hit else str(cache_state or "cold")
     )
     if normalized_cache_state not in {"cold", "warm", "exact_cache_hit"}:
-        raise ValueError("Native performance cache state is invalid")
+        raise ValueError("Declared performance cache state is invalid")
     normalized_phases: dict[str, float] = {}
     for phase_name, elapsed in phase_seconds.items():
         value = float(elapsed)
         if value < 0.0 or value != value:
-            raise ValueError("Native performance phase time must be finite")
+            raise ValueError("Declared performance phase time must be finite")
         name = str(phase_name)
         normalized_phases[name] = value
-        _NATIVE_PERFORMANCE_PHASE_SECONDS[name] = (
-            _NATIVE_PERFORMANCE_PHASE_SECONDS.get(name, 0.0) + value
+        _CMB_PERFORMANCE_PHASE_SECONDS[name] = (
+            _CMB_PERFORMANCE_PHASE_SECONDS.get(name, 0.0) + value
         )
     record = {
-        "request_index": int(_NATIVE_PERFORMANCE_REQUESTS),
+        "request_index": int(_CMB_PERFORMANCE_REQUESTS),
         "workload": str(workload),
         "cache_state": normalized_cache_state,
         "outcome": normalized_outcome,
@@ -404,64 +404,64 @@ def record_native_cmb_performance(
         "failure": None if failure is None else dict(failure),
         "context": dict(context or {}),
     }
-    _NATIVE_PERFORMANCE_RECORDS.append(record)
+    _CMB_PERFORMANCE_RECORDS.append(record)
     return dict(record)
 
 
-def record_native_cmb_phase(name: str, elapsed_seconds: float) -> None:
-    """Record one native phase measured outside spectrum projection."""
+def record_cmb_phase(name: str, elapsed_seconds: float) -> None:
+    """Record one declared phase measured outside spectrum projection."""
 
     value = float(elapsed_seconds)
     if value < 0.0 or value != value:
-        raise ValueError("Native performance phase time must be finite")
+        raise ValueError("Declared performance phase time must be finite")
     phase_name = str(name)
-    _NATIVE_PERFORMANCE_PHASE_SECONDS[phase_name] = (
-        _NATIVE_PERFORMANCE_PHASE_SECONDS.get(phase_name, 0.0) + value
+    _CMB_PERFORMANCE_PHASE_SECONDS[phase_name] = (
+        _CMB_PERFORMANCE_PHASE_SECONDS.get(phase_name, 0.0) + value
     )
 
 
-def extend_latest_native_cmb_request_phase(
+def extend_latest_cmb_request_phase(
     name: str,
     elapsed_seconds: float,
 ) -> None:
     """Append one post-projection phase to the latest local request."""
 
-    record_native_cmb_phase(name, elapsed_seconds)
-    if not _NATIVE_PERFORMANCE_RECORDS:
+    record_cmb_phase(name, elapsed_seconds)
+    if not _CMB_PERFORMANCE_RECORDS:
         return
     value = float(elapsed_seconds)
-    latest = _NATIVE_PERFORMANCE_RECORDS[-1]
+    latest = _CMB_PERFORMANCE_RECORDS[-1]
     phases = latest["phase_seconds"]
     phase_name = str(name)
     phases[phase_name] = float(phases.get(phase_name, 0.0)) + value
     phases["total_seconds"] = float(phases.get("total_seconds", 0.0)) + value
 
 
-def fail_latest_native_cmb_request(
+def fail_latest_cmb_request(
     failure: Mapping[str, Any],
     *,
     stop_phase: str | None = None,
 ) -> None:
     """Mark the latest local request as failed after output assembly."""
 
-    global _NATIVE_PERFORMANCE_FAILURES
-    if not _NATIVE_PERFORMANCE_RECORDS:
+    global _CMB_PERFORMANCE_FAILURES
+    if not _CMB_PERFORMANCE_RECORDS:
         return
-    latest = _NATIVE_PERFORMANCE_RECORDS[-1]
+    latest = _CMB_PERFORMANCE_RECORDS[-1]
     if latest["outcome"] != "failure":
-        _NATIVE_PERFORMANCE_FAILURES += 1
+        _CMB_PERFORMANCE_FAILURES += 1
     latest["outcome"] = "failure"
     latest["failure"] = dict(failure)
     if stop_phase is not None:
         latest["stop_phase"] = str(stop_phase)
 
 
-def latest_native_cmb_performance_record() -> Mapping[str, Any] | None:
-    """Return the latest process-local native request record."""
+def latest_cmb_performance_record() -> Mapping[str, Any] | None:
+    """Return the latest process-local declared request record."""
 
-    if not _NATIVE_PERFORMANCE_RECORDS:
+    if not _CMB_PERFORMANCE_RECORDS:
         return None
-    latest = _NATIVE_PERFORMANCE_RECORDS[-1]
+    latest = _CMB_PERFORMANCE_RECORDS[-1]
     return {
         **latest,
         "phase_seconds": dict(latest["phase_seconds"]),
@@ -473,7 +473,7 @@ def latest_native_cmb_performance_record() -> Mapping[str, Any] | None:
     }
 
 
-def native_cmb_performance_quantiles(
+def cmb_performance_quantiles(
     *,
     workload: str,
     cache_state: str,
@@ -483,9 +483,9 @@ def native_cmb_performance_quantiles(
     normalized_workload = str(workload)
     normalized_cache_state = str(cache_state).strip().lower()
     if normalized_cache_state not in {"cold", "warm", "exact_cache_hit"}:
-        raise ValueError("Native performance cache state is invalid")
+        raise ValueError("Declared performance cache state is invalid")
     elapsed_samples = []
-    for record in _NATIVE_PERFORMANCE_RECORDS:
+    for record in _CMB_PERFORMANCE_RECORDS:
         if record["outcome"] != "success":
             continue
         if record["workload"] != normalized_workload:
@@ -503,7 +503,7 @@ def native_cmb_performance_quantiles(
         )
     if not elapsed_samples:
         raise ValueError(
-            "No successful native performance records match the requested "
+            "No successful declared performance records match the requested "
             "workload and cache state"
         )
     values = numpy.asarray(elapsed_samples, dtype=float)
@@ -519,14 +519,14 @@ def native_cmb_performance_quantiles(
     }
 
 
-def native_cmb_performance_stats() -> dict[str, Any]:
-    """Return aggregate phase timings and native cache-hit accounting."""
+def cmb_performance_stats() -> dict[str, Any]:
+    """Return aggregate phase timings and declared cache-hit accounting."""
 
     return {
-        "requests": int(_NATIVE_PERFORMANCE_REQUESTS),
-        "cache_hits": int(_NATIVE_PERFORMANCE_CACHE_HITS),
-        "failures": int(_NATIVE_PERFORMANCE_FAILURES),
-        "phase_seconds": dict(_NATIVE_PERFORMANCE_PHASE_SECONDS),
+        "requests": int(_CMB_PERFORMANCE_REQUESTS),
+        "cache_hits": int(_CMB_PERFORMANCE_CACHE_HITS),
+        "failures": int(_CMB_PERFORMANCE_FAILURES),
+        "phase_seconds": dict(_CMB_PERFORMANCE_PHASE_SECONDS),
         "recent_requests": tuple(
             {
                 **record,
@@ -539,109 +539,109 @@ def native_cmb_performance_stats() -> dict[str, Any]:
                     else dict(record["failure"])
                 ),
             }
-            for record in _NATIVE_PERFORMANCE_RECORDS
+            for record in _CMB_PERFORMANCE_RECORDS
         ),
     }
 
 
-def clear_native_cmb_result_caches() -> None:
-    """Clear complete native spectrum results without dropping structure."""
+def clear_cmb_result_caches() -> None:
+    """Clear complete declared spectrum results without dropping structure."""
 
-    _NATIVE_CMB_SPECTRUM_CACHE.clear()
+    _CMB_SPECTRUM_CACHE.clear()
 
 
-def clear_native_cmb_parameter_caches() -> None:
+def clear_cmb_parameter_caches() -> None:
     """Clear parameter-bound data while retaining structural compilation."""
 
     for cache in (
         _DECLARED_MOMENTUM_GRID_CACHE,
-        _NATIVE_CMB_BACKGROUND_CACHE,
-        _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE,
-        _NATIVE_CMB_SPECTRUM_CACHE,
-        _NATIVE_CMB_TRANSFER_CACHE,
-        _NATIVE_CMB_BESSEL_INPUT_CACHE,
-        _NATIVE_CMB_BESSEL_VALUE_CACHE,
-        _NATIVE_CMB_BESSEL_BATCH_CACHE,
+        _CMB_BACKGROUND_CACHE,
+        _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
+        _CMB_SPECTRUM_CACHE,
+        _CMB_TRANSFER_CACHE,
+        _CMB_BESSEL_INPUT_CACHE,
+        _CMB_BESSEL_VALUE_CACHE,
+        _CMB_BESSEL_BATCH_CACHE,
     ):
         cache.clear()
 
 
-def clear_native_cmb_caches() -> None:
-    """Clear every bounded cache used by the native declared CMB path."""
+def clear_cmb_caches() -> None:
+    """Clear every bounded cache used by the declared CMB path."""
 
-    global _NATIVE_PERFORMANCE_REQUESTS
-    global _NATIVE_PERFORMANCE_CACHE_HITS
-    global _NATIVE_PERFORMANCE_FAILURES
-    global _LAST_NATIVE_CMB_REQUEST_IDENTITY
+    global _CMB_PERFORMANCE_REQUESTS
+    global _CMB_PERFORMANCE_CACHE_HITS
+    global _CMB_PERFORMANCE_FAILURES
+    global _LAST_CMB_REQUEST_IDENTITY
 
     for cache in (
         _DECLARED_SYMBOL_PLAN_CACHE,
         _DECLARED_GRAPH_EXECUTION_PLAN_CACHE,
-        _NATIVE_RUNTIME_ASSET_CACHE,
+        _CMB_RUNTIME_ASSET_CACHE,
         _DECLARED_MOMENTUM_TOPOLOGY_CACHE,
         _DECLARED_MOMENTUM_GRID_CACHE,
-        _NATIVE_CMB_BACKGROUND_CACHE,
-        _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE,
-        _NATIVE_CMB_SPECTRUM_CACHE,
-        _NATIVE_CMB_TRANSFER_CACHE,
-        _NATIVE_CMB_BESSEL_INPUT_CACHE,
-        _NATIVE_CMB_BESSEL_VALUE_CACHE,
-        _NATIVE_CMB_BESSEL_BATCH_CACHE,
+        _CMB_BACKGROUND_CACHE,
+        _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
+        _CMB_SPECTRUM_CACHE,
+        _CMB_TRANSFER_CACHE,
+        _CMB_BESSEL_INPUT_CACHE,
+        _CMB_BESSEL_VALUE_CACHE,
+        _CMB_BESSEL_BATCH_CACHE,
     ):
         cache.clear()
-    _NATIVE_PERFORMANCE_PHASE_SECONDS.clear()
-    _NATIVE_PERFORMANCE_RECORDS.clear()
-    _NATIVE_PERFORMANCE_REQUESTS = 0
-    _NATIVE_PERFORMANCE_CACHE_HITS = 0
-    _NATIVE_PERFORMANCE_FAILURES = 0
-    _LAST_NATIVE_CMB_REQUEST_IDENTITY = None
+    _CMB_PERFORMANCE_PHASE_SECONDS.clear()
+    _CMB_PERFORMANCE_RECORDS.clear()
+    _CMB_PERFORMANCE_REQUESTS = 0
+    _CMB_PERFORMANCE_CACHE_HITS = 0
+    _CMB_PERFORMANCE_FAILURES = 0
+    _LAST_CMB_REQUEST_IDENTITY = None
 
 
-def native_cmb_cache_stats() -> dict[str, dict[str, int]]:
-    """Return entry, limit, and hit/miss counters for native CMB caches."""
+def cmb_cache_stats() -> dict[str, dict[str, int]]:
+    """Return entry, limit, and hit/miss counters for declared CMB caches."""
 
     return {
         "declared_symbol_plan": _DECLARED_SYMBOL_PLAN_CACHE.snapshot(),
         "declared_graph_execution_plan": (
             _DECLARED_GRAPH_EXECUTION_PLAN_CACHE.snapshot()
         ),
-        "native_runtime_assets": _NATIVE_RUNTIME_ASSET_CACHE.snapshot(),
+        "runtime_assets": _CMB_RUNTIME_ASSET_CACHE.snapshot(),
         "declared_momentum_topology": (
             _DECLARED_MOMENTUM_TOPOLOGY_CACHE.snapshot()
         ),
         "declared_momentum_grid": (_DECLARED_MOMENTUM_GRID_CACHE.snapshot()),
-        "native_background": _NATIVE_CMB_BACKGROUND_CACHE.snapshot(),
+        "background": _CMB_BACKGROUND_CACHE.snapshot(),
         "reionization_calibration_seed": (
-            _NATIVE_REIONIZATION_CALIBRATION_SEED_CACHE.snapshot()
+            _CMB_REIONIZATION_CALIBRATION_SEED_CACHE.snapshot()
         ),
-        "native_spectrum": _NATIVE_CMB_SPECTRUM_CACHE.snapshot(),
-        "native_transfer": _NATIVE_CMB_TRANSFER_CACHE.snapshot(),
-        "bessel_inputs": _NATIVE_CMB_BESSEL_INPUT_CACHE.snapshot(),
-        "bessel_values": _NATIVE_CMB_BESSEL_VALUE_CACHE.snapshot(),
+        "declared_spectrum": _CMB_SPECTRUM_CACHE.snapshot(),
+        "declared_transfer": _CMB_TRANSFER_CACHE.snapshot(),
+        "bessel_inputs": _CMB_BESSEL_INPUT_CACHE.snapshot(),
+        "bessel_values": _CMB_BESSEL_VALUE_CACHE.snapshot(),
         "declared_projection_kernel_batch": (
-            _NATIVE_CMB_BESSEL_BATCH_CACHE.snapshot()
+            _CMB_BESSEL_BATCH_CACHE.snapshot()
         ),
     }
 
 
-def native_cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
+def cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
     """Describe cache ownership and invalidation class for diagnostics."""
 
     categories = {
         "declared_symbol_plan": "structural",
         "declared_graph_execution_plan": "structural",
-        "native_runtime_assets": "structural",
+        "runtime_assets": "structural",
         "declared_momentum_topology": "structural",
         "declared_momentum_grid": "parameter",
-        "native_background": "parameter",
+        "background": "parameter",
         "reionization_calibration_seed": "parameter",
         "bessel_inputs": "parameter",
         "bessel_values": "parameter",
         "declared_projection_kernel_batch": "parameter",
-        "native_spectrum": "result",
-        "native_transfer": "parameter",
+        "declared_spectrum": "result",
+        "declared_transfer": "parameter",
     }
-    snapshots = native_cmb_cache_stats()
+    snapshots = cmb_cache_stats()
     return {
         name: {
             "category": categories[name],

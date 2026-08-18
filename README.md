@@ -22,7 +22,7 @@ keeping the results tied to the exact inputs that produced them.
 The same manifest can drive the command-line interface or the GUI. That keeps
 interactive runs and scripted runs on one configuration surface, with the same
 seed handling, control-model and test-model selection, dataset selection,
-sampler choice, and output layout.
+sampler choice, CMB solver choice, and output layout.
 
 Copernican is built for reproducibility. Every run writes a manifest, one
 canonical run log, summary artifacts, plots, and chain outputs into a per-run
@@ -31,10 +31,10 @@ later without guessing which options were used.
 
 The package includes the model library, trusted dataset parsers, sampler
 samplers, validation manifests, and supporting analysis tools needed for the
-full workflow. Every bundled CMB model declares the native graph contract;
-models with available CMB output use the same native solver, while a model
+full workflow. Every bundled CMB model declares the declared graph contract;
+models with available CMB output use the same declared solver, while a model
 without a defensible perturbation closure reports CMB output as unavailable.
-USMF2 now executes through that same native route. Its theory-specific
+USMF2 now executes through that same declared route. Its theory-specific
 shrink-field closure, sourced initial conditions, metric constraints,
 projection sources, and public observables are evaluated directly from the
 declared graph without a CAMB, CLASS, or LCDM substitution.
@@ -51,10 +51,10 @@ machine-testable model-by-capability matrix for `TT`, `TE`, `EE`, `BB`, `PP`,
 roles, and early unsupported-combination diagnostics from declarations rather
 than theory names or model filenames.
 
-Native spectrum requests run that capability preflight before background
+Declared spectrum requests run that capability preflight before background
 construction, so unsupported observables fail without beginning evolution.
 
-Before native scalar evolution begins, Copernican audits the requested k grid
+Before declared scalar evolution begins, Copernican audits the requested k grid
 against the model's declared numerical limits and preflights every mode on the
 coupled Einstein constraint surface. The runtime records the ordered mode set,
 residual terms, normalization scales, and constraint provenance with the
@@ -70,15 +70,16 @@ accepted as a physical result.
 The generated shear residual evaluates its declared correction directly so
 nearly equal metric potentials do not create a floating-point-only breach.
 
-All bundled CMB-capable models execute through the Copernican native
-declared-graph CMB solver. The CLI and GUI do not expose a CMB solver or
-backend selector; the selected control and test models provide the physical
-contracts for the same solver. CAMB and CLASS are independent scientific
-reference tools used by tests, not production spectrum solvers.
+All bundled CMB-capable models execute through the Copernican declared
+declared-graph CMB solver. The manifest selects the solver independently from
+the sampler; `ccmbs_numpy` is the default CCMBS reference backend, and its
+identity and capabilities are persisted in provenance. CAMB and CLASS are
+independent scientific reference tools used by tests, not production spectrum
+solvers.
 
 A default package installation has no CAMB or CLASS dependency. The repository
 workspace lock includes CAMB only for independent scientific-reference tests;
-the packaged runtime lock and installed license inventory contain native
+the packaged runtime lock and installed license inventory contain declared
 production dependencies only.
 
 Requested spectra resolve only declared model dependencies. A model without
@@ -95,7 +96,7 @@ payloads distinguish computed, unrequested, physically zero, and unavailable
 spectra, while cache identities bind the graph, parameters, numerical grids,
 accuracy controls, requested spectra, and multipole sequence.
 
-Native CMB validation records the resolved numerical envelope in each run
+Declared CMB validation records the resolved numerical envelope in each run
 manifest. The named final tier requires bounded background, transfer,
 source, hierarchy, momentum-grid, and lensing controls and rejects
 under-resolved requests before expensive evolution. Cross-sector refinement
@@ -104,12 +105,12 @@ and hierarchy thresholds. Explicit graphs without a sector registry retain
 their active sector identity from compiled observable and tensor-character
 metadata, so runtime envelopes cannot silently omit executed sectors.
 
-Native MCMC workers prepare immutable graph structure once per model and
+Declared MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
 record cold, warm, and exact-hit states with phase timings and work units.
 The public `compute_cmb_spectrum_batch` contract evaluates an ordered
-sequence of native contracts and returns one serializable result per input,
+sequence of declared contracts and returns one serializable result per input,
 including typed failures and cache provenance. It starts as an exact
 scalar-to-batch adapter, so parameter-dependent state remains isolated while
 shared-structure and vectorized kernels are validated independently.
@@ -130,7 +131,7 @@ tight-coupling transition. Only valid parameter-domain exclusions become
 rejected proposals; contract, convergence, non-finite, constraint,
 capability, and performance failures stop execution with typed diagnostics.
 
-Native CMB performance budgets are enforced separately at the workload
+Declared CMB performance budgets are enforced separately at the workload
 boundary:
 180 seconds for a cold full spectrum, 5 seconds for a warm parameter rebound,
 and 1 second for an exact cache hit. Reports retain deterministic median and
@@ -298,7 +299,7 @@ Each run keeps its own run logs inside the generated
 
 ## Repository Layout
 - `copernican/lib/` contains shared runtime helpers, GUI scaffolding,
-  analysis tools, plotting helpers, and the native CMB internals.
+  analysis tools, plotting helpers, and the declared CMB internals.
 - `copernican/models/` houses the YAML model definitions and their metadata.
 - `copernican/samplers/` collects the sampler back ends.
 - `copernican/datasets/` bundles the trusted datasets and parser metadata.
@@ -376,7 +377,7 @@ Command-line users can work without the GUI:
 - `python -m copernican --show-manifest <path>`
 - `python -m copernican --run-validation`
 - `python -m copernican --analysis-summary <run_dir>`
-- `python -m copernican --analysis-compare <base_run> <alternative_run>`
+- `python -m copernican --analysis-compare <base_run> <alternate_run>`
 - `python -m copernican --analysis-posterior <run_dir>`
 
 ## Repository Policy

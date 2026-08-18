@@ -102,10 +102,18 @@ canonical sampler names and metadata. The shared model adapter owns model
 contracts independently of either sampler.
 
 The current CMB path is a declared-graph NumPy/SciPy implementation reached
-through `copernican/lib/likelihoods/cmb/cmb.py` and
-`copernican_cmb_solver.py`. Its identity is now the stable CCMBS solver
-identity in manifests and GUI text. Solver selection remains the explicit
-registry work assigned to Slice Two.
+through `copernican/lib/likelihoods/cmb/cmb.py` and the CCMBS orchestrator in
+`copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py`. Its identity is now
+the stable CCMBS solver identity in manifests and GUI text. Solver selection
+remains the explicit registry work assigned to Slice Two.
+
+The CMB package keeps its public facade and value types at the package root.
+Selectable backends and their registry live under `solvers/`; CCMBS execution
+coordination lives under `orchestrators/`; and numerical helpers, cache
+ownership, convergence, performance, and lensing live under `runtime/`. The
+old ambiguous module stems and the former backend-prefixed vocabulary are
+removed from repository-owned CMB code, tests, documentation, manifests, and
+diagnostics.
 
 The surrogate and delayed-acceptance path is not part of the target
 architecture. It approximates the full joint posterior, changes the sampler
@@ -113,7 +121,7 @@ algorithm, and introduces a separate scientific validation burden. Remove its
 configuration, code, provenance, tests, documentation, and plan references;
 do not replace it with a no-op alias.
 
-The exact scalar sampler, exact CMB spectra, likelihood ordering, native
+The exact scalar sampler, exact CMB spectra, likelihood ordering, declared
 failure taxonomy, cache identities, and declared numerical envelope remain
 the comparison authority. A short run can prove workflow plumbing, but not
 posterior convergence or scientific validity.
@@ -232,7 +240,7 @@ manifests, generated output, docs, comments, and GUI text:
 * `ModelPlugin`, `SamplerSetting`, `SamplerCapabilities`, and
   `get_sampler_capabilities`;
 * `engine`, `engine_kind`, `engine_module`, and `ENGINE_*` configuration keys;
-* “sampler engine”, “CMB engine”, and “native engine” labels.
+* “sampler engine” and “CMB engine” labels.
 
 The canonical user-facing terms are “sampler”, “CMB solver”, and
 “CCMBS”.
@@ -362,7 +370,7 @@ internal sampler terminology without changing exact numerical behavior.
 * The stale-name scan is empty except for explicitly documented upstream
   source filenames and ordinary scientific prose.
 
-### [planned] Slice Two — CCMBS registry and solver-injected samplers
+### [closed] Slice Two — CCMBS registry and solver-injected samplers
 
 **Purpose:** Make the current exact CMB implementation a selectable CCMBS
 solver and route both samplers through a Taichi-ready solver contract.
@@ -440,6 +448,12 @@ backend will use.
   spectra remain equivalent to the pre-migration reference.
 * Solver capabilities and provenance are complete enough for a later Taichi
   Vulkan implementation to register without changing sampler contracts.
+
+**Closure evidence:** The CCMBS protocol, ordered result contract, default
+NumPy/SciPy registry adapter, independent manifest selection, sampler
+injection, result and chain provenance, and focused scalar/batch/selection
+tests are implemented. A staged `gate --verify` is the closure checkpoint;
+the required full DevCovenant run remains operator-managed.
 ## Completion Standard
 
 Slice One is closed when its staged revision has a green `gate --verify`.

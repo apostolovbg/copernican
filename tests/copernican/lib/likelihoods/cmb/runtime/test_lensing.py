@@ -1,4 +1,4 @@
-"""Focused tests for the native curved-sky lensing remapper."""
+"""Focused tests for the declared curved-sky lensing remapper."""
 
 from __future__ import annotations
 
@@ -6,19 +6,19 @@ import unittest
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import native_convergence
-from copernican.lib.likelihoods.cmb.native_lensing import (
+from copernican.lib.likelihoods.cmb.runtime import convergence
+from copernican.lib.likelihoods.cmb.runtime.lensing import (
     legendre_funcs,
     legendrep,
 )
-from copernican.lib.likelihoods.cmb.native_lensing import (
+from copernican.lib.likelihoods.cmb.runtime.lensing import (
     lensed_cls as remap_lensed_cls,
 )
-from copernican.lib.likelihoods.cmb.native_lensing import lensed_correlations
+from copernican.lib.likelihoods.cmb.runtime.lensing import lensed_correlations
 
 
-class NativeLensingTestCase(unittest.TestCase):
-    """Validate the exact native CMB lensing helper."""
+class LensingTestCase(unittest.TestCase):
+    """Validate the exact declared CMB lensing helper."""
 
     def test_legendrep_returns_expected_polynomials(self) -> None:
         """Legendre helper output should include the low-order basis."""
@@ -137,17 +137,15 @@ class NativeLensingTestCase(unittest.TestCase):
             rtol=1.0e-7,
             atol=1.0e-14,
         )
-        bb_metric = native_convergence.evaluate_control_refinement(
+        bb_metric = convergence.evaluate_control_refinement(
             coarse[:, 2],
             refined[:, 2],
             name="lensed BB quadrature",
             tolerance=(
-                native_convergence.FINAL_SPECTRUM_RELATIVE_TOLERANCES[
-                    "lensed_BB"
-                ]
+                convergence.FINAL_SPECTRUM_RELATIVE_TOLERANCES["lensed_BB"]
             ),
         )
-        native_convergence.require_native_convergence(bb_metric)
+        convergence.require_convergence(bb_metric)
 
     def test_remapping_rejects_incompatible_surfaces(self) -> None:
         """Invalid remapping surfaces fail before numerical work begins."""

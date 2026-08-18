@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 021ee5cf4a5b62e7f37d419663eb95511e6ea95489f6c32abd88c5ddc19c2552
+  policy_registry_input_hash: 8f42e67f598a6ee7f2fe9c3c57b27dd1d9db6d9f30cddb28458a8effe9a83801
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against
@@ -3247,15 +3247,15 @@ policies:
         package_runtime:
           input_fingerprint: c8845ff6f3232f38e5d33968d4817abbe89e15ab68beb5184a199c3997d59fd5
           output_fingerprints:
-            lock_file: 6a90fe23641eed3ba343d7c98080df1f982ed93d638d57e3261d05e6bc3387e8
-            third_party_file: ed2fbc3d100aabba4dd4eeb0ebe863ee513ddd5b8020dbcab1ec82f9d24a1b7d
-            licenses_dir: 67998d25c7f6b690e5d4ad317c82a8b475b585ed7450c61a476d37aee20d7683
+            lock_file: aa77a2610ffbd85636b1a74ad6d3cb146e130ca1e26109eb4bde56ea15deb03f
+            third_party_file: d473db7431012b235d6e79bfd4f1e3e931814e54a09bfdba2c8e9158a2676ba6
+            licenses_dir: bc283ee94a2d0f5dde8b21cb592589c42bf09631940f3f7a34dd55834039a483
         root_workspace:
-          input_fingerprint: 1215099937bd56fefcfddc910be612eccba71a433f7d55db16e7a2b2b97f632a
+          input_fingerprint: f01254696e77412650f6bb2c430cd489f9654ec113378fa36e5b45e3b5ae28a3
           output_fingerprints:
-            lock_file: 151e6653af2bfd9ac830230acf3d8274f02aef14828d0fca3876dbf9096cfd34
-            third_party_file: dbe3ed7c280a1a615ae4e5ee5c25627af0068b760556feea0f605ea8461d2526
-            licenses_dir: 4179aadf98381ae217b501cb048dcf1b70dbbee4b56bcf8e1449bb78d1fbb03c
+            lock_file: e871548060ce3d85460ec33180d1521f0a9b1b82159220a1eb6ff91f31df3766
+            third_party_file: 4450846ebdb6414a7e269f121c187cc188e48869725c8ff0ec30bb545cc64111
+            licenses_dir: 9754f95fd750e619f5ec40f9bb9b37bc3dd9ef66454afb96a8027ffa0be1b100
   docstring-and-comment-coverage:
     enabled: true
     custom: false
@@ -3788,6 +3788,9 @@ policies:
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
       - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+      - copernican/lib/likelihoods/cmb/runtime/** => README.md
+      - copernican/lib/likelihoods/cmb/solvers/** => README.md
       - copernican/lib/gui/** => README.md, SUPPORT.md
       - copernican/lib/cli/** => README.md
       - copernican/rng_minigames/** => README.md
@@ -4418,7 +4421,7 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md
-          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+          - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
           - copernican/workflow.py => README.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
           - pyproject.toml => SECURITY.md, CITATION.cff
@@ -4438,7 +4441,7 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md
-          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+          - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
           - copernican/workflow.py => README.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
           - pyproject.toml => SECURITY.md, CITATION.cff
@@ -4459,6 +4462,9 @@ policies:
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md
           - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+          - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+          - copernican/lib/likelihoods/cmb/runtime/** => README.md
+          - copernican/lib/likelihoods/cmb/solvers/** => README.md
           - copernican/lib/gui/** => README.md, SUPPORT.md
           - copernican/lib/cli/** => README.md
           - copernican/rng_minigames/** => README.md
@@ -4477,7 +4483,7 @@ policies:
           - copernican/lib/likelihoods/cmb/__init__.py => README.md
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md
-          - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+          - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
           - copernican/workflow.py => README.md, SUPPORT.md
           - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
           - pyproject.toml => SECURITY.md, CITATION.cff
@@ -4495,6 +4501,9 @@ policies:
           - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
           - copernican/lib/likelihoods/cmb/cmb.py => README.md
           - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+          - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+          - copernican/lib/likelihoods/cmb/runtime/** => README.md
+          - copernican/lib/likelihoods/cmb/solvers/** => README.md
           - copernican/lib/gui/** => README.md, SUPPORT.md
           - copernican/lib/cli/** => README.md
           - copernican/rng_minigames/** => README.md
@@ -5019,7 +5028,7 @@ policies:
       - copernican/lib/likelihoods/cmb/__init__.py => README.md
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
-      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
       - copernican/workflow.py => README.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
       - pyproject.toml => SECURITY.md, CITATION.cff
@@ -5036,6 +5045,9 @@ policies:
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
       - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+      - copernican/lib/likelihoods/cmb/runtime/** => README.md
+      - copernican/lib/likelihoods/cmb/solvers/** => README.md
       - copernican/lib/gui/** => README.md, SUPPORT.md
       - copernican/lib/cli/** => README.md
       - copernican/rng_minigames/** => README.md
@@ -5233,6 +5245,9 @@ policies:
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
       - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+      - copernican/lib/likelihoods/cmb/runtime/** => README.md
+      - copernican/lib/likelihoods/cmb/solvers/** => README.md
       - copernican/lib/gui/** => README.md
       - SUPPORT.md
       - copernican/lib/cli/** => README.md
@@ -5350,6 +5365,9 @@ policies:
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
       - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+      - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+      - copernican/lib/likelihoods/cmb/runtime/** => README.md
+      - copernican/lib/likelihoods/cmb/solvers/** => README.md
       - copernican/lib/gui/** => README.md, SUPPORT.md
       - copernican/lib/cli/** => README.md
       - copernican/rng_minigames/** => README.md
@@ -5464,6 +5482,9 @@ policies:
     - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
     - copernican/lib/likelihoods/cmb/cmb.py => README.md
     - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+    - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+    - copernican/lib/likelihoods/cmb/runtime/** => README.md
+    - copernican/lib/likelihoods/cmb/solvers/** => README.md
     - copernican/models/**
     - copernican/rng_minigames/** => README.md
     - copernican/rng_minigames/**/ai_settings.yml
@@ -15283,7 +15304,7 @@ profiles:
         - copernican/lib/likelihoods/cmb/__init__.py => README.md
         - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
         - copernican/lib/likelihoods/cmb/cmb.py => README.md
-        - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+        - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
         - copernican/workflow.py => README.md, SUPPORT.md
         - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
         - pyproject.toml => SECURITY.md, CITATION.cff

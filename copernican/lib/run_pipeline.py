@@ -11,12 +11,12 @@ import numpy
 from copernican.lib import chain_io, console_output, csv_writer, diagnostics
 from copernican.lib import logger as log_mod
 from copernican.lib import plotter, result_writer, utils
-from copernican.lib.cmb_identity import CCMBS_LABEL
 from copernican.lib.cmb_output import (
     describe_cmb_spectrum,
     observed_cmb_spectrum_names,
 )
 from copernican.lib.likelihoods import compute_cmb_spectrum_cached
+from copernican.lib.likelihoods.cmb.solvers.registry import resolve_cmb_solver
 from copernican.lib.model_selection import ComparisonRequest
 
 
@@ -160,6 +160,7 @@ def execute_run_pipeline(
     display_progress: bool = True,
     logger: Any | None = None,
     comparison: ComparisonRequest,
+    cmb_solver: Any | str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run the sampling/diagnostics pipeline and persist outputs."""
 
@@ -174,6 +175,7 @@ def execute_run_pipeline(
             "Pipeline model plugins must match the declared control/test "
             "comparison."
         )
+    selected_cmb_solver = resolve_cmb_solver(cmb_solver)
     sampler_label = getattr(
         sampler_module,
         "SAMPLER_LABEL",
@@ -181,7 +183,9 @@ def execute_run_pipeline(
     )
     console_output.write(f"\n--- Sampling with {sampler_label} ---\n")
     if cmb_data_df is not None:
-        console_output.write(f"CMB execution: {CCMBS_LABEL}.")
+        console_output.write(
+            f"CMB execution: {selected_cmb_solver.solver_label}."
+        )
     console_output.write("")
 
     plan_kind = str(sampling_plan.get("sampler_kind", "mcmc")).lower()
@@ -254,6 +258,7 @@ def execute_run_pipeline(
             enlargement_fraction=sampling_enlarge,
             display_progress=display_progress,
             progress_callback=progress_callback,
+            cmb_solver=selected_cmb_solver,
         )
     else:
         console_output.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -274,6 +279,7 @@ def execute_run_pipeline(
             display_progress=display_progress,
             progress_callback=progress_callback,
             cmb_batch_size=sampling_cmb_batch,
+            cmb_solver=selected_cmb_solver,
         )
 
     control_file = getattr(control_model_plugin, "MODEL_FILENAME", "")
@@ -317,6 +323,7 @@ def execute_run_pipeline(
                 enlargement_fraction=sampling_enlarge,
                 display_progress=display_progress,
                 progress_callback=progress_callback,
+                cmb_solver=selected_cmb_solver,
             )
         else:
             console_output.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -337,6 +344,7 @@ def execute_run_pipeline(
                 display_progress=display_progress,
                 progress_callback=progress_callback,
                 cmb_batch_size=sampling_cmb_batch,
+                cmb_solver=selected_cmb_solver,
             )
         console_output.write(
             f"Completed test-model sampling for "
@@ -506,6 +514,7 @@ def execute_run_pipeline(
                 model_params,
                 cmb_data_df["ell"].values,
                 spectra=components,
+                solver=selected_cmb_solver,
             )
         except (
             AttributeError,
@@ -757,6 +766,7 @@ def execute_run_pipeline(
             metadata={
                 "model": control_model_plugin.MODEL_NAME,
                 "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                "cmb_solver": selected_cmb_solver.solver_id,
             },
         )
     if test_fit_results.get("samples") is not None:
@@ -776,6 +786,7 @@ def execute_run_pipeline(
             metadata={
                 "model": test_model_plugin.MODEL_NAME,
                 "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                "cmb_solver": selected_cmb_solver.solver_id,
             },
         )
 

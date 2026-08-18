@@ -4,7 +4,7 @@ The manifest records critical information required to reproduce a run. It
 captures the Copernican version, model and sampler details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
-back unambiguously. CMB entries include the native background and compiled
+back unambiguously. CMB entries include the declared background and compiled
 perturbation-contract metadata declared on each model.
 """
 
@@ -20,12 +20,15 @@ import yaml
 from copernican import version as version_module
 
 from . import utils
-from .cmb_identity import CCMBS_ID, CCMBS_LABEL
-from .likelihoods.cmb.native_background import (
+from .likelihoods.cmb.runtime.background import (
     _summarize_declared_background_manifest_summary,
 )
-from .likelihoods.cmb.native_convergence import (
-    resolve_native_numerical_envelope,
+from .likelihoods.cmb.runtime.convergence import (
+    resolve_declared_numerical_envelope,
+)
+from .likelihoods.cmb.solvers.registry import (
+    resolve_cmb_solver,
+    solver_provenance,
 )
 from .model_selection import (
     ComparisonRequest,
@@ -84,8 +87,11 @@ def _git_info() -> dict:
     return {"commit": commit, "dirty": dirty}
 
 
-def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
-    """Return native runtime metadata for CMB-capable models."""
+def _cmb_info(
+    models: Iterable[tuple[object, str]],
+    cmb_solver: object | None = None,
+) -> dict | None:
+    """Return declared runtime metadata for CMB-capable models."""
 
     cmb_models: list[object] = []
     for plugin, _ in models:
@@ -97,6 +103,11 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     if not cmb_models:
         return None
 
+    selected_solver = resolve_cmb_solver(cmb_solver)
+    selected_provenance = solver_provenance(selected_solver)
+    solver_id = str(selected_provenance["solver_id"])
+    solver_label = str(selected_provenance["solver_label"])
+    solver_capabilities = dict(selected_provenance["capabilities"])
     models_meta: list[dict[str, Any]] = []
     for plugin in cmb_models:
         contract = getattr(plugin, "CMB_CONTRACT", {}) or {}
@@ -136,14 +147,14 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         accuracy_controls = (
             getattr(perturbation_data, "accuracy_controls", {}) or {}
         )
-        native_runtime = getattr(plugin, "CMB_NATIVE_RUNTIME", None)
+        declared_runtime = getattr(plugin, "CMB_DECLARED_RUNTIME", None)
         compile_diagnostics = getattr(
-            native_runtime, "compile_diagnostics", None
+            declared_runtime, "compile_diagnostics", None
         )
         envelope_contract = dict(contract)
         if perturbation_data is not None:
             envelope_contract["perturbation_data"] = perturbation_data
-        numerical_envelope = resolve_native_numerical_envelope(
+        numerical_envelope = resolve_declared_numerical_envelope(
             envelope_contract
         ).to_dict()
         grid_meta = {
@@ -158,8 +169,9 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         models_meta.append(
             {
                 "model": getattr(plugin, "MODEL_NAME", "unknown"),
-                "execution_solver": CCMBS_ID,
-                "execution_solver_label": CCMBS_LABEL,
+                "execution_solver": solver_id,
+                "execution_solver_label": solver_label,
+                "execution_solver_capabilities": solver_capabilities,
                 "param_map_keys": sorted(str(key) for key in param_map),
                 "call_methods": [
                     str(call.get("method"))
@@ -359,16 +371,16 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         dependency_summary, "evaluation_order", ()
                     )
                 ],
-                "native_cmb_execution": {
+                "declared_cmb_execution": {
                     str(key): value for key, value in execution_route.items()
                 },
-                "native_cmb_numerical_settings": numerical_settings,
-                "native_cmb_numerical_envelope": numerical_envelope,
-                "native_cmb_graph_manifest_summary": manifest_summary_data,
-                "native_cmb_background_manifest_summary": (
+                "declared_cmb_numerical_settings": numerical_settings,
+                "declared_cmb_numerical_envelope": numerical_envelope,
+                "declared_cmb_graph_manifest_summary": manifest_summary_data,
+                "declared_cmb_background_manifest_summary": (
                     background_manifest_summary
                 ),
-                "native_cmb_runtime_manifest_summary": {
+                "declared_cmb_runtime_manifest_summary": {
                     "execution_route": {
                         str(key): value
                         for key, value in execution_route.items()
@@ -381,7 +393,7 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
                         else accuracy_controls
                     ),
                     "runtime_signature": getattr(
-                        native_runtime,
+                        declared_runtime,
                         "runtime_signature",
                         None,
                     ),
@@ -442,8 +454,9 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         )
 
     return {
-        "execution_solver": CCMBS_ID,
-        "execution_solver_label": CCMBS_LABEL,
+        "execution_solver": solver_id,
+        "execution_solver_label": solver_label,
+        "execution_solver_capabilities": solver_capabilities,
         "models": models_meta,
     }
 
@@ -457,6 +470,7 @@ def build_manifest(
     output_policy: str = "unprepared",
     configuration: Optional[dict[str, Any]] = None,
     comparison: ComparisonRequest | None = None,
+    cmb_solver: object | str | None = None,
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -491,6 +505,8 @@ def build_manifest(
         control and test roles.
     """
 
+    selected_solver = resolve_cmb_solver(cmb_solver)
+    selected_provenance = solver_provenance(selected_solver)
     model_records = list(models)
     if len(model_records) != 2:
         raise ValueError(
@@ -528,6 +544,7 @@ def build_manifest(
             "name": getattr(sampler_module, "__name__", "unknown"),
             "version": getattr(sampler_module, "SAMPLER_VERSION", "unknown"),
         },
+        "cmb_solver": selected_provenance,
         "seed": utils.get_random_seed(),
         "datasets": {},
         "git": _git_info(),
@@ -535,6 +552,10 @@ def build_manifest(
         "selection": {
             "models": [],
             "sampler": {},
+            "cmb_solver": {
+                "id": selected_provenance["solver_id"],
+                "label": selected_provenance["solver_label"],
+            },
             "datasets": [],
             "comparison": comparison.as_manifest(),
             "control_model": comparison.control_model.name,
@@ -587,6 +608,9 @@ def build_manifest(
         manifest_configuration["comparison"] = comparison.as_manifest()
         manifest_configuration["control_model"] = comparison.control_model.name
         manifest_configuration["test_model"] = comparison.test_model.name
+        manifest_configuration["cmb_solver"] = manifest["selection"][
+            "cmb_solver"
+        ].copy()
     else:
         manifest["configuration"] = {
             "notes": "Derived from GUI selections; update when importing.",
@@ -596,9 +620,10 @@ def build_manifest(
             "comparison": comparison.as_manifest(),
             "control_model": comparison.control_model.name,
             "test_model": comparison.test_model.name,
+            "cmb_solver": manifest["selection"]["cmb_solver"].copy(),
         }
 
-    cmb_details = _cmb_info(model_records)
+    cmb_details = _cmb_info(model_records, selected_solver)
     if cmb_details is not None:
         manifest["cmb"] = cmb_details
 

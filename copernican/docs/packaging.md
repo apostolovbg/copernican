@@ -6,7 +6,7 @@ the Copernican files. Every command below assumes that folder is the current
 working directory. The bootstrap downloads Python 3.11 into `.python`, then
 builds `.venv` from that local interpreter. The system Python stays untouched.
 The repository workspace includes CAMB for independent scientific-reference
-tests. Production installations use the native declared-graph CCMBS solver and
+tests. Production installations use the declared-graph CCMBS solver and
 do
 not depend on CAMB or CLASS.
 ## Table of Contents

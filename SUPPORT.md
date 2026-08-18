@@ -48,10 +48,12 @@ The GUI keeps the selected filenames attached to each role, so models with
 the same display name remain distinct comparisons; the default control stays
 `model_lcdm.yml` until a different control is chosen.
 
-CMB-capable control and test models always execute through the Copernican
-native declared-graph CMB solver. There is no CMB solver or backend flag in
-the CLI or GUI. For CMB provenance, inspect `cmb.execution_solver` and each
-model's `native_cmb_*` summaries in the run manifest.
+CMB-capable control and test models default to the Copernican declared
+declared-graph CCMBS solver. The manifest records the independent
+`selection.cmb_solver` choice and its capabilities; inspect `cmb_solver` and
+`provenance.cmb_solver`, alongside each model's `declared_cmb_*` summaries,
+when
+diagnosing CMB provenance.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with
 `copernican/workflow.py` and

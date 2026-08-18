@@ -55,9 +55,9 @@ DevCovenant lifecycle and command behavior used by the project.
 - 2026-05-28: Union3 compressed SNe inputs require additive intercept
   marginalization; keep parser, likelihood, CSV export and plot residuals
   aligned on that convention.
-- 2026-05-30: Generic declarative CMB execution runs through the native
+- 2026-05-30: Generic declarative CMB execution runs through the CCMBS
   Boltzmann-hierarchy solver in
-  `copernican/lib/likelihoods/cmb/cmb.py`; keep
+  `copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py`; keep
   `copernican/lib/model_coder.py` capability checks and the focused
   perturbation tests aligned with that layout.
 - 2026-08-13: `README.md` is canonical and syncs exactly to
@@ -972,6 +972,9 @@ doc_routes:
 - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
 - copernican/lib/likelihoods/cmb/cmb.py => README.md
 - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+- copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+- copernican/lib/likelihoods/cmb/runtime/** => README.md
+- copernican/lib/likelihoods/cmb/solvers/** => README.md
 - copernican/lib/gui/** => README.md, SUPPORT.md
 - copernican/lib/cli/** => README.md
 - copernican/rng_minigames/** => README.md

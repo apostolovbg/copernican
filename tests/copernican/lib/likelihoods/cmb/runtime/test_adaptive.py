@@ -1,4 +1,4 @@
-"""Focused tests for native CMB adaptive refinement controls."""
+"""Focused tests for declared CMB adaptive refinement controls."""
 
 from __future__ import annotations
 
@@ -6,20 +6,20 @@ import unittest
 
 import numpy
 
-from copernican.lib.likelihoods.cmb.native_adaptive import (
-    NativeAdaptiveControls,
-    NativeConvergenceEstimate,
-    NativeHistoryConvergence,
+from copernican.lib.likelihoods.cmb.runtime.adaptive import (
+    AdaptiveControls,
+    ConvergenceEstimate,
+    HistoryConvergence,
     estimate_convergence,
     estimate_history_convergence,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     require_convergence,
-    resolve_native_adaptive_controls,
+    resolve_adaptive_controls,
 )
 
 
-class NativeAdaptiveControlsTestCase(unittest.TestCase):
+class AdaptiveControlsTestCase(unittest.TestCase):
     """Validate physical grid refinement and convergence failure behavior."""
 
     def test_public_symbols_are_exposed(self) -> None:
@@ -29,25 +29,25 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(callable(phase_aware_eta_grid))
         self.assertTrue(callable(phase_aware_k_grid))
         self.assertTrue(callable(require_convergence))
-        self.assertTrue(callable(resolve_native_adaptive_controls))
+        self.assertTrue(callable(resolve_adaptive_controls))
         self.assertEqual(
-            NativeAdaptiveControls.__name__,
-            "NativeAdaptiveControls",
+            AdaptiveControls.__name__,
+            "AdaptiveControls",
         )
         self.assertEqual(
-            NativeConvergenceEstimate.__name__,
-            "NativeConvergenceEstimate",
+            ConvergenceEstimate.__name__,
+            "ConvergenceEstimate",
         )
         self.assertEqual(
-            NativeHistoryConvergence.__name__,
-            "NativeHistoryConvergence",
+            HistoryConvergence.__name__,
+            "HistoryConvergence",
         )
         self.assertTrue(callable(estimate_history_convergence))
 
     def test_controls_resolve_the_three_refinement_surfaces(self) -> None:
         """Transfer, source, and projection sections resolve independently."""
 
-        controls = resolve_native_adaptive_controls(
+        controls = resolve_adaptive_controls(
             {
                 "adaptive_transfer": {
                     "minimum_nodes": 8,
@@ -77,7 +77,7 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
     def test_controls_resolve_scalar_evolution_bounds(self) -> None:
         """Scalar evolution refinement keeps explicit node bounds."""
 
-        controls = resolve_native_adaptive_controls(
+        controls = resolve_adaptive_controls(
             {
                 "adaptive_evolution": {
                     "minimum_nodes": 64,
@@ -192,7 +192,7 @@ class NativeAdaptiveControlsTestCase(unittest.TestCase):
         self.assertFalse(estimate.converged)
         with self.assertRaisesRegex(ValueError, "history refinement"):
             require_convergence(
-                NativeConvergenceEstimate(
+                ConvergenceEstimate(
                     absolute_error=estimate.absolute_error,
                     relative_error=estimate.relative_error,
                     converged=estimate.converged,

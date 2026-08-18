@@ -169,7 +169,7 @@ class LikelihoodTestCase(unittest.TestCase):
             def __getattr__(self, name):
                 return getattr(self._base, name)
 
-            def get_cmb_native_runtime(self, *_args, **_kwargs):
+            def get_cmb_declared_runtime(self, *_args, **_kwargs):
                 raise AssertionError("BAO must not query the CMB runtime")
 
             def get_comoving_distance_Mpc(self, *args, **kwargs):
@@ -233,7 +233,7 @@ class LikelihoodTestCase(unittest.TestCase):
             def __getattr__(self, name):
                 return getattr(self._base, name)
 
-            def get_cmb_native_runtime(self, *_args, **_kwargs):
+            def get_cmb_declared_runtime(self, *_args, **_kwargs):
                 raise AssertionError("BAO must not query the CMB runtime")
 
             def get_sound_horizon_rs_Mpc(self, *params):

@@ -20,6 +20,10 @@ from copernican.lib import (
     run_pipeline,
     utils,
 )
+from copernican.lib.likelihoods.cmb.solvers.registry import (
+    resolve_cmb_solver,
+    solver_provenance,
+)
 from copernican.lib.model_selection import (
     ComparisonRequest,
     build_comparison_request,
@@ -174,14 +178,17 @@ def execute_run_from_manifest(
     log = log_mod.get_logger()
     console_output.write("Manifest-driven run path invoked.")
     config = build_config_from_manifest(manifest)
+    cmb_solver = resolve_cmb_solver(config.cmb_solver.solver_id)
     utils.set_random_seed(config.seed)
     _describe_run_confirmation(manifest, config)
     log.info("Run execution started; outputs prepared")
     log.info(
-        "Executing manifest run: seed=%s, models=%s, sampler=%s",
+        "Executing manifest run: seed=%s, models=%s, sampler=%s, "
+        "cmb_solver=%s",
         config.seed,
         config.models,
         config.sampler.module_name,
+        config.cmb_solver.solver_id,
     )
     if progress_callback is not None:
         progress_callback(
@@ -192,7 +199,8 @@ def execute_run_from_manifest(
         )
     console_output.write(
         f"Manifest run targets models {config.models} with sampler "
-        f"{config.sampler.module_name}."
+        f"{config.sampler.module_name}; CMB solver "
+        f"{config.cmb_solver.label}."
     )
     if strict_warnings:
         log.info("Strict warnings enforced via manifest run.")
@@ -294,6 +302,7 @@ def execute_run_from_manifest(
         display_progress=display_progress,
         logger=log,
         comparison=comparison,
+        cmb_solver=cmb_solver,
     )
     if isinstance(pipeline_result, tuple) and len(pipeline_result) >= 2:
         control_result, test_result = pipeline_result[:2]
@@ -301,6 +310,9 @@ def execute_run_from_manifest(
             "control": _sampling_provenance(control_result),
             "test": _sampling_provenance(test_result),
         }
+        manifest.setdefault("provenance", {})["cmb_solver"] = (
+            solver_provenance(cmb_solver)
+        )
         try:
             run_manifest.save_manifest(
                 manifest,
@@ -327,10 +339,11 @@ def _describe_run_confirmation(manifest: dict, config: Any) -> None:
     )
     log_mod.get_logger().info(
         "Run confirmed with manifest: models=%s; sampler=%s v%s; "
-        "datasets=%s; seed=%s; plan=%s",
+        "cmb_solver=%s; datasets=%s; seed=%s; plan=%s",
         models or "unspecified",
         sampler.get("name", config.sampler.module_name),
         sampler.get("version", "unspecified"),
+        config.cmb_solver.solver_id,
         datasets or "none",
         confirmation.get("seed", config.seed),
         confirmation.get("plan", "unspecified"),

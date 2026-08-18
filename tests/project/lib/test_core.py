@@ -102,10 +102,10 @@ class FunctionalTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.isfinite(chi2_bao))
 
-        native_contract = self.plugin.get_cmb_native_runtime(params)
+        declared_contract = self.plugin.get_cmb_declared_runtime(params)
         chi2_cmb = sampler.chi_squared_cmb(params, cmb_df, self.plugin)
         spec = sampler.compute_cmb_spectrum(
-            native_contract,
+            declared_contract,
             cmb_df["ell"].values,
             spectra=("TT",),
         )
@@ -213,11 +213,11 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(hasattr(sampler, "SAMPLER_LABEL"))
         self.assertIn("MCMC", sampler.SAMPLER_LABEL)
 
-    def test_installed_package_native_cmb_smoke(self):
-        """A target install should run one native declared-graph spectrum."""
+    def test_installed_package_declared_cmb_smoke(self):
+        """A target install should run one declared-graph spectrum."""
 
         contract = {
-            "model_name": "InstalledSmokeNativeCMB",
+            "model_name": "InstalledSmokeDeclaredCMB",
             "param_map": {
                 "H0": 67.4,
                 "ombh2": 0.02237,
@@ -444,7 +444,8 @@ class FunctionalTestCase(unittest.TestCase):
                 "from copernican.lib import model_coder\n"
                 "from copernican.lib.likelihoods import cmb\n"
                 f"contract = json.loads({json.dumps(json.dumps(contract))})\n"
-                "prepared = model_coder.prepare_native_cmb_execution_contract("
+                "prepared = "
+                "model_coder.prepare_declared_cmb_execution_contract("
                 "contract)\n"
                 "ells = numpy.arange(20, 25, dtype=int)\n"
                 "spectra = cmb.compute_cmb_spectrum_from_contract("

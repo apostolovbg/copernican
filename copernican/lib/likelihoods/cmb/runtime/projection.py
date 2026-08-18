@@ -1,4 +1,4 @@
-r"""Declared native transfer projection and spectrum integration helpers."""
+r"""Declared transfer projection and spectrum integration helpers."""
 
 from __future__ import annotations
 
@@ -15,30 +15,36 @@ from scipy.linalg import expm
 from scipy.optimize import least_squares
 from scipy.special import gammaln, spherical_jn
 
-from ...cmb_output import canonical_cmb_spectrum_name
-from ...cmb_projection_contract import (
+from ....cmb_output import canonical_cmb_spectrum_name
+from ....cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_kernel_spec,
     resolve_declared_source_kernel,
     validate_declared_projection_sector,
 )
-from ...model_adapter import FrozenMapping
-from ...perturbation_contract import (
+from ....model_adapter import FrozenMapping
+from ....perturbation_contract import (
     PerturbationCollisionTargetSelectorData,
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
-from . import native_cache
-from .native_adaptive import (
-    NativeConvergenceEstimate,
+from ..errors import (
+    ConstraintViolationError,
+    NonFiniteEvolutionError,
+    classify_exception,
+    failure_context,
+)
+from . import cache
+from .adaptive import (
+    ConvergenceEstimate,
     estimate_convergence,
     estimate_history_convergence,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     require_convergence,
-    resolve_native_adaptive_controls,
+    resolve_adaptive_controls,
 )
-from .native_background import (
+from .background import (
     _C_LIGHT_KM_S,
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
     CustomCMBSpectrumData,
@@ -60,17 +66,11 @@ from .native_background import (
     _resolve_declared_accuracy_controls,
     _resolve_declared_background_context,
 )
-from .native_convergence import (
+from .convergence import (
     BOUNDED_RUNTIME_LIMITS,
-    resolve_native_numerical_envelope,
+    resolve_declared_numerical_envelope,
 )
-from .native_errors import (
-    NativeConstraintViolationError,
-    NativeNonFiniteEvolutionError,
-    classify_native_exception,
-    native_failure_context,
-)
-from .native_evolution import (
+from .evolution import (
     _build_declared_base_context,
     _compile_batched_row_equation_program,
     _compile_declared_perturbation_contract,
@@ -92,13 +92,13 @@ from .native_evolution import (
     _validate_generated_scalar_initial_constraints,
     _validate_generated_tensor_initial_constraints,
     _validate_generated_vector_initial_constraints,
-    prepare_native_runtime_assets,
+    prepare_runtime_assets,
 )
-from .native_performance import (
-    NativePhaseTimer,
-    enforce_native_performance_budget,
-    resolve_native_performance_budget,
+from .performance import PhaseTimer
+from .performance import (
+    enforce_performance_budget as enforce_performance_budget_limit,
 )
+from .performance import resolve_performance_budget
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
@@ -481,7 +481,7 @@ def _configured_reference_ells(
     *,
     maximum_ell: int | None = None,
 ) -> tuple[int, ...]:
-    """Return all declared reference multipoles for the native run."""
+    """Return all declared reference multipoles for the declared run."""
 
     controls = getattr(perturbation_data, "accuracy_controls", {}) or {}
     anchor_ells: list[int] = []
@@ -514,7 +514,7 @@ def _projection_anchor_ells(
     perturbation_data: Any,
     node_budget: int,
 ) -> tuple[int, ...]:
-    """Return ell anchors that steer the native projection k-grid."""
+    """Return ell anchors that steer the declared projection k-grid."""
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     ell_min = int(ell_values.min())
@@ -562,7 +562,7 @@ def _build_projection_k_grid(
     numerics: Any,
     perturbation_data: Any,
 ) -> numpy.ndarray:
-    """Return a declared-bounds-compliant native projection k-grid."""
+    """Return a projection k-grid that satisfies declared numerical bounds."""
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     sample_count = max(8, int(numerics.k_sample_count))
@@ -1167,7 +1167,7 @@ def _primordial_power_grid_for_observable(
         amplitude = float(physical_params.primordial_amplitude) * float(
             0.0 if tensor_ratio is None else max(float(tensor_ratio), 0.0)
         )
-        # The native tensor metric seed is h=1. CAMB/CLASS tensor power
+        # The declared tensor metric seed is h=1. CAMB/CLASS tensor power
         # conventions put the compensating 1/6 in the primordial spectrum.
         amplitude /= 6.0
         exponent = 0.0 if tensor_tilt is None else float(tensor_tilt)
@@ -1948,7 +1948,7 @@ def _validate_scalar_constraint_histories(
             and numpy.all(numpy.isfinite(normalized_values))
             and numpy.all(numpy.isfinite(normalization_scale))
         ):
-            raise NativeNonFiniteEvolutionError(
+            raise NonFiniteEvolutionError(
                 "Scalar Einstein residual is non-finite: "
                 f"{residual_name} at k={k_value}",
                 context={
@@ -1997,7 +1997,7 @@ def _validate_scalar_constraint_histories(
             enforcement_value = maximum_normalized
         else:
             tolerance = float(default_tolerances[residual_name])
-            tolerance_source = "native_default_unenforced"
+            tolerance_source = "declared_default_unenforced"
             tolerance_kind = "normalized"
             enforcement_active = False
             enforcement_value = maximum_normalized
@@ -2034,7 +2034,7 @@ def _validate_scalar_constraint_histories(
             "resolution_status": resolution_status,
         }
         if enforcement_active and enforcement_value > tolerance:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Scalar Einstein constraint exceeded tolerance: "
                 f"{residual_name} at k={k_value} "
                 f"({enforcement_value} > {tolerance})",
@@ -2098,7 +2098,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     *,
     background_provider: Any | None = None,
     requested_spectra: Iterable[str] | None = None,
-    performance_timer: NativePhaseTimer,
+    performance_timer: PhaseTimer,
 ) -> CustomCMBSpectrumData:
     """Return transfer functions and spectra for a declared CMB graph."""
 
@@ -2114,26 +2114,26 @@ def _compute_custom_cmb_spectrum_data_impl(
         background_provider,
         requested_spectra=requested_spectrum_names,
     )
-    cached_spectrum = native_cache.get_native_cmb_spectrum(cache_key)
+    cached_spectrum = cache.get_cmb_spectrum(cache_key)
     if cached_spectrum is not None:
         performance_timer.mark_cache_state("exact_cache_hit")
         return _get_cached_custom_cmb_spectrum_data(cache_key)
 
-    cache_stats_before = native_cache.native_cmb_cache_stats()
+    cache_stats_before = cache.cmb_cache_stats()
     graph_cache_before = cache_stats_before["declared_graph_execution_plan"]
-    runtime_asset_cache_before = cache_stats_before["native_runtime_assets"]
+    runtime_asset_cache_before = cache_stats_before["runtime_assets"]
     with performance_timer.phase("compilation"):
         perturbation_data = _compile_declared_perturbation_contract(
             contract_or_params
         )
-        runtime_assets = prepare_native_runtime_assets(
+        runtime_assets = prepare_runtime_assets(
             str(contract_or_params.get("runtime_signature", "")),
             perturbation_data,
         )
         execution_plan = runtime_assets.execution_plan
         envelope_contract = dict(contract_or_params)
         envelope_contract["perturbation_data"] = perturbation_data
-        numerical_envelope = resolve_native_numerical_envelope(
+        numerical_envelope = resolve_declared_numerical_envelope(
             envelope_contract
         )
     value_steps_by_name = {
@@ -2209,9 +2209,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     generated_scalar_hierarchy = bool(
         manifest_summary.get("generated_scalar_hierarchy")
     )
-    background_cache_before = native_cache.native_cmb_cache_stats()[
-        "native_background"
-    ]
+    background_cache_before = cache.cmb_cache_stats()["background"]
     with performance_timer.phase("background"):
         physical_params = _resolve_custom_cmb_physical_parameters(
             contract_or_params,
@@ -2252,7 +2250,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             eta_los_grid,
             minimum_samples=minimum_eta_samples,
         )
-    adaptive_controls = resolve_native_adaptive_controls(
+    adaptive_controls = resolve_adaptive_controls(
         _resolve_declared_accuracy_controls(contract_or_params),
         base_k_nodes=int(numerics.k_sample_count),
         base_eta_nodes=int(eta_los_grid.size),
@@ -2541,7 +2539,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     if requested_spectrum_names is not None:
         if not requested_spectrum_names:
             raise ValueError(
-                "Requested native spectra must contain at least one name"
+                "Requested declared spectra must contain at least one name"
             )
         unavailable_spectra = sorted(
             requested_spectrum_names - set(all_power_spectrum_observables)
@@ -2677,9 +2675,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["spectrum_availability"] = FrozenMapping(
         dict(sorted(spectrum_availability.items()))
     )
-    runtime_asset_cache_after = native_cache.native_cmb_cache_stats()[
-        "native_runtime_assets"
-    ]
+    runtime_asset_cache_after = cache.cmb_cache_stats()["runtime_assets"]
     structural_cache_hit = bool(
         runtime_asset_cache_after["hits"] > runtime_asset_cache_before["hits"]
     )
@@ -2697,12 +2693,10 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["batched_rk_stage_count"] = 0
     runtime_envelope["batched_max_substeps"] = 0
     runtime_envelope["batched_schedule_correction_mode_count"] = 0
-    graph_cache_after = native_cache.native_cmb_cache_stats()[
+    graph_cache_after = cache.cmb_cache_stats()[
         "declared_graph_execution_plan"
     ]
-    background_cache_after = native_cache.native_cmb_cache_stats()[
-        "native_background"
-    ]
+    background_cache_after = cache.cmb_cache_stats()["background"]
     runtime_envelope["graph_plan_cache_hit"] = bool(
         structural_cache_hit
         or graph_cache_after["hits"] > graph_cache_before["hits"]
@@ -2714,9 +2708,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["model_static_preparations"] = int(
         not runtime_envelope["background_cache_hit"]
     )
-    previous_request_identity = (
-        native_cache.latest_native_cmb_request_identity()
-    )
+    previous_request_identity = cache.latest_cmb_request_identity()
     same_request_shape = bool(
         previous_request_identity is not None
         and previous_request_identity.contract_static
@@ -3877,7 +3869,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         if generated_scalar_hierarchy:
             if metric_constraint_state_key is None:
-                raise NativeConstraintViolationError(
+                raise ConstraintViolationError(
                     "Generated scalar initial data do not expose a metric "
                     "state for the Einstein constraint solve",
                     context={
@@ -3937,7 +3929,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ):
                     break
             else:
-                raise NativeConstraintViolationError(
+                raise ConstraintViolationError(
                     "Generated scalar initial Einstein solve did not "
                     "converge on its coupled constraint surface",
                     context={
@@ -4094,7 +4086,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 for name, values in source_histories.items()
             }
         if metric_constraint_state_key is None:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar source histories do not expose a metric "
                 "state for the Einstein reconstruction",
                 context={
@@ -4108,7 +4100,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         }
         state_name = str(metric_constraint_state_key[0])
         if state_name not in projected_histories:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar source histories omit the metric state "
                 "required by the Einstein reconstruction",
                 context={
@@ -4154,7 +4146,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             name for name in required_names if name not in source_context
         )
         if missing_names:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar source histories cannot reconstruct "
                 "the Einstein energy surface",
                 context={
@@ -4170,7 +4162,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         if not numpy.all(
             numpy.isfinite(acoustic_k_sq) & (acoustic_k_sq > 0.0)
         ):
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar source histories require a positive finite "
                 "Einstein k^2 scale",
                 context={
@@ -4196,7 +4188,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         reconstructed_phi = -energy_source / acoustic_k_sq
         if not numpy.all(numpy.isfinite(reconstructed_phi)):
-            raise NativeNonFiniteEvolutionError(
+            raise NonFiniteEvolutionError(
                 "Generated scalar Einstein reconstruction produced "
                 f"non-finite metric values at k={mode_k_value}",
                 context={
@@ -4227,7 +4219,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
         )
         if maximum_normalized > 1.0e-10:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar source-history Einstein reconstruction did "
                 "not converge",
                 context={
@@ -6366,7 +6358,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         requested_spectra=requested_spectrum_names,
     )
     cached_transfer = (
-        native_cache.get_native_cmb_transfer(transfer_cache_key)
+        cache.get_cmb_transfer(transfer_cache_key)
         if transfer_cache_reuse_allowed
         else None
     )
@@ -6409,9 +6401,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             "projection_kernel_cache_keys", ()
         ):
             if (
-                native_cache.get_declared_projection_kernel_batch(
-                    kernel_cache_key
-                )
+                cache.get_declared_projection_kernel_batch(kernel_cache_key)
                 is not None
             ):
                 projection_kernel_cache_hits += 1
@@ -6433,7 +6423,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             total_seconds=elapsed_seconds,
         )
         runtime_envelope.update(timing_snapshot)
-        performance_budget = resolve_native_performance_budget(
+        performance_budget = resolve_performance_budget(
             declared_accuracy_controls
         )
         if performance_budget is not None:
@@ -6458,12 +6448,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             runtime_envelope=FrozenMapping(runtime_envelope),
             spectrum_availability=FrozenMapping(spectrum_availability),
         )
-        native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
+        cache.set_cmb_spectrum(cache_key, spectrum_data)
         return _get_cached_custom_cmb_spectrum_data(cache_key)
 
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 512 if use_streaming_projection else 128
-    kernel_cache_before = native_cache.native_cmb_cache_stats()[
+    kernel_cache_before = cache.cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]
     source_error = 0.0
@@ -6550,7 +6540,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             )
             x_signature = hashlib.sha256(x_values.tobytes()).hexdigest()
-            native_cache.store_bessel_inputs(
+            cache.store_bessel_inputs(
                 x_signature,
                 x_values.copy(),
             )
@@ -6606,7 +6596,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                     if streaming_projection_sectors is None
                     else tuple(sorted(streaming_projection_sectors))
                 )
-                cached = native_cache.get_declared_projection_kernel_batch(
+                cached = cache.get_declared_projection_kernel_batch(
                     (ell_signature, x_signature, sector_key)
                 )
                 if cached is None:
@@ -7128,7 +7118,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         cached_batches = mode_kernel_batches[int(k_index)]
         if not cached_batches:
             raise RuntimeError(
-                "Native projection did not prepare any radial kernel batches"
+                "Declared projection did not prepare any radial kernel batches"
             )
         for ell_start in range(0, ell_arr.size, projection_ell_batch_size):
             ell_stop = min(
@@ -7146,7 +7136,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             kernel_batch = cached_batches.get(ell_signature)
             if kernel_batch is None:
                 raise RuntimeError(
-                    "Native projection radial kernel batch was not cached"
+                    "Declared projection radial kernel batch was not cached"
                 )
             for (
                 component_name,
@@ -7362,7 +7352,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             source_absolute_error
         )
         runtime_envelope["adaptive_source_refinement_levels"] = 1
-        source_estimate = NativeConvergenceEstimate(
+        source_estimate = ConvergenceEstimate(
             absolute_error=source_absolute_error,
             relative_error=source_error,
             converged=(
@@ -7384,7 +7374,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             projection_absolute_error
         )
         runtime_envelope["adaptive_projection_refinement_levels"] = 1
-        projection_estimate = NativeConvergenceEstimate(
+        projection_estimate = ConvergenceEstimate(
             absolute_error=projection_absolute_error,
             relative_error=projection_error,
             converged=(
@@ -7478,7 +7468,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             refinement_evidence = dict(metrics["refinement_evidence"])
             refinement_evidence["evolution"] = evolution_refinement_evidence
             metrics["refinement_evidence"] = refinement_evidence
-        evolution_estimate = NativeConvergenceEstimate(
+        evolution_estimate = ConvergenceEstimate(
             absolute_error=float(evolution_absolute_error),
             relative_error=float(evolution_error),
             converged=all(
@@ -7562,7 +7552,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             x_signature = hashlib.sha256(
                 numpy.asarray(x_values, dtype=float).tobytes()
             ).hexdigest()
-            native_cache.store_bessel_inputs(
+            cache.store_bessel_inputs(
                 x_signature,
                 numpy.asarray(x_values, dtype=float).copy(),
             )
@@ -8225,7 +8215,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             adaptive_controls.source_absolute_tolerance
         ),
     }
-    kernel_cache_after = native_cache.native_cmb_cache_stats()[
+    kernel_cache_after = cache.cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]
     runtime_envelope["projection_kernel_cache_hits"] = int(
@@ -8252,9 +8242,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         total_seconds=elapsed_seconds,
     )
     runtime_envelope.update(timing_snapshot)
-    performance_budget = resolve_native_performance_budget(
-        declared_accuracy_controls
-    )
+    performance_budget = resolve_performance_budget(declared_accuracy_controls)
     if performance_budget is not None:
         runtime_envelope.update(
             {
@@ -8270,7 +8258,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             }
         )
     if transfer_cache_reuse_allowed:
-        native_cache.set_native_cmb_transfer(
+        cache.set_cmb_transfer(
             transfer_cache_key,
             CustomCMBTransferData(
                 ell_grid=ell_arr,
@@ -8289,7 +8277,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         runtime_envelope=FrozenMapping(runtime_envelope),
         spectrum_availability=FrozenMapping(spectrum_availability),
     )
-    native_cache.set_native_cmb_spectrum(cache_key, spectrum_data)
+    cache.set_cmb_spectrum(cache_key, spectrum_data)
     return _get_cached_custom_cmb_spectrum_data(cache_key)
 
 
@@ -8302,12 +8290,12 @@ def _compute_custom_cmb_spectrum_data(
     workload: str = "full_spectrum",
     enforce_performance_budget: bool = True,
 ) -> CustomCMBSpectrumData:
-    """Execute and account for one native transfer-spectrum request."""
+    """Execute and account for one declared transfer-spectrum request."""
 
-    timer = NativePhaseTimer()
+    timer = PhaseTimer()
     started = perf_counter()
     requested = tuple(str(name) for name in (requested_spectra or ()))
-    context = native_failure_context(
+    context = failure_context(
         contract_or_params,
         workload=workload,
         spectra=requested,
@@ -8322,21 +8310,21 @@ def _compute_custom_cmb_spectrum_data(
         )
         elapsed = perf_counter() - started
         if enforce_performance_budget:
-            budget = resolve_native_performance_budget(
+            budget = resolve_performance_budget(
                 _resolve_declared_accuracy_controls(contract_or_params)
             )
-            enforce_native_performance_budget(
+            enforce_performance_budget_limit(
                 elapsed,
                 workload=workload,
                 budget=budget,
                 cache_state=timer.cache_state,
             )
-    # DEVCOV_ALLOW_BROAD_ONCE native projection normalization boundary.
+    # DEVCOV_ALLOW_BROAD_ONCE declared projection normalization boundary.
     except Exception as exc:
         elapsed = perf_counter() - started
-        typed_error = classify_native_exception(exc, context=context)
+        typed_error = classify_exception(exc, context=context)
         timing = timer.snapshot(total_seconds=elapsed)
-        record = native_cache.record_native_cmb_performance(
+        record = cache.record_cmb_performance(
             timing,
             cache_hit=timer.cache_state == "exact_cache_hit",
             workload=workload,
@@ -8356,7 +8344,7 @@ def _compute_custom_cmb_spectrum_data(
         raise typed_error from exc
 
     timing = timer.snapshot(total_seconds=elapsed)
-    native_cache.record_native_cmb_performance(
+    cache.record_cmb_performance(
         timing,
         cache_hit=timer.cache_state == "exact_cache_hit",
         workload=workload,

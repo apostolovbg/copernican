@@ -1,4 +1,4 @@
-"""Focused tests for the native CMB projection module."""
+"""Focused tests for the declared CMB projection module."""
 
 import unittest
 import warnings
@@ -6,16 +6,16 @@ from pathlib import Path
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import native_projection
+from copernican.lib.likelihoods.cmb.runtime import projection
 
 
-class NativeProjectionModuleTestCase(unittest.TestCase):
-    """Exercise native projection helpers directly."""
+class ProjectionModuleTestCase(unittest.TestCase):
+    """Exercise declared projection helpers directly."""
 
     def test_custom_spectrum_data_accessors_return_named_payloads(self):
         """Transfer and spectrum accessors should expose stable arrays."""
 
-        spectrum_data = native_projection.CustomCMBSpectrumData(
+        spectrum_data = projection.CustomCMBSpectrumData(
             ell_grid=numpy.array([20.0, 30.0]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -45,12 +45,10 @@ class NativeProjectionModuleTestCase(unittest.TestCase):
             numpy.array_equal(spectrum_data.C_l_EE, numpy.array([9.0, 10.0]))
         )
 
-    def test_native_projection_source_does_not_import_camb(self):
-        """The native projection module should remain CAMB-free."""
+    def test_projection_source_does_not_import_camb(self):
+        """The declared projection module should remain CAMB-free."""
 
-        source_text = Path(native_projection.__file__).read_text(
-            encoding="utf-8"
-        )
+        source_text = Path(projection.__file__).read_text(encoding="utf-8")
         self.assertNotIn("import camb", source_text)
 
     def test_batched_collision_overflow_is_handled_without_runtime_warnings(
@@ -65,7 +63,7 @@ class NativeProjectionModuleTestCase(unittest.TestCase):
         states = numpy.asarray([[1.0, 1.0]], dtype=float)
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", RuntimeWarning)
-            result = native_projection._exact_batched_two_state_blocks(
+            result = projection._exact_batched_two_state_blocks(
                 blocks,
                 states,
             )

@@ -29,7 +29,7 @@ def show_splash_screen(version: str) -> None:
             70
         ),
         (
-            "alternative cosmological frameworks against observational data\n"
+            "alternate cosmological frameworks against observational " "data\n"
         ).center(70),
         "-" * 70,
         f"build {version}".center(70),

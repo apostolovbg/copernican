@@ -383,10 +383,10 @@ class TestRobustQuad(unittest.TestCase):
             )
 
 
-class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
-    """Cover the native CMB runtime helper surface."""
+class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
+    """Cover the declared CMB runtime helper surface."""
 
-    def test_compile_native_cmb_runtime_builds_one_runtime_bundle(self):
+    def test_compile_declared_cmb_runtime_builds_one_runtime_bundle(self):
         """Static CMB contracts should compile once into one runtime bundle."""
 
         compile_result = object()
@@ -420,17 +420,17 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ) as compile_contract:
-            runtime = model_coder.compile_native_cmb_runtime(
+            runtime = model_coder.compile_declared_cmb_runtime(
                 model_name="TemplateModel",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
                 cmb_contract=cmb_contract,
             )
 
-        self.assertIsInstance(runtime, model_coder.NativeCMBRuntime)
+        self.assertIsInstance(runtime, model_coder.DeclaredCMBRuntime)
         self.assertIs(runtime.perturbation_data, compile_result)
         self.assertTrue(
-            runtime.runtime_signature.startswith("native-cmb-runtime:")
+            runtime.runtime_signature.startswith("declared-cmb-runtime:")
         )
         self.assertIsNotNone(runtime.compile_diagnostics)
         self.assertTrue(runtime.compile_diagnostics.compiled_upstream)
@@ -450,8 +450,8 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             runtime.background_runtime.reionization_target_tau
         )
         self.assertEqual(
-            model_coder.compile_native_cmb_runtime.__name__,
-            "compile_native_cmb_runtime",
+            model_coder.compile_declared_cmb_runtime.__name__,
+            "compile_declared_cmb_runtime",
         )
         compile_contract.assert_called_once_with(
             cmb_contract["perturbations"],
@@ -468,7 +468,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             ),
         )
 
-    def test_compile_native_cmb_runtime_reuses_cached_runtime_bundle(self):
+    def test_compile_declared_cmb_runtime_reuses_cached_runtime_bundle(self):
         """Repeated compilation requests should reuse one cached runtime."""
 
         compile_result = object()
@@ -487,13 +487,13 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ) as compile_contract:
-            first = model_coder.compile_native_cmb_runtime(
+            first = model_coder.compile_declared_cmb_runtime(
                 model_name="CachedTemplateModel",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
                 cmb_contract=cmb_contract,
             )
-            second = model_coder.compile_native_cmb_runtime(
+            second = model_coder.compile_declared_cmb_runtime(
                 model_name="CachedTemplateModel",
                 parameter_names=("Omega_m0",),
                 latex_names=(r"\Omega_m",),
@@ -503,7 +503,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertIs(first, second)
         compile_contract.assert_called_once()
 
-    def test_compile_native_cmb_runtime_ignores_bound_parameter_values(self):
+    def test_compile_declared_cmb_runtime_ignores_bound_parameter_values(self):
         """Runtime compilation should key on structure, not bound values."""
 
         compile_result = object()
@@ -580,13 +580,13 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ) as compile_contract:
-            first = model_coder.compile_native_cmb_runtime(
+            first = model_coder.compile_declared_cmb_runtime(
                 model_name="StructuralCacheModel",
                 parameter_names=("H0", "ombh2", "Tcmb_K"),
                 latex_names=("H_0", "\\omega_b", "T_{cmb}"),
                 cmb_contract=first_contract,
             )
-            second = model_coder.compile_native_cmb_runtime(
+            second = model_coder.compile_declared_cmb_runtime(
                 model_name="StructuralCacheModel",
                 parameter_names=("H0", "ombh2", "Tcmb_K"),
                 latex_names=("H_0", "\\omega_b", "T_{cmb}"),
@@ -596,10 +596,10 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertIs(first, second)
         compile_contract.assert_called_once()
 
-    def test_native_cmb_runtime_build_contract_reuses_frozen_payload(self):
+    def test_declared_cmb_runtime_build_contract_reuses_frozen_payload(self):
         """Bound contracts should reuse immutable structural runtime assets."""
 
-        runtime = model_coder.NativeCMBRuntime(
+        runtime = model_coder.DeclaredCMBRuntime(
             model_name="TemplateModel",
             perturbation_contract={"gauge": "conformal_newtonian"},
             background={"density": {"expression": "Omega_m0"}},
@@ -608,16 +608,16 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             grids={"tau": {"symbol": "tau"}},
             values={"H": "H0"},
             calls=({"method": "set_cosmology"},),
-            background_runtime=model_coder.NativeCMBBackgroundRuntime(
+            background_runtime=model_coder.DeclaredCMBBackgroundRuntime(
                 derived_plan=(),
                 recombination_quantity_plan=(),
                 reionization_quantity_plan=(),
                 reionization_target_tau=None,
                 reionization_calibration_symbol=None,
             ),
-            runtime_signature="native-cmb-runtime:test",
-            compile_diagnostics=model_coder.NativeCMBCompileDiagnostics(
-                runtime_signature="native-cmb-runtime:test",
+            runtime_signature="declared-cmb-runtime:test",
+            compile_diagnostics=model_coder.DeclaredCMBCompileDiagnostics(
+                runtime_signature="declared-cmb-runtime:test",
                 compiler="compiler",
                 compiled_upstream=True,
                 hot_path_recompilation_allowed=False,
@@ -638,7 +638,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertEqual(contract["param_map"], {"Omega_m0": 0.3})
         self.assertIsInstance(
             runtime.background,
-            model_coder.NativeFrozenMapping,
+            model_coder.DeclaredFrozenMapping,
         )
         self.assertIs(contract["background"], runtime.background)
         self.assertIs(
@@ -660,7 +660,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertIs(contract["perturbation_data"], runtime.perturbation_data)
         self.assertEqual(
             contract["runtime_signature"],
-            "native-cmb-runtime:test",
+            "declared-cmb-runtime:test",
         )
         self.assertIs(
             contract["compile_diagnostics"],
@@ -677,10 +677,10 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "conformal_newtonian",
         )
 
-    def test_prepare_native_cmb_execution_contract_binds_precompiled_data(
+    def test_prepare_declared_cmb_execution_contract_binds_precompiled_data(
         self,
     ) -> None:
-        """Direct native contracts should be prepared before execution."""
+        """Direct declared contracts should be prepared before execution."""
 
         compile_result = object()
         cmb_contract = {
@@ -755,21 +755,21 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ):
-            prepared = model_coder.prepare_native_cmb_execution_contract(
+            prepared = model_coder.prepare_declared_cmb_execution_contract(
                 cmb_contract
             )
 
         self.assertIs(prepared["perturbation_data"], compile_result)
         self.assertIn("background_runtime", prepared)
         self.assertTrue(
-            prepared["runtime_signature"].startswith("native-cmb-runtime:")
+            prepared["runtime_signature"].startswith("declared-cmb-runtime:")
         )
         self.assertIsNotNone(prepared["compile_diagnostics"])
 
-    def test_prepare_native_contract_needs_no_solver_route_metadata(
+    def test_prepare_declared_contract_needs_no_solver_route_metadata(
         self,
     ) -> None:
-        """Native preparation should compile a route-neutral CMB contract."""
+        """Declared preparation should compile a route-neutral CMB contract."""
 
         compile_result = object()
         cmb_contract = {
@@ -792,7 +792,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ):
-            prepared = model_coder.prepare_native_cmb_execution_contract(
+            prepared = model_coder.prepare_declared_cmb_execution_contract(
                 cmb_contract
             )
 
@@ -801,7 +801,9 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertNotIn("standard", prepared["perturbations"])
         self.assertNotIn("backend_mapping", prepared["perturbations"])
 
-    def test_prepare_native_contract_rejects_removed_route_keys(self) -> None:
+    def test_prepare_declared_contract_rejects_removed_route_keys(
+        self,
+    ) -> None:
         """Removed solver selectors must fail before graph compilation."""
 
         base_contract = {
@@ -832,16 +834,18 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
                 )
                 target[key] = value
                 with self.assertRaisesRegex(ValueError, "removed route key"):
-                    model_coder.prepare_native_cmb_execution_contract(contract)
+                    model_coder.prepare_declared_cmb_execution_contract(
+                        contract
+                    )
                 with self.assertRaisesRegex(ValueError, "removed route key"):
-                    model_coder.compile_native_cmb_runtime(
+                    model_coder.compile_declared_cmb_runtime(
                         model_name="RouteNeutralModel",
                         parameter_names=(),
                         latex_names=(),
                         cmb_contract=contract,
                     )
 
-    def test_prepare_native_strips_model_metadata_from_perturbations(
+    def test_prepare_declared_strips_model_metadata_from_perturbations(
         self,
     ) -> None:
         """Outer model metadata must not enter the graph compiler."""
@@ -867,7 +871,7 @@ class NativeCMBRuntimeCoverageTestCase(unittest.TestCase):
             "compile_perturbation_contract",
             return_value=compile_result,
         ) as compile_contract:
-            model_coder.prepare_native_cmb_execution_contract(cmb_contract)
+            model_coder.prepare_declared_cmb_execution_contract(cmb_contract)
 
         compiled_contract = compile_contract.call_args.args[0]
         self.assertNotIn("model_name", compiled_contract)
@@ -879,10 +883,10 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(hasattr(model_coder, "QuadPrinter"))
         self.assertTrue(callable(model_coder.robust_quad))
-        self.assertTrue(hasattr(model_coder, "NativeCMBBackgroundRuntime"))
-        self.assertTrue(hasattr(model_coder, "NativeCMBCompileDiagnostics"))
+        self.assertTrue(hasattr(model_coder, "DeclaredCMBBackgroundRuntime"))
+        self.assertTrue(hasattr(model_coder, "DeclaredCMBCompileDiagnostics"))
         self.assertTrue(
-            callable(model_coder.prepare_native_cmb_execution_contract)
+            callable(model_coder.prepare_declared_cmb_execution_contract)
         )
 
     def test_transformed_symbol_is_exposed(self) -> None:
@@ -890,8 +894,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(transformed))
 
 
-class NativeCMBRouteTestCase(unittest.TestCase):
-    """Cover the single native route exposed by model_coder."""
+class DeclaredCMBRouteTestCase(unittest.TestCase):
+    """Cover the single declared route exposed by model_coder."""
 
     def test_removed_backend_capability_api_is_absent(self) -> None:
         """Core code must not expose a second solver capability surface."""
@@ -900,17 +904,17 @@ class NativeCMBRouteTestCase(unittest.TestCase):
             "CMB_BACKEND_CAPABILITIES",
             "get_backend_capabilities",
             "backend_supports_standard_perturbations",
-            "backend_supports_native_nonstandard_perturbations",
-            "validate_native_perturbation_execution",
+            "backend_supports_declared_nonstandard_perturbations",
+            "validate_declared_perturbation_execution",
         )
         for name in removed_names:
             with self.subTest(name=name):
                 self.assertFalse(hasattr(model_coder, name))
 
-    def test_compile_native_runtime_accepts_declared_background_symbols(
+    def test_compile_declared_runtime_accepts_declared_background_symbols(
         self,
     ) -> None:
-        """Precompiled native runtimes should accept background symbols."""
+        """Precompiled declared runtimes should accept background symbols."""
 
         cmb_contract = {
             "param_map": {"expansion_rate_today": 67.4},
@@ -1021,7 +1025,7 @@ class NativeCMBRouteTestCase(unittest.TestCase):
             },
         }
 
-        runtime = model_coder.compile_native_cmb_runtime(
+        runtime = model_coder.compile_declared_cmb_runtime(
             model_name="TemplateModel",
             parameter_names=("expansion_rate_today",),
             latex_names=("H_0",),

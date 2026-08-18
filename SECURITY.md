@@ -44,7 +44,7 @@ The package runtime surface excludes scientific-reference solvers. CAMB is
 locked and licensed only by the repository workspace for independent tests;
 it is absent from default wheel metadata, package runtime locks, and installed
 package license assets. Package-isolation tests reject attempts to import CAMB
-or CLASS during native CMB execution.
+or CLASS during declared CMB execution.
 
 ## How To Report
 Include enough detail to let maintainers reproduce the issue without guessing.

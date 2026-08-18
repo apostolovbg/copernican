@@ -1,7 +1,7 @@
 model_name: LambdaCDM
 version: '1.0'
 description: >-
-  Flat LambdaCDM model executed by Copernican's native declared-graph CMB
+  Flat LambdaCDM model executed by Copernican's declared-graph CMB
   solver. The background, recombination inputs, scalar hierarchy, sources,
   projections, and numerical controls are declared in this file.
 abstract: >-
@@ -78,7 +78,7 @@ parameters:
   - 2.7255
   unit: K
   latex_name: T_{\rm CMB}
-  definition: Present CMB temperature used by the native background.
+  definition: Present CMB temperature used by the declared background.
   prior:
     type: fixed
     value: 2.7255
@@ -342,7 +342,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: LambdaCDM scalar graph with regular adiabatic initial data.
     notes: >-
       The declared species and hierarchy families materialize the LambdaCDM
@@ -350,4 +350,4 @@ cmb:
 notes: >-
   The model exposes its species, hierarchy families, collision operator,
   initial-mode family, projection typing, and bounded numerical controls as
-  one native CMB contract.
+  one declared CMB contract.

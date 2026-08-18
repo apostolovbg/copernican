@@ -212,7 +212,7 @@ def _models_root() -> Path:
 
 
 def _samplers_root() -> Path:
-    """Return the path containing sampler modules modules."""
+    """Return the repository path containing the sampler modules."""
 
     return Path(SCRIPT_DIR) / "copernican" / "samplers"
 
@@ -752,7 +752,7 @@ def _run_analysis_compare_cli(
 
     if not base_dir.is_dir() or not alt_dir.is_dir():
         console.write(
-            "Both base and alternative run directories must exist.",
+            "Both base and alternate run directories must exist.",
             error=True,
         )
         return False
@@ -1002,7 +1002,7 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         metavar="MODEL",
         help=(
             "Override the control model recorded in the manifest. "
-            "CMB-capable models use the native declared-graph CCMBS solver."
+            "CMB-capable models use the declared-graph CCMBS solver."
         ),
     )
     parser.add_argument(

@@ -20,16 +20,14 @@ from scipy.linalg import expm
 
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
-from copernican.lib.likelihoods.cmb import (
-    copernican_cmb_solver as native_cmb_solver,
+from copernican.lib.likelihoods.cmb.orchestrators import ccmbs as cmb_solver
+from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
+from copernican.lib.likelihoods.cmb.runtime import (
+    cache,
+    convergence,
+    evolution,
 )
-from copernican.lib.likelihoods.cmb import (
-    native_background,
-    native_cache,
-    native_convergence,
-    native_evolution,
-    native_projection,
-)
+from copernican.lib.likelihoods.cmb.runtime import projection as cmb_projection
 from tests.project.lib import camb_reference
 
 
@@ -238,7 +236,7 @@ SLICE_NINE_NEUTRAL_MODEL = MappingProxyType(
     }
 )
 
-SLICE_NINE_NATIVE_NUMERICAL_CONTROLS = MappingProxyType(
+SLICE_NINE_DECLARED_NUMERICAL_CONTROLS = MappingProxyType(
     {
         "ell_min": 2,
         "ell_max": 2000,
@@ -304,11 +302,11 @@ SLICE_NINE_ACCEPTANCE_THRESHOLDS = MappingProxyType(
 )
 
 
-def _slice_nine_native_acceptance_contract() -> dict[str, object]:
-    """Return the fixed native contract used by later Slice Nine tests."""
+def _slice_nine_declared_acceptance_contract() -> dict[str, object]:
+    """Return the fixed declared contract used by later Slice Nine tests."""
 
-    contract = _native_scalar_hierarchy_contract(sum_mnu=0.0)
-    contract["model_name"] = "SliceNineNeutralNative"
+    contract = _declared_scalar_hierarchy_contract(sum_mnu=0.0)
+    contract["model_name"] = "SliceNineNeutralDeclared"
     contract["param_map"] = {
         name: float(value)
         for name, value in SLICE_NINE_NEUTRAL_MODEL.items()
@@ -317,11 +315,11 @@ def _slice_nine_native_acceptance_contract() -> dict[str, object]:
     contract["model_parameters"] = {
         "Tcmb_K": SLICE_NINE_NEUTRAL_MODEL["Tcmb_K"]
     }
-    numerical = dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS)
+    numerical = dict(SLICE_NINE_DECLARED_NUMERICAL_CONTROLS)
     contract["numerical"] = copy.deepcopy(numerical)
     perturbations = contract["perturbations"]
     if not isinstance(perturbations, dict):  # pragma: no cover - fixture guard
-        raise TypeError("Native acceptance perturbations must be a mapping")
+        raise TypeError("Declared acceptance perturbations must be a mapping")
     perturbations["numerics"] = copy.deepcopy(numerical)
     accuracy_controls = dict(perturbations.get("accuracy_controls", {}))
     accuracy_controls["scalar_reference_ells"] = [2, 2000]
@@ -1491,12 +1489,12 @@ def _speedup_contract(contract: dict[str, object]) -> dict[str, object]:
     return contract
 
 
-def _prepare_native_contract(
+def _prepare_declared_contract(
     contract: dict[str, object],
 ) -> dict[str, object]:
-    """Return ``contract`` with its native runtime prepared upstream."""
+    """Return ``contract`` with its declared runtime prepared upstream."""
 
-    return model_coder.prepare_native_cmb_execution_contract(
+    return model_coder.prepare_declared_cmb_execution_contract(
         copy.deepcopy(contract)
     )
 
@@ -1514,29 +1512,29 @@ def _with_prepared_numerical_overrides(
     return rebound
 
 
-def _ensure_prepared_native_contract(
+def _ensure_prepared_declared_contract(
     contract: dict[str, object],
 ) -> dict[str, object]:
-    """Return a prepared native contract from raw or prepared input."""
+    """Return a prepared declared contract from raw or prepared input."""
 
     if contract.get("perturbation_data") is not None:
         return copy.deepcopy(contract)
-    return _prepare_native_contract(contract)
+    return _prepare_declared_contract(contract)
 
 
 def _raw_declared_spectrum_data(
     contract: dict[str, object],
     ells: numpy.ndarray,
-) -> native_projection.CustomCMBSpectrumData:
-    """Return unclipped native spectrum data for one declared contract."""
+) -> cmb_projection.CustomCMBSpectrumData:
+    """Return unclipped declared spectrum data for one declared contract."""
 
-    return native_projection._compute_custom_cmb_spectrum_data(
-        _ensure_prepared_native_contract(contract),
+    return cmb_projection._compute_custom_cmb_spectrum_data(
+        _ensure_prepared_declared_contract(contract),
         numpy.asarray(ells, dtype=int),
     )
 
 
-def _raw_native_public_spectra(
+def _raw_declared_public_spectra(
     contract: dict[str, object],
     ells: numpy.ndarray,
     *,
@@ -1544,13 +1542,13 @@ def _raw_native_public_spectra(
 ) -> dict[str, numpy.ndarray]:
     """Return unclipped public spectra for one prepared declared contract."""
 
-    prepared = _ensure_prepared_native_contract(contract)
+    prepared = _ensure_prepared_declared_contract(contract)
     requested_ell_grid = numpy.asarray(tuple(ells), dtype=int)
     canonical_requested = tuple(
-        native_cmb_solver._canonical_spectrum_name(name) for name in spectra
+        cmb_solver._canonical_spectrum_name(name) for name in spectra
     )
     needs_lensing = any(
-        native_cmb_solver._is_lensed_requested_spectrum(spectrum_name)
+        cmb_solver._is_lensed_requested_spectrum(spectrum_name)
         for spectrum_name in canonical_requested
     )
     if needs_lensing:
@@ -1562,10 +1560,10 @@ def _raw_native_public_spectra(
     else:
         analysis_ell_grid = requested_ell_grid
         output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
-    custom_data = native_projection._compute_custom_cmb_spectrum_data(
+    custom_data = cmb_projection._compute_custom_cmb_spectrum_data(
         prepared,
         analysis_ell_grid,
-        requested_spectra=native_cmb_solver._requested_base_spectra(
+        requested_spectra=cmb_solver._requested_base_spectra(
             canonical_requested
         ),
     )
@@ -1577,11 +1575,9 @@ def _raw_native_public_spectra(
     perturbation_data = prepared["perturbation_data"]
     spectra_results: dict[str, numpy.ndarray] = {}
     for spectrum_name, spectrum_values in custom_data.spectra.items():
-        canonical_name = native_cmb_solver._canonical_spectrum_name(
-            spectrum_name
-        )
+        canonical_name = cmb_solver._canonical_spectrum_name(spectrum_name)
         scale = numpy.asarray(
-            native_cmb_solver._power_spectrum_scale_factor(
+            cmb_solver._power_spectrum_scale_factor(
                 perturbation_data,
                 canonical_name,
                 ell_factor=ell_factor,
@@ -1594,7 +1590,7 @@ def _raw_native_public_spectra(
             spectrum_values, dtype=numpy.longdouble
         )
     if needs_lensing:
-        lensing_inputs = native_cmb_solver._normalize_lensing_input_spectra(
+        lensing_inputs = cmb_solver._normalize_lensing_input_spectra(
             spectra_results
         )
         lmax = int(numpy.max(numpy.asarray(custom_data.ell_grid, dtype=int)))
@@ -1618,13 +1614,13 @@ def _raw_native_public_spectra(
             lensing_inputs["TE"][: lmax + 1],
             dtype=numpy.longdouble,
         )
-        clpp = native_cmb_solver._lensing_potential_clpp(
+        clpp = cmb_solver._lensing_potential_clpp(
             numpy.asarray(
                 lensing_inputs["PP"][: lmax + 1],
                 dtype=numpy.longdouble,
             )
         )
-        lensed_cls = native_cmb_solver._lensed_cls(
+        lensed_cls = cmb_solver._lensed_cls(
             base_cls,
             clpp,
             lmax=lmax,
@@ -1664,9 +1660,9 @@ def _capture_visible_scalar_monopole_history(
 ) -> tuple[numpy.ndarray, numpy.ndarray, dict[str, numpy.ndarray]]:
     """Return a scalar history and spectra captured from one solver run."""
 
-    native_cache.clear_native_cmb_result_caches()
+    cache.clear_cmb_result_caches()
     captured: list[tuple[numpy.ndarray, numpy.ndarray]] = []
-    original = native_projection._evaluate_compiled_expression_noerr
+    original = cmb_projection._evaluate_compiled_expression_noerr
 
     def _capture_monopole_history(
         expression_data: object,
@@ -1691,11 +1687,11 @@ def _capture_visible_scalar_monopole_history(
         return original(expression_data, env)
 
     with mock.patch.object(
-        native_projection,
+        cmb_projection,
         "_evaluate_compiled_expression_noerr",
         side_effect=_capture_monopole_history,
     ):
-        public_spectra = _raw_native_public_spectra(
+        public_spectra = _raw_declared_public_spectra(
             contract,
             numpy.asarray(tuple(ells), dtype=int),
             spectra=spectra,
@@ -1711,14 +1707,14 @@ def _capture_tensor_source_histories(
 ) -> dict[tuple[str, float], numpy.ndarray]:
     """Return tensor source histories keyed by source name and k mode."""
 
-    native_cache.clear_native_cmb_result_caches()
+    cache.clear_cmb_result_caches()
     perturbation_data = contract["perturbation_data"]
     expression_names = {
         entry.expression: str(name)
         for name, entry in perturbation_data.sources.items()
     }
     captured: dict[tuple[str, float], numpy.ndarray] = {}
-    original = native_projection._evaluate_compiled_expression_noerr
+    original = cmb_projection._evaluate_compiled_expression_noerr
 
     def _capture_source_history(
         expression_data: object,
@@ -1738,11 +1734,11 @@ def _capture_tensor_source_histories(
         return value
 
     with mock.patch.object(
-        native_projection,
+        cmb_projection,
         "_evaluate_compiled_expression_noerr",
         side_effect=_capture_source_history,
     ):
-        native_projection._compute_custom_cmb_spectrum_data(
+        cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((40,), dtype=int),
             requested_spectra=("TT", "EE", "BB"),
@@ -1753,7 +1749,7 @@ def _capture_tensor_source_histories(
     return captured
 
 
-def _resolved_native_scalar_context(
+def _resolved_declared_scalar_context(
     contract: dict[str, object],
     *,
     a_value: float = 0.5,
@@ -1762,10 +1758,10 @@ def _resolved_native_scalar_context(
     """Return one resolved scalar runtime context for a prepared contract."""
 
     perturbation_data = contract["perturbation_data"]
-    physical_params = (
-        native_background._resolve_custom_cmb_physical_parameters(contract)
+    physical_params = cmb_background._resolve_custom_cmb_physical_parameters(
+        contract
     )
-    context = native_background._physical_runtime_scalars(physical_params)
+    context = cmb_background._physical_runtime_scalars(physical_params)
     for source_name in ("param_map", "model_parameters"):
         source = contract.get(source_name, {}) or {}
         for name, value in source.items():
@@ -1820,21 +1816,21 @@ def _resolved_native_scalar_context(
             {str(name): float(value) for name, value in state_updates.items()}
         )
     context.update(
-        native_evolution._declared_momentum_grid_context(
+        evolution._declared_momentum_grid_context(
             perturbation_data,
             model_parameters=contract["param_map"],
             physical_params=physical_params,
             scale_factor=float(a_value),
         )
     )
-    execution_plan = native_evolution._compile_declared_graph_execution_plan(
+    execution_plan = evolution._compile_declared_graph_execution_plan(
         perturbation_data
     )
     if (
         getattr(perturbation_data, "gauge", "") == "synchronous"
         and state_updates is None
     ):
-        provisional = native_evolution._resolve_declared_graph_context(
+        provisional = evolution._resolve_declared_graph_context(
             dict(context),
             perturbation_data,
             allow_partial=True,
@@ -1858,7 +1854,7 @@ def _resolved_native_scalar_context(
                 ),
             }
         )
-    return native_evolution._resolve_declared_graph_context(
+    return evolution._resolve_declared_graph_context(
         context,
         perturbation_data,
         allow_partial=True,
@@ -1867,7 +1863,7 @@ def _resolved_native_scalar_context(
     )
 
 
-def _native_scalar_hierarchy_contract(
+def _declared_scalar_hierarchy_contract(
     *,
     gauge: str = "conformal_newtonian",
     initial_mode: str = "adiabatic_scalar",
@@ -1875,7 +1871,7 @@ def _native_scalar_hierarchy_contract(
     include_lensing: bool = False,
     sum_mnu: float = 0.06,
 ) -> dict[str, object]:
-    """Return a scalar native hierarchy fixture."""
+    """Return a scalar declared hierarchy fixture."""
 
     numerics = {
         "ell_min": 20,
@@ -2028,7 +2024,7 @@ def _native_scalar_hierarchy_contract(
         )
         background["derived"] = background_derived
     return {
-        "model_name": "NativeScalarHierarchy",
+        "model_name": "DeclaredScalarHierarchy",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2085,7 +2081,7 @@ def _native_scalar_hierarchy_contract(
             "boundary_conditions": {},
             "sectors": {
                 "scalar": {
-                    "description": "Native scalar hierarchy sector.",
+                    "description": "Declared scalar hierarchy sector.",
                     "species": scalar_species,
                     "hierarchy_families": scalar_hierarchy_families,
                     "supported_gauges": [
@@ -2115,15 +2111,15 @@ def _native_scalar_hierarchy_contract(
             "observables": {},
             "numerics": dict(numerics),
             "validity": {
-                "regimes": ["linear", "native_scalar_hierarchy"],
-                "notes": "Metadata-only native scalar hierarchy route.",
+                "regimes": ["linear", "declared_scalar_hierarchy"],
+                "notes": "Metadata-only declared scalar hierarchy route.",
             },
         },
     }
 
 
-def _native_vector_hierarchy_contract() -> dict[str, object]:
-    """Return a vector native hierarchy fixture."""
+def _declared_vector_hierarchy_contract() -> dict[str, object]:
+    """Return a vector declared hierarchy fixture."""
 
     numerics = {
         "ell_min": 20,
@@ -2157,7 +2153,7 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
         "massless_neutrino_vector",
     ]
     return {
-        "model_name": "NativeVectorHierarchy",
+        "model_name": "DeclaredVectorHierarchy",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2198,7 +2194,7 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
             "boundary_conditions": {},
             "sectors": {
                 "vector": {
-                    "description": "Native vector hierarchy sector.",
+                    "description": "Declared vector hierarchy sector.",
                     "species": vector_species,
                     "hierarchy_families": vector_hierarchy_families,
                     "supported_gauges": ["conformal_newtonian"],
@@ -2267,15 +2263,15 @@ def _native_vector_hierarchy_contract() -> dict[str, object]:
             "observables": {},
             "numerics": dict(numerics),
             "validity": {
-                "regimes": ["linear", "native_vector_hierarchy"],
-                "notes": "Metadata-only native vector hierarchy route.",
+                "regimes": ["linear", "declared_vector_hierarchy"],
+                "notes": "Metadata-only declared vector hierarchy route.",
             },
         },
     }
 
 
-def _native_tensor_hierarchy_contract() -> dict[str, object]:
-    """Return a tensor native hierarchy fixture."""
+def _declared_tensor_hierarchy_contract() -> dict[str, object]:
+    """Return a tensor declared hierarchy fixture."""
 
     numerics = {
         "ell_min": 20,
@@ -2303,7 +2299,7 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
         "massless_neutrino_tensor",
     ]
     return {
-        "model_name": "NativeTensorHierarchy",
+        "model_name": "DeclaredTensorHierarchy",
         "param_map": {
             "H0": 67.4,
             "ombh2": 0.02237,
@@ -2346,7 +2342,7 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
             "boundary_conditions": {},
             "sectors": {
                 "tensor": {
-                    "description": "Native tensor hierarchy sector.",
+                    "description": "Declared tensor hierarchy sector.",
                     "species": tensor_species,
                     "hierarchy_families": tensor_hierarchy_families,
                     "supported_gauges": ["conformal_newtonian"],
@@ -2405,8 +2401,8 @@ def _native_tensor_hierarchy_contract() -> dict[str, object]:
             "observables": {},
             "numerics": dict(numerics),
             "validity": {
-                "regimes": ["linear", "native_tensor_hierarchy"],
-                "notes": "Metadata-only native tensor hierarchy route.",
+                "regimes": ["linear", "declared_tensor_hierarchy"],
+                "notes": "Metadata-only declared tensor hierarchy route.",
             },
         },
     }
@@ -2428,10 +2424,10 @@ def _strip_perturbations(contract: dict[str, object]) -> dict[str, object]:
     return stripped
 
 
-def _strip_native_runtime_sections(
+def _strip_declared_runtime_sections(
     contract: dict[str, object],
 ) -> dict[str, object]:
-    """Return a metadata-only native scalar hierarchy contract."""
+    """Return a metadata-only declared scalar hierarchy contract."""
 
     stripped = copy.deepcopy(contract)
     perturbations = stripped.get("perturbations")
@@ -2598,7 +2594,7 @@ def _critical_density_today_kg_m3(hubble_km_s_mpc: float) -> float:
 
 
 def _physical_density_custom_contract() -> dict[str, object]:
-    """Return a native CMB fixture driven by direct physical densities."""
+    """Return a declared CMB fixture driven by direct physical densities."""
 
     contract = _base_custom_cmb_contract()
     contract["model_name"] = "PhysicalDensityCustomCMB"
@@ -2696,12 +2692,12 @@ class _CustomCMBPlugin:
     )
 
     def get_cmb_contract(self, _params):
-        """Reject the unprepared contract path during native execution."""
+        """Reject the unprepared contract path during declared execution."""
 
-        raise AssertionError("native runtime should bypass get_cmb_contract")
+        raise AssertionError("declared runtime should bypass get_cmb_contract")
 
-    def get_cmb_native_runtime(self, _params):
-        """Return the synthetic native-runtime contract used by the helper."""
+    def get_cmb_declared_runtime(self, _params):
+        """Return the synthetic declared-runtime contract."""
 
         return _speedup_contract(_custom_contract())
 
@@ -2715,7 +2711,7 @@ class _ContractFallbackOnlyPlugin:
     """Expose only the removed unprepared-contract path."""
 
     def get_cmb_contract(self, _params):
-        """Fail if native resolution attempts the removed fallback."""
+        """Fail if declared resolution attempts the removed fallback."""
 
         raise AssertionError("removed backend fallback was called")
 
@@ -2723,27 +2719,27 @@ class _ContractFallbackOnlyPlugin:
 class SliceNineReferenceContractTestCase(unittest.TestCase):
     """Exercise the fixed Slice Nine independent-reference surface."""
 
-    def test_neutral_model_is_fixed_and_native(self) -> None:
-        """The acceptance fixture must be one route-neutral native contract."""
+    def test_neutral_model_is_fixed_and_declared(self) -> None:
+        """The acceptance fixture must be route-neutral and declared."""
 
-        contract = _slice_nine_native_acceptance_contract()
+        contract = _slice_nine_declared_acceptance_contract()
 
         self.assertNotIn("backend", contract)
         self.assertNotIn("standard", contract["perturbations"])
         self.assertNotIn("backend_mapping", contract["perturbations"])
-        self.assertEqual(contract["model_name"], "SliceNineNeutralNative")
+        self.assertEqual(contract["model_name"], "SliceNineNeutralDeclared")
         model_values = dict(contract["param_map"])
         model_values.update(contract["model_parameters"])
         self.assertEqual(model_values, dict(SLICE_NINE_NEUTRAL_MODEL))
         self.assertEqual(
             contract["numerical"],
-            dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS),
+            dict(SLICE_NINE_DECLARED_NUMERICAL_CONTROLS),
         )
 
-    def test_plugin_resolution_requires_native_runtime(self) -> None:
+    def test_plugin_resolution_requires_declared_runtime(self) -> None:
         """Plugin resolution must not call an unprepared contract fallback."""
 
-        with self.assertRaisesRegex(ValueError, "native CMB runtime"):
+        with self.assertRaisesRegex(ValueError, "declared CMB runtime"):
             cmb.compute_cmb_spectrum_cached(
                 _ContractFallbackOnlyPlugin(),
                 (),
@@ -2815,10 +2811,10 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         for name in ("TE", "TP", "EP", "lensed_TE"):
             self.assertAlmostEqual(metrics[name]["normalized_rms"], 0.01)
 
-    def test_native_k_grid_scales_to_requested_multipoles(self) -> None:
+    def test_declared_k_grid_scales_to_requested_multipoles(self) -> None:
         """Low-ell requests must not pay for unrelated high-ell anchors."""
 
-        raw_contract = _native_scalar_hierarchy_contract(sum_mnu=0.0)
+        raw_contract = _declared_scalar_hierarchy_contract(sum_mnu=0.0)
         raw_contract["numerical"].update(
             {
                 "ell_max": 2000,
@@ -2829,25 +2825,25 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         raw_contract["perturbations"]["accuracy_controls"] = {
             "scalar_reference_ells": [2, 2000]
         }
-        contract = _prepare_native_contract(raw_contract)
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        contract = _prepare_declared_contract(raw_contract)
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        background = native_background._build_custom_cmb_background(
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical_params,
             numerics,
         )
-        low_ell_grid = native_projection._build_projection_k_grid(
+        low_ell_grid = cmb_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((20, 60, 120), dtype=int),
-            background=background,
+            background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        full_ell_grid = native_projection._build_projection_k_grid(
+        full_ell_grid = cmb_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((2, 2000), dtype=int),
-            background=background,
+            background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
@@ -2856,11 +2852,11 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             bool(numpy.all(low_ell_grid <= float(numpy.max(full_ell_grid))))
         )
 
-    def test_native_scalar_absolute_parity_surface_is_fixed(self) -> None:
-        """The scalar parity fixture must use one native declared graph."""
+    def test_declared_scalar_absolute_parity_surface_is_fixed(self) -> None:
+        """The scalar parity fixture must use one declared graph."""
 
-        prepared = _prepare_native_contract(
-            _slice_nine_native_acceptance_contract()
+        prepared = _prepare_declared_contract(
+            _slice_nine_declared_acceptance_contract()
         )
         perturbation_data = prepared["perturbation_data"]
         manifest = perturbation_data.manifest_summary
@@ -2874,7 +2870,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
                     "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),
                 "runtime_module": (
-                    "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
+                    "copernican.lib.likelihoods.cmb.orchestrators.ccmbs"
                 ),
                 "ready": True,
             },
@@ -2894,7 +2890,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             tuple(manifest["validity_regimes"]),
-            ("linear", "native_scalar_hierarchy"),
+            ("linear", "declared_scalar_hierarchy"),
         )
         self.assertTrue(
             prepared["perturbations"]["accuracy_controls"][
@@ -2911,7 +2907,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         )
 
     def test_camb_reference_is_test_only_and_independent(self) -> None:
-        """CAMB reference construction must not depend on native execution."""
+        """CAMB reference construction stays independent."""
 
         self.assertEqual(_slice_nine_reference_backend_name(), "CAMB")
         reference_contract = _slice_nine_camb_reference_contract(lmax=32)
@@ -2921,7 +2917,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             reference_contract["model_values"],
             dict(SLICE_NINE_NEUTRAL_MODEL),
         )
-        self.assertNotIn("native", reference_contract)
+        self.assertNotIn("declared", reference_contract)
 
     def test_camb_reference_returns_requested_finite_cls(self) -> None:
         """The independent reference path must return finite requested data."""
@@ -2940,11 +2936,11 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
     def test_reference_helpers_do_not_call_production_cmb_solver(self) -> None:
-        """The test reference must remain independent of native execution."""
+        """The test reference must remain independent of declared execution."""
 
         source = inspect.getsource(_slice_nine_camb_reference_spectra)
         self.assertNotIn("compute_cmb_spectrum_from_contract", source)
-        self.assertNotIn("native_projection", source)
+        self.assertNotIn("projection", source)
 
 
 class CMBScientificReferenceValidationTestCase(unittest.TestCase):
@@ -2977,41 +2973,41 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         self.assertIn("get_tensor_cls", source)
         self.assertIn("get_total_cls", source)
         self.assertIn("get_lensed_scalar_cls", source)
-        self.assertNotIn("native_projection", source)
+        self.assertNotIn("projection", source)
         self.assertNotIn("compute_cmb_spectrum", source)
 
-    def test_native_tensor_spectra_match_absolute_camb_anchors(self) -> None:
-        """Native tensor spectra must match fixed CAMB anchors."""
+    def test_declared_tensor_spectra_match_absolute_camb_anchors(self) -> None:
+        """Declared tensor spectra must match fixed CAMB anchors."""
 
         ells = numpy.asarray((40, 50, 70), dtype=int)
         analysis_ells = numpy.arange(int(numpy.max(ells)) + 1, dtype=int)
-        tensor_contract = _native_tensor_hierarchy_contract()
+        tensor_contract = _declared_tensor_hierarchy_contract()
         tensor_contract["numerical"]["k_sample_count"] = 96
-        native_tensor = _raw_native_public_spectra(
-            _prepare_native_contract(tensor_contract),
+        declared_tensor = _raw_declared_public_spectra(
+            _prepare_declared_contract(tensor_contract),
             analysis_ells,
             spectra=("TT", "TE", "EE", "BB"),
         )
         scalar_contract = _speedup_contract(
-            _native_scalar_hierarchy_contract()
+            _declared_scalar_hierarchy_contract()
         )
-        native_lensing = _raw_native_public_spectra(
-            _prepare_native_contract(scalar_contract),
+        lensing = _raw_declared_public_spectra(
+            _prepare_declared_contract(scalar_contract),
             analysis_ells,
             spectra=("PP",),
         )
-        lensed_tensor = native_cmb_solver._assemble_exact_lensed_spectra(
+        lensed_tensor = cmb_solver._assemble_exact_lensed_spectra(
             {
-                **native_tensor,
-                "PP": native_lensing["PP"],
+                **declared_tensor,
+                "PP": lensing["PP"],
             },
             analysis_ells,
         )
         reference = _slice_thirty_camb_tensor_reference_spectra(ells)
-        native = {
+        declared = {
             spectrum_name: numpy.asarray(values)[ells]
             for spectrum_name, values in {
-                **native_tensor,
+                **declared_tensor,
                 **lensed_tensor,
             }.items()
             if spectrum_name
@@ -3033,10 +3029,10 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             "lensed_BB",
         )
         for spectrum_name in compared_spectra:
-            self.assertEqual(native[spectrum_name].shape, (3,))
-            self.assertTrue(numpy.all(numpy.isfinite(native[spectrum_name])))
+            self.assertEqual(declared[spectrum_name].shape, (3,))
+            self.assertTrue(numpy.all(numpy.isfinite(declared[spectrum_name])))
         metrics = _slice_nine_spectrum_metrics(
-            native,
+            declared,
             reference,
             spectra=compared_spectra,
             auto_spectrum_floor=1.0e-6,
@@ -3052,7 +3048,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 msg=f"{spectrum_name} metrics: {metrics[spectrum_name]}",
             )
         self.assertGreater(
-            float(numpy.max(numpy.asarray(native["lensed_BB"]))),
+            float(numpy.max(numpy.asarray(declared["lensed_BB"]))),
             0.0,
         )
 
@@ -3165,27 +3161,25 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         for sum_mnu, scale_factors in fixed_cosmologies:
             with self.subTest(sum_mnu=sum_mnu):
-                raw_contract = _native_scalar_hierarchy_contract(
+                raw_contract = _declared_scalar_hierarchy_contract(
                     include_massive_neutrino=True,
                     sum_mnu=sum_mnu,
                 )
                 raw_contract["numerical"]["momentum_grids"][
                     "massive_neutrino_default"
                 ]["count"] = 12
-                contract = _prepare_native_contract(raw_contract)
+                contract = _prepare_declared_contract(raw_contract)
                 physical_params = (
-                    native_background._resolve_custom_cmb_physical_parameters(
+                    cmb_background._resolve_custom_cmb_physical_parameters(
                         contract
                     )
                 )
-                runtime = (
-                    native_evolution._resolve_declared_momentum_grid_runtimes(
-                        contract["perturbation_data"],
-                        model_parameters=contract["param_map"],
-                        physical_params=physical_params,
-                    )[0]
-                )
-                context = native_evolution._declared_momentum_grid_context(
+                runtime = evolution._resolve_declared_momentum_grid_runtimes(
+                    contract["perturbation_data"],
+                    model_parameters=contract["param_map"],
+                    physical_params=physical_params,
+                )[0]
+                context = evolution._declared_momentum_grid_context(
                     contract["perturbation_data"],
                     model_parameters=contract["param_map"],
                     physical_params=physical_params,
@@ -3232,18 +3226,16 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
         ell_signature = (2, 10, 40, 200, 1000)
         x_values = numpy.asarray((0.7, 5.0, 50.0, 500.0, 1900.0))
-        values, derivatives = (
-            native_background._compute_spherical_bessel_batch(
-                ell_signature,
-                x_values,
-            )
+        values, derivatives = cmb_background._compute_spherical_bessel_batch(
+            ell_signature,
+            x_values,
         )
         ell_array = numpy.asarray(ell_signature, dtype=int)[:, None]
-        expected_values = native_background.spherical_jn(
+        expected_values = cmb_background.spherical_jn(
             ell_array,
             x_values[None, :],
         )
-        expected_derivatives = native_background.spherical_jn(
+        expected_derivatives = cmb_background.spherical_jn(
             ell_array,
             x_values[None, :],
             derivative=True,
@@ -3266,15 +3258,15 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
         x_values = numpy.asarray((0.7, 1.3, 2.1), dtype=float)
         x_signature = "slice-nine-item5-tensor-radial-kernel"
-        native_cache.store_bessel_inputs(x_signature, x_values)
+        cache.store_bessel_inputs(x_signature, x_values)
         kernel_batch = (
-            native_background._get_cached_declared_projection_kernel_batch(
+            cmb_background._get_cached_declared_projection_kernel_batch(
                 (2,),
                 x_signature,
             )
         )
         source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
-        actual = native_projection._declared_graph_projection(
+        actual = cmb_projection._declared_graph_projection(
             projection="line_of_sight_signal",
             kernel="spherical_bessel_window",
             sector="tensor",
@@ -3295,13 +3287,13 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             kernel_batch.tensor_temperature[0],
             numpy.sqrt(3.0 / 8.0)
             * numpy.sqrt(24.0)
-            * native_background.spherical_jn(2, x_values)
+            * cmb_background.spherical_jn(2, x_values)
             / numpy.maximum(x_values, 1.0e-12) ** 2,
             rtol=1.0e-14,
             atol=1.0e-14,
         )
-        j_l = native_background.spherical_jn(2, x_values)
-        j_l_derivative = native_background.spherical_jn(
+        j_l = cmb_background.spherical_jn(2, x_values)
+        j_l_derivative = cmb_background.spherical_jn(
             2,
             x_values,
             derivative=True,
@@ -3340,7 +3332,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 kernel_batch.tensor_b,
             ),
         ):
-            actual = native_projection._declared_graph_projection(
+            actual = cmb_projection._declared_graph_projection(
                 projection=projection,
                 kernel=kernel,
                 sector="tensor",
@@ -3363,15 +3355,15 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
 
         x_values = numpy.asarray((0.7, 1.3, 2.1), dtype=float)
         x_signature = "slice-nine-item5-vector-radial-kernel"
-        native_cache.store_bessel_inputs(x_signature, x_values)
+        cache.store_bessel_inputs(x_signature, x_values)
         kernel_batch = (
-            native_background._get_cached_declared_projection_kernel_batch(
+            cmb_background._get_cached_declared_projection_kernel_batch(
                 (3,),
                 x_signature,
             )
         )
-        j_l = native_background.spherical_jn(3, x_values)
-        j_l_derivative = native_background.spherical_jn(
+        j_l = cmb_background.spherical_jn(3, x_values)
+        j_l_derivative = cmb_background.spherical_jn(
             3,
             x_values,
             derivative=True,
@@ -3420,7 +3412,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 kernel_batch.vector_b,
             ),
         ):
-            actual = native_projection._declared_graph_projection(
+            actual = cmb_projection._declared_graph_projection(
                 projection=projection,
                 kernel="spherical_bessel_window",
                 sector="vector",
@@ -3446,10 +3438,10 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             )
         self.assertLess(max(residuals), 1.0e-12)
 
-    def test_native_lensing_normalization_and_absolute_remapping_match_camb(
+    def test_lensing_normalization_and_absolute_remapping_match_camb(
         self,
     ) -> None:
-        """The native remapper must match CAMB on all lensed scalar spectra."""
+        """The declared remapper must match CAMB on lensed scalar spectra."""
 
         lmax = SLICE_NINE_ACCEPTANCE_RANGES["lensing_ell"][1]
         params = _slice_nine_build_camb_params(lmax=lmax)
@@ -3487,7 +3479,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             atol=1.0e-30,
             err_msg="CAMB PP must use the declared deflection convention.",
         )
-        actual = native_cmb_solver._assemble_exact_lensed_spectra(
+        actual = cmb_solver._assemble_exact_lensed_spectra(
             {
                 "TT": unlensed[:, 0],
                 "EE": unlensed[:, 1],
@@ -3551,10 +3543,10 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             float(thresholds["lensed_bb_fractional_median"]),
         )
 
-    def test_camb_reference_lensing_cross_surfaces_use_native_conventions(
+    def test_camb_reference_lensing_cross_surfaces_use_declared_conventions(
         self,
     ) -> None:
-        """The independent PP, TP, and EP surfaces use native units."""
+        """The independent PP, TP, and EP surfaces use declared units."""
 
         ells = numpy.asarray((10, 100, 1500), dtype=int)
         reference = _slice_nine_camb_reference_spectra(
@@ -3577,21 +3569,23 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             )
 
     def test_slice_nine_neutral_background_matches_camb(self) -> None:
-        """The fixed native background must meet all CAMB thresholds."""
+        """The fixed declared background must meet all CAMB thresholds."""
 
-        contract = _prepare_native_contract(
-            _slice_nine_native_acceptance_contract()
+        contract = _prepare_declared_contract(
+            _slice_nine_declared_acceptance_contract()
         )
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
-        background = native_background._build_custom_cmb_background(
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical,
             numerics,
         )
-        reference = _slice_nine_camb_background_reference(background.eta_grid)
+        reference = _slice_nine_camb_background_reference(
+            background_data.eta_grid
+        )
         reference_peak_eta = float(reference["peak_eta"])
         reference_peak_z = float(reference["peak_z"])
         reference_eta0 = float(reference["eta0"])
@@ -3603,16 +3597,16 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         thresholds = SLICE_NINE_ACCEPTANCE_THRESHOLDS
 
-        peak_index = int(numpy.argmax(background.visibility_grid))
-        peak_z = float(background.z_grid[peak_index])
-        peak_eta = float(background.eta_grid[peak_index])
-        recombination_band = (background.z_grid >= 800.0) & (
-            background.z_grid <= 1600.0
+        peak_index = int(numpy.argmax(background_data.visibility_grid))
+        peak_z = float(background_data.z_grid[peak_index])
+        peak_eta = float(background_data.eta_grid[peak_index])
+        recombination_band = (background_data.z_grid >= 800.0) & (
+            background_data.z_grid <= 1600.0
         )
         recombination_median_x_e_error = float(
             numpy.median(
                 numpy.abs(
-                    background.x_e_grid[recombination_band]
+                    background_data.x_e_grid[recombination_band]
                     - reference_x_e[recombination_band]
                 )
                 / numpy.maximum(reference_x_e[recombination_band], 1.0e-8)
@@ -3621,52 +3615,56 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         recombination_p90_error = float(
             numpy.percentile(
                 numpy.abs(
-                    background.x_e_grid[recombination_band]
+                    background_data.x_e_grid[recombination_band]
                     - reference_x_e[recombination_band]
                 )
                 / numpy.maximum(reference_x_e[recombination_band], 1.0e-8),
                 90.0,
             )
         )
-        reionization_transition_band = (background.z_grid >= 6.0) & (
-            background.z_grid <= 10.0
+        reionization_transition_band = (background_data.z_grid >= 6.0) & (
+            background_data.z_grid <= 10.0
         )
         reionization_transition_error = float(
             numpy.median(
                 numpy.abs(
-                    background.x_e_grid[reionization_transition_band]
+                    background_data.x_e_grid[reionization_transition_band]
                     - reference_x_e[reionization_transition_band]
                 )
             )
         )
         visibility_width_eta = _full_width_at_half_max(
-            background.eta_grid,
-            background.visibility_grid,
+            background_data.eta_grid,
+            background_data.visibility_grid,
         )
         reference_visibility_width_eta = _full_width_at_half_max(
-            background.eta_grid,
+            background_data.eta_grid,
             reference_visibility,
         )
         visibility_width_z = _full_width_at_half_max(
-            background.z_grid[::-1],
-            background.visibility_grid[::-1],
+            background_data.z_grid[::-1],
+            background_data.visibility_grid[::-1],
         )
         reference_visibility_width_z = _full_width_at_half_max(
-            background.z_grid[::-1],
+            background_data.z_grid[::-1],
             reference_visibility[::-1],
         )
         max_ionized_fraction = 1.0 + (
             physical.YHe / (2.0 * max(1.0 - physical.YHe, 1.0e-6))
         )
 
-        self.assertTrue(numpy.all(numpy.isfinite(background.x_e_grid)))
-        self.assertTrue(numpy.all(background.x_e_grid >= 0.0))
+        self.assertTrue(numpy.all(numpy.isfinite(background_data.x_e_grid)))
+        self.assertTrue(numpy.all(background_data.x_e_grid >= 0.0))
         self.assertTrue(
-            numpy.all(background.x_e_grid <= max_ionized_fraction + 1.0e-6)
+            numpy.all(
+                background_data.x_e_grid <= max_ionized_fraction + 1.0e-6
+            )
         )
         self.assertTrue(numpy.all(numpy.isfinite(reference_x_e)))
         self.assertTrue(numpy.all(numpy.isfinite(reference_visibility)))
-        self.assertTrue(numpy.all(numpy.diff(background.tau_grid) <= 1.0e-8))
+        self.assertTrue(
+            numpy.all(numpy.diff(background_data.tau_grid) <= 1.0e-8)
+        )
 
         peak_z_error = abs(peak_z - reference_peak_z) / reference_peak_z
         self.assertLess(
@@ -3716,7 +3714,9 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 thresholds["visibility_width_fraction"],
             ),
         )
-        eta0_error = abs(background.eta0 - reference_eta0) / reference_eta0
+        eta0_error = (
+            abs(background_data.eta0 - reference_eta0) / reference_eta0
+        )
         self.assertLess(
             eta0_error,
             thresholds["conformal_age_fraction"],
@@ -3727,7 +3727,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             ),
         )
         sound_horizon_error = (
-            abs(background.sound_horizon_mpc - reference_sound_horizon)
+            abs(background_data.sound_horizon_mpc - reference_sound_horizon)
             / reference_sound_horizon
         )
         self.assertLess(
@@ -3767,7 +3767,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             ),
         )
         tau_error = abs(
-            background.reionization_tau - float(reference["tau_reio"])
+            background_data.reionization_tau - float(reference["tau_reio"])
         ) / max(float(reference["tau_reio"]), 1.0e-12)
         self.assertLess(
             tau_error,
@@ -3795,25 +3795,25 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
         self.assertIsInstance(params, camb.CAMBparams)
 
-    def test_native_scalar_hierarchy_amplitude_response_tracks_camb(
+    def test_declared_scalar_hierarchy_amplitude_response_tracks_camb(
         self,
     ) -> None:
-        """Native scalar hierarchy should preserve CAMB amplitude response."""
+        """Declared scalar hierarchy preserves CAMB amplitude response."""
 
-        base_contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        base_contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        shifted_contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        shifted_contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         shifted_contract["param_map"]["As"] *= 1.1
         ells = numpy.asarray((30, 60, 90, 120), dtype=int)
-        base_native = cmb.compute_cmb_spectrum_from_contract(
+        base_declared = cmb.compute_cmb_spectrum_from_contract(
             base_contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
-        shifted_native = cmb.compute_cmb_spectrum_from_contract(
+        shifted_declared = cmb.compute_cmb_spectrum_from_contract(
             shifted_contract,
             ells,
             spectra=("TT", "TE", "EE"),
@@ -3845,11 +3845,11 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
         )
 
         for spectrum_name, column_index in (("TT", 0), ("EE", 1), ("TE", 3)):
-            native_base = numpy.asarray(
-                base_native[spectrum_name], dtype=float
+            declared_base = numpy.asarray(
+                base_declared[spectrum_name], dtype=float
             )
-            native_shifted = numpy.asarray(
-                shifted_native[spectrum_name],
+            declared_shifted = numpy.asarray(
+                shifted_declared[spectrum_name],
                 dtype=float,
             )
             reference_base = numpy.asarray(
@@ -3860,22 +3860,22 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 shifted_reference[:, column_index][ells],
                 dtype=float,
             )
-            native_ratio = numpy.divide(
-                numpy.abs(native_shifted),
-                numpy.maximum(numpy.abs(native_base), 1.0e-30),
+            declared_ratio = numpy.divide(
+                numpy.abs(declared_shifted),
+                numpy.maximum(numpy.abs(declared_base), 1.0e-30),
             )
             reference_ratio = numpy.divide(
                 numpy.abs(reference_shifted),
                 numpy.maximum(numpy.abs(reference_base), 1.0e-30),
             )
             numpy.testing.assert_allclose(
-                native_ratio,
+                declared_ratio,
                 reference_ratio,
                 rtol=5.0e-2,
                 atol=5.0e-2,
                 err_msg=(
                     f"{spectrum_name} amplitude-response mismatch for the "
-                    "native scalar hierarchy route."
+                    "declared scalar hierarchy route."
                 ),
             )
 
@@ -3952,10 +3952,10 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
     def test_custom_equations_change_spectrum(self) -> None:
         """Stronger damping should suppress the raw analytic TT response."""
 
-        low_decay = _prepare_native_contract(
+        low_decay = _prepare_declared_contract(
             _analytic_signal_contract(decay_rate=0.01)
         )
-        high_decay = _prepare_native_contract(
+        high_decay = _prepare_declared_contract(
             _analytic_signal_contract(decay_rate=0.05)
         )
         low_decay = _with_prepared_numerical_overrides(
@@ -3970,14 +3970,14 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         )
         ells = numpy.arange(20, 30, dtype=int)
         low_decay_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 low_decay,
                 ells,
             ).spectra["TT"],
             dtype=float,
         )
         high_decay_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 high_decay,
                 ells,
             ).spectra["TT"],
@@ -4170,12 +4170,12 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_pp = _raw_native_public_spectra(
+        baseline_pp = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("PP",),
         )["PP"]
-        changed_pp = _raw_native_public_spectra(
+        changed_pp = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("PP",),
@@ -4207,12 +4207,12 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.35 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_pp = _raw_native_public_spectra(
+        baseline_pp = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("PP",),
         )["PP"]
-        changed_pp = _raw_native_public_spectra(
+        changed_pp = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("PP",),
@@ -4237,12 +4237,12 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = _raw_native_public_spectra(
+        baseline_bb = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("BB",),
         )["BB"]
-        changed_bb = _raw_native_public_spectra(
+        changed_bb = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("BB",),
@@ -4271,12 +4271,12 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_lensed_bb = _raw_native_public_spectra(
+        baseline_lensed_bb = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("lensed_BB",),
         )["lensed_BB"]
-        changed_lensed_bb = _raw_native_public_spectra(
+        changed_lensed_bb = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("lensed_BB",),
@@ -4305,12 +4305,12 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
             "expression"
         ] = "1.25 * visibility * tensor_b"
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = _raw_native_public_spectra(
+        baseline_bb = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("BB",),
         )["BB"]
-        changed_bb = _raw_native_public_spectra(
+        changed_bb = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("BB",),
@@ -4330,14 +4330,14 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Fast runtime-response coverage for declared-graph execution."""
 
-    def test_native_los_simpson_weights_integrate_nonuniform_quadratic(
+    def test_declared_los_simpson_weights_integrate_nonuniform_quadratic(
         self,
     ) -> None:
-        """Native LOS weights should preserve quadratic histories."""
+        """Declared LOS weights should preserve quadratic histories."""
 
         eta_grid = numpy.asarray((0.0, 0.3, 0.9, 1.4, 2.1), dtype=float)
         history = 2.0 * eta_grid**2 + 3.0 * eta_grid + 1.0
-        weights = native_projection._simpson_weights(eta_grid)
+        weights = cmb_projection._simpson_weights(eta_grid)
         expected = (
             (2.0 / 3.0) * eta_grid[-1] ** 3
             + (3.0 / 2.0) * eta_grid[-1] ** 2
@@ -4349,7 +4349,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             places=12,
         )
 
-    def test_native_los_weights_stay_positive_across_clustered_anchors(
+    def test_declared_los_weights_stay_positive_across_clustered_anchors(
         self,
     ) -> None:
         """Clustered physical anchors must not destabilize LOS weights."""
@@ -4358,7 +4358,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             (0.0, 1.0e-6, 0.2, 0.4, 1.0),
             dtype=float,
         )
-        weights = native_projection._simpson_weights(eta_grid)
+        weights = cmb_projection._simpson_weights(eta_grid)
 
         self.assertTrue(numpy.all(numpy.isfinite(weights)))
         self.assertTrue(numpy.all(weights >= 0.0))
@@ -4368,14 +4368,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             places=12,
         )
 
-    def test_native_nonuniform_gradient_preserves_quadratic_derivative(
+    def test_declared_nonuniform_gradient_preserves_quadratic_derivative(
         self,
     ) -> None:
-        """Native history derivatives should remain second-order at edges."""
+        """Declared history derivatives should remain second-order at edges."""
 
         eta_grid = numpy.asarray((0.0, 0.3, 0.9, 1.4, 2.1), dtype=float)
         history = 2.0 * eta_grid**2 + 3.0 * eta_grid + 1.0
-        derivative = native_evolution._nonuniform_gradient(
+        derivative = evolution._nonuniform_gradient(
             history,
             eta_grid,
         )
@@ -4391,7 +4391,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Temperature LOS projection should not add acoustic phase weights."""
 
-        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+        kernel_batch = cmb_background._DeclaredProjectionKernelBatch(
             j_l=numpy.asarray(((1.0, 0.5, 0.25), (0.0, 1.0, 0.5))),
             j_l_derivative=numpy.asarray(((0.2, 0.1, 0.0), (0.0, 0.3, 0.4))),
             e_kernel=numpy.zeros((2, 3), dtype=float),
@@ -4413,7 +4413,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "additive": numpy.asarray((1.0, 1.0, 1.0), dtype=float),
         }
 
-        projected = native_projection._declared_graph_projection(
+        projected = cmb_projection._declared_graph_projection(
             projection="line_of_sight_temperature",
             kernel=None,
             kernel_batch=kernel_batch,
@@ -4446,7 +4446,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """The integrated-by-parts source must use the second Bessel path."""
 
-        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+        kernel_batch = cmb_background._DeclaredProjectionKernelBatch(
             j_l=numpy.asarray(((1.0, 0.5, 0.25), (0.0, 1.0, 0.5))),
             j_l_derivative=numpy.zeros((2, 3), dtype=float),
             j_l_second_derivative=numpy.asarray(
@@ -4465,7 +4465,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
         derivative_source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
-        projected = native_projection._declared_graph_projection(
+        projected = cmb_projection._declared_graph_projection(
             projection="line_of_sight_temperature",
             kernel=None,
             kernel_batch=kernel_batch,
@@ -4488,7 +4488,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """A projection must not publish fabricated zero transfer values."""
 
-        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+        kernel_batch = cmb_background._DeclaredProjectionKernelBatch(
             j_l=numpy.ones((1, 2), dtype=float),
             j_l_derivative=numpy.ones((1, 2), dtype=float),
             j_l_second_derivative=numpy.ones((1, 2), dtype=float),
@@ -4503,7 +4503,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             tensor_b=numpy.ones((1, 2), dtype=float),
         )
         with self.assertRaisesRegex(ValueError, "no available source"):
-            native_projection._declared_graph_projection(
+            cmb_projection._declared_graph_projection(
                 projection="line_of_sight_temperature",
                 kernel="temperature_mixed_window",
                 kernel_batch=kernel_batch,
@@ -4517,7 +4517,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_lensing_projection_uses_declared_potential_source(self) -> None:
         """Lensing projection applies the declared Weyl-source sign."""
 
-        kernel_batch = native_background._DeclaredProjectionKernelBatch(
+        kernel_batch = cmb_background._DeclaredProjectionKernelBatch(
             j_l=numpy.asarray(((1.0, 0.5, 0.25),), dtype=float),
             j_l_derivative=numpy.zeros((1, 3), dtype=float),
             j_l_second_derivative=numpy.zeros((1, 3), dtype=float),
@@ -4535,7 +4535,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
         source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
         geometry = numpy.asarray((0.875, 0.375, 0.125), dtype=float)
-        projected = native_projection._declared_graph_projection(
+        projected = cmb_projection._declared_graph_projection(
             projection="line_of_sight_lensing_potential",
             kernel="lensing_potential_window",
             kernel_batch=kernel_batch,
@@ -4556,18 +4556,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_tight_coupling_regime_has_explicit_hysteresis(self) -> None:
         """Tight coupling should enter and exit through named thresholds."""
 
-        entry_rate = native_evolution._tight_coupling_entry_rate(
+        entry_rate = evolution._tight_coupling_entry_rate(
             k_value=0.2,
             tight_coupling_ratio=50.0,
         )
-        exit_rate = native_evolution._tight_coupling_exit_rate(
+        exit_rate = evolution._tight_coupling_exit_rate(
             k_value=0.2,
             tight_coupling_ratio=50.0,
         )
 
         self.assertGreater(entry_rate, exit_rate)
         self.assertTrue(
-            native_evolution._tight_coupling_is_active(
+            evolution._tight_coupling_is_active(
                 active=False,
                 collision_rate=1.01 * entry_rate,
                 k_value=0.2,
@@ -4575,7 +4575,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
         self.assertTrue(
-            native_evolution._tight_coupling_is_active(
+            evolution._tight_coupling_is_active(
                 active=True,
                 collision_rate=0.5 * (entry_rate + exit_rate),
                 k_value=0.2,
@@ -4583,7 +4583,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
         self.assertFalse(
-            native_evolution._tight_coupling_is_active(
+            evolution._tight_coupling_is_active(
                 active=True,
                 collision_rate=0.99 * exit_rate,
                 k_value=0.2,
@@ -4592,7 +4592,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
         declared_exit_ratio = 0.25
-        declared_exit_rate = native_evolution._tight_coupling_exit_rate(
+        declared_exit_rate = evolution._tight_coupling_exit_rate(
             k_value=0.2,
             tight_coupling_ratio=50.0,
             exit_ratio=declared_exit_ratio,
@@ -4602,7 +4602,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             declared_exit_ratio * entry_rate,
         )
         self.assertTrue(
-            native_evolution._tight_coupling_is_active(
+            evolution._tight_coupling_is_active(
                 active=True,
                 collision_rate=0.5 * (declared_exit_rate + entry_rate),
                 k_value=0.2,
@@ -4611,7 +4611,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
         self.assertFalse(
-            native_evolution._tight_coupling_is_active(
+            evolution._tight_coupling_is_active(
                 active=True,
                 collision_rate=0.99 * declared_exit_rate,
                 k_value=0.2,
@@ -4627,7 +4627,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             r"tight-coupling exit ratio must be in \(0, 1\)",
         ):
-            native_evolution._tight_coupling_exit_rate(
+            evolution._tight_coupling_exit_rate(
                 k_value=0.2,
                 tight_coupling_ratio=50.0,
                 exit_ratio=1.0,
@@ -4639,10 +4639,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         source_text = "\n".join(
             Path(module.__file__).read_text(encoding="utf-8")
             for module in (
-                native_cmb_solver,
-                native_background,
-                native_evolution,
-                native_projection,
+                cmb_solver,
+                cmb_background,
+                evolution,
+                cmb_projection,
             )
         )
         for needle in (
@@ -4668,18 +4668,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_custom_graph_runs_and_transfer_payloads_are_finite(self) -> None:
         """Transfer components and declared spectra should stay finite."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
 
         self.assertIsInstance(
             spectrum_data,
-            native_projection.CustomCMBSpectrumData,
+            cmb_projection.CustomCMBSpectrumData,
         )
         self.assertTrue(numpy.array_equal(spectrum_data.ell_grid, ells))
         self.assertEqual(
@@ -4731,12 +4731,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         ):
             self.assertTrue(numpy.all(numpy.isfinite(array)))
 
-    def test_native_scalar_sources_use_runtime_optical_depth_history(
+    def test_declared_scalar_sources_use_runtime_optical_depth_history(
         self,
     ) -> None:
         """Generated scalar sources should see the background tau history."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"].update(
             {
                 "k_min": 0.02,
@@ -4746,9 +4746,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "source_grid_multiplier": 1,
             }
         )
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         captured_tau: list[numpy.ndarray] = []
-        original = native_projection._evaluate_compiled_expression_noerr
+        original = cmb_projection._evaluate_compiled_expression_noerr
 
         def _capture_tau(
             expression_data: object,
@@ -4767,11 +4767,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original(expression_data, env)
 
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_evaluate_compiled_expression_noerr",
             side_effect=_capture_tau,
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.asarray((40,), dtype=int),
                 requested_spectra=("TT",),
@@ -4787,12 +4787,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-6,
         )
 
-    def test_native_scalar_adiabatic_sources_use_hidden_superhorizon_prefix(
+    def test_declared_scalar_adiabatic_sources_use_hidden_superhorizon_prefix(
         self,
     ) -> None:
         """Adiabatic sources should evolve before the LOS grid start."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"].update(
             {
                 "k_min": 0.01987357845532738,
@@ -4803,13 +4803,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "initial_redshift": 2.0e4,
             }
         )
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         eta_history, theta_gamma0_history, _ = (
             _capture_visible_scalar_monopole_history(contract)
         )
         self.assertGreater(float(eta_history[0]), 20.0)
         self.assertTrue(numpy.isfinite(theta_gamma0_history[0]))
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
         neutrino_fraction = physical.Omega_nu0 / max(
@@ -4822,12 +4822,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             0.1,
         )
 
-    def test_native_scalar_adiabatic_hidden_prefix_tracks_early_start(
+    def test_declared_scalar_adiabatic_hidden_prefix_tracks_early_start(
         self,
     ) -> None:
         """Hidden evolution should stay close to an early start."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"].update(
             {
                 "k_min": 0.01987357845532738,
@@ -4838,10 +4838,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "initial_redshift": 2.0e4,
             }
         )
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         reference_data = copy.deepcopy(contract_data)
         reference_data["numerical"]["initial_redshift"] = 1.0e6
-        reference = _prepare_native_contract(reference_data)
+        reference = _prepare_declared_contract(reference_data)
 
         eta_history, theta_gamma0_history, _ = (
             _capture_visible_scalar_monopole_history(contract)
@@ -4865,12 +4865,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertLess(float(numpy.median(relative_error)), 0.05)
         self.assertLess(float(numpy.max(relative_error)), 0.05)
 
-    def test_native_scalar_source_grid_preserves_visibility_refinement(
+    def test_declared_scalar_source_grid_preserves_visibility_refinement(
         self,
     ) -> None:
         """Scalar source grids should keep visibility-era clustering."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"].update(
             {
                 "k_min": 0.01987357845532738,
@@ -4881,7 +4881,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "initial_redshift": 2.0e4,
             }
         )
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         eta_history, _, _ = _capture_visible_scalar_monopole_history(contract)
         eta_steps = numpy.diff(eta_history)
 
@@ -4898,21 +4898,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         contract = _speedup_contract(_custom_contract())
         ells = numpy.arange(20, 90, dtype=int)
-        base = _raw_native_public_spectra(
+        base = _raw_declared_public_spectra(
             contract,
             ells,
             spectra=("TT", "TE", "EE"),
         )
         hi_as_contract = _speedup_contract(_custom_contract())
         hi_as_contract["param_map"]["As"] = 4.2e-9
-        hi_as = _raw_native_public_spectra(
+        hi_as = _raw_declared_public_spectra(
             hi_as_contract,
             ells,
             spectra=("TT",),
         )["TT"]
         hi_h0_contract = _speedup_contract(_custom_contract())
         hi_h0_contract["param_map"]["H0"] = 74.0
-        hi_h0 = _raw_native_public_spectra(
+        hi_h0 = _raw_declared_public_spectra(
             hi_h0_contract,
             ells,
             spectra=("TT",),
@@ -4972,33 +4972,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_reionization_tau_changes_background_and_temperature(self) -> None:
         """The physical reionization ODE should feed the spectrum response."""
 
-        low_tau_contract = _prepare_native_contract(
+        low_tau_contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
-        high_tau_contract = _prepare_native_contract(
+        high_tau_contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
         low_tau_contract["param_map"]["tau"] = 0.03
         high_tau_contract["param_map"]["tau"] = 0.08
-        low_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(
-                low_tau_contract
-            )
-        )
-        high_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(
-                high_tau_contract
-            )
-        )
-        numerics = native_background._resolve_custom_cmb_numerics(
+        low_physical = cmb_background._resolve_custom_cmb_physical_parameters(
             low_tau_contract
         )
-        low_background = native_background._build_custom_cmb_background(
+        high_physical = cmb_background._resolve_custom_cmb_physical_parameters(
+            high_tau_contract
+        )
+        numerics = cmb_background._resolve_custom_cmb_numerics(
+            low_tau_contract
+        )
+        low_background = cmb_background._build_custom_cmb_background(
             low_tau_contract,
             low_physical,
             numerics,
         )
-        high_background = native_background._build_custom_cmb_background(
+        high_background = cmb_background._build_custom_cmb_background(
             high_tau_contract,
             high_physical,
             numerics,
@@ -5015,12 +5011,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ]
         )
         ells = numpy.arange(20, 30, dtype=int)
-        low_tau_tt = _raw_native_public_spectra(
+        low_tau_tt = _raw_declared_public_spectra(
             low_tau_contract,
             ells,
             spectra=("TT",),
         )["TT"]
-        high_tau_tt = _raw_native_public_spectra(
+        high_tau_tt = _raw_declared_public_spectra(
             high_tau_contract,
             ells,
             spectra=("TT",),
@@ -5042,7 +5038,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_vectorized_reionization_quantities_match_scalar_context(self):
         """Reionization grid evaluation must preserve declared stage values."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
         a_values = numpy.asarray((0.05, 0.1, 0.2), dtype=float)
@@ -5053,7 +5049,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         x_e_floor_values = numpy.asarray((0.11, 0.22, 0.33), dtype=float)
         hubble_rates = numpy.asarray((1.0e-18, 2.0e-18, 3.0e-18))
         grid_context = (
-            native_background._resolve_declared_reionization_quantity_grids(
+            cmb_background._resolve_declared_reionization_quantity_grids(
                 contract,
                 a_values=a_values,
                 z_values=z_values,
@@ -5081,7 +5077,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             zip(a_values, z_values, strict=True)
         ):
             scalar_context = (
-                native_background._resolve_declared_background_context(
+                cmb_background._resolve_declared_background_context(
                     contract,
                     a_values=float(a_value),
                     z_values=float(z_value),
@@ -5108,7 +5104,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 }
             )
             scalar_values = (
-                native_background._resolve_declared_reionization_context(
+                cmb_background._resolve_declared_reionization_context(
                     contract,
                     base_context=scalar_context,
                 )
@@ -5149,7 +5145,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
     def test_lensing_cross_targets_run_when_declared(self) -> None:
-        """Temperature and E-mode lensing cross terms should run natively."""
+        """Temperature and E-mode lensing cross terms should run declaredly."""
 
         contract = _speedup_contract(_custom_contract(include_lensing=True))
         ells = numpy.arange(20, 45, dtype=int)
@@ -5176,7 +5172,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
     def test_vector_sector_targets_run_when_declared(self) -> None:
-        """Vector-like transfer components should run natively."""
+        """Vector-like transfer components should run declaredly."""
 
         contract = _speedup_contract(_custom_contract(include_vector=True))
         ells = numpy.arange(20, 45, dtype=int)
@@ -5215,7 +5211,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_lensed_spectra_change_with_declared_lensing_strength(
         self,
     ) -> None:
-        """Exact native lensed outputs should respond to PP strength."""
+        """Exact declared lensed outputs should respond to PP strength."""
 
         baseline = _speedup_contract(_custom_contract(include_lensing=True))
         changed = _speedup_contract(_custom_contract(include_lensing=True))
@@ -5228,12 +5224,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "expression"
         ] = "1.6 * 1.0e4 * exp(-tau) * (Phi + Psi)"
         ells = numpy.arange(20, 60, dtype=int)
-        baseline_unlensed = _raw_native_public_spectra(
+        baseline_unlensed = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("TT", "EE", "TE"),
         )
-        baseline_lensed = _raw_native_public_spectra(
+        baseline_lensed = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=(
@@ -5244,7 +5240,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "lensed_BB",
             ),
         )
-        changed_lensed = _raw_native_public_spectra(
+        changed_lensed = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=(
@@ -5346,12 +5342,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         sparse_ells = numpy.asarray((20, 27, 44), dtype=int)
         dense_ells = numpy.arange(20, 45, dtype=int)
-        sparse = _raw_native_public_spectra(
+        sparse = _raw_declared_public_spectra(
             contract,
             sparse_ells,
             spectra=spectra,
         )
-        dense = _raw_native_public_spectra(
+        dense = _raw_declared_public_spectra(
             contract,
             dense_ells,
             spectra=spectra,
@@ -5382,7 +5378,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.5, -0.25, 0.75), dtype=float)
         dt = 0.125
-        actual = native_projection._exact_linear_collision_step(
+        actual = cmb_projection._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5403,7 +5399,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.35, -0.2), dtype=float)
         dt = 0.375
-        actual = native_projection._exact_linear_collision_step(
+        actual = cmb_projection._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5428,7 +5424,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         target_state = numpy.asarray((0.35, -0.2), dtype=float)
         dt = 0.375
         operator_scale = 0.12
-        actual = native_projection._exact_linear_collision_step(
+        actual = cmb_projection._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5456,7 +5452,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.5, -0.25, 0.35, -0.2), dtype=float)
         dt = 0.375
-        actual = native_projection._exact_linear_collision_step(
+        actual = cmb_projection._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5474,11 +5470,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Projection-kernel caches should survive scalar parameter rebinds."""
 
-        native_cache.clear_native_cmb_caches()
-        baseline = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        baseline = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
-        shifted = _prepare_native_contract(
+        shifted = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
         shifted["param_map"]["As"] *= 1.1
@@ -5488,7 +5484,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ells,
             spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
         )
-        first_stats = native_cache.native_cmb_cache_stats()[
+        first_stats = cache.cmb_cache_stats()[
             "declared_projection_kernel_batch"
         ]
         cmb.compute_cmb_spectrum_from_contract(
@@ -5496,7 +5492,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ells,
             spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
         )
-        second_stats = native_cache.native_cmb_cache_stats()[
+        second_stats = cache.cmb_cache_stats()[
             "declared_projection_kernel_batch"
         ]
 
@@ -5506,21 +5502,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_warm_projection_reuses_radial_kernel_batches(self) -> None:
         """Warm parameter requests must skip repeated Bessel batches."""
 
-        native_cache.clear_native_cmb_caches()
-        baseline = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        baseline = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
-        shifted = _prepare_native_contract(
+        shifted = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
         shifted["param_map"]["As"] *= 1.1
         ells = numpy.arange(20, 45, dtype=int)
-        first = native_projection._compute_custom_cmb_spectrum_data(
+        first = cmb_projection._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
             requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
         )
-        second = native_projection._compute_custom_cmb_spectrum_data(
+        second = cmb_projection._compute_custom_cmb_spectrum_data(
             shifted,
             ells,
             requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
@@ -5542,22 +5538,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_warm_parameter_reuses_transfer_products(self) -> None:
         """Primordial rebinds must reuse evolution and projection products."""
 
-        native_cache.clear_native_cmb_caches()
-        baseline = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        baseline = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
-        shifted = _prepare_native_contract(
+        shifted = _prepare_declared_contract(
             _speedup_contract(_custom_contract(include_lensing=True))
         )
         shifted["param_map"]["As"] *= 1.1
         ells = numpy.arange(20, 45, dtype=int)
         spectra = ("TT", "TE", "EE", "PP", "TP", "EP")
-        first = native_projection._compute_custom_cmb_spectrum_data(
+        first = cmb_projection._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
             requested_spectra=spectra,
         )
-        second = native_projection._compute_custom_cmb_spectrum_data(
+        second = cmb_projection._compute_custom_cmb_spectrum_data(
             shifted,
             ells,
             requested_spectra=spectra,
@@ -5594,7 +5590,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
 
     def test_start_boundary_conditions_can_seed_missing_state(self) -> None:
-        """Start-anchored boundary conditions should seed the native solver."""
+        """Start-anchored conditions should seed the declared solver."""
 
         contract = _speedup_contract(_custom_contract())
         theta_b_seed = contract["perturbations"]["initial_conditions"].pop(
@@ -5672,7 +5668,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
     def test_declared_gauge_metadata_is_not_restricted(self) -> None:
-        """The native graph solver should accept declared gauge metadata."""
+        """The declared graph solver should accept declared gauge metadata."""
 
         contract = _speedup_contract(_custom_contract())
         contract["perturbations"]["gauge"] = "synchronous"
@@ -5683,10 +5679,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
-    def test_declared_background_symbols_feed_native_equations(self) -> None:
+    def test_declared_background_symbols_feed_declared_equations(self) -> None:
         """Declared background symbols should flow into perturbation math."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         baseline = _speedup_contract(_custom_contract())
         changed = _speedup_contract(_custom_contract())
         baseline["background"]["derived"]["metric_drive"] = "0.25 * Omega_b0"
@@ -5700,12 +5696,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         baseline_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
         changed_baryon_equation["rhs"] += " + metric_drive * k * k * Psi"
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_tt = _raw_native_public_spectra(
+        baseline_tt = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("TT",),
         )["TT"]
-        changed_tt = _raw_native_public_spectra(
+        changed_tt = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("TT",),
@@ -5718,7 +5714,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_declared_exact_collision_matrix_changes_temperature_response(
         self,
     ) -> None:
-        """Exact collision-matrix changes should alter the native spectrum."""
+        """Exact collision-matrix changes should alter the spectrum."""
 
         ells = numpy.arange(20, 45, dtype=int)
         baseline = _speedup_contract(_split_collision_contract())
@@ -5990,10 +5986,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_generic_background_aliases_run_without_lcdm_named_inputs(
         self,
     ) -> None:
-        """Generic background aliases should supply the native solver."""
+        """Generic background aliases should supply the declared solver."""
 
         contract = _speedup_contract(_generic_background_custom_contract())
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -6011,10 +6007,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_physical_density_inputs_run_without_lcdm_density_aliases(
         self,
     ) -> None:
-        """Direct physical densities should drive the native solver."""
+        """Direct physical densities should drive the declared solver."""
 
         contract = _speedup_contract(_physical_density_custom_contract())
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -6042,15 +6038,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
-    def test_native_source_refinement_above_two_changes_runtime_grid(
+    def test_declared_source_refinement_above_two_changes_runtime_grid(
         self,
     ) -> None:
         """Source refinement above two should stay active at runtime."""
 
-        baseline = _prepare_native_contract(
+        baseline = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        refined = _prepare_native_contract(
+        refined = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
         baseline = _with_prepared_numerical_overrides(
@@ -6062,11 +6058,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             source_grid_multiplier=4,
         )
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_data = native_projection._compute_custom_cmb_spectrum_data(
+        baseline_data = cmb_projection._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
         )
-        refined_data = native_projection._compute_custom_cmb_spectrum_data(
+        refined_data = cmb_projection._compute_custom_cmb_spectrum_data(
             refined,
             ells,
         )
@@ -6075,7 +6071,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(baseline_data.runtime_envelope["eta_sample_count"]),
         )
 
-    def test_native_adaptive_surfaces_record_convergence(self) -> None:
+    def test_adaptive_surfaces_record_convergence(self) -> None:
         """Declared transfer, source, and LOS refinement stay observable."""
 
         contract = _speedup_contract(_analytic_signal_contract())
@@ -6099,8 +6095,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "phase_points_per_cycle": 8,
             "fail_on_nonconvergence": True,
         }
-        contract = _prepare_native_contract(contract)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        contract = _prepare_declared_contract(contract)
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
         )
@@ -6165,15 +6161,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectrum_data.spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
-    def test_native_scalar_evolution_refinement_reports_anchor_errors(
+    def test_declared_scalar_evolution_refinement_reports_anchor_errors(
         self,
     ) -> None:
         """Scalar state and source refinements report physical anchors."""
 
         contract = _speedup_contract(
-            _native_scalar_hierarchy_contract(sum_mnu=0.0)
+            _declared_scalar_hierarchy_contract(sum_mnu=0.0)
         )
-        contract["model_name"] = "NativeScalarEvolutionRefinement"
+        contract["model_name"] = "DeclaredScalarEvolutionRefinement"
         contract["numerical"].update(
             {
                 "k_sample_count": 1,
@@ -6193,8 +6189,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "runtime_envelope": "bounded",
             "fail_on_nonconvergence": False,
         }
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
-            _prepare_native_contract(contract),
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            _prepare_declared_contract(contract),
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
         )
@@ -6261,8 +6257,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             },
             "runtime_envelope": "bounded",
         }
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
-            _prepare_native_contract(contract),
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            _prepare_declared_contract(contract),
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
         )
@@ -6287,7 +6283,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertTrue(numpy.all(numpy.isfinite(spectrum_data.spectra["TT"])))
 
-    def test_native_scalar_hierarchy_depth_converges_at_anchor_surface(
+    def test_declared_scalar_hierarchy_depth_converges_at_anchor_surface(
         self,
     ) -> None:
         """Refined scalar hierarchy depths change accepted spectra by <1%."""
@@ -6295,9 +6291,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         spectra_by_depth = []
         for depth in (10, 12):
             contract = _speedup_contract(
-                _native_scalar_hierarchy_contract(sum_mnu=0.0)
+                _declared_scalar_hierarchy_contract(sum_mnu=0.0)
             )
-            contract["model_name"] = f"NativeScalarHierarchyDepth{depth}"
+            contract["model_name"] = f"DeclaredScalarHierarchyDepth{depth}"
             contract["numerical"].update(
                 {
                     "k_sample_count": 6,
@@ -6309,32 +6305,28 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 }
             )
             contract["perturbations"]["numerics"].update(contract["numerical"])
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 60, 120), dtype=int),
-                    requested_spectra=("TT", "EE"),
-                )
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 60, 120), dtype=int),
+                requested_spectra=("TT", "EE"),
             )
             spectra_by_depth.append(spectrum_data.spectra)
 
         for spectrum_name in ("TT", "EE"):
-            metric = native_convergence.evaluate_control_refinement(
+            metric = convergence.evaluate_control_refinement(
                 spectra_by_depth[0][spectrum_name],
                 spectra_by_depth[1][spectrum_name],
                 name=f"scalar {spectrum_name} hierarchy",
-                tolerance=(
-                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
-                ),
+                tolerance=(convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
             )
-            native_convergence.require_native_convergence(metric)
+            convergence.require_convergence(metric)
 
-    def test_native_adaptive_projection_refines_line_of_sight_grid(
+    def test_adaptive_projection_refines_line_of_sight_grid(
         self,
     ) -> None:
         """Projection refinement changes the physical LOS sampling grid."""
 
-        baseline = _prepare_native_contract(
+        baseline = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
         refined = _speedup_contract(_analytic_signal_contract())
@@ -6347,13 +6339,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             },
             "phase_points_per_cycle": 8,
         }
-        refined = _prepare_native_contract(refined)
+        refined = _prepare_declared_contract(refined)
         ells = numpy.arange(20, 24, dtype=int)
-        baseline_data = native_projection._compute_custom_cmb_spectrum_data(
+        baseline_data = cmb_projection._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
         )
-        refined_data = native_projection._compute_custom_cmb_spectrum_data(
+        refined_data = cmb_projection._compute_custom_cmb_spectrum_data(
             refined,
             ells,
         )
@@ -6385,9 +6377,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             },
             "phase_points_per_cycle": 8,
         }
-        prepared = _prepare_native_contract(contract)
+        prepared = _prepare_declared_contract(contract)
         eta_sizes: list[int] = []
-        original_projection = native_projection._declared_graph_projection
+        original_projection = cmb_projection._declared_graph_projection
 
         def _record_projection(*args: object, **kwargs: object) -> object:
             """Record the radial resolution used by each projection."""
@@ -6397,11 +6389,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original_projection(*args, **kwargs)
 
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_declared_graph_projection",
             side_effect=_record_projection,
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 prepared,
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("TT",),
@@ -6419,20 +6411,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "does not provide requested spectra: XX",
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
-                _prepare_native_contract(contract),
+            cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("XX",),
             )
 
     def test_solver_rejects_unknown_spectrum_before_background(self) -> None:
-        """Unsupported spectra fail before native background construction."""
+        """Unsupported spectra fail before declared background construction."""
 
         contract = _speedup_contract(_custom_contract())
         contract["model_name"] = "UnknownSpectrumPreflight"
-        prepared = _prepare_native_contract(contract)
+        prepared = _prepare_declared_contract(contract)
         with mock.patch.object(
-            native_cmb_solver,
+            cmb_solver,
             "_compute_custom_cmb_spectrum_data",
             side_effect=AssertionError("background must not be constructed"),
         ):
@@ -6440,7 +6432,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 ValueError,
                 "Unsupported CMB observable 'XX'",
             ):
-                native_cmb_solver._compute_declared_perturbation_spectrum(
+                cmb_solver._compute_declared_perturbation_spectrum(
                     prepared,
                     numpy.asarray((20, 23), dtype=int),
                     spectra=("XX",),
@@ -6454,15 +6446,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract(include_lensing=True))
         contract["model_name"] = "RequestedSpectrumSourceFiltering"
         evaluated_expressions: list[str] = []
-        original_evaluator = (
-            native_projection._evaluate_compiled_expression_noerr
-        )
+        original_evaluator = cmb_projection._evaluate_compiled_expression_noerr
 
         def _record_expression(
             expression_data: object,
             env: Mapping[str, object],
         ) -> object:
-            """Record source expressions evaluated by the native graph."""
+            """Record source expressions evaluated by the declared graph."""
 
             evaluated_expressions.append(
                 str(getattr(expression_data, "expression", ""))
@@ -6470,16 +6460,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original_evaluator(expression_data, env)
 
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_evaluate_compiled_expression_noerr",
             side_effect=_record_expression,
         ):
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 23), dtype=int),
-                    requested_spectra=("TT",),
-                )
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 23), dtype=int),
+                requested_spectra=("TT",),
             )
 
         self.assertEqual(set(spectrum_data.spectra), {"TT"})
@@ -6521,8 +6509,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "phase_points_per_cycle": 8,
             "fail_on_nonconvergence": True,
         }
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
-            _prepare_native_contract(contract),
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            _prepare_declared_contract(contract),
             numpy.asarray((20, 30, 40), dtype=int),
             requested_spectra=("TT", "TE", "EE", "PP"),
         )
@@ -6564,34 +6552,32 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["perturbations"]["numerics"] = copy.deepcopy(
                 contract["numerical"]
             )
-            native_cache.clear_native_cmb_caches()
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 30, 40), dtype=int),
-                    requested_spectra=("TT", "TE", "EE", "PP"),
-                )
+            cache.clear_cmb_caches()
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 30, 40), dtype=int),
+                requested_spectra=("TT", "TE", "EE", "PP"),
             )
             spectra_by_grid[label] = spectrum_data.spectra
 
         for refined_label in ("k_refined", "source_refined"):
             with self.subTest(refinement=refined_label):
-                report = native_convergence.evaluate_spectrum_refinement(
+                report = convergence.evaluate_spectrum_refinement(
                     spectra_by_grid["baseline"],
                     spectra_by_grid[refined_label],
                     required_spectra=("TT", "TE", "EE", "PP"),
                 )
-                native_convergence.require_native_convergence(report)
+                convergence.require_convergence(report)
 
-    def test_native_eta_sample_count_changes_background_resolution(
+    def test_declared_eta_sample_count_changes_background_resolution(
         self,
     ) -> None:
-        """Declared `eta_sample_count` should affect the native grid."""
+        """Declared `eta_sample_count` should affect the declared grid."""
 
-        coarse = _prepare_native_contract(
+        coarse = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
-        refined = _prepare_native_contract(
+        refined = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
         coarse = _with_prepared_numerical_overrides(
@@ -6602,22 +6588,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             refined,
             eta_sample_count=256,
         )
-        coarse_background = native_background._build_custom_cmb_background(
+        coarse_background = cmb_background._build_custom_cmb_background(
             coarse,
-            native_background._resolve_custom_cmb_physical_parameters(coarse),
-            native_background._resolve_custom_cmb_numerics(coarse),
+            cmb_background._resolve_custom_cmb_physical_parameters(coarse),
+            cmb_background._resolve_custom_cmb_numerics(coarse),
         )
-        refined_background = native_background._build_custom_cmb_background(
+        refined_background = cmb_background._build_custom_cmb_background(
             refined,
-            native_background._resolve_custom_cmb_physical_parameters(refined),
-            native_background._resolve_custom_cmb_numerics(refined),
+            cmb_background._resolve_custom_cmb_physical_parameters(refined),
+            cmb_background._resolve_custom_cmb_numerics(refined),
         )
         self.assertGreater(
             int(refined_background.eta_grid.size),
             int(coarse_background.eta_grid.size),
         )
 
-    def test_native_background_refinement_meets_final_bound(self) -> None:
+    def test_background_refinement_meets_final_bound(self) -> None:
         """Background and recombination converge below one percent."""
 
         backgrounds = []
@@ -6628,15 +6614,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["perturbations"]["numerics"] = copy.deepcopy(
                 contract["numerical"]
             )
-            prepared = _prepare_native_contract(contract)
-            physical = (
-                native_background._resolve_custom_cmb_physical_parameters(
-                    prepared
-                )
+            prepared = _prepare_declared_contract(contract)
+            physical = cmb_background._resolve_custom_cmb_physical_parameters(
+                prepared
             )
-            numerics = native_background._resolve_custom_cmb_numerics(prepared)
+            numerics = cmb_background._resolve_custom_cmb_numerics(prepared)
             backgrounds.append(
-                native_background._build_custom_cmb_background(
+                cmb_background._build_custom_cmb_background(
                     prepared,
                     physical,
                     numerics,
@@ -6651,13 +6635,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "reionization_z",
             "reionization_tau",
         ):
-            metric = native_convergence.evaluate_control_refinement(
+            metric = convergence.evaluate_control_refinement(
                 (getattr(coarse, name),),
                 (getattr(refined, name),),
                 name=f"background {name}",
                 tolerance=0.01,
             )
-            native_convergence.require_native_convergence(metric)
+            convergence.require_convergence(metric)
         scale_factor = numpy.geomspace(1.0e-4, 1.0, 512)
         for name in ("visibility_of_eta", "x_e_of_eta"):
             coarse_history = getattr(coarse, name)(
@@ -6666,25 +6650,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             refined_history = getattr(refined, name)(
                 refined.eta_of_a(scale_factor)
             )
-            metric = native_convergence.evaluate_control_refinement(
+            metric = convergence.evaluate_control_refinement(
                 coarse_history,
                 refined_history,
                 name=f"background {name}",
                 tolerance=0.01,
             )
-            native_convergence.require_native_convergence(metric)
+            convergence.require_convergence(metric)
 
-    def test_native_background_keeps_pre_grid_conformal_time(self) -> None:
-        """Native eta and sound-horizon grids should start at the big bang."""
+    def test_background_keeps_pre_grid_conformal_time(self) -> None:
+        """Declared eta and sound-horizon grids start at the big bang."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
-        background = native_background._build_custom_cmb_background(
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical,
             numerics,
@@ -6694,68 +6678,70 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(physical.Omega_gamma0),
             1.0e-30,
         )
-        expected_eta_start = float(background.a_grid[0]) / (
+        expected_eta_start = float(background_data.a_grid[0]) / (
             float(physical.H0_over_c_Mpc_inv) * numpy.sqrt(radiation_density)
         )
 
-        self.assertGreater(float(background.eta_grid[0]), 0.0)
+        self.assertGreater(float(background_data.eta_grid[0]), 0.0)
         self.assertAlmostEqual(
-            float(background.eta_grid[0]),
+            float(background_data.eta_grid[0]),
             expected_eta_start,
             places=12,
         )
-        self.assertGreater(float(background.sound_horizon_mpc), 0.0)
+        self.assertGreater(float(background_data.sound_horizon_mpc), 0.0)
 
-    def test_native_recombination_uses_post_decoupling_matter_temperature(
+    def test_declared_recombination_uses_post_decoupling_matter_temperature(
         self,
     ) -> None:
-        """Native recombination should not keep matter coupled to the CMB."""
+        """Declared recombination should not keep matter coupled to the CMB."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
-        background = native_background._build_custom_cmb_background(
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical,
             numerics,
         )
-        low_redshift = (background.z_grid >= 20.0) & (
-            background.z_grid <= 100.0
+        low_redshift = (background_data.z_grid >= 20.0) & (
+            background_data.z_grid <= 100.0
         )
-        self.assertTrue(numpy.all(background.x_e_grid[low_redshift] > 0.0))
+        self.assertTrue(
+            numpy.all(background_data.x_e_grid[low_redshift] > 0.0)
+        )
         self.assertLess(
-            float(numpy.min(background.x_e_grid[low_redshift])),
+            float(numpy.min(background_data.x_e_grid[low_redshift])),
             0.001,
         )
 
-    def test_native_background_separates_baryon_and_acoustic_sound_speeds(
+    def test_background_separates_baryon_and_acoustic_sound_speeds(
         self,
     ) -> None:
         """Baryon pressure should not use the photon-baryon sound speed."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
-        physical = native_background._resolve_custom_cmb_physical_parameters(
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
             contract
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
-        background = native_background._build_custom_cmb_background(
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical,
             numerics,
         )
         baryon_speed_sq = numpy.asarray(
-            background.baryon_sound_speed_sq_grid,
+            background_data.baryon_sound_speed_sq_grid,
             dtype=float,
         )
         acoustic_speed_sq = numpy.square(
-            numpy.asarray(background.sound_speed_grid, dtype=float)
-            / native_background._C_LIGHT_KM_S
+            numpy.asarray(background_data.sound_speed_grid, dtype=float)
+            / cmb_background._C_LIGHT_KM_S
         )
 
         self.assertTrue(bool(numpy.all(numpy.isfinite(baryon_speed_sq))))
@@ -6765,48 +6751,48 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(numpy.min(acoustic_speed_sq)),
         )
 
-    def test_requested_native_k_sample_count_is_not_capped(self) -> None:
-        """Native `k_sample_count` should honor declared values above 48."""
+    def test_requested_declared_k_sample_count_is_not_capped(self) -> None:
+        """Declared `k_sample_count` should honor declared values above 48."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
         contract = _with_prepared_numerical_overrides(
             contract,
             k_sample_count=64,
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
         self.assertEqual(int(spectrum_data.k_grid.size), 64)
 
-    def test_native_k_grid_includes_declared_scalar_reference_scales(
+    def test_declared_k_grid_includes_declared_scalar_reference_scales(
         self,
     ) -> None:
-        """Native k sampling should include scalar reference scales."""
+        """Declared k sampling should include scalar reference scales."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        background = native_background._build_custom_cmb_background(
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical_params,
             numerics,
         )
         ells = numpy.arange(20, 121, dtype=int)
-        k_grid = native_projection._build_projection_k_grid(
+        k_grid = cmb_projection._build_projection_k_grid(
             ell_arr=ells,
-            background=background,
+            background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
         eta_rec_distance = max(
-            float(background.eta0) - float(background.eta_rec),
+            float(background_data.eta0) - float(background_data.eta_rec),
             1.0,
         )
 
@@ -6826,30 +6812,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
             )
 
-    def test_native_tensor_k_grid_covers_spin2_tail(self) -> None:
+    def test_declared_tensor_k_grid_covers_spin2_tail(self) -> None:
         """Tensor k sampling must retain the spin-2 projection tail."""
 
-        contract = _prepare_native_contract(
-            _native_tensor_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_tensor_hierarchy_contract()
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        background = native_background._build_custom_cmb_background(
+        background_data = cmb_background._build_custom_cmb_background(
             contract,
             physical_params,
             numerics,
         )
         ells = numpy.asarray((40, 50, 70), dtype=int)
-        k_grid = native_projection._build_projection_k_grid(
+        k_grid = cmb_projection._build_projection_k_grid(
             ell_arr=ells,
-            background=background,
+            background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
         eta_rec_distance = max(
-            float(background.eta0) - float(background.eta_rec),
+            float(background_data.eta0) - float(background_data.eta_rec),
             1.0,
         )
         required_k_max = 1.5 * (70.0 + 16.0) / eta_rec_distance
@@ -6893,20 +6879,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
             with self.subTest(control_name=control_name):
                 with self.assertRaisesRegex(ValueError, message):
-                    native_background._resolve_custom_cmb_numerics(contract)
+                    cmb_background._resolve_custom_cmb_numerics(contract)
 
     def test_runtime_envelope_records_governed_work_units(self) -> None:
-        """Native spectra should carry the governed runtime envelope."""
+        """Declared spectra should carry the governed runtime envelope."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         contract = _speedup_contract(_analytic_signal_contract())
         contract["perturbations"]["accuracy_controls"] = {
             "runtime_envelope": {
                 "maximum_total_work_units": 200000,
             }
         }
-        contract = _prepare_native_contract(contract)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        contract = _prepare_declared_contract(contract)
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -6942,11 +6928,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 0.0,
             )
 
-        native_projection._compute_custom_cmb_spectrum_data(
+        cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
-        performance = native_cache.native_cmb_performance_stats()
+        performance = cache.cmb_performance_stats()
         self.assertEqual(int(performance["requests"]), 2)
         self.assertEqual(int(performance["cache_hits"]), 1)
         self.assertIn("total_seconds", performance["phase_seconds"])
@@ -6959,26 +6945,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "accuracy_tier": "final",
             "runtime_envelope": "bounded",
         }
-        contract = _prepare_native_contract(raw_contract)
+        contract = _prepare_declared_contract(raw_contract)
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_build_custom_cmb_background",
         ) as background_builder:
             with self.assertRaisesRegex(ValueError, "under-resolved"):
-                native_projection._compute_custom_cmb_spectrum_data(
+                cmb_projection._compute_custom_cmb_spectrum_data(
                     contract,
                     numpy.arange(20, 25, dtype=int),
                 )
         background_builder.assert_not_called()
 
-    def test_native_runtime_prepares_graph_once_per_spectrum(self) -> None:
+    def test_declared_runtime_prepares_graph_once_per_spectrum(self) -> None:
         """Static graph preparation must not scale with Fourier modes."""
 
-        native_cache.clear_native_cmb_caches()
-        contract = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -6989,27 +6975,27 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["k_sample_count"]),
         )
 
-    def test_native_runtime_reuse_is_exact_and_parameter_safe(self) -> None:
+    def test_declared_runtime_reuse_is_exact_and_parameter_safe(self) -> None:
         """Warm structure must preserve results without stale parameters."""
 
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         raw_contract = _speedup_contract(_analytic_signal_contract())
-        contract = _prepare_native_contract(raw_contract)
+        contract = _prepare_declared_contract(raw_contract)
         ells = numpy.arange(20, 25, dtype=int)
 
-        cold = native_projection._compute_custom_cmb_spectrum_data(
+        cold = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
-        cold_record = native_cache.latest_native_cmb_performance_record()
-        native_cache.clear_native_cmb_result_caches()
-        warm = native_projection._compute_custom_cmb_spectrum_data(
+        cold_record = cache.latest_cmb_performance_record()
+        cache.clear_cmb_result_caches()
+        warm = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
-        warm_record = native_cache.latest_native_cmb_performance_record()
+        warm_record = cache.latest_cmb_performance_record()
 
         numpy.testing.assert_array_equal(
             numpy.asarray(cold.spectra["TT"]),
@@ -7026,12 +7012,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(warm_record["phase_seconds"]["compilation_seconds"]),
         )
 
-        exact = native_projection._compute_custom_cmb_spectrum_data(
+        exact = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
-        exact_record = native_cache.latest_native_cmb_performance_record()
+        exact_record = cache.latest_cmb_performance_record()
         numpy.testing.assert_array_equal(
             numpy.asarray(exact.spectra["TT"]),
             numpy.asarray(warm.spectra["TT"]),
@@ -7049,13 +7035,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         shifted_raw = _speedup_contract(
             _analytic_signal_contract(source_scale=1.25)
         )
-        shifted_contract = _prepare_native_contract(shifted_raw)
-        shifted = native_projection._compute_custom_cmb_spectrum_data(
+        shifted_contract = _prepare_declared_contract(shifted_raw)
+        shifted = cmb_projection._compute_custom_cmb_spectrum_data(
             shifted_contract,
             ells,
             requested_spectra=("TT",),
         )
-        shifted_record = native_cache.latest_native_cmb_performance_record()
+        shifted_record = cache.latest_cmb_performance_record()
         self.assertEqual(
             contract["runtime_signature"],
             shifted_contract["runtime_signature"],
@@ -7072,14 +7058,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
 
-    def test_native_projection_batches_radial_recurrence_work(self) -> None:
+    def test_projection_batches_radial_recurrence_work(self) -> None:
         """Projection telemetry must show shared radial mode preparation."""
 
-        native_cache.clear_native_cmb_caches()
-        contract = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
             requested_spectra=("TT",),
@@ -7101,26 +7087,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_runtime_cache_state_requires_matching_request_shape(self) -> None:
         """A changed spectrum request is cold, not a warm parameter rebound."""
 
-        native_cache.clear_native_cmb_caches()
-        contract = _prepare_native_contract(
+        cache.clear_cmb_caches()
+        contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        native_projection._compute_custom_cmb_spectrum_data(
+        cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 25), dtype=int),
             requested_spectra=("TT",),
         )
-        native_cache.clear_native_cmb_result_caches()
-        native_projection._compute_custom_cmb_spectrum_data(
+        cache.clear_cmb_result_caches()
+        cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT",),
         )
-        record = native_cache.latest_native_cmb_performance_record()
+        record = cache.latest_cmb_performance_record()
         self.assertIsNotNone(record)
         self.assertEqual(record["cache_state"], "cold")
 
-    def test_native_spectrum_cache_identity_covers_runtime_inputs(self):
+    def test_declared_spectrum_cache_identity_covers_runtime_inputs(self):
         """Every result-affecting surface must change cache identity."""
 
         contract = _analytic_signal_contract()
@@ -7131,7 +7117,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ells=(20, 30),
             requested=("TT",),
         ):
-            return native_background._custom_cmb_spectrum_cache_key(
+            return cmb_background._custom_cmb_spectrum_cache_key(
                 candidate,
                 ells,
                 None,
@@ -7160,7 +7146,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         self.assertEqual(len(set(identities)), len(identities))
 
-    def test_native_spectrum_payload_distinguishes_availability_states(self):
+    def test_declared_spectrum_payload_distinguishes_availability_states(self):
         """Computed, unrequested, and physical-zero outputs stay distinct."""
 
         contract = _analytic_signal_contract()
@@ -7171,13 +7157,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "primary": "signal_transfer",
                 "secondary": "signal_transfer",
             }
-        prepared = _prepare_native_contract(contract)
-        tt_only = native_projection._compute_custom_cmb_spectrum_data(
+        prepared = _prepare_declared_contract(contract)
+        tt_only = cmb_projection._compute_custom_cmb_spectrum_data(
             prepared,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT",),
         )
-        lensing_inputs = native_projection._compute_custom_cmb_spectrum_data(
+        lensing_inputs = cmb_projection._compute_custom_cmb_spectrum_data(
             prepared,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT", "TE", "EE", "BB", "PP"),
@@ -7204,7 +7190,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _analytic_signal_contract()
         observables = contract["perturbations"]["observables"]
         observables["scalar_TT"] = observables.pop("TT")
-        prepared = _prepare_native_contract(contract)
+        prepared = _prepare_declared_contract(contract)
         ells = numpy.asarray((20, 30, 40), dtype=int)
 
         spectrum = cmb.compute_cmb_spectrum_from_contract(
@@ -7227,7 +7213,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_public_spectrum_request_rejects_empty_names(self):
         """A public request must identify at least one output."""
 
-        prepared = _prepare_native_contract(_analytic_signal_contract())
+        prepared = _prepare_declared_contract(_analytic_signal_contract())
         ells = numpy.asarray((20, 30), dtype=int)
 
         with self.assertRaisesRegex(ValueError, "must not be empty"):
@@ -7237,17 +7223,17 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 spectra=(),
             )
 
-    def test_native_scalar_and_vector_aliases_match_total_spectra(self):
+    def test_declared_scalar_and_vector_aliases_match_total_spectra(self):
         """Single-sector component and total aliases must be identical."""
 
         cases = (
-            ("scalar", _native_scalar_hierarchy_contract(), "TT"),
-            ("vector", _native_vector_hierarchy_contract(), "BB"),
+            ("scalar", _declared_scalar_hierarchy_contract(), "TT"),
+            ("vector", _declared_vector_hierarchy_contract(), "BB"),
         )
         ells = numpy.asarray((20, 30, 40), dtype=int)
         for sector, raw_contract, base_name in cases:
             with self.subTest(sector=sector):
-                prepared = _prepare_native_contract(
+                prepared = _prepare_declared_contract(
                     _speedup_contract(raw_contract)
                 )
                 spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -7278,7 +7264,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         available = {"TT": numpy.ones(2)}
 
         self.assertEqual(
-            native_cmb_solver._resolve_available_spectrum_name(
+            cmb_solver._resolve_available_spectrum_name(
                 "scalar_TT",
                 perturbation_data=perturbation_data,
                 available_spectra=available,
@@ -7286,24 +7272,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "TT",
         )
         self.assertIsNone(
-            native_cmb_solver._resolve_available_spectrum_name(
+            cmb_solver._resolve_available_spectrum_name(
                 "total_TT",
                 perturbation_data=perturbation_data,
                 available_spectra=available,
             )
         )
 
-    def test_native_generated_modes_use_declared_graph_evolution(self) -> None:
+    def test_declared_generated_modes_use_declared_graph_evolution(
+        self,
+    ) -> None:
         """Generated modes should use one finite declared-graph runtime."""
 
-        native_cache.clear_native_cmb_caches()
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(
+        cache.clear_cmb_caches()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(
                 initial_mode="cdm_isocurvature",
             )
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -7323,7 +7311,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.isfinite(numpy.asarray(spectrum_data.spectra["TT"]))
             )
         )
-        repeated = native_projection._compute_custom_cmb_spectrum_data(
+        repeated = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -7333,7 +7321,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(spectrum_data.spectra["TT"]),
         )
         self.assertGreater(
-            native_cache.native_cmb_cache_stats()["native_spectrum"]["hits"],
+            cache.cmb_cache_stats()["declared_spectrum"]["hits"],
             0,
         )
 
@@ -7364,7 +7352,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         scales = numpy.asarray((0.75, 1.25), dtype=float)
-        batched = native_projection._exact_batched_linear_collision_step(
+        batched = cmb_projection._exact_batched_linear_collision_step(
             operator_matrices=matrices,
             dt=0.125,
             target_states=states,
@@ -7372,7 +7360,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         expected = numpy.asarray(
             [
-                native_projection._exact_linear_collision_step(
+                cmb_projection._exact_linear_collision_step(
                     operator_matrix=matrix,
                     dt=0.125,
                     target_state=state,
@@ -7388,7 +7376,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_compiled_equation_program_is_a_reusable_executor(self) -> None:
         """Compiled equation plans must run without per-stage exec dispatch."""
 
-        program = native_evolution._compile_equation_program(
+        program = evolution._compile_equation_program(
             (
                 (0, "eta", "signal + 1.0", None),
                 (1, "eta", None, 0),
@@ -7440,7 +7428,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         coordinate_rates = _ReadCountingContext(
             eta=2.0,
         )
-        program = native_evolution._compile_equation_program(
+        program = evolution._compile_equation_program(
             (
                 (0, "eta", "repeated * repeated + offset", None),
                 (1, "eta", "repeated - offset", None),
@@ -7488,13 +7476,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         vector_derivative = numpy.zeros_like(state)
         row_derivative = numpy.zeros_like(state)
 
-        native_evolution._compile_equation_program(specifications)(
+        evolution._compile_equation_program(specifications)(
             context,
             state,
             vector_derivative,
             coordinate_rates,
         )
-        native_evolution._compile_batched_row_equation_program(
+        evolution._compile_batched_row_equation_program(
             specifications,
             ("signal",),
         )(
@@ -7509,7 +7497,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_compiled_context_program_is_a_reusable_executor(self) -> None:
         """Compiled context plans must retain declared suppression behavior."""
 
-        program = native_evolution._compile_ordered_context_program(
+        program = evolution._compile_ordered_context_program(
             (
                 ("double_signal", "2.0 * signal"),
                 ("shifted_signal", "double_signal + 1.0"),
@@ -7535,7 +7523,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Compiled expression tuples must preserve declared value order."""
 
-        program = native_evolution._compile_expression_tuple_program(
+        program = evolution._compile_expression_tuple_program(
             ("signal + 1.0", "2.0 * signal"),
         )
 
@@ -7553,25 +7541,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_batched_declared_evolution_matches_scalar_modes(self) -> None:
         """Batched declared modes must preserve scalar-spectrum convergence."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(
                 initial_mode="cdm_isocurvature",
             )
         )
         ells = numpy.asarray((20, 60, 120), dtype=int)
-        native_cache.clear_native_cmb_caches()
-        batched = native_projection._compute_custom_cmb_spectrum_data(
+        cache.clear_cmb_caches()
+        batched = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
-        native_cache.clear_native_cmb_caches()
+        cache.clear_cmb_caches()
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_can_batch_declared_evolution",
             return_value=False,
         ):
-            scalar = native_projection._compute_custom_cmb_spectrum_data(
+            scalar = cmb_projection._compute_custom_cmb_spectrum_data(
                 contract,
                 ells,
                 requested_spectra=("TT",),
@@ -7587,10 +7575,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_batched_rhs_excludes_diagnostic_context_steps(self) -> None:
         """Batched RK stages must evaluate only equation-required values."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 60, 120), dtype=int),
             requested_spectra=("TT",),
@@ -7611,12 +7599,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "maximum_total_work_units": 1000,
             }
         }
-        contract = _prepare_native_contract(contract)
+        contract = _prepare_declared_contract(contract)
         with self.assertRaisesRegex(
             ValueError,
             "runtime_envelope exceeded maximum_total_work_units",
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.arange(20, 25, dtype=int),
             )
@@ -7663,21 +7651,19 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     "peebles_c": f"{peebles_c:.16g}",
                 }
             }
-            return _prepare_native_contract(contract)
+            return _prepare_declared_contract(contract)
 
         baseline = _recombination_contract(0.4)
         changed = _recombination_contract(0.9)
-        baseline_background = native_background._build_custom_cmb_background(
+        baseline_background = cmb_background._build_custom_cmb_background(
             baseline,
-            native_background._resolve_custom_cmb_physical_parameters(
-                baseline
-            ),
-            native_background._resolve_custom_cmb_numerics(baseline),
+            cmb_background._resolve_custom_cmb_physical_parameters(baseline),
+            cmb_background._resolve_custom_cmb_numerics(baseline),
         )
-        changed_background = native_background._build_custom_cmb_background(
+        changed_background = cmb_background._build_custom_cmb_background(
             changed,
-            native_background._resolve_custom_cmb_physical_parameters(changed),
-            native_background._resolve_custom_cmb_numerics(changed),
+            cmb_background._resolve_custom_cmb_physical_parameters(changed),
+            cmb_background._resolve_custom_cmb_numerics(changed),
         )
 
         self.assertGreater(
@@ -7719,7 +7705,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         """Massive-neutrino grids should honor declared count floors."""
 
         contract = _speedup_contract(
-            _native_scalar_hierarchy_contract(
+            _declared_scalar_hierarchy_contract(
                 include_massive_neutrino=True,
             )
         )
@@ -7738,7 +7724,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "momentum_grids.massive_neutrino_default.count >= 5",
         ):
             cmb.compute_cmb_spectrum_from_contract(
-                _prepare_native_contract(contract),
+                _prepare_declared_contract(contract),
                 numpy.arange(20, 24, dtype=int),
                 spectra=("TT",),
             )
@@ -7748,7 +7734,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Resolved q moments should match an independent log-q integral."""
 
-        contract_data = _native_scalar_hierarchy_contract(
+        contract_data = _declared_scalar_hierarchy_contract(
             include_massive_neutrino=True,
             sum_mnu=0.5,
         )
@@ -7759,11 +7745,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "quadrature_order": 2,
             }
         )
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        runtime = native_evolution._resolve_declared_momentum_grid_runtimes(
+        runtime = evolution._resolve_declared_momentum_grid_runtimes(
             contract["perturbation_data"],
             model_parameters=contract["param_map"],
             physical_params=physical_params,
@@ -7778,7 +7764,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
         scale_factor = 0.7
-        context = native_evolution._declared_momentum_grid_context(
+        context = evolution._declared_momentum_grid_context(
             contract["perturbation_data"],
             model_parameters=contract["param_map"],
             physical_params=physical_params,
@@ -7844,20 +7830,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ({"quadrature_order": 4}, "quadrature_order must be 2"),
         ):
             with self.subTest(invalid_definition=invalid_definition):
-                contract_data = _native_scalar_hierarchy_contract(
+                contract_data = _declared_scalar_hierarchy_contract(
                     include_massive_neutrino=True,
                 )
                 contract_data["numerical"]["momentum_grids"][
                     "massive_neutrino_default"
                 ].update(invalid_definition)
-                contract = _prepare_native_contract(contract_data)
+                contract = _prepare_declared_contract(contract_data)
                 physical_params = (
-                    native_background._resolve_custom_cmb_physical_parameters(
+                    cmb_background._resolve_custom_cmb_physical_parameters(
                         contract
                     )
                 )
                 with self.assertRaisesRegex(ValueError, message):
-                    native_evolution._declared_momentum_grid_context(
+                    evolution._declared_momentum_grid_context(
                         contract["perturbation_data"],
                         model_parameters=contract["param_map"],
                         physical_params=physical_params,
@@ -7867,7 +7853,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_non_massive_contract_has_no_q_runtime(self) -> None:
         """Momentum grids must stay inert without a massive species."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"]["momentum_grids"] = {
             "unused_grid": {
                 "count": 8,
@@ -7885,15 +7871,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "q_max": 18.0,
             }
         }
-        contract = _prepare_native_contract(contract_data)
+        contract = _prepare_declared_contract(contract_data)
         perturbation_data = contract["perturbation_data"]
         self.assertFalse(
             any("_q" in name for name in perturbation_data.variables)
         )
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        context = native_evolution._declared_momentum_grid_context(
+        context = evolution._declared_momentum_grid_context(
             perturbation_data,
             model_parameters=contract["param_map"],
             physical_params=physical_params,
@@ -7920,12 +7906,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "1.4 * w0 * Omega_de0"
         )
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_tt = _raw_native_public_spectra(
+        baseline_tt = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("TT",),
         )["TT"]
-        changed_tt = _raw_native_public_spectra(
+        changed_tt = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("TT",),
@@ -7936,7 +7922,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
 
     def test_missing_declared_background_h_fails_loudly(self) -> None:
-        """Declared native contracts must provide the background H."""
+        """Declared contracts must provide the background H."""
 
         contract = _speedup_contract(_custom_contract())
         contract["background"]["derived"].pop("H", None)
@@ -8205,17 +8191,19 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             self.assertTrue(numpy.all(numpy.isfinite(spectrum)))
             self.assertEqual(spectrum.shape, (ells.size,))
 
-    def test_custom_cached_path_uses_precompiled_native_runtime(self) -> None:
-        """The cached route should reuse precompiled native runtime data."""
+    def test_custom_cached_path_uses_precompiled_declared_runtime(
+        self,
+    ) -> None:
+        """The cached route should reuse precompiled declared runtime data."""
 
-        contract = _prepare_native_contract(
+        contract = _prepare_declared_contract(
             _speedup_contract(_custom_contract())
         )
 
         class _PrecompiledRuntimePlugin(_CustomCMBPlugin):
-            """Plugin stub exposing one precompiled native runtime."""
+            """Plugin stub exposing one precompiled declared runtime."""
 
-            def get_cmb_native_runtime(self, _params):
+            def get_cmb_declared_runtime(self, _params):
                 return contract
 
         plugin = _PrecompiledRuntimePlugin()
@@ -8224,7 +8212,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "copernican.lib.perturbation_contract."
             "compile_perturbation_contract",
             side_effect=AssertionError(
-                "native runtime should reuse precompiled perturbation data"
+                "declared runtime should reuse precompiled perturbation data"
             ),
         ):
             result = cmb.compute_cmb_spectrum_cached(
@@ -8237,13 +8225,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(result)))
         self.assertEqual(result.shape, (ells.size,))
 
-    def test_native_scalar_hierarchy_materializes_generated_hierarchy(
+    def test_declared_scalar_hierarchy_materializes_generated_hierarchy(
         self,
     ) -> None:
-        """The native scalar route should compile hierarchy data."""
+        """The declared scalar route should compile hierarchy data."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -8316,13 +8304,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.initial_conditions["sigma_nu_seed"].expression,
         )
 
-    def test_native_scalar_tight_coupling_uses_declared_collision_block(
+    def test_declared_scalar_tight_coupling_uses_declared_collision_block(
         self,
     ) -> None:
         """Scalar tight coupling must come from declared collision metadata."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         collision = contract["perturbation_data"].collision_operators[
             "thomson_drag"
@@ -8342,13 +8330,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(collision.exact_form.matrix[3][2], "0.1")
         self.assertEqual(collision.exact_form.matrix[3][3], "-0.4")
 
-    def test_native_vector_hierarchy_materializes_generated_hierarchy(
+    def test_declared_vector_hierarchy_materializes_generated_hierarchy(
         self,
     ) -> None:
-        """The native vector route should compile hierarchy data."""
+        """The declared vector route should compile hierarchy data."""
 
-        contract = _prepare_native_contract(
-            _native_vector_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_vector_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -8370,13 +8358,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "odd",
         )
 
-    def test_native_vector_polarization_terminals_absorb_free_streaming(
+    def test_declared_vector_polarization_terminals_absorb_free_streaming(
         self,
     ) -> None:
         """Vector E and B terminals must use the flat-space closure."""
 
-        contract = _prepare_native_contract(
-            _native_vector_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_vector_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
         context = {
@@ -8388,11 +8376,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "b_gamma_v7": -0.1,
             "b_gamma_v8": 0.04,
         }
-        e_terminal = native_evolution._evaluate_compiled_expression_noerr(
+        e_terminal = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_e_gamma_v8"].compiled_rhs,
             context,
         )
-        b_terminal = native_evolution._evaluate_compiled_expression_noerr(
+        b_terminal = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_b_gamma_v8"].compiled_rhs,
             context,
         )
@@ -8410,14 +8398,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             - 2.0 / (8.0 * 9.0) * 0.2 * 0.07,
         )
 
-    def test_native_vector_hierarchy_spectra_converge_below_one_percent(
+    def test_declared_vector_hierarchy_spectra_converge_below_one_percent(
         self,
     ) -> None:
         """Vector TT, EE, and BB meet the hierarchy refinement bound."""
 
         spectra_by_depth = []
         for depth in (8, 10):
-            contract = _speedup_contract(_native_vector_hierarchy_contract())
+            contract = _speedup_contract(_declared_vector_hierarchy_contract())
             controls = {
                 "k_sample_count": 8,
                 "eta_sample_count": 192,
@@ -8428,32 +8416,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["model_name"] = f"VectorHierarchyRefinement{depth}"
             contract["numerical"].update(controls)
             contract["perturbations"]["numerics"].update(controls)
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 60, 120), dtype=int),
-                    requested_spectra=("TT", "EE", "BB"),
-                )
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 60, 120), dtype=int),
+                requested_spectra=("TT", "EE", "BB"),
             )
             spectra_by_depth.append(spectrum_data.spectra)
 
         for spectrum_name in ("TT", "EE", "BB"):
-            metric = native_convergence.evaluate_control_refinement(
+            metric = convergence.evaluate_control_refinement(
                 spectra_by_depth[0][spectrum_name],
                 spectra_by_depth[1][spectrum_name],
                 name=f"vector {spectrum_name} hierarchy",
-                tolerance=(
-                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
-                ),
+                tolerance=(convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
             )
-            native_convergence.require_native_convergence(metric)
+            convergence.require_convergence(metric)
 
-    def test_native_vector_manifest_records_physical_sector_roles(
+    def test_declared_vector_manifest_records_physical_sector_roles(
         self,
     ) -> None:
         """Vector manifests must identify physical roles and parity kernels."""
 
-        vector = _prepare_native_contract(_native_vector_hierarchy_contract())
+        vector = _prepare_declared_contract(
+            _declared_vector_hierarchy_contract()
+        )
         vector_summary = vector["perturbation_data"].manifest_summary[
             "vector_hierarchy"
         ]
@@ -8476,7 +8462,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertTrue(vector_summary["polarization_b_states"])
         self.assertTrue(vector_summary["neutrino_states"])
 
-        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
+        scalar = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
+        )
         scalar_summary = scalar["perturbation_data"].manifest_summary[
             "vector_hierarchy"
         ]
@@ -8491,16 +8479,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             any("vector" in name for name in scalar_manifest["source_names"])
         )
 
-    def test_native_vector_hierarchy_transfer_payloads_are_finite(
+    def test_declared_vector_hierarchy_transfer_payloads_are_finite(
         self,
     ) -> None:
         """Physical vector transfer outputs should stay finite."""
 
-        contract = _prepare_native_contract(
-            _speedup_contract(_native_vector_hierarchy_contract())
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_vector_hierarchy_contract())
         )
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
@@ -8535,37 +8523,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             0.0,
         )
 
-    def test_native_vector_b_mode_survives_exact_lensing_remapper(
+    def test_declared_vector_b_mode_survives_exact_lensing_remapper(
         self,
     ) -> None:
         """Exact lensing should preserve physical vector primordial BB."""
 
-        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
-        vector = _prepare_native_contract(
-            _speedup_contract(_native_vector_hierarchy_contract())
+        scalar = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
+        )
+        vector = _prepare_declared_contract(
+            _speedup_contract(_declared_vector_hierarchy_contract())
         )
         ells = numpy.arange(0, 121, dtype=int)
-        scalar_spectra = _raw_native_public_spectra(
+        scalar_spectra = _raw_declared_public_spectra(
             scalar,
             ells,
             spectra=("TT", "TE", "EE", "PP"),
         )
-        vector_bb = _raw_native_public_spectra(
+        vector_bb = _raw_declared_public_spectra(
             vector,
             ells,
             spectra=("BB",),
         )["BB"]
 
-        lensed_without_vector = (
-            native_cmb_solver._assemble_exact_lensed_spectra(
-                {
-                    **scalar_spectra,
-                    "BB": numpy.zeros_like(vector_bb, dtype=float),
-                },
-                ells,
-            )["lensed_BB"]
-        )
-        lensed_with_vector = native_cmb_solver._assemble_exact_lensed_spectra(
+        lensed_without_vector = cmb_solver._assemble_exact_lensed_spectra(
+            {
+                **scalar_spectra,
+                "BB": numpy.zeros_like(vector_bb, dtype=float),
+            },
+            ells,
+        )["lensed_BB"]
+        lensed_with_vector = cmb_solver._assemble_exact_lensed_spectra(
             {
                 **scalar_spectra,
                 "BB": vector_bb,
@@ -8583,13 +8571,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             0.0,
         )
 
-    def test_native_tensor_hierarchy_materializes_generated_hierarchy(
+    def test_declared_tensor_hierarchy_materializes_generated_hierarchy(
         self,
     ) -> None:
-        """The native tensor route should compile hierarchy data."""
+        """The declared tensor route should compile hierarchy data."""
 
-        contract = _prepare_native_contract(
-            _native_tensor_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_tensor_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -8621,13 +8609,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "odd",
         )
 
-    def test_native_tensor_initial_series_satisfies_declared_constraints(
+    def test_declared_tensor_initial_series_satisfies_declared_constraints(
         self,
     ) -> None:
         """Tensor initial data should satisfy the regular series."""
 
-        contract = _prepare_native_contract(
-            _native_tensor_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_tensor_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
         self.assertEqual(
@@ -8645,23 +8633,23 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "15.0 + 4.0 * tensor_free_streaming_fraction",
         )
         validator = getattr(
-            native_evolution,
+            evolution,
             "_validate_generated_tensor_initial_constraints",
             None,
         )
         self.assertIsNotNone(validator)
 
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        numerics = native_background._resolve_custom_cmb_numerics(contract)
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
         model_parameters = {
             **contract["param_map"],
             **contract["model_parameters"],
         }
         k_value = 0.02
         eta_value = 1.0e-3
-        base_context = native_evolution._build_declared_base_context(
+        base_context = evolution._build_declared_base_context(
             perturbation_data=perturbation_data,
             model_parameters=model_parameters,
             physical_params=physical_params,
@@ -8679,12 +8667,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "sound_speed_sq": 1.0 / 3.0,
             },
         )
-        execution_plan = (
-            native_evolution._compile_declared_graph_execution_plan(
-                perturbation_data
-            )
+        execution_plan = evolution._compile_declared_graph_execution_plan(
+            perturbation_data
         )
-        initial_state, _ = native_evolution._evaluate_declared_initial_state(
+        initial_state, _ = evolution._evaluate_declared_initial_state(
             perturbation_data=perturbation_data,
             execution_plan=execution_plan,
             base_context=base_context,
@@ -8696,7 +8682,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 context[slot.variable] = value
             else:
                 context[f"__d{slot.order}_{slot.variable}_{slot.wrt}"] = value
-        context = native_evolution._resolve_declared_graph_context(
+        context = evolution._resolve_declared_graph_context(
             context,
             perturbation_data,
             allow_partial=True,
@@ -8720,13 +8706,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 k_value=k_value,
             )
 
-    def test_native_tensor_sources_match_independent_normalization(
+    def test_declared_tensor_sources_match_independent_normalization(
         self,
     ) -> None:
         """Tensor source expressions should match the analytic convention."""
 
-        contract = _prepare_native_contract(
-            _native_tensor_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_tensor_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
         context = {
@@ -8760,19 +8746,19 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
         }
         for name, expected_value in expected.items():
-            actual = native_evolution._evaluate_compiled_expression_noerr(
+            actual = evolution._evaluate_compiled_expression_noerr(
                 perturbation_data.sources[name].compiled_expression,
                 context,
             )
             self.assertAlmostEqual(float(actual), float(expected_value))
 
-    def test_native_tensor_terminal_closures_match_analytic_limits(
+    def test_declared_tensor_terminal_closures_match_analytic_limits(
         self,
     ) -> None:
         """Tensor hierarchy terminals should use the flat-space limits."""
 
-        contract = _prepare_native_contract(
-            _native_tensor_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_tensor_hierarchy_contract()
         )
         perturbation_data = contract["perturbation_data"]
         context = {
@@ -8787,7 +8773,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "b_gamma_t7": -0.1,
             "b_gamma_t8": 0.04,
         }
-        temperature = native_evolution._evaluate_compiled_expression_noerr(
+        temperature = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_theta_gamma_t8"].compiled_rhs,
             context,
         )
@@ -8795,7 +8781,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(temperature),
             0.2 * 8.0 / 6.0 * 0.3 - 11.0 * 0.1 / 10.0,
         )
-        neutrino = native_evolution._evaluate_compiled_expression_noerr(
+        neutrino = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_nu_t5"].compiled_rhs,
             context,
         )
@@ -8803,11 +8789,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(neutrino),
             0.2 * 5.0 / 3.0 * 0.25 - 8.0 * 0.08 / 10.0,
         )
-        e_terminal = native_evolution._evaluate_compiled_expression_noerr(
+        e_terminal = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_e_gamma_t8"].compiled_rhs,
             context,
         )
-        b_terminal = native_evolution._evaluate_compiled_expression_noerr(
+        b_terminal = evolution._evaluate_compiled_expression_noerr(
             perturbation_data.equations["evolve_b_gamma_t8"].compiled_rhs,
             context,
         )
@@ -8824,7 +8810,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             - 4.0 / (8.0 * 9.0) * 0.2 * 0.07,
         )
 
-    def test_native_tensor_hierarchy_depth_converges_source_histories(
+    def test_declared_tensor_hierarchy_depth_converges_source_histories(
         self,
     ) -> None:
         """Deeper tensor hierarchies should change sources by under 1%."""
@@ -8835,7 +8821,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             (10, 10, 7),
         ):
             raw_contract = _speedup_contract(
-                _native_tensor_hierarchy_contract()
+                _declared_tensor_hierarchy_contract()
             )
             controls = {
                 "k_sample_count": 8,
@@ -8845,7 +8831,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
             raw_contract["numerical"].update(controls)
             raw_contract["perturbations"]["numerics"].update(controls)
-            contracts.append(_prepare_native_contract(raw_contract))
+            contracts.append(_prepare_declared_contract(raw_contract))
 
         baseline = _capture_tensor_source_histories(contracts[0])
         refined = _capture_tensor_source_histories(contracts[1])
@@ -8864,14 +8850,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 msg=f"{key} hierarchy-depth error: {relative_error}",
             )
 
-    def test_native_tensor_hierarchy_spectra_converge_below_one_percent(
+    def test_declared_tensor_hierarchy_spectra_converge_below_one_percent(
         self,
     ) -> None:
         """Tensor TT, EE, and BB meet the hierarchy refinement bound."""
 
         spectra_by_depth = []
         for depth in (12, 14):
-            contract = _speedup_contract(_native_tensor_hierarchy_contract())
+            contract = _speedup_contract(_declared_tensor_hierarchy_contract())
             controls = {
                 "k_sample_count": 8,
                 "eta_sample_count": 192,
@@ -8882,36 +8868,32 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["model_name"] = f"TensorHierarchyRefinement{depth}"
             contract["numerical"].update(controls)
             contract["perturbations"]["numerics"].update(controls)
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 60, 120), dtype=int),
-                    requested_spectra=("TT", "EE", "BB"),
-                )
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 60, 120), dtype=int),
+                requested_spectra=("TT", "EE", "BB"),
             )
             spectra_by_depth.append(spectrum_data.spectra)
 
         for spectrum_name in ("TT", "EE", "BB"):
-            metric = native_convergence.evaluate_control_refinement(
+            metric = convergence.evaluate_control_refinement(
                 spectra_by_depth[0][spectrum_name],
                 spectra_by_depth[1][spectrum_name],
                 name=f"tensor {spectrum_name} hierarchy",
-                tolerance=(
-                    native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE
-                ),
+                tolerance=(convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
             )
-            native_convergence.require_native_convergence(metric)
+            convergence.require_convergence(metric)
 
-    def test_native_tensor_hierarchy_transfer_payloads_are_finite(
+    def test_declared_tensor_hierarchy_transfer_payloads_are_finite(
         self,
     ) -> None:
         """Physical tensor transfer outputs should stay finite."""
 
-        contract = _prepare_native_contract(
-            _speedup_contract(_native_tensor_hierarchy_contract())
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         ells = numpy.asarray((20, 60, 120), dtype=int)
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
@@ -8940,26 +8922,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             0.0,
         )
 
-    def test_native_tensor_hierarchy_amplitude_response_scales_linearly(
+    def test_declared_tensor_hierarchy_amplitude_response_scales_linearly(
         self,
     ) -> None:
         """Tensor primordial amplitude should scale tensor spectra linearly."""
 
-        baseline = _prepare_native_contract(
-            _speedup_contract(_native_tensor_hierarchy_contract())
+        baseline = _prepare_declared_contract(
+            _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         changed_contract = _speedup_contract(
-            _native_tensor_hierarchy_contract()
+            _declared_tensor_hierarchy_contract()
         )
         changed_contract["param_map"]["r"] = 0.15
-        changed = _prepare_native_contract(changed_contract)
+        changed = _prepare_declared_contract(changed_contract)
         ells = numpy.arange(20, 36, dtype=int)
-        baseline_bb = _raw_native_public_spectra(
+        baseline_bb = _raw_declared_public_spectra(
             baseline,
             ells,
             spectra=("BB",),
         )["BB"]
-        changed_bb = _raw_native_public_spectra(
+        changed_bb = _raw_declared_public_spectra(
             changed,
             ells,
             spectra=("BB",),
@@ -8971,24 +8953,26 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             atol=1.0e-12,
         )
 
-    def test_native_tensor_hierarchy_tilt_changes_bb_shape(
+    def test_declared_tensor_hierarchy_tilt_changes_bb_shape(
         self,
     ) -> None:
         """Tensor tilt should reshape the declared B-mode spectrum."""
 
-        red_contract = _speedup_contract(_native_tensor_hierarchy_contract())
-        blue_contract = _speedup_contract(_native_tensor_hierarchy_contract())
+        red_contract = _speedup_contract(_declared_tensor_hierarchy_contract())
+        blue_contract = _speedup_contract(
+            _declared_tensor_hierarchy_contract()
+        )
         red_contract["param_map"]["nt"] = -0.6
         blue_contract["param_map"]["nt"] = 0.6
-        red = _prepare_native_contract(red_contract)
-        blue = _prepare_native_contract(blue_contract)
+        red = _prepare_declared_contract(red_contract)
+        blue = _prepare_declared_contract(blue_contract)
         ells = numpy.asarray((20, 30, 50, 80, 120), dtype=int)
-        red_bb = _raw_native_public_spectra(
+        red_bb = _raw_declared_public_spectra(
             red,
             ells,
             spectra=("BB",),
         )["BB"]
-        blue_bb = _raw_native_public_spectra(
+        blue_bb = _raw_declared_public_spectra(
             blue,
             ells,
             spectra=("BB",),
@@ -8998,28 +8982,28 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         self.assertGreater(blue_shape, red_shape)
 
-    def test_native_tensor_hierarchy_neutrino_stress_changes_bb(
+    def test_declared_tensor_hierarchy_neutrino_stress_changes_bb(
         self,
     ) -> None:
         """Tensor neutrino stress should alter the declared B-mode output."""
 
-        with_neutrinos = _prepare_native_contract(
-            _speedup_contract(_native_tensor_hierarchy_contract())
+        with_neutrinos = _prepare_declared_contract(
+            _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         without_neutrinos_contract = _speedup_contract(
-            _native_tensor_hierarchy_contract()
+            _declared_tensor_hierarchy_contract()
         )
         without_neutrinos_contract["param_map"]["Neff"] = 0.0
-        without_neutrinos = _prepare_native_contract(
+        without_neutrinos = _prepare_declared_contract(
             without_neutrinos_contract
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
-        baseline_bb = _raw_native_public_spectra(
+        baseline_bb = _raw_declared_public_spectra(
             with_neutrinos,
             ells,
             spectra=("BB",),
         )["BB"]
-        changed_bb = _raw_native_public_spectra(
+        changed_bb = _raw_declared_public_spectra(
             without_neutrinos,
             ells,
             spectra=("BB",),
@@ -9032,13 +9016,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             1.0e-18,
         )
 
-    def test_native_tensor_component_aliases_match_total_spectra(
+    def test_declared_tensor_component_aliases_match_total_spectra(
         self,
     ) -> None:
         """Tensor and total aliases should resolve to the same spectra."""
 
-        contract = _prepare_native_contract(
-            _speedup_contract(_native_tensor_hierarchy_contract())
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -9060,37 +9044,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(spectra["tensor_BB"], dtype=float),
         )
 
-    def test_native_tensor_b_mode_survives_exact_lensing_remapper(
+    def test_declared_tensor_b_mode_survives_exact_lensing_remapper(
         self,
     ) -> None:
         """Exact lensing should preserve physical tensor primordial BB."""
 
-        scalar = _prepare_native_contract(_native_scalar_hierarchy_contract())
-        tensor = _prepare_native_contract(
-            _speedup_contract(_native_tensor_hierarchy_contract())
+        scalar = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
+        )
+        tensor = _prepare_declared_contract(
+            _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         ells = numpy.arange(0, 121, dtype=int)
-        scalar_spectra = _raw_native_public_spectra(
+        scalar_spectra = _raw_declared_public_spectra(
             scalar,
             ells,
             spectra=("TT", "TE", "EE", "PP"),
         )
-        tensor_bb = _raw_native_public_spectra(
+        tensor_bb = _raw_declared_public_spectra(
             tensor,
             ells,
             spectra=("BB",),
         )["BB"]
 
-        lensed_without_tensor = (
-            native_cmb_solver._assemble_exact_lensed_spectra(
-                {
-                    **scalar_spectra,
-                    "BB": numpy.zeros_like(tensor_bb, dtype=float),
-                },
-                ells,
-            )["lensed_BB"]
-        )
-        lensed_with_tensor = native_cmb_solver._assemble_exact_lensed_spectra(
+        lensed_without_tensor = cmb_solver._assemble_exact_lensed_spectra(
+            {
+                **scalar_spectra,
+                "BB": numpy.zeros_like(tensor_bb, dtype=float),
+            },
+            ells,
+        )["lensed_BB"]
+        lensed_with_tensor = cmb_solver._assemble_exact_lensed_spectra(
             {
                 **scalar_spectra,
                 "BB": tensor_bb,
@@ -9108,13 +9092,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             0.0,
         )
 
-    def test_native_scalar_hierarchy_materializes_massive_neutrinos(
+    def test_declared_scalar_hierarchy_materializes_massive_neutrinos(
         self,
     ) -> None:
-        """The native scalar route should expose aggregate aliases only."""
+        """The declared scalar route should expose aggregate aliases only."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -9133,13 +9117,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_default",
         )
 
-    def test_native_scalar_hierarchy_materializes_massive_neutrino_q_bins(
+    def test_declared_scalar_hierarchy_materializes_massive_neutrino_q_bins(
         self,
     ) -> None:
         """Massive-neutrino q bins should materialize resolved states."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -9148,14 +9132,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("sigma_nu_massive_q0", perturbation_data.variables)
         self.assertIn("nu_massive_q0_l5", perturbation_data.variables)
 
-    def test_native_scalar_hierarchy_materializer_uses_q_weights(
+    def test_declared_scalar_hierarchy_materializer_uses_q_weights(
         self,
     ) -> None:
         """Generated q bins should drive the only massive-neutrino states."""
 
-        contract = _prepare_native_contract(
-            _strip_native_runtime_sections(
-                _native_scalar_hierarchy_contract(
+        contract = _prepare_declared_contract(
+            _strip_declared_runtime_sections(
+                _declared_scalar_hierarchy_contract(
                     include_massive_neutrino=True,
                 )
             )
@@ -9456,13 +9440,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data.initial_conditions,
         )
 
-    def test_native_scalar_hierarchy_q_integrated_aliases_match_bins(
+    def test_declared_scalar_hierarchy_q_integrated_aliases_match_bins(
         self,
     ) -> None:
         """Resolved q-bin aliases should stay locked to physical moments."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
         q_count = int(
             contract["numerical"]["momentum_grids"][
@@ -9479,7 +9463,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     float(moment) + 1.0
                 )
 
-        context = _resolved_native_scalar_context(
+        context = _resolved_declared_scalar_context(
             contract,
             state_updates=state_updates,
         )
@@ -9504,24 +9488,24 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertAlmostEqual(float(context["nu_massive_l4"]), 5.0)
         self.assertAlmostEqual(float(context["nu_massive_l5"]), 6.0)
 
-    def test_native_scalar_hierarchy_metric_sources_respond_to_inputs(
+    def test_declared_scalar_hierarchy_metric_sources_respond_to_inputs(
         self,
     ) -> None:
         """Matter and radiation inputs should alter Einstein source weights."""
 
-        baseline = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        baseline = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        heavier_baryons = _native_scalar_hierarchy_contract()
+        heavier_baryons = _declared_scalar_hierarchy_contract()
         heavier_baryons["param_map"]["ombh2"] = 0.03
-        heavier_baryons = _prepare_native_contract(heavier_baryons)
-        hotter_radiation = _native_scalar_hierarchy_contract()
+        heavier_baryons = _prepare_declared_contract(heavier_baryons)
+        hotter_radiation = _declared_scalar_hierarchy_contract()
         hotter_radiation["model_parameters"]["Tcmb_K"] = 3.0
-        hotter_radiation = _prepare_native_contract(hotter_radiation)
+        hotter_radiation = _prepare_declared_contract(hotter_radiation)
 
-        baseline_context = _resolved_native_scalar_context(baseline)
-        matter_context = _resolved_native_scalar_context(heavier_baryons)
-        radiation_context = _resolved_native_scalar_context(hotter_radiation)
+        baseline_context = _resolved_declared_scalar_context(baseline)
+        matter_context = _resolved_declared_scalar_context(heavier_baryons)
+        radiation_context = _resolved_declared_scalar_context(hotter_radiation)
 
         self.assertGreater(
             float(matter_context["matter_density_source"]),
@@ -9536,12 +9520,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(baseline_context["total_momentum_source"]),
         )
 
-    def test_native_scalar_hierarchy_rejects_broken_einstein_residuals(
+    def test_declared_scalar_hierarchy_rejects_broken_einstein_residuals(
         self,
     ) -> None:
         """Runtime Einstein residual diagnostics should fail bad contracts."""
 
-        contract = _speedup_contract(_native_scalar_hierarchy_contract())
+        contract = _speedup_contract(_declared_scalar_hierarchy_contract())
         contract["perturbations"]["conservation_rules"] = {
             "broken_einstein_probe": {
                 "kind": "absolute_max",
@@ -9559,15 +9543,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 spectra=("TT",),
             )
 
-    def test_native_scalar_hierarchy_records_constraint_anchor_diagnostics(
+    def test_declared_scalar_hierarchy_records_constraint_anchor_diagnostics(
         self,
     ) -> None:
         """Accepted scalar histories should expose full-history diagnostics."""
 
-        contract = _prepare_native_contract(
-            _speedup_contract(_native_scalar_hierarchy_contract())
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -9621,10 +9605,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Every requested scalar mode should pass one pre-ODE preflight."""
 
-        contract = _prepare_native_contract(
-            _speedup_contract(_native_scalar_hierarchy_contract())
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = native_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -9667,7 +9651,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "exceeds declared numerical limits",
         ):
-            native_projection._build_projection_k_grid(
+            cmb_projection._build_projection_k_grid(
                 ell_arr=numpy.asarray((2, 2_000), dtype=int),
                 background=SimpleNamespace(
                     eta0=14_000.0,
@@ -9700,7 +9684,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "einstein_energy_residual": 1.0e-3,
             },
         }
-        diagnostics = native_projection._validate_scalar_constraint_histories(
+        diagnostics = cmb_projection._validate_scalar_constraint_histories(
             perturbation_data=SimpleNamespace(conservation_rules={}),
             context=context,
             eta_grid=numpy.arange(8, dtype=float),
@@ -9738,7 +9722,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "Scalar Einstein constraint exceeded tolerance",
         ):
-            native_projection._validate_scalar_constraint_histories(
+            cmb_projection._validate_scalar_constraint_histories(
                 perturbation_data=SimpleNamespace(conservation_rules={}),
                 context=context,
                 eta_grid=numpy.arange(8, dtype=float),
@@ -9746,22 +9730,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 k_value=0.1,
             )
 
-    def test_native_power_spectrum_scale_factor_is_physical(
+    def test_declared_power_spectrum_scale_factor_is_physical(
         self,
     ) -> None:
-        """Native spectrum scaling should stay on physical units only."""
+        """Declared spectrum scaling should stay on physical units only."""
 
         ell_factor = numpy.asarray((2.0, 6.0, 12.0), dtype=numpy.longdouble)
         t_cmb_muK = numpy.longdouble("2.7255e6")
 
-        tt_scale = native_cmb_solver._power_spectrum_scale_factor(
+        tt_scale = cmb_solver._power_spectrum_scale_factor(
             None,
             "TT",
             ell_factor=ell_factor,
             t_cmb_muK=float(t_cmb_muK),
             lensing_mode=False,
         )
-        pp_scale = native_cmb_solver._power_spectrum_scale_factor(
+        pp_scale = cmb_solver._power_spectrum_scale_factor(
             None,
             "PP",
             ell_factor=ell_factor,
@@ -9778,13 +9762,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             2.0 * numpy.longdouble(numpy.pi) * ell_factor * ell_factor,
         )
 
-    def test_native_power_spectrum_uses_log_k_simpson_quadrature(self) -> None:
+    def test_declared_power_spectrum_uses_log_k_simpson_quadrature(
+        self,
+    ) -> None:
         """Primordial transfer products should use the declared log-k rule."""
 
         log_k = numpy.asarray((-2.0, -0.5, 1.0), dtype=numpy.longdouble)
         primordial = numpy.square(log_k)
         unit_transfer = numpy.ones((1, log_k.size), dtype=numpy.longdouble)
-        actual = native_projection._integrate_power_spectrum(
+        actual = cmb_projection._integrate_power_spectrum(
             primordial,
             log_k,
             unit_transfer,
@@ -9797,11 +9783,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         numpy.testing.assert_allclose(actual, expected)
 
-    def test_native_scalar_spectrum_aliases_round_trip(self) -> None:
+    def test_declared_scalar_spectrum_aliases_round_trip(self) -> None:
         """Declared phiphi, Tphi, and Ephi aliases should round-trip."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         ells = numpy.asarray((20, 40, 60, 90, 120), dtype=int)
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -9827,16 +9813,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(spectra["Ephi"], dtype=float),
         )
 
-    def test_native_scalar_hierarchy_synchronous_matches_newtonian(
+    def test_declared_scalar_hierarchy_synchronous_matches_newtonian(
         self,
     ) -> None:
         """Generated synchronous and Newtonian routes should agree."""
 
-        newtonian = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        newtonian = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        synchronous = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(gauge="synchronous")
+        synchronous = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(gauge="synchronous")
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         spectra = (
@@ -9871,16 +9857,16 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-10,
             )
 
-    def test_native_scalar_hierarchy_gauge_invariant_matches_newtonian(
+    def test_declared_scalar_hierarchy_gauge_invariant_matches_newtonian(
         self,
     ) -> None:
-        """Gauge-invariant native runs should match Newtonian observables."""
+        """Gauge-invariant declared runs should match Newtonian observables."""
 
-        newtonian = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        newtonian = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        gauge_invariant = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(gauge="gauge_invariant")
+        gauge_invariant = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(gauge="gauge_invariant")
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         spectra = (
@@ -9915,7 +9901,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-10,
             )
 
-    def test_native_scalar_gauge_routes_preserve_history_and_manifest(
+    def test_declared_scalar_gauge_routes_preserve_history_and_manifest(
         self,
     ) -> None:
         """Gauge routes must expose explicit bridges and shared observables."""
@@ -9931,9 +9917,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "gauge_invariant",
         )
         prepared_routes = {
-            gauge: _prepare_native_contract(
+            gauge: _prepare_declared_contract(
                 _speedup_contract(
-                    _native_scalar_hierarchy_contract(gauge=gauge)
+                    _declared_scalar_hierarchy_contract(gauge=gauge)
                 )
             )
             for gauge in routes
@@ -10020,15 +10006,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
                 self.assertLess(error, threshold, spectrum_name)
 
-    def test_native_scalar_hierarchy_sync_transform_matches_observables(
+    def test_declared_scalar_hierarchy_sync_transform_matches_observables(
         self,
     ) -> None:
         """Synchronous histories should reconstruct the observable basis."""
 
-        synchronous = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(gauge="synchronous")
+        synchronous = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(gauge="synchronous")
         )
-        context = _resolved_native_scalar_context(synchronous)
+        context = _resolved_declared_scalar_context(synchronous)
 
         self.assertAlmostEqual(
             float(context["Phi_from_synchronous"]),
@@ -10043,27 +10029,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(context["Phi"]),
         )
 
-    def test_native_scalar_hierarchy_standard_modes_generate_distinct(
+    def test_declared_scalar_hierarchy_standard_modes_generate_distinct(
         self,
     ) -> None:
         """Generated standard initial-condition modes should change TT."""
 
-        adiabatic = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(initial_mode="adiabatic_scalar")
+        adiabatic = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(
+                initial_mode="adiabatic_scalar"
+            )
         )
-        cdm_mode = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(initial_mode="cdm_isocurvature")
+        cdm_mode = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(
+                initial_mode="cdm_isocurvature"
+            )
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         adiabatic_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 adiabatic,
                 ells,
             ).spectra["TT"],
             dtype=numpy.longdouble,
         )
         cdm_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 cdm_mode,
                 ells,
             ).spectra["TT"],
@@ -10089,7 +10079,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "-1.5 * scalar_lapse_seed",
         )
 
-    def test_native_scalar_hierarchy_modes_seed_all_supported_families(
+    def test_declared_scalar_hierarchy_modes_seed_all_supported_families(
         self,
     ) -> None:
         """Every supported scalar mode should expose absolute seeds."""
@@ -10103,8 +10093,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         seed_expressions = {}
         for mode in modes:
-            contract = _prepare_native_contract(
-                _native_scalar_hierarchy_contract(
+            contract = _prepare_declared_contract(
+                _declared_scalar_hierarchy_contract(
                     initial_mode=mode,
                     include_massive_neutrino=True,
                 )
@@ -10151,12 +10141,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             len(modes),
         )
 
-    def test_native_scalar_hierarchy_rejects_initial_collision_violation(
+    def test_declared_scalar_hierarchy_rejects_initial_collision_violation(
         self,
     ) -> None:
         """Fast-manifold initial states must satisfy collision constraints."""
 
-        contract_data = _native_scalar_hierarchy_contract()
+        contract_data = _declared_scalar_hierarchy_contract()
         contract_data["perturbations"]["initial_conditions"] = {
             "theta_b_seed": {
                 "target": {
@@ -10167,18 +10157,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "expression": "0.0",
             }
         }
-        contract = _prepare_native_contract(_speedup_contract(contract_data))
+        contract = _prepare_declared_contract(_speedup_contract(contract_data))
 
         with self.assertRaisesRegex(
             ValueError,
             "initial collision constraint exceeded tolerance",
         ):
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.arange(20, 24, dtype=int),
             )
 
-    def test_native_scalar_hierarchy_modes_generate_distinct_source_histories(
+    def test_declared_scalar_modes_generate_distinct_source_histories(
         self,
     ) -> None:
         """Supported scalar modes should produce distinct histories."""
@@ -10192,7 +10182,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         histories = {}
         for mode in modes:
-            contract_data = _native_scalar_hierarchy_contract(
+            contract_data = _declared_scalar_hierarchy_contract(
                 initial_mode=mode
             )
             contract_data["numerical"].update(
@@ -10205,7 +10195,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     "initial_redshift": 2.0e4,
                 }
             )
-            contract = _prepare_native_contract(contract_data)
+            contract = _prepare_declared_contract(contract_data)
             _, history, _ = _capture_visible_scalar_monopole_history(contract)
             self.assertTrue(numpy.all(numpy.isfinite(history)))
             histories[mode] = history
@@ -10218,13 +10208,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 msg=f"mode {mode} collapsed to the adiabatic history",
             )
 
-    def test_native_scalar_hierarchy_massive_neutrino_response(
+    def test_declared_scalar_hierarchy_massive_neutrino_response(
         self,
     ) -> None:
         """Massive-neutrino masses should alter physical moments and TT."""
 
         light_contract = _speedup_contract(
-            _native_scalar_hierarchy_contract(
+            _declared_scalar_hierarchy_contract(
                 include_massive_neutrino=True,
                 sum_mnu=0.06,
             )
@@ -10238,9 +10228,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         light_contract["numerical"]["momentum_grids"][
             "massive_neutrino_default"
         ]["count"] = 6
-        light = _prepare_native_contract(light_contract)
+        light = _prepare_declared_contract(light_contract)
         heavy_contract = _speedup_contract(
-            _native_scalar_hierarchy_contract(
+            _declared_scalar_hierarchy_contract(
                 include_massive_neutrino=True,
                 sum_mnu=6.0,
             )
@@ -10254,20 +10244,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         heavy_contract["numerical"]["momentum_grids"][
             "massive_neutrino_default"
         ]["count"] = 6
-        heavy = _prepare_native_contract(heavy_contract)
+        heavy = _prepare_declared_contract(heavy_contract)
         light_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(light)
+            cmb_background._resolve_custom_cmb_physical_parameters(light)
         )
         heavy_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(heavy)
+            cmb_background._resolve_custom_cmb_physical_parameters(heavy)
         )
-        light_q_context = native_evolution._declared_momentum_grid_context(
+        light_q_context = evolution._declared_momentum_grid_context(
             light["perturbation_data"],
             model_parameters=light["param_map"],
             physical_params=light_physical,
             scale_factor=0.5,
         )
-        heavy_q_context = native_evolution._declared_momentum_grid_context(
+        heavy_q_context = evolution._declared_momentum_grid_context(
             heavy["perturbation_data"],
             model_parameters=heavy["param_map"],
             physical_params=heavy_physical,
@@ -10308,14 +10298,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         light_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 light,
                 ells,
             ).spectra["TT"],
             dtype=numpy.longdouble,
         )
         heavy_tt = numpy.asarray(
-            native_projection._compute_custom_cmb_spectrum_data(
+            cmb_projection._compute_custom_cmb_spectrum_data(
                 heavy,
                 ells,
             ).spectra["TT"],
@@ -10334,15 +10324,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Massive q bins must use T_nu0 and physical Einstein weights."""
 
-        raw_contract = _native_scalar_hierarchy_contract(
+        raw_contract = _declared_scalar_hierarchy_contract(
             include_massive_neutrino=True,
             sum_mnu=0.06,
         )
-        contract = _prepare_native_contract(raw_contract)
+        contract = _prepare_declared_contract(raw_contract)
         physical_params = (
-            native_background._resolve_custom_cmb_physical_parameters(contract)
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
         )
-        context = native_evolution._declared_momentum_grid_context(
+        context = evolution._declared_momentum_grid_context(
             contract["perturbation_data"],
             model_parameters=contract["param_map"],
             physical_params=physical_params,
@@ -10374,8 +10364,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Synchronous execution must expose explicit gauge metric states."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(gauge="synchronous")
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(gauge="synchronous")
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -10400,8 +10390,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_gauge_invariant_route_evolves_bardeen_metric_states(self) -> None:
         """Gauge-invariant execution must use its own metric states."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(gauge="gauge_invariant")
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(gauge="gauge_invariant")
         )
         perturbation_data = contract["perturbation_data"]
 
@@ -10426,7 +10416,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "Psi_gi",
         )
 
-    def test_native_scalar_hierarchy_momentum_grid_limits_and_convergence(
+    def test_declared_scalar_hierarchy_momentum_grid_limits_and_convergence(
         self,
     ) -> None:
         """Physical q moments should respect limits and converge with count."""
@@ -10437,20 +10427,20 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             q_count: int,
             a_value: float,
         ) -> dict[str, object]:
-            contract_data = _native_scalar_hierarchy_contract(
+            contract_data = _declared_scalar_hierarchy_contract(
                 include_massive_neutrino=True,
                 sum_mnu=sum_mnu,
             )
             contract_data["numerical"]["momentum_grids"][
                 "massive_neutrino_default"
             ]["count"] = q_count
-            contract = _prepare_native_contract(contract_data)
+            contract = _prepare_declared_contract(contract_data)
             physical_params = (
-                native_background._resolve_custom_cmb_physical_parameters(
+                cmb_background._resolve_custom_cmb_physical_parameters(
                     contract
                 )
             )
-            return native_evolution._declared_momentum_grid_context(
+            return evolution._declared_momentum_grid_context(
                 contract["perturbation_data"],
                 model_parameters=contract["param_map"],
                 physical_params=physical_params,
@@ -10532,7 +10522,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         spectra = []
         for q_count, hierarchy_l_max in ((16, 5), (20, 5), (20, 7)):
             contract = _speedup_contract(
-                _native_scalar_hierarchy_contract(
+                _declared_scalar_hierarchy_contract(
                     include_massive_neutrino=True,
                     sum_mnu=0.5,
                 )
@@ -10553,77 +10543,71 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["perturbations"]["numerics"] = copy.deepcopy(
                 contract["numerical"]
             )
-            native_cache.clear_native_cmb_caches()
-            spectrum_data = (
-                native_projection._compute_custom_cmb_spectrum_data(
-                    _prepare_native_contract(contract),
-                    numpy.asarray((20, 40), dtype=int),
-                    requested_spectra=("TT",),
-                )
+            cache.clear_cmb_caches()
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 40), dtype=int),
+                requested_spectra=("TT",),
             )
             spectra.append(spectrum_data.spectra["TT"])
 
-        q_metric = native_convergence.evaluate_control_refinement(
+        q_metric = convergence.evaluate_control_refinement(
             spectra[0],
             spectra[1],
             name="massive-neutrino q grid",
-            tolerance=native_convergence.FINAL_Q_GRID_RELATIVE_TOLERANCE,
+            tolerance=convergence.FINAL_Q_GRID_RELATIVE_TOLERANCE,
         )
-        hierarchy_metric = native_convergence.evaluate_control_refinement(
+        hierarchy_metric = convergence.evaluate_control_refinement(
             spectra[1],
             spectra[2],
             name="massive-neutrino hierarchy",
-            tolerance=(native_convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
+            tolerance=(convergence.FINAL_HIERARCHY_RELATIVE_TOLERANCE),
         )
-        native_convergence.require_native_convergence(q_metric)
-        native_convergence.require_native_convergence(hierarchy_metric)
+        convergence.require_convergence(q_metric)
+        convergence.require_convergence(hierarchy_metric)
 
-    def test_native_scalar_hierarchy_momentum_grid_cache_reuses(
+    def test_declared_scalar_hierarchy_momentum_grid_cache_reuses(
         self,
     ) -> None:
         """Momentum-grid quadrature should reuse bounded cache entries."""
 
-        native_cache.clear_native_cmb_caches()
-        baseline = _prepare_native_contract(
-            _native_scalar_hierarchy_contract(include_massive_neutrino=True)
+        cache.clear_cmb_caches()
+        baseline = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract(include_massive_neutrino=True)
         )
-        shifted = _native_scalar_hierarchy_contract(
+        shifted = _declared_scalar_hierarchy_contract(
             include_massive_neutrino=True
         )
         shifted["param_map"]["As"] *= 1.1
-        shifted_contract = _prepare_native_contract(shifted)
+        shifted_contract = _prepare_declared_contract(shifted)
         baseline_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(
+            cmb_background._resolve_custom_cmb_physical_parameters(
                 baseline,
             )
         )
         shifted_physical = (
-            native_background._resolve_custom_cmb_physical_parameters(
+            cmb_background._resolve_custom_cmb_physical_parameters(
                 shifted_contract
             )
         )
-        native_evolution._declared_momentum_grid_context(
+        evolution._declared_momentum_grid_context(
             baseline["perturbation_data"],
             model_parameters=baseline["param_map"],
             physical_params=baseline_physical,
             scale_factor=0.5,
         )
-        first_stats = native_cache.native_cmb_cache_stats()[
-            "declared_momentum_grid"
-        ]
-        first_topology_stats = native_cache.native_cmb_cache_stats()[
+        first_stats = cache.cmb_cache_stats()["declared_momentum_grid"]
+        first_topology_stats = cache.cmb_cache_stats()[
             "declared_momentum_topology"
         ]
-        native_evolution._declared_momentum_grid_context(
+        evolution._declared_momentum_grid_context(
             shifted_contract["perturbation_data"],
             model_parameters=shifted_contract["param_map"],
             physical_params=shifted_physical,
             scale_factor=0.5,
         )
-        second_stats = native_cache.native_cmb_cache_stats()[
-            "declared_momentum_grid"
-        ]
-        second_topology_stats = native_cache.native_cmb_cache_stats()[
+        second_stats = cache.cmb_cache_stats()["declared_momentum_grid"]
+        second_topology_stats = cache.cmb_cache_stats()[
             "declared_momentum_topology"
         ]
 
@@ -10638,36 +10622,36 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             first_topology_stats["hits"] + 1,
         )
 
-    def test_native_scalar_hierarchy_reuses_structural_runtime_bundle(
+    def test_declared_scalar_hierarchy_reuses_structural_runtime_bundle(
         self,
     ) -> None:
         """Scalar runtime signatures should survive bound-value changes."""
 
-        baseline = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        baseline = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
-        shifted = _native_scalar_hierarchy_contract()
+        shifted = _declared_scalar_hierarchy_contract()
         shifted["param_map"]["As"] *= 1.1
         shifted["param_map"]["H0"] = 68.1
-        shifted_prepared = _prepare_native_contract(shifted)
+        shifted_prepared = _prepare_declared_contract(shifted)
 
         self.assertEqual(
             baseline["runtime_signature"],
             shifted_prepared["runtime_signature"],
         )
 
-    def test_native_scalar_hierarchy_runs_camb_free(self) -> None:
-        """The native scalar route should stay CAMB-free at runtime."""
+    def test_declared_scalar_hierarchy_runs_camb_free(self) -> None:
+        """The declared scalar route should stay CAMB-free at runtime."""
 
-        contract = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        contract = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         ells = numpy.arange(20, 60, dtype=int)
         with mock.patch.object(
             camb_reference.camb,
             "get_results",
             side_effect=AssertionError(
-                "native scalar hierarchy should not call CAMB"
+                "declared scalar hierarchy should not call CAMB"
             ),
         ):
             spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -10709,14 +10693,14 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
         """The production scalar entry point must use the declared graph."""
 
         boundary_source = inspect.getsource(
-            native_projection._compute_custom_cmb_spectrum_data
+            cmb_projection._compute_custom_cmb_spectrum_data
         )
         self.assertIn(
             "_compute_custom_cmb_spectrum_data_impl",
             boundary_source,
         )
         source = inspect.getsource(
-            native_projection._compute_custom_cmb_spectrum_data_impl
+            cmb_projection._compute_custom_cmb_spectrum_data_impl
         )
         self.assertIn("_mode_rhs", source)
         self.assertIn("_integrate_declared_state_history", source)
@@ -10742,7 +10726,7 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
             dtype=float,
         )
         current = numpy.asarray((0.7, 0.03), dtype=float)
-        result = native_projection._solve_declared_fast_collision_target(
+        result = cmb_projection._solve_declared_fast_collision_target(
             matrix,
             numpy.zeros(2, dtype=float),
             current,
@@ -10766,11 +10750,11 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
         """Every production state slot must originate in a declared
         equation."""
 
-        prepared = _prepare_native_contract(
-            _native_scalar_hierarchy_contract()
+        prepared = _prepare_declared_contract(
+            _declared_scalar_hierarchy_contract()
         )
         perturbation_data = prepared["perturbation_data"]
-        runtime_spec = native_evolution._prepare_declared_graph_runtime_spec(
+        runtime_spec = evolution._prepare_declared_graph_runtime_spec(
             perturbation_data
         )
         equation_variables = {
@@ -10790,7 +10774,7 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
         """Generated scalar output must execute its compiled equation
         program."""
 
-        contract = _native_scalar_hierarchy_contract()
+        contract = _declared_scalar_hierarchy_contract()
         contract["numerical"].update(
             {
                 "ell_max": 120,
@@ -10799,12 +10783,12 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
                 "evolution_eta_sample_count": 64,
             }
         )
-        prepared = _prepare_native_contract(contract)
-        native_evolution._compile_equation_program.cache_clear()
+        prepared = _prepare_declared_contract(contract)
+        evolution._compile_equation_program.cache_clear()
         with mock.patch.object(
-            native_projection,
+            cmb_projection,
             "_compile_equation_program",
-            wraps=native_evolution._compile_equation_program,
+            wraps=evolution._compile_equation_program,
         ) as compile_program:
             spectra = cmb.compute_cmb_spectrum_from_contract(
                 prepared,
@@ -10825,17 +10809,17 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
             set(cmb.__all__),
             {
                 "CMBLike",
-                "NativeCMBBatchResult",
-                "NativeCMBError",
-                "NativeConstraintViolationError",
-                "NativeContractError",
-                "NativeConvergenceError",
-                "NativeImplementationError",
-                "NativeInitialPointError",
-                "NativeNonFiniteEvolutionError",
-                "NativeParameterDomainError",
-                "NativePerformanceBudgetError",
-                "NativeUnsupportedCapabilityError",
+                "CMBBatchResult",
+                "CMBError",
+                "ConstraintViolationError",
+                "ContractError",
+                "ConvergenceError",
+                "ImplementationError",
+                "InitialPointError",
+                "NonFiniteEvolutionError",
+                "ParameterDomainError",
+                "PerformanceBudgetError",
+                "UnsupportedCapabilityError",
                 "compute_cmb_spectrum",
                 "compute_cmb_spectrum_batch",
                 "compute_cmb_spectrum_cached",
@@ -10900,9 +10884,9 @@ class CMBLikeMultiSpectrumTestCase(unittest.TestCase):
         """Likelihood rows and covariance must retain dataset ordering."""
 
         class _BlockSpectrumPlugin:
-            """Return a prepared native runtime for likelihood testing."""
+            """Return a prepared declared runtime for likelihood testing."""
 
-            def get_cmb_native_runtime(self, _params):
+            def get_cmb_declared_runtime(self, _params):
                 return {
                     "background": {},
                     "background_runtime": object(),

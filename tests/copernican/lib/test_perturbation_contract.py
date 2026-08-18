@@ -329,7 +329,7 @@ def _scalar_metadata_only_contract() -> dict[str, object]:
         }
     )
     contract["validity"] = {
-        "regimes": ["linear", "native_scalar_hierarchy"],
+        "regimes": ["linear", "declared_scalar_hierarchy"],
     }
     return contract
 
@@ -353,7 +353,7 @@ def _vector_metadata_only_contract() -> dict[str, object]:
     contract["gauge"] = "conformal_newtonian"
     contract["sectors"] = {
         "vector": {
-            "description": "Native vector hierarchy sector.",
+            "description": "Declared vector hierarchy sector.",
             "species": ["photon", "baryon", "cdm", "massless_neutrino"],
             "hierarchy_families": [
                 "photon_temperature_vector",
@@ -435,7 +435,7 @@ def _vector_metadata_only_contract() -> dict[str, object]:
         }
     )
     contract["validity"] = {
-        "regimes": ["linear", "native_vector_hierarchy"],
+        "regimes": ["linear", "declared_vector_hierarchy"],
     }
     return contract
 
@@ -459,7 +459,7 @@ def _tensor_metadata_only_contract() -> dict[str, object]:
     contract["gauge"] = "conformal_newtonian"
     contract["sectors"] = {
         "tensor": {
-            "description": "Native tensor hierarchy sector.",
+            "description": "Declared tensor hierarchy sector.",
             "species": ["photon", "massless_neutrino"],
             "hierarchy_families": [
                 "photon_temperature_tensor",
@@ -531,7 +531,7 @@ def _tensor_metadata_only_contract() -> dict[str, object]:
         }
     )
     contract["validity"] = {
-        "regimes": ["linear", "native_tensor_hierarchy"],
+        "regimes": ["linear", "declared_tensor_hierarchy"],
     }
     return contract
 
@@ -540,7 +540,7 @@ class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
 
     def test_usmf2_declares_complete_production_closure(self) -> None:
-        """USMF2 must compile its complete native production closure."""
+        """USMF2 must compile its complete declared production closure."""
 
         model_path = (
             Path(__file__).resolve().parents[3]
@@ -652,7 +652,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
 
     def test_usmf2_incomplete_declaration_is_rejected(self) -> None:
-        """Removing a declared state must fail before native execution."""
+        """Removing a declared state must fail before declared execution."""
 
         model_path = (
             Path(__file__).resolve().parents[3]
@@ -945,7 +945,7 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         original_materializer = getattr(
             perturbation_contract_module,
-            "_materialize_native_scalar_hierarchy_contract",
+            "_materialize_declared_scalar_hierarchy_contract",
         )
 
         def malformed_materializer(
@@ -958,7 +958,7 @@ class PerturbationContractTestCase(unittest.TestCase):
 
         with mock.patch.object(
             perturbation_contract_module,
-            "_materialize_native_scalar_hierarchy_contract",
+            "_materialize_declared_scalar_hierarchy_contract",
             side_effect=malformed_materializer,
         ):
             with self.assertRaisesRegex(
@@ -1005,8 +1005,8 @@ class PerturbationContractTestCase(unittest.TestCase):
                 ):
                     self._compile(contract)
 
-    def test_native_contract_compiles(self) -> None:
-        """Native contracts should preserve graph metadata."""
+    def test_declared_contract_compiles(self) -> None:
+        """Declared contracts should preserve graph metadata."""
 
         contract_data = self._compile(_base_nonstandard_contract())
 
@@ -1176,7 +1176,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             contract_data.manifest_summary["compilation_ownership"],
             {
                 "compiler": (
-                    "copernican.lib.model_coder." "compile_native_cmb_runtime"
+                    "copernican.lib.model_coder."
+                    "compile_declared_cmb_runtime"
                 ),
                 "compiled_upstream": True,
                 "hot_path_recompilation_allowed": False,
@@ -1190,7 +1191,7 @@ class PerturbationContractTestCase(unittest.TestCase):
                     "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),
                 "runtime_module": (
-                    "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
+                    "copernican.lib.likelihoods.cmb.orchestrators." "ccmbs"
                 ),
                 "ready": True,
             },
@@ -2385,7 +2386,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             self._compile(contract)
 
     def test_extended_runtime_physical_scalars_compile(self) -> None:
-        """Native graphs may reference the documented physical scalars."""
+        """Declared graphs may reference the documented physical scalars."""
 
         contract = _base_nonstandard_contract()
         contract["derived"]["density_drive"]["expression"] = (
@@ -2822,7 +2823,7 @@ class PerturbationContractTestCase(unittest.TestCase):
     def test_start_boundary_conditions_satisfy_missing_initial_data(
         self,
     ) -> None:
-        """Start boundary conditions may provide native-solver seed data."""
+        """Start boundary conditions may provide declared-solver seed data."""
 
         contract = _base_nonstandard_contract()
         theta_seed = contract["initial_conditions"].pop("theta_seed")
@@ -2897,7 +2898,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             self._compile(contract)
 
     def test_extensions_and_conservation_rules_compile(self) -> None:
-        """Native extension rules should compile into typed metadata."""
+        """Declared extension rules should compile into typed metadata."""
 
         contract = _base_nonstandard_contract()
         contract["interactions"]["photon_baryon_slip"] = {

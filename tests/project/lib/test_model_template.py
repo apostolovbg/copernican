@@ -59,13 +59,13 @@ class ModelTemplateTestCase(unittest.TestCase):
         self.assertNotIn("standard", perturbations)
         self.assertNotIn("backend_mapping", perturbations)
 
-    def test_template_executes_through_native_declared_graph(
+    def test_template_executes_through_declared_graph(
         self,
     ) -> None:
-        """The root template should execute through the native graph."""
+        """The root template should execute through the declared graph."""
 
         plugin = self._build_template_plugin()
-        runtime_contract = plugin.get_cmb_native_runtime(
+        runtime_contract = plugin.get_cmb_declared_runtime(
             plugin.INITIAL_GUESSES
         )
         contract = dict(runtime_contract)

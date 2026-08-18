@@ -979,7 +979,7 @@ autogen_metadata_overlays:
     - copernican/lib/likelihoods/cmb/__init__.py => README.md
     - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
     - copernican/lib/likelihoods/cmb/cmb.py => README.md
-    - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py => README.md
+    - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py => README.md
     - copernican/workflow.py => README.md, SUPPORT.md
     - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
     - pyproject.toml => SECURITY.md, CITATION.cff
@@ -1397,6 +1397,9 @@ user_metadata_overrides:
     - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
     - copernican/lib/likelihoods/cmb/cmb.py => README.md
     - copernican/lib/likelihoods/cmb/copcmb_solver.py => README.md
+    - copernican/lib/likelihoods/cmb/orchestrators/** => README.md
+    - copernican/lib/likelihoods/cmb/runtime/** => README.md
+    - copernican/lib/likelihoods/cmb/solvers/** => README.md
     - copernican/lib/gui/** => README.md, SUPPORT.md
     - copernican/lib/cli/** => README.md
     - copernican/rng_minigames/** => README.md

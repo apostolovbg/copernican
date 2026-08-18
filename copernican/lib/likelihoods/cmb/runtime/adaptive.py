@@ -1,4 +1,4 @@
-"""Adaptive grids and convergence diagnostics for native CMB projection."""
+"""Adaptive grids and convergence diagnostics for declared CMB projection."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ import numpy
 
 
 @dataclass(frozen=True, slots=True)
-class NativeAdaptiveControls:
-    """Validated physical refinement controls for one native CMB request."""
+class AdaptiveControls:
+    """Validated physical refinement controls for one declared CMB request."""
 
     transfer_enabled: bool = False
     transfer_relative_tolerance: float = 5.0e-2
@@ -41,7 +41,7 @@ class NativeAdaptiveControls:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeConvergenceEstimate:
+class ConvergenceEstimate:
     """Maximum absolute and relative difference between two approximations."""
 
     absolute_error: float
@@ -50,7 +50,7 @@ class NativeConvergenceEstimate:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeHistoryConvergence:
+class HistoryConvergence:
     """Convergence errors for state or source histories at physical anchors."""
 
     absolute_error: float
@@ -149,14 +149,14 @@ def _read_section_values(
     )
 
 
-def resolve_native_adaptive_controls(
+def resolve_adaptive_controls(
     accuracy_controls: Mapping[str, Any],
     *,
     base_k_nodes: int,
     base_eta_nodes: int,
     base_evolution_nodes: int | None = None,
-) -> NativeAdaptiveControls:
-    """Validate the adaptive accuracy sections of a native contract.
+) -> AdaptiveControls:
+    """Validate the adaptive accuracy sections of a declared contract.
 
     ``adaptive_k_quadrature`` remains an accepted spelling for the transfer
     section so contracts written before the unified controls can migrate
@@ -268,7 +268,7 @@ def resolve_native_adaptive_controls(
         name=("cmb.perturbations.accuracy_controls.phase_points_per_cycle"),
     )
     fail_on_nonconvergence = bool(controls.get("fail_on_nonconvergence", True))
-    return NativeAdaptiveControls(
+    return AdaptiveControls(
         transfer_enabled=bool(transfer_values[0]),
         transfer_relative_tolerance=float(transfer_values[1]),
         transfer_absolute_tolerance=float(transfer_values[2]),
@@ -451,7 +451,7 @@ def estimate_convergence(
     *,
     relative_tolerance: float,
     absolute_tolerance: float,
-) -> NativeConvergenceEstimate:
+) -> ConvergenceEstimate:
     """Compare two finite approximations with absolute and relative floors."""
 
     coarse_values = numpy.asarray(coarse, dtype=float)
@@ -476,7 +476,7 @@ def estimate_convergence(
         absolute_error <= float(absolute_tolerance)
         or relative_error <= float(relative_tolerance)
     )
-    return NativeConvergenceEstimate(
+    return ConvergenceEstimate(
         absolute_error=absolute_error,
         relative_error=relative_error,
         converged=converged,
@@ -492,7 +492,7 @@ def estimate_history_convergence(
     relative_tolerance: float,
     absolute_tolerance: float,
     anchors: Mapping[str, float] | None = None,
-) -> NativeHistoryConvergence:
+) -> HistoryConvergence:
     """Compare history values at early, recombination, and late anchors."""
 
     coarse_grid = numpy.asarray(coarse_eta, dtype=float)
@@ -567,7 +567,7 @@ def estimate_history_convergence(
         or relative_errors[name] <= float(relative_tolerance)
         for name in absolute_errors
     )
-    return NativeHistoryConvergence(
+    return HistoryConvergence(
         absolute_error=float(absolute_error),
         relative_error=float(relative_error),
         anchor_absolute_errors=absolute_errors,
@@ -577,7 +577,7 @@ def estimate_history_convergence(
 
 
 def require_convergence(
-    estimate: NativeConvergenceEstimate,
+    estimate: ConvergenceEstimate,
     *,
     label: str,
     fail_on_nonconvergence: bool,
@@ -587,7 +587,7 @@ def require_convergence(
     if estimate.converged or not fail_on_nonconvergence:
         return
     raise ValueError(
-        f"Native {label} refinement did not converge: "
+        f"Declared {label} refinement did not converge: "
         f"relative_error={estimate.relative_error:.6g}, "
         f"absolute_error={estimate.absolute_error:.6g}"
     )

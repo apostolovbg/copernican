@@ -8,11 +8,11 @@ from pathlib import Path
 import yaml
 
 from copernican.lib import cmb_contract
-from copernican.lib.model_coder import compile_native_cmb_runtime
+from copernican.lib.model_coder import compile_declared_cmb_runtime
 
 
 class TestCMBContractExports(unittest.TestCase):
-    """Verify the contract module mirrors the native adapter helpers."""
+    """Verify the contract module mirrors the declared adapter helpers."""
 
     def test_reexports_match_expected_helpers(self) -> None:
         """The route-neutral evaluators should be the only public surface."""
@@ -81,7 +81,7 @@ class TestCMBContractExports(unittest.TestCase):
             str(entry.get("latex_name", ""))
             for entry in model.get("parameters", [])
         )
-        return compile_native_cmb_runtime(
+        return compile_declared_cmb_runtime(
             model_name=model["model_name"],
             parameter_names=parameters,
             latex_names=latex_names,
@@ -113,7 +113,7 @@ class TestCMBContractExports(unittest.TestCase):
         )
         self.assertEqual(
             audit.execution_runtime_module,
-            "copernican.lib.likelihoods.cmb.copernican_cmb_solver",
+            "copernican.lib.likelihoods.cmb.orchestrators.ccmbs",
         )
         self.assertEqual(
             audit.to_mapping()["supported_observables"],

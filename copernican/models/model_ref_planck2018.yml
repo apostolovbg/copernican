@@ -311,7 +311,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: Reference spectra use the fixed Planck 2018 parameter values.
     notes: The scalar graph couples the fixed LambdaCDM species and regular
       adiabatic initial data to the Planck 2018 reference background.

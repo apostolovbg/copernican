@@ -23,7 +23,7 @@ learning loops without changing the deterministic seed contract.
 - The acceleration/deceleration curve now feels tighter so the ship responds
   immediately to your mouse movements instead of wobbling.
 - **Fire** – Left-click to shoot. A short built-in cooldown mirrors the CLI
-  engine so humans and the autopilot share the same capabilities.
+  firing mode so humans and the autopilot share the same capabilities.
 - **Space charges** – Right-click (or Ctrl-click) to expend a stored Neutron
   charge. Capsules fall at random; touching one automatically stores it (up to
   three). Launched charges crawl toward the fleet and detonate in a chain
@@ -164,8 +164,8 @@ runtime files. Deleting it regenerates the defaults on the next launch.
   the look of a space charge detonation, so keep the skyline readability in
   mind.
 
-Each parameter is read on launch, making Alien Invasion just as configurable as
-the CLI engines.
+Each parameter is read on launch, making Alien Invasion just as configurable
+as the command-line gameplay workflows.
 
 ## Storage
 

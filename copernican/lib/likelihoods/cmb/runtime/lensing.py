@@ -1,6 +1,6 @@
 """Exact curved-sky CMB lensing remapping helpers.
 
-The native declared CMB solver uses these utilities to remap unlensed
+The declared CMB solver uses these utilities to remap unlensed
 temperature and polarization spectra with a lensing-potential spectrum.
 The implementation is adapted from CAMB's pure-Python correlation code.
 """
@@ -147,7 +147,7 @@ def lensed_correlations(
     """Return lensed correlation functions and optionally lensed spectra."""
 
     # The exact remapper can otherwise overflow on the large declared spectra
-    # produced by the native solver before the final float cast.
+    # produced by the declared solver before the final float cast.
     cls = numpy.asarray(cls, dtype=numpy.longdouble)
     clpp = numpy.asarray(clpp, dtype=numpy.longdouble)
     xvals = numpy.asarray(tuple(xvals), dtype=float)

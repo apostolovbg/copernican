@@ -8,7 +8,7 @@ description: '### 1. Introduction
   energy density. The observed accelerated expansion of the
   Universe [1, 2] and anomalous galactic and cluster dynamics [3, 4]
   are the primary evidence for their existence. The Unified Shrinking
-  Matter Framework (USMF) offers an alternative perspective,
+  Matter Framework (USMF) offers an alternate perspective,
   positing that these phenomena are not due to new fundamental
   entities but are rather illusions. These illusions arise from a
   continuous, inhomogeneous shrinking of matter and physical scales
@@ -234,7 +234,7 @@ parameters:
   - 3.5
   unit: ''
   latex_name: N_{\rm eff}
-  definition: Sampled relativistic species count used in native CMB solver.
+  definition: Sampled relativistic species count used in declared CMB solver.
   prior:
     type: uniform
     lower: 2.5
@@ -435,7 +435,7 @@ cmb:
         description: Conformal-time derivative of shrink_field.
         notes: >-
           provenance: USMFv2 model description section 2.3; rate is defined
-          with respect to the native conformal-time coordinate tau.
+          with respect to the declared conformal-time coordinate tau.
         units: 1/Mpc
         tensor_character: scalar_like
         rank: 0
@@ -589,7 +589,7 @@ cmb:
         expression: k
         description: Scalar Fourier wave number.
         notes: >-
-          provenance: Native solver coordinate convention; k is the Fourier
+          provenance: Declared solver coordinate convention; k is the Fourier
           wave number in inverse Mpc.
         units: 1/Mpc
       acoustic_k_sq:
@@ -601,7 +601,7 @@ cmb:
         expression: 1.0 / (Hconf + 1.0e-30)
         description: Local conformal-Hubble time for regular initial data.
         notes: >-
-          provenance: Regular super-horizon expansion convention; the native
+          provenance: Regular super-horizon expansion convention; the declared
           solver supplies Hconf from the declared USMF background.
         units: Mpc
       shrink_mass_sq:
@@ -900,7 +900,7 @@ cmb:
         domain: linear_scalar
         notes: >-
           provenance: Thomson momentum conservation in Ma and Bertschinger
-          (1995); remains bounded in the native production implementation.
+          (1995); remains bounded in the declared production implementation.
     sources:
       temperature_monopole_source:
         expression: theta_gamma0 + Psi
@@ -1034,7 +1034,7 @@ cmb:
         description: Regular adiabatic seed for local scale shrinking.
         notes: >-
           provenance: USMFv2 regular-mode assumption; normalization is the
-          primordial scalar seed supplied by the native runtime.
+          primordial scalar seed supplied by the declared runtime.
       shrink_rate_seed:
         target:
           variable: shrink_rate
@@ -1154,7 +1154,7 @@ cmb:
         parity: even
         spin: 0.0
         description: Scalar temperature projection typing.
-        notes: "provenance: Native declared projection convention."
+        notes: "provenance: Declared projection convention."
     numerics:
       ell_min: 2
       ell_max: 2000
@@ -1171,10 +1171,10 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
-      - usmf2_native_production
+      - declared_scalar_hierarchy
+      - usmf2_declared_production
       notes: >-
-        The USMF2 scalar closure is a complete native production route. Its
+        The USMF2 scalar closure is a complete declared production route. Its
         shrink-field coefficients, finite hierarchy boundaries, metric
         constraints, regular initial data, and projection sources are all
         evaluated by the declared graph without a particulate-matter fallback.
@@ -1183,15 +1183,15 @@ cmb:
       evaluates the independent shrink_field degree of freedom, the
       photon-baryon-neutrino carriers, metric constraints, finite hierarchy
       boundaries, regular initial data, projection sources, public observables,
-      and analytic-limit controls in the native solver.
+      and analytic-limit controls in the declared solver.
 notes: >-
   Detailed model behaviour embedded in this JSON. The BAO radiation mapping
   multiplies
   Omega_gamma by (1 + 0.2271 * Neff) inside omnuh2 so the neutrino content
-  matches the native CMB background, and letting Neff float between 2.5 and 3.5 keeps
+  matches the declared CMB background, and letting Neff float between 2.5 and 3.5 keeps
   the sampled radiation density aligned with the analytic integrals without
   hard-coding the Planck default.
-  The native CMB contract evaluates the shrinking-matter background directly
+  The declared CMB contract evaluates the shrinking-matter background directly
   on its declared scale-factor grid.
 title: The Unified Shrinking Matter Framework (USMF) Version 2
 date: '2025-05-26'

@@ -19,7 +19,7 @@ abstract: >-
   response is encoded by the relational-inertia factor X_r(a). At
   perturbation level it is represented as baryon-locked relational
   inertia, enhanced gravitational source, and diluted photon drag,
-  providing a native route toward CMB structure without fundamental
+  providing a declared route toward CMB structure without fundamental
   cold dark matter.
 description: |-
   Temporal Opposing Relational Geometry
@@ -415,7 +415,7 @@ description: |-
 
       delta_R = delta_b + delta_X_r / X_r
 
-  The native TORG closure sets the relational response perturbation
+  The declared TORG closure sets the relational response perturbation
   to track baryonic perturbations at linear order by taking:
 
       delta_X_r = 0
@@ -472,7 +472,7 @@ description: |-
 
       1 / [1 + X_r(a, k)]
 
-  The native Euler equation is:
+  The declared Euler equation is:
 
       theta_b'
       =
@@ -483,7 +483,7 @@ description: |-
   where R_gamma represents the usual photon-baryon coupling strength in
   the chosen convention.
 
-  The native CMB solver expresses this term through its declared optical-depth
+  The declared CMB solver expresses this term through its declared optical-depth
   factor and baryon-photon inertia ratio. The physical rule is:
 
       photon drag acceleration proportional to 1 / (1 + X_r)
@@ -538,14 +538,14 @@ description: |-
 
       Phi - Psi = standard radiation/neutrino contribution
 
-  This minimal native closure avoids inventing unnecessary tensor structure.
+  This minimal declared closure avoids inventing unnecessary tensor structure.
 
   If data demand a geometric slip term, it must be derived from
   R_{mu nu}, not inserted as a phenomenological patch.
 
-  Native perturbation contract
+  Declared perturbation contract
 
-  The TORG native perturbation contract contains these declarations:
+  The TORG declared perturbation contract contains these declarations:
 
       variables:
         delta_b, theta_b, delta_gamma, theta_gamma, Phi, Psi
@@ -587,7 +587,7 @@ description: |-
         screened local systems excluded
         first-order relational closure
 
-  This is the native CMB story.
+  This is the declared CMB story.
 
   Sound horizon
 
@@ -598,7 +598,7 @@ description: |-
 
       rho_b
 
-  But acoustic inertia in the native perturbation picture is influenced
+  But acoustic inertia in the declared perturbation picture is influenced
   by:
 
       1 + X_r
@@ -610,7 +610,7 @@ description: |-
 
   This is not a contradiction. It is the theory's defining distinction.
 
-  The native TORG perturbation solver must separate electron opacity from
+  The declared TORG perturbation solver must separate electron opacity from
   relational inertial mass.
 
   Field equation for relational response
@@ -770,7 +770,7 @@ description: |-
 
   The Newtonian limit must explicitly show S -> 0.
 
-  The perturbation equations must be implemented natively in Copernican.
+  The perturbation equations must be implemented declaredly in Copernican.
 
   The CMB solver must distinguish photon opacity from relational inertia.
 
@@ -1036,7 +1036,7 @@ observables:
     unit: Mpc
     description: >-
       Background sound-horizon representation. Photon opacity is tied to
-      bare baryons; native perturbations separately declare relational
+      bare baryons; declared perturbations separately declare relational
       inertial loading.
 
 derived:
@@ -1312,7 +1312,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: TORG spectra use baryon-locked relational inertia sources.
     notes: The scalar graph contains photons, baryons, and neutrinos; the
       torg_matter_factor source closures replace an independent CDM species.
@@ -1330,7 +1330,7 @@ validation:
       observables without an independent dark sector, the background theory
       fails.
     - >-
-      If a native perturbation solver cannot reproduce CMB structure without
+      If a declared perturbation solver cannot reproduce CMB structure without
       independent CDM perturbations, the first-order perturbation ansatz fails.
     - >-
       If local screened systems require the unscreened cosmological X_r

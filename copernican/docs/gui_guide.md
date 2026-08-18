@@ -52,7 +52,7 @@ and Run Monitor, keeping the typography consistent regardless of the page.
 ## Run Builder Overview
 The builder consists of seven pages listed at the top of the panel. Jump
 buttons have the same width as the Previous/Next/Cancel controls and use
-native ttk
+declared ttk
 states so Manifest and Confirm grey out until prerequisites are satisfied. A
 contextual two-line message under the buttons explains what needs to happen on
 each page. The steps are:
@@ -83,17 +83,17 @@ each page. The steps are:
  renders per-parameter controls inside the Run Settings box. Integer and
  float fields use spinboxes with bounded ranges taken from
  `_SAMPLER_SETTING_LIMITS`; pool
- size is capped by the detected CPU core count. Boolean settings render as
- checkboxes (for example, Display progress). Recommendations display directly
- above their associated inputs. The fixed CCMBS solver is shown for provenance
- and is not a selectable builder step.
+size is capped by the detected CPU core count. Boolean settings render as
+checkboxes (for example, Display progress). Recommendations display directly
+above their associated inputs. The default CCMBS solver is recorded for
+provenance in the manifest independently from the sampler controls.
 6. **Manifest** – Displays the draft manifest in a scrollable text widget and
  surfaces reminder text if the workspace has not been saved. The buttons let
  you save, save-and-confirm, export to an external path, open the on-disk
  manifest or clear the workspace.
 7. **Confirm** – Summarises the entire run, including the control/test pair,
- walker/burn-in/production settings, pool size hints, and the fixed native CMB
- sampler. The **Start run** button stays disabled until
+walker/burn-in/production settings, pool size hints, and the selected CMB
+solver. The **Start run** button stays disabled until
  a manifest exists so every execution renames the workspace (`copernican-
    run_<timestamp>`) before launching the CLI worker.
 `Next` is blocked on the Sampler step until all of the first five pages

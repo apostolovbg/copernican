@@ -98,7 +98,7 @@ configuration:
   - union3_2025
   - compound_bao_set
   - planck_2018_lite
-  notes: Native LambdaCDM control and TORG comparison using the exact reference workload.
+  notes: CCMBS LambdaCDM control and TORG comparison using the exact reference workload.
   run_settings:
     sampler_kind: mcmc
     n_steps: 10

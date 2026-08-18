@@ -1,28 +1,26 @@
-"""Focused tests for native CMB performance accounting."""
+"""Focused tests for declared CMB performance accounting."""
 
 import unittest
 
-from copernican.lib.likelihoods.cmb import native_performance
+from copernican.lib.likelihoods.cmb.runtime import performance
 
 
-class NativePerformanceModuleTestCase(unittest.TestCase):
-    """Exercise native workload budgets and phase accounting."""
+class PerformanceModuleTestCase(unittest.TestCase):
+    """Exercise declared workload budgets and phase accounting."""
 
     def test_bounded_budget_exposes_required_cache_state_limits(self):
         """The bounded preset must expose every accepted cache-state limit."""
 
-        budget = native_performance.resolve_native_performance_budget(
+        budget = performance.resolve_performance_budget(
             {"runtime_envelope": "bounded"}
         )
 
-        self.assertTrue(
-            callable(native_performance.enforce_native_performance_budget)
-        )
-        self.assertTrue(callable(native_performance.NativePhaseTimer.add))
-        self.assertTrue(callable(native_performance.NativePhaseTimer.phase))
+        self.assertTrue(callable(performance.enforce_performance_budget))
+        self.assertTrue(callable(performance.PhaseTimer.add))
+        self.assertTrue(callable(performance.PhaseTimer.phase))
         self.assertIsInstance(
             budget,
-            native_performance.NativePerformanceBudget,
+            performance.PerformanceBudget,
         )
         self.assertEqual(budget.limit_for("full_spectrum"), 180.0)
         self.assertEqual(budget.limit_for("warm_parameter"), 5.0)
@@ -31,7 +29,7 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
     def test_phase_timer_accumulates_named_work(self):
         """Phase timing must retain separate compilation and projection."""
 
-        timer = native_performance.NativePhaseTimer()
+        timer = performance.PhaseTimer()
         with timer.phase("compilation"):
             pass
         timer.add("projection", 0.25)
@@ -48,16 +46,16 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
     def test_budget_rejects_overrun_with_workload_name(self):
         """An over-budget warm request must retain its workload label."""
 
-        budget = native_performance.NativePerformanceBudget(
+        budget = performance.PerformanceBudget(
             full_spectrum_seconds=1.0,
             warm_parameter_seconds=0.5,
             exact_cache_hit_seconds=0.25,
         )
         with self.assertRaisesRegex(
-            native_performance.NativePerformanceBudgetError,
+            performance.PerformanceBudgetError,
             r"joint_mcmc: 0\.750s > 0\.500s",
         ):
-            native_performance.enforce_native_performance_budget(
+            performance.enforce_performance_budget(
                 0.75,
                 workload="joint_mcmc",
                 budget=budget,
@@ -67,30 +65,26 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
     def test_cache_state_selects_the_matching_budget(self):
         """Cold, warm, and exact requests must retain distinct limits."""
 
-        budget = native_performance.NativePerformanceBudget(
+        budget = performance.PerformanceBudget(
             full_spectrum_seconds=1.0,
             warm_parameter_seconds=0.5,
             exact_cache_hit_seconds=0.25,
         )
-        native_performance.enforce_native_performance_budget(
+        performance.enforce_performance_budget(
             0.75,
             workload="joint_mcmc",
             budget=budget,
             cache_state="cold",
         )
-        with self.assertRaises(
-            native_performance.NativePerformanceBudgetError
-        ):
-            native_performance.enforce_native_performance_budget(
+        with self.assertRaises(performance.PerformanceBudgetError):
+            performance.enforce_performance_budget(
                 0.75,
                 workload="joint_mcmc",
                 budget=budget,
                 cache_state="warm",
             )
-        with self.assertRaises(
-            native_performance.NativePerformanceBudgetError
-        ):
-            native_performance.enforce_native_performance_budget(
+        with self.assertRaises(performance.PerformanceBudgetError):
+            performance.enforce_performance_budget(
                 0.3,
                 workload="joint_mcmc",
                 budget=budget,
@@ -100,9 +94,7 @@ class NativePerformanceModuleTestCase(unittest.TestCase):
     def test_unbounded_controls_do_not_invent_wall_time_limit(self):
         """Unspecified controls must preserve caller-owned runtime policy."""
 
-        self.assertIsNone(
-            native_performance.resolve_native_performance_budget({})
-        )
+        self.assertIsNone(performance.resolve_performance_budget({}))
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -80,8 +80,8 @@ def _reject_removed_cmb_route_keys(contract: Mapping[str, Any]) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeCMBBackgroundRuntime:
-    """Immutable declared-background plans reused by the native CMB solver."""
+class DeclaredCMBBackgroundRuntime:
+    """Immutable background plans reused by the declared CMB solver."""
 
     derived_plan: Any
     recombination_quantity_plan: Any
@@ -91,8 +91,8 @@ class NativeCMBBackgroundRuntime:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeCMBCompileDiagnostics:
-    """Immutable diagnostics for native-runtime compilation ownership."""
+class DeclaredCMBCompileDiagnostics:
+    """Immutable diagnostics for declared-runtime compilation ownership."""
 
     runtime_signature: str
     compiler: str
@@ -102,8 +102,8 @@ class NativeCMBCompileDiagnostics:
     background_reference_names: tuple[str, ...]
 
 
-class NativeFrozenMapping(Mapping[str, Any]):
-    """Picklable recursively read-only mapping for native runtime assets."""
+class DeclaredFrozenMapping(Mapping[str, Any]):
+    """Picklable recursively read-only mapping for declared runtime assets."""
 
     __slots__ = ("_data",)
 
@@ -111,7 +111,7 @@ class NativeFrozenMapping(Mapping[str, Any]):
         """Freeze every nested value while preserving mapping semantics."""
 
         self._data = {
-            str(key): _freeze_native_runtime_value(value)
+            str(key): _freeze_declared_runtime_value(value)
             for key, value in (source or {}).items()
         }
 
@@ -133,7 +133,7 @@ class NativeFrozenMapping(Mapping[str, Any]):
     def __repr__(self) -> str:
         """Return a diagnostic representation."""
 
-        return f"NativeFrozenMapping({self._data!r})"
+        return f"DeclaredFrozenMapping({self._data!r})"
 
     def __getstate__(self) -> dict[str, Any]:
         """Return picklable mapping state."""
@@ -146,29 +146,31 @@ class NativeFrozenMapping(Mapping[str, Any]):
         object.__setattr__(self, "_data", dict(state))
 
 
-def _freeze_native_runtime_value(value: Any) -> Any:
+def _freeze_declared_runtime_value(value: Any) -> Any:
     """Recursively freeze one process-safe structural runtime value."""
 
-    if isinstance(value, NativeFrozenMapping):
+    if isinstance(value, DeclaredFrozenMapping):
         return value
     if isinstance(value, Mapping):
-        return NativeFrozenMapping(value)
+        return DeclaredFrozenMapping(value)
     if isinstance(value, numpy.ndarray):
         frozen_array = numpy.array(value, copy=True)
         frozen_array.flags.writeable = False
         return frozen_array
     if isinstance(value, (list, tuple)):
-        return tuple(_freeze_native_runtime_value(item) for item in value)
+        return tuple(_freeze_declared_runtime_value(item) for item in value)
     if isinstance(value, set):
-        return frozenset(_freeze_native_runtime_value(item) for item in value)
+        return frozenset(
+            _freeze_declared_runtime_value(item) for item in value
+        )
     return value
 
 
 @dataclass(frozen=True, slots=True)
-class NativeCMBRuntime:
-    """Immutable native CMB runtime payload carried by sampler plugins.
+class DeclaredCMBRuntime:
+    """Immutable declared CMB runtime payload carried by sampler plugins.
 
-    The native solver needs a compiled perturbation graph together with the
+    The declared solver needs a compiled perturbation graph together with the
     static background and numerical declarations from the model contract.
     Building that payload once in :mod:`model_coder` keeps compilation
     ownership upstream and lets the runtime hot path bind only the varying
@@ -180,12 +182,12 @@ class NativeCMBRuntime:
     background: Mapping[str, Any]
     numerical: Mapping[str, Any]
     perturbation_data: Any
-    background_runtime: NativeCMBBackgroundRuntime
+    background_runtime: DeclaredCMBBackgroundRuntime
     grids: Mapping[str, Any] = field(default_factory=dict)
     values: Mapping[str, Any] = field(default_factory=dict)
     calls: tuple[Mapping[str, Any], ...] = ()
     runtime_signature: str = ""
-    compile_diagnostics: NativeCMBCompileDiagnostics | None = None
+    compile_diagnostics: DeclaredCMBCompileDiagnostics | None = None
 
     def __post_init__(self) -> None:
         """Freeze structural declarations once at runtime construction."""
@@ -200,12 +202,14 @@ class NativeCMBRuntime:
             object.__setattr__(
                 self,
                 name,
-                _freeze_native_runtime_value(getattr(self, name)),
+                _freeze_declared_runtime_value(getattr(self, name)),
             )
         object.__setattr__(
             self,
             "calls",
-            tuple(_freeze_native_runtime_value(entry) for entry in self.calls),
+            tuple(
+                _freeze_declared_runtime_value(entry) for entry in self.calls
+            ),
         )
 
     def build_contract(
@@ -214,7 +218,7 @@ class NativeCMBRuntime:
         model_parameters: Mapping[str, float],
         param_map: Mapping[str, float],
     ) -> dict[str, Any]:
-        """Return one native-runtime contract bound to evaluated parameters."""
+        """Return a declared-runtime contract bound to parameters."""
 
         return {
             "model_name": self.model_name,
@@ -233,23 +237,23 @@ class NativeCMBRuntime:
         }
 
 
-_NativeCMBRuntimeCache = dict[tuple[Any, ...], NativeCMBRuntime]
+_DeclaredCMBRuntimeCache = dict[tuple[Any, ...], DeclaredCMBRuntime]
 
-_COMPILED_NATIVE_CMB_RUNTIME_CACHE: _NativeCMBRuntimeCache = {}
+_COMPILED_DECLARED_CMB_RUNTIME_CACHE: _DeclaredCMBRuntimeCache = {}
 
 
-def _freeze_native_runtime_input(value: Any) -> Any:
-    """Return a deterministic cache token for native-runtime compilation."""
+def _freeze_declared_runtime_input(value: Any) -> Any:
+    """Return a deterministic cache token for declared-runtime compilation."""
 
     from .model_adapter import _freeze_for_cache
 
     return _freeze_for_cache(value)
 
 
-def _freeze_native_runtime_structure(
+def _freeze_declared_runtime_structure(
     cmb_contract: Mapping[str, Any],
 ) -> Any:
-    """Return a structural cache token for one native runtime bundle."""
+    """Return a structural cache token for one declared runtime bundle."""
 
     structural_view = {
         "background": cmb_contract.get("background", {}) or {},
@@ -271,22 +275,22 @@ def _freeze_native_runtime_structure(
         "perturbations": cmb_contract.get("perturbations", {}) or {},
         "values": cmb_contract.get("values", {}) or {},
     }
-    return _freeze_native_runtime_input(structural_view)
+    return _freeze_declared_runtime_input(structural_view)
 
 
-def _native_runtime_signature(cache_key: tuple[Any, ...]) -> str:
+def _declared_runtime_signature(cache_key: tuple[Any, ...]) -> str:
     """Return a stable human-readable signature for one compiled runtime."""
 
     digest = hashlib.sha256(repr(cache_key).encode("utf-8")).hexdigest()[:16]
-    return f"native-cmb-runtime:{digest}"
+    return f"declared-cmb-runtime:{digest}"
 
 
-def _coerce_native_runtime_scalar_mapping(
+def _coerce_declared_runtime_scalar_mapping(
     entries: Mapping[str, Any],
     *,
     label: str,
 ) -> dict[str, float]:
-    """Return a numeric scalar mapping for one bound native runtime."""
+    """Return a numeric scalar mapping for one bound declared runtime."""
 
     resolved: dict[str, float] = {}
     for key, value in entries.items():
@@ -295,17 +299,17 @@ def _coerce_native_runtime_scalar_mapping(
             (int, float, numpy.integer, numpy.floating),
         ):
             raise ValueError(
-                f"{label}.{key} must be a numeric scalar for native runtime "
+                f"{label}.{key} must be a numeric scalar for declared runtime "
                 "binding"
             )
         resolved[str(key)] = float(value)
     return resolved
 
 
-def _infer_native_runtime_parameter_names(
+def _infer_declared_runtime_parameter_names(
     cmb_contract: Mapping[str, Any],
 ) -> tuple[str, ...]:
-    """Return one stable parameter-name list for native-runtime preparation."""
+    """Return stable names for declared-runtime preparation."""
 
     model_parameters = cmb_contract.get("model_parameters", {}) or {}
     param_map = cmb_contract.get("param_map", {}) or {}
@@ -323,10 +327,10 @@ def _infer_native_runtime_parameter_names(
     return tuple(names)
 
 
-def prepare_native_cmb_execution_contract(
+def prepare_declared_cmb_execution_contract(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return ``contract`` with compiled native runtime payload attached."""
+    """Return ``contract`` with compiled declared runtime payload attached."""
 
     if not isinstance(contract, Mapping):
         raise ValueError("Structured CMB contracts must be mappings")
@@ -337,18 +341,18 @@ def prepare_native_cmb_execution_contract(
     ):
         return contract
 
-    parameter_names = _infer_native_runtime_parameter_names(contract)
-    runtime = compile_native_cmb_runtime(
-        model_name=str(contract.get("model_name", "PreparedNativeCMB")),
+    parameter_names = _infer_declared_runtime_parameter_names(contract)
+    runtime = compile_declared_cmb_runtime(
+        model_name=str(contract.get("model_name", "PreparedDeclaredCMB")),
         parameter_names=parameter_names,
         latex_names=tuple("" for _ in parameter_names),
         cmb_contract=contract,
     )
-    model_parameters = _coerce_native_runtime_scalar_mapping(
+    model_parameters = _coerce_declared_runtime_scalar_mapping(
         contract.get("model_parameters", {}) or {},
         label="model_parameters",
     )
-    param_map = _coerce_native_runtime_scalar_mapping(
+    param_map = _coerce_declared_runtime_scalar_mapping(
         contract.get("param_map", {}) or {},
         label="param_map",
     )
@@ -358,14 +362,14 @@ def prepare_native_cmb_execution_contract(
     )
 
 
-def compile_native_cmb_runtime(
+def compile_declared_cmb_runtime(
     *,
     model_name: str,
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
     cmb_contract: Mapping[str, Any],
-) -> NativeCMBRuntime:
-    """Compile the static native CMB runtime carried by a model plugin."""
+) -> DeclaredCMBRuntime:
+    """Compile the static declared CMB runtime carried by a model plugin."""
 
     _reject_removed_cmb_route_keys(cmb_contract)
 
@@ -373,9 +377,9 @@ def compile_native_cmb_runtime(
         str(model_name),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
-        _freeze_native_runtime_structure(cmb_contract),
+        _freeze_declared_runtime_structure(cmb_contract),
     )
-    cached_runtime = _COMPILED_NATIVE_CMB_RUNTIME_CACHE.get(cache_key)
+    cached_runtime = _COMPILED_DECLARED_CMB_RUNTIME_CACHE.get(cache_key)
     if cached_runtime is not None:
         return cached_runtime
 
@@ -520,7 +524,7 @@ def compile_native_cmb_runtime(
         latex_names=tuple(latex_names),
         background_reference_names=background_reference_names_tuple,
     )
-    runtime = NativeCMBRuntime(
+    runtime = DeclaredCMBRuntime(
         model_name=model_name,
         perturbation_contract=perturbation_contract,
         background=copy.deepcopy(cmb_contract.get("background", {}) or {}),
@@ -529,7 +533,7 @@ def compile_native_cmb_runtime(
         calls=tuple(copy.deepcopy(cmb_contract.get("calls", []) or [])),
         numerical=copy.deepcopy(cmb_contract.get("numerical", {}) or {}),
         perturbation_data=perturbation_data,
-        background_runtime=NativeCMBBackgroundRuntime(
+        background_runtime=DeclaredCMBBackgroundRuntime(
             derived_plan=_compile_declared_symbol_plan(
                 (background_section.get("derived", {}) or {})
                 if isinstance(background_section, Mapping)
@@ -552,17 +556,17 @@ def compile_native_cmb_runtime(
                 else calibration_section.get("symbol")
             ),
         ),
-        runtime_signature=_native_runtime_signature(cache_key),
-        compile_diagnostics=NativeCMBCompileDiagnostics(
-            runtime_signature=_native_runtime_signature(cache_key),
-            compiler="copernican.lib.model_coder.compile_native_cmb_runtime",
+        runtime_signature=_declared_runtime_signature(cache_key),
+        compile_diagnostics=DeclaredCMBCompileDiagnostics(
+            runtime_signature=_declared_runtime_signature(cache_key),
+            compiler="copernican.lib.model_coder.compile_declared_cmb_runtime",
             compiled_upstream=True,
             hot_path_recompilation_allowed=False,
             parameter_names=tuple(str(name) for name in parameter_names),
             background_reference_names=background_reference_names_tuple,
         ),
     )
-    _COMPILED_NATIVE_CMB_RUNTIME_CACHE[cache_key] = runtime
+    _COMPILED_DECLARED_CMB_RUNTIME_CACHE[cache_key] = runtime
     return runtime
 
 

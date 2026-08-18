@@ -4,7 +4,7 @@
 """Runtime adapter utilities for model integrations.
 
 This module builds :class:`ModelPlugin` instances from parsed model
-metadata, validates the required callables, and evaluates structured native
+metadata, validates the required callables, and evaluates structured declared
 CMB contracts. The adapter keeps model metadata, priors, distance helpers,
 and compiled CMB runtime state in a picklable dataclass so samplers and run
 manifest code can share the same object without a package-level plugin layer.
@@ -47,7 +47,7 @@ from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 import numpy
 
 from . import priors as prior_lib
-from .model_coder import compile_native_cmb_runtime
+from .model_coder import compile_declared_cmb_runtime
 from .posterior import PosteriorEvaluator, make_logposterior
 
 LOGGER = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ REQUIRED_ATTRIBUTES: list[str] = [
     "CMB_PARAM_MAP",
     "CMB_PERTURBATION_CONTRACT",
     "CMB_PERTURBATION_DATA",
-    "CMB_NATIVE_RUNTIME",
+    "CMB_DECLARED_RUNTIME",
 ]
 
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
@@ -432,7 +432,7 @@ def _validate_cmb_contract_definition(
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
 ) -> None:
-    """Validate the declared native CMB contract."""
+    """Validate the declared CMB contract."""
 
     if not isinstance(contract, Mapping):
         raise ValueError("CMB_CONTRACT must be a mapping")
@@ -820,7 +820,7 @@ class CMBParameterEvaluator:
 
 @dataclass(slots=True)
 class CMBContractEvaluator:
-    """Evaluate a full native CMB contract for a plugin."""
+    """Evaluate a full declared CMB contract for a plugin."""
 
     parameter_names: tuple[str, ...]
     latex_names: tuple[str, ...]
@@ -940,7 +940,7 @@ class CMBContractEvaluator:
         return self._param_evaluator(values)
 
     def __call__(self, values: Sequence[float]) -> dict[str, Any]:
-        """Return the fully evaluated native CMB contract."""
+        """Return the fully evaluated declared CMB contract."""
 
         param_map = self.evaluate_param_map(values)
         model_env = {
@@ -1038,7 +1038,7 @@ class FrozenMapping(Mapping[str, Any]):
 
 @dataclass(slots=True)
 class ModelPlugin:
-    """Container describing a generated model and native CMB contract."""
+    """Container describing a generated model and declared CMB contract."""
 
     MODEL_NAME: str
     MODEL_DESCRIPTION: str
@@ -1059,7 +1059,7 @@ class ModelPlugin:
     CMB_PARAM_MAP: Mapping[str, Any]
     CMB_PERTURBATION_CONTRACT: Mapping[str, Any]
     CMB_PERTURBATION_DATA: Any
-    CMB_NATIVE_RUNTIME: Any
+    CMB_DECLARED_RUNTIME: Any
     LIKELIHOOD_CONFIG: Mapping[str, Any]
     MODEL_EQUATIONS_LATEX_SN: tuple[str, ...]
     MODEL_EQUATIONS_LATEX_BAO: tuple[str, ...]
@@ -1077,7 +1077,7 @@ class ModelPlugin:
     _cmb_evaluator: CMBContractEvaluator | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """Normalise extras and prepare the native CMB evaluator."""
+        """Normalise extras and prepare the declared CMB evaluator."""
 
         self.extras = FrozenMapping(self.extras)
         self.CMB_CONTRACT = copy.deepcopy(self.CMB_CONTRACT or {})
@@ -1119,7 +1119,7 @@ class ModelPlugin:
         return sorted(default)
 
     def get_cmb_params(self, values: Sequence[float]) -> dict[str, float]:
-        """Return native CMB parameters derived from ``values``."""
+        """Return declared CMB parameters derived from ``values``."""
 
         evaluator = getattr(self, "_cmb_evaluator", None)
         if evaluator is None:
@@ -1127,7 +1127,7 @@ class ModelPlugin:
         return evaluator.evaluate_param_map(values)
 
     def get_cmb_contract(self, values: Sequence[float]) -> dict[str, Any]:
-        """Return the fully evaluated native CMB contract."""
+        """Return the fully evaluated declared CMB contract."""
 
         evaluator = getattr(self, "_cmb_evaluator", None)
         if evaluator is None:
@@ -1169,14 +1169,14 @@ class ModelPlugin:
             raise ValueError("Model does not declare CMB perturbation data")
         return perturbation_data
 
-    def get_cmb_native_runtime(
+    def get_cmb_declared_runtime(
         self, values: Sequence[float]
     ) -> dict[str, Any]:
-        """Return the compiled native CMB runtime bound to ``values``."""
+        """Return the compiled declared CMB runtime bound to ``values``."""
 
-        runtime = getattr(self, "CMB_NATIVE_RUNTIME", None)
+        runtime = getattr(self, "CMB_DECLARED_RUNTIME", None)
         if runtime is None:
-            raise ValueError("Model does not declare a native CMB runtime")
+            raise ValueError("Model does not declare a declared CMB runtime")
         model_parameters = self._bind_cmb_model_parameters(values)
         param_map = self.get_cmb_params(values)
         return runtime.build_contract(
@@ -1310,15 +1310,15 @@ def build_model_plugin(
     perturbation_contract = cmb_contract.get("perturbations", {}) or {}
 
     perturbation_data = None
-    native_cmb_runtime = None
+    declared_cmb_runtime = None
     if model_data.get("valid_for_cmb", True):
-        native_cmb_runtime = compile_native_cmb_runtime(
+        declared_cmb_runtime = compile_declared_cmb_runtime(
             model_name=model_data.get("model_name", "GeneratedModel"),
             parameter_names=names,
             latex_names=latex_names,
             cmb_contract=cmb_contract,
         )
-        perturbation_data = native_cmb_runtime.perturbation_data
+        perturbation_data = declared_cmb_runtime.perturbation_data
 
     extras: MutableMapping[str, Any] = {}
     known_names = set(REQUIRED_FUNCTIONS).union(_OPTIONAL_FUNCTIONS)
@@ -1357,7 +1357,7 @@ def build_model_plugin(
         CMB_PARAM_MAP=cmb_contract.get("param_map", {}),
         CMB_PERTURBATION_CONTRACT=perturbation_contract,
         CMB_PERTURBATION_DATA=perturbation_data,
-        CMB_NATIVE_RUNTIME=native_cmb_runtime,
+        CMB_DECLARED_RUNTIME=declared_cmb_runtime,
         LIKELIHOOD_CONFIG=likelihood_config,
         MODEL_EQUATIONS_LATEX_SN=sne_eqs,
         MODEL_EQUATIONS_LATEX_BAO=bao_eqs,
@@ -1395,7 +1395,7 @@ def build_plugin(
 
 
 def _validate_plugin_cmb_contract(plugin: ModelPlugin) -> None:
-    """Validate the plugin's declared native CMB contract."""
+    """Validate the plugin's declared CMB contract."""
 
     if not getattr(plugin, "valid_for_cmb", True):
         return
@@ -1441,7 +1441,7 @@ def validate_plugin(plugin: ModelPlugin) -> bool:
             [
                 "get_cmb_params",
                 "get_cmb_contract",
-                "get_cmb_native_runtime",
+                "get_cmb_declared_runtime",
                 "get_cmb_perturbation_contract",
                 "get_cmb_perturbation_data",
             ]
@@ -1470,8 +1470,8 @@ def validate_plugin(plugin: ModelPlugin) -> bool:
             errors.append("CMB_PERTURBATION_CONTRACT must be a mapping")
         if getattr(plugin, "CMB_PERTURBATION_DATA", None) is None:
             errors.append("CMB_PERTURBATION_DATA must be present")
-        if getattr(plugin, "CMB_NATIVE_RUNTIME", None) is None:
-            errors.append("CMB_NATIVE_RUNTIME must be present")
+        if getattr(plugin, "CMB_DECLARED_RUNTIME", None) is None:
+            errors.append("CMB_DECLARED_RUNTIME must be present")
 
     try:
         _validate_plugin_cmb_contract(plugin)

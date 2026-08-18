@@ -42,7 +42,7 @@ when output directories change.
  files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
  treated as statistically separate when building the joint posterior.
-- Native CMB metadata summarising the contract version, gauge, declared
+- Declared CMB metadata summarising the contract version, gauge, declared
  symbol names, interactions, conservation rules, projection extensions,
  sources, observables, equation and constraint counts, transfer contracts,
  background and recombination provenance, execution solver, runtime
@@ -111,20 +111,23 @@ which behaviour and documentation set applied to the run, especially when a
 development branch has diverged from the last tagged release.
 For CMB-capable models the manifest carries three complementary truth
 surfaces under each `cmb.models[*]` entry:
-- `native_cmb_graph_manifest_summary` for the declared graph identity and
+- `declared_cmb_graph_manifest_summary` for the declared graph identity and
  observable contracts, including each transfer component's
  `declared_projection` entry.
-- `native_cmb_background_manifest_summary` for declared background aliases,
+- `declared_cmb_background_manifest_summary` for declared background aliases,
  reionization calibration, and recombination runtime provenance, including
  the declared recombination quantity names when model hooks are present.
-- `native_cmb_runtime_manifest_summary` for native execution provenance,
+- `declared_cmb_runtime_manifest_summary` for declared execution provenance,
  numerical settings, accuracy controls, runtime signature, and compiler
  diagnostics.
 That split keeps graph structure, physical background provenance, and runtime
-proof separate. The top-level `cmb.execution_solver` and
-`cmb.execution_solver_label` fields identify the sole Copernican native
-declared-graph CMB solver. Each model also records `native_cmb_execution` and
-`native_cmb_numerical_settings`. Backend and standard-route keys are invalid
+proof separate. The manifest's `selection.cmb_solver` records the
+independently selected CMB solver, while top-level `cmb_solver` and
+`provenance.cmb_solver` preserve its identity and capability metadata. The
+top-level `cmb.execution_solver` and `cmb.execution_solver_label` fields
+identify the solver used by CMB-capable models. Each model also records
+`declared_cmb_execution` and
+`declared_cmb_numerical_settings`. Backend and standard-route keys are invalid
 and cannot be recorded. The
 per-model `perturbation_*_names` lists expose declared interactions,
 conservation rules, and projection extensions so audits can check theory

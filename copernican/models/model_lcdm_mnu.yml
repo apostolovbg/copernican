@@ -6,7 +6,7 @@ description: >-
   This sample keeps the flat ΛCDM background and treats the summed
   neutrino mass as a sampled quantity.
   Supernovae and BAO distances remain governed by the same H(z)
-  expression while the native CMB likelihood evolves the explicit
+  expression while the declared CMB likelihood evolves the explicit
   q-resolved massive-neutrino hierarchy. Elevating m_ν lets the
   manifest capture the neutrino signature shown by galaxy clustering
   without rewriting the BAO or SNe integrals.
@@ -21,7 +21,7 @@ description: >-
 abstract: >-
   LambdaCDM+Mnu keeps the LambdaCDM expansion law while sampling the neutrino
   sector. The total matter density sources the Friedmann equation, and the
-  native CMB contract maps the declared sum_mnu into q-resolved neutrino
+  declared CMB contract maps the declared sum_mnu into q-resolved neutrino
   states.
 parameters:
   - name: Hubble constant
@@ -345,7 +345,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: LambdaCDM+Mnu spectra use the declared massive-neutrino hierarchy.
     notes: The scalar graph couples the LambdaCDM species to q-resolved
       massive-neutrino equations and regular adiabatic initial data.
@@ -353,7 +353,7 @@ notes: >-
   The neutrino contribution enters only through omnuh2, which is
   derived from the declared sum_mnu. The radiation term multiplies
   Omega_gamma by (1 + 0.2271 * Neff) so the BAO integral mirrors the
-  same effective relativistic density that the native CMB background uses
+  same effective relativistic density that the declared CMB background uses
   alongside the
   explicit neutrino mass information. The matter density Omch2
   subtracts the neutrino density so cold dark matter carries the

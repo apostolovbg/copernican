@@ -1,4 +1,4 @@
-"""Ordered native CMB batch results and stable diagnostic serialization."""
+"""Ordered declared CMB batch results and stable diagnostic serialization."""
 
 from __future__ import annotations
 
@@ -7,17 +7,17 @@ from typing import Any, Mapping
 
 import numpy
 
-from .native_errors import NativeCMBError
+from .errors import CMBError
 
 
 def _jsonable(value: Any) -> Any:
-    """Convert native diagnostics and spectra into JSON-compatible values."""
+    """Convert declared diagnostics and spectra into JSON-compatible values."""
 
     if isinstance(value, numpy.ndarray):
         return value.tolist()
     if isinstance(value, numpy.generic):
         return value.item()
-    if isinstance(value, NativeCMBError):
+    if isinstance(value, CMBError):
         return value.diagnostic()
     if isinstance(value, Mapping):
         return {
@@ -32,12 +32,12 @@ def _jsonable(value: Any) -> Any:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeCMBBatchResult:
-    """Store one ordered native CMB batch outcome and its provenance."""
+class CMBBatchResult:
+    """Store one ordered declared CMB batch outcome and its provenance."""
 
     index: int
     spectrum: numpy.ndarray | Mapping[str, numpy.ndarray] | None = None
-    failure: NativeCMBError | None = None
+    failure: CMBError | None = None
     performance_envelope: Mapping[str, Any] = field(default_factory=dict)
     cache_provenance: Mapping[str, Any] = field(default_factory=dict)
 
@@ -45,17 +45,16 @@ class NativeCMBBatchResult:
         """Validate one-and-only-one success or typed failure outcome."""
 
         if int(self.index) < 0:
-            raise ValueError("Native CMB batch indices must be non-negative")
+            raise ValueError("Declared CMB batch indices must be non-negative")
         has_spectrum = self.spectrum is not None
         has_failure = self.failure is not None
         if has_spectrum == has_failure:
             raise ValueError(
-                "Native CMB batch results require a spectrum or typed failure"
+                "Declared CMB batch results require a spectrum or "
+                "typed failure"
             )
-        if self.failure is not None and not isinstance(
-            self.failure, NativeCMBError
-        ):
-            raise TypeError("Native CMB batch failures must be typed errors")
+        if self.failure is not None and not isinstance(self.failure, CMBError):
+            raise TypeError("Declared CMB batch failures must be typed errors")
         object.__setattr__(self, "index", int(self.index))
         object.__setattr__(
             self,
@@ -91,4 +90,4 @@ class NativeCMBBatchResult:
         }
 
 
-__all__ = ["NativeCMBBatchResult"]
+__all__ = ["CMBBatchResult"]

@@ -1,7 +1,7 @@
 """Independent CAMB reference helpers for scientific tests.
 
 Nothing in the production package imports this module. Its calculations
-provide an external comparison surface for native solver acceptance tests.
+provide an external comparison surface for declared solver acceptance tests.
 """
 
 from __future__ import annotations

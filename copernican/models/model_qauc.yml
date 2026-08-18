@@ -366,7 +366,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: QAUC spectra use the declared attractor background and scalar hierarchy.
     notes: The scalar graph couples the declared matter and radiation species
       to the oscillatory attractor background.
@@ -374,10 +374,10 @@ notes: >-
   Provide explicit sound-horizon integrals so BAO fits remain physically
   consistent with the Quasi-Accelerating Unified Cosmology background. The
   radiation density Omega_r0 includes the neutrino contribution
-  (Omega_gamma * (1 + 0.2271 * Neff)) so BAO ratios align with the native CMB solver
+  (Omega_gamma * (1 + 0.2271 * Neff)) so BAO ratios align with the declared CMB solver
   background without reinterpreting Omega_r0.
-  Neff ranges between 2.5 and 3.5 so the BAO integrals and native CMB inputs
+  Neff ranges between 2.5 and 3.5 so the BAO integrals and declared CMB inputs
   share the same effective relativistic density even when the sampler explores
   departures from the classic 3.044 value.
-  The native CMB contract evaluates the oscillatory dark-energy envelope on a
-  scale-factor grid and forwards the generated w(a) table into native CMB solver directly.
+  The declared CMB contract evaluates the oscillatory dark-energy envelope on a
+  scale-factor grid and forwards the generated w(a) table into declared CMB solver directly.

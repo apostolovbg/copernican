@@ -37,11 +37,11 @@ guardrails such as policy enforcement and dataset validation.
  models, cache sanitized copies, convert equations into callables, and
  assemble picklable sampler adapters compliant with the expected interface.
 - `model_adapter` – ensures adapters declare required functions, structured
- native CMB contracts, and dataset compatibility before any sampler consumes
+ declared CMB contracts, and dataset compatibility before any sampler consumes
  them.
-- `cmb_identity` – defines the sole production CMB solver identity. Model
- roles supply declared physics; CLI and GUI surfaces do not select a CMB
- backend.
+- `cmb_identity` and the CMB solver registry – define the stable CCMBS
+  identity and independently select the registered solver backend. Model
+  roles supply declared physics; sampler and solver choices remain separate.
 - `posterior`, `statistics`, `chain_io`, `csv_writer`, `result_writer` –
  provide shared likelihoods, chi-squared helpers, NetCDF/CSV writers, and
  summary serialization that every sampler reuses.
@@ -82,7 +82,7 @@ guardrails such as policy enforcement and dataset validation.
  derived from the selected models. The GUI Run Settings panel mirrors the
  same questions.
 3. **Manifest composition** – `copernican.lib.run_manifest.build_manifest`
- aggregates seed, model metadata, dataset digests, sampler settings, native
+ aggregates seed, model metadata, dataset digests, sampler settings, declared
  CMB solver identity, run plan
  notes, Git hash, environment hints, and adapter metadata. The manifest is
  saved in the temporary workspace until `copernican.lib.gui.run_worker` or

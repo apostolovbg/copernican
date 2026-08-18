@@ -1,4 +1,7 @@
-"""Numerical-envelope and cross-sector convergence contracts for native CMB."""
+"""Numerical-envelope and cross-sector convergence contracts.
+
+The contracts govern declared CMB calculations.
+"""
 
 from __future__ import annotations
 
@@ -94,8 +97,8 @@ _FINAL_MOMENTUM_GRID_MINIMUMS = {
 
 
 @dataclass(frozen=True, slots=True)
-class NativeNumericalEnvelope:
-    """Resolved controls and bounds for one native CMB request."""
+class NumericalEnvelope:
+    """Resolved controls and bounds for one declared CMB request."""
 
     accuracy_tier: str | None
     bounded: bool
@@ -133,7 +136,7 @@ class NativeNumericalEnvelope:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeRefinementMetric:
+class RefinementMetric:
     """One measured final-refinement error and its acceptance threshold."""
 
     name: str
@@ -153,10 +156,10 @@ class NativeRefinementMetric:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeConvergenceReport:
-    """Named final-refinement metrics across native physical surfaces."""
+class ConvergenceReport:
+    """Named final-refinement metrics across declared physical surfaces."""
 
-    metrics: Mapping[str, NativeRefinementMetric]
+    metrics: Mapping[str, RefinementMetric]
 
     @property
     def converged(self) -> bool:
@@ -315,12 +318,12 @@ def _momentum_grid_controls(
 
     raw_grids = numerical.get("momentum_grids", {}) or {}
     if not isinstance(raw_grids, Mapping):
-        raise ValueError("Native momentum-grid numerics must be a mapping")
+        raise ValueError("Declared momentum-grid numerics must be a mapping")
     resolved: dict[str, dict[str, Any]] = {}
     for grid_name, raw_grid in raw_grids.items():
         if not isinstance(raw_grid, Mapping):
             raise ValueError(
-                f"Native momentum grid '{grid_name}' must be a mapping"
+                f"Declared momentum grid '{grid_name}' must be a mapping"
             )
         resolved[str(grid_name)] = {
             "count": int(raw_grid.get("count", 8)),
@@ -347,7 +350,9 @@ def _runtime_limits(
             return False, limits
         value = int(raw_envelope[name])
         if value < 1:
-            raise ValueError(f"Native runtime limit '{name}' must be positive")
+            raise ValueError(
+                f"Declared runtime limit '{name}' must be positive"
+            )
         limits[name] = value
     return True, limits
 
@@ -408,11 +413,11 @@ def _finite_control(numerical: Mapping[str, Any], name: str) -> float:
     value = numerical.get(name)
     if value is None:
         raise ValueError(
-            f"Native accuracy tier requires numerical control '{name}'"
+            f"Declared accuracy tier requires numerical control '{name}'"
         )
     numeric = float(numpy.asarray(value, dtype=float))
     if not numpy.isfinite(numeric):
-        raise ValueError(f"Native numerical control '{name}' must be finite")
+        raise ValueError(f"Declared numerical control '{name}' must be finite")
     return numeric
 
 
@@ -488,15 +493,15 @@ def _validate_final_tier(
             )
     if complaints:
         raise ValueError(
-            "Native accuracy tier 'final' is under-resolved: "
+            "Declared accuracy tier 'final' is under-resolved: "
             + "; ".join(complaints)
         )
 
 
-def resolve_native_numerical_envelope(
+def resolve_declared_numerical_envelope(
     contract: Mapping[str, Any],
-) -> NativeNumericalEnvelope:
-    """Resolve and validate the active native numerical accuracy envelope."""
+) -> NumericalEnvelope:
+    """Resolve and validate the active declared numerical accuracy envelope."""
 
     controls = _accuracy_controls(contract)
     raw_tier = controls.get("accuracy_tier")
@@ -523,7 +528,7 @@ def resolve_native_numerical_envelope(
     resolved_numerical = {
         name: numerical.get(name) for name in numerical_names
     }
-    return NativeNumericalEnvelope(
+    return NumericalEnvelope(
         accuracy_tier=accuracy_tier,
         bounded=bounded,
         sectors=sectors,
@@ -542,7 +547,9 @@ def _finite_array(values: Any, *, name: str) -> numpy.ndarray:
 
     array = numpy.asarray(values, dtype=numpy.longdouble)
     if array.size == 0 or not numpy.all(numpy.isfinite(array)):
-        raise ValueError(f"Native refinement surface '{name}' must be finite")
+        raise ValueError(
+            f"Declared refinement surface '{name}' must be finite"
+        )
     return array
 
 
@@ -553,7 +560,7 @@ def _fractional_refinement_error(
     """Return the relative L-infinity change between two surfaces."""
 
     if coarse.shape != fine.shape:
-        raise ValueError("Native refinement surfaces must have equal shapes")
+        raise ValueError("Declared refinement surfaces must have equal shapes")
     peak = numpy.max(numpy.abs(fine), initial=numpy.longdouble(0.0))
     scale = max(peak, numpy.finfo(numpy.longdouble).tiny)
     return float(numpy.max(numpy.abs(fine - coarse), initial=0.0) / scale)
@@ -600,15 +607,15 @@ def evaluate_spectrum_refinement(
     fine_spectra: Mapping[str, Any],
     *,
     required_spectra: Iterable[str] | None = None,
-) -> NativeConvergenceReport:
-    """Measure final native spectrum refinement against roadmap thresholds."""
+) -> ConvergenceReport:
+    """Measure final declared spectrum refinement against thresholds."""
 
     required = tuple(
         required_spectra
         if required_spectra is not None
         else FINAL_SPECTRUM_RELATIVE_TOLERANCES
     )
-    metrics: dict[str, NativeRefinementMetric] = {}
+    metrics: dict[str, RefinementMetric] = {}
     for raw_name in required:
         name = str(raw_name)
         if name not in FINAL_SPECTRUM_RELATIVE_TOLERANCES:
@@ -622,20 +629,20 @@ def evaluate_spectrum_refinement(
         else:
             if name not in coarse_spectra or name not in fine_spectra:
                 raise ValueError(
-                    f"Native spectrum refinement requires '{name}' at "
+                    f"Declared spectrum refinement requires '{name}' at "
                     "both resolutions"
                 )
             coarse = _finite_array(coarse_spectra[name], name=f"coarse {name}")
             fine = _finite_array(fine_spectra[name], name=f"fine {name}")
             relative_error = _fractional_refinement_error(coarse, fine)
         tolerance = float(FINAL_SPECTRUM_RELATIVE_TOLERANCES[name])
-        metrics[name] = NativeRefinementMetric(
+        metrics[name] = RefinementMetric(
             name=name,
             relative_error=relative_error,
             tolerance=tolerance,
             converged=bool(relative_error < tolerance),
         )
-    return NativeConvergenceReport(metrics=metrics)
+    return ConvergenceReport(metrics=metrics)
 
 
 def evaluate_control_refinement(
@@ -644,7 +651,7 @@ def evaluate_control_refinement(
     *,
     name: str,
     tolerance: float,
-) -> NativeRefinementMetric:
+) -> RefinementMetric:
     """Measure one hierarchy, q-grid, background, or grid refinement."""
 
     coarse_values = _finite_array(coarse, name=f"coarse {name}")
@@ -652,8 +659,8 @@ def evaluate_control_refinement(
     relative_error = _fractional_refinement_error(coarse_values, fine_values)
     threshold = float(tolerance)
     if not numpy.isfinite(threshold) or threshold <= 0.0:
-        raise ValueError("Native refinement tolerance must be positive")
-    return NativeRefinementMetric(
+        raise ValueError("Declared refinement tolerance must be positive")
+    return RefinementMetric(
         name=str(name),
         relative_error=relative_error,
         tolerance=threshold,
@@ -661,12 +668,12 @@ def evaluate_control_refinement(
     )
 
 
-def require_native_convergence(
-    report: NativeConvergenceReport | NativeRefinementMetric,
+def require_convergence(
+    report: ConvergenceReport | RefinementMetric,
 ) -> None:
     """Raise a named error when final numerical refinement is unresolved."""
 
-    if isinstance(report, NativeRefinementMetric):
+    if isinstance(report, RefinementMetric):
         metrics = {report.name: report}
     else:
         metrics = report.metrics
@@ -678,7 +685,7 @@ def require_native_convergence(
         f">= {metric.tolerance:.6g}"
         for metric in failed
     )
-    raise ValueError(f"Native final numerical refinement failed: {details}")
+    raise ValueError(f"Declared final numerical refinement failed: {details}")
 
 
 __all__ = [
@@ -686,11 +693,11 @@ __all__ = [
     "FINAL_HIERARCHY_RELATIVE_TOLERANCE",
     "FINAL_Q_GRID_RELATIVE_TOLERANCE",
     "FINAL_SPECTRUM_RELATIVE_TOLERANCES",
-    "NativeConvergenceReport",
-    "NativeNumericalEnvelope",
-    "NativeRefinementMetric",
+    "ConvergenceReport",
+    "NumericalEnvelope",
+    "RefinementMetric",
     "evaluate_control_refinement",
     "evaluate_spectrum_refinement",
-    "require_native_convergence",
-    "resolve_native_numerical_envelope",
+    "require_convergence",
+    "resolve_declared_numerical_envelope",
 ]

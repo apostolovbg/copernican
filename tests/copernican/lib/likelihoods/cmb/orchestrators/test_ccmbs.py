@@ -1,60 +1,50 @@
-"""Focused tests for the native CMB solver orchestration module."""
+"""Focused tests for the declared CMB solver orchestration module."""
 
 import unittest
 from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb import (
-    copernican_cmb_solver as native_cmb_solver,
-)
-from copernican.lib.likelihoods.cmb import (
-    native_background,
-    native_evolution,
-    native_projection,
+from copernican.lib.likelihoods.cmb.orchestrators import ccmbs as cmb_solver
+from copernican.lib.likelihoods.cmb.runtime import (
+    background,
+    evolution,
+    projection,
 )
 
 
 class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
-    """Exercise the native solver orchestration helpers directly."""
+    """Exercise the declared solver orchestration helpers directly."""
 
-    def test_native_module_keeps_only_internal_helpers(self):
-        """The native module should not expose a second public CMB facade."""
+    def test_declared_module_keeps_only_internal_helpers(self):
+        """The declared module should not expose a second public CMB facade."""
 
-        self.assertFalse(hasattr(native_cmb_solver, "compute_cmb_spectrum"))
+        self.assertFalse(hasattr(cmb_solver, "compute_cmb_spectrum"))
+        self.assertFalse(hasattr(cmb_solver, "compute_cmb_spectrum_cached"))
         self.assertFalse(
-            hasattr(native_cmb_solver, "compute_cmb_spectrum_cached")
+            hasattr(cmb_solver, "compute_cmb_spectrum_from_contract")
         )
-        self.assertFalse(
-            hasattr(native_cmb_solver, "compute_cmb_spectrum_from_contract")
-        )
-        self.assertFalse(
-            hasattr(native_cmb_solver, "compute_cmb_spectrum_from_dict")
-        )
-        self.assertFalse(hasattr(native_cmb_solver, "CMBLike"))
-        self.assertFalse(
-            hasattr(native_cmb_solver, "_CustomCMBBackgroundData")
-        )
-        self.assertFalse(hasattr(native_cmb_solver, "CustomCMBSpectrumData"))
+        self.assertFalse(hasattr(cmb_solver, "compute_cmb_spectrum_from_dict"))
+        self.assertFalse(hasattr(cmb_solver, "CMBLike"))
+        self.assertFalse(hasattr(cmb_solver, "_CustomCMBBackgroundData"))
+        self.assertFalse(hasattr(cmb_solver, "CustomCMBSpectrumData"))
         self.assertFalse(
             hasattr(
-                native_cmb_solver,
+                cmb_solver,
                 "_compile_declared_graph_execution_plan",
             )
         )
+        self.assertTrue(hasattr(background._CustomCMBBackgroundData, "sample"))
+        self.assertTrue(hasattr(projection, "CustomCMBSpectrumData"))
         self.assertTrue(
-            hasattr(native_background._CustomCMBBackgroundData, "sample")
-        )
-        self.assertTrue(hasattr(native_projection, "CustomCMBSpectrumData"))
-        self.assertTrue(
-            callable(native_evolution._compile_declared_graph_execution_plan)
+            callable(evolution._compile_declared_graph_execution_plan)
         )
         self.assertTrue(
-            callable(native_cmb_solver._compute_declared_perturbation_spectrum)
+            callable(cmb_solver._compute_declared_perturbation_spectrum)
         )
 
-    def test_lensed_assembly_uses_native_unlensed_and_pp_surfaces(self):
-        """Lensed output must be assembled from declared native surfaces."""
+    def test_lensed_assembly_uses_declared_unlensed_and_pp_surfaces(self):
+        """Lensed output must be assembled from declared surfaces."""
 
         ell_grid = numpy.arange(16, dtype=int)
         temperature_cls = numpy.linspace(1.0, 2.0, ell_grid.size)
@@ -64,13 +54,13 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
         lensing_potential_cls = numpy.linspace(0.01, 0.02, ell_grid.size)
 
         with mock.patch.object(
-            native_cmb_solver,
+            cmb_solver,
             "_lensed_cls",
             return_value=numpy.zeros(
                 (ell_grid.size, 4), dtype=numpy.longdouble
             ),
         ) as remapper:
-            result = native_cmb_solver._assemble_exact_lensed_spectra(
+            result = cmb_solver._assemble_exact_lensed_spectra(
                 {
                     "TT": temperature_cls,
                     "EE": electric_cls,
@@ -105,7 +95,7 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
             for name in ("TT", "TE", "EE", "PP")
         }
         with self.assertRaisesRegex(ValueError, "contiguous ell grid"):
-            native_cmb_solver._assemble_exact_lensed_spectra(
+            cmb_solver._assemble_exact_lensed_spectra(
                 spectra,
                 numpy.asarray((0, 2, 4, 6), dtype=int),
             )

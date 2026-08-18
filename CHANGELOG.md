@@ -80,6 +80,216 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-18:
+  Change: Restructured the CMB package into solver, orchestrator, and runtime
+    namespaces and renamed former backend-prefixed symbols and paths.
+  Why: Clarified ownership of the CCMBS public facade, selectable backends,
+    numerical runtime, diagnostics, and cache helpers before Taichi work.
+  Impact: Imports, manifests, diagnostics, tests, and documentation now use
+    the canonical CMB layout and declared runtime vocabulary.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  AGENTS.md
+  ABOUT.md
+  CITATION.cff
+  README.md
+  SECURITY.md
+  SPEC.md
+  SUPPORT.md
+  copernican/ABOUT.md
+  copernican/CITATION.cff
+  copernican/README.md
+  copernican/rng_minigames/alien_invasion/README.md
+  copernican/SECURITY.md
+  copernican/SUPPORT.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/model_template.yml
+  copernican/docs/orchestration_services.md
+  copernican/docs/packaging.md
+  copernican/docs/run_manifest.md
+  copernican/lib/analysis.py
+  copernican/lib/cli/menus.py
+  copernican/lib/cmb_contract.py
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/gui/app.py
+  copernican/lib/licenses/THIRD_PARTY_LICENSES.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/copernican_cmb_solver.py
+  copernican/lib/likelihoods/cmb/contracts.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/native_adaptive.py
+  copernican/lib/likelihoods/cmb/native_background.py
+  copernican/lib/likelihoods/cmb/native_batch.py
+  copernican/lib/likelihoods/cmb/native_cache.py
+  copernican/lib/likelihoods/cmb/native_convergence.py
+  copernican/lib/likelihoods/cmb/native_errors.py
+  copernican/lib/likelihoods/cmb/native_evolution.py
+  copernican/lib/likelihoods/cmb/native_lensing.py
+  copernican/lib/likelihoods/cmb/native_performance.py
+  copernican/lib/likelihoods/cmb/native_projection.py
+  copernican/lib/likelihoods/cmb/orchestrators/__init__.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/results.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/solvers/__init__.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/solvers/registry.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  copernican/runtime-requirements.lock
+  copernican/samplers/sampler_mcmc.py
+  copernican/samplers/sampler_nested.py
+  copernican/validation/README.md
+  copernican/validation/manifests/reference_planck2018.yml
+  copernican/workflow.py
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/model_template.yml
+  docs/orchestration_services.md
+  docs/packaging.md
+  docs/run_manifest.md
+  licenses/THIRD_PARTY_LICENSES.md
+  licenses/astropy-iers-data-0.2026.8.3.0.53.6.txt
+  licenses/astropy-iers-data-0.2026.8.10.0.32.39.txt
+  licenses/pillow-12.3.0.txt
+  licenses/tzdata-2026.3.txt
+  requirements.lock
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_lensing.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_registry.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/cmb/test_copernican_cmb_solver.py
+  tests/copernican/lib/likelihoods/cmb/test_native_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_native_background.py
+  tests/copernican/lib/likelihoods/cmb/test_native_batch.py
+  tests/copernican/lib/likelihoods/cmb/test_native_cache.py
+  tests/copernican/lib/likelihoods/cmb/test_native_convergence.py
+  tests/copernican/lib/likelihoods/cmb/test_native_errors.py
+  tests/copernican/lib/likelihoods/cmb/test_native_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_native_lensing.py
+  tests/copernican/lib/likelihoods/cmb/test_native_performance.py
+  tests/copernican/lib/likelihoods/cmb/test_native_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_results.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_cmb_identity.py
+  tests/copernican/lib/test_cmb_projection_contract.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+  tests/project/datasets/synthetic/model.yml
+  tests/project/datasets/synthetic/model_plugin.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_model_template.py
+
+- 2026-08-18:
+  Change: Added the selectable CCMBS solver protocol, reference adapter,
+    manifest selection, sampler injection, and provenance serialization.
+  Why: Defined one exact CMB boundary that both samplers can consume now and
+    a future Taichi Vulkan backend can implement without sampler changes.
+  Impact: Runs default to `ccmbs_numpy`, reject unknown solvers before
+    sampling, preserve ordered typed results and cache evidence, and record
+    solver capabilities in manifests, summaries, and chains.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  SUPPORT.md
+  copernican/README.md
+  copernican/SUPPORT.md
+  docs/api_overview.md
+  docs/architecture.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  docs/gui_guide.md
+  docs/gui_overview.md
+  docs/orchestration_services.md
+  docs/run_manifest.md
+  copernican/docs/api_overview.md
+  copernican/docs/architecture.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/docs/gui_guide.md
+  copernican/docs/gui_overview.md
+  copernican/docs/orchestration_services.md
+  copernican/docs/run_manifest.md
+  copernican/lib/gui/app.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/solver.py
+  copernican/lib/likelihoods/cmb/solver_contract.py
+  copernican/lib/likelihoods/cmb/solver_registry.py
+  copernican/lib/result_writer.py
+  copernican/lib/run_config.py
+  copernican/lib/run_executor.py
+  copernican/lib/run_manifest.py
+  copernican/lib/run_pipeline.py
+  copernican/samplers/sampler_mcmc.py
+  copernican/samplers/sampler_nested.py
+  tests/copernican/lib/likelihoods/cmb/test_ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/test_solver_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_solver_registry.py
+  tests/copernican/lib/likelihoods/cmb/test_solver.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_manifest.py
+
+- 2026-08-18:
   Change: Updated documentation timestamps, fixed compact CMB controls, and
     removed legacy engine caches.
   Why: Resolved current-date policy complaints and kept the bounded sampler

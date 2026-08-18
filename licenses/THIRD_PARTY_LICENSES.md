@@ -6,14 +6,12 @@ texts stored under `licenses/`.
 
 ## License Report
 - `copernican/runtime-requirements.lock`
-- `devcovenant/runtime-requirements.lock`
-- `requirements.in`
 - `requirements.lock`
 
 ## Dependency License Inventory
 - `arviz==0.16.1`: `licenses/arviz-0.16.1.txt`
 - `astropy==6.0.0`: `licenses/astropy-6.0.0.txt`
-- `astropy-iers-data==0.2026.8.3.0.53.6`: `licenses/astropy-iers-data-0.2026.8.3.0.53.6.txt`
+- `astropy-iers-data==0.2026.8.10.0.32.39`: `licenses/astropy-iers-data-0.2026.8.10.0.32.39.txt`
 - `attrs==26.1.0`: `licenses/attrs-26.1.0.txt`
 - `bandit==1.9.4`: `licenses/bandit-1.9.4.txt`
 - `build==1.5.0`: `licenses/build-1.5.0.txt`

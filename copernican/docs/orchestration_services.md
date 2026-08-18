@@ -23,7 +23,7 @@ The shared services are:
  models into cached callables without importing menu helpers or UI code.
 2. **Manifest generation**.
  `copernican.lib.run_manifest.build_manifest` assembles dataset digests,
- model adapter metadata, the ordered control/test comparison, native CMB
+ model adapter metadata, the ordered control/test comparison, declared CMB
  sampler identity, and Git state for every run. The result is intentionally
  identical for CLI and GUI launches.
 3. **Run control**.
@@ -61,8 +61,9 @@ selected before launch. That keeps GUI and CLI execution aligned with the
 same interpreter, the same dependency surface, and the same manifest
 semantics.
 CLI and GUI launches both exercise the unified manifest pipeline. They select
-control and test models plus a sampler; CMB-capable models execute on
-the fixed native declared-graph CMB solver.
+control and test models plus a sampler, and persist the independent CMB solver
+selection; CMB-capable models default to the declared-graph CCMBS
+solver.
 ## Practical Rule
 If a GUI action can be expressed as a manifest-driven run, it should call the
 shared orchestration services instead of inventing a second code path.

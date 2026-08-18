@@ -171,8 +171,10 @@ underlying YAML files so you can inspect definitions without leaving the GUI.
 ## Samplers
 Every discovered sampler shows its label, version, badges, and digest
 inside its own framed row. *Open sampler folder* and *View module* buttons call
-the same helpers used by the Run Builder. The native CMB solver is fixed by the
-selected model contracts and does not appear as a selectable sampler.
+the same helpers used by the Run Builder. The Run Builder records the default
+CCMBS solver selection in the manifest alongside the sampler; future registered
+solver choices can use that same manifest field without changing sampler
+controls.
 ## Settings
 The Settings screen mirrors the Run Builder navigation: three tabs
 list Datasets, GUI and Tools options in the same style as the wizard

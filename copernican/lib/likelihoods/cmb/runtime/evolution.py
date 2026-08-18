@@ -1,4 +1,4 @@
-r"""Declared native perturbation compilation and graph-evolution helpers."""
+r"""Declared perturbation compilation and graph-evolution helpers."""
 
 from __future__ import annotations
 
@@ -12,26 +12,23 @@ from typing import Any, Callable, Mapping
 
 import numpy
 
-from ...model_adapter import FrozenMapping, _freeze_for_cache
-from ...perturbation_contract import (
+from ....model_adapter import FrozenMapping, _freeze_for_cache
+from ....perturbation_contract import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
     _evaluate_compiled_expression_noerr,
     _parse_safe_expression,
     evaluate_compiled_expression,
 )
-from . import native_cache
-from .native_background import (
+from ..errors import ConstraintViolationError, NonFiniteEvolutionError
+from . import cache
+from .background import (
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
     _coerce_numeric_scalar,
     _CustomCMBNumerics,
     _CustomCMBPhysicalParameters,
     _physical_runtime_scalars,
     _resolve_declared_accuracy_controls,
-)
-from .native_errors import (
-    NativeConstraintViolationError,
-    NativeNonFiniteEvolutionError,
 )
 
 _NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
@@ -119,7 +116,7 @@ def _compile_declared_perturbation_contract(
     if precompiled is not None:
         return precompiled
     raise ValueError(
-        "Native CMB execution requires precompiled perturbation_data. "
+        "Declared CMB execution requires precompiled perturbation_data. "
         "Prepare the runtime through model_coder before likelihood "
         "evaluation."
     )
@@ -202,7 +199,7 @@ class _DeclaredRuntimeAssets:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeBatchedEvolutionStats:
+class BatchedEvolutionStats:
     """Account for one shared explicit evolution over several modes."""
 
     mode_count: int
@@ -222,7 +219,7 @@ def _integrate_batched_rk4(
     pre_step: Callable[..., numpy.ndarray] | None = None,
     post_step: Callable[..., numpy.ndarray] | None = None,
     record_step: Callable[..., numpy.ndarray] | None = None,
-) -> tuple[numpy.ndarray, numpy.ndarray, NativeBatchedEvolutionStats]:
+) -> tuple[numpy.ndarray, numpy.ndarray, BatchedEvolutionStats]:
     """Integrate mode rows on a shared grid with a common RK4 schedule.
 
     ``required_substeps`` may vary by mode, but each interval uses the next
@@ -359,7 +356,7 @@ def _integrate_batched_rk4(
     return (
         histories,
         states,
-        NativeBatchedEvolutionStats(
+        BatchedEvolutionStats(
             mode_count=mode_count,
             interval_count=interval_count,
             rk_stage_count=rk_stage_count,
@@ -379,7 +376,7 @@ def _compile_ordered_context_program(
     for output_name, expression in value_specs:
         if not output_name.isidentifier() or keyword.iskeyword(output_name):
             raise ValueError(
-                "Declared value names must be identifiers for the native "
+                "Declared value names must be identifiers for the declared "
                 f"compiled context path: {output_name}"
             )
         expression_node = copy.deepcopy(_parse_safe_expression(expression))
@@ -1093,7 +1090,7 @@ def _compile_declared_graph_execution_plan(
     """Return the compiled execution plan for one declared graph."""
 
     cache_token = _declared_graph_execution_plan_cache_token(perturbation_data)
-    cached = native_cache.get_declared_graph_execution_plan(cache_token)
+    cached = cache.get_declared_graph_execution_plan(cache_token)
     if cached is not None:
         return cached
 
@@ -1251,11 +1248,11 @@ def _compile_declared_graph_execution_plan(
         end_condition_entries=end_condition_entries,
         equation_slot_plans=tuple(equation_slot_plans),
     )
-    native_cache.set_declared_graph_execution_plan(cache_token, compiled_plan)
+    cache.set_declared_graph_execution_plan(cache_token, compiled_plan)
     return compiled_plan
 
 
-def prepare_native_runtime_assets(
+def prepare_runtime_assets(
     runtime_signature: str,
     perturbation_data: Any,
 ) -> _DeclaredRuntimeAssets:
@@ -1268,7 +1265,7 @@ def prepare_native_runtime_assets(
         )
     owner_pid = os.getpid()
     cache_key = (owner_pid, signature)
-    cached = native_cache.get_native_runtime_assets(cache_key)
+    cached = cache.get_runtime_assets(cache_key)
     if cached is not None:
         return cached
     assets = _DeclaredRuntimeAssets(
@@ -1279,7 +1276,7 @@ def prepare_native_runtime_assets(
         ),
         owner_pid=owner_pid,
     )
-    native_cache.set_native_runtime_assets(cache_key, assets)
+    cache.set_runtime_assets(cache_key, assets)
     return assets
 
 
@@ -1339,7 +1336,7 @@ def _resolve_declared_momentum_grid_runtimes(
             for name, family_names in family_groups.items()
         )
     )
-    topologies = native_cache.get_declared_momentum_topology(topology_key)
+    topologies = cache.get_declared_momentum_topology(topology_key)
     if topologies is None:
         prepared_topologies: list[_DeclaredMomentumGridTopology] = []
         for grid_name, family_names in sorted(family_groups.items()):
@@ -1414,7 +1411,7 @@ def _resolve_declared_momentum_grid_runtimes(
                 )
             )
         topologies = tuple(prepared_topologies)
-        native_cache.set_declared_momentum_topology(
+        cache.set_declared_momentum_topology(
             topology_key,
             topologies,
         )
@@ -1446,7 +1443,7 @@ def _resolve_declared_momentum_grid_runtimes(
         float(physical_params.hubble_ratio),
         float(physical_params.Omega_nu0 or 0.0),
     )
-    cached = native_cache.get_declared_momentum_grid(cache_key)
+    cached = cache.get_declared_momentum_grid(cache_key)
     if cached is not None:
         return cached
 
@@ -1538,7 +1535,7 @@ def _resolve_declared_momentum_grid_runtimes(
             )
         )
     runtime_tuple = tuple(runtimes)
-    native_cache.set_declared_momentum_grid(cache_key, runtime_tuple)
+    cache.set_declared_momentum_grid(cache_key, runtime_tuple)
     return runtime_tuple
 
 
@@ -1984,7 +1981,7 @@ def _compute_tight_coupling_drag(
     k_value: float,
     tight_coupling_ratio: float,
 ) -> float | numpy.ndarray:
-    """Return the diagnostic tight-coupling rate for native contexts."""
+    """Return the diagnostic tight-coupling rate for declared contexts."""
 
     tight_coupling_cap = _tight_coupling_entry_rate(
         k_value=float(k_value),
@@ -2707,7 +2704,7 @@ def _solve_generated_scalar_initial_einstein_surface(
         name for name in required_names if name not in context
     )
     if missing_names:
-        raise NativeConstraintViolationError(
+        raise ConstraintViolationError(
             "Generated scalar initial data cannot form the coupled Einstein "
             "constraint system",
             context={
@@ -2718,7 +2715,7 @@ def _solve_generated_scalar_initial_einstein_surface(
         )
     acoustic_k_sq = float(context["acoustic_k_sq"])
     if not numpy.isfinite(acoustic_k_sq) or acoustic_k_sq <= 0.0:
-        raise NativeConstraintViolationError(
+        raise ConstraintViolationError(
             "Generated scalar initial data require a positive finite k^2 "
             "constraint scale",
             context={
@@ -2751,7 +2748,7 @@ def _solve_generated_scalar_initial_einstein_surface(
     if not numpy.all(numpy.isfinite(coefficients)) or not numpy.all(
         numpy.isfinite(source_terms)
     ):
-        raise NativeNonFiniteEvolutionError(
+        raise NonFiniteEvolutionError(
             "Generated scalar initial Einstein system contains non-finite "
             f"terms at k={k_value}",
             context={
@@ -2762,7 +2759,7 @@ def _solve_generated_scalar_initial_einstein_surface(
     try:
         solution = numpy.linalg.solve(coefficients, source_terms)
     except numpy.linalg.LinAlgError as error:
-        raise NativeConstraintViolationError(
+        raise ConstraintViolationError(
             "Generated scalar initial Einstein system is singular",
             context={
                 "gauge": str(getattr(perturbation_data, "gauge", "")),
@@ -2770,7 +2767,7 @@ def _solve_generated_scalar_initial_einstein_surface(
             },
         ) from error
     if not numpy.all(numpy.isfinite(solution)):
-        raise NativeNonFiniteEvolutionError(
+        raise NonFiniteEvolutionError(
             "Generated scalar initial Einstein system produced non-finite "
             f"metric values at k={k_value}",
             context={
@@ -2837,7 +2834,7 @@ def _validate_generated_scalar_initial_constraints(
             "tolerance_provenance": "generated_initial_fixed_normalized",
         }
         if not numpy.isfinite(normalized_residual):
-            raise NativeNonFiniteEvolutionError(
+            raise NonFiniteEvolutionError(
                 "Generated scalar initial data produced non-finite Einstein "
                 f"diagnostics for {residual_name} at k={k_value}",
                 context={
@@ -2848,7 +2845,7 @@ def _validate_generated_scalar_initial_constraints(
                 },
             )
         if normalized_residual > tolerance:
-            raise NativeConstraintViolationError(
+            raise ConstraintViolationError(
                 "Generated scalar initial data violate the Einstein "
                 f"constraints for {residual_name} at k={k_value} "
                 f"({normalized_residual} > {tolerance})",

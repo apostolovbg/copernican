@@ -39,8 +39,10 @@ if you do not need the curated prompts. Additional switches include `--gui`,
 `--no-gui`, `--manifest <path>` to execute a saved manifest,
 `--control-model <model>` and `--test-model <model>` to override the pair in
 that manifest, and `--output-dir` to override where run directories are
-created. CMB-capable models always use the Copernican native declared-graph
-CMB solver; the CLI has no CMB solver or backend selector.
+created. CMB-capable models default to the Copernican declared-graph
+CCMBS solver. The manifest records an independent `selection.cmb_solver`
+choice; `ccmbs_numpy` is selected unless another registered backend is
+requested.
 ## Interactive CLI Workflow
 The CLI mirrors the Run Builder pages and the shared comparison request:
 1. **Seed selection** – Accept the default seed (`0`), supply your own value,
@@ -56,7 +58,7 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
  override it. Sampler metadata (walkers, burn-in, production steps, pool
  size, and the optional CMB batch size) is gathered immediately after the
  choice. The MCMC `cmb_batch_size` setting defaults to `0`, preserving exact
- scalar evaluation; values greater than one opt into bounded ordered native
+ scalar evaluation; values greater than one opt into bounded ordered declared
  batches with per-item typed failures. When a selected sampler
  sampler detects that every parameter is fixed (for example, when the
  validation manifest runs `Planck 2018 Reference LambdaCDM`), the sampler
@@ -67,7 +69,7 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
 6. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
  writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
  naming convention as the GUI. The manifest records dataset hashes, model
- metadata, sampler knobs, native CMB solver identity, and Git information.
+ metadata, sampler knobs, declared CMB solver identity, and Git information.
  The CLI run log for each
  manifest resides under the resulting
  `~/copernican_output/copernican-run_<timestamp>/` folder as
@@ -85,9 +87,9 @@ and ETA. Walker initialization retains its evaluation counter. Menu prompts use
 numbered options to keep keyboard-only navigation consistent on macOS, Linux
 and Windows shells.
 
-### Native CMB batch evaluation
+### Declared CMB batch evaluation
 
-The native solver exposes `compute_cmb_spectrum_batch` for callers that need
+The declared solver exposes `compute_cmb_spectrum_batch` for callers that need
 ordered evaluation of multiple contracts. Each returned item carries its
 input index, one spectrum or typed failure, performance details, and cache
 provenance. A failed item does not change neighboring results. The contract

@@ -20,7 +20,7 @@ from copernican.lib import cmb_contract
 from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import CCMBS_ID
-from copernican.lib.likelihoods.cmb import cmb, native_cache, native_projection
+from copernican.lib.likelihoods.cmb import cache, cmb, projection
 from copernican.lib.model_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
@@ -180,7 +180,7 @@ class TestModelAdapterExports(unittest.TestCase):
         self.assertTrue(
             hasattr(
                 model_plugin_validation.ModelPlugin,
-                "get_cmb_native_runtime",
+                "get_cmb_declared_runtime",
             )
         )
         self.assertTrue(
@@ -259,7 +259,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "calls": [],
         }
         self.base_cmb_contract["perturbations"] = (
-            self._make_native_perturbations()
+            self._make_declared_perturbations()
         )
         self.model_data = {
             "model_name": "Dummy",
@@ -282,12 +282,12 @@ class ModelInterfaceTestCase(unittest.TestCase):
         build_plugin = model_plugin_validation.build_plugin
         self.plugin = build_plugin(self.model_data, funcs)
 
-    def _make_native_perturbations(
+    def _make_declared_perturbations(
         self,
         *,
         background_adapter: bool = False,
     ) -> dict[str, object]:
-        """Return a fully declared native perturbation contract."""
+        """Return a fully declared perturbation contract."""
 
         perturbations = {
             "contract_version": 2,
@@ -411,7 +411,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 "regimes": ["linear", "scalar"],
                 "notes": "Declared for first-order scalar perturbations.",
             },
-            "notes": "Native perturbation mathematics are declared here.",
+            "notes": "Declared perturbation mathematics are declared here.",
         }
         if background_adapter:
             perturbations["validity"]["regimes"].append(
@@ -483,7 +483,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
-            "perturbations": self._make_native_perturbations(
+            "perturbations": self._make_declared_perturbations(
                 background_adapter=True
             ),
         }
@@ -506,10 +506,13 @@ class ModelInterfaceTestCase(unittest.TestCase):
             contract["calls"][0]["kwargs"]["dark_energy_model"],
             "ppf",
         )
-        native_runtime = plugin.get_cmb_native_runtime(
+        declared_runtime = plugin.get_cmb_declared_runtime(
             plugin.INITIAL_GUESSES
         )
-        self.assertEqual(native_runtime["model_parameters"]["Tcmb_K"], 2.7255)
+        self.assertEqual(
+            declared_runtime["model_parameters"]["Tcmb_K"],
+            2.7255,
+        )
         self.assertIsInstance(contract["calls"][0]["args"]["a"], numpy.ndarray)
         self.assertIsInstance(contract["calls"][0]["args"]["w"], numpy.ndarray)
 
@@ -531,15 +534,18 @@ class ModelInterfaceTestCase(unittest.TestCase):
             self.plugin.INITIAL_GUESSES
         )
         self.assertIsInstance(perturbation_data, PerturbationContractData)
-        native_runtime = self.plugin.get_cmb_native_runtime(
+        declared_runtime = self.plugin.get_cmb_declared_runtime(
             self.plugin.INITIAL_GUESSES
         )
-        self.assertEqual(native_runtime["model_name"], self.plugin.MODEL_NAME)
-        self.assertNotIn("backend", native_runtime)
-        self.assertIn("param_map", native_runtime)
-        self.assertIn("model_parameters", native_runtime)
-        self.assertIn("perturbation_data", native_runtime)
-        self.assertIs(native_runtime["perturbation_data"], perturbation_data)
+        self.assertEqual(
+            declared_runtime["model_name"],
+            self.plugin.MODEL_NAME,
+        )
+        self.assertNotIn("backend", declared_runtime)
+        self.assertIn("param_map", declared_runtime)
+        self.assertIn("model_parameters", declared_runtime)
+        self.assertIn("perturbation_data", declared_runtime)
+        self.assertIs(declared_runtime["perturbation_data"], perturbation_data)
 
     def test_get_cmb_params_rejects_malicious_expression(self):
         """Expressions attempting attribute access raise ``ValueError``."""
@@ -571,7 +577,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
-            "perturbations": self._make_native_perturbations(),
+            "perturbations": self._make_declared_perturbations(),
         }
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(bad_model, self.funcs)
@@ -591,7 +597,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "grids": {},
             "values": {},
             "calls": [],
-            "perturbations": self._make_native_perturbations(),
+            "perturbations": self._make_declared_perturbations(),
         }
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(clash, self.funcs)
@@ -639,12 +645,12 @@ class ModelInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(bad_model, self.funcs)
 
-    def test_native_perturbation_contract_validates(self):
-        """A native perturbation contract validates when declared."""
+    def test_declared_perturbation_contract_validates(self):
+        """A declared perturbation contract validates when declared."""
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = (
-            self._make_native_perturbations()
+            self._make_declared_perturbations()
         )
         plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertTrue(plugin.valid_for_cmb)
@@ -661,17 +667,17 @@ class ModelInterfaceTestCase(unittest.TestCase):
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
             PerturbationContractData,
         )
-        native_runtime = plugin.get_cmb_native_runtime(
+        declared_runtime = plugin.get_cmb_declared_runtime(
             plugin.INITIAL_GUESSES
         )
-        self.assertNotIn("standard", native_runtime["perturbations"])
+        self.assertNotIn("standard", declared_runtime["perturbations"])
         self.assertIs(
-            native_runtime["perturbation_data"],
+            declared_runtime["perturbation_data"],
             plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES),
         )
 
-    def test_native_perturbation_contract_without_math_fails(self):
-        """Native perturbations need declared mathematical content."""
+    def test_declared_perturbation_contract_without_math_fails(self):
+        """Declared perturbations need declared mathematical content."""
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = {
@@ -719,7 +725,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
 
         model_data = copy.deepcopy(self.model_data)
         model_data["cmb"]["perturbations"] = (
-            self._make_native_perturbations()
+            self._make_declared_perturbations()
         )
         model_data["cmb"]["perturbations"]["equations"]["continuity_x"][
             "lhs"
@@ -731,7 +737,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
         """Perturbation expressions must not reference undeclared symbols."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["derived"]["density_drive"]["expression"] = "unknown_x"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
@@ -741,7 +747,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
         """Unsafe perturbation expressions are rejected."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["sources"]["poisson"]["expression"] = "delta_x.__class__"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
@@ -751,37 +757,37 @@ class ModelInterfaceTestCase(unittest.TestCase):
         """Unknown perturbation contract keys are rejected."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["unexpected"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_native_variables_fails(self):
-        """Native perturbations must declare variables."""
+    def test_missing_declared_variables_fails(self):
+        """Declared perturbations must declare variables."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["variables"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_native_equations_fail(self):
-        """Native perturbations must declare equations."""
+    def test_missing_declared_equations_fail(self):
+        """Declared perturbations must declare equations."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["equations"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaisesRegex(ValueError, "must declare equations"):
             model_plugin_validation.build_plugin(model_data, self.funcs)
 
-    def test_missing_native_initial_conditions_fail(self):
-        """Native perturbations must declare initial conditions."""
+    def test_missing_declared_initial_conditions_fail(self):
+        """Declared perturbations must declare initial conditions."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["initial_conditions"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaisesRegex(
@@ -791,20 +797,20 @@ class ModelInterfaceTestCase(unittest.TestCase):
             model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_backend_mapping_fails(self):
-        """Native perturbations must reject backend mappings."""
+        """Declared perturbations must reject backend mappings."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["backend_mapping"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_backend_mapping_selector_fails(self):
-        """Backend mapping selectors cannot enter native contracts."""
+        """Backend mapping selectors cannot enter declared contracts."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["backend_mapping"] = {
             "external": {"theory_selector": "default"}
         }
@@ -816,7 +822,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
         """Derived perturbation expressions must not cycle."""
 
         model_data = copy.deepcopy(self.model_data)
-        perturbations = self._make_native_perturbations()
+        perturbations = self._make_declared_perturbations()
         perturbations["derived"]["alpha"] = {"expression": "beta"}
         perturbations["derived"]["beta"] = {"expression": "alpha"}
         model_data["cmb"]["perturbations"] = perturbations
@@ -834,7 +840,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
         self.assertEqual(plugin.CMB_CONTRACT, {})
         self.assertIsNone(plugin.CMB_PERTURBATION_DATA)
 
-    def test_native_cmb_models_validate(self):
+    def test_declared_cmb_models_validate(self):
         """All CMB-capable model assets must expose their exact ontology."""
 
         repo_root = Path(__file__).resolve().parents[3]
@@ -954,7 +960,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     plugin.get_cmb_perturbation_data(plugin.INITIAL_GUESSES)
                 )
                 self.assertIsNotNone(
-                    plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
+                    plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
                 )
                 self.assertFalse(
                     hasattr(plugin, "CMB_PERTURBATION_STANDARD")
@@ -993,8 +999,8 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 self.assertEqual("evolve_delta_c" in equation_names, has_cdm)
                 self.assertEqual("delta_c_seed" in initial_names, has_cdm)
 
-    def test_native_model_asset_cutover_is_complete(self):
-        """The model corpus must contain one canonical native LCDM asset."""
+    def test_declared_model_asset_cutover_is_complete(self):
+        """The model corpus must contain one canonical declared LCDM asset."""
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
@@ -1046,8 +1052,8 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     self.assertNotIn("sum_mnu", param_map)
                     self.assertNotIn("num_massive_neutrinos", param_map)
 
-    def test_usmf2_native_route_is_available(self):
-        """USMF2 exposes its complete closure through the native solver."""
+    def test_usmf2_declared_route_is_available(self):
+        """USMF2 exposes its complete closure through the declared solver."""
 
         repo_root = Path(__file__).resolve().parents[3]
         yaml_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
@@ -1065,16 +1071,16 @@ class ModelInterfaceTestCase(unittest.TestCase):
         self.assertTrue(perturbations["equations"])
         self.assertTrue(perturbations["observables"])
         self.assertIn(
-            "usmf2_native_production",
+            "usmf2_declared_production",
             perturbations["validity"]["regimes"],
         )
         self.assertNotIn("standard", perturbations)
         self.assertNotIn("backend_mapping", perturbations)
         self.assertNotIn("cdm", perturbations["species"])
-        self.assertIsNotNone(plugin.CMB_NATIVE_RUNTIME)
+        self.assertIsNotNone(plugin.CMB_DECLARED_RUNTIME)
         self.assertIsNotNone(plugin.CMB_PERTURBATION_DATA)
 
-    def test_native_models_use_theory_neutral_scalar_metadata(self):
+    def test_declared_models_use_theory_neutral_scalar_metadata(self):
         """Scalar metadata must not smuggle LCDM assumptions into models."""
 
         repo_root = Path(__file__).resolve().parents[3]
@@ -1099,7 +1105,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     any(term in description for term in forbidden_terms)
                 )
 
-    def test_native_cmb_models_execute_finite_declared_tt(self):
+    def test_declared_cmb_models_execute_finite_declared_tt(self):
         """Every CMB-capable model must execute finite declared TT."""
 
         repo_root = Path(__file__).resolve().parents[3]
@@ -1212,7 +1218,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     "kwargs": {"dark_energy_model": "ppf"},
                 }
             ],
-            "perturbations": self._make_native_perturbations(
+            "perturbations": self._make_declared_perturbations(
                 background_adapter=True
             ),
         }
@@ -1248,7 +1254,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
-            "perturbations": self._make_native_perturbations(),
+            "perturbations": self._make_declared_perturbations(),
         }
         plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
@@ -1276,7 +1282,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 }
             },
             "calls": [],
-            "perturbations": self._make_native_perturbations(),
+            "perturbations": self._make_declared_perturbations(),
         }
         with self.assertRaises(ValueError):
             model_plugin_validation.build_plugin(model_data, self.funcs)
@@ -1378,12 +1384,12 @@ class FrozenMappingTests(unittest.TestCase):
         self.assertEqual(plugin.extras["custom_extra"](), "extra")
 
 
-class NativeLCDMModelTestCase(unittest.TestCase):
-    """Verify that the native LambdaCDM file reaches the native solver."""
+class DeclaredLCDMModelTestCase(unittest.TestCase):
+    """Verify that the declared LambdaCDM file reaches the declared solver."""
 
     @staticmethod
     def _build_plugin(model_name: str = "model_lcdm.yml"):
-        """Build the native model through the repository validation path."""
+        """Build the declared model through the repository validation path."""
 
         model_path = (
             Path(__file__).resolve().parents[3]
@@ -1401,13 +1407,13 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         plugin.MODEL_FILENAME = model_path.name
         return plugin
 
-    def test_usmf2_native_route_is_promoted(self) -> None:
-        """USMF2 must expose its declared graph as a native CMB route."""
+    def test_usmf2_declared_route_is_promoted(self) -> None:
+        """USMF2 must expose its declared graph as a declared CMB route."""
 
         plugin = self._build_plugin("model_usmf2.yml")
 
         self.assertTrue(plugin.valid_for_cmb)
-        self.assertIsNotNone(plugin.CMB_NATIVE_RUNTIME)
+        self.assertIsNotNone(plugin.CMB_DECLARED_RUNTIME)
         self.assertIsNotNone(plugin.CMB_PERTURBATION_DATA)
         self.assertEqual(
             plugin.get_cmb_perturbation_data(
@@ -1461,7 +1467,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
-    def test_usmf2_native_spectra_are_finite_and_responsive(self) -> None:
+    def test_usmf2_declared_spectra_are_finite_and_responsive(self) -> None:
         """USMF2 spectra must be finite and respond to a model parameter."""
 
         plugin = self._build_low_resolution_usmf2_plugin()
@@ -1499,7 +1505,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             )
         )
 
-    def test_usmf2_default_native_mode_is_finite(self) -> None:
+    def test_usmf2_default_declared_mode_is_finite(self) -> None:
         """The declared default history must support a finite TT mode."""
 
         plugin = self._build_plugin("model_usmf2.yml")
@@ -1512,7 +1518,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
 
         self.assertTrue(numpy.all(numpy.isfinite(spectra)))
 
-    def test_usmf2_native_history_converges_on_declared_grid(self) -> None:
+    def test_usmf2_declared_history_converges_on_declared_grid(self) -> None:
         """USMF2 transfer spectra must agree across declared resolutions."""
 
         ell_grid = numpy.asarray([2, 8, 20], dtype=int)
@@ -1543,8 +1549,8 @@ class NativeLCDMModelTestCase(unittest.TestCase):
                 atol=1.0e-12,
             )
 
-    def test_native_lcdm_declares_compiled_scalar_graph(self) -> None:
-        """The artifact must compile a native graph with declared outputs."""
+    def test_declared_lcdm_declares_compiled_scalar_graph(self) -> None:
+        """The artifact must compile a declared graph with declared outputs."""
 
         plugin = self._build_plugin()
         perturbation_data = plugin.get_cmb_perturbation_data(
@@ -1565,7 +1571,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
         )
 
-    def test_native_lcdm_declared_spectra_are_finite(self) -> None:
+    def test_declared_lcdm_declared_spectra_are_finite(self) -> None:
         """Declared LCDM spectra must execute without an external solver."""
 
         plugin = self._build_plugin()
@@ -1600,10 +1606,10 @@ class NativeLCDMModelTestCase(unittest.TestCase):
                     model_name=model_name,
                     point=point_name,
                 ):
-                    native_cache.clear_native_cmb_caches()
+                    cache.clear_cmb_caches()
                     spectrum_data = (
-                        native_projection._compute_custom_cmb_spectrum_data(
-                            plugin.get_cmb_native_runtime(parameters),
+                        projection._compute_custom_cmb_spectrum_data(
+                            plugin.get_cmb_declared_runtime(parameters),
                             numpy.asarray((2, 10, 20), dtype=int),
                             requested_spectra=("TT",),
                         )
@@ -1665,8 +1671,10 @@ class NativeLCDMModelTestCase(unittest.TestCase):
                     )
                     self.assertGreater(int(reconstruction["mode_count"]), 0)
 
-    def test_native_lcdm_full_spectrum_meets_performance_budget(self) -> None:
-        """A full native LCDM request must stay within 180 seconds."""
+    def test_declared_lcdm_full_spectrum_meets_performance_budget(
+        self,
+    ) -> None:
+        """A full declared LCDM request must stay within 180 seconds."""
 
         plugin = self._build_plugin()
         ell_grid = numpy.arange(2, 2001, dtype=int)
@@ -1688,17 +1696,17 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             self.assertEqual(values.shape, ell_grid.shape)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
-    def test_native_lcdm_manifest_records_provenance(self) -> None:
-        """A run manifest must identify native execution and controls."""
+    def test_declared_lcdm_manifest_records_provenance(self) -> None:
+        """A run manifest must identify declared execution and controls."""
 
         plugin = self._build_plugin()
         manifest = run_manifest.build_manifest(
             [(plugin, "1.0"), (plugin, "1.0")],
-            SimpleNamespace(__name__="native_test", SAMPLER_VERSION="test"),
+            SimpleNamespace(__name__="declared_test", SAMPLER_VERSION="test"),
             [],
         )
         model_entry = manifest["cmb"]["models"][0]
-        route = model_entry["native_cmb_execution"]
+        route = model_entry["declared_cmb_execution"]
 
         self.assertEqual(
             model_entry["execution_solver"],
@@ -1707,10 +1715,10 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         self.assertEqual(route["solver_id"], CCMBS_ID)
         self.assertTrue(route["ready"])
         self.assertEqual(
-            model_entry["native_cmb_numerical_settings"]["ell_max"],
+            model_entry["declared_cmb_numerical_settings"]["ell_max"],
             2500,
         )
-        numerical_envelope = model_entry["native_cmb_numerical_envelope"]
+        numerical_envelope = model_entry["declared_cmb_numerical_envelope"]
         self.assertEqual(numerical_envelope["accuracy_tier"], "final")
         self.assertTrue(numerical_envelope["bounded"])
         self.assertEqual(
@@ -1728,17 +1736,19 @@ class NativeLCDMModelTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(
-            model_entry["native_cmb_runtime_manifest_summary"][
+            model_entry["declared_cmb_runtime_manifest_summary"][
                 "compile_diagnostics"
             ]["compiler"],
-            "copernican.lib.model_coder.compile_native_cmb_runtime",
+            "copernican.lib.model_coder.compile_declared_cmb_runtime",
         )
 
-    def test_native_lcdm_declares_converged_scalar_transfer_grid(self) -> None:
+    def test_declared_lcdm_declares_converged_scalar_transfer_grid(
+        self,
+    ) -> None:
         """Production LCDM must not use the under-resolved 18-node grid."""
 
         plugin = self._build_plugin()
-        runtime = plugin.get_cmb_native_runtime(plugin.INITIAL_GUESSES)
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
         perturbation_data = runtime["perturbation_data"]
         controls = perturbation_data.accuracy_controls
         numerics = perturbation_data.numerics

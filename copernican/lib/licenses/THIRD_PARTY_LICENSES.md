@@ -6,7 +6,6 @@ texts stored under `copernican/lib/licenses/`.
 
 ## License Report
 - `copernican/runtime-requirements.lock`
-- `pyproject.toml`
 
 ## Dependency License Inventory
 - `arviz==0.16.1`: `copernican/lib/licenses/arviz-0.16.1.txt`

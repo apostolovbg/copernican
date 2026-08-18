@@ -3,7 +3,9 @@
 import unittest
 
 from copernican.lib import run_config as module
+from copernican.lib.likelihoods.cmb.errors import UnsupportedCapabilityError
 from copernican.lib.run_config import (
+    CMBSolverDescriptor,
     DatasetDescriptor,
     build_config_from_manifest,
 )
@@ -62,6 +64,8 @@ class TestRunConfig(unittest.TestCase):
         self.assertEqual(config.run_settings.settings["n_steps"], 200)
         self.assertEqual(config.control_model, "ReferenceModel")
         self.assertEqual(config.test_model, "CandidateModel")
+        self.assertIsInstance(config.cmb_solver, CMBSolverDescriptor)
+        self.assertEqual(config.cmb_solver.solver_id, "ccmbs_numpy")
         self.assertEqual(len(config.datasets), 1)
         descriptor = config.datasets[0]
         self.assertIsInstance(descriptor, DatasetDescriptor)
@@ -72,6 +76,17 @@ class TestRunConfig(unittest.TestCase):
     def test_single_model_selection_is_rejected(self) -> None:
         self.simple_manifest["selection"]["models"] = ["CandidateModel"]
         with self.assertRaisesRegex(ValueError, "control and test"):
+            build_config_from_manifest(self.simple_manifest)
+
+    def test_unknown_cmb_solver_is_rejected_before_run_configuration(self):
+        """Unknown solver identities fail while translating the manifest."""
+
+        self.simple_manifest["selection"]["cmb_solver"] = {
+            "id": "missing_solver"
+        }
+        with self.assertRaisesRegex(
+            UnsupportedCapabilityError, "Unknown CMB solver"
+        ):
             build_config_from_manifest(self.simple_manifest)
 
 

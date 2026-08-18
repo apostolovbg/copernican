@@ -63,7 +63,7 @@ policy_overlays:
       - copernican/lib/likelihoods/cmb/__init__.py => README.md
       - copernican/lib/likelihoods/cmb/camb_solver.py => README.md
       - copernican/lib/likelihoods/cmb/cmb.py => README.md
-      - copernican/lib/likelihoods/cmb/copernican_cmb_solver.py =>
+      - copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py =>
         README.md
       - copernican/workflow.py => README.md, SUPPORT.md
       - copernican/lib/global_settings/defaults.yml => README.md,

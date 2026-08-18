@@ -813,10 +813,10 @@ def _safe_numeric(candidate_value: Any) -> Optional[float]:
     return None
 
 
-def _diff_entry(base_measure: Any, alternative_measure: Any) -> dict[str, Any]:
+def _diff_entry(base_measure: Any, alternate_measure: Any) -> dict[str, Any]:
     """Compare two values and report their delta if numeric."""
     base_num = _safe_numeric(base_measure)
-    alt_num = _safe_numeric(alternative_measure)
+    alt_num = _safe_numeric(alternate_measure)
     delta = None
     if base_num is not None and alt_num is not None:
         delta = alt_num - base_num
@@ -826,7 +826,7 @@ def _diff_entry(base_measure: Any, alternative_measure: Any) -> dict[str, Any]:
         delta = -base_num
     return {
         "base": base_measure,
-        "alternative": alternative_measure,
+        "alternate": alternate_measure,
         "delta": delta,
     }
 
@@ -867,38 +867,38 @@ def _model_diff(
 
 def compare_runs(
     base_result: RunAnalysisResult,
-    alternative_result: RunAnalysisResult,
+    alternate_result: RunAnalysisResult,
 ) -> dict[str, Any]:
     """Compare two analysed runs and report deltas."""
 
     dataset_ids = set(base_result.datasets.keys()) | set(
-        alternative_result.datasets.keys()
+        alternate_result.datasets.keys()
     )
     model_names = set(base_result.model_summaries.keys()) | set(
-        alternative_result.model_summaries.keys()
+        alternate_result.model_summaries.keys()
     )
 
     return {
         "runs": {
             "base": _run_descriptor(base_result),
-            "alternative": _run_descriptor(alternative_result),
+            "alternate": _run_descriptor(alternate_result),
         },
         "difference": {
             "duration_seconds": _diff_entry(
                 base_result.duration_seconds,
-                alternative_result.duration_seconds,
+                alternate_result.duration_seconds,
             ),
             "dataset_counts": {
                 dataset: _diff_entry(
                     base_result.dataset_counts.get(dataset),
-                    alternative_result.dataset_counts.get(dataset),
+                    alternate_result.dataset_counts.get(dataset),
                 )
                 for dataset in sorted(dataset_ids)
             },
             "models": {
                 model: _model_diff(
                     base_result.model_summaries.get(model),
-                    alternative_result.model_summaries.get(model),
+                    alternate_result.model_summaries.get(model),
                 )
                 for model in sorted(model_names)
             },
@@ -908,18 +908,18 @@ def compare_runs(
 
 def compare_run_dirs(
     base_dir: Path | str,
-    alternative_dir: Path | str,
+    alternate_dir: Path | str,
 ) -> dict[str, Any]:
     """Analyse two run directories and compare their summaries."""
 
     base_result = analyze_run(Path(base_dir))
-    alt_result = analyze_run(Path(alternative_dir))
+    alt_result = analyze_run(Path(alternate_dir))
     return compare_runs(base_result, alt_result)
 
 
 def save_comparison_summary(
     base_result: RunAnalysisResult,
-    alternative_result: RunAnalysisResult,
+    alternate_result: RunAnalysisResult,
     output_dir: Path | str,
     *,
     formats: Sequence[str] | str = ("yml", "json"),
@@ -927,7 +927,7 @@ def save_comparison_summary(
 ) -> dict[str, Path]:
     """Serialize a comparison summary to disk."""
 
-    summary = compare_runs(base_result, alternative_result)
+    summary = compare_runs(base_result, alternate_result)
     summary_timestamp = timestamp or _summary_timestamp(
         base_result, override=None
     )

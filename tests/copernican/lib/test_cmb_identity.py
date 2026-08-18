@@ -8,7 +8,7 @@ from copernican.lib import cmb_identity
 class CMBIdentityTestCase(unittest.TestCase):
     """Keep user-facing CMB identity stable and singular."""
 
-    def test_native_identity_is_public_and_unambiguous(self) -> None:
+    def test_declared_identity_is_public_and_unambiguous(self) -> None:
         """Expose one CCMBS identifier and label."""
 
         self.assertEqual(

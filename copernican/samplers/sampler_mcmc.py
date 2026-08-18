@@ -64,8 +64,10 @@ import pandas
 
 from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
-from copernican.lib.likelihoods.cmb.native_errors import (
-    NativeInitialPointError,
+from copernican.lib.likelihoods.cmb.errors import InitialPointError
+from copernican.lib.likelihoods.cmb.solvers.registry import (
+    resolve_cmb_solver,
+    solver_provenance,
 )
 from copernican.lib.progress import BatchProgressBar
 from copernican.lib.sampler_capabilities import (
@@ -136,7 +138,8 @@ SAMPLER_SETTINGS = (
         key="cmb_batch_size",
         label="CMB batch size",
         description=(
-            "Opt-in bounded native CMB batches; zero keeps scalar evaluation."
+            "Opt-in bounded declared CMB batches; zero keeps scalar "
+            "evaluation."
         ),
         dtype="int",
         default=0,
@@ -517,6 +520,7 @@ def _build_joint_logposterior(
     sne_data_df: Any,
     bao_data_df: Any | None = None,
     cmb_data_df: Any | None = None,
+    cmb_solver: Any | str | None = None,
 ) -> tuple[
     Callable[[Sequence[float]], float],
     Callable[[Sequence[float]], float],
@@ -583,6 +587,7 @@ def _build_joint_logposterior(
         cmb_data_df if cmb_data_df is not None else pandas.DataFrame(),
         model_plugin,
         enabled=cmb_enabled,
+        cmb_solver=cmb_solver,
     )
 
     # Preserve any model-provided dataset toggles while ensuring every
@@ -630,7 +635,7 @@ def _preflight_initial_model_point(
     parameter_values = tuple(float(value) for value in parameters)
     value = float(posterior(parameter_values))
     if not numpy.isfinite(value):
-        raise NativeInitialPointError(
+        raise InitialPointError(
             "Initial model point has non-finite posterior probability.",
             context={"parameters": parameter_values},
         )
@@ -920,6 +925,7 @@ def sample_parameters(
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     cmb_batch_size: int = 0,
+    cmb_solver: Any | str | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -942,7 +948,7 @@ def sample_parameters(
         cmb_batch_size = 0
     if cmb_batch_size > 1:
         logger.info(
-            "Native CMB batch adapter enabled: max batch size=%d.",
+            "Declared CMB batch adapter enabled: max batch size=%d.",
             cmb_batch_size,
         )
     ensemble_started = perf_counter()
@@ -964,6 +970,7 @@ def sample_parameters(
         return {
             "success": False,
             "samples": None,
+            "cmb_solver": solver_provenance(selected_cmb_solver),
             "ensemble_performance": _ensemble_performance_envelope(
                 started=ensemble_started,
                 phase_seconds=phase_seconds,
@@ -978,12 +985,14 @@ def sample_parameters(
         }
 
     model_plugin_validation.validate_plugin(model_plugin)
+    selected_cmb_solver = resolve_cmb_solver(cmb_solver)
 
     posterior_full, loglike_full, joint_like = _build_joint_logposterior(
         model_plugin,
         sne_data_df,
         bao_data_df,
         cmb_data_df,
+        selected_cmb_solver,
     )
     names: Iterable[str] = getattr(model_plugin, "PARAMETER_NAMES", [])
     names = list(names)
@@ -1560,6 +1569,7 @@ def sample_parameters(
             "cmb": cmb_points,
             "total": total_points,
         },
+        "cmb_solver": solver_provenance(selected_cmb_solver),
     }
 
 

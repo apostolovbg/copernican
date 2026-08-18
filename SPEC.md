@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-31
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -20,7 +20,7 @@ It evaluates models against SNe Ia, BAO, and CMB observations.
 
 ## Core Behavior
 - Keep model evaluation declarative through YAML manifests.
-- Preserve native background expressions such as `Hz_expression`.
+- Preserve declared background expressions such as `Hz_expression`.
 - Keep backend adapters narrow and behavior-preserving.
 - Keep CMB capability checks beside `model_coder.py` so the declarative
   perturbation path can execute through the generic

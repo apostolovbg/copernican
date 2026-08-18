@@ -29,7 +29,7 @@ abstract: >-
   The CPL (Chevallier-Polarski-Linder) expansion governs the dark-energy
   density while flat or mildly curved geometries keep the matter and
   radiation terms explicit. Including both w₀ and wₐ lets the sampler
-  match joint SNe+BAO data while retaining native CMB predictions.
+  match joint SNe+BAO data while retaining declared CMB predictions.
 parameters:
   - name: Hubble constant
     python_var: H0
@@ -376,7 +376,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: w0waCDM spectra use the declared CPL background.
     notes: The scalar graph couples declared matter and radiation species to
       the time-dependent CPL dark-energy expansion law.
@@ -386,7 +386,7 @@ notes: >-
   curvature. When wa → 0 the expression collapses to wCDM, making
   this sample useful for continuity tests in the sampler pipeline.
   Radiation multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
-  BAO integrals share the same relativistic density as the native CMB solver
+  BAO integrals share the same relativistic density as the declared CMB solver
   likelihood.
 title: CPL dark energy variation
 date: '2025-12-06'

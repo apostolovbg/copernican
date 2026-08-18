@@ -83,6 +83,9 @@ class TestResultWriter(unittest.TestCase):
                             self.assertIsInstance(value, numbers.Real)
                     sampling = entry["sampling"]
                     self.assertIsInstance(sampling, dict)
+                    self.assertEqual(
+                        sampling["cmb_solver"]["solver_id"], "ccmbs_numpy"
+                    )
                     self.assertEqual(sampling.get("production_steps"), 6)
                     self.assertEqual(sampling.get("burn_in_steps"), 12)
                     _lower, _upper, fixed_mask = (

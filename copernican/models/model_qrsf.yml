@@ -65,7 +65,7 @@ parameters:
     unit: ''
     latex_name: N_{\rm eff}
     python_var: Neff
-    definition: Sampled relativistic neutrino count aligned with native CMB inputs.
+    definition: Sampled relativistic neutrino count aligned with declared CMB inputs.
     prior:
       type: uniform
       lower: 2.5
@@ -443,7 +443,7 @@ cmb:
     validity:
       regimes:
       - linear
-      - native_scalar_hierarchy
+      - declared_scalar_hierarchy
       notes: QRSF spectra use baryon-locked relational inertia sources.
     notes: The scalar graph contains photons, baryons, and neutrinos; the
       qrsf_matter_factor source closures replace an independent CDM species.
@@ -453,12 +453,12 @@ notes: >-
   late-time distances preserve Supernova calibration. The relational release
   fluid behaves like a CPL parameterisation with density Omega_rel0 and slopes
   w_rel0, w_rel_a. The relativistic species count Neff floats between 2.5 and
-  3.5 so reported BAO ratios and native CMB inputs always share the same effective
-  radiation density. The native CMB graph applies the declared baryon-locked
+  3.5 so reported BAO ratios and declared CMB inputs always share the same effective
+  radiation density. The declared CMB graph applies the declared baryon-locked
   relational inertia source rather than introducing a particulate dark sector.
   The BAO radiation term multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
-  sonic scale shares the same relativistic density as the native CMB background.
-  The native CMB contract declares the relational fluid and its perturbation
+  sonic scale shares the same relativistic density as the declared CMB background.
+  The declared CMB contract declares the relational fluid and its perturbation
   source closure instead of flattening the parameters into a scalar-only map.
 title: Quantum Relational Scale Field Cosmology
 date: '2025-11-08'

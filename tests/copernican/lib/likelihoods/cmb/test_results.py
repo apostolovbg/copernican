@@ -1,4 +1,4 @@
-"""Tests for the ordered native CMB batch contract."""
+"""Tests for the ordered declared CMB batch contract."""
 
 import json
 import unittest
@@ -8,13 +8,11 @@ import numpy
 import pandas
 
 from copernican.lib.likelihoods.cmb import cmb
-from copernican.lib.likelihoods.cmb.native_batch import NativeCMBBatchResult
-from copernican.lib.likelihoods.cmb.native_errors import (
-    NativeParameterDomainError,
-)
+from copernican.lib.likelihoods.cmb.errors import ParameterDomainError
+from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
 
-class NativeCMBBatchContractTestCase(unittest.TestCase):
+class CMBBatchContractTestCase(unittest.TestCase):
     """Exercise batch ordering, serialization, and failure isolation."""
 
     def test_single_item_batch_preserves_scalar_result_and_provenance(self):
@@ -34,7 +32,7 @@ class NativeCMBBatchContractTestCase(unittest.TestCase):
 
         self.assertEqual(len(results), 1)
         result = results[0]
-        self.assertIsInstance(result, cmb.NativeCMBBatchResult)
+        self.assertIsInstance(result, cmb.CMBBatchResult)
         self.assertEqual(result.index, 0)
         self.assertTrue(result.success)
         numpy.testing.assert_array_equal(result.spectrum, [2.5, 2.5])
@@ -46,7 +44,7 @@ class NativeCMBBatchContractTestCase(unittest.TestCase):
 
         def scalar(contract, ells, **_kwargs):
             if contract["kind"] == "invalid":
-                raise NativeParameterDomainError("invalid parameter")
+                raise ParameterDomainError("invalid parameter")
             return numpy.full(len(tuple(ells)), contract["value"])
 
         contracts = [
@@ -62,13 +60,13 @@ class NativeCMBBatchContractTestCase(unittest.TestCase):
         self.assertEqual([result.index for result in results], [0, 1, 2])
         self.assertTrue(results[0].success)
         self.assertFalse(results[1].success)
-        self.assertIsInstance(results[1].failure, NativeParameterDomainError)
+        self.assertIsInstance(results[1].failure, ParameterDomainError)
         self.assertEqual(results[1].failure.context["batch_index"], 1)
         self.assertTrue(results[2].success)
         numpy.testing.assert_array_equal(results[0].spectrum, [1.0])
         numpy.testing.assert_array_equal(results[2].spectrum, [3.0])
 
-    def test_cmb_likelihood_batch_matches_scalar_and_uses_one_native_call(
+    def test_cmb_likelihood_batch_matches_scalar_and_uses_one_cmb_call(
         self,
     ):
         """Batch likelihoods preserve scalar values and domain rejection."""
@@ -86,7 +84,7 @@ class NativeCMBBatchContractTestCase(unittest.TestCase):
         def batch(contract_batch, ells, **_kwargs):
             contracts.extend(contract_batch)
             return tuple(
-                NativeCMBBatchResult(
+                CMBBatchResult(
                     index=index,
                     spectrum=numpy.asarray((1.0, 2.0)),
                 )
@@ -97,7 +95,7 @@ class NativeCMBBatchContractTestCase(unittest.TestCase):
             mock.patch.object(cmb, "_resolve_plugin_cmb_contract", resolve),
             mock.patch.object(
                 cmb,
-                "prepare_native_cmb_execution_contract",
+                "prepare_cmb_execution_contract",
                 side_effect=lambda contract: contract,
             ),
             mock.patch.object(

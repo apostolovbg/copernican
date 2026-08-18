@@ -1,4 +1,4 @@
-r"""Declared native background, recombination, and shared cache helpers."""
+r"""Declared background, recombination, and shared cache helpers."""
 
 from __future__ import annotations
 
@@ -13,19 +13,19 @@ from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq
 from scipy.special import spherical_jn
 
-from ...cmb_output import canonical_cmb_spectrum_name
-from ...model_adapter import (
+from ....cmb_output import canonical_cmb_spectrum_name
+from ....model_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
     FrozenMapping,
     _evaluate_safe_expression,
     _freeze_for_cache,
 )
-from ...perturbation_contract import (
+from ....perturbation_contract import (
     _evaluate_compiled_expression_noerr,
     evaluate_compiled_expression,
 )
-from . import native_cache
+from . import cache
 
 _C_LIGHT_KM_S = 299_792.458
 _CACHE_PRECISION = 15
@@ -286,12 +286,12 @@ def _coerce_numeric_array(value: Any, *, name: str) -> numpy.ndarray:
 def _get_declared_background_section(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return the declared background mapping for native CMB execution."""
+    """Return the declared background mapping for declared CMB execution."""
 
     section = contract.get("background")
     if not isinstance(section, Mapping):
         raise ValueError(
-            "Declared CMB native execution requires a 'background' mapping."
+            "Declared CMB declared execution requires a 'background' mapping."
         )
     derived = section.get("derived", {})
     if not isinstance(derived, Mapping):
@@ -408,7 +408,7 @@ def _resolve_declared_background_context(
     background_runtime = contract.get("background_runtime")
     if background_runtime is None:
         raise ValueError(
-            "Native CMB background execution requires precompiled "
+            "Declared CMB background execution requires precompiled "
             "background_runtime. Prepare the runtime through model_coder "
             "before likelihood evaluation."
         )
@@ -422,7 +422,7 @@ def _resolve_declared_background_context(
 def _get_declared_reionization_section(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return the declared reionization mapping for native CMB execution."""
+    """Return the declared reionization mapping for declared CMB execution."""
 
     section = _get_declared_background_section(contract)
     reionization = section.get("reionization", {}) or {}
@@ -432,7 +432,7 @@ def _get_declared_reionization_section(
 def _get_declared_recombination_section(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return the declared recombination mapping for native CMB execution."""
+    """Return the declared recombination mapping for declared CMB execution."""
 
     section = _get_declared_background_section(contract)
     recombination = section.get("recombination", {}) or {}
@@ -449,7 +449,7 @@ def _resolve_declared_reionization_context(
     background_runtime = contract.get("background_runtime")
     if background_runtime is None:
         raise ValueError(
-            "Native CMB reionization execution requires precompiled "
+            "Declared CMB reionization execution requires precompiled "
             "background_runtime. Prepare the runtime through model_coder "
             "before likelihood evaluation."
         )
@@ -556,7 +556,7 @@ def _resolve_declared_recombination_context(
     background_runtime = contract.get("background_runtime")
     if background_runtime is None:
         raise ValueError(
-            "Native CMB recombination execution requires precompiled "
+            "Declared CMB recombination execution requires precompiled "
             "background_runtime. Prepare the runtime through model_coder "
             "before likelihood evaluation."
         )
@@ -721,7 +721,7 @@ class _CustomCMBNumerics:
 
 @dataclass(slots=True)
 class _CustomCMBPhysicalParameters:
-    """Resolved physical background inputs for the native CMB solver."""
+    """Resolved physical background inputs for the declared CMB solver."""
 
     H0_km_s_Mpc: float
     hubble_ratio: float
@@ -759,7 +759,7 @@ class _CustomCMBPhysicalParameters:
 
 @dataclass(slots=True)
 class _CustomCMBBackgroundData:
-    """Background and recombination tables for declared native execution."""
+    """Background and recombination tables for declared execution."""
 
     a_grid: numpy.ndarray
     z_grid: numpy.ndarray
@@ -1076,9 +1076,9 @@ def _accuracy_control_positive_int(
 def _get_cached_custom_cmb_background(
     cache_key: tuple[Any, ...],
 ) -> "_CustomCMBBackgroundData":
-    """Return a cached native background payload."""
+    """Return a cached declared background payload."""
 
-    cached = native_cache.get_native_cmb_background(cache_key)
+    cached = cache.get_cmb_background(cache_key)
     if cached is None:  # pragma: no cover - callers guard existence first
         raise KeyError(cache_key)
     return cached
@@ -1087,9 +1087,9 @@ def _get_cached_custom_cmb_background(
 def _get_cached_custom_cmb_spectrum_data(
     cache_key: tuple[Any, ...],
 ) -> "CustomCMBSpectrumData":
-    """Return a cached native spectrum payload."""
+    """Return a cached declared spectrum payload."""
 
-    cached = native_cache.get_native_cmb_spectrum(cache_key)
+    cached = cache.get_cmb_spectrum(cache_key)
     if cached is None:  # pragma: no cover - callers guard existence first
         raise KeyError(cache_key)
     return cached
@@ -1102,17 +1102,17 @@ def _get_cached_spherical_bessel_values(
     """Return cached spherical Bessel values for one ell and x-grid."""
 
     cache_key = (int(ell), x_signature)
-    cached = native_cache.get_bessel_values(cache_key)
+    cached = cache.get_bessel_values(cache_key)
     if cached is not None:
         return cached
-    x_values = native_cache.get_bessel_inputs(x_signature)
+    x_values = cache.get_bessel_inputs(x_signature)
     if x_values is None:  # pragma: no cover - projection stores inputs first
         raise KeyError(x_signature)
     values = (
         spherical_jn(int(ell), x_values),
         spherical_jn(int(ell), x_values, derivative=True),
     )
-    native_cache.set_bessel_values(cache_key, values)
+    cache.set_bessel_values(cache_key, values)
     return values
 
 
@@ -1320,10 +1320,10 @@ def _get_cached_declared_projection_kernel_batch(
         else tuple(sorted({str(value) for value in required_sectors}))
     )
     cache_key = (ell_signature, x_signature, sector_key)
-    cached = native_cache.get_declared_projection_kernel_batch(cache_key)
+    cached = cache.get_declared_projection_kernel_batch(cache_key)
     if cached is not None:
         return cached
-    x_values = native_cache.get_bessel_inputs(x_signature)
+    x_values = cache.get_bessel_inputs(x_signature)
     if x_values is None:  # pragma: no cover - projection stores inputs first
         raise KeyError(x_signature)
     shape = (len(ell_signature), x_values.size)
@@ -1486,14 +1486,14 @@ def _get_cached_declared_projection_kernel_batch(
         tensor_e=tensor_e,
         tensor_b=tensor_b,
     )
-    native_cache.set_declared_projection_kernel_batch(cache_key, batch)
+    cache.set_declared_projection_kernel_batch(cache_key, batch)
     return batch
 
 
 def _custom_cmb_provider_key(background_provider: Any | None) -> int:
-    """Return the provider-independent native-background cache key.
+    """Return the provider-independent declared-background cache key.
 
-    Native background construction is wholly defined by the prepared
+    Declared background construction is wholly defined by the prepared
     contract and physical parameters; the provider is only the caller's
     ownership context.  Keeping it out of cache identity lets likelihood and
     direct-spectrum calls reuse one completed background and spectrum.
@@ -1579,8 +1579,8 @@ def _custom_cmb_background_cache_key(
     physical_params: _CustomCMBPhysicalParameters,
     numerics: _CustomCMBNumerics,
     background_provider: Any | None,
-) -> native_cache.NativeRuntimeCacheIdentity:
-    """Return a cache key for the native CMB background tables."""
+) -> cache.RuntimeCacheIdentity:
+    """Return a cache key for the declared CMB background tables."""
 
     physical_key = tuple(
         (
@@ -1589,7 +1589,7 @@ def _custom_cmb_background_cache_key(
         )
         for field_name in _BACKGROUND_CACHE_PHYSICAL_FIELDS
     )
-    return native_cache.NativeRuntimeCacheIdentity(
+    return cache.RuntimeCacheIdentity(
         contract_static=_freeze_for_cache(
             _get_declared_background_section(contract)
         ),
@@ -1609,8 +1609,8 @@ def _custom_cmb_spectrum_cache_key(
     ells: Iterable[int],
     background_provider: Any | None,
     requested_spectra: Iterable[str] | None = None,
-) -> native_cache.NativeRuntimeCacheIdentity:
-    """Return a cache key for native spectrum transfer data."""
+) -> cache.RuntimeCacheIdentity:
+    """Return a cache key for declared spectrum transfer data."""
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
     requested_key = None
@@ -1623,7 +1623,7 @@ def _custom_cmb_spectrum_cache_key(
                 }
             )
         )
-    return native_cache.NativeRuntimeCacheIdentity(
+    return cache.RuntimeCacheIdentity(
         contract_static=_freeze_for_cache(
             _contract_structural_cache_view(contract_or_params)
         ),
@@ -1674,7 +1674,7 @@ def _custom_cmb_transfer_cache_key(
     ells: Iterable[int],
     background_provider: Any | None,
     requested_spectra: Iterable[str] | None = None,
-) -> native_cache.NativeRuntimeCacheIdentity:
+) -> cache.RuntimeCacheIdentity:
     """Return a cache key for transfer products before primordial scaling."""
 
     ell_key = tuple(int(ell) for ell in numpy.asarray(list(ells), dtype=int))
@@ -1688,7 +1688,7 @@ def _custom_cmb_transfer_cache_key(
                 }
             )
         )
-    return native_cache.NativeRuntimeCacheIdentity(
+    return cache.RuntimeCacheIdentity(
         contract_static=_freeze_for_cache(
             _contract_structural_cache_view(contract_or_params)
         ),
@@ -1705,7 +1705,7 @@ def _custom_cmb_transfer_cache_key(
 def _contract_cache_view(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return the cache-relevant view of a native-runtime contract."""
+    """Return the cache-relevant view of a declared-runtime contract."""
 
     transient_keys = {
         "background_runtime",
@@ -1825,7 +1825,7 @@ def _extract_contract_scalar_with_source(
 def _resolve_custom_cmb_numerics(
     contract: Mapping[str, Any],
 ) -> _CustomCMBNumerics:
-    """Return numerical settings for native declared-graph execution."""
+    """Return numerical settings for declared-graph execution."""
 
     raw = contract.get("numerical", {}) or {}
     if not isinstance(raw, Mapping):
@@ -2128,10 +2128,12 @@ def _resolve_custom_cmb_physical_parameters(
     del background_provider
     prepared_contract = contract
     if prepared_contract.get("background_runtime") is None:
-        from ... import model_coder
+        from .... import model_coder
 
-        prepared_contract = model_coder.prepare_native_cmb_execution_contract(
-            prepared_contract
+        prepared_contract = (
+            model_coder.prepare_declared_cmb_execution_contract(
+                prepared_contract
+            )
         )
     background_scalar_context = _resolve_declared_background_context(
         prepared_contract,
@@ -2176,7 +2178,7 @@ def _resolve_custom_cmb_physical_parameters(
             return entry
         names_text = ", ".join(_physical_quantity_names(quantity_name))
         raise ValueError(
-            "Declared CMB native execution requires explicit "
+            "Declared CMB declared execution requires explicit "
             f"{label}. Provide one of: {names_text}"
         )
 
@@ -2205,7 +2207,7 @@ def _resolve_custom_cmb_physical_parameters(
         )
         if hubble_entry is None:
             raise ValueError(
-                "Declared CMB native execution requires explicit background "
+                "Declared CMB declared execution requires explicit background "
                 "H(z) at a=1 or an H0 scalar."
             )
         if "H0_km_s_Mpc" not in quantity_provenance:
@@ -2304,7 +2306,8 @@ def _resolve_custom_cmb_physical_parameters(
             + _physical_quantity_names("n_H0_m3")
         )
         raise ValueError(
-            "Declared CMB native execution requires explicit baryon density. "
+            "Declared CMB declared execution requires explicit baryon "
+            "density. "
             "Provide one of: " + ", ".join(dict.fromkeys(baryon_names))
         )
     Omega_b0 = rho_b0 / rho_crit0
@@ -2550,7 +2553,7 @@ def _build_custom_cmb_background(
         numerics,
         background_provider,
     )
-    cached_background = native_cache.get_native_cmb_background(cache_key)
+    cached_background = cache.get_cmb_background(cache_key)
     if cached_background is not None:
         return _get_cached_custom_cmb_background(cache_key)
     del background_provider
@@ -2705,7 +2708,7 @@ def _build_custom_cmb_background(
     n_H_grid = physical_params.n_H0_m3 * numpy.power(1.0 + z_grid, 3.0)
     if physical_params.Omega_gamma0 <= 0.0:
         raise ValueError(
-            "Declared CMB native execution requires a positive photon "
+            "Declared CMB declared execution requires a positive photon "
             "density."
         )
 
@@ -3592,7 +3595,7 @@ def _build_custom_cmb_background(
             )
 
         chosen_calibration: float | None = None
-        warm_seed = native_cache.get_reionization_calibration_seed(
+        warm_seed = cache.get_reionization_calibration_seed(
             calibration_seed_key
         )
         if warm_seed is not None and (
@@ -3640,7 +3643,7 @@ def _build_custom_cmb_background(
                         maxiter=96,
                     )
                 )
-        native_cache.set_reionization_calibration_seed(
+        cache.set_reionization_calibration_seed(
             calibration_seed_key,
             chosen_calibration,
         )
@@ -3790,5 +3793,5 @@ def _build_custom_cmb_background(
         sound_speed_of_eta=sound_speed_of_eta,
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
     )
-    native_cache.set_native_cmb_background(cache_key, background_data)
+    cache.set_cmb_background(cache_key, background_data)
     return _get_cached_custom_cmb_background(cache_key)

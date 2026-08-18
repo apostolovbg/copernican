@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Native CMB contract helpers for solver integration."""
+"""Declared CMB contract helpers for solver integration."""
 
 from __future__ import annotations
 
