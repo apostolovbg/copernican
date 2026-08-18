@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-import copernican.lib.engine_adapter as engine_plugin_validation
+import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 from copernican.lib import priors as prior_mod
@@ -26,7 +26,7 @@ class PriorParsingTestCase(unittest.TestCase):
                 cache_dir,
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-        self.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        self.plugin = model_plugin_validation.build_plugin(parsed, funcs)
 
     def test_priors_exposed(self):
         """PARAMETER_PRIORS should mirror YAML prior blocks."""
@@ -137,9 +137,9 @@ class PriorParsingTestCase(unittest.TestCase):
             temporary_path, cache_dir
         )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
+        for name in model_plugin_validation.REQUIRED_FUNCTIONS:
             funcs.setdefault(name, lambda *args, **kwargs: 0.0)
-        plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        plugin = model_plugin_validation.build_plugin(parsed, funcs)
         prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
         self.assertIsInstance(prior_obj, prior_mod.LogUniformPrior)
         mapping = plugin.PARAMETER_PRIORS[0]
@@ -151,7 +151,7 @@ class PriorParsingTestCase(unittest.TestCase):
         self.assertAlmostEqual(jac, -math.log(0.1))
         log_density = prior_obj.log_density(0.1)
         self.assertTrue(math.isfinite(log_density))
-        posterior = engine_plugin_validation.make_logposterior(
+        posterior = model_plugin_validation.make_logposterior(
             lambda vals: 0.0, plugin.PARAMETER_PRIOR_OBJECTS
         )
         self.assertEqual(float(posterior([0.1])), log_density)
@@ -183,9 +183,9 @@ class PriorParsingTestCase(unittest.TestCase):
                 temporary_path, cache_dir
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-            for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
+            for name in model_plugin_validation.REQUIRED_FUNCTIONS:
                 funcs.setdefault(name, lambda *args, **kwargs: 0.0)
-            plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+            plugin = model_plugin_validation.build_plugin(parsed, funcs)
             prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
             self.assertIsInstance(prior_obj, prior_mod.FixedPrior)
             mapping = plugin.PARAMETER_PRIORS[0]

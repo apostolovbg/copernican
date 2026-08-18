@@ -53,7 +53,7 @@ class RunRequest:
 
     config: Path
     datasets: Sequence[str]
-    engine: str
+    sampler: str
     seed: int | None = None
     mode: LaunchMode = LaunchMode.GUI
 
@@ -168,7 +168,7 @@ def describe_orchestration_services() -> OrchestrationMap:
             entrypoints=(run_manifest.build_manifest.__name__,),
             rationale=(
                 "Builds immutable run manifests that capture dataset hashes, "
-                "engine metadata and Git state so GUIs can persist the same "
+                "sampler metadata and Git state so GUIs can persist the same "
                 "artifacts as the CLI."
             ),
         ),

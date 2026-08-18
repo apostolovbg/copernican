@@ -64,7 +64,7 @@ for the observable, its uncertainty and any fiducial sound horizon.
 When a dataset supplies a covariance matrix the parser attaches the inverse
 matrix to `df.attrs['covariance_matrix_inv']`. Independent data instead
 declare `covariance_model: diagonal` in metadata and provide finite positive
-errors. During analysis the engine populates a
+errors. During analysis the sampler populates a
 `model_prediction` column on the returned DataFrame. The Stage 2 workflow
 reuses the same SNe chain whenever the control and test roles point to the
 identical plugin, ensuring their predictions align in diagnostic plots. The

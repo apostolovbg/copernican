@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as numpy_module
 
-import copernican.lib.engine_adapter as engine_plugin_validation
+import copernican.lib.model_adapter as model_plugin_validation
 from copernican.lib import dataset_registry
 from copernican.lib.likelihoods import bao
 from copernican.lib.statistics import chi_squared_bao
@@ -22,8 +22,8 @@ class BAOCovarianceTestCase(unittest.TestCase):
         base = Path(__file__).resolve().parents[5]
         data_dir = base / "copernican" / "datasets" / "bao" / "bossdr12"
         spec = importlib.util.spec_from_file_location(
-            "copernican.datasets.bao.bossdr12.cosmo_parser_bossdr12",
-            data_dir / "cosmo_parser_bossdr12.py",
+            "copernican.datasets.bao.bossdr12.dataset_parser_bossdr12",
+            data_dir / "dataset_parser_bossdr12.py",
         )
         module = importlib.util.module_from_spec(spec)
         if spec.loader is None:
@@ -55,8 +55,8 @@ class BAOCovarianceTestCase(unittest.TestCase):
             "get_DV_Mpc": _zero,
             "get_sound_horizon_rs_Mpc": lambda *_: 150.0,
         }
-        cls.plugin = engine_plugin_validation.build_plugin(model_data, funcs)
-        engine_plugin_validation.validate_plugin(cls.plugin)
+        cls.plugin = model_plugin_validation.build_plugin(model_data, funcs)
+        model_plugin_validation.validate_plugin(cls.plugin)
 
     def test_covariance_changes_chi2(self) -> None:
         """Using the covariance matrix yields a distinct chi-squared value."""

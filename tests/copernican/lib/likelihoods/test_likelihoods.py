@@ -12,8 +12,8 @@ import numpy
 import pandas
 
 import copernican.lib.dataset_registry as dataset_registry
-import copernican.lib.engine_adapter as engine_plugin_validation
 import copernican.lib.likelihoods as likelihoods
+import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 
@@ -46,8 +46,8 @@ class LikelihoodTestCase(unittest.TestCase):
                 cache_dir,
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
-        engine_plugin_validation.validate_plugin(cls.plugin)
+        cls.plugin = model_plugin_validation.build_plugin(parsed, funcs)
+        model_plugin_validation.validate_plugin(cls.plugin)
 
     def _prepare_sne(self):
         sne_df = dataset_registry.load_sne_data("jla_2014").head(3).copy()

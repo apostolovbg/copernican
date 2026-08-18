@@ -22,7 +22,7 @@ from ...cmb_projection_contract import (
     resolve_declared_source_kernel,
     validate_declared_projection_sector,
 )
-from ...engine_adapter import FrozenMapping
+from ...model_adapter import FrozenMapping
 from ...perturbation_contract import (
     PerturbationCollisionTargetSelectorData,
     _evaluate_compiled_expression_noerr,
@@ -2689,7 +2689,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["contract_static_preparations"] = int(
         not structural_cache_hit
     )
-    runtime_envelope["cosmology_static_preparations"] = 1
+    runtime_envelope["model_static_preparations"] = 1
     runtime_envelope["request_specific_preparations"] = 1
     runtime_envelope["dynamic_mode_count"] = int(k_values.size)
     runtime_envelope["batch_count"] = 0
@@ -2711,7 +2711,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["background_cache_hit"] = bool(
         background_cache_after["misses"] == background_cache_before["misses"]
     )
-    runtime_envelope["cosmology_static_preparations"] = int(
+    runtime_envelope["model_static_preparations"] = int(
         not runtime_envelope["background_cache_hit"]
     )
     previous_request_identity = (
@@ -7409,7 +7409,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         runtime_envelope["adaptive_evolution_refinement_levels"] = 2
         evolution_refinement_evidence = {
-            "same_cosmology": True,
+            "same_model": True,
             "tiers": {
                 "coarse": {
                     "sample_count": int(evolution_coarse_sample_count),
@@ -7544,8 +7544,8 @@ def _compute_custom_cmb_spectrum_data_impl(
         direct_envelope["contract_static_preparations"] = runtime_envelope[
             "contract_static_preparations"
         ]
-        direct_envelope["cosmology_static_preparations"] = runtime_envelope[
-            "cosmology_static_preparations"
+        direct_envelope["model_static_preparations"] = runtime_envelope[
+            "model_static_preparations"
         ]
         direct_envelope["request_specific_preparations"] = 1
         direct_envelope["dynamic_mode_count"] = int(direct_k.size)

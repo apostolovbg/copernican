@@ -69,7 +69,7 @@ policy_overlays:
       - copernican/lib/global_settings/defaults.yml => README.md,
         SUPPORT.md
       - pyproject.toml => SECURITY.md, CITATION.cff
-      - copernican/engines/** => README.md
+      - copernican/samplers/** => README.md
       - copernican/models/** => README.md
       - copernican/validation/** => README.md, SUPPORT.md
       - copernican/validation/__init__.py => README.md, SUPPORT.md
@@ -78,7 +78,7 @@ policy_overlays:
     include_prefixes:
       - copernican/datasets
     exclude_globs:
-      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/dataset_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
   dependency-management:
@@ -223,7 +223,7 @@ policy_overlays:
       - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
-      - copernican/datasets/**/cosmo_parser_*.py
+      - copernican/datasets/**/dataset_parser_*.py
       - copernican/datasets/**/metadata_*.yml
       - copernican/datasets/**/metadata_*.yaml
     allow_long_url_lines: true

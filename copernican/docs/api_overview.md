@@ -8,17 +8,17 @@ directly without using the command-line interface. The core modules are:
  and clean a `model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
  into Python callables.
-- `engine_adapter.build_plugin(parsed_data, funcs)` – construct an
- :class:`copernican.lib.engine_adapter.EnginePlugin` instance with dataset
+- `model_adapter.build_plugin(parsed_data, funcs)` – construct an
+ :class:`copernican.lib.model_adapter.ModelPlugin` instance with dataset
  toggles, priors, bounds, distance functions, and a compiled native CMB
- runtime ready for engine consumption.
-- `copernican.lib.engine_adapter` – home of the picklable adapter dataclass,
- `EnginePlugin.CMB_CONTRACT`, `EnginePlugin.CMB_PERTURBATION_CONTRACT`,
- `EnginePlugin.CMB_PERTURBATION_DATA`, `EnginePlugin.CMB_NATIVE_RUNTIME`,
+ runtime ready for sampler consumption.
+- `copernican.lib.model_adapter` – home of the picklable adapter dataclass,
+ `ModelPlugin.CMB_CONTRACT`, `ModelPlugin.CMB_PERTURBATION_CONTRACT`,
+ `ModelPlugin.CMB_PERTURBATION_DATA`, `ModelPlugin.CMB_NATIVE_RUNTIME`,
  `REQUIRED_ATTRIBUTES`, and `REQUIRED_FUNCTIONS`. Import it when building
  custom tooling that needs to confirm interface compliance.
 - `copernican.lib.progress` – shared progress reporting helpers. Sampler
- engines import `BatchProgressBar` so CLI runs log simple counters such as
+ samplers import `BatchProgressBar` so CLI runs log simple counters such as
  “Burn-in stage
  batch 1: 3/200 steps completed (1%)” while emitting the structured
  ``batch_start``, ``progress_update`` and ``batch_finish`` records that power
@@ -50,16 +50,16 @@ directly without using the command-line interface. The core modules are:
 - `copernican.lib.posterior` – exposes
  :func:`copernican.lib.posterior.make_logposterior`, which returns a
  picklable :class:`PosteriorEvaluator` combining priors, transforms and
- likelihood callables. Engines should always route posterior evaluations
+ likelihood callables. Samplers should always route posterior evaluations
  through this helper to keep multiprocessing safe.
 - `copernican.lib.statistics` – shared chi-squared and BAO/CMB helper
- functions used by every sampler engine. Importing from this module keeps the
- implementations in a single place so engines remain thin orchestration
+ functions used by every sampler. Importing from this module keeps the
+ implementations in a single place so samplers remain thin orchestration
  layers. The helpers expose SNe chi-squared evaluations that always return
  finite values for physically meaningful proposals so MCMC reseeding can fall
  back to them reliably. Structured CMB contracts are required in the
  production path. Every accepted contract routes to the declared-math graph
- engine, while solver selectors and incomplete graphs raise clear errors
+ sampler, while solver selectors and incomplete graphs raise clear errors
  instead of selecting a fallback implementation.
  - `dataset_registry.load_sne_data(dataset_id)`, `load_bao_data(dataset_id)`,
  `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -125,9 +125,9 @@ compiled declared-graph evolution plan; `native_projection.py` owns the
 line-of-sight transfer and spectrum assembly; and `native_cache.py` owns
  bounded cache state plus reset and diagnostics helpers.
 `copernican.lib.cmb_identity` exposes the stable production identity
-`copernican_native_declared_graph`. CLI and GUI callers select model roles and
-a sampler engine; they do not select a CMB engine.
-`engine_adapter.py` hands the precompiled native runtime into that package
+`ccmbs_numpy`. CLI and GUI callers select model roles and
+a sampler; they do not select a CMB solver.
+`model_adapter.py` hands the precompiled native runtime into that package
 directly, so repeated calls avoid rebuilding static graph structure
 before the declared solver evolves graph variables,
 rebuilds the recombination visibility function, integrates the declared
@@ -155,10 +155,10 @@ the contract overrides it, and declared relation targets such as `Phi`
 or `Psi` only become available after equations, constraints, or closures
 solve them. Unsupported symbols, missing initial conditions, missing
 observables, or incompatible projection source-role bindings raise
-`ValueError` exceptions before the engine can produce a spectrum.
+`ValueError` exceptions before the sampler can produce a spectrum.
 Observable declarations choose the projection kernel and bind the named
 source terms that feed each transfer component or angular spectrum. The
-engine uses that mapping rather than hidden source-channel switches to route
+sampler uses that mapping rather than hidden source-channel switches to route
 declared graph quantities into the corresponding line-of-sight source
 term. `spin2_b_mode` requires a declared `polarization_b` source, while
 `line_of_sight_lensing_potential` requires a declared `potential` source.
@@ -167,7 +167,7 @@ see which physical ingredient is missing. The helper also exposes internal
 transfer-function data for tests that need to inspect the `ell` grid, the `k`
 grid, the transfer matrices, and the derived spectra without going through the
 top-level likelihood wrapper.
-- `copernican.engines.engine_mcmc.fit_cosmology_parameters` –
+- `copernican.samplers.sampler_mcmc.sample_parameters` –
  returns a dictionary with posterior samples, joint chi-squared
  diagnostics for the SNe/BAO/CMB components, dataset-level point counts,
  burn-in length, acceptance fractions and a sanitised log-probability
@@ -183,7 +183,7 @@ top-level likelihood wrapper.
  Stage 2 prompts for production steps, burn-in length, walker counts and
  worker pools, mirroring the available function arguments for scripted
  workflows.
-- `copernican.engines.engine_nested.fit_cosmology_parameters` –
+- `copernican.samplers.sampler_nested.sample_parameters` –
  wraps a lightweight nested-sampling routine that evaluates the same
  adapter-provided posterior while reporting log-evidence estimates,
  live-point counts, enlargement factors and iteration diagnostics. The
@@ -195,7 +195,7 @@ top-level likelihood wrapper.
  records, 1σ errors, covariance matrices, and sampling configuration to JSON
  and YAML. The control and test keys remain distinct when both roles select
  the same model.
- - `copernican.engines.engine_mcmc` – lightweight `emcee`
+ - `copernican.samplers.sampler_mcmc` – lightweight `emcee`
  sampler for SNe posteriors. Walkers are initialised uniformly within
  declared parameter bounds, a burn-in run precedes production
  sampling and the returned dictionary includes log-probability
@@ -204,22 +204,22 @@ top-level likelihood wrapper.
  parameter summaries. Invalid proposals return ``-np.inf`` so
  callers see explicit rejections instead of opaque large negative
  sentinels, and verbose progress updates report percentage completion
- for burn-in and production stages. Future engines can adopt the
+ for burn-in and production stages. Future samplers can adopt the
  same public API to remain plug compatible with the suite.
- - `copernican.engines.engine_nested` – nested-sampling backend
+ - `copernican.samplers.sampler_nested` – nested-sampling backend
  that draws live points within declared bounds, replaces the lowest-
  likelihood point with constrained proposals and tracks log-evidence
  accumulation alongside the familiar χ² component breakdown. The
- result dictionary mirrors the structure produced by the MCMC engine
+ result dictionary mirrors the structure produced by the MCMC sampler
  while adding nested-specific diagnostics so downstream tooling
  remains backend agnostic.
-Engine adapters are validated through ``engine_adapter.validate_plugin``—a
+model adapters are validated through ``model_adapter.validate_plugin``—a
 thin wrapper around
-:func:`copernican.lib.engine_adapter.validate_plugin`—before use. Chi-squared
+:func:`copernican.lib.model_adapter.validate_plugin`—before use. Chi-squared
 helpers assume this step has succeeded, so validation should occur
-once before any iterative evaluation begins. Engines expect the attributes
-listed in ``copernican.lib.engine_adapter.REQUIRED_ATTRIBUTES``. The resulting
-:class:`EnginePlugin` exposes distance functions, CMB helpers, initial
+once before any iterative evaluation begins. Samplers expect the attributes
+listed in ``copernican.lib.model_adapter.REQUIRED_ATTRIBUTES``. The resulting
+:class:`ModelPlugin` exposes distance functions, CMB helpers, initial
 parameter guesses, the structured native contract derived from the model YAML
 and the compiled perturbation IR while remaining fully picklable for
 multiprocessing workloads.
@@ -232,7 +232,7 @@ multiprocessing workloads.
 - [Run Comparison Helpers](#run-comparison-helpers)
 ## Standardised Dataset Format
 All data parsers return a ``pandas.DataFrame`` with common columns and metadata
-so that engines remain agnostic to the origin of the data.
+so that samplers remain agnostic to the origin of the data.
 `copernican/lib/dataset_registry.py` reads ``metadata_*.yml`` files located
 next to the dataset tables and attaches the fields via the ``DataFrame.attrs``
 dictionary after the parser returns. For supernovae datasets the table
@@ -246,18 +246,18 @@ parser.
 Third-party tools may import these modules directly. A typical scripting
 session looks like this:
 ```python
-from copernican.lib import dataset_registry, engine_adapter, model_coder
+from copernican.lib import dataset_registry, model_adapter, model_coder
 from copernican.lib import model_spec_validator
-import copernican.engines.engine_mcmc as engine
+import copernican.samplers.sampler_mcmc as sampler
 
 cache = model_spec_validator.validate_and_cache_model(
     "copernican/models/model_ref_planck2018.yml",
     "copernican/models/cache",
 )
 funcs, parsed = model_coder.generate_callables(cache)
-plugin = engine_adapter.build_plugin(parsed, funcs)
+plugin = model_adapter.build_plugin(parsed, funcs)
 sne = dataset_registry.load_sne_data('jla_2014')
-result = engine.fit_cosmology_parameters(sne, plugin, burn_in_steps=20)
+result = sampler.sample_parameters(sne, plugin, burn_in_steps=20)
 ```
 Because the API is intentionally thin, advanced users can orchestrate custom
 pipelines or integrate the suite into larger optimisation frameworks without
@@ -268,13 +268,13 @@ or sampling. Files named ``parameter-summary_<timestamp>.json`` and ``.yml``
 are created in the current run directory. Each model entry contains
 ``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with
 ``param_names`` and a numeric matrix. When results originate from the MCMC
-engine the summary also records the burn-in length, production steps, posterior
+ sampler the summary also records burn-in length, production steps, posterior
 means, log-probability arrays and the chi-squared value associated with the
 maximum posterior sample. The data is fully serialisable so external analysis
 tools can parse it without importing NumPy or pandas.
 Example::
  from copernican.lib import result_writer
- summary = {"ReferenceModel": engine_results}
+ summary = {"ReferenceModel": sampler_results}
  result_writer.save_summary(summary, "output/run")
 ## Run Analysis Helpers
 The new :mod:`copernican.lib.analysis` module inspects an existing run

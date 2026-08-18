@@ -12,7 +12,8 @@ class TestGWPlaceholderParser(unittest.TestCase):
 
     def test_loader_reports_placeholder(self) -> None:
         parser_module = importlib.import_module(
-            "copernican.datasets.gw.placeholder." "cosmo_parser_gw_placeholder"
+            "copernican.datasets.gw.placeholder."
+            "dataset_parser_gw_placeholder"
         )
         self.assertTrue(callable(parser_module.parse_gw_placeholder))
         self.assertEqual(

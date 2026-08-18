@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-17
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -96,17 +96,16 @@ selection while implementing GPU kernels.
 ## Current State and Decisions
 
 The current runtime has two sampling modules under
-`copernican/engines/`: an ensemble MCMC implementation and a nested-sampling
-implementation. Both already construct joint SNe, BAO, and CMB likelihoods,
-but their public names, discovery metadata, configuration fields, and
-documentation describe them as engines. The shared adapter is also named as
-an engine adapter even though it primarily builds model contracts.
+`copernican/samplers/`: an ensemble MCMC implementation and a nested-sampling
+implementation. Both construct joint SNe, BAO, and CMB likelihoods with
+canonical sampler names and metadata. The shared model adapter owns model
+contracts independently of either sampler.
 
 The current CMB path is a declared-graph NumPy/SciPy implementation reached
 through `copernican/lib/likelihoods/cmb/cmb.py` and
-`copernican_cmb_solver.py`. Its identity is hard-coded as the native CMB
-engine in manifests and GUI text. The migration gives this implementation a
-stable CCMBS identity and moves solver selection to an explicit registry.
+`copernican_cmb_solver.py`. Its identity is now the stable CCMBS solver
+identity in manifests and GUI text. Solver selection remains the explicit
+registry work assigned to Slice Two.
 
 The surrogate and delayed-acceptance path is not part of the target
 architecture. It approximates the full joint posterior, changes the sampler
@@ -137,13 +136,11 @@ declared scientifically equivalent to the independent reference fixture.
 The canonical package is `copernican/samplers/`. The current modules migrate
 as follows:
 
-* `engine_mcmc.py` becomes `sampler_mcmc.py`.
-* `engine_nested.py` becomes `sampler_nested.py`.
-* `ENGINE_KIND`, `ENGINE_LABEL`, `ENGINE_VERSION`, `ENGINE_SETTINGS`, and
-  `ENGINE_PROGRESS_CHUNKS` become `SAMPLER_KIND`, `SAMPLER_LABEL`,
-  `SAMPLER_VERSION`, `SAMPLER_SETTINGS`, and `SAMPLER_PROGRESS_CHUNKS`.
-* `fit_cosmology_parameters` becomes the canonical `sample_parameters`
-  callable in both sampler modules.
+* The MCMC and nested modules live at `sampler_mcmc.py` and
+  `sampler_nested.py`.
+* `SAMPLER_KIND`, `SAMPLER_LABEL`, `SAMPLER_VERSION`, `SAMPLER_SETTINGS`, and
+  `SAMPLER_PROGRESS_CHUNKS` are the only sampler metadata constants.
+* `sample_parameters` is the canonical callable in both sampler modules.
 * `fit_sne_parameters`, `resolve_fit_function`, and related compatibility
   names are removed rather than retained as legacy aliases.
 
@@ -156,13 +153,13 @@ CCMBS implementation directly.
 
 ### Model adapter package
 
-`copernican/lib/engine_adapter.py` is renamed to a model-oriented adapter,
-with `EnginePlugin` and `engine_plugin_validation` renamed accordingly. This
+`copernican/lib/model_adapter.py` is renamed to a model-oriented adapter,
+with `ModelPlugin` and `model_plugin_validation` renamed accordingly. This
 adapter owns model metadata, priors, distance functions, and the immutable
 declared CMB contract; it is not a sampler and must not retain sampler
 terminology.
 
-`copernican/lib/engine_capabilities.py` becomes sampler capabilities. Its
+`copernican/lib/sampler_capabilities.py` becomes sampler capabilities. Its
 public types and resolver names use `SamplerSetting`,
 `SamplerProgressChunk`, `SamplerCapabilities`, and
 `get_sampler_capabilities`.
@@ -231,9 +228,9 @@ safe. The plan must not create one GPU context per multiprocessing worker.
 Replace all repository-owned uses of the following names in code, tests,
 manifests, generated output, docs, comments, and GUI text:
 
-* `engines/`, `engine_mcmc`, `engine_nested`, and `engine_*.py` discovery;
-* `EnginePlugin`, `EngineSetting`, `EngineCapabilities`, and
-  `get_engine_capabilities`;
+* `engines/`, legacy engine module stems, and engine-based discovery;
+* `ModelPlugin`, `SamplerSetting`, `SamplerCapabilities`, and
+  `get_sampler_capabilities`;
 * `engine`, `engine_kind`, `engine_module`, and `ENGINE_*` configuration keys;
 * “sampler engine”, “CMB engine”, and “native engine” labels.
 
@@ -244,12 +241,10 @@ both old and new shapes.
 
 ### CMB solver vocabulary
 
-Replace `NATIVE_CMB_ENGINE_ID`, `NATIVE_CMB_ENGINE_LABEL`, and related
-hard-coded strings with CCMBS identifiers and labels. Rename
-`copernican_cmb_solver.py` to a CCMBS-named module, update imports and public
-exports, and keep the mathematical implementation unchanged in the first
-slice that touches it. The solver registry owns selection; the likelihood
-entrypoint no longer claims that CCMBS is the only possible solver.
+Use the stable `CCMBS_ID` and `CCMBS_LABEL` identifiers for the current
+reference solver. The solver registry, module rename, and selectable solver
+entrypoint are Slice Two work; Slice One only removes the old engine identity
+and labels.
 
 ### `cosmo` prefix cleanup
 
@@ -262,7 +257,10 @@ Do not mechanically rename scientific prose containing “cosmology” or
 “cosmological”. Do not silently rename immutable upstream data artifacts:
 either preserve their source filenames in a documented allowlist or create a
 repository-owned neutral alias while retaining the original filename and
-hash in provenance. The final stale-name scan must report every exception.
+hash in provenance. The Slice One allowlist is limited to the upstream Union3
+Stan sources `copernican/datasets/sne/union3/stan_code_fixed.txt` and
+`stan_code_simple.txt`, whose `cosmo_model` variable is part of the imported
+source text. The final stale-name scan must report every exception.
 
 ### Approximation removal
 
@@ -316,7 +314,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [planned] Slice One — Sampler vocabulary and exact-path cleanup
+### [closed] Slice One — Sampler vocabulary and exact-path cleanup
 
 **Purpose:** Remove the discarded surrogate path and migrate all public and
 internal sampler terminology without changing exact numerical behavior.
@@ -444,6 +442,7 @@ backend will use.
   Vulkan implementation to register without changing sampler contracts.
 ## Completion Standard
 
+Slice One is closed when its staged revision has a green `gate --verify`.
 This plan is complete only when both slices are closed in order and the
 staged revision has a green `gate --verify`.
 

@@ -5,7 +5,7 @@ log-likelihoods for individual observational datasets. Each helper implements
 :class:`LikelihoodProtocol`, guaranteeing the presence of a :meth:`loglike`
 method returning a floating-point log-likelihood together with an
 introspectable :pyattr:`state` mapping capturing diagnostic values such as χ²
-totals. Engines combine these helpers to assemble complete likelihoods
+totals. Samplers combine these helpers to assemble complete likelihoods
 without duplicating validation logic. Shared interfaces and the joint
 aggregator live in ``copernican.lib.likelihoods.likelihoods`` so dataset
 helpers can depend on them without creating circular imports during test

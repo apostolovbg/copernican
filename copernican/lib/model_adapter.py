@@ -1,19 +1,19 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Runtime adapter utilities for engine integrations.
+"""Runtime adapter utilities for model integrations.
 
-This module builds :class:`EnginePlugin` instances from parsed model
+This module builds :class:`ModelPlugin` instances from parsed model
 metadata, validates the required callables, and evaluates structured native
 CMB contracts. The adapter keeps model metadata, priors, distance helpers,
-and compiled CMB runtime state in a picklable dataclass so engines and run
+and compiled CMB runtime state in a picklable dataclass so samplers and run
 manifest code can share the same object without a package-level plugin layer.
 
 The module exposes the main adapter entry points:
 
-``build_engine_plugin``
+``build_model_plugin``
     Normalises parsed YAML metadata and generated callables into an
-    :class:`EnginePlugin`. The builder eagerly converts lists into tuples to
+    :class:`ModelPlugin`. The builder eagerly converts lists into tuples to
     encourage immutability and caches a picklable CMB expression evaluator for
     models that expose ``cmb.param_map`` definitions.
 
@@ -23,7 +23,8 @@ The module exposes the main adapter entry points:
 
 ``validate_plugin``
     Replaces the ad-hoc validator from the legacy interface. Validation rules
-    are centralised and shared across all engines so plugin compatibility stays
+    are centralised and shared across all samplers so plugin compatibility
+    stays
     consistent, regardless of the sampling backend.
 
 ``REQUIRED_FUNCTIONS`` / ``REQUIRED_ATTRIBUTES``
@@ -409,7 +410,7 @@ def _freeze_for_cache(value: Any) -> Any:
 
 
 class PluginValidationError(RuntimeError):
-    """Raised when an engine plugin fails validation."""
+    """Raised when a model plugin fails validation."""
 
 
 def _build_parameter_replacements(
@@ -779,7 +780,7 @@ class CMBParameterEvaluator:
     parameter_names: tuple[str, ...]
     latex_names: tuple[str, ...]
     param_map: Mapping[str, Any]
-    logger_name: str = field(default="copernican.lib.engine_adapter")
+    logger_name: str = field(default="copernican.lib.model_adapter")
     _logger: logging.Logger = field(init=False, repr=False)
     _replacements: dict[str, str] = field(init=False, repr=False)
 
@@ -824,7 +825,7 @@ class CMBContractEvaluator:
     parameter_names: tuple[str, ...]
     latex_names: tuple[str, ...]
     contract: Mapping[str, Any]
-    logger_name: str = field(default="copernican.lib.engine_adapter")
+    logger_name: str = field(default="copernican.lib.model_adapter")
     _logger: logging.Logger = field(init=False, repr=False)
     _replacements: dict[str, str] = field(init=False, repr=False)
     _param_evaluator: CMBParameterEvaluator = field(init=False, repr=False)
@@ -992,7 +993,7 @@ class FrozenMapping(Mapping[str, Any]):
         ``types.MappingProxyType`` offered similar immutability but refused to
         pickle on Python 3.11, triggering ``TypeError: cannot pickle
         'mappingproxy' object`` exceptions inside ``multiprocessing`` spawn
-        pools.  Engines serialise :class:`EnginePlugin` instances whenever they
+        pools.  Samplers serialise :class:`ModelPlugin` instances whenever they
         hand work to worker processes, so the read-only wrapper must cooperate
         with ``pickle``.
         """
@@ -1036,7 +1037,7 @@ class FrozenMapping(Mapping[str, Any]):
 
 
 @dataclass(slots=True)
-class EnginePlugin:
+class ModelPlugin:
     """Container describing a generated model and native CMB contract."""
 
     MODEL_NAME: str
@@ -1278,11 +1279,11 @@ def _prepare_priors(
     )
 
 
-def build_engine_plugin(
+def build_model_plugin(
     model_data: Mapping[str, Any],
     func_dict: Mapping[str, Callable[..., Any]],
-) -> EnginePlugin:
-    """Return an :class:`EnginePlugin` for the provided model."""
+) -> ModelPlugin:
+    """Return an :class:`ModelPlugin` for the provided model."""
 
     params: Sequence[Mapping[str, Any]] = model_data.get("parameters", [])
     names = tuple(
@@ -1334,7 +1335,7 @@ def build_engine_plugin(
         sanitize_equation(equation) for equation in equations.get("bao", [])
     )
 
-    plugin = EnginePlugin(
+    plugin = ModelPlugin(
         MODEL_NAME=model_data.get("model_name", "GeneratedModel"),
         MODEL_DESCRIPTION=model_data.get("description", ""),
         MODEL_ABSTRACT=model_data.get("abstract", ""),
@@ -1385,15 +1386,15 @@ def build_engine_plugin(
 def build_plugin(
     model_data: Mapping[str, Any],
     func_dict: Mapping[str, Callable[..., Any]],
-) -> EnginePlugin:
-    """Return a validated :class:`EnginePlugin` for the provided model."""
+) -> ModelPlugin:
+    """Return a validated :class:`ModelPlugin` for the provided model."""
 
-    plugin = build_engine_plugin(model_data, func_dict)
+    plugin = build_model_plugin(model_data, func_dict)
     validate_plugin(plugin)
     return plugin
 
 
-def _validate_plugin_cmb_contract(plugin: EnginePlugin) -> None:
+def _validate_plugin_cmb_contract(plugin: ModelPlugin) -> None:
     """Validate the plugin's declared native CMB contract."""
 
     if not getattr(plugin, "valid_for_cmb", True):
@@ -1408,7 +1409,7 @@ def _validate_plugin_cmb_contract(plugin: EnginePlugin) -> None:
     )
 
 
-def validate_plugin(plugin: EnginePlugin) -> bool:
+def validate_plugin(plugin: ModelPlugin) -> bool:
     """Validate that ``plugin`` exposes required attributes and callables."""
 
     errors: list[str] = []
@@ -1478,7 +1479,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
         errors.append(str(exc))
 
     if errors:
-        model_name = getattr(plugin, "MODEL_NAME", "engine plugin")
+        model_name = getattr(plugin, "MODEL_NAME", "model plugin")
         joined = "; ".join(errors)
         for entry in errors:
             LOGGER.error(
@@ -1492,7 +1493,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
 
 
 __all__ = [
-    "EnginePlugin",
+    "ModelPlugin",
     "CMBParameterEvaluator",
     "CMBContractEvaluator",
     "FrozenMapping",
@@ -1500,7 +1501,7 @@ __all__ = [
     "REQUIRED_ATTRIBUTES",
     "REQUIRED_FUNCTIONS",
     "PosteriorEvaluator",
-    "build_engine_plugin",
+    "build_model_plugin",
     "build_plugin",
     "make_logposterior",
     "sanitize_equation",

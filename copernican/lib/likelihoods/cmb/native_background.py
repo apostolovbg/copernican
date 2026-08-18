@@ -14,7 +14,7 @@ from scipy.optimize import brentq
 from scipy.special import spherical_jn
 
 from ...cmb_output import canonical_cmb_spectrum_name
-from ...engine_adapter import (
+from ...model_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
     FrozenMapping,
@@ -695,7 +695,7 @@ def _summarize_declared_background_manifest_summary(
 
 @dataclass(slots=True)
 class _CustomCMBNumerics:
-    """Numerical settings used by the declared-graph CMB engine."""
+    """Numerical settings used by the declared-graph CCMBS solver."""
 
     ell_min: int = 2
     ell_max: int = 2500
@@ -1593,7 +1593,7 @@ def _custom_cmb_background_cache_key(
         contract_static=_freeze_for_cache(
             _get_declared_background_section(contract)
         ),
-        cosmology_static=(
+        model_static=(
             _freeze_for_cache(
                 _background_parameter_values_for_cache(contract)
             ),
@@ -1627,7 +1627,7 @@ def _custom_cmb_spectrum_cache_key(
         contract_static=_freeze_for_cache(
             _contract_structural_cache_view(contract_or_params)
         ),
-        cosmology_static=(
+        model_static=(
             _custom_cmb_provider_key(background_provider),
             _freeze_for_cache(
                 _contract_dynamic_cache_view(contract_or_params)
@@ -1692,7 +1692,7 @@ def _custom_cmb_transfer_cache_key(
         contract_static=_freeze_for_cache(
             _contract_structural_cache_view(contract_or_params)
         ),
-        cosmology_static=(
+        model_static=(
             _custom_cmb_provider_key(background_provider),
             _freeze_for_cache(
                 _contract_transfer_dynamic_cache_view(contract_or_params)

@@ -11,8 +11,8 @@ from typing import Any, Callable, Sequence
 import yaml
 
 from copernican.lib import console_output, dataset_registry
-from copernican.lib import engine_adapter as engine_plugin_validation
 from copernican.lib import logger as log_mod
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import (
     model_coder,
     model_spec_validator,
@@ -94,7 +94,7 @@ def _resolve_model_path(model_name: str | None) -> Path | None:
 
 
 def _build_plugin_from_path(model_path: Path) -> Any:
-    """Return an EnginePlugin built from *model_path*."""
+    """Return an ModelPlugin built from *model_path*."""
 
     cache_key = str(model_path.resolve())
     if cache_key in _PLUGIN_CACHE:
@@ -105,7 +105,7 @@ def _build_plugin_from_path(model_path: Path) -> Any:
         )
     )
     funcs, parsed = model_coder.generate_callables(cache_path)
-    plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+    plugin = model_plugin_validation.build_plugin(parsed, funcs)
     _PLUGIN_CACHE[cache_key] = plugin
     return plugin
 
@@ -178,10 +178,10 @@ def execute_run_from_manifest(
     _describe_run_confirmation(manifest, config)
     log.info("Run execution started; outputs prepared")
     log.info(
-        "Executing manifest run: seed=%s, models=%s, engine=%s",
+        "Executing manifest run: seed=%s, models=%s, sampler=%s",
         config.seed,
         config.models,
-        config.engine.module_name,
+        config.sampler.module_name,
     )
     if progress_callback is not None:
         progress_callback(
@@ -191,8 +191,8 @@ def execute_run_from_manifest(
             }
         )
     console_output.write(
-        f"Manifest run targets models {config.models} with engine "
-        f"{config.engine.module_name}."
+        f"Manifest run targets models {config.models} with sampler "
+        f"{config.sampler.module_name}."
     )
     if strict_warnings:
         log.info("Strict warnings enforced via manifest run.")
@@ -229,11 +229,11 @@ def execute_run_from_manifest(
             )
 
     try:
-        engine_module = import_module(config.engine.module_name)
+        sampler_module = import_module(config.sampler.module_name)
     except (ImportError, ModuleNotFoundError) as exc:
         log.error(
-            "Failed to import engine module %s: %s",
-            config.engine.module_name,
+            "Failed to import sampler module %s: %s",
+            config.sampler.module_name,
             exc,
         )
         raise
@@ -278,12 +278,12 @@ def execute_run_from_manifest(
         )
 
     sampling_plan = dict(config.run_settings.settings or {})
-    sampling_plan.setdefault("engine_kind", config.run_settings.engine_kind)
+    sampling_plan.setdefault("sampler_kind", config.run_settings.sampler_kind)
     display_progress = bool(sampling_plan.pop("display_progress", True))
     pipeline_result = run_pipeline.execute_run_pipeline(
         control_model_plugin=control_plugin,
         test_model_plugin=test_plugin,
-        engine_module=engine_module,
+        sampler_module=sampler_module,
         sne_data_df=loaded_data.get("sne"),
         bao_data_df=loaded_data.get("bao"),
         cmb_data_df=loaded_data.get("cmb"),
@@ -319,7 +319,7 @@ def _describe_run_confirmation(manifest: dict, config: Any) -> None:
     """Log the manifest confirmation once from the canonical worker."""
 
     selection = manifest.get("selection", {}) or {}
-    engine = selection.get("engine", {}) or {}
+    sampler = selection.get("sampler", {}) or {}
     confirmation = manifest.get("confirmation", {}) or {}
     models = ", ".join(str(model) for model in config.models)
     datasets = ", ".join(
@@ -329,8 +329,8 @@ def _describe_run_confirmation(manifest: dict, config: Any) -> None:
         "Run confirmed with manifest: models=%s; sampler=%s v%s; "
         "datasets=%s; seed=%s; plan=%s",
         models or "unspecified",
-        engine.get("name", config.engine.module_name),
-        engine.get("version", "unspecified"),
+        sampler.get("name", config.sampler.module_name),
+        sampler.get("version", "unspecified"),
         datasets or "none",
         confirmation.get("seed", config.seed),
         confirmation.get("plan", "unspecified"),
@@ -342,27 +342,6 @@ def _sampling_provenance(result: Any) -> dict[str, Any]:
 
     if not isinstance(result, dict):
         return {}
-    delayed = result.get("delayed_acceptance")
-    if not isinstance(delayed, dict):
-        delayed = {}
-    delayed_fields = {
-        key: delayed.get(key)
-        for key in (
-            "enabled",
-            "configuration",
-            "cache_identity",
-            "exact_calls",
-            "training_exact_calls",
-            "proposals",
-            "accepted",
-            "rejected",
-            "exact_corrections",
-            "exact_rejections",
-            "support_fallbacks",
-            "exact_failures",
-        )
-        if key in delayed
-    }
     envelope = result.get("ensemble_performance")
     envelope_fields = {}
     if isinstance(envelope, dict):
@@ -377,7 +356,6 @@ def _sampling_provenance(result: Any) -> dict[str, Any]:
             if key in envelope
         }
     return {
-        "delayed_acceptance": delayed_fields,
         "ensemble_performance": envelope_fields,
     }
 

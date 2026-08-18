@@ -5,7 +5,7 @@
 """Optimization utilities for the Copernican Suite.
 
 This module centralizes common wrappers used during numerical
-optimisation. Engines can import these helpers to keep the engine code
+optimisation. Samplers can import these helpers to keep the sampler code
 focused strictly on mathematical calculations without bookkeeping.  The
 helpers here also standardise progress reporting and resiliency so that
 optimisers always yield the best-so-far solution even when they terminate

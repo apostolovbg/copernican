@@ -1,4 +1,4 @@
-"""Behavior and integration tests for copernican.engines.engine_mcmc."""
+"""Behavior and integration tests for copernican.samplers.sampler_mcmc."""
 
 import logging
 import math
@@ -15,8 +15,16 @@ import numpy
 import pandas
 import xarray as xarray_dataset
 
-from copernican.engines import engine_mcmc as module
-from copernican.engines.engine_mcmc import (
+from copernican.lib import chain_io
+from copernican.lib import model_adapter as model_plugin_validation
+from copernican.lib import model_coder, model_spec_validator
+from copernican.lib.likelihoods.cmb.native_errors import (
+    NativeInitialPointError,
+)
+from copernican.lib.progress import BatchProgressBar
+from copernican.lib.utils import set_random_seed
+from copernican.samplers import sampler_mcmc as module
+from copernican.samplers.sampler_mcmc import (
     _ActiveLogProbability,
     _build_joint_logposterior,
     _classify_parameter_bounds,
@@ -26,14 +34,6 @@ from copernican.engines.engine_mcmc import (
     _reseed_invalid_walkers,
     _resolve_mcmc_pool_processes,
 )
-from copernican.lib import chain_io
-from copernican.lib import engine_adapter as engine_plugin_validation
-from copernican.lib import model_coder, model_spec_validator
-from copernican.lib.likelihoods.cmb.native_errors import (
-    NativeInitialPointError,
-)
-from copernican.lib.progress import BatchProgressBar
-from copernican.lib.utils import set_random_seed
 
 
 def _build_model_plugin(
@@ -72,6 +72,7 @@ def _build_model_plugin(
         )
         perturbations = parsed["cmb"]["perturbations"]
         perturbations["accuracy_controls"].pop("accuracy_tier", None)
+        perturbations["accuracy_controls"]["minimum_k_sample_count"] = 8
         perturbations["accuracy_controls"]["scalar_reference_ells"] = [
             2,
             40,
@@ -97,7 +98,7 @@ def _build_model_plugin(
                     "q_max": 12.0,
                 }
             )
-    plugin = engine_plugin_validation.build_plugin(parsed, func_dict)
+    plugin = model_plugin_validation.build_plugin(parsed, func_dict)
     if fixed_native:
         plugin.PARAMETER_BOUNDS = tuple(
             (float(value), float(value)) for value in plugin.INITIAL_GUESSES
@@ -165,22 +166,32 @@ def _build_short_chain_plugin():
     )
 
 
-class TestCosmoEngineMcmc(unittest.TestCase):
-    """Exercise the reusable helpers and engine behavior."""
+class TestSamplerMcmc(unittest.TestCase):
+    """Exercise the reusable helpers and sampler behavior."""
 
-    def test_engine_metadata(self) -> None:
-        self.assertEqual(module.ENGINE_KIND, "mcmc")
-        self.assertEqual(module.ENGINE_LABEL, "Ensemble MCMC sampler")
-        self.assertEqual(module.ENGINE_VERSION, "7.6.20")
-        self.assertTrue(module.ENGINE_SETTINGS)
-        self.assertTrue(module.ENGINE_PROGRESS_CHUNKS)
+    def test_canonical_sampler_contract(self) -> None:
+        """Require the public sampler module and metadata vocabulary."""
 
-    def test_engine_settings_use_gui_supported_scalar_types(self) -> None:
+        self.assertTrue(callable(module.sample_parameters))
+        self.assertEqual(module.SAMPLER_KIND, "mcmc")
+        self.assertTrue(module.SAMPLER_LABEL)
+        self.assertTrue(module.SAMPLER_VERSION)
+        self.assertTrue(module.SAMPLER_SETTINGS)
+        self.assertTrue(module.SAMPLER_PROGRESS_CHUNKS)
+
+    def test_sampler_metadata(self) -> None:
+        self.assertEqual(module.SAMPLER_KIND, "mcmc")
+        self.assertEqual(module.SAMPLER_LABEL, "Ensemble MCMC sampler")
+        self.assertEqual(module.SAMPLER_VERSION, "7.6.20")
+        self.assertTrue(module.SAMPLER_SETTINGS)
+        self.assertTrue(module.SAMPLER_PROGRESS_CHUNKS)
+
+    def test_sampler_settings_use_gui_supported_scalar_types(self) -> None:
         """The GUI must not render mapping settings as numeric knobs."""
 
         unsupported = [
             setting.key
-            for setting in module.ENGINE_SETTINGS
+            for setting in module.SAMPLER_SETTINGS
             if setting.dtype not in {"bool", "int", "float"}
         ]
         self.assertEqual(unsupported, [])
@@ -229,7 +240,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = module.fit_cosmology_parameters(
+        res = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -258,7 +269,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             res.get("chi2_cmb", 0.0), components.get("cmb", 0.0)
         )
         self.assertSetEqual(
-            set(res["fitted_cosmological_params"].keys()),
+            set(res["fitted_model_params"].keys()),
             set(plugin.PARAMETER_NAMES),
         )
         self.assertSetEqual(
@@ -291,7 +302,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         sne_df = pandas.DataFrame(
             {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -309,121 +320,27 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertGreater(envelope["batch_items"], 0)
         self.assertGreater(envelope["batch_items_per_second"], 0.0)
 
-    def test_delayed_acceptance_is_explicit_and_records_exact_corrections(
-        self,
-    ) -> None:
-        """The opt-in sampler records every exact delayed-acceptance stage."""
+    def test_exact_sampler_result_shape(self) -> None:
+        """The exact sampler emits the canonical result shape."""
 
         plugin = _build_short_chain_plugin()
         sne_df = pandas.DataFrame(
             {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
-            n_steps=3,
+            n_steps=2,
             pool_size=1,
             burn_in_steps=1,
             display_progress=False,
-            delayed_acceptance=True,
-            surrogate_config={
-                "min_support": 2,
-                "uncertainty_threshold": 100.0,
-                "proposal_scale": 0.1,
-            },
         )
-
         self.assertTrue(result["success"])
-        provenance = result["delayed_acceptance"]
-        self.assertTrue(provenance["enabled"])
-        self.assertGreater(provenance["exact_calls"], 0)
-        self.assertEqual(
-            provenance["proposals"],
-            provenance["accepted"] + provenance["rejected"],
-        )
-        self.assertTrue(provenance["proposal_records"])
-        self.assertTrue(provenance["cache_identity"].startswith("surrogate:"))
-
-    def test_delayed_acceptance_rejects_unknown_configuration(self) -> None:
-        """Unknown approximation settings fail before a chain is started."""
-
-        with self.assertRaisesRegex(ValueError, "unknown"):
-            module.validate_delayed_acceptance_config(
-                {"unknown_setting": True}
-            )
-
-    def test_delayed_acceptance_disabled_preserves_exact_seeded_chain(self):
-        """The disabled mode remains the exact scalar sampler reference."""
-
-        plugin = _build_short_chain_plugin()
-        sne_df = pandas.DataFrame(
-            {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
-        )
-        set_random_seed(73)
-        reference = module.fit_cosmology_parameters(
-            sne_df,
-            plugin,
-            n_walkers=4,
-            n_steps=3,
-            pool_size=1,
-            burn_in_steps=1,
-            display_progress=False,
-        )
-        set_random_seed(73)
-        explicit = module.fit_cosmology_parameters(
-            sne_df,
-            plugin,
-            n_walkers=4,
-            n_steps=3,
-            pool_size=1,
-            burn_in_steps=1,
-            display_progress=False,
-            delayed_acceptance=False,
-        )
-
-        self.assertTrue(
-            numpy.array_equal(reference["samples"], explicit["samples"])
-        )
-        self.assertTrue(
-            numpy.array_equal(
-                reference["log_probability"], explicit["log_probability"]
-            )
-        )
-        self.assertFalse(explicit["delayed_acceptance"]["enabled"])
-
-    def test_legacy_fit_alias_warns_and_runs(self) -> None:
-        plugin = _build_model_plugin("model_lcdm.yml")
-        sne_df = pandas.DataFrame(
-            {
-                "zcmb": [0.01, 0.02],
-                "mu_obs": [40.0, 41.0],
-                "e_mu_obs": [0.1, 0.1],
-            }
-        )
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            res = module.fit_sne_parameters(
-                sne_df,
-                plugin,
-                n_walkers=4,
-                n_steps=4,
-                pool_size=1,
-                burn_in_steps=2,
-                display_progress=False,
-            )
-        self.assertTrue(res["success"])
-        self.assertTrue(
-            any(
-                "fit_sne_parameters is deprecated" in str(warning.message)
-                for warning in caught
-            )
-        )
-
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
             chain_io.save_posterior(
-                res["samples"],
+                result["samples"],
                 plugin.PARAMETER_NAMES,
                 path,
                 metadata={"model": plugin.MODEL_NAME},
@@ -459,7 +376,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
 
         with self.assertLogs(level="INFO") as captured:
-            module.fit_cosmology_parameters(
+            module.sample_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,
@@ -566,7 +483,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
         events: list[dict[str, object]] = []
 
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=12,
@@ -713,7 +630,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             mock.patch.object(module, "_initialise_active_walkers") as walkers,
             self.assertRaises(NativeInitialPointError),
         ):
-            module.fit_cosmology_parameters(
+            module.sample_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,
@@ -751,7 +668,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertEqual(second, -2.5)
         self.assertEqual(posterior.call_count, 2)
 
-    @mock.patch("copernican.engines.engine_mcmc.BatchProgressBar")
+    @mock.patch("copernican.samplers.sampler_mcmc.BatchProgressBar")
     def test_progress_bar_reports_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -763,7 +680,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
         bar_instance = mock.MagicMock()
         bar_cls.return_value = bar_instance
-        module.fit_cosmology_parameters(
+        module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -788,7 +705,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = module.fit_cosmology_parameters(
+        res = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -810,7 +727,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -917,7 +834,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             }
         )
         set_random_seed(31415)
-        first = module.fit_cosmology_parameters(
+        first = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -926,7 +843,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             burn_in_steps=8,
         )
         set_random_seed(31415)
-        second = module.fit_cosmology_parameters(
+        second = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -988,7 +905,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -1009,7 +926,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=30,
@@ -1033,7 +950,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -1090,7 +1007,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         cmb_df.attrs["covariance_matrix_inv"] = numpy.eye(len(ells))
 
         started = perf_counter()
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             bao_data_df=bao_df,
@@ -1183,7 +1100,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             }
         )
 
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_walkers=10,
@@ -1212,7 +1129,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", RuntimeWarning)
-            result = module.fit_cosmology_parameters(
+            result = module.sample_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,

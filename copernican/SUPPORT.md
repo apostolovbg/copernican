@@ -2,7 +2,7 @@
 **Doc ID:** SUPPORT
 **Doc Type:** repo-support
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-16
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -49,8 +49,8 @@ the same display name remain distinct comparisons; the default control stays
 `model_lcdm.yml` until a different control is chosen.
 
 CMB-capable control and test models always execute through the Copernican
-native declared-graph CMB engine. There is no CMB solver or backend flag in
-the CLI or GUI. For CMB provenance, inspect `cmb.execution_engine` and each
+native declared-graph CMB solver. There is no CMB solver or backend flag in
+the CLI or GUI. For CMB provenance, inspect `cmb.execution_solver` and each
 model's `native_cmb_*` summaries in the run manifest.
 
 If launch behavior or GUI defaults look wrong, compare the run logs with

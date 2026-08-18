@@ -45,7 +45,7 @@ attached to the parsed `DataFrame` through the ``.attrs`` dictionary. Loaders
 store both the human-readable `dataset_name` and the filename friendly
 `dataset_id`. Plot footers render the dataset name in bold, followed by `:
 description notes` on the second line and the citation on a third line. Custom
-fields are preserved and can be used by new engines or analysis scripts.
+fields are preserved and can be used by new samplers or analysis scripts.
 ### Best Practices
 - Keep descriptions short yet informative; the second footer line wraps at 190
  characters, so overly long notes may span several lines.
@@ -65,7 +65,7 @@ fields are preserved and can be used by new engines or analysis scripts.
  so the loaders attach them once the compressed FITS is parsed.
 - Use the `notes` field to explain that `mu_mat_union3_cosmo=2_mu.fits`
  contains the redshift nodes, compressed distance modulus column and inverse
- covariance block consumed by `cosmo_parser_union3.py`. If the dataset
+ covariance block consumed by `dataset_parser_union3.py`. If the dataset
  requires an additive SNe intercept treatment, say so explicitly so the
  likelihood can marginalize it before residual comparison.
 - Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt)
@@ -76,6 +76,6 @@ Model YAML files support a `prior` block for each parameter. Priors carry
 their `type` and relevant numeric fields: Gaussian priors require `mean` and
 `sigma`, uniform priors use `lower` and `upper`, and log-uniform priors demand
 strictly positive `lower`/`upper` pairs. Parsed models expose these details so
-engines can apply them during optimisation while
+samplers can apply them during optimisation while
 `copernican.lib.priors.LogUniformPrior` injects the accompanying log-space
 transform automatically.

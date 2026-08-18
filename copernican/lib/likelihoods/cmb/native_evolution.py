@@ -12,7 +12,7 @@ from typing import Any, Callable, Mapping
 
 import numpy
 
-from ...engine_adapter import FrozenMapping, _freeze_for_cache
+from ...model_adapter import FrozenMapping, _freeze_for_cache
 from ...perturbation_contract import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,

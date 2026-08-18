@@ -8,12 +8,12 @@ from tempfile import TemporaryDirectory
 
 import numpy
 
-from copernican.lib import engine_adapter, model_coder, model_spec_validator
+from copernican.lib import model_adapter, model_coder, model_spec_validator
 from copernican.lib.likelihoods import cmb
 from copernican.lib.perturbation_contract import PerturbationContractData
 
 
-class CosmoModelTemplateTestCase(unittest.TestCase):
+class ModelTemplateTestCase(unittest.TestCase):
     """Validate the root template's perturbation contract and execution."""
 
     def _build_template_plugin(self):
@@ -27,13 +27,13 @@ class CosmoModelTemplateTestCase(unittest.TestCase):
                 cache_dir,
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-            return engine_adapter.build_plugin(parsed, funcs)
+            return model_adapter.build_plugin(parsed, funcs)
 
     def test_template_schema_and_plugin_validation(self) -> None:
         """The root template should validate and expose typed data."""
 
         plugin = self._build_template_plugin()
-        self.assertTrue(engine_adapter.validate_plugin(plugin))
+        self.assertTrue(model_adapter.validate_plugin(plugin))
         perturbation_data = plugin.get_cmb_perturbation_data(
             plugin.INITIAL_GUESSES
         )

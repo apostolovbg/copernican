@@ -1,9 +1,8 @@
-"""Behavior tests for copernican.engines.engine_nested."""
+"""Behavior tests for copernican.samplers.sampler_nested."""
 
 import os
 import tempfile
 import unittest
-import warnings
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -11,10 +10,10 @@ from unittest import mock
 import pandas
 import xarray as xarray_dataset
 
-from copernican.engines import engine_nested as module
 from copernican.lib import chain_io
-from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
+from copernican.samplers import sampler_nested as module
 
 
 class _DummyJointLike:
@@ -39,18 +38,18 @@ def _build_model_plugin(yaml_filename: str):
             cache_dir,
         )
         func_dict, parsed = model_coder.generate_callables(cache_path)
-    return engine_plugin_validation.build_plugin(parsed, func_dict)
+    return model_plugin_validation.build_plugin(parsed, func_dict)
 
 
-class TestCosmoEngineNested(unittest.TestCase):
-    """Exercise the reusable helpers and the nested engine workflow."""
+class TestSamplerNested(unittest.TestCase):
+    """Exercise the reusable helpers and the nested sampler workflow."""
 
-    def test_engine_metadata(self) -> None:
-        self.assertEqual(module.ENGINE_KIND, "nested")
-        self.assertEqual(module.ENGINE_LABEL, "Nested sampling engine")
-        self.assertEqual(module.ENGINE_VERSION, "1.1.0")
-        self.assertTrue(module.ENGINE_SETTINGS)
-        self.assertTrue(module.ENGINE_PROGRESS_CHUNKS)
+    def test_sampler_metadata(self) -> None:
+        self.assertEqual(module.SAMPLER_KIND, "nested")
+        self.assertEqual(module.SAMPLER_LABEL, "Nested sampling sampler")
+        self.assertEqual(module.SAMPLER_VERSION, "1.1.0")
+        self.assertTrue(module.SAMPLER_SETTINGS)
+        self.assertTrue(module.SAMPLER_PROGRESS_CHUNKS)
 
     def test_logsumexp_pair_handles_finite_and_infinite_inputs(self) -> None:
         self.assertAlmostEqual(
@@ -84,7 +83,7 @@ class TestCosmoEngineNested(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_live_points=32,
@@ -122,7 +121,7 @@ class TestCosmoEngineNested(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = module.fit_cosmology_parameters(
+        result = module.sample_parameters(
             sne_df,
             plugin,
             n_live_points=24,
@@ -146,35 +145,7 @@ class TestCosmoEngineNested(unittest.TestCase):
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, dataset_reader.data_vars)
 
-    def test_legacy_alias_warns_and_runs(self) -> None:
-        plugin = _build_model_plugin("model_lcdm.yml")
-        sne_df = pandas.DataFrame(
-            {
-                "zcmb": [0.01, 0.02],
-                "mu_obs": [40.0, 41.0],
-                "e_mu_obs": [0.1, 0.1],
-            }
-        )
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = module.fit_sne_parameters(
-                sne_df,
-                plugin,
-                n_live_points=24,
-                max_iterations=60,
-                evidence_tolerance=1e-2,
-                enlargement_fraction=1.2,
-                display_progress=False,
-            )
-        self.assertTrue(result["success"])
-        self.assertTrue(
-            any(
-                "fit_sne_parameters is deprecated" in str(warning.message)
-                for warning in caught
-            )
-        )
-
-    def test_manifest_integration_records_engine(self) -> None:
+    def test_manifest_integration_records_sampler(self) -> None:
         plugin = SimpleNamespace(
             MODEL_NAME="Demo",
             MODEL_FILENAME="demo.py",
@@ -185,17 +156,17 @@ class TestCosmoEngineNested(unittest.TestCase):
         )
         manifest = run_manifest.build_manifest(
             models=[(plugin, "1.0"), (plugin, "1.0")],
-            engine_module=module,
+            sampler_module=module,
             datasets=[],
         )
-        engine_entry = manifest.get("engine", {})
+        sampler_entry = manifest.get("sampler", {})
         self.assertEqual(
-            engine_entry.get("name"),
-            getattr(module, "__name__", "copernican.engines.engine_nested"),
+            sampler_entry.get("name"),
+            getattr(module, "__name__", "copernican.samplers.sampler_nested"),
         )
-        self.assertEqual(engine_entry.get("version"), module.ENGINE_VERSION)
+        self.assertEqual(sampler_entry.get("version"), module.SAMPLER_VERSION)
 
-    @mock.patch("copernican.engines.engine_nested.BatchProgressBar")
+    @mock.patch("copernican.samplers.sampler_nested.BatchProgressBar")
     def test_progress_bar_initialises_and_updates(self, bar_cls) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -208,7 +179,7 @@ class TestCosmoEngineNested(unittest.TestCase):
         bar_instance = mock.MagicMock()
         bar_cls.return_value = bar_instance
 
-        module.fit_cosmology_parameters(
+        module.sample_parameters(
             sne_df,
             plugin,
             n_live_points=16,
@@ -232,7 +203,7 @@ class TestCosmoEngineNested(unittest.TestCase):
             self.assertEqual(call_kwargs["total"], 12)
         bar_instance.finish_batch.assert_called()
 
-    @mock.patch("copernican.engines.engine_nested.BatchProgressBar")
+    @mock.patch("copernican.samplers.sampler_nested.BatchProgressBar")
     def test_progress_bar_finishes_on_exception(self, bar_cls) -> None:
         plugin = _build_model_plugin("model_lcdm.yml")
         sne_df = pandas.DataFrame(
@@ -246,11 +217,11 @@ class TestCosmoEngineNested(unittest.TestCase):
         bar_cls.return_value = bar_instance
 
         with mock.patch(
-            "copernican.engines.engine_nested._replacement_sample",
+            "copernican.samplers.sampler_nested._replacement_sample",
             side_effect=RuntimeError("replacement failure"),
         ):
             with self.assertRaises(RuntimeError):
-                module.fit_cosmology_parameters(
+                module.sample_parameters(
                     sne_df,
                     plugin,
                     n_live_points=8,

@@ -211,10 +211,10 @@ def _models_root() -> Path:
     return Path(SCRIPT_DIR) / "copernican" / "models"
 
 
-def _engines_root() -> Path:
-    """Return the path containing computational engine modules."""
+def _samplers_root() -> Path:
+    """Return the path containing sampler modules modules."""
 
-    return Path(SCRIPT_DIR) / "copernican" / "engines"
+    return Path(SCRIPT_DIR) / "copernican" / "samplers"
 
 
 def _output_root(override: Path | None = None) -> Path:
@@ -260,7 +260,7 @@ def _prepare_manifest_run_logging(launch_request: LaunchRequest) -> None:
 def _parser_path_for_dir(data_dir: Path) -> Path | None:
     """Locate the parser module belonging to a dataset directory."""
 
-    candidates = sorted(data_dir.glob("cosmo_parser_*.py"))
+    candidates = sorted(data_dir.glob("dataset_parser_*.py"))
     return candidates[0] if candidates else None
 
 
@@ -401,21 +401,21 @@ def _collect_model_index(
     return models
 
 
-def _collect_engine_index(
-    engines_root: Path | None = None,
+def _collect_sampler_index(
+    samplers_root: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Build metadata records for each engine module."""
+    """Build metadata records for each sampler module."""
 
-    root = engines_root or _engines_root()
-    engines: dict[str, dict[str, Any]] = {}
+    root = samplers_root or _samplers_root()
+    samplers: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(root).glob("*.py")):
         if path.name.startswith("__"):
             continue
-        module_name = f"copernican.engines.{path.stem}"
+        module_name = f"copernican.samplers.{path.stem}"
         try:
             module = importlib.import_module(module_name)
-            label = getattr(module, "ENGINE_LABEL", path.stem)
-            version_label = getattr(module, "ENGINE_VERSION", "unknown")
+            label = getattr(module, "SAMPLER_LABEL", path.stem)
+            version_label = getattr(module, "SAMPLER_VERSION", "unknown")
         except (
             AttributeError,
             ImportError,
@@ -426,31 +426,31 @@ def _collect_engine_index(
             label = path.stem
             version_label = "unavailable"
             log_mod.get_logger().warning(
-                "Engine metadata import failed for %s", module_name
+                "Sampler metadata import failed for %s", module_name
             )
-        engines[module_name] = {
+        samplers[module_name] = {
             "id": module_name,
             "filename": path.name,
             "path": str(path),
             "stem": path.stem,
             "citation": getattr(module, "__doc__", ""),
-            "license": "Copernican default license; verify engines",
+            "license": "Copernican default license; verify samplers",
             "version": version_label,
             "label": label,
             "badges": ["SNE", "BAO", "CMB"],
             "hash": utils.compute_sha256(str(path)),
         }
-    return engines
+    return samplers
 
 
-def _gather_model_engine_summary(
+def _gather_model_sampler_summary(
     models_root: Path | None = None,
-    engines_root: Path | None = None,
+    samplers_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Summarize model and engine compatibility badges plus missing data."""
+    """Summarize model and sampler compatibility badges plus missing data."""
 
     model_index = _collect_model_index(models_root)
-    engine_index = _collect_engine_index(engines_root)
+    sampler_index = _collect_sampler_index(samplers_root)
     model_badges = Counter()
     stale_models: list[tuple[str, str]] = []
     for entry in model_index.values():
@@ -464,34 +464,34 @@ def _gather_model_engine_summary(
                     "missing",
                 )
             )
-    stale_engines: list[tuple[str, str]] = []
-    for entry in engine_index.values():
+    stale_samplers: list[tuple[str, str]] = []
+    for entry in sampler_index.values():
         version_label = (entry.get("version") or "").lower()
         if not version_label or version_label in {"unknown", "unavailable"}:
-            stale_engines.append(
+            stale_samplers.append(
                 (
-                    entry.get("label") or entry.get("id", "engine"),
+                    entry.get("label") or entry.get("id", "sampler"),
                     "missing",
                 )
             )
     return {
         "model_count": len(model_index),
-        "engine_count": len(engine_index),
+        "sampler_count": len(sampler_index),
         "model_badges": model_badges,
         "stale_models": stale_models,
-        "stale_engines": stale_engines,
+        "stale_samplers": stale_samplers,
     }
 
 
 def _print_catalogue_summary_cli(
     data_root: Path | None = None,
     models_root: Path | None = None,
-    engines_root: Path | None = None,
+    samplers_root: Path | None = None,
 ) -> None:
     """Emit the catalogue summary details to the CLI."""
 
     catalogue = _gather_catalogue_summary(data_root)
-    model_engine = _gather_model_engine_summary(models_root, engines_root)
+    model_sampler = _gather_model_sampler_summary(models_root, samplers_root)
     console.write("")
     console.write("Catalogue summary")
     console.write("------------------")
@@ -518,23 +518,23 @@ def _print_catalogue_summary_cli(
     console.write("")
     console.write(
         (
-            f"Models discovered: {model_engine['model_count']} | "
-            f"Engines: {model_engine['engine_count']}"
+            f"Models discovered: {model_sampler['model_count']} | "
+            f"Samplers: {model_sampler['sampler_count']}"
         )
     )
-    if model_engine["model_badges"]:
+    if model_sampler["model_badges"]:
         badge_parts = [
             f"{badge}: {count}"
-            for badge, count in sorted(model_engine["model_badges"].items())
+            for badge, count in sorted(model_sampler["model_badges"].items())
         ]
         console.write("Model compatibility: " + ", ".join(badge_parts))
-    if model_engine["stale_models"]:
+    if model_sampler["stale_models"]:
         console.write("Models missing version metadata:")
-        for name, _reason in model_engine["stale_models"][:5]:
+        for name, _reason in model_sampler["stale_models"][:5]:
             console.write(f"  - {name}")
-    if model_engine["stale_engines"]:
-        console.write("Engines missing version metadata:")
-        for name, _reason in model_engine["stale_engines"][:5]:
+    if model_sampler["stale_samplers"]:
+        console.write("Samplers missing version metadata:")
+        for name, _reason in model_sampler["stale_samplers"][:5]:
             console.write(f"  - {name}")
 
 
@@ -848,7 +848,7 @@ def _handle_auxiliary_requests(
     exit_code = 0
     data_root = _data_root()
     models_root = _models_root()
-    engines_root = _engines_root()
+    samplers_root = _samplers_root()
     output_root = _output_root(launch_request.output_dir)
     if launch_request.analysis_summary_dir is not None:
         success = _run_analysis_summary_cli(
@@ -889,7 +889,7 @@ def _handle_auxiliary_requests(
             exit_code = 1
         return handled, exit_code
     if launch_request.catalogue_summary:
-        _print_catalogue_summary_cli(data_root, models_root, engines_root)
+        _print_catalogue_summary_cli(data_root, models_root, samplers_root)
         handled = True
     if launch_request.revalidate_dataset:
         dataset_id = launch_request.revalidate_dataset.strip()
@@ -1002,7 +1002,7 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         metavar="MODEL",
         help=(
             "Override the control model recorded in the manifest. "
-            "CMB-capable models use the native declared-graph CMB engine."
+            "CMB-capable models use the native declared-graph CCMBS solver."
         ),
     )
     parser.add_argument(
@@ -1014,7 +1014,7 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         "--catalogue-summary",
         action="store_true",
         help=(
-            "Print dataset, model and engine inventory health information "
+            "Print dataset, model and sampler inventory health information "
             "then exit."
         ),
     )
@@ -1330,12 +1330,12 @@ def main_workflow(
 
     global numpy_module, plt, multiprocessing_module, model_spec_validator
     global model_coder
-    global engine_plugin_validation
+    global model_plugin_validation
     global utils, error_handler, log_mod, logger
     numpy_module, plt, multiprocessing_module = (
         cli_dependencies.load_third_party_modules()
     )
-    import copernican.lib.engine_adapter as engine_plugin_validation
+    import copernican.lib.model_adapter as model_plugin_validation
     from copernican.lib import (
         error_handler,
         model_coder,

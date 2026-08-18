@@ -1,4 +1,4 @@
-"""Build a deterministic engine plugin for the synthetic datasets."""
+"""Build a deterministic model plugin for the synthetic datasets."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as numpy_module
 import yaml
 
-from copernican.lib.engine_adapter import build_engine_plugin
+from copernican.lib.model_adapter import build_model_plugin
 from tests.project import filesystem_helpers
 
 _DATA_DIR = Path(__file__).parent
@@ -113,7 +113,7 @@ def build_plugin():
         "get_DV_Mpc": _volume_distance,
         "get_sound_horizon_rs_Mpc": _sound_horizon,
     }
-    return build_engine_plugin(model_data, functions)
+    return build_model_plugin(model_data, functions)
 
 
 __all__ = ["build_plugin", "_MODEL_PATH"]

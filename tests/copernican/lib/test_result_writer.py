@@ -10,10 +10,10 @@ import unittest
 import pandas
 import yaml
 
-from copernican.engines import engine_mcmc
-from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, result_writer
 from copernican.lib.model_selection import build_comparison_request
+from copernican.samplers import sampler_mcmc
 
 
 class TestResultWriter(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestResultWriter(unittest.TestCase):
             yaml_path, cache_dir
         )
         func_dict, parsed = model_coder.generate_callables(cache_path)
-        return engine_plugin_validation.build_plugin(parsed, func_dict)
+        return model_plugin_validation.build_plugin(parsed, func_dict)
 
     def test_summary_contains_parameters(self):
         plugin = self._build_lcdm_plugin()
@@ -41,7 +41,7 @@ class TestResultWriter(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = engine_mcmc.fit_cosmology_parameters(
+        res = sampler_mcmc.sample_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -86,7 +86,7 @@ class TestResultWriter(unittest.TestCase):
                     self.assertEqual(sampling.get("production_steps"), 6)
                     self.assertEqual(sampling.get("burn_in_steps"), 12)
                     _lower, _upper, fixed_mask = (
-                        engine_mcmc._classify_parameter_bounds(
+                        sampler_mcmc._classify_parameter_bounds(
                             plugin.PARAMETER_BOUNDS,
                             logger=logging.getLogger(),
                         )

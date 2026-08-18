@@ -40,7 +40,7 @@ if you do not need the curated prompts. Additional switches include `--gui`,
 `--control-model <model>` and `--test-model <model>` to override the pair in
 that manifest, and `--output-dir` to override where run directories are
 created. CMB-capable models always use the Copernican native declared-graph
-CMB engine; the CLI has no CMB solver or backend selector.
+CMB solver; the CLI has no CMB solver or backend selector.
 ## Interactive CLI Workflow
 The CLI mirrors the Run Builder pages and the shared comparison request:
 1. **Seed selection** – Accept the default seed (`0`), supply your own value,
@@ -51,14 +51,14 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
  model roles use the same YAML validation and exact-path loading rules.
 4. **Dataset selection** – Pick one dataset per category (SNe Ia, BAO, CMB).
  Parsers are verified by SHA256 digest before their modules are imported.
-5. **Sampler engine** – Choose a sampler backend from `copernican/engines/`.
- The default is `copernican/engines/engine_mcmc.py` unless you
+5. **Sampler** – Choose a sampler backend from `copernican/samplers/`.
+ The default is `copernican/samplers/sampler_mcmc.py` unless you
  override it. Sampler metadata (walkers, burn-in, production steps, pool
  size, and the optional CMB batch size) is gathered immediately after the
  choice. The MCMC `cmb_batch_size` setting defaults to `0`, preserving exact
  scalar evaluation; values greater than one opt into bounded ordered native
  batches with per-item typed failures. When a selected sampler
- engine detects that every parameter is fixed (for example, when the
+ sampler detects that every parameter is fixed (for example, when the
  validation manifest runs `Planck 2018 Reference LambdaCDM`), the sampler
  mirrors the reference values, fabricates identical chains, and
  reports the configured worker pool count. This keeps diagnostics, plots
@@ -67,7 +67,7 @@ The CLI mirrors the Run Builder pages and the shared comparison request:
 6. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
  writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
  naming convention as the GUI. The manifest records dataset hashes, model
- metadata, sampler knobs, native CMB engine identity, and Git information.
+ metadata, sampler knobs, native CMB solver identity, and Git information.
  The CLI run log for each
  manifest resides under the resulting
  `~/copernican_output/copernican-run_<timestamp>/` folder as
@@ -94,29 +94,12 @@ provenance. A failed item does not change neighboring results. The contract
 currently adapts the exact scalar executor; the scalar path remains the
 default and the MCMC `cmb_batch_size` setting is disabled at `0`.
 
-### Delayed-acceptance sampling
-
-The MCMC `delayed_acceptance` setting is an explicit opt-in and defaults to
-`false`. It accepts an optional `surrogate_config` mapping with normalized
-parameter support, neighbor count, uncertainty threshold, training-sample
-limit, and proposal scale controls. The deterministic surrogate is trained
-only from exact target evaluations. Unsupported or uncertain candidates are
-sent directly to the exact scalar evaluator; candidates that pass the cheap
-screen receive the exact second-stage delayed-acceptance correction.
-
-Every proposal is recorded as screened, exactly corrected, support-fallback,
-or exact-failure. The result summary and copied run manifest retain the exact
-call count, correction and rejection counters, training-sample identities,
-configuration, and surrogate cache identity. Setting `delayed_acceptance` to
-`false` leaves the seeded exact scalar sampler unchanged. The GUI exposes the
-boolean opt-in; advanced `surrogate_config` mappings belong in the confirmed
-manifest rather than the scalar run-settings controls.
 ## Utility Commands
 Not every CLI task requires launching the manifest workflow. The following
 flags execute their action and exit immediately:
 - `--catalogue-summary` – Prints dataset counts by type, highlights untrusted
- parsers and reports how many model files and engine modules were
- discovered under `copernican/models/` and `copernican/engines/`.
+ parsers and reports how many model files and sampler modules were
+ discovered under `copernican/models/` and `copernican/samplers/`.
 - `--revalidate-dataset DATASET_ID` – Re-runs the parser hash check for a
  specific dataset id and warns when the digest diverges from the trusted
  value.
@@ -168,8 +151,8 @@ timestamped `run_manifest_<timestamp>.yml` inside the provided output directory
 before sampling begins, so CLI and validation runs archive the manifest even
 when they only receive a reference to an existing YAML file.
 The executor rebuilds the declared models via
-`copernican.lib.engine_adapter.build_plugin`, reloads datasets using the
-recorded hashes, and hands sampling to the selected engine. Progress updates
+`copernican.lib.model_adapter.build_plugin`, reloads datasets using the
+recorded hashes, and hands sampling to the selected sampler. Progress updates
 and log output match the GUI’s Run Monitor display.
 The optional `--control-model` and `--test-model` overrides update the same
 comparison object used by the GUI before the executor loads either model.
@@ -187,7 +170,7 @@ NumPy/SciPy versions) and enables `faulthandler` so fatal signals dump stack
 traces to both stdout and the log file. Each run receives its own
 `~/copernican_output/.../copernican-run_<timestamp>.txt` with the
 per-walker progress indicators,
-engine messages and warnings. Use `tail -f` or your preferred log viewer to
+sampler messages and warnings. Use `tail -f` or your preferred log viewer to
 monitor long runs, and cross-reference the GUI Run Monitor if you transition
 from CLI to GUI mid-analysis—the manifest files remain compatible across both
 frontends.

@@ -16,14 +16,14 @@ from copernican.lib.gui import app as gui_app
 
 
 def _prime_gui_selections(gui: CopernicanGUI) -> None:
-    """Seed model and engine selections for tests that confirm runs."""
+    """Seed model and sampler selections for tests that confirm runs."""
 
     model_entry = next(iter(gui.model_index.values()))
-    engine_entry = next(iter(gui.engine_index.values()))
+    sampler_entry = next(iter(gui.sampler_index.values()))
     gui._apply_model_role("control", model_entry)
     gui._apply_model_role("test", model_entry)
-    gui.selected_engine = engine_entry["id"]
-    gui._selected_engine_entry = engine_entry  # type: ignore[attr-defined]
+    gui.selected_sampler = sampler_entry["id"]
+    gui._selected_sampler_entry = sampler_entry  # type: ignore[attr-defined]
 
 
 def _stub_worker_launch(gui: CopernicanGUI) -> None:
@@ -82,12 +82,12 @@ class TestCopernicanGUI(unittest.TestCase):
         self.assertEqual(
             comparison["test"]["filename"], test_entry["filename"]
         )
-        self.assertIn("Sampler engine", gui.builder_steps)
+        self.assertIn("Sampler", gui.builder_steps)
         self.assertNotIn("CMB solver", gui.builder_steps)
         self.assertNotIn("backend", manifest["configuration"])
 
-    def test_model_and_engine_metadata_actions(self) -> None:
-        _case_model_and_engine_metadata_actions(self)
+    def test_model_and_sampler_metadata_actions(self) -> None:
+        _case_model_and_sampler_metadata_actions(self)
 
     def test_external_model_loading_and_output_root(self) -> None:
         _case_external_model_loading_and_output_root(self)
@@ -223,7 +223,7 @@ def _case_catalogue_metadata_and_filters(self) -> None:
     self.assertTrue(record["hashes"])
 
 
-def _case_model_and_engine_metadata_actions(self) -> None:
+def _case_model_and_sampler_metadata_actions(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
     self.assertTrue(gui.model_index)
@@ -231,10 +231,10 @@ def _case_model_and_engine_metadata_actions(self) -> None:
     self.assertTrue(model_entry["hash"])
     model_text = gui.view_metadata_file(model_entry["id"])
     self.assertTrue(model_text)
-    engine_entry = next(iter(gui.engine_index.values()))
-    engine_text = gui.view_metadata_file(engine_entry["id"])
-    self.assertTrue(engine_entry["hash"])
-    self.assertTrue(engine_text)
+    sampler_entry = next(iter(gui.sampler_index.values()))
+    sampler_text = gui.view_metadata_file(sampler_entry["id"])
+    self.assertTrue(sampler_entry["hash"])
+    self.assertTrue(sampler_text)
     self.assertTrue(
         gui.open_folder(Path(model_entry["path"]).parent.as_posix())
     )
@@ -290,12 +290,12 @@ def _case_builder_navigation_and_draft(self) -> None:
 
 def _case_builder_next_requires_all_pages_selected(self) -> None:
     gui = CopernicanGUI(render=False)
-    gui.current_step_index = gui.builder_steps.index("Sampler engine")
+    gui.current_step_index = gui.builder_steps.index("Sampler")
     starting_alerts = len(gui.alerts)
     gui._handle_builder_next()
     self.assertEqual(
         gui.current_step_index,
-        gui.builder_steps.index("Sampler engine"),
+        gui.builder_steps.index("Sampler"),
     )
     self.assertEqual(len(gui.alerts), starting_alerts + 1)
     self.assertIn("Seed", gui.alerts[-1].message)
@@ -318,11 +318,11 @@ def _case_builder_next_advances_when_pages_ready(
         name="Dataset",
     )
     self.assertTrue(gui._builder_ready())
-    gui.current_step_index = gui.builder_steps.index("Sampler engine")
+    gui.current_step_index = gui.builder_steps.index("Sampler")
     gui._handle_builder_next()
     self.assertEqual(
         gui.current_step_index,
-        gui.builder_steps.index("Sampler engine") + 1,
+        gui.builder_steps.index("Sampler") + 1,
     )
 
 
@@ -369,7 +369,7 @@ def _case_clear_manifest_resets_state(
     self.assertFalse(folder.exists())
     self.assertEqual(gui.current_step_index, 0)
     self.assertEqual(gui.selected_test_model, "")
-    self.assertEqual(gui.selected_engine, "")
+    self.assertEqual(gui.selected_sampler, "")
 
 
 def _case_save_manifest_to_external(
@@ -394,9 +394,9 @@ def _case_auto_loads_saved_temp_manifest(
     output_dir = home_dir / "copernican_output"
     workspace = output_dir / "copernican_run_NEW_CONFIG"
     workspace.mkdir(parents=True)
-    engine_module = SimpleNamespace(
-        __name__="copernican.engines.engine_mcmc",
-        ENGINE_VERSION="test",
+    sampler_module = SimpleNamespace(
+        __name__="copernican.samplers.sampler_mcmc",
+        SAMPLER_VERSION="test",
     )
     model_plugin = SimpleNamespace(
         MODEL_NAME="TestModel",
@@ -407,7 +407,7 @@ def _case_auto_loads_saved_temp_manifest(
     )
     manifest = run_manifest.build_manifest(
         models=[(model_plugin, "gui"), (model_plugin, "gui")],
-        engine_module=engine_module,
+        sampler_module=sampler_module,
         datasets=[
             {
                 "id": "planck2020",
@@ -425,8 +425,8 @@ def _case_auto_loads_saved_temp_manifest(
         output_policy="unprepared",
         configuration={
             "models": ["TestModel", "TestModel"],
-            "engine": {
-                "name": "copernican.engines.engine_mcmc",
+            "sampler": {
+                "name": "copernican.samplers.sampler_mcmc",
                 "version": "test",
             },
             "datasets": ["planck2020"],
@@ -594,7 +594,7 @@ def _case_manifest_import_export_round_trip(self) -> None:
     gui._apply_model_role("control", model_entry)
     gui._apply_model_role("test", model_entry)
     gui.draft.dataset = "Dataset"
-    gui.draft.engine = "engine"
+    gui.draft.sampler = "sampler"
     gui.draft.walkers = "33"
     gui.draft.burn_in = "20"
     gui.draft.production_steps = "100"
@@ -604,7 +604,7 @@ def _case_manifest_import_export_round_trip(self) -> None:
         loaded = run_manifest.load_manifest(path)
         self.assertTrue(loaded["selection"]["models"])
         imported = gui.import_manifest(path)
-        self.assertTrue(imported["selection"]["engine"]["name"])
+        self.assertTrue(imported["selection"]["sampler"]["name"])
         self.assertTrue(gui.selected_control_model)
         self.assertTrue(gui.selected_test_model)
         self.assertEqual(gui.draft.walkers, "33")
@@ -634,7 +634,7 @@ def _case_duplicate_manifest_prefills_builder(
     model_entry = next(iter(gui.model_index.values()))
     gui._apply_model_role("control", model_entry)
     gui._apply_model_role("test", model_entry)
-    gui.selected_engine = "copernican.engines.engine_mcmc"
+    gui.selected_sampler = "copernican.samplers.sampler_mcmc"
     gui.draft.seed = "5"
     gui.register_dataset(
         dataset_id="planck_2018_lite",
@@ -736,7 +736,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(hasattr(CopernicanGUI, "show_about"))
         self.assertTrue(hasattr(CopernicanGUI, "show_analysis"))
         self.assertTrue(hasattr(CopernicanGUI, "show_data_overview"))
-        self.assertTrue(hasattr(CopernicanGUI, "show_engines"))
+        self.assertTrue(hasattr(CopernicanGUI, "show_samplers"))
         self.assertTrue(hasattr(CopernicanGUI, "show_help"))
         self.assertTrue(hasattr(CopernicanGUI, "show_home"))
         self.assertTrue(hasattr(CopernicanGUI, "show_models"))

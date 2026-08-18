@@ -1,18 +1,18 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Nested sampling cosmology engine.
+"""Nested sampling cosmology sampler.
 
 This backend implements a lightweight nested-sampling routine that remains
-compatible with the Copernican engine adapter. The sampler focuses on
+compatible with the Copernican model adapter. The sampler focuses on
 robustness and reproducibility rather than asymptotic optimality: it draws
 initial live points uniformly from declared parameter bounds, replaces the
 lowest-likelihood point with constrained proposals and accumulates evidence
 estimates using a simple log-sum-exp accumulator. The goal is to provide a
-complementary alternative to the ensemble MCMC engine so operators can
+complementary alternative to the ensemble MCMC sampler so operators can
 compare posterior summaries produced by markedly different inference
 strategies while sharing the same likelihood, prior and transform helpers
-supplied by ``copernican.lib.engine_adapter``.
+supplied by ``copernican.lib.model_adapter``.
 
 The implementation intentionally mirrors the result dictionary produced by the
 MCMC backend so downstream tooling—Stage 3 diagnostics, NetCDF exporters and
@@ -25,20 +25,19 @@ from __future__ import annotations
 
 import logging
 import math
-import warnings
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 import numpy
 import pandas
 
-from copernican.lib import engine_adapter as engine_plugin_validation
-from copernican.lib.engine_capabilities import (
-    EngineProgressChunk,
-    EngineSetting,
-)
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican.lib.progress import BatchProgressBar
+from copernican.lib.sampler_capabilities import (
+    SamplerProgressChunk,
+    SamplerSetting,
+)
 from copernican.lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -49,9 +48,9 @@ from copernican.lib.statistics import (
 )
 from copernican.lib.utils import get_random_seed
 
-ENGINE_KIND = "nested"
-ENGINE_LABEL = "Nested sampling engine"
-ENGINE_VERSION = "1.1.0"
+SAMPLER_KIND = "nested"
+SAMPLER_LABEL = "Nested sampling sampler"
+SAMPLER_VERSION = "1.1.0"
 
 _DEFAULT_LIVE_POINTS = 400
 _DEFAULT_MAX_ITERATIONS = 20000
@@ -61,36 +60,36 @@ _MAX_INITIAL_ATTEMPTS = 2000
 _MAX_REPLACEMENT_ATTEMPTS = 5000
 _MIN_WEIGHT_FLOOR = 1e-12
 
-ENGINE_SETTINGS = (
-    EngineSetting(
+SAMPLER_SETTINGS = (
+    SamplerSetting(
         key="n_live_points",
         label="Live points",
         description="Number of live points maintained during nested sampling.",
         dtype="int",
         default=_DEFAULT_LIVE_POINTS,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="max_iterations",
         label="Max iterations",
         description="Iteration budget before the nested sampler stops.",
         dtype="int",
         default=_DEFAULT_MAX_ITERATIONS,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="evidence_tolerance",
         label="Evidence tolerance",
         description="Stopping tolerance applied to the log-evidence estimate.",
         dtype="float",
         default=_DEFAULT_EVIDENCE_TOLERANCE,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="enlargement_fraction",
         label="Enlargement fraction",
         description="Initial enlargement multiplier for bounding ellipsoids.",
         dtype="float",
         default=_DEFAULT_ENLARGEMENT_FRACTION,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="display_progress",
         label="Display progress",
         description="Emit progress updates while iterating.",
@@ -98,8 +97,8 @@ ENGINE_SETTINGS = (
         default=True,
     ),
 )
-ENGINE_PROGRESS_CHUNKS = (
-    EngineProgressChunk(name="sampling", label="Nested sampling"),
+SAMPLER_PROGRESS_CHUNKS = (
+    SamplerProgressChunk(name="sampling", label="Nested sampling"),
 )
 
 
@@ -156,7 +155,7 @@ def _build_joint_logposterior(
     bao_data_df: Any | None,
     cmb_data_df: Any | None,
 ) -> tuple[
-    engine_plugin_validation.PosteriorEvaluator, JointLike, Sequence[str]
+    model_plugin_validation.PosteriorEvaluator, JointLike, Sequence[str]
 ]:
     """Return the posterior evaluator and joint likelihood helper."""
 
@@ -230,7 +229,7 @@ def _build_joint_logposterior(
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
-    posterior = engine_plugin_validation.make_logposterior(loglike, priors)
+    posterior = model_plugin_validation.make_logposterior(loglike, priors)
     names = list(getattr(model_plugin, "PARAMETER_NAMES", ()))
     return posterior, joint_like, names
 
@@ -281,7 +280,7 @@ def _replacement_sample(
 
 
 def _evaluate_point(
-    posterior: engine_plugin_validation.PosteriorEvaluator,
+    posterior: model_plugin_validation.PosteriorEvaluator,
     joint_like: JointLike,
     params: numpy.ndarray,
 ) -> _Sample | None:
@@ -345,7 +344,7 @@ def _weights_from_logs(log_weights: numpy.ndarray) -> numpy.ndarray:
     return shifted / total
 
 
-def fit_cosmology_parameters(
+def sample_parameters(
     sne_data_df: pandas.DataFrame,
     model_plugin: Any,
     *,
@@ -360,7 +359,7 @@ def fit_cosmology_parameters(
 ) -> Mapping[str, Any]:
     """Return posterior samples and diagnostics using nested sampling.
 
-    ``display_progress`` mirrors the MCMC engine's toggle so Stage 2 can
+    ``display_progress`` mirrors the MCMC sampler's toggle so Stage 2 can
     disable console updates during scripted runs while still wiring the nested
     sampler through the shared progress helpers.  Live progress remains enabled
     by default for interactive sessions.
@@ -582,7 +581,7 @@ def fit_cosmology_parameters(
         ),
         "samples": chain,
         "log_probability": log_prob_chain,
-        "fitted_cosmological_params": fitted,
+        "fitted_model_params": fitted,
         "posterior_mean_params": posterior_mean,
         "model_name": getattr(model_plugin, "MODEL_NAME", "Unknown"),
         "param_names": list(param_names),
@@ -625,59 +624,15 @@ def fit_cosmology_parameters(
     }
 
 
-def fit_sne_parameters(
-    sne_data_df: pandas.DataFrame,
-    model_plugin: Any,
-    *,
-    bao_data_df: pandas.DataFrame | None = None,
-    cmb_data_df: pandas.DataFrame | None = None,
-    n_live_points: int = _DEFAULT_LIVE_POINTS,
-    max_iterations: int = _DEFAULT_MAX_ITERATIONS,
-    evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
-    enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
-    display_progress: bool = True,
-    progress_callback: Callable[[dict[str, object]], None] | None = None,
-) -> Mapping[str, Any]:
-    """Compatibility wrapper for :func:`fit_cosmology_parameters`.
-
-    Nested-sampling now supports the same multi-probe datasets as the MCMC
-    engine, so the legacy SNe-focused name remains only for backwards
-    compatibility.  Prefer :func:`fit_cosmology_parameters` to avoid the
-    misleading scope and to align with the CLI terminology.
-    """
-
-    warnings.warn(
-        (
-            "fit_sne_parameters is deprecated; "
-            "use fit_cosmology_parameters instead."
-        ),
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return fit_cosmology_parameters(
-        sne_data_df,
-        model_plugin,
-        bao_data_df=bao_data_df,
-        cmb_data_df=cmb_data_df,
-        n_live_points=n_live_points,
-        max_iterations=max_iterations,
-        evidence_tolerance=evidence_tolerance,
-        enlargement_fraction=enlargement_fraction,
-        display_progress=display_progress,
-        progress_callback=progress_callback,
-    )
-
-
 __all__ = [
-    "ENGINE_KIND",
-    "ENGINE_LABEL",
-    "ENGINE_VERSION",
+    "SAMPLER_KIND",
+    "SAMPLER_LABEL",
+    "SAMPLER_VERSION",
     "calculate_bao_observables",
     "chi_squared_bao",
     "chi_squared_cmb",
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_contract",
-    "fit_cosmology_parameters",
-    "fit_sne_parameters",
+    "sample_parameters",
 ]

@@ -74,7 +74,7 @@ def _make_camb_params(
         raise ValueError("cmb.param_map must be a mapping")
 
     params = camb.CAMBparams()
-    cosmo_kwargs: dict[str, Any] = {}
+    model_kwargs: dict[str, Any] = {}
     consumed_keys: set[str] = set()
 
     def _use_scalar(key: str) -> float:
@@ -85,40 +85,40 @@ def _make_camb_params(
         return value
 
     if "H0" in param_map:
-        cosmo_kwargs["H0"] = _use_scalar("H0")
+        model_kwargs["H0"] = _use_scalar("H0")
     if "ombh2" in param_map:
-        cosmo_kwargs["ombh2"] = _use_scalar("ombh2")
+        model_kwargs["ombh2"] = _use_scalar("ombh2")
     if "omch2" in param_map:
-        cosmo_kwargs["omch2"] = _use_scalar("omch2")
+        model_kwargs["omch2"] = _use_scalar("omch2")
     if "omk" in param_map:
-        cosmo_kwargs["omk"] = _use_scalar("omk")
+        model_kwargs["omk"] = _use_scalar("omk")
     if "tau" in param_map:
-        cosmo_kwargs["tau"] = _use_scalar("tau")
+        model_kwargs["tau"] = _use_scalar("tau")
     if "YHe" in param_map:
-        cosmo_kwargs["YHe"] = _use_scalar("YHe")
+        model_kwargs["YHe"] = _use_scalar("YHe")
     if "theta_H0_range" in param_map:
         theta_range = _coerce_numeric_array(
             param_map["theta_H0_range"], name="theta_H0_range"
         )
         if theta_range.size < 2:
             raise ValueError("theta_H0_range must contain at least two values")
-        cosmo_kwargs["theta_H0_range"] = tuple(
+        model_kwargs["theta_H0_range"] = tuple(
             float(value) for value in theta_range[:2]
         )
         consumed_keys.add("theta_H0_range")
 
     if "Neff" in param_map:
-        cosmo_kwargs["nnu"] = _use_scalar("Neff")
+        model_kwargs["nnu"] = _use_scalar("Neff")
     if "standard_neutrino_neff" in param_map:
-        cosmo_kwargs["standard_neutrino_neff"] = _use_scalar(
+        model_kwargs["standard_neutrino_neff"] = _use_scalar(
             "standard_neutrino_neff"
         )
     if "num_massive_neutrinos" in param_map:
-        cosmo_kwargs["num_massive_neutrinos"] = int(
+        model_kwargs["num_massive_neutrinos"] = int(
             _use_scalar("num_massive_neutrinos")
         )
     if "neutrino_hierarchy" in param_map:
-        cosmo_kwargs["neutrino_hierarchy"] = param_map["neutrino_hierarchy"]
+        model_kwargs["neutrino_hierarchy"] = param_map["neutrino_hierarchy"]
         consumed_keys.add("neutrino_hierarchy")
 
     dynamic_mass_keys = [
@@ -133,18 +133,18 @@ def _make_camb_params(
             _coerce_numeric_scalar(param_map[key], name=str(key))
             for key in ordered
         ]
-        cosmo_kwargs.setdefault("num_massive_neutrinos", len(masses))
-        cosmo_kwargs["mnu"] = float(numpy.sum(masses))
+        model_kwargs.setdefault("num_massive_neutrinos", len(masses))
+        model_kwargs["mnu"] = float(numpy.sum(masses))
         consumed_keys.update(ordered)
     if "sum_mnu" in param_map:
-        cosmo_kwargs["mnu"] = _use_scalar("sum_mnu")
+        model_kwargs["mnu"] = _use_scalar("sum_mnu")
     elif "mnu" in param_map:
-        cosmo_kwargs["mnu"] = _use_scalar("mnu")
+        model_kwargs["mnu"] = _use_scalar("mnu")
 
     if "Alens" in param_map:
-        cosmo_kwargs["Alens"] = _use_scalar("Alens")
+        model_kwargs["Alens"] = _use_scalar("Alens")
 
-    params.set_cosmology(**cosmo_kwargs)
+    params.set_cosmology(**model_kwargs)
 
     if "omnuh2" in param_map:
         params.omnuh2 = _use_scalar("omnuh2")

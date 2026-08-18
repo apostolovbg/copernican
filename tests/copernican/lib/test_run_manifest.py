@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import yaml
 
 from copernican.lib import run_manifest, utils
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
+from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.version import get_version
 
 
@@ -153,9 +153,9 @@ def _dummy_plugin():
             manifest_summary={
                 "observable_names": ("temperature", "TT"),
                 "execution_route": {
-                    "engine_id": NATIVE_CMB_ENGINE_ID,
-                    "engine_label": (
-                        "Copernican native declared-graph CMB engine"
+                    "solver_id": CCMBS_ID,
+                    "solver_label": (
+                        "CCMBS — Copernican Cosmic Microwave Background Solver"
                     ),
                     "runtime_module": (
                         "copernican.lib.likelihoods.cmb."
@@ -200,12 +200,14 @@ class TestRunManifest(unittest.TestCase):
             data_path = os.path.join(tmpdir, "data.txt")
             with open(data_path, "w", encoding="utf-8") as file_handle:
                 file_handle.write("hello world\n")
-            engine = SimpleNamespace(__name__="engine", ENGINE_VERSION="0.0")
+            sampler = SimpleNamespace(
+                __name__="sampler", SAMPLER_VERSION="0.0"
+            )
             file_hashes = {"data.txt": utils.compute_sha256(data_path)}
             utils.set_random_seed(123)
             manifest = run_manifest.build_manifest(
                 models=_dummy_model_records(),
-                engine_module=engine,
+                sampler_module=sampler,
                 datasets=[
                     {
                         "id": "ds",
@@ -221,7 +223,7 @@ class TestRunManifest(unittest.TestCase):
             with open(path, "r", encoding="utf-8") as file_handle:
                 loaded = yaml.safe_load(file_handle)
             self.assertEqual(loaded["copernican"]["version"], get_version())
-            self.assertEqual(loaded["engine"]["name"], "engine")
+            self.assertEqual(loaded["sampler"]["name"], "sampler")
             self.assertEqual(loaded["seed"], 123)
             self.assertEqual(loaded["status"]["state"], "pending")
             self.assertEqual(loaded["status"]["outputs"], "unprepared")
@@ -241,21 +243,21 @@ class TestRunManifest(unittest.TestCase):
                 loaded["selection"]["models"],
                 ["DummyModel", "DummyModel"],
             )
-            self.assertEqual(loaded["selection"]["engine"]["name"], "engine")
+            self.assertEqual(loaded["selection"]["sampler"]["name"], "sampler")
             self.assertEqual(loaded["selection"]["datasets"], ["ds"])
             self.assertEqual(len(loaded["git"]["commit"]), 40)
             self.assertIn("dirty", loaded["git"])
             self.assertIn("cmb", loaded)
             cmb_entry = loaded["cmb"]
             self.assertEqual(
-                cmb_entry["execution_engine"],
-                NATIVE_CMB_ENGINE_ID,
+                cmb_entry["execution_solver"],
+                CCMBS_ID,
             )
             model_entry = cmb_entry["models"][0]
             self.assertEqual(model_entry["model"], "DummyModel")
             self.assertEqual(
-                model_entry["execution_engine"],
-                NATIVE_CMB_ENGINE_ID,
+                model_entry["execution_solver"],
+                CCMBS_ID,
             )
             self.assertEqual(
                 model_entry["param_map_keys"],
@@ -339,8 +341,8 @@ class TestRunManifest(unittest.TestCase):
                 ["equation:continuity_x"],
             )
             self.assertEqual(
-                model_entry["native_cmb_execution"]["engine_id"],
-                NATIVE_CMB_ENGINE_ID,
+                model_entry["native_cmb_execution"]["solver_id"],
+                CCMBS_ID,
             )
             self.assertNotIn("backend", model_entry)
             self.assertNotIn("perturbation_standard", model_entry)
@@ -403,8 +405,8 @@ class TestRunManifest(unittest.TestCase):
             self.assertEqual(
                 model_entry["native_cmb_runtime_manifest_summary"][
                     "execution_route"
-                ]["engine_id"],
-                NATIVE_CMB_ENGINE_ID,
+                ]["solver_id"],
+                CCMBS_ID,
             )
             self.assertEqual(
                 model_entry["native_cmb_runtime_manifest_summary"][
@@ -430,16 +432,16 @@ class TestRunManifest(unittest.TestCase):
 
         manifest = run_manifest.build_manifest(
             models=_dummy_model_records(),
-            engine_module=SimpleNamespace(
-                __name__="engine", ENGINE_VERSION="0.0"
+            sampler_module=SimpleNamespace(
+                __name__="sampler", SAMPLER_VERSION="0.0"
             ),
             datasets=[],
         )
 
         model_entry = manifest["cmb"]["models"][0]
         self.assertEqual(
-            model_entry["native_cmb_execution"]["engine_id"],
-            NATIVE_CMB_ENGINE_ID,
+            model_entry["native_cmb_execution"]["solver_id"],
+            CCMBS_ID,
         )
         self.assertEqual(
             model_entry["perturbation_interaction_names"],
@@ -475,8 +477,8 @@ class TestRunManifest(unittest.TestCase):
             utils.set_random_seed(1)
             manifest = run_manifest.build_manifest(
                 models=_dummy_model_records(),
-                engine_module=SimpleNamespace(
-                    __name__="engine", ENGINE_VERSION="0.1"
+                sampler_module=SimpleNamespace(
+                    __name__="sampler", SAMPLER_VERSION="0.1"
                 ),
                 datasets=[
                     {
@@ -491,7 +493,7 @@ class TestRunManifest(unittest.TestCase):
             )
             saved_path = run_manifest.save_manifest(manifest, tmpdir)
             loaded_manifest = run_manifest.load_manifest(saved_path)
-            self.assertEqual(loaded_manifest["engine"]["name"], "engine")
+            self.assertEqual(loaded_manifest["sampler"]["name"], "sampler")
             aborted = run_manifest.annotate_outcome(
                 loaded_manifest,
                 state="aborted",
@@ -506,7 +508,7 @@ class TestRunManifest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "control model"):
             run_manifest.build_manifest(
                 models=[(_dummy_plugin(), "1.0")],
-                engine_module=SimpleNamespace(__name__="engine"),
+                sampler_module=SimpleNamespace(__name__="sampler"),
                 datasets=[],
             )
 

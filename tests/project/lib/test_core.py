@@ -17,12 +17,12 @@ import camb
 import numpy
 import pandas
 
-import copernican.engines.engine_mcmc as engine
 import copernican.lib.dataset_registry as dataset_registry
-import copernican.lib.engine_adapter as engine_plugin_validation
+import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
-from copernican.lib.run_pipeline import extract_cosmological_param_vector
+import copernican.samplers.sampler_mcmc as sampler
+from copernican.lib.run_pipeline import extract_model_param_vector
 from tests.project import filesystem_helpers
 from tests.project.lib import camb_reference
 
@@ -31,7 +31,7 @@ os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
 
 # Ensure compound BAO parser registration without requiring package installs.
 importlib.import_module(
-    "copernican.datasets.bao.compound.cosmo_parser_compound"
+    "copernican.datasets.bao.compound.dataset_parser_compound"
 )
 
 
@@ -50,15 +50,15 @@ class FunctionalTestCase(unittest.TestCase):
                 yaml_path, cache_dir
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
-        engine_plugin_validation.validate_plugin(cls.plugin)
+        cls.plugin = model_plugin_validation.build_plugin(parsed, funcs)
+        model_plugin_validation.validate_plugin(cls.plugin)
 
     def test_plugin_validation(self):
         """Ensure the constructed plugin exposes the expected API."""
         self.assertTrue(hasattr(self.plugin, "distance_modulus_model"))
 
-    def test_engine_routines(self):
-        """Run a smoke test across the main engine routines."""
+    def test_sampler_routines(self):
+        """Run a smoke test across the main sampler routines."""
         sne_df = dataset_registry.load_sne_data("jla_2014")
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
@@ -77,12 +77,12 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertIsNotNone(cmb_df)
 
         params = self.plugin.INITIAL_GUESSES
-        chi2_sne = engine.chi_squared_sne(
+        chi2_sne = sampler.chi_squared_sne(
             params, self.plugin.distance_modulus_model, sne_df
         )
         self.assertTrue(numpy.isfinite(chi2_sne))
 
-        pred_df, rs_mpc, _ = engine.calculate_bao_observables(
+        pred_df, rs_mpc, _ = sampler.calculate_bao_observables(
             bao_df, self.plugin, params
         )
         redshifts_array = bao_df["redshift"].to_numpy(dtype=float)
@@ -90,7 +90,7 @@ class FunctionalTestCase(unittest.TestCase):
         observable_values_array = bao_df["value"].to_numpy(dtype=float)
         observable_errors_array = bao_df["error"].to_numpy(dtype=float)
         cov_inv = bao_df.attrs.get("covariance_matrix_inv")
-        chi2_bao = engine.chi_squared_bao(
+        chi2_bao = sampler.chi_squared_bao(
             redshifts_array,
             observable_types_array,
             observable_values_array,
@@ -103,8 +103,8 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(chi2_bao))
 
         native_contract = self.plugin.get_cmb_native_runtime(params)
-        chi2_cmb = engine.chi_squared_cmb(params, cmb_df, self.plugin)
-        spec = engine.compute_cmb_spectrum(
+        chi2_cmb = sampler.chi_squared_cmb(params, cmb_df, self.plugin)
+        spec = sampler.compute_cmb_spectrum(
             native_contract,
             cmb_df["ell"].values,
             spectra=("TT",),
@@ -116,7 +116,7 @@ class FunctionalTestCase(unittest.TestCase):
     def test_mcmc_fit_returns_expected_fields(self):
         """Return posterior diagnostics and χ² totals.
 
-        The MCMC engine should report a finite total and component
+        The MCMC sampler should report a finite total and component
         breakdown.
         """
         sne_df = dataset_registry.load_sne_data("jla_2014").head(3)
@@ -126,7 +126,7 @@ class FunctionalTestCase(unittest.TestCase):
                 :3, :3
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
-        result = engine.fit_cosmology_parameters(
+        result = sampler.sample_parameters(
             sne_df,
             self.plugin,
             n_walkers=6,
@@ -157,7 +157,7 @@ class FunctionalTestCase(unittest.TestCase):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         params = self.plugin.INITIAL_GUESSES
-        chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
+        chi2 = sampler.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(numpy.isfinite(chi2))
 
     def test_chi_squared_sne_invalid_data(self):
@@ -170,7 +170,7 @@ class FunctionalTestCase(unittest.TestCase):
             }
         )
         with self.assertLogs(level="ERROR") as captured_logs:
-            chi2 = engine.chi_squared_sne(
+            chi2 = sampler.chi_squared_sne(
                 self.plugin.INITIAL_GUESSES,
                 self.plugin.distance_modulus_model,
                 bad_df,
@@ -206,12 +206,12 @@ class FunctionalTestCase(unittest.TestCase):
         )
         numpy.testing.assert_allclose(result, ref[:, 0][ells], rtol=1e-7)
 
-    def test_engine_metadata_constants(self):
+    def test_sampler_metadata_constants(self):
         """Expose human-readable descriptors for UI logging."""
-        self.assertTrue(hasattr(engine, "ENGINE_KIND"))
-        self.assertEqual(engine.ENGINE_KIND, "mcmc")
-        self.assertTrue(hasattr(engine, "ENGINE_LABEL"))
-        self.assertIn("MCMC", engine.ENGINE_LABEL)
+        self.assertTrue(hasattr(sampler, "SAMPLER_KIND"))
+        self.assertEqual(sampler.SAMPLER_KIND, "mcmc")
+        self.assertTrue(hasattr(sampler, "SAMPLER_LABEL"))
+        self.assertIn("MCMC", sampler.SAMPLER_LABEL)
 
     def test_installed_package_native_cmb_smoke(self):
         """A target install should run one native declared-graph spectrum."""
@@ -510,7 +510,7 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(latex_utils.latex_to_unicode("y^{*}"), "y⁎")
 
 
-class CosmologicalParameterHelperTestCase(unittest.TestCase):
+class ModelParameterHelperTestCase(unittest.TestCase):
     """Validate parameter extraction fallbacks in ``copernican``."""
 
     def test_returns_ordered_values_when_available(self):
@@ -521,13 +521,13 @@ class CosmologicalParameterHelperTestCase(unittest.TestCase):
         )
         fit_results = {
             "success": True,
-            "fitted_cosmological_params": {
+            "fitted_model_params": {
                 "H0": 71.0,
                 "Om_m": 0.3,
                 "unused": 1.0,
             },
         }
-        vector = extract_cosmological_param_vector(fit_results, plugin)
+        vector = extract_model_param_vector(fit_results, plugin)
         self.assertEqual(vector, [71.0, 0.3])
 
     def test_returns_none_when_required_value_missing(self):
@@ -538,9 +538,9 @@ class CosmologicalParameterHelperTestCase(unittest.TestCase):
         )
         fit_results = {
             "success": True,
-            "fitted_cosmological_params": {"H0": 71.0},
+            "fitted_model_params": {"H0": 71.0},
         }
-        vector = extract_cosmological_param_vector(fit_results, plugin)
+        vector = extract_model_param_vector(fit_results, plugin)
         self.assertIsNone(vector)
 
     def test_returns_none_when_fit_unsuccessful(self):
@@ -549,9 +549,9 @@ class CosmologicalParameterHelperTestCase(unittest.TestCase):
         plugin = SimpleNamespace(MODEL_NAME="Toy", PARAMETER_NAMES=["H0"])
         fit_results = {
             "success": False,
-            "fitted_cosmological_params": {"H0": 71.0},
+            "fitted_model_params": {"H0": 71.0},
         }
-        vector = extract_cosmological_param_vector(fit_results, plugin)
+        vector = extract_model_param_vector(fit_results, plugin)
         self.assertIsNone(vector)
 
 

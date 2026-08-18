@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as numpy_module
 
-import copernican.lib.engine_adapter as engine_plugin_validation
+import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 from copernican.lib.statistics import chi_squared_bao
@@ -24,7 +24,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
         base = Path(__file__).resolve().parents[5]
         cls.data_dir = base / "copernican" / "datasets" / "bao" / "bossdr12"
         cls.parser = importlib.import_module(
-            "copernican.datasets.bao.bossdr12.cosmo_parser_bossdr12"
+            "copernican.datasets.bao.bossdr12.dataset_parser_bossdr12"
         )
 
         models_dir = base / "copernican" / "models"
@@ -35,8 +35,8 @@ class BossDR12ParserTestCase(unittest.TestCase):
                 cache_dir,
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
-        engine_plugin_validation.validate_plugin(cls.plugin)
+        cls.plugin = model_plugin_validation.build_plugin(parsed, funcs)
+        model_plugin_validation.validate_plugin(cls.plugin)
 
     def test_dataframe_shape_and_covariance(self):
         """Return nine observables with a 9x9 inverse covariance."""

@@ -2,14 +2,14 @@
 **Project Version:** 12.0.26
 
 The Copernican splits functionality across orchestration, data, model
-adapters, engines, and presentation layers. This document captures how these
+adapters, samplers, and presentation layers. This document captures how these
 layers work together, describes the manifest lifecycle, and highlights key
 guardrails such as policy enforcement and dataset validation.
 ## Table of Contents
 - [Component Layers](#component-layers)
  - [Orchestration Layer](#orchestration-layer)
  - [Library Layer (`copernican.lib`)](#library-layer-copernicanlib)
-- [Sampler Engines Layer](#sampler-engines-layer)
+- [Samplers Layer](#samplers-layer)
  - [Presentation Layer](#presentation-layer)
 - [Run Manifest Lifecycle](#run-manifest-lifecycle)
 - [Data Provenance](#data-provenance)
@@ -33,33 +33,33 @@ guardrails such as policy enforcement and dataset validation.
 ### Library Layer (`copernican.lib`)
 - `dataset_registry` – loads SNe/BAO/CMB datasets, verifies parser digests,
  and attaches metadata to `DataFrame.attrs`.
-- `model_spec_validator`, `model_coder`, and `engine_adapter` – validate YAML
+- `model_spec_validator`, `model_coder`, and `model_adapter` – validate YAML
  models, cache sanitized copies, convert equations into callables, and
- assemble picklable engine adapters compliant with the expected interface.
-- `engine_adapter` – ensures adapters declare required functions, structured
- native CMB contracts, and dataset compatibility before any engine consumes
+ assemble picklable sampler adapters compliant with the expected interface.
+- `model_adapter` – ensures adapters declare required functions, structured
+ native CMB contracts, and dataset compatibility before any sampler consumes
  them.
-- `cmb_identity` – defines the sole production CMB engine identity. Model
+- `cmb_identity` – defines the sole production CMB solver identity. Model
  roles supply declared physics; CLI and GUI surfaces do not select a CMB
  backend.
 - `posterior`, `statistics`, `chain_io`, `csv_writer`, `result_writer` –
  provide shared likelihoods, chi-squared helpers, NetCDF/CSV writers, and
- summary serialization that every engine reuses.
+ summary serialization that every sampler reuses.
 - `progress`, `console_output`, `logger`, `utils` – unify progress reporting,
  console I/O, logging, timestamp generation, and other utilities so CLI and
  GUI flows mirror each other via the counter-based `BatchProgressBar`.
 - `gui` – contains Tkinter scaffolds, Run Builder controls, diagnostics
  panels, and the `run_worker` that spawns the CLI workflow with
  `COPERNICAN_ALLOW_DIRECT=1`.
-### Sampler Engines Layer
-- `copernican/engines/engine_mcmc.py` – ensemble MCMC sampler with
+### Samplers Layer
+- `copernican/samplers/sampler_mcmc.py` – ensemble MCMC sampler with
  `emcee`, walker reseeding for `nan` positions, `-np.inf` when proposals are
  invalid, and counter-based progress updates emitted via
  `copernican.lib.progress`.
-- `copernican/engines/engine_nested.py` – nested sampling backend
+- `copernican/samplers/sampler_nested.py` – nested sampling backend
  providing live point counts, enlargement factors, and log-evidence tracking
  while matching the MCMC result schema.
-- Future engines must keep shared dependencies pure compute-only and rely on
+- Future samplers must keep shared dependencies pure compute-only and rely on
  `copernican.lib.optim_utils` for shared helpers rather than importing CLI
  helpers themselves.
 ### Presentation Layer
@@ -83,13 +83,13 @@ guardrails such as policy enforcement and dataset validation.
  same questions.
 3. **Manifest composition** – `copernican.lib.run_manifest.build_manifest`
  aggregates seed, model metadata, dataset digests, sampler settings, native
- CMB engine identity, run plan
+ CMB solver identity, run plan
  notes, Git hash, environment hints, and adapter metadata. The manifest is
  saved in the temporary workspace until `copernican.lib.gui.run_worker` or
  the CLI worker renames the folder to `copernican-run_<timestamp>`.
 4. **Execution** – `copernican.lib.run_executor.execute_run_from_manifest`
  rebuilds the dataset loaders, the adapter, and the run configuration,
- launches the selected sampler engine, and streams diagnostics into the GUI
+ launches the selected sampler, and streams diagnostics into the GUI
  Run Monitor or the console.
 5. **Results** – `result_writer.save_summary` outputs JSON/YAML summaries,
  `chain_io.save_posterior` writes NetCDF files with metadata embedded on both
@@ -131,6 +131,6 @@ guardrails such as policy enforcement and dataset validation.
  file while noting touched paths in `CHANGELOG.md`.
 - Datasets, parsers, and metadata remain read-only except when explicitly
  changed in `docs/data_overview.md` and the changelog.
-This architecture keeps CLI, GUI, dataset loaders, engines, and documentation
+This architecture keeps CLI, GUI, dataset loaders, samplers, and documentation
 aligned so new frontends can build upon the same manifest and adapter services
 without diverging from the canonical execution flow.

@@ -19,13 +19,13 @@ padding.
 - [Validation](#validation)
 - [Metadata dialogs](#metadata-dialogs)
 - [Models](#models)
-- [Sampler Engines](#sampler-engines)
+- [Samplers](#samplers)
 - [Settings](#settings)
 - [Help](#help)
 - [Launching the GUI](#launching-the-gui)
 ## Run Builder
 The Run Builder mirrors the CLI stages with dedicated panels for the seed,
-control model, test model, dataset selection, sampler-engine choice, plan
+control model, test model, dataset selection, sampler choice, plan
 notes, and final confirmation. The control model defaults to
 `model_lcdm.yml`; the test model is selected independently. Models and
 datasets use single-selection
@@ -43,7 +43,7 @@ confirmation step’s **Start Run from manifest** button. A companion **Insert
 manifest** button stages the generated manifest so you can review metadata or
 export it before launching the worker.
 The Save Manifest step stays locked until every seed/control-model/test-model/
-sampler-engine panel reports a selection. Saving writes the current manifest
+sampler panel reports a selection. Saving writes the current manifest
 to
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, leaves
 the workspace editable and enables the **Save and confirm** controls.
@@ -103,7 +103,7 @@ refresh callbacks and unchanged log tails keep the monitor responsive. This
 distinguishes worker runtime preparation and initial posterior evaluation from
 a stalled GUI launch.
 ## Analysis
-The navigation rail includes an **Analysis** button between Engines and
+The navigation rail includes an **Analysis** button between Samplers and
 Validation. Pressing it opens a 4-tab workspace that mirrors the Settings
 screen’s tab bar. Each tab shows a contextual description, a row of three
 action buttons and a dedicated body frame—Diagnostics remains a placeholder
@@ -138,7 +138,8 @@ analyses both folders via `copernican.lib.analysis.analyze_run` so you can
 compare any historical results without re-running the CLI workflow.
 ## Validation
 The navigation rail includes a **Validation** button positioned between
-Engines and Settings. When you press it, the GUI launches `python -m copernican
+Samplers and Settings. When you press it, the GUI launches
+`python -m copernican
 --run-validation`, streams the CLI stdout into the Run Monitor–style log box,
 writes the NEW_CONFIG, plots and logs into
 `copernican/validation/output/<manifest_stem>/validation_run_<timestamp>/`,
@@ -167,11 +168,11 @@ and long YAMLs remain comfortable to read.
 Models appear in a scrollable panel with badge, license and SHA256 details.
 The *Open model folder* and *View YAML* actions link the UI directly to the
 underlying YAML files so you can inspect definitions without leaving the GUI.
-## Sampler Engines
-Every discovered sampler engine shows its label, version, badges, and digest
-inside its own framed row. *Open engine folder* and *View module* buttons call
-the same helpers used by the Run Builder. The native CMB engine is fixed by the
-selected model contracts and does not appear as a selectable engine.
+## Samplers
+Every discovered sampler shows its label, version, badges, and digest
+inside its own framed row. *Open sampler folder* and *View module* buttons call
+the same helpers used by the Run Builder. The native CMB solver is fixed by the
+selected model contracts and does not appear as a selectable sampler.
 ## Settings
 The Settings screen mirrors the Run Builder navigation: three tabs
 list Datasets, GUI and Tools options in the same style as the wizard

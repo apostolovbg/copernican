@@ -13,7 +13,7 @@ class TestRunConfig(unittest.TestCase):
     """Exercise manifest-to-config conversion."""
 
     def test_public_symbols_are_exposed(self) -> None:
-        self.assertTrue(hasattr(module, "EngineDescriptor"))
+        self.assertTrue(hasattr(module, "SamplerDescriptor"))
         self.assertTrue(hasattr(module, "RunConfig"))
         self.assertTrue(hasattr(module, "RunSettings"))
         self.assertTrue(hasattr(module, "build_config_from_manifest"))
@@ -27,8 +27,8 @@ class TestRunConfig(unittest.TestCase):
                     "control": {"name": "ReferenceModel"},
                     "test": {"name": "CandidateModel"},
                 },
-                "engine": {
-                    "name": "copernican.engines.engine_mcmc",
+                "sampler": {
+                    "name": "copernican.samplers.sampler_mcmc",
                     "version": "7.6.20",
                 },
             },
@@ -44,7 +44,7 @@ class TestRunConfig(unittest.TestCase):
             },
             "configuration": {
                 "run_settings": {
-                    "engine_kind": "mcmc",
+                    "sampler_kind": "mcmc",
                     "n_steps": 200,
                 }
             },
@@ -55,10 +55,10 @@ class TestRunConfig(unittest.TestCase):
         self.assertEqual(config.seed, 42)
         self.assertEqual(config.models, ["ReferenceModel", "CandidateModel"])
         self.assertEqual(
-            config.engine.module_name, "copernican.engines.engine_mcmc"
+            config.sampler.module_name, "copernican.samplers.sampler_mcmc"
         )
-        self.assertEqual(config.engine.version, "7.6.20")
-        self.assertEqual(config.run_settings.engine_kind, "mcmc")
+        self.assertEqual(config.sampler.version, "7.6.20")
+        self.assertEqual(config.run_settings.sampler_kind, "mcmc")
         self.assertEqual(config.run_settings.settings["n_steps"], 200)
         self.assertEqual(config.control_model, "ReferenceModel")
         self.assertEqual(config.test_model, "CandidateModel")

@@ -17,8 +17,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
 
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(callable(module.execute_run_pipeline))
-        self.assertTrue(callable(module.extract_cosmological_param_vector))
-        self.assertTrue(callable(module.resolve_fit_function))
+        self.assertTrue(callable(module.extract_model_param_vector))
+        self.assertTrue(callable(module.resolve_sampler_function))
 
 
 if __name__ == "__main__":

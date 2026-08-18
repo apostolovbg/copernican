@@ -11,9 +11,9 @@ import unittest
 import numpy as numpy_module
 import yaml
 
-from copernican.engines import engine_mcmc, engine_nested
 from copernican.lib import dataset_registry, result_writer, run_manifest, utils
 from copernican.lib.model_selection import build_comparison_request
+from copernican.samplers import sampler_mcmc, sampler_nested
 from tests.project.datasets.synthetic import model_plugin
 
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
@@ -43,7 +43,7 @@ def _load_datasets():
     import importlib
 
     importlib.import_module(
-        "tests.project.datasets.synthetic.cosmo_parser_synthetic"
+        "tests.project.datasets.synthetic.dataset_parser_synthetic"
     )
 
     sne_df = dataset_registry.load_sne_data("synthetic_integration")
@@ -71,9 +71,9 @@ def _assert_hashes(testcase: unittest.TestCase, dataset_frame):
         testcase.assertEqual(hashes.get(key), digest)
 
 
-def _assert_manifest(testcase: unittest.TestCase, manifest, engine_name):
+def _assert_manifest(testcase: unittest.TestCase, manifest, sampler_name):
     testcase.assertEqual(manifest["seed"], utils.get_random_seed())
-    testcase.assertTrue(manifest["engine"]["name"].endswith(engine_name))
+    testcase.assertTrue(manifest["sampler"]["name"].endswith(sampler_name))
     datasets = manifest["datasets"]
     testcase.assertEqual(set(datasets.keys()), {"synthetic_integration"})
     entry = datasets["synthetic_integration"]
@@ -83,7 +83,7 @@ def _assert_manifest(testcase: unittest.TestCase, manifest, engine_name):
 
 
 class TestSyntheticIntegration(unittest.TestCase):
-    """Exercise the synthetic end-to-end pipeline against both engines."""
+    """Exercise the synthetic end-to-end pipeline against both samplers."""
 
     def setUp(self) -> None:
         self._old_dont_write = os.environ.get("PYTHONDONTWRITEBYTECODE")
@@ -108,9 +108,9 @@ class TestSyntheticIntegration(unittest.TestCase):
             ):
                 _assert_hashes(self, dataset_frame)
 
-            for engine_module in (engine_mcmc, engine_nested):
-                if engine_module is engine_mcmc:
-                    fit_result = engine_module.fit_cosmology_parameters(
+            for sampler_module in (sampler_mcmc, sampler_nested):
+                if sampler_module is sampler_mcmc:
+                    fit_result = sampler_module.sample_parameters(
                         sne_dataframe,
                         plugin,
                         bao_data_df=bao_dataframe,
@@ -122,7 +122,7 @@ class TestSyntheticIntegration(unittest.TestCase):
                         display_progress=False,
                     )
                 else:
-                    fit_result = engine_module.fit_cosmology_parameters(
+                    fit_result = sampler_module.sample_parameters(
                         sne_dataframe,
                         plugin,
                         bao_data_df=bao_dataframe,
@@ -155,7 +155,7 @@ class TestSyntheticIntegration(unittest.TestCase):
 
                 manifest = run_manifest.build_manifest(
                     models=[(plugin, "0.1"), (plugin, "0.1")],
-                    engine_module=engine_module,
+                    sampler_module=sampler_module,
                     datasets=[_dataset_entry(sne_dataframe)],
                 )
                 manifest_path = os.path.join(
@@ -166,7 +166,7 @@ class TestSyntheticIntegration(unittest.TestCase):
 
                 with open(manifest_path, "r", encoding="utf-8") as handle:
                     loaded = yaml.safe_load(handle)
-                _assert_manifest(self, loaded, engine_module.__name__)
+                _assert_manifest(self, loaded, sampler_module.__name__)
 
                 manifest_hash = utils.compute_sha256(manifest_path)
                 self.assertEqual(

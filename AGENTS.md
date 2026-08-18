@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-14
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -975,7 +975,7 @@ doc_routes:
 - copernican/lib/gui/** => README.md, SUPPORT.md
 - copernican/lib/cli/** => README.md
 - copernican/rng_minigames/** => README.md
-- engines/** => README.md
+- samplers/** => README.md
 - pyproject.toml => SECURITY.md, CITATION.cff
 - copernican/lib/global_settings/defaults.yml => README.md, SUPPORT.md
 - copernican/docs/model_template.yml => README.md
@@ -1249,7 +1249,7 @@ force_include_globs:
 - tests/devcovenant/custom/**
 - tests/**/*.py
 - tests/**/*.md
-- copernican/datasets/**/cosmo_parser_*.py
+- copernican/datasets/**/dataset_parser_*.py
 - copernican/datasets/**/metadata_*.yml
 - copernican/datasets/**/metadata_*.yaml
 selector_roles:
@@ -1764,7 +1764,7 @@ include_prefixes:
 exclude_suffixes: []
 exclude_prefixes: []
 exclude_globs:
-- copernican/datasets/**/cosmo_parser_*.py
+- copernican/datasets/**/dataset_parser_*.py
 - copernican/datasets/**/metadata_*.yml
 - copernican/datasets/**/metadata_*.yaml
 force_include_globs: []

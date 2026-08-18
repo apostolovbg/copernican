@@ -1,12 +1,12 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Posterior assembly utilities shared across engine implementations.
+"""Posterior assembly utilities shared across sampler implementations.
 
 These helpers stay picklable so multiprocessing pools that use the ``spawn``
 start method can execute them without closure-related failures. The module
 exposes the :class:`PosteriorEvaluator` class and the ``make_logposterior``
-factory used by :mod:`copernican.lib.engine_adapter` and the engine backends
+factory used by :mod:`copernican.lib.model_adapter` and the sampler backends
 that wrap it.
 """
 

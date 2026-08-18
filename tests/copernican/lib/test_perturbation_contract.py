@@ -1185,9 +1185,9 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             contract_data.manifest_summary["execution_route"],
             {
-                "engine_id": "copernican_native_declared_graph",
-                "engine_label": (
-                    "Copernican native declared-graph CMB engine"
+                "solver_id": "ccmbs_numpy",
+                "solver_label": (
+                    "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),
                 "runtime_module": (
                     "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"

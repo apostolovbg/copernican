@@ -91,9 +91,7 @@ def save_sne_results_detailed_csv(
     control_label = _safe_model_label(control_name)
     test_label = _safe_model_label(test_name)
     if control_fit_results and control_fit_results.get("success"):
-        p_control = list(
-            control_fit_results["fitted_cosmological_params"].values()
-        )
+        p_control = list(control_fit_results["fitted_model_params"].values())
         mu_model_control = control_model_plugin.distance_modulus_model(
             z_data, *p_control
         )
@@ -115,7 +113,7 @@ def save_sne_results_detailed_csv(
 
     if test_fit_results and test_fit_results.get("success"):
         p_test = list(
-            test_fit_results["fitted_cosmological_params"].values(),
+            test_fit_results["fitted_model_params"].values(),
         )
         mu_model_test = test_model_plugin.distance_modulus_model(
             z_data, *p_test

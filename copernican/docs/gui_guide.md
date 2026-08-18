@@ -21,7 +21,7 @@ plus buttons for every page:
 - **Run Monitor** – Streams sampler progress, logs, and run alerts. Buttons
  for cancel, pause, and hard stop share the same disabled state logic used
  elsewhere, so you always see whether the worker is running.
-- **Data / Models / Sampler engines** – Expose searchable catalogues sourced
+- **Data / Models / Samplers** – Expose searchable catalogues sourced
  from the cached registries. Each page includes open-folder actions, metadata
  panes, parser revalidation controls, and trust notes so you can inspect assets
  before entering the builder.
@@ -79,24 +79,24 @@ each page. The steps are:
 4. **Data** – Three fixed-height (four-row) listboxes stack vertically for
  SNe, BAO, and CMB catalogues. Each box is 500 px wide and uses a dedicated
  scrollbar so selections remain readable.
-5. **Sampler engine** – Selecting a sampler loads its capability metadata and
+5. **Sampler** – Selecting a sampler loads its capability metadata and
  renders per-parameter controls inside the Run Settings box. Integer and
  float fields use spinboxes with bounded ranges taken from
- `_ENGINE_SETTING_LIMITS`; pool
+ `_SAMPLER_SETTING_LIMITS`; pool
  size is capped by the detected CPU core count. Boolean settings render as
  checkboxes (for example, Display progress). Recommendations display directly
- above their associated inputs. The fixed Copernican native declared-graph CMB
- engine is shown for provenance and is not a selectable builder step.
+ above their associated inputs. The fixed CCMBS solver is shown for provenance
+ and is not a selectable builder step.
 6. **Manifest** – Displays the draft manifest in a scrollable text widget and
  surfaces reminder text if the workspace has not been saved. The buttons let
  you save, save-and-confirm, export to an external path, open the on-disk
  manifest or clear the workspace.
 7. **Confirm** – Summarises the entire run, including the control/test pair,
  walker/burn-in/production settings, pool size hints, and the fixed native CMB
- engine. The **Start run** button stays disabled until
+ sampler. The **Start run** button stays disabled until
  a manifest exists so every execution renames the workspace (`copernican-
    run_<timestamp>`) before launching the CLI worker.
-`Next` is blocked on the Sampler engine step until all of the first five pages
+`Next` is blocked on the Sampler step until all of the first five pages
 have selections. Attempting to proceed triggers a toast and a modal warning
 telling
 you which prerequisites are missing. The Manifest page also refuses to advance

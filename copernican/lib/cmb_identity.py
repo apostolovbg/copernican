@@ -1,6 +1,6 @@
-"""Canonical identity for Copernican's sole production CMB engine."""
+"""Canonical identity for the reference CCMBS solver."""
 
-NATIVE_CMB_ENGINE_ID = "copernican_native_declared_graph"
-NATIVE_CMB_ENGINE_LABEL = "Copernican native declared-graph CMB engine"
+CCMBS_ID = "ccmbs_numpy"
+CCMBS_LABEL = "CCMBS — Copernican Cosmic Microwave Background Solver"
 
-__all__ = ["NATIVE_CMB_ENGINE_ID", "NATIVE_CMB_ENGINE_LABEL"]
+__all__ = ["CCMBS_ID", "CCMBS_LABEL"]

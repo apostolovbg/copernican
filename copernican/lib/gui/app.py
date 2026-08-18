@@ -53,12 +53,7 @@ from copernican.lib import (
 )
 from copernican.lib import settings as settings_mod
 from copernican.lib import utils
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_LABEL
-from copernican.lib.engine_capabilities import (
-    EngineCapabilities,
-    EngineSetting,
-    get_engine_capabilities,
-)
+from copernican.lib.cmb_identity import CCMBS_LABEL
 from copernican.lib.gui.plot_viewer import PlotViewer
 from copernican.lib.model_selection import (
     DEFAULT_CONTROL_MODEL,
@@ -70,6 +65,11 @@ from copernican.lib.run_lifecycle import (
     create_manifest_workspace,
     delete_manifest_workspace,
     finalize_run_workspace,
+)
+from copernican.lib.sampler_capabilities import (
+    SamplerCapabilities,
+    SamplerSetting,
+    get_sampler_capabilities,
 )
 
 try:
@@ -231,14 +231,14 @@ log_mod = logger
 _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
-_ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
-    "copernican.engines.engine_mcmc": {
+_SAMPLER_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
+    "copernican.samplers.sampler_mcmc": {
         "n_steps": {"min": 1, "max": 500_000},
         "burn_in_steps": {"min": 0, "max": 100_000},
         "n_walkers": {"min": 1, "max": 10_000},
         "pool_size": {"min": 1, "max": "cpu"},
     },
-    "copernican.engines.engine_nested": {
+    "copernican.samplers.sampler_nested": {
         "n_live_points": {"min": 1, "max": 20_000},
         "max_iterations": {"min": 1, "max": 1_000_000},
         "evidence_tolerance": {"min": 1e-6, "max": 1.0},
@@ -271,7 +271,7 @@ class RunDraft:
     control_model: str = ""
     test_model: str = ""
     dataset: str = ""
-    engine: str = ""
+    sampler: str = ""
     plan: str = ""
     notes: str = ""
     completed_step: int = 0
@@ -374,7 +374,7 @@ class CopernicanGUI:
         "Control model",
         "Test model",
         "Data",
-        "Sampler engine",
+        "Sampler",
         "Manifest",
         _CONFIRM_STEP_NAME,
     ]
@@ -382,7 +382,7 @@ class CopernicanGUI:
     _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
     _BUILDER_COMPLETION_MESSAGE = (
         "Set all required selections in Seed, Control model, Test model, "
-        "Data and Sampler engine "
+        "Data and Sampler "
         "before saving the manifest."
     )
     _OVERWRITE_MANIFEST_MESSAGE = (
@@ -408,7 +408,7 @@ class CopernicanGUI:
     }
 
     def __init__(self, render: bool = True) -> None:
-        """Initialize GUI state, frames and sampler-engine selectors."""
+        """Initialize GUI state, frames and sampler-sampler selectors."""
         self.render = render and tk_gui is not None
         self.root: Optional[tkinter_module.Tk] = None
         self.frames: Dict[str, tkinter_module.Frame] = {}
@@ -431,20 +431,20 @@ class CopernicanGUI:
         self.current_phase = "Idle"
         self.selected_control_model: str = ""
         self.selected_test_model: str = ""
-        self.selected_engine: str = ""
-        self.selected_engine_kind: str = "mcmc"
+        self.selected_sampler: str = ""
+        self.selected_sampler_kind: str = "mcmc"
         self._selected_control_model_entry: dict | None = None
         self._selected_test_model_entry: dict | None = None
         self._active_model_role = "test"
-        self._selected_engine_entry: dict | None = None
+        self._selected_sampler_entry: dict | None = None
         self._equation_html_frame: HtmlFrame | None = None
         self._equations_window: tkinter_module.Toplevel | None = None
         self._equations_text_widget: tkinter_module.Text | None = None
-        self.engine_capabilities: EngineCapabilities | None = None
-        self._engine_setting_vars: dict[str, tkinter_module.Variable] = {}
-        self._engine_setting_specs: dict[str, EngineSetting] = {}
-        self._engine_run_settings_frame: ttk_module.LabelFrame | None = None
-        self._current_engine_module: str | None = None
+        self.sampler_capabilities: SamplerCapabilities | None = None
+        self._sampler_setting_vars: dict[str, tkinter_module.Variable] = {}
+        self._sampler_setting_specs: dict[str, SamplerSetting] = {}
+        self._sampler_run_settings_frame: ttk_module.LabelFrame | None = None
+        self._current_sampler_module: str | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.help_page_index = 0
         self._current_help_page_id = _HELP_PAGES[0]["id"]
@@ -456,7 +456,7 @@ class CopernicanGUI:
         self._staged_confirm_manifest: Optional[dict] = None
         self.catalogue_index: dict[str, dict] = {}
         self.model_index: dict[str, dict] = {}
-        self.engine_index: dict[str, dict] = {}
+        self.sampler_index: dict[str, dict] = {}
         self._current_run_output_dir: str | None = None
         self.metadata_cache: dict[str, str] = {}
         self.validation_notes: list[str] = []
@@ -1063,10 +1063,10 @@ class CopernicanGUI:
 
         return str(Path(__file__).resolve().parents[2] / "models")
 
-    def _engines_root(self) -> str:
-        """Return the absolute path to the available engine modules."""
+    def _samplers_root(self) -> str:
+        """Return the absolute path to the available sampler modules."""
 
-        return str(Path(__file__).resolve().parents[2] / "engines")
+        return str(Path(__file__).resolve().parents[2] / "samplers")
 
     def _metadata_path_for_dir(self, data_dir: str) -> str | None:
         """Return the first metadata YAML file beneath ``data_dir``.
@@ -1085,7 +1085,7 @@ class CopernicanGUI:
     def _parser_path_for_dir(self, data_dir: str) -> str | None:
         """Return the registered parser path beneath ``data_dir`` if found."""
 
-        candidates = sorted(Path(data_dir).glob("cosmo_parser_*.py"))
+        candidates = sorted(Path(data_dir).glob("dataset_parser_*.py"))
         if not candidates:
             return None
         return str(candidates[0])
@@ -1361,18 +1361,18 @@ class CopernicanGUI:
         )
         return entry
 
-    def _discover_engine_library(self) -> dict[str, dict]:
-        """Return engine metadata keyed by module stem."""
+    def _discover_sampler_library(self) -> dict[str, dict]:
+        """Return sampler metadata keyed by module stem."""
 
-        engines: dict[str, dict] = {}
-        for path in sorted(Path(self._engines_root()).glob("*.py")):
+        samplers: dict[str, dict] = {}
+        for path in sorted(Path(self._samplers_root()).glob("*.py")):
             if path.name.startswith("__"):
                 continue
-            module_name = f"copernican.engines.{path.stem}"
+            module_name = f"copernican.samplers.{path.stem}"
             try:
                 module = importlib.import_module(module_name)
-                label = getattr(module, "ENGINE_LABEL", path.stem)
-                version = getattr(module, "ENGINE_VERSION", "unknown")
+                label = getattr(module, "SAMPLER_LABEL", path.stem)
+                version = getattr(module, "SAMPLER_VERSION", "unknown")
             except (
                 AttributeError,
                 ImportError,
@@ -1386,22 +1386,22 @@ class CopernicanGUI:
                     "Sampler metadata import failed for %s; using fallbacks",
                     module_name,
                 )
-            engines[module_name] = {
+            samplers[module_name] = {
                 "id": module_name,
                 "filename": path.name,
                 "path": str(path),
                 "stem": path.stem,
                 "citation": getattr(module, "__doc__", ""),
-                "license": "Copernican default license; verify engines",
+                "license": "Copernican default license; verify samplers",
                 "version": version,
                 "label": label,
                 "badges": ["SNE", "BAO", "CMB"],
                 "hash": utils.compute_sha256(str(path)),
             }
-        return engines
+        return samplers
 
     def refresh_inventory(self, force_discovery: bool = False) -> None:
-        """Refresh catalogue, model and engine metadata for list views.
+        """Refresh catalogue, model and sampler metadata for list views.
 
         The method runs at startup and when panels request a revalidation.  It
         guarantees that GUI detail panes reflect the parser registration rules
@@ -1414,7 +1414,7 @@ class CopernicanGUI:
             force_discovery=force_discovery
         )
         self.model_index = self._discover_model_library()
-        self.engine_index = self._discover_engine_library()
+        self.sampler_index = self._discover_sampler_library()
         self._set_default_control_model()
 
     def _catalogue_health_summary(self) -> dict[str, object]:
@@ -1440,8 +1440,8 @@ class CopernicanGUI:
             "notes": self.validation_notes[:3],
         }
 
-    def _model_engine_health_summary(self) -> dict[str, object]:
-        """Return compatibility and version health for models and engines."""
+    def _model_sampler_health_summary(self) -> dict[str, object]:
+        """Return compatibility and version health for models and samplers."""
 
         model_badges = Counter()
         stale_models: list[tuple[str, str]] = []
@@ -1459,25 +1459,25 @@ class CopernicanGUI:
                         "missing",
                     )
                 )
-        stale_engines: list[tuple[str, str]] = []
-        for entry in self.engine_index.values():
+        stale_samplers: list[tuple[str, str]] = []
+        for entry in self.sampler_index.values():
             version_label = (entry.get("version") or "").lower()
             if not version_label or version_label in {
                 "unknown",
                 "unavailable",
             }:
-                stale_engines.append(
+                stale_samplers.append(
                     (
-                        entry.get("label") or entry.get("id", "engine"),
+                        entry.get("label") or entry.get("id", "sampler"),
                         "missing",
                     )
                 )
         return {
             "model_count": len(self.model_index),
-            "engine_count": len(self.engine_index),
+            "sampler_count": len(self.sampler_index),
             "model_badges": model_badges,
             "stale_models": stale_models,
-            "stale_engines": stale_engines,
+            "stale_samplers": stale_samplers,
         }
 
     def filter_catalogue(self, types: list[str] | None = None) -> list[dict]:
@@ -1723,10 +1723,10 @@ class CopernicanGUI:
         for record in self.model_index.values():
             if record.get("id") == asset_id:
                 return record["path"]
-        engine_entry = self.engine_index.get(asset_id)
-        if engine_entry:
-            return engine_entry["path"]
-        for record in self.engine_index.values():
+        sampler_entry = self.sampler_index.get(asset_id)
+        if sampler_entry:
+            return sampler_entry["path"]
+        for record in self.sampler_index.values():
             if record.get("id") == asset_id:
                 return record["path"]
         raise KeyError(asset_id)
@@ -2072,9 +2072,9 @@ class CopernicanGUI:
             NavigationItem("data", "Data", CopernicanGUI.show_data_overview),
             NavigationItem("models", "Models", CopernicanGUI.show_models),
             NavigationItem(
-                "engines",
-                "Sampler engines",
-                CopernicanGUI.show_engines,
+                "samplers",
+                "Samplers",
+                CopernicanGUI.show_samplers,
             ),
             NavigationItem(
                 "analysis",
@@ -2360,10 +2360,10 @@ class CopernicanGUI:
                         ]: self._handle_home_revalidate(dataset_id),
                         takefocus=True,
                     ).pack(anchor="w", pady=2)
-            models_health = self._model_engine_health_summary()
+            models_health = self._model_sampler_health_summary()
             models_card = ttk_module.LabelFrame(
                 tiles,
-                text="Models & sampler engines",
+                text="Models & samplers",
                 padding=(10, 8),
             )
             models_card.grid(row=0, column=1, sticky="nsew")
@@ -2381,7 +2381,7 @@ class CopernicanGUI:
                 models_card,
                 text=(
                     f"{models_health['model_count']} model(s) / "
-                    f"{models_health['engine_count']} engine(s)"
+                    f"{models_health['sampler_count']} sampler(s)"
                 ),
                 takefocus=True,
             ).pack(anchor="w")
@@ -2397,12 +2397,12 @@ class CopernicanGUI:
                 )
             else:
                 stale_models_text = "None"
-            if models_health["stale_engines"]:
-                stale_engines_text = ", ".join(
-                    entry[0] for entry in models_health["stale_engines"][:2]
+            if models_health["stale_samplers"]:
+                stale_samplers_text = ", ".join(
+                    entry[0] for entry in models_health["stale_samplers"][:2]
                 )
             else:
-                stale_engines_text = "None"
+                stale_samplers_text = "None"
             ttk_module.Label(
                 models_card,
                 text=f"Stale models: {stale_models_text}",
@@ -2411,7 +2411,7 @@ class CopernicanGUI:
             ).pack(anchor="w")
             ttk_module.Label(
                 models_card,
-                text=f"Stale engines: {stale_engines_text}",
+                text=f"Stale samplers: {stale_samplers_text}",
                 wraplength=320,
                 takefocus=True,
             ).pack(anchor="w")
@@ -2425,8 +2425,8 @@ class CopernicanGUI:
             ).pack(side="left", padx=2)
             ttk_module.Button(
                 action_row,
-                text="View engines",
-                command=self.show_engines,
+                text="View samplers",
+                command=self.show_samplers,
                 takefocus=True,
             ).pack(side="left", padx=2)
             if self.recent_runs or self.pinned_configs:
@@ -3967,10 +3967,10 @@ class CopernicanGUI:
 
         return bool(self.selected_datasets)
 
-    def _is_engine_step_complete(self) -> bool:
-        """Return True when an engine is selected."""
+    def _is_sampler_step_complete(self) -> bool:
+        """Return True when a sampler is selected."""
 
-        return bool(self.selected_engine)
+        return bool(self.selected_sampler)
 
     def _builder_ready(self) -> bool:
         """Indicate whether the first four builder pages are complete."""
@@ -3979,7 +3979,7 @@ class CopernicanGUI:
             self._is_seed_step_complete()
             and self._is_model_step_complete()
             and self._is_data_step_complete()
-            and self._is_engine_step_complete()
+            and self._is_sampler_step_complete()
         )
 
     def _has_configuration(self) -> bool:
@@ -3996,7 +3996,7 @@ class CopernicanGUI:
                 )
             )
             or self.selected_test_model
-            or self.selected_engine
+            or self.selected_sampler
             or self.selected_datasets
             or self.draft.seed.strip()
             or self.draft.dataset.strip()
@@ -4038,11 +4038,11 @@ class CopernicanGUI:
         )
 
     def _handle_builder_next(self) -> None:
-        """Guard the transition from Sampler engine to Manifest."""
+        """Guard the transition from Sampler to Manifest."""
 
-        engine_index = self.builder_steps.index("Sampler engine")
+        sampler_index = self.builder_steps.index("Sampler")
         if (
-            self.current_step_index == engine_index
+            self.current_step_index == sampler_index
             and not self._builder_ready()
         ):
             self._notify_builder_completion_required()
@@ -4087,23 +4087,23 @@ class CopernicanGUI:
         return True
 
     def _clear_builder_selections(self) -> None:
-        """Reset models, engines and drafts without altering workspace."""
+        """Reset models, samplers and drafts without altering workspace."""
 
         self.draft = RunDraft()
         self.selected_control_model = ""
         self.selected_test_model = ""
-        self.selected_engine = ""
-        self.selected_engine_kind = "mcmc"
+        self.selected_sampler = ""
+        self.selected_sampler_kind = "mcmc"
         self._selected_control_model_entry = None
         self._selected_test_model_entry = None
-        self._selected_engine_entry = None
-        self.engine_capabilities = None
-        if self._engine_run_settings_frame is not None:
-            self._engine_run_settings_frame.destroy()
-        self._engine_setting_vars.clear()
-        self._engine_setting_specs.clear()
-        self._engine_run_settings_frame = None
-        self._current_engine_module = None
+        self._selected_sampler_entry = None
+        self.sampler_capabilities = None
+        if self._sampler_run_settings_frame is not None:
+            self._sampler_run_settings_frame.destroy()
+        self._sampler_setting_vars.clear()
+        self._sampler_setting_specs.clear()
+        self._sampler_run_settings_frame = None
+        self._current_sampler_module = None
         self.selected_datasets = []
         self._set_default_control_model()
         self._staged_confirm_manifest = None
@@ -4335,7 +4335,7 @@ class CopernicanGUI:
             self._render_builder_step_control_model,
             self._render_builder_step_test_model,
             self._render_builder_step_data,
-            self._render_builder_step_engine,
+            self._render_builder_step_sampler,
             self._render_builder_step_manifest,
             self._render_builder_step_confirm,
         ]
@@ -4357,18 +4357,18 @@ class CopernicanGUI:
                 continue
         return max(sum(counts), 0)
 
-    def _engine_default_settings(self) -> tuple[int, int, int]:
+    def _sampler_default_settings(self) -> tuple[int, int, int]:
         """Return defaults for steps, walkers and worker pools."""
 
         default_steps = 200
         default_walkers = 32
         default_pool = os.cpu_count() or 1
-        engine_entry = None
+        sampler_entry = None
         try:
-            engine_entry = self._resolve_engine_entry()
+            sampler_entry = self._resolve_sampler_entry()
         except RuntimeError:
             return default_steps, default_walkers, default_pool
-        module_name = engine_entry.get("id", "")
+        module_name = sampler_entry.get("id", "")
         if not module_name:
             return default_steps, default_walkers, default_pool
         try:
@@ -4380,11 +4380,7 @@ class CopernicanGUI:
             RuntimeError,
         ):
             return default_steps, default_walkers, default_pool
-        fit_fn = getattr(
-            module,
-            "fit_cosmology_parameters",
-            getattr(module, "fit_sne_parameters", None),
-        )
+        fit_fn = getattr(module, "sample_parameters", None)
         if not callable(fit_fn):
             return default_steps, default_walkers, default_pool
         try:
@@ -4393,7 +4389,7 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
 
         def _default_value(name: str, fallback: int) -> int:
-            """Return the default parameter value declared by the engine."""
+            """Return the default parameter value declared by the sampler."""
             param = signature.parameters.get(name)
             if param is None or param.default is inspect._empty:
                 return fallback
@@ -4421,7 +4417,7 @@ class CopernicanGUI:
         param_total = max(self._parameter_count_for_selection(), 1)
         minimum_walkers = max(2 * param_total, 2)
         default_steps, default_walkers, default_pool = (
-            self._engine_default_settings()
+            self._sampler_default_settings()
         )
         recommended_steps = max(default_steps, 1)
         burn_in_recommended = max(100, recommended_steps // 5)
@@ -5186,30 +5182,30 @@ class CopernicanGUI:
             command=_revalidate_focused_parser,
         ).pack(side="left", padx=2)
 
-    def _render_builder_step_engine(
+    def _render_builder_step_sampler(
         self,
         container: tkinter_module.Frame,
     ) -> None:
-        """Render the sampler-engine picker and run settings controls."""
+        """Render the sampler-sampler picker and run settings controls."""
         ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk_module.Label(
             container,
             text=(
-                "Choose the sampler engine used to explore both selected "
+                "Choose the sampler used to explore both selected "
                 "models. CMB-capable models use the Copernican native "
-                "declared-graph CMB engine."
+                "declared-graph CCMBS solver."
             ),
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
         options = sorted(
-            self.engine_index.values(), key=lambda entry: entry["label"]
+            self.sampler_index.values(), key=lambda entry: entry["label"]
         )
         if not options:
             ttk_module.Label(
                 container,
                 text=(
-                    "No engines discovered; ensure the engines folder is "
+                    "No samplers discovered; ensure the samplers folder is "
                     "populated."
                 ),
                 takefocus=True,
@@ -5227,9 +5223,9 @@ class CopernicanGUI:
                 key
                 for key, value in display_map.items()
                 if (
-                    value["id"] == self.selected_engine
-                    or value["stem"] == self.selected_engine
-                    or value["filename"] == self.selected_engine
+                    value["id"] == self.selected_sampler
+                    or value["stem"] == self.selected_sampler
+                    or value["filename"] == self.selected_sampler
                 )
             ),
             choices[0],
@@ -5244,25 +5240,25 @@ class CopernicanGUI:
         )
         combo.pack(anchor="w", pady=(6, 6))
 
-        def _apply_engine_selection(
+        def _apply_sampler_selection(
             _: tkinter_module.Event | None = None,
         ) -> None:
-            """Refresh the UI when a different engine is selected."""
+            """Refresh the UI when a different sampler is selected."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
-                if self._current_engine_module != record["id"]:
-                    self._engine_setting_vars.clear()
-                    self._engine_setting_specs.clear()
-                self._current_engine_module = record["id"]
-                self.selected_engine = record["id"]
-                self.draft.engine = record["id"]
-                self._selected_engine_entry = record
-                capabilities, engine_kind = self._load_engine_capabilities(
+                if self._current_sampler_module != record["id"]:
+                    self._sampler_setting_vars.clear()
+                    self._sampler_setting_specs.clear()
+                self._current_sampler_module = record["id"]
+                self.selected_sampler = record["id"]
+                self.draft.sampler = record["id"]
+                self._selected_sampler_entry = record
+                capabilities, sampler_kind = self._load_sampler_capabilities(
                     record["id"]
                 )
-                self.engine_capabilities = capabilities
-                self.selected_engine_kind = engine_kind
+                self.sampler_capabilities = capabilities
+                self.selected_sampler_kind = sampler_kind
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
@@ -5270,48 +5266,48 @@ class CopernicanGUI:
                     )
                 )
             else:
-                self.engine_capabilities = None
-                self.selected_engine_kind = "mcmc"
-                self._engine_setting_vars.clear()
-                self._engine_setting_specs.clear()
-                self._current_engine_module = None
+                self.sampler_capabilities = None
+                self.selected_sampler_kind = "mcmc"
+                self._sampler_setting_vars.clear()
+                self._sampler_setting_specs.clear()
+                self._current_sampler_module = None
                 detail_label.config(
-                    text="Select an engine to see details.",
+                    text="Select a sampler to see details.",
                 )
-            self._render_engine_run_settings(container)
+            self._render_sampler_run_settings(container)
             self._refresh_builder_step_indicators()
 
-        combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
+        combo.bind("<<ComboboxSelected>>", _apply_sampler_selection)
         detail_label = ttk_module.Label(
             container,
-            text="Select an engine to see details.",
+            text="Select a sampler to see details.",
             wraplength=720,
             takefocus=True,
         )
         detail_label.pack(anchor="w", pady=(4, 4))
-        _apply_engine_selection()
+        _apply_sampler_selection()
         button_frame = ttk_module.Frame(container)
         button_frame.pack(anchor="w", pady=(4, 0))
 
-        def _open_selected_engine_folder() -> None:
-            """Open the folder containing the selected engine module."""
+        def _open_selected_sampler_folder() -> None:
+            """Open the folder containing the selected sampler module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
                 self._open_folder_or_warn(
                     os.path.dirname(record["path"]),
-                    context="engines",
-                    subject=f"engine {record['label']}",
+                    context="samplers",
+                    subject=f"sampler {record['label']}",
                 )
             else:
                 self.create_toast(
-                    "Choose an engine before opening its folder.",
+                    "Choose a sampler before opening its folder.",
                     severity="WARNING",
-                    context="engine",
+                    context="sampler",
                 )
 
-        def _view_selected_engine_module() -> None:
-            """Present metadata for the selected engine module."""
+        def _view_selected_sampler_module() -> None:
+            """Present metadata for the selected sampler module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -5320,72 +5316,72 @@ class CopernicanGUI:
                 )
             else:
                 self.create_toast(
-                    "Select an engine before viewing its module.",
+                    "Select a sampler before viewing its module.",
                     severity="WARNING",
-                    context="engine",
+                    context="sampler",
                 )
 
         ttk_module.Button(
             button_frame,
-            text="Open engine folder",
-            command=_open_selected_engine_folder,
+            text="Open sampler folder",
+            command=_open_selected_sampler_folder,
         ).pack(side="left", padx=2)
         ttk_module.Button(
             button_frame,
             text="View module",
-            command=_view_selected_engine_module,
+            command=_view_selected_sampler_module,
         ).pack(side="left", padx=2)
-        _apply_engine_selection()
+        _apply_sampler_selection()
 
-    def _render_engine_run_settings(
+    def _render_sampler_run_settings(
         self,
         container: tkinter_module.Frame,
     ) -> None:
-        """Render engine-run tuning inputs next to the engine selector."""
+        """Render sampler-run tuning inputs next to the sampler selector."""
 
-        if self._engine_run_settings_frame is not None:
-            self._engine_run_settings_frame.destroy()
-            self._engine_run_settings_frame = None
+        if self._sampler_run_settings_frame is not None:
+            self._sampler_run_settings_frame.destroy()
+            self._sampler_run_settings_frame = None
         settings_frame = ttk_module.LabelFrame(
             container,
             text="Run settings",
         )
         settings_frame.pack(fill="x", pady=(8, 0))
-        self._engine_run_settings_frame = settings_frame
-        capabilities = self.engine_capabilities
+        self._sampler_run_settings_frame = settings_frame
+        capabilities = self.sampler_capabilities
         if not capabilities or not capabilities.settings:
             ttk_module.Label(
                 settings_frame,
-                text="This engine exposes no adjustable settings.",
+                text="This sampler exposes no adjustable settings.",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
             return
         recommendations: dict[str, str] | None = None
-        if self.selected_engine_kind == "mcmc":
+        if self.selected_sampler_kind == "mcmc":
             recommendations = self._mcmc_recommendation_texts(
                 self._compute_run_recommendations()
             )
 
         for setting in capabilities.settings:
             dtype = (setting.dtype or "str").lower()
-            setting_var = self._engine_setting_vars.get(setting.key)
-            initial_value = self._initial_engine_setting_value(setting)
+            setting_var = self._sampler_setting_vars.get(setting.key)
+            initial_value = self._initial_sampler_setting_value(setting)
             if dtype == "bool":
                 if not isinstance(setting_var, tkinter_module.BooleanVar):
                     setting_var = tkinter_module.BooleanVar(
                         value=bool(initial_value)
                     )
-                    self._engine_setting_vars[setting.key] = setting_var
+                    self._sampler_setting_vars[setting.key] = setting_var
             else:
                 if not isinstance(setting_var, tkinter_module.StringVar):
                     setting_var = tkinter_module.StringVar(
                         value=str(initial_value)
                     )
-                    self._engine_setting_vars[setting.key] = setting_var
+                    self._sampler_setting_vars[setting.key] = setting_var
                 elif not setting_var.get():
                     setting_var.set(str(initial_value))
-            self._engine_setting_specs[setting.key] = setting
+            self._sampler_setting_specs[setting.key] = setting
             row = ttk_module.Frame(settings_frame)
             row.pack(anchor="w", pady=(4, 0))
             ttk_module.Label(
@@ -5406,8 +5402,8 @@ class CopernicanGUI:
                 into settings."""
 
                 def _update(*_: object) -> None:
-                    """Trigger the engine-setting update handler."""
-                    self._handle_engine_setting_update(key)
+                    """Trigger the sampler-setting update handler."""
+                    self._handle_sampler_setting_update(key)
 
                 variable.trace_add("write", _update)
 
@@ -5417,16 +5413,16 @@ class CopernicanGUI:
                     variable=setting_var,
                     takefocus=True,
                     command=partial(
-                        self._handle_engine_setting_update, setting.key
+                        self._handle_sampler_setting_update, setting.key
                     ),
                 )
                 control.pack(anchor="w")
             else:
-                min_value, max_value = self._engine_setting_bounds(setting)
+                min_value, max_value = self._sampler_setting_bounds(setting)
                 increment = 1 if dtype == "int" else 0.1
 
                 def _validate(value_if_allowed: str, key: str) -> bool:
-                    """Clamp engine setting inputs between the declared
+                    """Clamp sampler setting inputs between the declared
                     bounds."""
                     if not value_if_allowed.strip():
                         return True
@@ -5440,7 +5436,7 @@ class CopernicanGUI:
                         return False
                     if parsed < min_value or parsed > max_value:
                         return False
-                    self._handle_engine_setting_update(key)
+                    self._handle_sampler_setting_update(key)
                     return True
 
                 validate_cmd = field_frame.register(_validate)
@@ -5489,14 +5485,14 @@ class CopernicanGUI:
                     justify="left",
                     takefocus=True,
                 ).pack(anchor="w", padx=(16, 0), pady=(0, 2))
-            self._handle_engine_setting_update(setting.key)
+            self._handle_sampler_setting_update(setting.key)
 
-    def _load_engine_capabilities(
+    def _load_sampler_capabilities(
         self, module_name: str
-    ) -> tuple[EngineCapabilities | None, str]:
-        """Return engine capability descriptors and its kind."""
+    ) -> tuple[SamplerCapabilities | None, str]:
+        """Return sampler capability descriptors and its kind."""
 
-        engine_kind = "mcmc"
+        sampler_kind = "mcmc"
         try:
             module = importlib.import_module(module_name)
         except (
@@ -5506,12 +5502,12 @@ class CopernicanGUI:
             RuntimeError,
         ) as exc:
             logger.get_logger().warning(
-                "Failed to import engine %s: %s", module_name, exc
+                "Failed to import sampler %s: %s", module_name, exc
             )
-            return None, engine_kind
-        engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+            return None, sampler_kind
+        sampler_kind = getattr(module, "SAMPLER_KIND", "mcmc").lower()
         try:
-            capabilities = get_engine_capabilities(module)
+            capabilities = get_sampler_capabilities(module)
         except (
             AttributeError,
             ImportError,
@@ -5521,15 +5517,15 @@ class CopernicanGUI:
             ValueError,
         ) as exc:
             logger.get_logger().warning(
-                "Failed to load engine capabilities for %s: %s",
+                "Failed to load sampler capabilities for %s: %s",
                 module_name,
                 exc,
             )
             capabilities = None
-        return capabilities, engine_kind
+        return capabilities, sampler_kind
 
     def _draft_field_for_setting(self, key: str) -> str | None:
-        """Return the draft field name linked to the given engine key."""
+        """Return the draft field name linked to the given sampler key."""
         mapping = {
             "n_walkers": "walkers",
             "burn_in_steps": "burn_in",
@@ -5538,8 +5534,10 @@ class CopernicanGUI:
         }
         return mapping.get(key)
 
-    def _initial_engine_setting_value(self, setting: EngineSetting) -> object:
-        """Return the initial value to display for a given engine setting."""
+    def _initial_sampler_setting_value(
+        self, setting: SamplerSetting
+    ) -> object:
+        """Return the initial value to display for a given sampler setting."""
         field = self._draft_field_for_setting(setting.key)
         if field:
             current = getattr(self.draft, field, "")
@@ -5554,13 +5552,13 @@ class CopernicanGUI:
             return str(setting.default)
         return False if (setting.dtype or "").lower() == "bool" else ""
 
-    def _handle_engine_setting_update(self, key: str) -> None:
-        """Hook fired whenever an engine setting var changes."""
+    def _handle_sampler_setting_update(self, key: str) -> None:
+        """Hook fired whenever a sampler setting variable changes."""
 
         field = self._draft_field_for_setting(key)
         if not field:
             return
-        setting_var = self._engine_setting_vars.get(key)
+        setting_var = self._sampler_setting_vars.get(key)
         if setting_var is None:
             return
         setting_value = setting_var.get()
@@ -5597,12 +5595,12 @@ class CopernicanGUI:
             ),
         }
 
-    def _engine_setting_bounds(
-        self, setting: EngineSetting
+    def _sampler_setting_bounds(
+        self, setting: SamplerSetting
     ) -> tuple[float, float]:
-        """Return enforced numeric bounds for an engine setting."""
-        module_limits = _ENGINE_SETTING_LIMITS.get(
-            self._current_engine_module or "", {}
+        """Return enforced numeric bounds for a sampler setting."""
+        module_limits = _SAMPLER_SETTING_LIMITS.get(
+            self._current_sampler_module or "", {}
         )
         setting_limits = module_limits.get(setting.key, {})
         min_value = setting_limits.get("min")
@@ -5841,8 +5839,8 @@ class CopernicanGUI:
                 ", ".join(entry["id"] for entry in self.selected_datasets)
                 or "no datasets selected",
             ),
-            ("Sampler engine", self.selected_engine or "unspecified"),
-            ("CMB engine", NATIVE_CMB_ENGINE_LABEL),
+            ("Sampler", self.selected_sampler or "unspecified"),
+            ("CMB solver", CCMBS_LABEL),
             ("Plan", self.draft.plan or "no plan provided"),
         ]
         summary_entries.extend(
@@ -6114,18 +6112,18 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
-    def show_engines(self) -> None:
-        """Display engine overview panel with digests and health checks."""
+    def show_samplers(self) -> None:
+        """Display sampler overview panel with digests and health checks."""
 
         self.refresh_inventory()
 
         def builder(frame: tkinter_module.Frame) -> None:
-            """Render the engine catalogue with badges and hashes."""
-            self._page_header(frame, "Sampler engines")
+            """Render the sampler catalogue with badges and hashes."""
+            self._page_header(frame, "Samplers")
             ttk_module.Label(
                 frame,
                 text=(
-                    "Sampler engines expose dataset compatibility and labels. "
+                    "Samplers expose dataset compatibility and labels. "
                     "Hashes appear here so health checks can confirm which "
                     "module executed a run."
                 ),
@@ -6134,29 +6132,29 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(4, 8))
             ttk_module.Label(
                 frame,
-                text=f"Discovered {len(self.engine_index)} engine(s)",
+                text=f"Discovered {len(self.sampler_index)} sampler(s)",
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 6))
             catalogue_panel = self._create_scrollable_panel(frame)
-            for engine in sorted(
-                self.engine_index.values(), key=lambda entry: entry["label"]
+            for sampler in sorted(
+                self.sampler_index.values(), key=lambda entry: entry["label"]
             ):
                 entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
-                    text=f"{engine['label']} ({engine['filename']})",
+                    text=f"{sampler['label']} ({sampler['filename']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
                 ttk_module.Label(
                     entry_frame,
-                    text="Badges: " + ", ".join(engine.get("badges", [])),
+                    text="Badges: " + ", ".join(sampler.get("badges", [])),
                     takefocus=True,
                 ).pack(anchor="w")
                 ttk_module.Label(
                     entry_frame,
                     text=(
-                        f"Version: {engine.get('version', 'unknown')}\n"
-                        f"SHA256: {engine.get('hash', '')}"
+                        f"Version: {sampler.get('version', 'unknown')}\n"
+                        f"SHA256: {sampler.get('hash', '')}"
                     ),
                     wraplength=720,
                     takefocus=True,
@@ -6164,34 +6162,34 @@ class CopernicanGUI:
                 ).pack(anchor="w", pady=(4, 4))
                 actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
-                engine_folder = os.path.dirname(engine["path"])
-                engine_id = engine["id"]
-                engine_label = engine["label"] or engine["stem"]
+                sampler_folder = os.path.dirname(sampler["path"])
+                sampler_id = sampler["id"]
+                sampler_label = sampler["label"] or sampler["stem"]
 
-                def _open_engine_folder() -> None:
-                    """Open the directory containing the current engine."""
+                def _open_sampler_folder() -> None:
+                    """Open the directory containing the current sampler."""
                     self._open_folder_or_warn(
-                        engine_folder,
-                        context="engines",
-                        subject=f"engine {engine_label}",
+                        sampler_folder,
+                        context="samplers",
+                        subject=f"sampler {sampler_label}",
                     )
 
-                def _view_engine_module() -> None:
-                    """Show the metadata for the engine module."""
+                def _view_sampler_module() -> None:
+                    """Show the metadata for the sampler module."""
                     self._present_metadata(
-                        engine_id, f"Sampler module: {engine_label}"
+                        sampler_id, f"Sampler module: {sampler_label}"
                     )
 
                 ttk_module.Button(
                     actions,
-                    text="Open engine folder",
-                    command=_open_engine_folder,
+                    text="Open sampler folder",
+                    command=_open_sampler_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
                 ttk_module.Button(
                     actions,
                     text="View module",
-                    command=_view_engine_module,
+                    command=_view_sampler_module,
                     takefocus=True,
                 ).pack(side="left", padx=2)
 
@@ -7273,22 +7271,22 @@ class CopernicanGUI:
             return entry
         raise RuntimeError("Select a model before starting the run.")
 
-    def _resolve_engine_entry(self) -> dict:
-        """Return the currently selected engine metadata record."""
+    def _resolve_sampler_entry(self) -> dict:
+        """Return the currently selected sampler metadata record."""
 
-        if self._selected_engine_entry:
-            return self._selected_engine_entry
-        candidate = self.selected_engine or self.draft.engine
+        if self._selected_sampler_entry:
+            return self._selected_sampler_entry
+        candidate = self.selected_sampler or self.draft.sampler
         if candidate:
-            for entry in self.engine_index.values():
+            for entry in self.sampler_index.values():
                 if (
                     entry.get("id") == candidate
                     or entry.get("stem") == candidate
                     or entry["filename"] == candidate
                 ):
-                    self._selected_engine_entry = entry
+                    self._selected_sampler_entry = entry
                     return entry
-        raise RuntimeError("Select an engine before starting the run.")
+        raise RuntimeError("Select a sampler before starting the run.")
 
     def _prepare_progress_path(self, base_dir: Path | None = None) -> str:
         """Return the path where the GUI stores progress snapshots."""
@@ -7838,14 +7836,14 @@ class CopernicanGUI:
         except ValueError:
             return default
 
-    def _build_sampling_plan_values(self, engine_module: str) -> dict:
+    def _build_sampling_plan_values(self, sampler_module: str) -> dict:
         """Return the sampling plan dict fed to the CLI."""
 
-        module = importlib.import_module(engine_module)
-        kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+        module = importlib.import_module(sampler_module)
+        kind = getattr(module, "SAMPLER_KIND", "mcmc").lower()
         if kind != "mcmc":
             raise RuntimeError(
-                "GUI-triggered runs currently support MCMC engines only."
+                "GUI-triggered runs currently support MCMC samplers only."
             )
         steps = self._safe_int(self.draft.production_steps, 500)
         burn_in = self._safe_int(self.draft.burn_in, max(steps // 5, 100))
@@ -7857,7 +7855,7 @@ class CopernicanGUI:
             if pool_text:
                 pool_value = self._safe_int(pool_text, None)
         return {
-            "engine_kind": "mcmc",
+            "sampler_kind": "mcmc",
             "n_steps": max(steps, 1),
             "burn_in_steps": max(burn_in, 1),
             "n_walkers": max(walkers, 1),
@@ -7865,12 +7863,12 @@ class CopernicanGUI:
             "display_progress": True,
         }
 
-    def _collect_engine_setting_values(self) -> dict[str, object]:
-        """Return sanitized values entered into engine setting controls."""
+    def _collect_sampler_setting_values(self) -> dict[str, object]:
+        """Return sanitized values entered into sampler setting controls."""
 
         values: dict[str, object] = {}
-        for key, setting_var in self._engine_setting_vars.items():
-            spec = self._engine_setting_specs.get(key)
+        for key, setting_var in self._sampler_setting_vars.items():
+            spec = self._sampler_setting_specs.get(key)
             if isinstance(setting_var, tkinter_module.BooleanVar):
                 values[key] = bool(setting_var.get())
                 continue
@@ -7878,11 +7876,11 @@ class CopernicanGUI:
             if not raw_value:
                 continue
             dtype = spec.dtype if spec else "str"
-            values[key] = self._parse_engine_setting_value(raw_value, dtype)
+            values[key] = self._parse_sampler_setting_value(raw_value, dtype)
         return values
 
     @staticmethod
-    def _parse_engine_setting_value(raw_value: str, dtype: str) -> object:
+    def _parse_sampler_setting_value(raw_value: str, dtype: str) -> object:
         """Convert a string knob value into the declared dtype."""
 
         dtype_key = dtype.lower()
@@ -8240,8 +8238,8 @@ class CopernicanGUI:
         self._selected_test_model_entry = self._model_entry_for_value(
             comparison.test_model.filename or comparison.test_model.name
         )
-        engine_meta = configuration.get("engine", {})
-        self.selected_engine = engine_meta.get("name", "")
+        sampler_meta = configuration.get("sampler", {})
+        self.selected_sampler = sampler_meta.get("name", "")
         datasets = configuration.get("datasets", [])
         if isinstance(datasets, str):
             datasets = [datasets]
@@ -8283,8 +8281,8 @@ class CopernicanGUI:
         self.draft.test_model = self.selected_test_model
         if datasets:
             self.draft.dataset = ", ".join(datasets)
-        if self.selected_engine:
-            self.draft.engine = self.selected_engine
+        if self.selected_sampler:
+            self.draft.sampler = self.selected_sampler
         confirmation = manifest.get("confirmation", {})
         self.draft.plan = confirmation.get("plan", "Duplicate manifest")
         run_settings = configuration.get("run_settings", {})
@@ -8353,31 +8351,31 @@ class CopernicanGUI:
 
         snapshot: dict[str, object] = {}
         try:
-            engine_entry = self._resolve_engine_entry()
+            sampler_entry = self._resolve_sampler_entry()
         except (OSError, RuntimeError, TypeError, ValueError):
-            engine_entry = None
-        engine_kind = "mcmc"
-        if engine_entry:
+            sampler_entry = None
+        sampler_kind = "mcmc"
+        if sampler_entry:
             try:
-                module = importlib.import_module(engine_entry["id"])
-                engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+                module = importlib.import_module(sampler_entry["id"])
+                sampler_kind = getattr(module, "SAMPLER_KIND", "mcmc").lower()
             except (
                 AttributeError,
                 ImportError,
                 ModuleNotFoundError,
                 RuntimeError,
             ):
-                engine_kind = "mcmc"
-            if engine_kind == "mcmc":
+                sampler_kind = "mcmc"
+            if sampler_kind == "mcmc":
                 try:
                     snapshot = dict(
-                        self._build_sampling_plan_values(engine_entry["id"])
+                        self._build_sampling_plan_values(sampler_entry["id"])
                     )
                 except (OSError, RuntimeError, TypeError, ValueError):
                     snapshot = {}
             else:
-                snapshot["engine_kind"] = engine_kind
-        knob_settings = self._collect_engine_setting_values()
+                snapshot["sampler_kind"] = sampler_kind
+        knob_settings = self._collect_sampler_setting_values()
         if knob_settings:
             snapshot.update(knob_settings)
         if snapshot:
@@ -8398,7 +8396,7 @@ class CopernicanGUI:
             parsed = self._safe_int(trimmed, None)
             sanitized[key] = parsed if parsed is not None else trimmed
         if sanitized:
-            sanitized.setdefault("engine_kind", "mcmc")
+            sanitized.setdefault("sampler_kind", "mcmc")
         return sanitized or None
 
     def _apply_run_settings_to_draft(
@@ -8430,8 +8428,8 @@ class CopernicanGUI:
 
         seed_value = int(self.draft.seed) if self.draft.seed.isdigit() else 0
         utils.set_random_seed(seed_value)
-        engine_name = self.draft.engine or self.selected_engine or "engine"
-        engine = SimpleNamespace(__name__=engine_name, ENGINE_VERSION="gui")
+        sampler_name = self.draft.sampler or self.selected_sampler or "sampler"
+        sampler = SimpleNamespace(__name__=sampler_name, SAMPLER_VERSION="gui")
         control_value = (
             self.selected_control_model
             or self.draft.control_model
@@ -8511,7 +8509,7 @@ class CopernicanGUI:
             "comparison": comparison.as_manifest(),
             "control_model": comparison.control_model.name,
             "test_model": comparison.test_model.name,
-            "engine": {"name": engine_name, "version": "gui"},
+            "sampler": {"name": sampler_name, "version": "gui"},
             "datasets": [dataset.get("id", "") for dataset in datasets],
             "notes": "Snapshot captured at run start confirmation.",
         }
@@ -8520,7 +8518,7 @@ class CopernicanGUI:
             configuration["run_settings"] = run_settings
         manifest = run_manifest.build_manifest(
             models=model_pairs,
-            engine_module=engine,
+            sampler_module=sampler,
             datasets=datasets,
             state="pending",
             output_policy="unprepared",
@@ -8549,12 +8547,12 @@ class CopernicanGUI:
         comparison = comparison_from_manifest(self.pending_manifest)
         summary.append(f"Control model: {comparison.control_model.name}")
         summary.append(f"Test model: {comparison.test_model.name}")
-        engine_meta = selection.get("engine", {})
-        engine_desc = engine_meta.get("name", "engine")
-        if engine_meta.get("version"):
-            engine_desc += f" v{engine_meta['version']}"
-        summary.append(f"Sampler engine: {engine_desc}")
-        summary.append(f"CMB engine: {NATIVE_CMB_ENGINE_LABEL}")
+        sampler_meta = selection.get("sampler", {})
+        sampler_desc = sampler_meta.get("name", "sampler")
+        if sampler_meta.get("version"):
+            sampler_desc += f" v{sampler_meta['version']}"
+        summary.append(f"Sampler: {sampler_desc}")
+        summary.append(f"CMB solver: {CCMBS_LABEL}")
         dataset_lines = []
         for dataset_id, dataset in self.pending_manifest.get(
             "datasets", {}

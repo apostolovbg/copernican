@@ -22,8 +22,8 @@ class DatasetDescriptor:
 
 
 @dataclass(frozen=True)
-class EngineDescriptor:
-    """Describes the computational engine recorded in a manifest."""
+class SamplerDescriptor:
+    """Describes the sampler recorded in a manifest."""
 
     module_name: str
     version: str
@@ -34,7 +34,7 @@ class EngineDescriptor:
 class RunSettings:
     """Sampler or inference settings captured on the manifest."""
 
-    engine_kind: str
+    sampler_kind: str
     settings: dict[str, Any]
 
 
@@ -44,7 +44,7 @@ class RunConfig:
 
     seed: int
     models: Sequence[str]
-    engine: EngineDescriptor
+    sampler: SamplerDescriptor
     datasets: Sequence[DatasetDescriptor]
     run_settings: RunSettings
     comparison: ComparisonRequest
@@ -74,7 +74,7 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
             "models in role order."
         )
     configuration = manifest.get("configuration", {})
-    engine_meta = selection.get("engine", {})
+    sampler_meta = selection.get("sampler", {})
     datasets_meta = manifest.get("datasets", {})
     run_settings = configuration.get("run_settings", {})
     settings = {
@@ -95,15 +95,15 @@ def build_config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
     return RunConfig(
         seed=int(manifest.get("seed", 0)),
         models=selected_models,
-        engine=EngineDescriptor(
-            module_name=engine_meta.get(
-                "name", "copernican.engines.engine_mcmc"
+        sampler=SamplerDescriptor(
+            module_name=sampler_meta.get(
+                "name", "copernican.samplers.sampler_mcmc"
             ),
-            version=engine_meta.get("version", "unknown"),
+            version=sampler_meta.get("version", "unknown"),
         ),
         datasets=datasets,
         run_settings=RunSettings(
-            engine_kind=settings.get("engine_kind", "mcmc"),
+            sampler_kind=settings.get("sampler_kind", "mcmc"),
             settings=settings,
         ),
         comparison=comparison,

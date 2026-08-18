@@ -7,7 +7,7 @@ The Copernican Suite evaluates cosmological models and often produces
 parameter estimates alongside their uncertainties. This module serialises
 the control and test results to both JSON and YAML so external tools can
 ingest the numbers without depending on the full code base. Each role entry
-contains its selected model identity, ``fitted_cosmological_params`` with
+contains its selected model identity, ``fitted_model_params`` with
 best-fit values, optional
 ``parameter_errors`` describing 1σ uncertainties and an optional
 ``covariance_matrix``.  Starting with version 7.1.0 the summary also embeds
@@ -60,7 +60,7 @@ def save_summary(
     ----------
     control_results, test_results : mapping
         Fit information for the selected control and test models. At minimum,
-        each entry should provide ``fitted_cosmological_params``.
+        each entry should provide ``fitted_model_params``.
     output_dir : path-like
         Directory where the summary files will be written.
     timestamp : str, optional
@@ -84,7 +84,7 @@ def save_summary(
         ("test", comparison.test_model.name, test_results),
     )
     for role, model_name, res in role_results:
-        params = res.get("fitted_cosmological_params") or {}
+        params = res.get("fitted_model_params") or {}
         errors = res.get("parameter_errors") or {}
         cov = res.get("covariance_matrix")
         param_names = list(params.keys())
@@ -122,13 +122,6 @@ def save_summary(
                 sampling_entry = {}
             sampling_entry["ensemble_performance"] = _to_serialisable(
                 ensemble_performance
-            )
-        delayed_acceptance = res.get("delayed_acceptance")
-        if delayed_acceptance is not None:
-            if sampling_entry is None:
-                sampling_entry = {}
-            sampling_entry["delayed_acceptance"] = _to_serialisable(
-                delayed_acceptance
             )
         summary[role] = {
             "model": model_name,

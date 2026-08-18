@@ -3,7 +3,7 @@
 
 # Copernican Suite Plotter
 """Plotting utilities for the Copernican Suite."""
-# All plotting code lives here so that engines only perform computations.
+# All plotting code lives here so that samplers only perform computations.
 # Functions create Matplotlib figures summarising SNe, BAO and CMB results.
 
 import math
@@ -19,7 +19,7 @@ from matplotlib.colors import ListedColormap
 from copernican import version as version_module
 
 from . import latex_utils
-from .cmb_identity import NATIVE_CMB_ENGINE_LABEL
+from .cmb_identity import CCMBS_LABEL
 from .cmb_output import cmb_observation_blocks, cmb_theory_values_for_block
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
@@ -268,7 +268,7 @@ def _copernican_version() -> str:
     """Return the suite version while tolerating missing helpers.
 
     The plotting layer executes in subprocesses launched by Matplotlib and by
-    the optimisation engines.  Import errors bubbled up when
+    the optimisation samplers.  Import errors bubbled up when
     ``copernican.version.get_version`` was absent even though the module
     itself was present, preventing residual plots from rendering on macOS.
     Falling back to the "unknown" placeholder keeps Matplotlib usable while
@@ -963,11 +963,11 @@ def format_model_summary_text(
         "PARAMETER_LATEX_NAMES",
         [],
     )
-    fitted_cosmo_params = fit_results.get("fitted_cosmological_params")
+    fitted_model_params = fit_results.get("fitted_model_params")
 
-    if fitted_cosmo_params:
+    if fitted_model_params:
         for i, name in enumerate(param_names):
-            param_value = fitted_cosmo_params.get(name)
+            param_value = fitted_model_params.get(name)
             if i < len(param_latex_names):
                 latex_name = param_latex_names[i]
             else:
@@ -1158,9 +1158,7 @@ def plot_hubble_diagram(
     )
 
     if control_fit_results and control_fit_results.get("success"):
-        p_control = list(
-            control_fit_results["fitted_cosmological_params"].values()
-        )
+        p_control = list(control_fit_results["fitted_model_params"].values())
         mu_model_control_smooth = control_model_plugin.distance_modulus_model(
             z_plot_smooth, *p_control
         )
@@ -1211,7 +1209,7 @@ def plot_hubble_diagram(
 
     test_name_latex = test_latex
     if test_fit_results and test_fit_results.get("success"):
-        fitted_vals = test_fit_results["fitted_cosmological_params"]
+        fitted_vals = test_fit_results["fitted_model_params"]
         p_test = list(fitted_vals.values())
         mu_model_test_smooth = test_model_plugin.distance_modulus_model(
             z_plot_smooth,
@@ -1804,7 +1802,7 @@ def plot_cmb_spectrum(
     footer_lines = build_footer_lines(
         cmb_data_df.attrs,
         timestamp,
-        extra_lines=[(f"CMB execution: {NATIVE_CMB_ENGINE_LABEL}.", False)],
+        extra_lines=[(f"CMB execution: {CCMBS_LABEL}.", False)],
         comparison=comparison,
     )
     line_height = 0.015

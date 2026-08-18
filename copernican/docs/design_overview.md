@@ -4,7 +4,7 @@
 This document expands on the high-level summary in the README by tracing
 how the Copernican organises its architecture. The command-line launcher
 (`python -m copernican`) steers each run, the `copernican/lib/` package
-gathers shared infrastructure, and the `copernican/engines/`,
+gathers shared infrastructure, and the `copernican/samplers/`,
 `copernican/models/` and `copernican/datasets/` directories plug into that
 foundation to deliver repeatable analyses.
 The `copernican/lib/cli/` namespace houses the dependency scanner and menu
@@ -29,27 +29,28 @@ described throughout this document.
 - [Future probes and extensibility](#future-probes-and-extensibility)
 ## Architectural map
 * `python -m copernican` assembles run manifests, dispatches dataset loaders
- and prepares engine inputs so Stage 2 sampling always starts from a
+ and prepares sampler inputs so Stage 2 sampling always starts from a
  consistent configuration. The launcher keeps Stage 1 focused on
  reproducibility by leading with the seed dialog, surfaces every validation
- error encountered during model parsing or engine import and leaves a
+ error encountered during model parsing or sampler import and leaves a
  deliberate spacer after logging initialisation so the console flow stays
  tidy without redundant banners.
 * `copernican/lib/` contributes the reusable building blocks—data ingestion,
  posterior construction, validation checks, plotting helpers and diagnostics.
- Engines and parsers import from this package instead of reimplementing
+ Samplers and parsers import from this package instead of reimplementing
  numerical plumbing. Shared progress helpers live in
  `copernican.lib.progress`, which exposes `BatchProgressBar`. The helper
  writes simple counter lines such as “Burn-in stage batch 1: 3/200 steps
  completed (1%)”, preserves the listener contract and exposes a no-op
  suspension context so diagnostics can print between updates without a
  carriage-return renderer.
-* `copernican/engines/` contains sampler backends such as the default
- ``engine_mcmc.py``. Engines consume `EnginePlugin` definitions,
+* `copernican/samplers/` contains sampler backends such as the default
+ ``sampler_mcmc.py``. Samplers consume `ModelPlugin` definitions,
  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
  ArviZ-powered convergence diagnostics for downstream tooling. When ArviZ is
  unavailable the code falls back to a conservative Gelman–Rubin summary while
- logging the downgrade. CMB contracts use the declared-math graph engine in
+ logging the downgrade. CMB contracts use the declared-math graph CCMBS
+ solver in
  `copernican/lib/likelihoods/cmb/`, where `cmb.py` owns the public likelihood
  surface and `copernican_cmb_solver.py` owns native internal orchestration.
  Production code has no external solver route.
@@ -61,7 +62,7 @@ described throughout this document.
  stay consistent regardless of sampler backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
  transforms and dataset compatibility. Each file is compiled into a picklable
- :class:`copernican.lib.engine_adapter.EnginePlugin` so multiprocessing pools
+ :class:`copernican.lib.model_adapter.ModelPlugin` so multiprocessing pools
  can reconstruct Stage 2 state deterministically. Adapter validation allows
  only vetted attributes and functions and preserves constants, transforms,
  priors and structured native CMB contracts exactly as written in the model
@@ -86,18 +87,18 @@ described throughout this document.
  jump directly to the relevant log snippet. Pause, cancellation and hard-stop
  controls mark the manifest as paused, cancelled or aborted and capture
  whether outputs were kept, deleted or archived for audit trails.
-* Dataset, model and engine panes expose compatibility badges, parser digests,
+* Dataset, model and sampler panes expose compatibility badges, parser digests,
  citations and licenses alongside actions that open the containing folders,
  view metadata files or revalidate trusted parser hashes. Manifest files can
  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
- pre-fills model, dataset, and sampler-engine selections for iterative
+ pre-fills model, dataset, and sampler selections for iterative
  experiments.
-## Native CMB Engine
-CMB contracts use the declared-math graph engine in
+## Native CCMBS Solver
+CMB contracts use the declared-math graph CCMBS solver in
 `copernican/lib/likelihoods/cmb/` without a solver selector.
-The stable execution identity is `copernican_native_declared_graph`. User
-interfaces select control and test model contracts plus a sampler engine;
-they do not select a CMB engine.
+The stable execution identity is `ccmbs_numpy`. User
+interfaces select control and test model contracts plus a sampler;
+they do not select a CMB solver.
 * One immutable graph carries variables, derived quantities,
  differential equations, algebraic constraints, closures, source terms,
  initial conditions, observable mappings, validity notes, and numerical
@@ -109,7 +110,7 @@ they do not select a CMB engine.
  each transfer component or spectrum.
 * Background quantities come from the declared model expressions when they
  exist, otherwise from the physical defaults resolved by the helper. The
- engine evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
+ sampler evaluates `H(a)`, conformal time, `chi(z)`, angular-diameter
  distance, baryon and photon densities, relativistic neutrino density, the
  baryon-photon sound speed, and the sound horizon.
 * Recombination uses a Peebles-style hydrogen ODE with detailed-balance
@@ -175,14 +176,14 @@ Stage 1 focuses on reproducibility and validation:
  The choice is logged and written to the manifest before any sampling.
 * Model parsing normalises YAML files via
  :mod:`copernican.lib.model_spec_validator` and compiles the expressions into
- NumPy-ready callables through :mod:`copernican.lib.model_coder`. Engine
- adapters built with :func:`copernican.lib.engine_adapter.build_plugin`
+ NumPy-ready callables through :mod:`copernican.lib.model_coder`. Sampler
+ adapters built with :func:`copernican.lib.model_adapter.build_plugin`
  collect bounds, priors, transforms, and optional structured native CMB
  contracts.
  Validation errors are aggregated and displayed as bullet points before the
  user is asked whether to restart Stage 1 or exit entirely.
-* Sampler-engine selection is dynamic: any file matching
- `copernican/engines/engine_*.py` appears in the menu. Prompts reflect
+* Sampler selection is dynamic: any file matching
+ `copernican/samplers/sampler_*.py` appears in the menu. Prompts reflect
  the selected backend so ensemble MCMC users configure burn-in, walkers and
  worker pools while nested sampling users pick live-point budgets and
  evidence tolerances. A confirmation summary makes the intended plan explicit
@@ -192,18 +193,18 @@ Once both models and datasets are prepared, Stage 2 draws from the joint
 posterior built by :func:`copernican.lib.posterior.make_logposterior`. The
 helper injects Jacobian corrections for transformed parameters, applies bounds
 and assembles the combined SNe, BAO and CMB likelihoods via
-:class:`copernican.lib.likelihoods.JointLike`. Engines receive a picklable
+:class:`copernican.lib.likelihoods.JointLike`. Samplers receive a picklable
 :class:`copernican.lib.posterior.PosteriorEvaluator` so multiprocessing pools
 can reuse the same callable safely.
 The shared helper in :mod:`copernican.lib.progress` keeps interactive output
-stable across sampler engines. It writes counter lines such as “Burn-in stage
+stable across samplers. It writes counter lines such as “Burn-in stage
 batch 1:
 3/200 steps completed (1%)”, emits the same ``batch_start``,
 ``progress_update`` and ``batch_finish`` events that feed the GUI progress
 panels, and offers a suspension context so diagnostics can print between
 updates without disrupting the counter output. When a batch ends it logs a
 completion line before the next batch begins, giving both terminals and log
-files a clear record of progress. If ArviZ is installed the engine records
+files a clear record of progress. If ArviZ is installed the sampler records
 R-hat and effective sample sizes for every parameter on each batch; otherwise
 it logs a conservative Gelman–Rubin fallback.
 Before those sampling batches, MCMC emits separate worker-pool and walker-
@@ -235,7 +236,7 @@ before ArviZ or the Matplotlib renderer receives the data.
 ### Stage 6 outputs and manifests
 All artefacts land in a run-specific `output/copernican-run_YYYYMMDD_HHMMSS`
 directory. The manifest recorded by :mod:`copernican.lib.run_manifest` captures
-the suite version, model filenames, engine choice, sampler settings, dataset
+the suite version, model filenames, sampler choice, sampler settings, dataset
 hashes, CMB metadata, seed and Git state. CSV summaries, NetCDF chains and
 Matplotlib figures share the same naming scheme so downstream notebooks and
 manuscripts can reference them consistently.
@@ -252,13 +253,13 @@ was used or diagonal errors were applied and records the dataset version in the
 manifest. Independence statements are centralised so manifests and console
 summaries always describe which probes are assumed uncorrelated.
 ## Plugin interface and posterior construction
-Adapters produced by :func:`copernican.lib.engine_adapter.build_plugin`
+Adapters produced by :func:`copernican.lib.model_adapter.build_plugin`
 expose dataset compatibility flags (`valid_for_distance_metrics`,
 `valid_for_bao`, `valid_for_cmb`) and structured `cmb` background and
-perturbation contracts for engines that compute spectra. The interface
+perturbation contracts for samplers that compute spectra. The interface
 includes required attributes and functions listed in
-:mod:`copernican.lib.engine_adapter`; validation errors identify missing hooks
-and incompatible contracts, preventing engines from receiving incomplete
+:mod:`copernican.lib.model_adapter`; validation errors identify missing hooks
+and incompatible contracts, preventing samplers from receiving incomplete
 models. The perturbation compiler produces a typed IR that records the
 declared derivative equations, derived symbols, dependencies, and native
 execution summary before any scientific execution begins. Posterior
@@ -286,8 +287,8 @@ receives environment variables through `python -m copernican`. The CI suite
 mirrors that entrypoint by invoking the same dependency checks, sampler smoke
 tests and metadata validators across Linux, macOS and Windows runners.
 ## Future probes and extensibility
-The current architecture keeps engines, parsers and models pluggable. New
-datasets can register via the loader decorators, and new engines need only
+The current architecture keeps samplers, parsers and models pluggable. New
+datasets can register via the loader decorators, and new samplers need only
 honour the progress, logging and adapter interfaces to fit seamlessly into the
 menu system. Placeholder directories allow in-progress probes—such as
 gravitational-wave standard sirens—to coexist without appearing in user menus

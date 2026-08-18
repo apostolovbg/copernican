@@ -7,8 +7,8 @@ date-released: "2026-06-02"
 
 abstract: >-
   Copernican is a package-first Python toolkit for evaluating cosmological
-  models against SNe Ia, BAO, and CMB observations, with bundled engines,
-  models, validation helpers, and a native declared-graph CMB engine shipped
+  models against SNe Ia, BAO, and CMB observations, with bundled samplers,
+  models, validation helpers, and a native declared-graph CMB solver shipped
   under the `copernican/` package. External scientific-reference solvers are
   development dependencies rather than production runtime requirements.
 

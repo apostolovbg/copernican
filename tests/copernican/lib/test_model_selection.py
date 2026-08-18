@@ -84,7 +84,7 @@ class ModelSelectionTestCase(unittest.TestCase):
         )
         manifest = run_manifest.build_manifest(
             models=[(control, "1"), (test, "1")],
-            engine_module=SimpleNamespace(__name__="engine"),
+            sampler_module=SimpleNamespace(__name__="sampler"),
             datasets=[],
         )
         comparison = manifest["selection"]["comparison"]

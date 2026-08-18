@@ -1,17 +1,18 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Markov Chain Monte Carlo engine using :mod:`emcee`.
+"""Markov Chain Monte Carlo sampler using :mod:`emcee`.
 
 The combined optimiser has been retired entirely, leaving this sampler as the
-sole runtime engine. It continues to focus on Supernova Ia posteriors while
-delegating shared χ² helpers to :mod:`copernican.lib.statistics` so the module
-acts as the canonical engine façade. Future backends can slot in beside it
+sole runtime sampler. It continues to focus on Supernova Ia posteriors while
+delegating shared χ² helpers to :mod:`copernican.lib.statistics` so the
+module
+acts as the canonical sampler façade. Future backends can slot in beside it
 without changing the orchestration code. Verbose progress logging tracks both
 burn-in and production phases with percentage updates so long chains always
 report their status. Version 6.2.0 routes all likelihood evaluations through
 the :class:`copernican.lib.likelihoods.JointLike` aggregator and the new
-:func:`copernican.lib.engine_adapter.make_logposterior` helper so posterior
+:func:`copernican.lib.model_adapter.make_logposterior` helper so posterior
 calculations automatically honour per-parameter priors, declared bounds and
 optional reparameterisation transforms while exposing diagnostic metadata
 alongside sampled chains.
@@ -27,7 +28,7 @@ Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
 :func:`copernican.lib.utils.get_random_seed` value.  The helper captures the
 seed supplied through the CLI prompt or ``COPERNICAN_SEED`` so subsequent
-engines observe the same pseudo-random stream without requiring callers to
+samplers observe the same pseudo-random stream without requiring callers to
 seed multiple subsystems manually.
 """
 
@@ -39,7 +40,7 @@ import multiprocessing as multiprocessing_module
 import os
 import warnings
 from time import perf_counter
-from typing import Any, Callable, Iterable, Iterator, Mapping, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
 try:  # pragma: no cover - compatibility shim
@@ -61,21 +62,16 @@ import emcee
 import numpy
 import pandas
 
-from copernican.engines.surrogate import (
-    DelayedAcceptanceController,
-    DeterministicLocalSurrogate,
-    validate_delayed_acceptance_config,
-)
-from copernican.lib import engine_adapter as engine_plugin_validation
-from copernican.lib.engine_capabilities import (
-    EngineProgressChunk,
-    EngineSetting,
-)
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican.lib.likelihoods.cmb.native_errors import (
     NativeInitialPointError,
 )
 from copernican.lib.progress import BatchProgressBar
+from copernican.lib.sampler_capabilities import (
+    SamplerProgressChunk,
+    SamplerSetting,
+)
 from copernican.lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -93,33 +89,33 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-ENGINE_KIND = "mcmc"
-ENGINE_LABEL = "Ensemble MCMC sampler"
-ENGINE_VERSION = "7.6.20"
+SAMPLER_KIND = "mcmc"
+SAMPLER_LABEL = "Ensemble MCMC sampler"
+SAMPLER_VERSION = "7.6.20"
 
-ENGINE_SETTINGS = (
-    EngineSetting(
+SAMPLER_SETTINGS = (
+    SamplerSetting(
         key="n_steps",
         label="Production steps",
         description="Iterations performed during the production phase.",
         dtype="int",
         default=200,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="burn_in_steps",
         label="Burn-in steps",
         description="Warm-up iterations discarded before the main chain.",
         dtype="int",
         default=50,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="n_walkers",
         label="Walkers",
         description="Size of the ensemble sampling the posterior.",
         dtype="int",
         default=32,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="pool_size",
         label="Worker pool size",
         description=(
@@ -129,14 +125,14 @@ ENGINE_SETTINGS = (
         default=0,
         hint="0=auto",
     ),
-    EngineSetting(
+    SamplerSetting(
         key="display_progress",
         label="Display progress",
         description="Emit live progress updates to the console.",
         dtype="bool",
         default=True,
     ),
-    EngineSetting(
+    SamplerSetting(
         key="cmb_batch_size",
         label="CMB batch size",
         description=(
@@ -146,20 +142,10 @@ ENGINE_SETTINGS = (
         default=0,
         hint="0=disabled",
     ),
-    EngineSetting(
-        key="delayed_acceptance",
-        label="Delayed acceptance",
-        description=(
-            "Opt-in deterministic surrogate screening with exact correction."
-        ),
-        dtype="bool",
-        default=False,
-        hint="false=exact scalar",
-    ),
 )
-ENGINE_PROGRESS_CHUNKS = (
-    EngineProgressChunk(name="burn_in", label="Burn-in"),
-    EngineProgressChunk(name="production", label="Production"),
+SAMPLER_PROGRESS_CHUNKS = (
+    SamplerProgressChunk(name="burn_in", label="Burn-in"),
+    SamplerProgressChunk(name="production", label="Production"),
 )
 
 # ``emcee`` triggers its condition number guard when walkers occupy an almost
@@ -538,12 +524,12 @@ def _build_joint_logposterior(
 ]:
     """Return posterior, likelihood and diagnostics for joint datasets.
 
-    Engines evaluate the returned posterior repeatedly during sampling.  The
+    Samplers evaluate the returned posterior repeatedly during sampling.  The
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
     once, attaches the plugin's bounds and optional transformations to the
     underlying log-likelihood callable and finally hands everything to
-    :func:`copernican.lib.engine_adapter.make_logposterior` so priors and
-    Jacobian adjustments remain consistent across engines.
+    :func:`copernican.lib.model_adapter.make_logposterior` so priors and
+    Jacobian adjustments remain consistent across samplers.
     """
 
     sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)
@@ -631,7 +617,7 @@ def _build_joint_logposterior(
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
-    posterior = engine_plugin_validation.make_logposterior(loglike, priors)
+    posterior = model_plugin_validation.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
 
 
@@ -920,124 +906,7 @@ def _ensemble_performance_envelope(
     }
 
 
-def _run_delayed_acceptance_chain(
-    *,
-    initial_active: numpy.ndarray,
-    lower: numpy.ndarray,
-    upper: numpy.ndarray,
-    n_walkers: int,
-    burn_in_steps: int,
-    production_steps: int,
-    rng: numpy.random.Generator,
-    exact_log_probability: Callable[[numpy.ndarray], float],
-    config: dict[str, Any],
-    logger: logging.Logger,
-) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, dict[str, Any]]:
-    """Run bounded random-walk delayed acceptance for one opt-in chain."""
-
-    started = perf_counter()
-    initial_positions, initial_logp = _initialise_active_walkers(
-        initial_active,
-        lower,
-        upper,
-        n_walkers,
-        rng,
-        exact_log_probability,
-    )
-    surrogate = DeterministicLocalSurrogate(
-        lower,
-        upper,
-        min_support=config["min_support"],
-        neighbor_count=config["neighbor_count"],
-        uncertainty_threshold=config["uncertainty_threshold"],
-        max_samples=config["max_samples"],
-    )
-    for index, (position, value) in enumerate(
-        zip(initial_positions, initial_logp)
-    ):
-        surrogate.add_exact_sample(
-            position,
-            float(value),
-            sample_id=f"initial-{index:06d}",
-        )
-    controller = DelayedAcceptanceController(
-        exact_log_probability,
-        surrogate,
-        rng=rng,
-        proposal_scale=config["proposal_scale"],
-    )
-    widths = upper - lower
-    proposal_width = numpy.where(numpy.isfinite(widths), widths, 1.0) * float(
-        config["proposal_scale"]
-    )
-    current_positions = numpy.asarray(initial_positions, dtype=float).copy()
-    current_logp = numpy.asarray(initial_logp, dtype=float).copy()
-    production_chain = numpy.empty(
-        (max(int(production_steps), 1), n_walkers, initial_active.size),
-        dtype=float,
-    )
-    production_logp = numpy.empty(
-        (max(int(production_steps), 1), n_walkers),
-        dtype=float,
-    )
-    production_accepts = 0
-    production_proposals = 0
-
-    total_stages = (
-        ("burn_in", max(int(burn_in_steps), 0)),
-        ("production", max(int(production_steps), 1)),
-    )
-    for phase, steps in total_stages:
-        for step_index in range(steps):
-            for walker_index in range(n_walkers):
-                proposal = current_positions[walker_index] + rng.normal(
-                    0.0,
-                    proposal_width,
-                    size=initial_active.size,
-                )
-                proposal = numpy.clip(proposal, lower, upper)
-                outcome = controller.step(
-                    current_positions[walker_index],
-                    current_logp[walker_index],
-                    proposal,
-                )
-                current_positions[walker_index] = outcome.params
-                current_logp[walker_index] = outcome.exact_log_probability
-                controller.proposal_records[-1]["phase"] = phase
-                if phase == "production":
-                    production_proposals += 1
-                    production_accepts += int(outcome.accepted)
-            if phase == "production":
-                production_chain[step_index] = current_positions
-                production_logp[step_index] = current_logp
-        logger.info(
-            "Delayed-acceptance %s completed: steps=%d, walkers=%d.",
-            phase,
-            steps,
-            n_walkers,
-        )
-
-    counters = dict(controller.counters)
-    counters["exact_calls"] += len(initial_positions)
-    counters["training_exact_calls"] = len(initial_positions)
-    counters["rejected"] = counters["proposals"] - counters["accepted"]
-    counters["production_accepted"] = production_accepts
-    counters["production_proposals"] = production_proposals
-    counters["elapsed_seconds"] = max(perf_counter() - started, 0.0)
-    counters["enabled"] = True
-    counters["cache_identity"] = surrogate.cache_identity
-    counters["configuration"] = dict(config)
-    counters["training_sample_ids"] = list(surrogate.training_sample_ids)
-    counters["proposal_records"] = list(controller.proposal_records)
-    acceptance = numpy.full(
-        n_walkers,
-        production_accepts / max(production_proposals, 1),
-        dtype=float,
-    )
-    return production_chain, production_logp, acceptance, counters
-
-
-def fit_cosmology_parameters(
+def sample_parameters(
     sne_data_df: Any,
     model_plugin: Any,
     *,
@@ -1051,9 +920,6 @@ def fit_cosmology_parameters(
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     cmb_batch_size: int = 0,
-    delayed_acceptance: bool | Mapping[str, Any] = False,
-    surrogate_config: Mapping[str, Any] | None = None,
-    delayed_acceptance_config: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -1078,43 +944,6 @@ def fit_cosmology_parameters(
         logger.info(
             "Native CMB batch adapter enabled: max batch size=%d.",
             cmb_batch_size,
-        )
-    if isinstance(delayed_acceptance, Mapping):
-        if (
-            surrogate_config is not None
-            or delayed_acceptance_config is not None
-        ):
-            raise ValueError(
-                "delayed-acceptance settings were provided more than once"
-            )
-        delayed_settings = dict(delayed_acceptance)
-        enabled = delayed_settings.pop("enabled", True)
-        if not isinstance(enabled, bool):
-            raise ValueError("delayed_acceptance.enabled must be boolean")
-        if not enabled and delayed_settings:
-            raise ValueError(
-                "disabled delayed acceptance cannot include surrogate settings"
-            )
-        surrogate_config = delayed_settings if enabled else None
-        delayed_acceptance = enabled
-    if delayed_acceptance_config is not None:
-        if surrogate_config is not None:
-            raise ValueError(
-                "surrogate_config and delayed_acceptance_config are aliases"
-            )
-        surrogate_config = delayed_acceptance_config
-    delayed_acceptance = bool(delayed_acceptance)
-    delayed_config = (
-        validate_delayed_acceptance_config(surrogate_config)
-        if delayed_acceptance
-        else None
-    )
-    if not delayed_acceptance and surrogate_config is not None:
-        raise ValueError("surrogate_config requires delayed_acceptance=True")
-    if delayed_acceptance:
-        logger.info(
-            "Delayed-acceptance sampler enabled: surrogate identity controls "
-            "are explicit and exact corrections are recorded."
         )
     ensemble_started = perf_counter()
     phase_seconds = {
@@ -1146,18 +975,9 @@ def fit_cosmology_parameters(
                 production_steps=n_steps,
                 cmb_batch_size=cmb_batch_size,
             ),
-            "delayed_acceptance": {
-                "enabled": bool(delayed_acceptance),
-                "configuration": dict(delayed_config or {}),
-                "exact_calls": 0,
-                "proposals": 0,
-                "accepted": 0,
-                "rejected": 0,
-                "proposal_records": [],
-            },
         }
 
-    engine_plugin_validation.validate_plugin(model_plugin)
+    model_plugin_validation.validate_plugin(model_plugin)
 
     posterior_full, loglike_full, joint_like = _build_joint_logposterior(
         model_plugin,
@@ -1246,48 +1066,7 @@ def fit_cosmology_parameters(
         burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
     )
     burn_in = max(1, int(burn_in))
-    delayed_stats: dict[str, Any] = {
-        "enabled": False,
-        "configuration": {},
-        "exact_calls": 0,
-        "proposals": 0,
-        "accepted": 0,
-        "rejected": 0,
-        "proposal_records": [],
-    }
-
-    if delayed_acceptance:
-        if fixed_only:
-            raise ValueError(
-                "delayed acceptance requires at least one active parameter"
-            )
-        log_probability_active = _ActiveLogProbability(
-            posterior_full,
-            template_params,
-            active_indices,
-        )
-        (
-            chain_active,
-            log_prob_chain,
-            acceptance_fraction,
-            delayed_stats,
-        ) = _run_delayed_acceptance_chain(
-            initial_active=initial_active,
-            lower=lower,
-            upper=upper,
-            n_walkers=n_walkers,
-            burn_in_steps=burn_in,
-            production_steps=n_steps,
-            rng=rng,
-            exact_log_probability=log_probability_active,
-            config=delayed_config or {},
-            logger=logger,
-        )
-        phase_seconds["production"] = float(
-            delayed_stats.get("elapsed_seconds", 0.0)
-        )
-        flat_log_prob = log_prob_chain.reshape(-1)
-    elif not fixed_only:
+    if not fixed_only:
         log_probability_active = _ActiveLogProbability(
             posterior_full,
             template_params,
@@ -1591,12 +1370,6 @@ def fit_cosmology_parameters(
             0.0 if sampler_pool is None else sampler_pool.batch_elapsed_seconds
         ),
     )
-    ensemble_performance["delayed_acceptance"] = {
-        key: value
-        for key, value in delayed_stats.items()
-        if key != "proposal_records"
-    }
-
     log_prior_best = float("-inf")
     if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
         log_prior_best = log_posterior_best - loglike_best
@@ -1750,7 +1523,7 @@ def fit_cosmology_parameters(
         and math.isfinite(log_posterior_best),
         "samples": chain,
         "log_probability": log_prob_chain,
-        "fitted_cosmological_params": fitted,
+        "fitted_model_params": fitted,
         "posterior_mean_params": posterior_mean,
         "model_name": getattr(model_plugin, "MODEL_NAME", "Unknown"),
         "param_names": list(names),
@@ -1773,7 +1546,6 @@ def fit_cosmology_parameters(
         "autocorrelation_time": autocorr,
         "pool_workers": int(pool_processes or 0),
         "ensemble_performance": ensemble_performance,
-        "delayed_acceptance": delayed_stats,
         "diagnostics": diagnostics,
         "progress_granularity": int(progress_granularity),
         "likelihood_state": likelihood_state,
@@ -1791,72 +1563,16 @@ def fit_cosmology_parameters(
     }
 
 
-def fit_sne_parameters(
-    sne_data_df: Any,
-    model_plugin: Any,
-    *,
-    bao_data_df: Any | None = None,
-    cmb_data_df: Any | None = None,
-    n_walkers: int = 32,
-    n_steps: int = 200,
-    pool_size: int | None = None,
-    progress_granularity: int = 20,
-    burn_in_steps: int | None = None,
-    display_progress: bool = True,
-    progress_callback: Callable[[dict[str, object]], None] | None = None,
-    cmb_batch_size: int = 0,
-    delayed_acceptance: bool | Mapping[str, Any] = False,
-    surrogate_config: Mapping[str, Any] | None = None,
-    delayed_acceptance_config: Mapping[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Compatibility wrapper for :func:`fit_cosmology_parameters`.
-
-    The helper preserves the legacy API for callers that still refer to
-    supernova-specific naming even though the engine now fits BAO and CMB
-    datasets alongside SNe Ia.  New code should invoke
-    :func:`fit_cosmology_parameters` directly so telemetry and documentation
-    align with the broader scope.
-    """
-
-    warnings.warn(
-        (
-            "fit_sne_parameters is deprecated; "
-            "use fit_cosmology_parameters instead."
-        ),
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return fit_cosmology_parameters(
-        sne_data_df,
-        model_plugin,
-        bao_data_df=bao_data_df,
-        cmb_data_df=cmb_data_df,
-        n_walkers=n_walkers,
-        n_steps=n_steps,
-        pool_size=pool_size,
-        progress_granularity=progress_granularity,
-        burn_in_steps=burn_in_steps,
-        display_progress=display_progress,
-        progress_callback=progress_callback,
-        cmb_batch_size=cmb_batch_size,
-        delayed_acceptance=delayed_acceptance,
-        surrogate_config=surrogate_config,
-        delayed_acceptance_config=delayed_acceptance_config,
-    )
-
-
 __all__ = [
-    "ENGINE_KIND",
-    "ENGINE_LABEL",
+    "SAMPLER_KIND",
+    "SAMPLER_LABEL",
     "calculate_bao_observables",
     "chi_squared_bao",
     "chi_squared_cmb",
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_contract",
-    "fit_cosmology_parameters",
-    "fit_sne_parameters",
-    "validate_delayed_acceptance_config",
+    "sample_parameters",
 ]
 
 
@@ -1866,7 +1582,8 @@ def _estimate_condition_number(samples: numpy.ndarray) -> float | None:
     ``emcee`` inspects the condition number of the initial walker ensemble to
     ensure the stretch move can generate proposals effectively.  The function
     below mirrors that logic without importing private ``emcee`` helpers so the
-    engine can deliberately inflate the walker spread before the library raises
+    sampler can deliberately inflate the walker spread before the library
+    raises
     ``ValueError``.  When the ensemble contains fewer than two walkers the
     condition number is undefined; in that situation we return ``None`` and let
     the caller continue with additional attempts.
@@ -1948,7 +1665,8 @@ def _compute_basic_diagnostics(
 ) -> dict[str, dict[str, float]]:
     """Return conservative R-hat and ESS estimates without ArviZ.
 
-    Each walker is treated as an independent chain so the classic Gelman–Rubin
+    Each walker is treated as an independent chain so the classic
+    Gelman–Rubin
     estimator can operate without external dependencies.  When ArviZ is
     unavailable the helper keeps diagnostics finite, albeit deliberately
     conservative, by collapsing effective sample sizes to the total draw count.

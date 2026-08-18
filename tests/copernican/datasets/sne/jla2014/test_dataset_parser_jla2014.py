@@ -15,7 +15,7 @@ class TestJLA2014Parser(unittest.TestCase):
 
     def test_loader_returns_projected_covariance_sample(self) -> None:
         parser_module = importlib.import_module(
-            "copernican.datasets.sne.jla2014.cosmo_parser_jla2014"
+            "copernican.datasets.sne.jla2014.dataset_parser_jla2014"
         )
         dataset_registry.discover_trusted_parsers(force=True)
         self.assertTrue(callable(parser_module.parse_jla2014))

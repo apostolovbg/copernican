@@ -6,7 +6,8 @@ the Copernican files. Every command below assumes that folder is the current
 working directory. The bootstrap downloads Python 3.11 into `.python`, then
 builds `.venv` from that local interpreter. The system Python stays untouched.
 The repository workspace includes CAMB for independent scientific-reference
-tests. Production installations use the native declared-graph engine and do
+tests. Production installations use the native declared-graph CCMBS solver and
+do
 not depend on CAMB or CLASS.
 ## Table of Contents
 - [Bootstrap the private interpreter](#bootstrap-the-private-interpreter)
@@ -188,7 +189,7 @@ and license texts. The gate verifies those generated artifacts against their
 owning dependency manifests.
 ## Verify the build
 After installation or building a distribution, run both test suites to
-confirm everything operates correctly. The `tests/test_engine_mcmc.py`
+confirm everything operates correctly. The `tests/test_sampler_mcmc.py`
 module exercises the sampler's reseeding helper so automated builds
 catch any regression that might reintroduce ``nan`` walkers. Run:
 ```

@@ -175,7 +175,7 @@ def _gather_required_packages(
     ----------
     search_dirs
         Optional set of directories to scan. When omitted the helper walks the
-        installed Copernican package, bundled datasets, and ``engines``
+        installed Copernican package, bundled datasets, and ``samplers``
         tree.
     """
 
@@ -183,7 +183,7 @@ def _gather_required_packages(
         search_dirs = [
             str(Path(__file__).resolve().parents[2] / "copernican"),
             str(Path(__file__).resolve().parents[2] / "copernican.lib"),
-            str(Path(__file__).resolve().parents[2] / "engines"),
+            str(Path(__file__).resolve().parents[2] / "samplers"),
         ]
     ignore_dirs = {"__pycache__", "tests", "output", "logs"}
     console.write(
@@ -238,7 +238,7 @@ def _gather_required_packages(
         "platform",
         "builtins",
         "dataset_registry",
-        "engine_adapter",
+        "model_adapter",
         "model_spec_validator",
         "csv_writer",
         "plotter",
@@ -252,7 +252,7 @@ def _gather_required_packages(
         pkg
         for pkg in pkg_names
         if pkg not in ignore
-        and not pkg.startswith(("copernican", "copernican.lib", "engines"))
+        and not pkg.startswith(("copernican", "copernican.lib", "samplers"))
     }
     _store_dependency_cache(snapshot, search_dirs, filtered)
     console.write(

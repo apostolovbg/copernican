@@ -5,7 +5,7 @@
 """Common utility functions for the Copernican Suite.
 
 This module centralises a handful of small helpers used across the project
-so that engines and parsers remain lightweight.  All dataset metadata and
+so that samplers and parsers remain lightweight.  All dataset metadata and
 tables are now provided in YAML format only; any legacy JSON handling has
 been removed.  Functions here emphasise safe filename construction and
 lightweight metadata parsing so that higher level modules can focus on
@@ -163,7 +163,7 @@ CURRENT_SEED = 0
 def set_random_seed(seed: int = 0) -> None:
     """Seed global RNGs and record the selected value.
 
-    Engines call this helper so optimisation results can be reproduced
+    Samplers call this helper so optimisation results can be reproduced
     when the same seed is provided. The Python ``random`` module and NumPy
     receive the same seed. The chosen seed is stored for later retrieval by
     :func:`get_random_seed` so the run manifest and logs can access it

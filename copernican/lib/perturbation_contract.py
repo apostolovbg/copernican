@@ -2,7 +2,7 @@
 
 Each contract describes one declared mathematical graph. The compiler
 validates symbols, dependencies, observables, and runtime requirements before
-the numerical CMB engine evolves the system.
+the numerical CMB solver evolves the system.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 
-from .cmb_identity import NATIVE_CMB_ENGINE_ID, NATIVE_CMB_ENGINE_LABEL
+from .cmb_identity import CCMBS_ID, CCMBS_LABEL
 from .cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
     get_declared_projection_spec,
@@ -24,7 +24,7 @@ from .cmb_projection_contract import (
     validate_declared_projection_sector,
     validate_declared_projection_source_roles,
 )
-from .engine_adapter import (
+from .model_adapter import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
     _SUPPORTED_PERTURBATION_INDEPENDENT_VARIABLES,
@@ -6807,8 +6807,8 @@ def _build_execution_route_summary() -> dict[str, Any]:
     """Return the single native execution-route metadata surface."""
 
     return {
-        "engine_id": NATIVE_CMB_ENGINE_ID,
-        "engine_label": NATIVE_CMB_ENGINE_LABEL,
+        "solver_id": CCMBS_ID,
+        "solver_label": CCMBS_LABEL,
         "runtime_module": (
             "copernican.lib.likelihoods.cmb.copernican_cmb_solver"
         ),

@@ -198,7 +198,7 @@ class TestPlotter(unittest.TestCase):
         }
         cmb_results = {"theory_spectrum": theory, "chi2_cmb": 1.0}
         fit_results = {
-            "fitted_cosmological_params": {},
+            "fitted_model_params": {},
             "chi2_total": 1.0,
         }
         captured_titles: list[str] = []
@@ -245,7 +245,7 @@ def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:
     """Ensure missing totals render as ``N/A`` instead of raising errors."""
 
     fit_results = {
-        "fitted_cosmological_params": types.MappingProxyType({}),
+        "fitted_model_params": types.MappingProxyType({}),
         "chi2_min": None,
     }
 
@@ -270,7 +270,7 @@ def _case_format_model_summary_text_numeric_rendering(self) -> None:
     ):
         with self.subTest(value=value):
             fit_results = {
-                "fitted_cosmological_params": types.MappingProxyType({}),
+                "fitted_model_params": types.MappingProxyType({}),
                 "chi2_min": value,
                 "chi2_sne": value,
                 "chi2_total": value,
@@ -937,5 +937,5 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(plotter.plot_parameter_histograms))
         self.assertIn("def plot_model_bao(", source)
         self.assertIn("def robust_plot(", source)
-        self.assertIn("NATIVE_CMB_ENGINE_LABEL", cmb_source)
+        self.assertIn("CCMBS_LABEL", cmb_source)
         self.assertNotIn("lcdm", inspect.getsource(plotter).lower())

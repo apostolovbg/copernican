@@ -18,7 +18,7 @@ class TestUnion3Parser(unittest.TestCase):
 
     def test_union3_loader_returns_compressed_sample(self) -> None:
         importlib.import_module(
-            "copernican.datasets.sne.union3.cosmo_parser_union3"
+            "copernican.datasets.sne.union3.dataset_parser_union3"
         )
         dataset_registry.discover_trusted_parsers(force=True)
         union3_dataframe = dataset_registry.load_sne_data("union3_2025")
@@ -48,7 +48,7 @@ class TestUnion3Parser(unittest.TestCase):
             )
         )
         parser_module = importlib.import_module(
-            "copernican.datasets.sne.union3.cosmo_parser_union3"
+            "copernican.datasets.sne.union3.dataset_parser_union3"
         )
         self.assertTrue(callable(parser_module.looks_like_mu_mat))
         self.assertTrue(
@@ -76,7 +76,7 @@ class TestUnion3Parser(unittest.TestCase):
             fits_path = Path(temporary_dir) / "mu_mat_union3_test.fits"
             fits.PrimaryHDU(matrix).writeto(fits_path)
             parser_module = importlib.import_module(
-                "copernican.datasets.sne.union3.cosmo_parser_union3"
+                "copernican.datasets.sne.union3.dataset_parser_union3"
             )
             self.assertEqual(
                 parser_module.looks_like_mu_mat.__name__,

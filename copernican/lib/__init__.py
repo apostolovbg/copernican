@@ -4,9 +4,9 @@
 """Core helper modules for the Copernican Suite.
 
 This package bundles general-purpose utilities used across the
-`copernican` command-line tool and the computational engines.  Modules
+`copernican` command-line tool and the computational samplers.  Modules
 here implement data loading, plotting and other shared logic so that
-individual engines remain lightweight.
+individual samplers remain lightweight.
 """
 
 # Nothing else is defined here. Importing this package simply exposes the

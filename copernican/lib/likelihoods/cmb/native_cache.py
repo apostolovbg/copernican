@@ -9,7 +9,7 @@ from typing import Any, Generic, Mapping, TypeVar
 
 import numpy
 
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
+from copernican.lib.cmb_identity import CCMBS_ID
 
 _CacheValue = TypeVar("_CacheValue")
 
@@ -30,9 +30,9 @@ class NativeRuntimeCacheIdentity:
     """Name the static and request-specific portions of a runtime cache key."""
 
     contract_static: Any
-    cosmology_static: Any
+    model_static: Any
     request_specific: Any
-    execution_engine: str = field(default=NATIVE_CMB_ENGINE_ID, init=False)
+    execution_solver: str = field(default=CCMBS_ID, init=False)
 
 
 class _BoundedCacheStore(Generic[_CacheValue]):

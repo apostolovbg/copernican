@@ -13,7 +13,7 @@ class TestPlanck2018LiteParser(unittest.TestCase):
     def test_loader_returns_cmb_power_spectra(self) -> None:
         parser_module = importlib.import_module(
             "copernican.datasets.cmb.planck2018lite."
-            "cosmo_parser_cmb_planck2018lite"
+            "dataset_parser_cmb_planck2018lite"
         )
         data_dir = (
             Path(__file__).resolve().parents[5]

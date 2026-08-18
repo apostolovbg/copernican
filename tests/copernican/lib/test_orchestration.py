@@ -54,7 +54,7 @@ class OrchestrationServiceMapTestCase(unittest.TestCase):
         controller = orchestration.InProcessRunController(lambda _: "token")
         handle = controller.request_run(
             orchestration.RunRequest(
-                config=Path("dummy.yml"), datasets=[], engine="engine"
+                config=Path("dummy.yml"), datasets=[], sampler="sampler"
             )
         )
         self.assertEqual(handle.token, "token")

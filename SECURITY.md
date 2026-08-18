@@ -2,7 +2,7 @@
 **Doc ID:** SECURITY
 **Doc Type:** repo-security
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-08
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 ## Table of Contents
@@ -30,7 +30,7 @@ execution, reproducibility, or data trust:
 - the managed environment in `.venv`
 - the package dependency surface in `pyproject.toml`
 - the workspace dependency lockfiles
-- the bundled runtime packages in `copernican/engines/`,
+- the bundled runtime packages in `copernican/samplers/`,
   `copernican/models/`, and `copernican/validation/`
 - the dataset registry and parser trust checks
 - the GUI and CLI entry points

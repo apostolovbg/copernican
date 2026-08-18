@@ -1,7 +1,7 @@
 """Run manifest generator for Copernican.
 
 The manifest records critical information required to reproduce a run. It
-captures the Copernican version, model and engine details, parameter
+captures the Copernican version, model and sampler details, parameter
 priors, dataset hashes provided by the data loaders and the Git state.  Each
 run directory stores the resulting YAML file so that analyses can be traced
 back unambiguously. CMB entries include the native background and compiled
@@ -20,7 +20,7 @@ import yaml
 from copernican import version as version_module
 
 from . import utils
-from .cmb_identity import NATIVE_CMB_ENGINE_ID, NATIVE_CMB_ENGINE_LABEL
+from .cmb_identity import CCMBS_ID, CCMBS_LABEL
 from .likelihoods.cmb.native_background import (
     _summarize_declared_background_manifest_summary,
 )
@@ -158,8 +158,8 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         models_meta.append(
             {
                 "model": getattr(plugin, "MODEL_NAME", "unknown"),
-                "execution_engine": NATIVE_CMB_ENGINE_ID,
-                "execution_engine_label": NATIVE_CMB_ENGINE_LABEL,
+                "execution_solver": CCMBS_ID,
+                "execution_solver_label": CCMBS_LABEL,
                 "param_map_keys": sorted(str(key) for key in param_map),
                 "call_methods": [
                     str(call.get("method"))
@@ -442,15 +442,15 @@ def _cmb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         )
 
     return {
-        "execution_engine": NATIVE_CMB_ENGINE_ID,
-        "execution_engine_label": NATIVE_CMB_ENGINE_LABEL,
+        "execution_solver": CCMBS_ID,
+        "execution_solver_label": CCMBS_LABEL,
         "models": models_meta,
     }
 
 
 def build_manifest(
     models: Iterable[tuple[object, str]],
-    engine_module: object,
+    sampler_module: object,
     datasets: Iterable[Dict[str, Any]],
     *,
     state: str = "pending",
@@ -466,8 +466,8 @@ def build_manifest(
         Iterable of ``(plugin, version)`` pairs where ``plugin`` exposes
         ``MODEL_NAME``, ``MODEL_FILENAME``, ``PARAMETER_NAMES`` and
         ``PARAMETER_PRIORS`` attributes.
-    engine_module:
-        Selected engine module object.  ``ENGINE_VERSION`` is queried when
+    sampler_module:
+        Selected sampler module object.  ``SAMPLER_VERSION`` is queried when
         available.
     datasets:
         Iterable of dictionaries describing each dataset.  Expected keys are
@@ -524,9 +524,9 @@ def build_manifest(
     manifest = {
         "copernican": {"version": _copernican_version()},
         "models": [],
-        "engine": {
-            "name": getattr(engine_module, "__name__", "unknown"),
-            "version": getattr(engine_module, "ENGINE_VERSION", "unknown"),
+        "sampler": {
+            "name": getattr(sampler_module, "__name__", "unknown"),
+            "version": getattr(sampler_module, "SAMPLER_VERSION", "unknown"),
         },
         "seed": utils.get_random_seed(),
         "datasets": {},
@@ -534,7 +534,7 @@ def build_manifest(
         "status": {"state": state, "outputs": output_policy},
         "selection": {
             "models": [],
-            "engine": {},
+            "sampler": {},
             "datasets": [],
             "comparison": comparison.as_manifest(),
             "control_model": comparison.control_model.name,
@@ -578,7 +578,7 @@ def build_manifest(
         }
         manifest["selection"]["datasets"].append(dataset_id)
 
-    manifest["selection"]["engine"] = manifest["engine"].copy()
+    manifest["selection"]["sampler"] = manifest["sampler"].copy()
 
     if configuration:
         manifest["configuration"] = dict(configuration)
@@ -590,7 +590,7 @@ def build_manifest(
     else:
         manifest["configuration"] = {
             "notes": "Derived from GUI selections; update when importing.",
-            "engine": manifest["selection"]["engine"],
+            "sampler": manifest["selection"]["sampler"],
             "models": manifest["selection"]["models"],
             "datasets": manifest["selection"]["datasets"],
             "comparison": comparison.as_manifest(),

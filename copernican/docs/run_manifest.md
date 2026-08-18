@@ -11,7 +11,7 @@ This manifest is the starting point for every run. GUI Drafts remain pending
 until the operator confirms Start Run, at which point the manifest is finalised
 (timestamped to the run directory) and fed to
 `copernican/lib/run_executor.execute_run_from_manifest`. That helper rebuilds
-the datasets via `copernican.lib.run_config`, instantiates the chosen engine,
+the datasets via `copernican.lib.run_config`, instantiates the chosen sampler,
 and hands everything to `copernican/lib/run_pipeline.execute_run_pipeline` so
 the CLI and GUI share an identical sampling, diagnostics, plotting and export
 sequence. The executor reconstructs the selected model plugins directly from
@@ -22,7 +22,7 @@ When editing via the GUI the Save Manifest page first writes the working
 configuration into
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml` so you can
 continue adjusting the builder without affecting real runs. Save buttons stay
-disabled until seed, model, data, and sampler-engine selections exist, and
+disabled until seed, model, data, and sampler selections exist, and
 Start Run
 renames the temporary workspace to the timestamped `copernican-run_<ts>` folder
 and file before invoking the CLI worker so downstream tooling always sees the
@@ -45,16 +45,13 @@ when output directories change.
 - Native CMB metadata summarising the contract version, gauge, declared
  symbol names, interactions, conservation rules, projection extensions,
  sources, observables, equation and constraint counts, transfer contracts,
- background and recombination provenance, execution engine, runtime
+ background and recombination provenance, execution solver, runtime
  signature, and compiler diagnostics for each CMB-capable model.
 - Sampler configuration stored under ``configuration.run_settings`` so walkers,
  burn-in, production steps, pool/core hints and nested-sampling parameters
  stay tied to the manifest that produced a run.
 - Completed fits add compact sampler provenance under
-  ``provenance.sampling``. Delayed-acceptance runs record their explicit
-  configuration, surrogate cache identity, exact-call and correction counts,
-  support fallbacks, and rejection totals without embedding the full proposal
-  record stream in the manifest.
+  ``provenance.sampling`` with timing, cache, and batch metrics.
 - The Git commit hash and whether the tree was dirty.
 - Lifecycle and retention metadata under ``status`` indicating whether outputs
  were prepared, paused, cancelled, aborted or completed and whether artefacts
@@ -74,7 +71,7 @@ run exactly. To rerun an analysis:
 1. Checkout the commit listed under `git.commit` and ensure the dirty flag
  matches the worktree state.
 2. Verify that each data file produces the recorded SHA256 digest.
-3. Configure the suite with the same model, priors, engine and seed.
+3. Configure the suite with the same model, priors, sampler and seed.
 When no ``COPERNICAN_SEED`` environment variable is present the program prompts
 for a seed early in the run. Users may accept the default ``0``, enter a
 manual value or generate a random seed. The chosen value is saved in the
@@ -87,7 +84,8 @@ confirmation panel exposes an **Insert manifest** button that records the
 staged snapshot without launching a run, letting operators inspect metadata or
 export the file before committing to Start Run. Starting the run flips the
 status to ``running`` and the ``selection`` and ``configuration`` blocks
-capture the chosen models, engine and dataset identifiers for reuse. Hard stops
+capture the chosen models, sampler and dataset identifiers for reuse. Hard
+stops
 or cancellations update ``status.state`` to ``aborted`` or ``cancelled`` and
 embed a retention decision such as ``archived`` or ``deleted`` for downstream
 provenance checks. The Home quick actions also offer **Import manifest...**
@@ -103,7 +101,7 @@ shared :func:`copernican.lib.utils.get_random_seed` value. That helper is
 populated via :func:`copernican.lib.utils.set_random_seed`, which the CLI calls
 after reading ``COPERNICAN_SEED`` or the interactive prompt. When no explicit
 seed is supplied the suite falls back to the deterministic default ``0`` so the
-manifest's ``seed`` field always reflects the exact value fed into the engine.
+manifest's ``seed`` field always reflects the exact value fed into the sampler.
 Replaying a manifest therefore yields byte-for-byte identical chains, log-
 probabilities and summary statistics as long as the same commit and dataset
 hashes are used.
@@ -123,9 +121,9 @@ surfaces under each `cmb.models[*]` entry:
  numerical settings, accuracy controls, runtime signature, and compiler
  diagnostics.
 That split keeps graph structure, physical background provenance, and runtime
-proof separate. The top-level `cmb.execution_engine` and
-`cmb.execution_engine_label` fields identify the sole Copernican native
-declared-graph CMB engine. Each model also records `native_cmb_execution` and
+proof separate. The top-level `cmb.execution_solver` and
+`cmb.execution_solver_label` fields identify the sole Copernican native
+declared-graph CMB solver. Each model also records `native_cmb_execution` and
 `native_cmb_numerical_settings`. Backend and standard-route keys are invalid
 and cannot be recorded. The
 per-model `perturbation_*_names` lists expose declared interactions,

@@ -1,4 +1,4 @@
-"""Shared declared-projection rules for the native CMB graph engine."""
+"""Shared declared-projection rules for the native CCMBS graph solver."""
 
 from __future__ import annotations
 

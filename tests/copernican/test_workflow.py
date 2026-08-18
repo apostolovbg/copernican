@@ -258,10 +258,10 @@ class TestCliUtilities(unittest.TestCase):
         self.assertGreater(summary["dataset_count"], 0)
         self.assertTrue(summary["type_counter"])
 
-    def test_model_engine_summary_reports_counts(self):
-        stats = copernican._gather_model_engine_summary()
+    def test_model_sampler_summary_reports_counts(self):
+        stats = copernican._gather_model_sampler_summary()
         self.assertGreater(stats["model_count"], 0)
-        self.assertGreater(stats["engine_count"], 0)
+        self.assertGreater(stats["sampler_count"], 0)
 
     def test_manifest_discovery_sorts_by_mtime(self):
         with tempfile.TemporaryDirectory() as tmpdir:

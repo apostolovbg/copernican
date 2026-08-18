@@ -1,14 +1,14 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Native CMB contract helpers for engine integration."""
+"""Native CMB contract helpers for solver integration."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from .engine_adapter import (
+from .model_adapter import (
     _SUPPORTED_CMB_CALL_KEYS,
     _SUPPORTED_CMB_CALL_METHODS,
     _SUPPORTED_CMB_CONTRACT_KEYS,
@@ -70,7 +70,7 @@ class CMBCapabilityAudit:
     declared_observables: tuple[str, ...]
     capability_matrix: tuple[CMBObservableCapability, ...]
     generated_hierarchies: tuple[str, ...]
-    execution_engine_id: str
+    execution_solver_id: str
     execution_runtime_module: str
 
     @property
@@ -124,7 +124,7 @@ class CMBCapabilityAudit:
                 for entry in self.capability_matrix
             },
             "execution_route": {
-                "engine_id": self.execution_engine_id,
+                "solver_id": self.execution_solver_id,
                 "runtime_module": self.execution_runtime_module,
                 "routing_basis": "declared_contract_and_universal_rules",
             },
@@ -322,7 +322,7 @@ def audit_cmb_capabilities(
             )
             if enabled
         ),
-        execution_engine_id=str(route.get("engine_id", "")),
+        execution_solver_id=str(route.get("solver_id", "")),
         execution_runtime_module=str(route.get("runtime_module", "")),
     )
 

@@ -11,7 +11,7 @@ import numpy
 from copernican.lib import chain_io, console_output, csv_writer, diagnostics
 from copernican.lib import logger as log_mod
 from copernican.lib import plotter, result_writer, utils
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_LABEL
+from copernican.lib.cmb_identity import CCMBS_LABEL
 from copernican.lib.cmb_output import (
     describe_cmb_spectrum,
     observed_cmb_spectrum_names,
@@ -28,31 +28,16 @@ def _get_logger(provided: Any | None = None):
     return log_mod.get_logger()
 
 
-def resolve_fit_function(engine_module):
-    """Return the engine's cosmology fitting callable."""
+def resolve_sampler_function(sampler_module):
+    """Return the canonical sampler callable."""
 
-    fit_fn = getattr(engine_module, "fit_cosmology_parameters", None)
-    if fit_fn is not None:
-        return fit_fn, "fit_cosmology_parameters"
-
-    legacy_fn = getattr(engine_module, "fit_sne_parameters", None)
-    if legacy_fn is not None:
-        logger = log_mod.get_logger()
-        logger.warning(
-            (
-                "Engine %s exposes the legacy fit_sne_parameters; prefer "
-                "fit_cosmology_parameters for the unified workflow."
-            ),
-            getattr(engine_module, "__name__", "engine"),
-        )
-        return legacy_fn, "fit_sne_parameters"
-
-    raise AttributeError(
-        "Engine lacks fit_cosmology_parameters and fit_sne_parameters"
-    )
+    fit_fn = getattr(sampler_module, "sample_parameters", None)
+    if fit_fn is None:
+        raise AttributeError("Sampler lacks sample_parameters")
+    return fit_fn, "sample_parameters"
 
 
-def extract_cosmological_param_vector(
+def extract_model_param_vector(
     fit_results: Mapping[str, Any] | None,
     model_plugin: Any,
     *,
@@ -64,12 +49,12 @@ def extract_cosmological_param_vector(
         return None
     if not fit_results.get("success"):
         return None
-    params = fit_results.get("fitted_cosmological_params")
+    params = fit_results.get("fitted_model_params")
     if not isinstance(params, Mapping):
         if logger is not None:
             model_name = getattr(model_plugin, "MODEL_NAME", "model")
             logger.warning(
-                "%s fit results missing 'fitted_cosmological_params'.",
+                "%s fit results missing 'fitted_model_params'.",
                 model_name,
             )
         return None
@@ -164,7 +149,7 @@ def execute_run_pipeline(
     *,
     control_model_plugin: Any,
     test_model_plugin: Any,
-    engine_module: Any,
+    sampler_module: Any,
     sne_data_df: Any,
     bao_data_df: Any | None,
     cmb_data_df: Any | None,
@@ -189,22 +174,18 @@ def execute_run_pipeline(
             "Pipeline model plugins must match the declared control/test "
             "comparison."
         )
-    engine_label = getattr(
-        engine_module,
-        "ENGINE_LABEL",
-        getattr(engine_module, "__name__", "Engine"),
+    sampler_label = getattr(
+        sampler_module,
+        "SAMPLER_LABEL",
+        getattr(sampler_module, "__name__", "Sampler"),
     )
-    console_output.write(f"\n--- Sampling with {engine_label} ---\n")
+    console_output.write(f"\n--- Sampling with {sampler_label} ---\n")
     if cmb_data_df is not None:
-        console_output.write(f"CMB execution: {NATIVE_CMB_ENGINE_LABEL}.")
+        console_output.write(f"CMB execution: {CCMBS_LABEL}.")
     console_output.write("")
 
-    plan_kind = str(sampling_plan.get("engine_kind", "mcmc")).lower()
+    plan_kind = str(sampling_plan.get("sampler_kind", "mcmc")).lower()
     if plan_kind == "nested":
-        if sampling_plan.get("delayed_acceptance", False):
-            raise ValueError(
-                "delayed acceptance is supported only by the MCMC engine"
-            )
         sampling_live = int(sampling_plan["n_live_points"])
         sampling_max_iter = int(sampling_plan["max_iterations"])
         sampling_tol = float(sampling_plan["evidence_tolerance"])
@@ -231,21 +212,15 @@ def execute_run_pipeline(
         sampling_walkers = int(sampling_plan["n_walkers"])
         sampling_pool = sampling_plan.get("pool_size")
         sampling_cmb_batch = int(sampling_plan.get("cmb_batch_size", 0))
-        sampling_delayed_acceptance = bool(
-            sampling_plan.get("delayed_acceptance", False)
-        )
-        sampling_surrogate_config = sampling_plan.get("surrogate_config")
-
         pool_label = sampling_pool if sampling_pool is not None else "auto"
         logger.info(
             "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
-            "pool=%s, cmb_batch=%d, delayed_acceptance=%s",
+            "pool=%s, cmb_batch=%d",
             sampling_steps,
             sampling_burn_in,
             sampling_walkers,
             pool_label,
             sampling_cmb_batch,
-            sampling_delayed_acceptance,
         )
         console_output.write(
             f"Configured sampler: steps {sampling_steps}, burn-in "
@@ -257,12 +232,8 @@ def execute_run_pipeline(
         console_output.write(
             f"CMB batch size {sampling_cmb_batch or 'disabled'}."
         )
-        console_output.write(
-            "Delayed acceptance "
-            f"{'enabled' if sampling_delayed_acceptance else 'disabled'}."
-        )
 
-    fit_fn, _ = resolve_fit_function(engine_module)
+    fit_fn, _ = resolve_sampler_function(sampler_module)
 
     console_output.write(f"{control_name} control chain")
     if plan_kind == "nested":
@@ -303,8 +274,6 @@ def execute_run_pipeline(
             display_progress=display_progress,
             progress_callback=progress_callback,
             cmb_batch_size=sampling_cmb_batch,
-            delayed_acceptance=sampling_delayed_acceptance,
-            surrogate_config=sampling_surrogate_config,
         )
 
     control_file = getattr(control_model_plugin, "MODEL_FILENAME", "")
@@ -368,8 +337,6 @@ def execute_run_pipeline(
                 display_progress=display_progress,
                 progress_callback=progress_callback,
                 cmb_batch_size=sampling_cmb_batch,
-                delayed_acceptance=sampling_delayed_acceptance,
-                surrogate_config=sampling_surrogate_config,
             )
         console_output.write(
             f"Completed test-model sampling for "
@@ -440,7 +407,7 @@ def execute_run_pipeline(
             )
             summary["chi2_bao"] = float("inf")
             return summary
-        fitted = extract_cosmological_param_vector(
+        fitted = extract_model_param_vector(
             fit_results, model_plugin, logger=logger
         )
         if fitted is None:
@@ -451,7 +418,7 @@ def execute_run_pipeline(
             summary["chi2_bao"] = float("inf")
             return summary
         pred_df, rs_Mpc, smooth_preds = (
-            engine_module.calculate_bao_observables(
+            sampler_module.calculate_bao_observables(
                 bao_data_df,
                 model_plugin,
                 fitted,
@@ -522,10 +489,10 @@ def execute_run_pipeline(
             )
             summary["chi2_cmb"] = float("inf")
             return summary
-        cosmo_params = extract_cosmological_param_vector(
+        model_params = extract_model_param_vector(
             fit_results, model_plugin, logger=logger
         )
-        if cosmo_params is None:
+        if model_params is None:
             logger.warning(
                 "%s fit lacks parameters; skipping CMB.",
                 model_plugin.MODEL_NAME,
@@ -536,7 +503,7 @@ def execute_run_pipeline(
         try:
             theory = compute_cmb_spectrum_cached(
                 model_plugin,
-                cosmo_params,
+                model_params,
                 cmb_data_df["ell"].values,
                 spectra=components,
             )
@@ -695,7 +662,7 @@ def execute_run_pipeline(
 
             p_names = getattr(plugin, "PARAMETER_NAMES", [])
             p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
-            fitted = fit_res.get("fitted_cosmological_params", {})
+            fitted = fit_res.get("fitted_model_params", {})
             printed_any = False
             for name, latex_name in zip(p_names, p_latex):
                 param_value = fitted.get(name)

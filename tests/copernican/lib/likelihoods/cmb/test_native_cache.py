@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy
 
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
+from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.lib.likelihoods.cmb import native_cache
 
 
@@ -311,12 +311,12 @@ class NativeCacheModuleTestCase(unittest.TestCase):
 
         identity = native_cache.NativeRuntimeCacheIdentity(
             contract_static=("graph", 1),
-            cosmology_static=("cosmology", 2),
+            model_static=("model_values", 2),
             request_specific=("ells", (20, 30)),
         )
         changed_request = native_cache.NativeRuntimeCacheIdentity(
             contract_static=identity.contract_static,
-            cosmology_static=identity.cosmology_static,
+            model_static=identity.model_static,
             request_specific=("ells", (20, 40)),
         )
 
@@ -330,11 +330,11 @@ class NativeCacheModuleTestCase(unittest.TestCase):
             changed_request.contract_static,
         )
         self.assertEqual(
-            identity.cosmology_static,
-            changed_request.cosmology_static,
+            identity.model_static,
+            changed_request.model_static,
         )
         self.assertNotEqual(hash(identity), hash(changed_request))
-        self.assertEqual(identity.execution_engine, NATIVE_CMB_ENGINE_ID)
+        self.assertEqual(identity.execution_solver, CCMBS_ID)
 
         native_cache.clear_native_cmb_caches()
         native_cache.remember_native_cmb_request_identity(identity)

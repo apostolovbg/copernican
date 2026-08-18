@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-17
+**Last Updated:** 2026-08-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -22,7 +22,7 @@ keeping the results tied to the exact inputs that produced them.
 The same manifest can drive the command-line interface or the GUI. That keeps
 interactive runs and scripted runs on one configuration surface, with the same
 seed handling, control-model and test-model selection, dataset selection,
-sampler-engine choice, and output layout.
+sampler choice, and output layout.
 
 Copernican is built for reproducibility. Every run writes a manifest, one
 canonical run log, summary artifacts, plots, and chain outputs into a per-run
@@ -30,7 +30,7 @@ directory under `~/copernican_output/`, so a result can be replayed or audited
 later without guessing which options were used.
 
 The package includes the model library, trusted dataset parsers, sampler
-engines, validation manifests, and supporting analysis tools needed for the
+samplers, validation manifests, and supporting analysis tools needed for the
 full workflow. Every bundled CMB model declares the native graph contract;
 models with available CMB output use the same native solver, while a model
 without a defensible perturbation closure reports CMB output as unavailable.
@@ -71,10 +71,10 @@ The generated shear residual evaluates its declared correction directly so
 nearly equal metric potentials do not create a floating-point-only breach.
 
 All bundled CMB-capable models execute through the Copernican native
-declared-graph CMB engine. The CLI and GUI do not expose a CMB solver or
+declared-graph CMB solver. The CLI and GUI do not expose a CMB solver or
 backend selector; the selected control and test models provide the physical
-contracts for the same engine. CAMB and CLASS are independent scientific
-reference tools used by tests, not production spectrum engines.
+contracts for the same solver. CAMB and CLASS are independent scientific
+reference tools used by tests, not production spectrum solvers.
 
 A default package installation has no CAMB or CLASS dependency. The repository
 workspace lock includes CAMB only for independent scientific-reference tests;
@@ -83,7 +83,7 @@ production dependencies only.
 
 Requested spectra resolve only declared model dependencies. A model without
 a defensible perturbation closure reports the affected CMB outputs as
-unavailable rather than substituting another engine or a zero spectrum. See
+unavailable rather than substituting another solver or a zero spectrum. See
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md) for the graph,
 physical, numerical, lensing, caching, and reference conventions.
 
@@ -113,17 +113,8 @@ sequence of native contracts and returns one serializable result per input,
 including typed failures and cache provenance. It starts as an exact
 scalar-to-batch adapter, so parameter-dependent state remains isolated while
 shared-structure and vectorized kernels are validated independently.
-The MCMC engine exposes `cmb_batch_size` as an explicit opt-in setting;
+The MCMC sampler exposes `cmb_batch_size` as an explicit opt-in setting;
 the default `0` keeps the exact scalar sampler and fallback path unchanged.
-The separate `delayed_acceptance` setting is disabled by default. When enabled
-explicitly, a deterministic normalized-parameter surrogate screens proposals,
-forces exact evaluation outside its support, and applies an exact second-stage
-correction to every proposal that survives the screen. Proposal decisions,
-exact-call counts, support fallbacks, correction counters, and the surrogate
-cache identity are retained in the result and run manifest; no surrogate value
-is ever recorded as an exact native likelihood.
-The GUI exposes the scalar opt-in switch; advanced `surrogate_config` mappings
-are supplied through a confirmed manifest.
 Sampler progress also reports worker-pool launch and walker initialization
 as explicit phases, including elapsed time, measured rate, remaining work, and
 ETA in both CLI output and GUI progress snapshots. Burn-in and production
@@ -309,7 +300,7 @@ Each run keeps its own run logs inside the generated
 - `copernican/lib/` contains shared runtime helpers, GUI scaffolding,
   analysis tools, plotting helpers, and the native CMB internals.
 - `copernican/models/` houses the YAML model definitions and their metadata.
-- `copernican/engines/` collects the sampler back ends.
+- `copernican/samplers/` collects the sampler back ends.
 - `copernican/datasets/` bundles the trusted datasets and parser metadata.
 - `copernican/validation/` holds the validation runner and reference
   manifests.
@@ -319,7 +310,7 @@ Each run keeps its own run logs inside the generated
 
 ## Run Builder and GUI
 The GUI keeps the same manifest model as the CLI. The Run Builder walks
-through seed, control model, test model, dataset, sampler engine, and plan
+through seed, control model, test model, dataset, sampler, and plan
 panels. The control model defaults to `model_lcdm.yml`, while the test model
 is selected independently. The Save Manifest page stays locked until each
 step has a selection; and the Start Run action renames the workspace to
@@ -331,7 +322,7 @@ Sampler convergence diagnostics are evaluated over sampled coordinates.
 Parameters locked by equal lower and upper bounds remain in posterior outputs
 with deterministic diagnostics: R-hat is `1.0`, and bulk and tail effective
 sample sizes equal the retained draw count. If ArviZ cannot produce finite
-diagnostics for a sampled coordinate, the engine uses its conservative
+diagnostics for a sampled coordinate, the sampler uses its conservative
 internal finite estimator.
 
 The manifest stores one comparison request containing both model identities.

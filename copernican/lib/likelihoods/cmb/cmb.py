@@ -32,14 +32,14 @@ from .native_evolution import prepare_native_runtime_assets
 
 def _resolve_plugin_cmb_contract(
     plugin: Any,
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
 ) -> Mapping[str, Any]:
     """Return the plugin's required native CMB runtime contract."""
 
     get_native_runtime = getattr(plugin, "get_cmb_native_runtime", None)
     if not callable(get_native_runtime):
         raise ValueError("Model plugin does not expose a native CMB runtime")
-    native_runtime = get_native_runtime(cosmo_params)
+    native_runtime = get_native_runtime(model_params)
     if not isinstance(native_runtime, Mapping):
         raise ValueError("Model native CMB runtime must be a mapping")
     return native_runtime
@@ -127,9 +127,9 @@ def _batch_cache_provenance(
     if identity is not None:
         identity_payload = {
             "contract_static": repr(identity.contract_static),
-            "cosmology_static": repr(identity.cosmology_static),
+            "model_static": repr(identity.model_static),
             "request_specific": repr(identity.request_specific),
-            "execution_engine": str(identity.execution_engine),
+            "execution_solver": str(identity.execution_solver),
         }
     return {
         "cache_identity": identity_payload,
@@ -210,7 +210,7 @@ def compute_cmb_spectrum_batch(
 
 def compute_cmb_spectrum_cached(
     plugin: Any,
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
@@ -221,7 +221,7 @@ def compute_cmb_spectrum_cached(
     try:
         native_contract = _resolve_plugin_cmb_contract(
             plugin,
-            cosmo_params,
+            model_params,
         )
         prepared_contract = prepare_native_cmb_execution_contract(
             native_contract
@@ -231,7 +231,7 @@ def compute_cmb_spectrum_cached(
         raise classify_native_exception(
             exc,
             context={
-                "parameters": tuple(float(value) for value in cosmo_params),
+                "parameters": tuple(float(value) for value in model_params),
                 "requested_spectra": tuple(str(name) for name in spectra),
                 "workload": str(workload),
             },

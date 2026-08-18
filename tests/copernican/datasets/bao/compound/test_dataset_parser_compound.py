@@ -12,7 +12,7 @@ class TestCompoundParser(unittest.TestCase):
 
     def test_loader_returns_bao_compilation(self) -> None:
         parser_module = importlib.import_module(
-            "copernican.datasets.bao.compound.cosmo_parser_compound"
+            "copernican.datasets.bao.compound.dataset_parser_compound"
         )
         data_dir = (
             Path(__file__).resolve().parents[5]

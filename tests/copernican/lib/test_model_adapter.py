@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican.lib.engine_adapter`` helpers."""
+"""Tests for ``copernican.lib.model_adapter`` helpers."""
 
 import copy
 import math
@@ -17,15 +17,15 @@ import yaml
 
 from copernican import validation as validation_module
 from copernican.lib import cmb_contract
-from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
-from copernican.lib.cmb_identity import NATIVE_CMB_ENGINE_ID
-from copernican.lib.engine_adapter import PluginValidationError
+from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.lib.likelihoods.cmb import cmb, native_cache, native_projection
+from copernican.lib.model_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
 # fmt: off
-MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
+MAKE_POSTERIOR = model_plugin_validation.make_logposterior
 
 
 def _dummy_func(*_args, **_kwargs):
@@ -100,17 +100,17 @@ def helper_extra_function():
     return "extra"
 
 
-def _inspect_plugin(plugin: engine_plugin_validation.EnginePlugin):
+def _inspect_plugin(plugin: model_plugin_validation.ModelPlugin):
     """Return round-trip observations from a worker process."""
 
     return (
-        isinstance(plugin.extras, engine_plugin_validation.FrozenMapping),
+        isinstance(plugin.extras, model_plugin_validation.FrozenMapping),
         plugin.extras["custom_extra"](),
         plugin.FIXED_PARAMS["H0"],
     )
 
 
-def _build_sample_plugin() -> engine_plugin_validation.EnginePlugin:
+def _build_sample_plugin() -> model_plugin_validation.ModelPlugin:
     """Create a minimal plugin suitable for pickling tests."""
 
     model_data = {
@@ -142,99 +142,99 @@ def _build_sample_plugin() -> engine_plugin_validation.EnginePlugin:
         "get_sound_horizon_rs_Mpc": get_sound_horizon_rs_mpc,
         "custom_extra": helper_extra_function,
     }
-    return engine_plugin_validation.build_engine_plugin(model_data, func_dict)
+    return model_plugin_validation.build_model_plugin(model_data, func_dict)
 
 
-class TestEngineAdapterExports(unittest.TestCase):
+class TestModelAdapterExports(unittest.TestCase):
     """Verify the root adapter module exports the expected surface."""
 
     def test_public_exports_are_present(self) -> None:
         self.assertTrue(
-            callable(engine_plugin_validation.build_engine_plugin)
+            callable(model_plugin_validation.build_model_plugin)
         )
-        self.assertTrue(callable(engine_plugin_validation.build_plugin))
-        self.assertTrue(callable(engine_plugin_validation.validate_plugin))
-        self.assertTrue(hasattr(engine_plugin_validation, "EnginePlugin"))
+        self.assertTrue(callable(model_plugin_validation.build_plugin))
+        self.assertTrue(callable(model_plugin_validation.validate_plugin))
+        self.assertTrue(hasattr(model_plugin_validation, "ModelPlugin"))
         self.assertTrue(
-            hasattr(engine_plugin_validation, "CMBContractEvaluator")
+            hasattr(model_plugin_validation, "CMBContractEvaluator")
         )
         self.assertTrue(
-            hasattr(engine_plugin_validation, "CMBParameterEvaluator")
+            hasattr(model_plugin_validation, "CMBParameterEvaluator")
         )
-        self.assertTrue(hasattr(engine_plugin_validation, "FrozenMapping"))
+        self.assertTrue(hasattr(model_plugin_validation, "FrozenMapping"))
         self.assertTrue(
-            hasattr(engine_plugin_validation, "PluginValidationError")
+            hasattr(model_plugin_validation, "PluginValidationError")
         )
-        self.assertTrue(callable(engine_plugin_validation.sanitize_equation))
-        contract_evaluator = engine_plugin_validation.CMBContractEvaluator
+        self.assertTrue(callable(model_plugin_validation.sanitize_equation))
+        contract_evaluator = model_plugin_validation.CMBContractEvaluator
         self.assertTrue(hasattr(contract_evaluator, "evaluate_param_map"))
         self.assertTrue(
-            hasattr(engine_plugin_validation.EnginePlugin, "get_cmb_params")
+            hasattr(model_plugin_validation.ModelPlugin, "get_cmb_params")
         )
         self.assertTrue(
             hasattr(
-                engine_plugin_validation.EnginePlugin,
+                model_plugin_validation.ModelPlugin,
                 "get_cmb_contract",
             )
         )
         self.assertTrue(
             hasattr(
-                engine_plugin_validation.EnginePlugin,
+                model_plugin_validation.ModelPlugin,
                 "get_cmb_native_runtime",
             )
         )
         self.assertTrue(
             hasattr(
-                engine_plugin_validation.EnginePlugin,
+                model_plugin_validation.ModelPlugin,
                 "get_cmb_perturbation_contract",
             )
         )
         self.assertTrue(
             hasattr(
-                engine_plugin_validation.EnginePlugin,
+                model_plugin_validation.ModelPlugin,
                 "get_cmb_perturbation_data",
             )
         )
         self.assertFalse(
-            hasattr(engine_plugin_validation, "CMB_BACKEND_CAPABILITIES")
+            hasattr(model_plugin_validation, "CMB_BACKEND_CAPABILITIES")
         )
-        self.assertIn("EnginePlugin", engine_plugin_validation.__all__)
-        self.assertIn("validate_plugin", engine_plugin_validation.__all__)
+        self.assertIn("ModelPlugin", model_plugin_validation.__all__)
+        self.assertIn("validate_plugin", model_plugin_validation.__all__)
         self.assertIs(
             cmb_contract.CMBContractEvaluator,
-            engine_plugin_validation.CMBContractEvaluator,
+            model_plugin_validation.CMBContractEvaluator,
         )
         self.assertIs(
             cmb_contract.CMBParameterEvaluator,
-            engine_plugin_validation.CMBParameterEvaluator,
+            model_plugin_validation.CMBParameterEvaluator,
         )
         self.assertIs(
             cmb_contract._validate_cmb_contract_definition,
-            engine_plugin_validation._validate_cmb_contract_definition,
+            model_plugin_validation._validate_cmb_contract_definition,
         )
 
     def test_public_helpers_behave_as_expected(self) -> None:
-        frozen = engine_plugin_validation.FrozenMapping(
+        frozen = model_plugin_validation.FrozenMapping(
             {"alpha": 1, "beta": [2, 3]}
         )
         self.assertEqual(frozen.to_dict(), {"alpha": 1, "beta": [2, 3]})
-        evaluator = engine_plugin_validation.CMBParameterEvaluator(
+        evaluator = model_plugin_validation.CMBParameterEvaluator(
             ("x",),
             ("x",),
             {"H0": "x"},
         )
         self.assertEqual(evaluator((4.0,))["H0"], 4.0)
         self.assertIsInstance(
-            engine_plugin_validation.PluginValidationError("boom"),
+            model_plugin_validation.PluginValidationError("boom"),
             RuntimeError,
         )
         self.assertIsInstance(
-            engine_plugin_validation.sanitize_equation("x"), str
+            model_plugin_validation.sanitize_equation("x"), str
         )
 
 
-class EngineInterfaceTestCase(unittest.TestCase):
-    """Validate engine adapter construction and associated helpers."""
+class ModelInterfaceTestCase(unittest.TestCase):
+    """Validate model adapter construction and associated helpers."""
 
     def test_validation_summary_helpers_are_exposed(self):
         self.assertTrue(hasattr(validation_module, "read_validation_summary"))
@@ -243,7 +243,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         )
 
     def setUp(self):
-        """Build a minimal engine adapter for reuse across tests."""
+        """Build a minimal model adapter for reuse across tests."""
         self.base_param_map = {
             "H0": "H_0",
             "ombh2": 0.022,
@@ -276,10 +276,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "valid_for_cmb": True,
             "cmb": copy.deepcopy(self.base_cmb_contract),
         }
-        req = engine_plugin_validation.REQUIRED_FUNCTIONS
+        req = model_plugin_validation.REQUIRED_FUNCTIONS
         funcs = {name: _dummy_func for name in req}
         self.funcs = funcs
-        build_plugin = engine_plugin_validation.build_plugin
+        build_plugin = model_plugin_validation.build_plugin
         self.plugin = build_plugin(self.model_data, funcs)
 
     def _make_native_perturbations(
@@ -421,14 +421,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
-        self.assertTrue(engine_plugin_validation.validate_plugin(self.plugin))
+        self.assertTrue(model_plugin_validation.validate_plugin(self.plugin))
 
     def test_missing_attribute_fails_validation(self):
         """A plugin lacking required attributes is rejected."""
         bad = SimpleNamespace()
         with self.assertLogs(level="ERROR") as captured_logs:
             with self.assertRaises(PluginValidationError):
-                engine_plugin_validation.validate_plugin(bad)
+                model_plugin_validation.validate_plugin(bad)
         self.assertIn("Plugin validation issue", "".join(captured_logs.output))
 
     def test_get_cmb_params_expression(self):
@@ -487,7 +487,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 background_adapter=True
             ),
         }
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
         self.assertNotIn("backend", contract)
         self.assertEqual(contract["param_map"]["H0"], 70.0)
@@ -563,7 +563,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             self.plugin.get_cmb_params([70.0])
 
     def test_cmb_param_map_rejects_invalid_keys(self):
-        """Engine interface should reject unsupported CMB parameters."""
+        """Model interface should reject unsupported CMB parameters."""
 
         bad_model = dict(self.model_data)
         bad_model["cmb"] = {
@@ -574,7 +574,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_param_map_rejects_conflicting_neutrino_specs(self):
         """Sum and individual neutrino masses cannot be combined."""
@@ -594,7 +594,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(clash, self.funcs)
+            model_plugin_validation.build_plugin(clash, self.funcs)
 
     def test_cmb_backend_selector_fails(self):
         """A CMB-capable model must reject a backend selector."""
@@ -602,7 +602,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"]["backend"] = "external"
         with self.assertRaisesRegex(ValueError, "removed route key.*backend"):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_valid_model_without_calls_fails(self):
         """A CMB-capable model must declare its adapter calls."""
@@ -610,7 +610,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         del bad_model["cmb"]["calls"]
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_valid_model_without_perturbations_fails(self):
         """A CMB-capable model must declare perturbations."""
@@ -618,7 +618,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         del bad_model["cmb"]["perturbations"]
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_perturbation_route_flag_fails(self):
         """The perturbation contract must reject a route flag."""
@@ -629,7 +629,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             ValueError,
             "removed route key.*standard",
         ):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_cmb_valid_model_with_invalid_perturbation_gauge_fails(self):
         """Invalid perturbation gauges are rejected."""
@@ -637,7 +637,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"]["perturbations"]["gauge"] = "galactic"
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_native_perturbation_contract_validates(self):
         """A native perturbation contract validates when declared."""
@@ -646,7 +646,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         model_data["cmb"]["perturbations"] = (
             self._make_native_perturbations()
         )
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertTrue(plugin.valid_for_cmb)
         self.assertFalse(hasattr(plugin, "CMB_PERTURBATION_STANDARD"))
         self.assertEqual(
@@ -701,7 +701,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             ValueError,
             "must declare equations",
         ):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_standard_route_flag_is_rejected(self):
         """Removed standard-route declarations must fail validation."""
@@ -712,7 +712,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             ValueError,
             "removed route key.*standard",
         ):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_free_text_equation_lhs_fails(self):
         """Equation left-hand sides must use typed derivative syntax."""
@@ -725,7 +725,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "lhs"
         ] = "delta_x"
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_undeclared_perturbation_symbol_fails(self):
         """Perturbation expressions must not reference undeclared symbols."""
@@ -735,7 +735,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["derived"]["density_drive"]["expression"] = "unknown_x"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_unsafe_perturbation_expression_fails(self):
         """Unsafe perturbation expressions are rejected."""
@@ -745,7 +745,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["sources"]["poisson"]["expression"] = "delta_x.__class__"
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_unknown_perturbation_key_fails(self):
         """Unknown perturbation contract keys are rejected."""
@@ -755,7 +755,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["unexpected"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_missing_native_variables_fails(self):
         """Native perturbations must declare variables."""
@@ -765,7 +765,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["variables"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_missing_native_equations_fail(self):
         """Native perturbations must declare equations."""
@@ -775,7 +775,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["equations"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaisesRegex(ValueError, "must declare equations"):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_missing_native_initial_conditions_fail(self):
         """Native perturbations must declare initial conditions."""
@@ -788,7 +788,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             ValueError,
             "must declare initial_conditions",
         ):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_backend_mapping_fails(self):
         """Native perturbations must reject backend mappings."""
@@ -798,7 +798,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["backend_mapping"] = {}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_backend_mapping_selector_fails(self):
         """Backend mapping selectors cannot enter native contracts."""
@@ -810,7 +810,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         }
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_derived_cycle_fails(self):
         """Derived perturbation expressions must not cycle."""
@@ -821,7 +821,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         perturbations["derived"]["beta"] = {"expression": "alpha"}
         model_data["cmb"]["perturbations"] = perturbations
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_cmb_invalid_model_does_not_require_cmb(self):
         """Models that opt out of CMB do not need a contract block."""
@@ -829,7 +829,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         model_data = copy.deepcopy(self.model_data)
         model_data["valid_for_cmb"] = False
         model_data.pop("cmb", None)
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         self.assertFalse(plugin.valid_for_cmb)
         self.assertEqual(plugin.CMB_CONTRACT, {})
         self.assertIsNone(plugin.CMB_PERTURBATION_DATA)
@@ -945,8 +945,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
                         )
                     )
                     funcs, parsed = model_coder.generate_callables(cache_path)
-                plugin = engine_plugin_validation.build_plugin(parsed, funcs)
-                validate_plugin = engine_plugin_validation.validate_plugin
+                plugin = model_plugin_validation.build_plugin(parsed, funcs)
+                validate_plugin = model_plugin_validation.validate_plugin
                 self.assertTrue(validate_plugin(plugin))
                 contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
                 self.assertNotIn("backend", contract)
@@ -963,8 +963,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     plugin.INITIAL_GUESSES
                 ).manifest_summary
                 self.assertEqual(
-                    summary["execution_route"]["engine_id"],
-                    NATIVE_CMB_ENGINE_ID,
+                    summary["execution_route"]["solver_id"],
+                    CCMBS_ID,
                 )
                 self.assertTrue(summary["execution_route"]["ready"])
                 self.assertEqual(
@@ -1057,7 +1057,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 cache_dir,
             )
             funcs, parsed = model_coder.generate_callables(cache_path)
-        plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        plugin = model_plugin_validation.build_plugin(parsed, funcs)
 
         self.assertTrue(plugin.valid_for_cmb)
         perturbations = parsed["cmb"]["perturbations"]
@@ -1152,7 +1152,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
                     functions, parsed = model_coder.generate_callables(
                         cache_path
                     )
-                    plugin = engine_plugin_validation.build_plugin(
+                    plugin = model_plugin_validation.build_plugin(
                         parsed,
                         functions,
                     )
@@ -1171,7 +1171,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"]["unexpected"] = 1
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_unknown_call_method_fails(self):
         """Unsupported CMB contract methods are rejected."""
@@ -1179,7 +1179,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = copy.deepcopy(self.model_data)
         bad_model["cmb"]["calls"] = [{"method": "set_unknown"}]
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_unknown_call_reference_fails(self):
         """Unknown grid and value references are rejected."""
@@ -1217,7 +1217,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             ),
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(bad_model, self.funcs)
+            model_plugin_validation.build_plugin(bad_model, self.funcs)
 
     def test_declared_value_parameter_is_accepted(self):
         """Declared parameters used only by values pass validation."""
@@ -1250,7 +1250,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "calls": [],
             "perturbations": self._make_native_perturbations(),
         }
-        plugin = engine_plugin_validation.build_plugin(model_data, self.funcs)
+        plugin = model_plugin_validation.build_plugin(model_data, self.funcs)
         contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
         self.assertIn("x", contract["values"])
 
@@ -1279,7 +1279,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "perturbations": self._make_native_perturbations(),
         }
         with self.assertRaises(ValueError):
-            engine_plugin_validation.build_plugin(model_data, self.funcs)
+            model_plugin_validation.build_plugin(model_data, self.funcs)
 
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""
@@ -1299,7 +1299,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "uniform", "lower": 0.0, "upper": 1.0},
             {"type": "gaussian", "mean": 0.0, "sigma": 0.5},
         ]
-        posterior = engine_plugin_validation.make_logposterior(like, priors)
+        posterior = model_plugin_validation.make_logposterior(like, priors)
 
         rejected = posterior((-0.1, 0.0))
         self.assertTrue(math.isinf(rejected) and rejected < 0)
@@ -1325,7 +1325,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "uniform"},
             {"type": "uniform", "lower": 0.5, "upper": 2.0},
         ]
-        posterior = engine_plugin_validation.make_logposterior(like, priors)
+        posterior = model_plugin_validation.make_logposterior(like, priors)
 
         # Raw value of 0.0 transforms to 1.0 and remains inside bounds.
         value = posterior((0.0, 0.0))
@@ -1349,10 +1349,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
 
 class FrozenMappingTests(unittest.TestCase):
-    """Validate the FrozenMapping wrapper used across EnginePlugin fields."""
+    """Validate the FrozenMapping wrapper used across ModelPlugin fields."""
 
-    def test_engine_plugin_pickles_with_frozen_mappings(self) -> None:
-        """EnginePlugin should survive pickle round-trips under spawn pools."""
+    def test_model_plugin_pickles_with_frozen_mappings(self) -> None:
+        """ModelPlugin should survive pickle round-trips under spawn pools."""
 
         plugin = _build_sample_plugin()
         with multiprocessing_module.get_context("spawn").Pool(1) as pool:
@@ -1363,7 +1363,7 @@ class FrozenMappingTests(unittest.TestCase):
 
         self.assertIsInstance(
             plugin.extras,
-            engine_plugin_validation.FrozenMapping,
+            model_plugin_validation.FrozenMapping,
         )
         self.assertTrue(is_frozen)
         self.assertEqual(custom_value, "extra")
@@ -1397,7 +1397,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
                 cache_dir,
             )
             functions, model_data = model_coder.generate_callables(cache_path)
-        plugin = engine_plugin_validation.build_plugin(model_data, functions)
+        plugin = model_plugin_validation.build_plugin(model_data, functions)
         plugin.MODEL_FILENAME = model_path.name
         return plugin
 
@@ -1412,8 +1412,8 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         self.assertEqual(
             plugin.get_cmb_perturbation_data(
                 plugin.INITIAL_GUESSES
-            ).manifest_summary["execution_route"]["engine_id"],
-            NATIVE_CMB_ENGINE_ID,
+            ).manifest_summary["execution_route"]["solver_id"],
+            CCMBS_ID,
         )
 
     @staticmethod
@@ -1457,7 +1457,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
                 Path(model_dir) / "cache",
             )
             functions, parsed = model_coder.generate_callables(cache_path)
-        plugin = engine_plugin_validation.build_plugin(parsed, functions)
+        plugin = model_plugin_validation.build_plugin(parsed, functions)
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
@@ -1554,7 +1554,7 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         route = summary["execution_route"]
 
         self.assertFalse(hasattr(plugin, "CMB_PERTURBATION_STANDARD"))
-        self.assertEqual(route["engine_id"], NATIVE_CMB_ENGINE_ID)
+        self.assertEqual(route["solver_id"], CCMBS_ID)
         self.assertTrue(route["ready"])
         self.assertIn("evolve_theta_gamma0", summary["equation_names"])
         self.assertIn(
@@ -1694,17 +1694,17 @@ class NativeLCDMModelTestCase(unittest.TestCase):
         plugin = self._build_plugin()
         manifest = run_manifest.build_manifest(
             [(plugin, "1.0"), (plugin, "1.0")],
-            SimpleNamespace(__name__="native_test", ENGINE_VERSION="test"),
+            SimpleNamespace(__name__="native_test", SAMPLER_VERSION="test"),
             [],
         )
         model_entry = manifest["cmb"]["models"][0]
         route = model_entry["native_cmb_execution"]
 
         self.assertEqual(
-            model_entry["execution_engine"],
-            NATIVE_CMB_ENGINE_ID,
+            model_entry["execution_solver"],
+            CCMBS_ID,
         )
-        self.assertEqual(route["engine_id"], NATIVE_CMB_ENGINE_ID)
+        self.assertEqual(route["solver_id"], CCMBS_ID)
         self.assertTrue(route["ready"])
         self.assertEqual(
             model_entry["native_cmb_numerical_settings"]["ell_max"],

@@ -37,7 +37,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     good_dir / "metadata_dummy.yml", "w", encoding="utf-8"
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                parser_path = good_dir / "cosmo_parser_trusted.py"
+                parser_path = good_dir / "dataset_parser_trusted.py"
                 code = (
                     "from copernican.lib.dataset_registry "
                     "import register_sne_parser\n"
@@ -61,7 +61,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     bad_dir / "metadata_dummy.yml", "w", encoding="utf-8"
                 ) as file_handle:
                     yaml.safe_dump(meta_bad, file_handle)
-                bad_parser = bad_dir / "cosmo_parser_rogue.py"
+                bad_parser = bad_dir / "dataset_parser_rogue.py"
                 sentinel = base / "malicious_imported.txt"
                 bad_code = (
                     "import os\n"
@@ -80,7 +80,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 self.assertNotIn("rogue", dataset_registry.SNE_PARSER_REGISTRY)
                 self.assertFalse(sentinel.exists())
                 self.assertNotIn(
-                    "data.sne.rogue.cosmo_parser_rogue", sys.modules
+                    "data.sne.rogue.dataset_parser_rogue", sys.modules
                 )
         finally:
             dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
@@ -100,7 +100,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     outside / "metadata_dummy.yml", "w", encoding="utf-8"
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                bad_parser = outside / "cosmo_parser_bad.py"
+                bad_parser = outside / "dataset_parser_bad.py"
                 sentinel = outside / "symlink_imported.txt"
                 code = (
                     "import os\n"
@@ -122,7 +122,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     real_dir / "metadata_dummy.yml", "w", encoding="utf-8"
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                (real_dir / "cosmo_parser_real.py").symlink_to(bad_parser)
+                (real_dir / "dataset_parser_real.py").symlink_to(bad_parser)
 
                 dataset_registry.SNE_PARSER_REGISTRY = {}
                 dataset_registry.discover_trusted_parsers(
@@ -201,7 +201,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     encoding="utf-8",
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                parser_path = os.path.join(sne_dir, "cosmo_parser_rogue2.py")
+                parser_path = os.path.join(sne_dir, "dataset_parser_rogue2.py")
                 code = (
                     "from copernican.lib.dataset_registry "
                     "import register_sne_parser\n"
@@ -243,7 +243,9 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     encoding="utf-8",
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                parser_path = os.path.join(sne_dir, "cosmo_parser_trusted.py")
+                parser_path = os.path.join(
+                    sne_dir, "dataset_parser_trusted.py"
+                )
                 code = (
                     "from copernican.lib.dataset_registry "
                     "import register_sne_parser\n"
@@ -322,7 +324,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     encoding="utf-8",
                 ) as file_handle:
                     yaml.safe_dump(meta, file_handle)
-                parser_path = os.path.join(sne_dir, "cosmo_parser_rogue.py")
+                parser_path = os.path.join(sne_dir, "dataset_parser_rogue.py")
                 code = (
                     "from copernican.lib.dataset_registry "
                     "import register_sne_parser\n"
@@ -350,7 +352,7 @@ class CompoundBaoHashRegressionTest(unittest.TestCase):
 
     def test_compound_bao_file_hash_is_attached_and_logged(self) -> None:
         parser_module = importlib.import_module(
-            "copernican.datasets.bao.compound.cosmo_parser_compound"
+            "copernican.datasets.bao.compound.dataset_parser_compound"
         )
         registry_entry = dataset_registry.BAO_PARSER_REGISTRY[
             "compound_bao_set"

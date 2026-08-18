@@ -62,7 +62,7 @@ class SNeCsvWriterRegressionTestCase(unittest.TestCase):
 
         fit_results = {
             "success": True,
-            "fitted_cosmological_params": {"H0": 70.0},
+            "fitted_model_params": {"H0": 70.0},
         }
 
         with tempfile.TemporaryDirectory() as tmpdir:

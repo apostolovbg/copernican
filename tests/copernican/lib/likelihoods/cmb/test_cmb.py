@@ -18,10 +18,6 @@ import pandas
 from scipy.integrate import quad as scipy_quad
 from scipy.linalg import expm
 
-from copernican.engines.surrogate import (
-    DelayedAcceptanceController,
-    DeterministicLocalSurrogate,
-)
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
 from copernican.lib.likelihoods.cmb import (
@@ -228,7 +224,7 @@ def _slice_nine_spectrum_metrics(
     return metrics
 
 
-SLICE_NINE_NEUTRAL_COSMOLOGY = MappingProxyType(
+SLICE_NINE_NEUTRAL_MODEL = MappingProxyType(
     {
         "H0": 67.4,
         "ombh2": 0.02237,
@@ -315,11 +311,11 @@ def _slice_nine_native_acceptance_contract() -> dict[str, object]:
     contract["model_name"] = "SliceNineNeutralNative"
     contract["param_map"] = {
         name: float(value)
-        for name, value in SLICE_NINE_NEUTRAL_COSMOLOGY.items()
+        for name, value in SLICE_NINE_NEUTRAL_MODEL.items()
         if name != "Tcmb_K"
     }
     contract["model_parameters"] = {
-        "Tcmb_K": SLICE_NINE_NEUTRAL_COSMOLOGY["Tcmb_K"]
+        "Tcmb_K": SLICE_NINE_NEUTRAL_MODEL["Tcmb_K"]
     }
     numerical = dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS)
     contract["numerical"] = copy.deepcopy(numerical)
@@ -350,7 +346,7 @@ def _slice_nine_camb_reference_contract(*, lmax: int) -> dict[str, object]:
         "backend": "camb",
         "standard": True,
         "lmax": int(lmax),
-        "cosmology": dict(SLICE_NINE_NEUTRAL_COSMOLOGY),
+        "model_values": dict(SLICE_NINE_NEUTRAL_MODEL),
     }
 
 
@@ -369,19 +365,19 @@ def _slice_nine_build_camb_params(
         raise RuntimeError("CAMB is not installed")
     params = camb.CAMBparams()
     params.set_cosmology(
-        H0=float(SLICE_NINE_NEUTRAL_COSMOLOGY["H0"]),
-        ombh2=float(SLICE_NINE_NEUTRAL_COSMOLOGY["ombh2"]),
-        omch2=float(SLICE_NINE_NEUTRAL_COSMOLOGY["omch2"]),
-        tau=float(SLICE_NINE_NEUTRAL_COSMOLOGY["tau"]),
-        YHe=float(SLICE_NINE_NEUTRAL_COSMOLOGY["YHe"]),
-        nnu=float(SLICE_NINE_NEUTRAL_COSMOLOGY["Neff"]),
-        TCMB=float(SLICE_NINE_NEUTRAL_COSMOLOGY["Tcmb_K"]),
+        H0=float(SLICE_NINE_NEUTRAL_MODEL["H0"]),
+        ombh2=float(SLICE_NINE_NEUTRAL_MODEL["ombh2"]),
+        omch2=float(SLICE_NINE_NEUTRAL_MODEL["omch2"]),
+        tau=float(SLICE_NINE_NEUTRAL_MODEL["tau"]),
+        YHe=float(SLICE_NINE_NEUTRAL_MODEL["YHe"]),
+        nnu=float(SLICE_NINE_NEUTRAL_MODEL["Neff"]),
+        TCMB=float(SLICE_NINE_NEUTRAL_MODEL["Tcmb_K"]),
         mnu=float(sum_mnu),
         num_massive_neutrinos=int(num_massive_neutrinos),
     )
     params.InitPower.set_params(
-        As=float(SLICE_NINE_NEUTRAL_COSMOLOGY["As"]),
-        ns=float(SLICE_NINE_NEUTRAL_COSMOLOGY["ns"]),
+        As=float(SLICE_NINE_NEUTRAL_MODEL["As"]),
+        ns=float(SLICE_NINE_NEUTRAL_MODEL["ns"]),
         r=float(tensor_ratio),
         nt=float(tensor_tilt),
     )
@@ -2727,7 +2723,7 @@ class _ContractFallbackOnlyPlugin:
 class SliceNineReferenceContractTestCase(unittest.TestCase):
     """Exercise the fixed Slice Nine independent-reference surface."""
 
-    def test_neutral_cosmology_is_fixed_and_native(self) -> None:
+    def test_neutral_model_is_fixed_and_native(self) -> None:
         """The acceptance fixture must be one route-neutral native contract."""
 
         contract = _slice_nine_native_acceptance_contract()
@@ -2736,9 +2732,9 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertNotIn("standard", contract["perturbations"])
         self.assertNotIn("backend_mapping", contract["perturbations"])
         self.assertEqual(contract["model_name"], "SliceNineNeutralNative")
-        cosmology = dict(contract["param_map"])
-        cosmology.update(contract["model_parameters"])
-        self.assertEqual(cosmology, dict(SLICE_NINE_NEUTRAL_COSMOLOGY))
+        model_values = dict(contract["param_map"])
+        model_values.update(contract["model_parameters"])
+        self.assertEqual(model_values, dict(SLICE_NINE_NEUTRAL_MODEL))
         self.assertEqual(
             contract["numerical"],
             dict(SLICE_NINE_NATIVE_NUMERICAL_CONTROLS),
@@ -2873,9 +2869,9 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertEqual(
             route,
             {
-                "engine_id": "copernican_native_declared_graph",
-                "engine_label": (
-                    "Copernican native declared-graph CMB engine"
+                "solver_id": "ccmbs_numpy",
+                "solver_label": (
+                    "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),
                 "runtime_module": (
                     "copernican.lib.likelihoods.cmb." "copernican_cmb_solver"
@@ -2922,8 +2918,8 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertTrue(reference_contract["standard"])
         self.assertEqual(reference_contract["lmax"], 32)
         self.assertEqual(
-            reference_contract["cosmology"],
-            dict(SLICE_NINE_NEUTRAL_COSMOLOGY),
+            reference_contract["model_values"],
+            dict(SLICE_NINE_NEUTRAL_MODEL),
         )
         self.assertNotIn("native", reference_contract)
 
@@ -4333,64 +4329,6 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Fast runtime-response coverage for declared-graph execution."""
-
-    def test_delayed_acceptance_native_correction_matches_scalar_reference(
-        self,
-    ) -> None:
-        """Exact correction preserves a fixed native scalar spectrum target."""
-
-        ells = numpy.asarray((20, 30), dtype=int)
-        reference_contract = _prepare_native_contract(
-            _speedup_contract(_analytic_signal_contract())
-        )
-        reference_spectrum = cmb.compute_cmb_spectrum_from_contract(
-            reference_contract,
-            ells,
-            spectra=("TT",),
-        )
-
-        def exact_target(params):
-            contract = _prepare_native_contract(
-                _speedup_contract(
-                    _analytic_signal_contract(source_scale=float(params[0]))
-                )
-            )
-            spectrum = cmb.compute_cmb_spectrum_from_contract(
-                contract,
-                ells,
-                spectra=("TT",),
-            )
-            residual = numpy.asarray(spectrum) - numpy.asarray(
-                reference_spectrum
-            )
-            return -0.5 * float(numpy.dot(residual, residual))
-
-        surrogate = DeterministicLocalSurrogate(
-            lower=(0.5,),
-            upper=(1.5,),
-            min_support=2,
-            uncertainty_threshold=1.0e99,
-        )
-        surrogate.add_exact_sample(
-            (0.8,), exact_target((0.8,)), sample_id="left"
-        )
-        surrogate.add_exact_sample(
-            (1.2,), exact_target((1.2,)), sample_id="right"
-        )
-        controller = DelayedAcceptanceController(
-            exact_target,
-            surrogate,
-            rng=numpy.random.default_rng(8),
-        )
-        controller.rng = mock.Mock(random=mock.Mock(return_value=0.0))
-        outcome = controller.step((1.2,), exact_target((1.2,)), (1.2,))
-
-        self.assertTrue(outcome.exact_called)
-        self.assertTrue(
-            numpy.isclose(outcome.exact_log_probability, exact_target((1.2,)))
-        )
-        self.assertTrue(controller.proposal_records)
-        self.assertIn("exact_called", controller.proposal_records[-1])
 
     def test_native_los_simpson_weights_integrate_nonuniform_quadratic(
         self,
@@ -6280,7 +6218,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             {"early", "recombination", "late"},
         )
         evidence = report["refinement_evidence"]
-        self.assertTrue(evidence["same_cosmology"])
+        self.assertTrue(evidence["same_model"])
         self.assertEqual(
             set(evidence["tiers"]),
             {"coarse", "intermediate", "reference"},
@@ -7372,7 +7310,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         envelope = spectrum_data.runtime_envelope
         self.assertEqual(int(envelope["contract_static_preparations"]), 1)
-        self.assertEqual(int(envelope["cosmology_static_preparations"]), 1)
+        self.assertEqual(int(envelope["model_static_preparations"]), 1)
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
         self.assertEqual(int(envelope["batch_count"]), 1)
         self.assertEqual(
@@ -10765,7 +10703,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
 
 class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
-    """Protect the declared scalar graph from alternate physics engines."""
+    """Protect the declared scalar graph from alternate physics solvers."""
 
     def test_scalar_runtime_has_one_compiled_evolution_authority(self) -> None:
         """The production scalar entry point must use the declared graph."""

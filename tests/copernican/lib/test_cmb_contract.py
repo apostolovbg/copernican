@@ -108,8 +108,8 @@ class TestCMBContractExports(unittest.TestCase):
         )
         self.assertEqual(audit.unsupported_observables, ())
         self.assertEqual(
-            audit.execution_engine_id,
-            "copernican_native_declared_graph",
+            audit.execution_solver_id,
+            "ccmbs_numpy",
         )
         self.assertEqual(
             audit.execution_runtime_module,
@@ -139,8 +139,8 @@ class TestCMBContractExports(unittest.TestCase):
             matrix["LambdaCDM"].supported_observables,
         )
         self.assertEqual(
-            matrix["QRSF"].execution_engine_id,
-            matrix["LambdaCDM"].execution_engine_id,
+            matrix["QRSF"].execution_solver_id,
+            matrix["LambdaCDM"].execution_solver_id,
         )
 
     def test_full_bundled_cmb_corpus_has_machine_testable_rows(self) -> None:

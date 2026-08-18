@@ -1,11 +1,11 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Shared statistical helpers for cosmological engines.
+"""Shared statistical helpers for cosmological samplers.
 
 This module delegates dataset-specific likelihood calculations to
 :mod:`copernican.lib.likelihoods`. The package stores the covariance-aware
-implementations used by all engines.
+implementations used by all samplers.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 
 import numpy
 
-from copernican.lib import engine_adapter as engine_plugin_validation
+from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib.likelihoods import (
     BAOLike,
     CMBLike,
@@ -37,14 +37,14 @@ __all__ = [
 
 
 def chi_squared_sne(
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
     mu_model_func,
     sne_data_df,
 ) -> float:
     """Return the χ² value for Supernovae Ia data."""
 
     like = SNeLike(mu_model_func, sne_data_df)
-    loglike = like.loglike(cosmo_params)
+    loglike = like.loglike(model_params)
     chi2 = float(like.state.get("chi2", float("inf")))
     if not numpy.isfinite(loglike):
         return float("inf")
@@ -57,7 +57,7 @@ def chi_squared_bao(
     observable_values: numpy.ndarray,
     observable_errors: numpy.ndarray,
     model_plugin,
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
     model_rs_Mpc: float,
     *,
     covariance_matrix_inv=None,
@@ -73,7 +73,7 @@ def chi_squared_bao(
         covariance_matrix_inv=covariance_matrix_inv,
         rs_override=model_rs_Mpc,
     )
-    loglike = like.loglike(cosmo_params)
+    loglike = like.loglike(model_params)
     chi2 = float(like.state.get("chi2", float("inf")))
     if not numpy.isfinite(loglike):
         return float("inf")
@@ -81,7 +81,7 @@ def chi_squared_bao(
 
 
 def chi_squared_cmb(
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
     cmb_data_df,
     plugin,
     extra_params: Mapping[str, float] | None = None,
@@ -89,7 +89,7 @@ def chi_squared_cmb(
     """Return the χ² value for CMB spectra."""
 
     like = CMBLike(cmb_data_df, plugin, extra_params=extra_params or {})
-    loglike = like.loglike(cosmo_params)
+    loglike = like.loglike(model_params)
     chi2 = float(like.state.get("chi2", float("inf")))
     if not numpy.isfinite(loglike):
         return float("inf")
@@ -99,14 +99,14 @@ def chi_squared_cmb(
 def calculate_bao_observables(
     bao_data_df,
     model_plugin,
-    cosmo_params: Sequence[float],
+    model_params: Sequence[float],
     *,
     z_smooth: numpy.ndarray | None = None,
 ):
     """Return BAO predictions and optional smooth curves for plotting."""
 
     logger = logging.getLogger()
-    engine_plugin_validation.validate_plugin(model_plugin)
+    model_plugin_validation.validate_plugin(model_plugin)
     model_name = model_plugin.MODEL_NAME
 
     bao_pred_df = bao_data_df.copy()
@@ -115,7 +115,7 @@ def calculate_bao_observables(
         logger.warning("Model invalid for BAO; skipping.")
         return bao_pred_df, numpy.nan, None
 
-    param_str = ", ".join([f"{parameter:.4g}" for parameter in cosmo_params])
+    param_str = ", ".join([f"{parameter:.4g}" for parameter in model_params])
     logger.info(
         "Calculating BAO observables for %s with parameters: [%s]",
         model_name,
@@ -153,7 +153,7 @@ def calculate_bao_observables(
         if not (numpy.isfinite(rs_value) and rs_value > 0):
             try:
                 rs_value = float(
-                    model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+                    model_plugin.get_sound_horizon_rs_Mpc(*model_params)
                 )
             except (
                 AttributeError,
@@ -184,20 +184,20 @@ def calculate_bao_observables(
             model_pred_numerator = numpy.nan
             try:
                 if obs == "DM_over_rs":
-                    model_pred_numerator = get_DM_model(z_val, *cosmo_params)
+                    model_pred_numerator = get_DM_model(z_val, *model_params)
                 elif obs == "DH_over_rs":
-                    hz_val = get_Hz_model(z_val, *cosmo_params)
+                    hz_val = get_Hz_model(z_val, *model_params)
                     if numpy.isfinite(hz_val) and abs(hz_val) > 1e-9:
                         model_pred_numerator = C_LIGHT / hz_val
                 elif obs == "DV_over_rs":
                     if get_DV_model_specific:
                         model_pred_numerator = get_DV_model_specific(
                             z_val,
-                            *cosmo_params,
+                            *model_params,
                         )
                     else:
-                        dm_val = get_DM_model(z_val, *cosmo_params)
-                        hz_val = get_Hz_model(z_val, *cosmo_params)
+                        dm_val = get_DM_model(z_val, *model_params)
+                        hz_val = get_Hz_model(z_val, *model_params)
                         if (
                             numpy.isfinite(dm_val)
                             and dm_val >= 0
@@ -238,8 +238,8 @@ def calculate_bao_observables(
         smooth_preds = None
         if z_smooth_arr is not None:
             try:
-                dm_smooth = get_DM_model(z_smooth_arr, *cosmo_params)
-                hz_smooth = get_Hz_model(z_smooth_arr, *cosmo_params)
+                dm_smooth = get_DM_model(z_smooth_arr, *model_params)
+                hz_smooth = get_Hz_model(z_smooth_arr, *model_params)
                 dh_smooth = numpy.where(
                     hz_smooth > 0, C_LIGHT / hz_smooth, numpy.nan
                 )
@@ -247,10 +247,10 @@ def calculate_bao_observables(
                 if get_DV_model_specific:
                     dv_smooth = get_DV_model_specific(
                         z_smooth_arr,
-                        *cosmo_params,
+                        *model_params,
                     )
                 else:
-                    da_smooth = get_DA_model(z_smooth_arr, *cosmo_params)
+                    da_smooth = get_DA_model(z_smooth_arr, *model_params)
                     term = (
                         numpy.power(1 + z_smooth_arr, 2)
                         * numpy.power(da_smooth, 2)

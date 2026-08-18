@@ -1,5 +1,5 @@
 # Native CMB Solver Convention
-**Last Updated:** 2026-08-17
+**Last Updated:** 2026-08-18
 **Project Version:** 12.0.26
 
 ## Overview
@@ -8,9 +8,9 @@ CMB solver path. Every bundled production CMB model uses one route-neutral
 declared graph with no solver selector or backend fallback.
 
 The production execution identity is
-`copernican_native_declared_graph`, displayed as the Copernican native
-declared-graph CMB engine. CLI and GUI workflows select control and test model
-contracts and a sampler engine; they do not expose a CMB-engine choice.
+`ccmbs_numpy`, displayed as CCMBS — Copernican Cosmic Microwave Background
+Solver. CLI and GUI workflows select control and test model
+contracts and a sampler; they do not expose a CMB-sampler choice.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
@@ -29,26 +29,10 @@ result. The initial implementation is an exact scalar-to-batch adapter; it
 therefore shares only identities that the native cache already proves safe and
 does not approximate parameter-dependent background or transfer state.
 
-The MCMC engine accepts `cmb_batch_size` as an explicit setting. `0` is the
+The MCMC sampler accepts `cmb_batch_size` as an explicit setting. `0` is the
 default and preserves the scalar reference path. A value greater than one
 uses bounded ordered worker batches while retaining the scalar fallback for
 serial execution and any unsupported batch capability.
-
-## Delayed-acceptance boundary
-
-The separate MCMC `delayed_acceptance` setting is disabled by default. When
-enabled, the deterministic normalized-parameter surrogate is trained only
-from exact native target evaluations. A candidate outside the declared domain
-or without sufficient local support is evaluated exactly. A candidate that
-passes the surrogate screen is also evaluated exactly and accepted only after
-the mathematically required second-stage correction for the same proposal
-density. Surrogate predictions are never promoted to exact native spectra or
-likelihoods.
-
-The sampler records each proposal stage, exact-call count, support fallback,
-exact correction, rejection, training-sample identity, configuration, and
-surrogate cache identity in result and manifest provenance. Disabling the
-setting preserves the seeded exact scalar chain and its cache behavior.
 
 The native route uses conformal time `tau`, conformal distance
 `chi = eta0 - eta`, and comoving wave number `k` in inverse Mpc. All
@@ -1213,7 +1197,7 @@ publishing a partial or misleading spectrum.
 
 ### Ensemble acceptance and resource envelope
 
-The MCMC engine records an `ensemble_performance` payload for every fit,
+The MCMC sampler records an `ensemble_performance` payload for every fit,
 including failed fits. It reports total elapsed time, initialization,
 burn-in, and production timings, the requested and effective pool sizes,
 the CPU-derived worker limit, nominal proposal evaluations, and failed

@@ -1,7 +1,7 @@
 """Supernova Ia likelihood helper.
 
 Wraps the covariance-aware χ² evaluation previously implemented in
-``copernican.lib.statistics`` so engines can reuse it without duplicating
+``copernican.lib.statistics`` so samplers can reuse it without duplicating
 validation logic.  The helper exposes a :meth:`loglike` method returning the
 natural logarithm of the likelihood and records χ² diagnostics in
 :pyattr:`state`.

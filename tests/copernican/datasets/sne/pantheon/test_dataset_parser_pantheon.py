@@ -14,7 +14,7 @@ class TestPantheonParser(unittest.TestCase):
 
     def test_loader_returns_sorted_covariance_sample(self) -> None:
         parser_module = importlib.import_module(
-            "copernican.datasets.sne.pantheon.cosmo_parser_pantheon"
+            "copernican.datasets.sne.pantheon.dataset_parser_pantheon"
         )
         data_dir = (
             Path(__file__).resolve().parents[5]

@@ -9,8 +9,8 @@ models:
   version: '1.0'
   filename: model_torg.yml
   priors: {}
-engine:
-  name: copernican.engines.engine_mcmc
+sampler:
+  name: copernican.samplers.sampler_mcmc
   version: validation
 seed: 0
 datasets:
@@ -19,7 +19,7 @@ datasets:
     version: '2025.1'
     path: copernican/datasets/sne/union3
     hashes:
-      cosmo_parser_union3.py: 557da7ad280b54256107aa13e73f142f718ef03cf1d281b8a356d3e5739d0616
+      dataset_parser_union3.py: 557da7ad280b54256107aa13e73f142f718ef03cf1d281b8a356d3e5739d0616
       metadata_union3.yml: 1ae7de8e0158233207188a14664392cde41c6311dedd3b407eb8b0e48022c7b1
       mu_mat_union3_cosmo=2_mu.fits: ef98b7dde1025ee7134f3242aaea3f1f0ed3f2b29a718458c550a8e4e24d0349
     independence:
@@ -34,7 +34,7 @@ datasets:
     path: copernican/datasets/bao/compound
     hashes:
       compound.yml: 13d8a665a340e1b8596d4f65ce0133cd159836a2e2ecb149f7fcabf2c29ce8b2
-      cosmo_parser_compound.py: 3517dd1008b4e1684430af3401ed019e6bf52bcb1a9bed350f1af989dfadd7d9
+      dataset_parser_compound.py: 3517dd1008b4e1684430af3401ed019e6bf52bcb1a9bed350f1af989dfadd7d9
       metadata_compound.yml: f53738bb36b6ae12c862cd370f5b0513cb20632318a458a0cca2eaa3f433d906
     independence:
     - Compound BAO measurements are treated as independent from SNe and CMB
@@ -48,7 +48,7 @@ datasets:
     hashes:
       c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
-      cosmo_parser_cmb_planck2018lite.py: 7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637
+      dataset_parser_cmb_planck2018lite.py: 7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637
       metadata_planck2018lite.yml: fe61749d16ea01c8e4544eac26bb6d02f5eaa05b55db4b7ea563e1c32d6202a2
     independence:
     - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
@@ -71,8 +71,8 @@ selection:
       filename: model_torg.yml
   control_model: LambdaCDM
   test_model: Temporal Opposing Relational Geometry
-  engine:
-    name: copernican.engines.engine_mcmc
+  sampler:
+    name: copernican.samplers.sampler_mcmc
     version: validation
   datasets:
   - union3_2025
@@ -91,8 +91,8 @@ configuration:
       filename: model_torg.yml
   control_model: LambdaCDM
   test_model: Temporal Opposing Relational Geometry
-  engine:
-    name: copernican.engines.engine_mcmc
+  sampler:
+    name: copernican.samplers.sampler_mcmc
     version: validation
   datasets:
   - union3_2025
@@ -100,7 +100,7 @@ configuration:
   - planck_2018_lite
   notes: Native LambdaCDM control and TORG comparison using the exact reference workload.
   run_settings:
-    engine_kind: mcmc
+    sampler_kind: mcmc
     n_steps: 10
     burn_in_steps: 5
     n_walkers: 32

@@ -210,25 +210,25 @@ def register_gw_parser(name=None, description="", data_dir=None):
 
 TRUSTED_PARSER_DIGESTS = {
     # ``relative_path`` -> ``sha256``
-    "sne/pantheon/cosmo_parser_pantheon.py": (
+    "sne/pantheon/dataset_parser_pantheon.py": (
         "b208efe518fc3744fe157bb4fdc7e75f437498c6810eeae99e3f38200773037e"
     ),
-    "sne/jla2014/cosmo_parser_jla2014.py": (
+    "sne/jla2014/dataset_parser_jla2014.py": (
         "d3f469bc97b01069a6f8aa2287a0018905ae6b36cf87316c842ab0934f175c5d"
     ),
-    "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "e4ff86153e53bf0ffc0e4de8c16bf1d4c9c0d36d437595207cda2c543ee71d5f"
+    "bao/bossdr12/dataset_parser_bossdr12.py": (
+        "73abab5d4e470e7cd7f02533b91f56141fe93097e33159abbab968adad560e18"
     ),
-    "bao/compound/cosmo_parser_compound.py": (
+    "bao/compound/dataset_parser_compound.py": (
         "3517dd1008b4e1684430af3401ed019e6bf52bcb1a9bed350f1af989dfadd7d9"
     ),
-    "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
+    "cmb/planck2018lite/dataset_parser_cmb_planck2018lite.py": (
         "7ace126b440d959b2756a092d6acf008e7fdc5f37c62fa3719abfa8f1c763637"
     ),
-    "gw/placeholder/cosmo_parser_gw_placeholder.py": (
+    "gw/placeholder/dataset_parser_gw_placeholder.py": (
         "01014c45e0548c13b97327f2232cf8aa7b9aacea974f922f9f2956cc9c52e7e1"
     ),
-    "sne/union3/cosmo_parser_union3.py": (
+    "sne/union3/dataset_parser_union3.py": (
         "557da7ad280b54256107aa13e73f142f718ef03cf1d281b8a356d3e5739d0616"
     ),
 }
@@ -322,7 +322,9 @@ def discover_trusted_parsers(
             )
             placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
-                if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
+                if fname.startswith("dataset_parser_") and fname.endswith(
+                    ".py"
+                ):
                     module_name = (
                         f"copernican.datasets.{dtype}.{source}.{fname[:-3]}"
                     )
@@ -650,7 +652,7 @@ def _parser_files(entries: list[Path]) -> list[Path]:
         entry
         for entry in entries
         if entry.is_file()
-        and entry.name.startswith("cosmo_parser_")
+        and entry.name.startswith("dataset_parser_")
         and entry.suffix == ".py"
     )
 

@@ -1,7 +1,7 @@
 """Parameter prior definitions and helper utilities.
 
 This module centralises the construction of parameter priors so every
-engine evaluates them consistently.  Historically the project stored raw
+sampler evaluates them consistently.  Historically the project stored raw
 dictionary structures in the sanitised YAML cache and reimplemented the
 log-density calculations in multiple places.  The new helpers collapse
 that logic into a single location, provide descriptive validation errors
@@ -11,7 +11,7 @@ Jacobian corrections remain synchronised with the prior configuration.
 In addition to probabilistic distributions the helper also understands a
 ``fixed`` prior.  Fixed priors represent parameters whose lower and upper
 bounds coincide and therefore become deterministic inputs.  Treating
-them explicitly keeps manifests self-documenting and allows engines to
+them explicitly keeps manifests self-documenting and allows samplers to
 expose the constant values to downstream utilities without special-case
 code.
 
@@ -219,7 +219,7 @@ class LogUniformPrior(BasePrior):
 class FixedPrior(BasePrior):
     """Degenerate prior fixing a parameter to a single value.
 
-    Sampling engines treat this prior as a hard constraint rather than a
+    Samplers treat this prior as a hard constraint rather than a
     probability density.  The log-density is ``0`` when evaluated at the
     prescribed value and ``-inf`` elsewhere so optimisers reject any
     deviation immediately.  A tight absolute/relative tolerance avoids

@@ -1,4 +1,4 @@
-"""Tests for the canonical production CMB engine identity."""
+"""Tests for the canonical CCMBS solver identity."""
 
 import unittest
 
@@ -9,19 +9,19 @@ class CMBIdentityTestCase(unittest.TestCase):
     """Keep user-facing CMB identity stable and singular."""
 
     def test_native_identity_is_public_and_unambiguous(self) -> None:
-        """Expose one native engine identifier and label."""
+        """Expose one CCMBS identifier and label."""
 
         self.assertEqual(
-            cmb_identity.NATIVE_CMB_ENGINE_ID,
-            "copernican_native_declared_graph",
+            cmb_identity.CCMBS_ID,
+            "ccmbs_numpy",
         )
         self.assertEqual(
-            cmb_identity.NATIVE_CMB_ENGINE_LABEL,
-            "Copernican native declared-graph CMB engine",
+            cmb_identity.CCMBS_LABEL,
+            "CCMBS — Copernican Cosmic Microwave Background Solver",
         )
         self.assertEqual(
             cmb_identity.__all__,
-            ["NATIVE_CMB_ENGINE_ID", "NATIVE_CMB_ENGINE_LABEL"],
+            ["CCMBS_ID", "CCMBS_LABEL"],
         )
 
 

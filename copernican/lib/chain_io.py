@@ -3,10 +3,10 @@
 
 """Utilities for writing MCMC chains to NetCDF files.
 
-This module stores posterior samples produced by engines such as the
-``engine_mcmc`` backend.  Chains are saved in the NetCDF format using
+This module stores posterior samples produced by samplers such as the
+``sampler_mcmc`` backend.  Chains are saved in the NetCDF format using
 ArviZ so that users can analyse results with a broad ecosystem of Bayesian
-tools.  The helper aims to keep file handling consistent across engines and to
+tools.  The helper aims to keep file handling consistent across samplers and to
 centralise metadata attachment so future formats can be supported from one
 location.
 """
@@ -73,7 +73,7 @@ def save_posterior(
     ensure_dir_exists(os.path.dirname(filepath))
 
     # ArviZ expects arrays in ``(chain, draw, ...)`` order.  The sampler in the
-    # MCMC engine yields ``(step, walker, param)`` so we transpose accordingly.
+    # MCMC sampler yields ``(step, walker, param)``; transpose accordingly.
     transposed = numpy.transpose(chain, (1, 0, 2))
     posterior_dict = {
         name: transposed[:, :, i] for i, name in enumerate(param_names)

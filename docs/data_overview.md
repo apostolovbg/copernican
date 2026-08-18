@@ -11,7 +11,7 @@ copernican/datasets/
 Note: The `gw` parsers are stubs that log a message and return `None` while
 placeholder management consolidates upcoming gravitational-wave standard siren
 support. Each subdirectory contains one or more dataset sources. A Python file
-named `cosmo_parser_*.py` lives inside each source folder and registers a
+named `dataset_parser_*.py` lives inside each source folder and registers a
 parser function via decorators from `copernican.lib.dataset_registry`. Folders
 named `placeholder` are ignored during automatic discovery so work-in- progress
 datasets do not appear in interactive menus. When a dataset becomes usable
@@ -42,7 +42,7 @@ compares a model against itself because the Stage 2 SNe chain is reused for
 both roles. See `dataset_metadata.md` for a full description of the metadata
 fields. The reference tables remain read-only, while parser `.py` files and
 accompanying `metadata_*.yml` files may be updated.
-When the MCMC engine runs it writes NetCDF chains that capture burn-in and
+When the MCMC sampler runs it writes NetCDF chains that capture burn-in and
 production lengths, per-walker acceptance fractions, the complete log-
 probability trace and posterior summaries. Walkers that encounter ``nan``
 coordinates during burn-in are reseeded automatically so the stored chains
@@ -65,7 +65,7 @@ warning observed in the latest LCDM self-test.
 *Source:* "Improved cosmological constraints from a joint analysis of the
 SDSS-II and SNLS supernova samples" (Betoule et al. 2014).
 *Location:* `copernican/datasets/sne/jla2014/`.
-*Parser:* `cosmo_parser_jla2014.py` reads the fixed-width `tablef3.dat` and
+*Parser:* `dataset_parser_jla2014.py` reads the fixed-width `tablef3.dat` and
 extracts the light-curve parameters. The SALT2 nuisance values
 \(M_B=-19.05\), \(\alpha=0.141\) and \(\beta=3.101\) convert those
 parameters into distance moduli. The systematic covariance from `tablef4.fit`
@@ -76,17 +76,17 @@ plots.
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).
 *Location:* `copernican/datasets/sne/pantheon/`.
-*Parser:* `cosmo_parser_pantheon.py` discovers the single `.dat` and `.cov`
+*Parser:* `dataset_parser_pantheon.py` discovers the single `.dat` and `.cov`
 files, reads the distance moduli and verifies the essential columns. The
 supernovae are sorted by redshift and the covariance matrix is reshaped and
 reordered to match. Its inverse and diagonal errors are attached to the
-`DataFrame`. If inversion fails the engine falls back to the diagonal
+`DataFrame`. If inversion fails the sampler falls back to the diagonal
 uncertainties.
 ### Union3 UNITY compilation (Rubin et al. 2025)
 *Source:* “Union Through UNITY: Cosmology with 2,000 SNe Using a Unified
 Bayesian Framework” (Rubin et al. 2025).
 *Location:* `copernican/datasets/sne/union3/`.
-*Parser:* `cosmo_parser_union3.py` loads `mu_mat_union3_cosmo=2_mu.fits`,
+*Parser:* `dataset_parser_union3.py` loads `mu_mat_union3_cosmo=2_mu.fits`,
 exposing the 22 redshift nodes (first row), the compressed distance moduli
 (first column) and the inverse covariance block the likelihood uses
 directly. The SNe likelihood applies an additive intercept marginalization
@@ -104,7 +104,7 @@ cite Rubin et al. (2025) when publishing.
 *Source:* "The clustering of galaxies in the completed SDSS-III Baryon
 Oscillation Spectroscopic Survey" (Alam et al. 2017).
 *Location:* `copernican/datasets/bao/bossdr12/`.
-*Parser:* `cosmo_parser_bossdr12.py` reads the `dM/Hz` and `D_V/F_AP`
+*Parser:* `dataset_parser_bossdr12.py` reads the `dM/Hz` and `D_V/F_AP`
 tables and their individual covariance matrices. The `dM` and `Hz`
 measurements are converted to `D_M/rs` and `D_H/rs` with the fiducial
 sound horizon, while `D_V/rs` comes directly from the second table. The
@@ -112,13 +112,13 @@ covariance matrices are assembled into a block-diagonal structure,
 propagated through the transformation and inverted. The resulting
 `DataFrame` lists three observables per redshift and stores the inverse
 covariance and diagonal errors on `.attrs`. During \(\chi^2\)
-evaluation the engine contracts the full residual vector with this
+evaluation the sampler contracts the full residual vector with this
 inverse covariance and falls back to the diagonal uncertainties only when
 the matrix is absent or ill conditioned.
 ### Compound BAO Dataset
 *Source:* synthetic compilation for testing purposes.
 *Location:* `copernican/datasets/bao/compound/`.
-*Parser:* `cosmo_parser_compound.py` scans the directory for a YAML file
+*Parser:* `dataset_parser_compound.py` scans the directory for a YAML file
 and loads its `data_points` table into a `DataFrame`. Numeric columns are
 coerced to floats and rows missing required fields are discarded. Metadata
 declares independent measurement errors and diagonal covariance, which the
@@ -128,7 +128,7 @@ fallback path.
 ### Planck 2018 Lite TT/TE/EE
 *Source:* Planck 2018 legacy release.
 *Location:* `copernican/datasets/cmb/planck2018lite/`.
-*Parser:* `cosmo_parser_cmb_planck2018lite.py` splits `cl_cmb_plik_v22.dat`
+*Parser:* `dataset_parser_cmb_planck2018lite.py` splits `cl_cmb_plik_v22.dat`
 into TT, TE and EE blocks by detecting drops in the `\ell` column and
 converts each to \(D_\ell\) form. The `c_matrix_plik_v22.dat`
 covariance is a Fortran binary; the parser determines its endianness,
@@ -139,7 +139,7 @@ calculations.
 ## Adding New Datasets
 To add a new dataset create a `copernican/datasets/<type>/<source>/`
 directory, place your raw tables inside and implement
-`cosmo_parser_<source>.py`. The parser should return a
+`dataset_parser_<source>.py`. The parser should return a
 `pandas.DataFrame` with observations and attach any auxiliary arrays to
 `df.attrs`. Document the dataset in `metadata_<source>.yml` with a
 `dataset_name`, a plain-language `description` and the full `citation`.
@@ -163,7 +163,7 @@ import hashlib
 from pathlib import Path
 
 path = Path(
-    "copernican/datasets/sne/jla2014/cosmo_parser_jla2014.py"
+    "copernican/datasets/sne/jla2014/dataset_parser_jla2014.py"
 )
 digest = hashlib.sha256(
     path.read_bytes().replace(b"\r\n", b"\n")

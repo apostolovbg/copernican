@@ -206,7 +206,7 @@ def parse_boss_dr12(data_dir, **kwargs):
         cov_inv = None
 
     # ------------------------------------------------------------------
-    # Build the final DataFrame expected by the engine.
+    # Build the final DataFrame expected by the dataset consumer.
     # ------------------------------------------------------------------
     records = []
     for i, z in enumerate(redshifts):

@@ -16,9 +16,9 @@ current hashes for every dataset asset consumed by the validation run.
 ## Reference model
 `copernican/models/model_torg.yml` supplies the declared Temporal Opposing
 Relational Geometry comparison contract. The LCDM control and TORG test run
-through the same native CMB engine, so the reference fixture exercises both
+through the same native CMB solver, so the reference fixture exercises both
 the scalar spectrum path and the model-comparison pipeline rather than a
-fixed-parameter surrogate.
+fixed-parameter reference fixtures.
 
 ## Running validation
 1. Activate the managed environment and run `python -m copernican` from the
@@ -47,6 +47,6 @@ and reporting guidance.
 ## Adding new manifests
 To add another reference, drop a new YAML manifest into
 `copernican/validation/manifests/` and describe the target model,
-engine and datasets exactly as the GUI would. The loader discovers all
+sampler and datasets exactly as the GUI would. The loader discovers all
 `*.yml` files in that folder, so the CLI and GUI validation panels grow
 automatically.
