@@ -26,7 +26,6 @@ from .errors import (
     InitialPointError,
     NonFiniteEvolutionError,
     ParameterDomainError,
-    PerformanceBudgetError,
     UnsupportedCapabilityError,
 )
 from .results import CMBBatchResult
@@ -49,7 +48,6 @@ __all__ = [
     "InitialPointError",
     "NonFiniteEvolutionError",
     "ParameterDomainError",
-    "PerformanceBudgetError",
     "UnsupportedCapabilityError",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_batch",

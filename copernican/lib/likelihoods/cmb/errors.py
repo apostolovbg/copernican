@@ -78,12 +78,6 @@ class ConstraintViolationError(CMBError):
     category = "constraint_violation"
 
 
-class PerformanceBudgetError(CMBError):
-    """Identify a declared request that exceeded its workload budget."""
-
-    category = "performance_budget"
-
-
 class ImplementationError(CMBError):
     """Identify an unexpected implementation or infrastructure fault."""
 
@@ -158,9 +152,7 @@ def classify_exception(
     message = str(exc)
     normalized = message.casefold()
     error_type: type[CMBError]
-    if "performance budget" in normalized:
-        error_type = PerformanceBudgetError
-    elif "non-finite" in normalized or "nonfinite" in normalized:
+    if "non-finite" in normalized or "nonfinite" in normalized:
         error_type = NonFiniteEvolutionError
     elif (
         "failed to converge" in normalized
@@ -195,7 +187,6 @@ __all__ = [
     "InitialPointError",
     "NonFiniteEvolutionError",
     "ParameterDomainError",
-    "PerformanceBudgetError",
     "UnsupportedCapabilityError",
     "classify_exception",
     "failure_context",

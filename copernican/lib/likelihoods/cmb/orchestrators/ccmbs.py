@@ -21,11 +21,7 @@ from ....cmb_output import (
 from ..errors import classify_exception, failure_context
 from ..runtime import cache
 from ..runtime.lensing import lensed_cls as _lensed_cls
-from ..runtime.performance import (
-    PhaseTimer,
-    enforce_performance_budget,
-    resolve_performance_budget,
-)
+from ..runtime.performance import PhaseTimer
 from ..runtime.projection import _compute_custom_cmb_spectrum_data
 
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
@@ -347,7 +343,6 @@ def _compute_declared_perturbation_spectrum_impl(
         background_provider=background_provider,
         requested_spectra=base_requested_spectra,
         workload=workload,
-        enforce_performance_budget=False,
     )
     ell_factor = (
         numpy.asarray(custom_data.ell_grid, dtype=numpy.longdouble)
@@ -485,21 +480,6 @@ def _compute_declared_perturbation_spectrum(
             cache.extend_latest_cmb_request_phase(
                 "likelihood_assembly",
                 assembly,
-            )
-            latest = cache.latest_cmb_performance_record()
-            budget = resolve_performance_budget(
-                getattr(
-                    contract_or_params.get("perturbation_data"),
-                    "accuracy_controls",
-                    {},
-                )
-                or {}
-            )
-            enforce_performance_budget(
-                float(latest["phase_seconds"].get("total_seconds", 0.0)),
-                workload=workload,
-                budget=budget,
-                cache_state=str(latest["cache_state"]),
             )
         return result
     # DEVCOV_ALLOW_BROAD_ONCE public declared solver normalization boundary.

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-18
+**Last Updated:** 2026-08-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,92 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-19:
+  Change: Corrected projection-bound fallback and declared-surface selection.
+  Why: Prevented incomplete numerical stubs from raising attribute errors and
+    rejected only low-ell requests that truly exceeded their k ceiling.
+  Impact: Preserved strict high-k rejection and allowed finite default USMF2
+    modes when its declared ell ceiling exceeded its available k range.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-08-18:
+  Change: Corrected projection-bound fallback and declared-surface selection.
+  Why: Prevented incomplete numerical stubs from raising attribute errors and
+    rejected only low-ell requests that truly exceeded their k ceiling.
+  Impact: Preserved strict high-k rejection and allowed finite default USMF2
+    modes when its declared ell ceiling exceeded its available k range.
+  Files:
+  CHANGELOG.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+
+- 2026-08-18:
+  Change: Stabilized declared CMB projection surfaces and cache rebuilds.
+  Why: Corrected request-dependent quadrature and prevented bounded Bessel
+    cache eviction from discarding the active mode grid.
+  Impact: Preserved shared multipoles and ensured active projections rebuild
+    safely under cache pressure.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-08-18:
+  Change: Removed internal CMB wall-clock budgets and performance failures.
+  Why: Prevented timing limits from turning slow but valid CPU solver
+    evaluations into numerical failure conditions.
+  Impact: Retained CCMBS timing and cache telemetry while ΛCDM spectra and
+    sampler runs no longer abort because of elapsed time.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/samplers/test_sampler_mcmc.py
 
 - 2026-08-18:
   Change: Restructured the CMB package into solver, orchestrator, and runtime

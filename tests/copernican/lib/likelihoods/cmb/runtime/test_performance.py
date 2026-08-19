@@ -6,25 +6,16 @@ from copernican.lib.likelihoods.cmb.runtime import performance
 
 
 class PerformanceModuleTestCase(unittest.TestCase):
-    """Exercise declared workload budgets and phase accounting."""
+    """Exercise declared phase timing and cache-state accounting."""
 
-    def test_bounded_budget_exposes_required_cache_state_limits(self):
-        """The bounded preset must expose every accepted cache-state limit."""
+    def test_phase_timer_exposes_no_wall_time_budget(self):
+        """Timing remains observable without an execution-time limit."""
 
-        budget = performance.resolve_performance_budget(
-            {"runtime_envelope": "bounded"}
-        )
-
-        self.assertTrue(callable(performance.enforce_performance_budget))
         self.assertTrue(callable(performance.PhaseTimer.add))
         self.assertTrue(callable(performance.PhaseTimer.phase))
-        self.assertIsInstance(
-            budget,
-            performance.PerformanceBudget,
-        )
-        self.assertEqual(budget.limit_for("full_spectrum"), 180.0)
-        self.assertEqual(budget.limit_for("warm_parameter"), 5.0)
-        self.assertEqual(budget.limit_for("exact_cache_hit"), 1.0)
+        self.assertFalse(hasattr(performance, "PerformanceBudget"))
+        self.assertFalse(hasattr(performance, "enforce_performance_budget"))
+        self.assertFalse(hasattr(performance, "resolve_performance_budget"))
 
     def test_phase_timer_accumulates_named_work(self):
         """Phase timing must retain separate compilation and projection."""
@@ -43,58 +34,12 @@ class PerformanceModuleTestCase(unittest.TestCase):
         self.assertEqual(snapshot["projection_seconds"], 0.25)
         self.assertEqual(snapshot["total_seconds"], 0.5)
 
-    def test_budget_rejects_overrun_with_workload_name(self):
-        """An over-budget warm request must retain its workload label."""
+    def test_long_elapsed_requests_are_recordable(self):
+        """A slow request remains a successful diagnostic record."""
 
-        budget = performance.PerformanceBudget(
-            full_spectrum_seconds=1.0,
-            warm_parameter_seconds=0.5,
-            exact_cache_hit_seconds=0.25,
-        )
-        with self.assertRaisesRegex(
-            performance.PerformanceBudgetError,
-            r"joint_mcmc: 0\.750s > 0\.500s",
-        ):
-            performance.enforce_performance_budget(
-                0.75,
-                workload="joint_mcmc",
-                budget=budget,
-                cache_state="warm",
-            )
-
-    def test_cache_state_selects_the_matching_budget(self):
-        """Cold, warm, and exact requests must retain distinct limits."""
-
-        budget = performance.PerformanceBudget(
-            full_spectrum_seconds=1.0,
-            warm_parameter_seconds=0.5,
-            exact_cache_hit_seconds=0.25,
-        )
-        performance.enforce_performance_budget(
-            0.75,
-            workload="joint_mcmc",
-            budget=budget,
-            cache_state="cold",
-        )
-        with self.assertRaises(performance.PerformanceBudgetError):
-            performance.enforce_performance_budget(
-                0.75,
-                workload="joint_mcmc",
-                budget=budget,
-                cache_state="warm",
-            )
-        with self.assertRaises(performance.PerformanceBudgetError):
-            performance.enforce_performance_budget(
-                0.3,
-                workload="joint_mcmc",
-                budget=budget,
-                cache_state="exact_cache_hit",
-            )
-
-    def test_unbounded_controls_do_not_invent_wall_time_limit(self):
-        """Unspecified controls must preserve caller-owned runtime policy."""
-
-        self.assertIsNone(performance.resolve_performance_budget({}))
+        timer = performance.PhaseTimer()
+        snapshot = timer.snapshot(total_seconds=181.0)
+        self.assertEqual(snapshot["total_seconds"], 181.0)
 
 
 if __name__ == "__main__":  # pragma: no cover

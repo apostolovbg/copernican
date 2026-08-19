@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-18
+**Last Updated:** 2026-08-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -128,15 +128,10 @@ separate transfer identities, and adaptive refinement keeps its full path.
 Exact split collision half-steps absorb collision stiffness, so their
 magnitude does not create redundant Runge-Kutta microsteps after a declared
 tight-coupling transition. Only valid parameter-domain exclusions become
-rejected proposals; contract, convergence, non-finite, constraint,
-capability, and performance failures stop execution with typed diagnostics.
-
-Declared CMB performance budgets are enforced separately at the workload
-boundary:
-180 seconds for a cold full spectrum, 5 seconds for a warm parameter rebound,
-and 1 second for an exact cache hit. Reports retain deterministic median and
-p95 samples for each state, so practical MCMC throughput remains visible
-without weakening numerical accuracy or silently reusing stale results.
+rejected proposals; contract, convergence, non-finite, constraint, and
+capability failures stop execution with typed diagnostics. Runtime telemetry
+records phase timings, cache states, and work units without imposing a
+wall-clock limit on valid solver evaluations.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived

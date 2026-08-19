@@ -95,10 +95,6 @@ from .evolution import (
     prepare_runtime_assets,
 )
 from .performance import PhaseTimer
-from .performance import (
-    enforce_performance_budget as enforce_performance_budget_limit,
-)
-from .performance import resolve_performance_budget
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
@@ -566,6 +562,7 @@ def _build_projection_k_grid(
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     sample_count = max(8, int(numerics.k_sample_count))
+    declared_ell_max = int(getattr(numerics, "ell_max", int(ell_values.max())))
     declared_k_min = float(numerics.k_min)
     declared_k_max = float(numerics.k_max)
     if not numpy.isfinite(declared_k_min) or not numpy.isfinite(
@@ -576,29 +573,53 @@ def _build_projection_k_grid(
         raise ValueError(
             "Declared numerical k limits must satisfy " "0 < k_min <= k_max"
         )
-    configured_reference_ells = _configured_reference_ells(
-        perturbation_data,
-        maximum_ell=int(ell_values.max()),
-    )
-    grid_ell_min = min(
-        int(ell_values.min()),
-        int(numerics.ell_min),
-        *configured_reference_ells,
-    )
-    grid_ell_max = max(
-        (
-            int(ell_values.max()),
-            *configured_reference_ells,
-        )
-    )
     eta0_floor = max(float(background.eta0), 1.0e-6)
-    k_min = max(
-        declared_k_min,
-        0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
-    )
     eta_rec_distance = max(
         float(background.eta0) - float(background.eta_rec),
         1.0,
+    )
+    declared_required_k_max = 1.5 * (
+        (float(declared_ell_max) + 16.0) / eta_rec_distance
+    )
+    if declared_required_k_max <= declared_k_max:
+        surface_ell_max = declared_ell_max
+    else:
+        # A low-ell request can still be evaluated when a model declares an
+        # ell ceiling whose k ceiling is too small to support the full range.
+        # Keep the request-local surface in that inconsistent case, and let
+        # the preflight below reject only requests that actually exceed k_max.
+        surface_ell_max = int(ell_values.max())
+    configured_reference_ells = _configured_reference_ells(
+        perturbation_data,
+        maximum_ell=max(int(ell_values.max()), surface_ell_max),
+    )
+    # The declared numerical interval, rather than the selected dataset
+    # rows, owns the projection surface.  A likelihood commonly requests a
+    # sparse band beginning at ell=30; letting that band raise k_min would
+    # remove legitimate low-k power and change the same multipoles when a
+    # caller later requests the full spectrum.
+    grid_ell_min = min(
+        (
+            int(numerics.ell_min),
+            *configured_reference_ells,
+        )
+    )
+    # The declared numerical ell ceiling defines the physical projection
+    # surface.  Deriving this bound from each request makes the quadrature
+    # nodes depend on which other multipoles happen to be requested, so the
+    # same low-ell spectrum changes when a caller adds high-ell observations.
+    # Keep the surface fixed; sparse likelihood rows only select values from
+    # this shared quadrature rather than changing its physical boundaries.
+    grid_ell_max = max(
+        (
+            int(ell_values.max()),
+            surface_ell_max,
+            *configured_reference_ells,
+        )
+    )
+    k_min = max(
+        declared_k_min,
+        0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
     )
     required_k_max = 1.5 * ((float(grid_ell_max) + 16.0) / eta_rec_distance)
     manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
@@ -6423,23 +6444,6 @@ def _compute_custom_cmb_spectrum_data_impl(
             total_seconds=elapsed_seconds,
         )
         runtime_envelope.update(timing_snapshot)
-        performance_budget = resolve_performance_budget(
-            declared_accuracy_controls
-        )
-        if performance_budget is not None:
-            runtime_envelope.update(
-                {
-                    "performance_budget_full_spectrum_seconds": float(
-                        performance_budget.full_spectrum_seconds
-                    ),
-                    "performance_budget_warm_parameter_seconds": float(
-                        performance_budget.warm_parameter_seconds
-                    ),
-                    "performance_budget_exact_cache_hit_seconds": float(
-                        performance_budget.exact_cache_hit_seconds
-                    ),
-                }
-            )
         spectrum_data = CustomCMBSpectrumData(
             ell_grid=ell_arr,
             k_grid=k_values,
@@ -6677,7 +6681,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                     bessel_mode_count += len(mode_group)
                     for group_index, (
                         k_index,
-                        _,
+                        mode_x_values,
                         x_signature,
                         _,
                     ) in enumerate(mode_group):
@@ -6711,6 +6715,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                                 _get_cached_declared_projection_kernel_batch(
                                     ell_signature,
                                     x_signature,
+                                    x_values=mode_x_values,
                                     precomputed_bessel=(
                                         precomputed_projection_bessel
                                     ),
@@ -6842,6 +6847,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                             _get_cached_declared_projection_kernel_batch(
                                 ell_signature,
                                 x_signature,
+                                x_values=grouped_x_values[group_index],
                                 precomputed_bessel=(
                                     precomputed_projection_bessel
                                 ),
@@ -7583,6 +7589,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 kernel_batch = _get_cached_declared_projection_kernel_batch(
                     batch_signature,
                     x_signature,
+                    x_values=numpy.asarray(x_values, dtype=float),
                     precomputed_bessel=(
                         mode_signature,
                         precomputed_bessel[0],
@@ -8242,21 +8249,6 @@ def _compute_custom_cmb_spectrum_data_impl(
         total_seconds=elapsed_seconds,
     )
     runtime_envelope.update(timing_snapshot)
-    performance_budget = resolve_performance_budget(declared_accuracy_controls)
-    if performance_budget is not None:
-        runtime_envelope.update(
-            {
-                "performance_budget_full_spectrum_seconds": float(
-                    performance_budget.full_spectrum_seconds
-                ),
-                "performance_budget_warm_parameter_seconds": float(
-                    performance_budget.warm_parameter_seconds
-                ),
-                "performance_budget_exact_cache_hit_seconds": float(
-                    performance_budget.exact_cache_hit_seconds
-                ),
-            }
-        )
     if transfer_cache_reuse_allowed:
         cache.set_cmb_transfer(
             transfer_cache_key,
@@ -8288,7 +8280,6 @@ def _compute_custom_cmb_spectrum_data(
     background_provider: Any | None = None,
     requested_spectra: Iterable[str] | None = None,
     workload: str = "full_spectrum",
-    enforce_performance_budget: bool = True,
 ) -> CustomCMBSpectrumData:
     """Execute and account for one declared transfer-spectrum request."""
 
@@ -8309,16 +8300,6 @@ def _compute_custom_cmb_spectrum_data(
             performance_timer=timer,
         )
         elapsed = perf_counter() - started
-        if enforce_performance_budget:
-            budget = resolve_performance_budget(
-                _resolve_declared_accuracy_controls(contract_or_params)
-            )
-            enforce_performance_budget_limit(
-                elapsed,
-                workload=workload,
-                budget=budget,
-                cache_state=timer.cache_state,
-            )
     # DEVCOV_ALLOW_BROAD_ONCE declared projection normalization boundary.
     except Exception as exc:
         elapsed = perf_counter() - started

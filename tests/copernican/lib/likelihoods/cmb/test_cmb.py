@@ -2812,7 +2812,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             self.assertAlmostEqual(metrics[name]["normalized_rms"], 0.01)
 
     def test_declared_k_grid_scales_to_requested_multipoles(self) -> None:
-        """Low-ell requests must not pay for unrelated high-ell anchors."""
+        """Declared projection surfaces stay fixed across request shapes."""
 
         raw_contract = _declared_scalar_hierarchy_contract(sum_mnu=0.0)
         raw_contract["numerical"].update(
@@ -2847,9 +2847,13 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        self.assertFalse(numpy.array_equal(low_ell_grid, full_ell_grid))
-        self.assertTrue(
-            bool(numpy.all(low_ell_grid <= float(numpy.max(full_ell_grid))))
+        numpy.testing.assert_array_equal(
+            low_ell_grid,
+            full_ell_grid,
+            err_msg=(
+                "The same declared numerical surface must be used for low "
+                "and full multipole requests."
+            ),
         )
 
     def test_declared_scalar_absolute_parity_surface_is_fixed(self) -> None:
@@ -5361,6 +5365,103 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 atol=1.0e-30,
                 err_msg=(
                     f"Sparse {name} requests must preserve remapped "
+                    "multipoles."
+                ),
+            )
+
+    def test_unlensed_sparse_requests_match_contiguous_remapping(self) -> None:
+        """Unlensed spectra must be invariant to sparse ell requests."""
+
+        contract = _speedup_contract(_custom_contract())
+        prepared = _prepare_declared_contract(contract)
+        spectra = ("TT", "TE", "EE")
+        sparse_ells = numpy.asarray((20, 27, 44), dtype=int)
+        dense_ells = numpy.arange(20, 45, dtype=int)
+        sparse = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            sparse_ells,
+            spectra=spectra,
+        )
+        dense = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            dense_ells,
+            spectra=spectra,
+        )
+        dense_indices = sparse_ells - dense_ells[0]
+        for name in spectra:
+            numpy.testing.assert_allclose(
+                sparse[name],
+                dense[name][dense_indices],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+                err_msg=(
+                    f"Sparse {name} requests must preserve contiguous "
+                    "multipoles."
+                ),
+            )
+
+    def test_unlensed_low_ell_is_stable_when_high_ell_is_requested(
+        self,
+    ) -> None:
+        """High-ell requests must not change already requested low ells."""
+
+        contract = _speedup_contract(_custom_contract())
+        prepared = _prepare_declared_contract(contract)
+        spectra = ("TT", "TE", "EE")
+        low_ells = numpy.asarray((20, 27, 44), dtype=int)
+        high_ell_surface = numpy.arange(20, 81, dtype=int)
+        low = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            low_ells,
+            spectra=spectra,
+        )
+        high = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            high_ell_surface,
+            spectra=spectra,
+        )
+        high_indices = low_ells - high_ell_surface[0]
+        for name in spectra:
+            numpy.testing.assert_allclose(
+                low[name],
+                high[name][high_indices],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+                err_msg=(
+                    f"High-ell {name} requests must not perturb low "
+                    "multipoles."
+                ),
+            )
+
+    def test_unlensed_low_ell_is_stable_when_request_starts_later(
+        self,
+    ) -> None:
+        """Low multipoles must not change when a request omits ell=2."""
+
+        contract = _speedup_contract(_custom_contract())
+        prepared = _prepare_declared_contract(contract)
+        spectra = ("TT", "TE", "EE")
+        low_ells = numpy.asarray((32, 37, 44), dtype=int)
+        full_ells = numpy.arange(2, 45, dtype=int)
+        low = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            low_ells,
+            spectra=spectra,
+        )
+        full = cmb_solver._compute_declared_perturbation_spectrum(
+            prepared,
+            full_ells,
+            spectra=spectra,
+        )
+        low_indices = low_ells - full_ells[0]
+        for name in spectra:
+            numpy.testing.assert_allclose(
+                low[name],
+                full[name][low_indices],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+                err_msg=(
+                    f"Late-start {name} requests must preserve low "
                     "multipoles."
                 ),
             )
@@ -10818,7 +10919,6 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "InitialPointError",
                 "NonFiniteEvolutionError",
                 "ParameterDomainError",
-                "PerformanceBudgetError",
                 "UnsupportedCapabilityError",
                 "compute_cmb_spectrum",
                 "compute_cmb_spectrum_batch",

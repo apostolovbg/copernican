@@ -1,4 +1,6 @@
-"""Runtime timing and acceptance budgets for the declared CMB solver."""
+"""Runtime phase timing and cache-state accounting for the declared CMB
+solver.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +8,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Iterator, Mapping
-
-from ..errors import PerformanceBudgetError
 
 CMB_PHASE_NAMES = (
     "compilation",
@@ -18,39 +18,6 @@ CMB_PHASE_NAMES = (
     "lensing",
     "likelihood_assembly",
 )
-
-
-@dataclass(frozen=True, slots=True)
-class PerformanceBudget:
-    """Declare the wall-time limits for accepted declared cache states."""
-
-    full_spectrum_seconds: float = 180.0
-    warm_parameter_seconds: float = 5.0
-    exact_cache_hit_seconds: float = 1.0
-
-    def limit_for(self, workload: str) -> float:
-        """Return the positive limit for one named workload."""
-
-        normalized = str(workload).strip().lower()
-        if normalized in {
-            "cold",
-            "cold_full_spectrum",
-            "full",
-            "full_spectrum",
-            "declared_spectrum",
-        }:
-            return float(self.full_spectrum_seconds)
-        if normalized in {
-            "joint",
-            "joint_mcmc",
-            "mcmc",
-            "warm",
-            "warm_parameter",
-        }:
-            return float(self.warm_parameter_seconds)
-        if normalized in {"cache_hit", "exact", "exact_cache_hit"}:
-            return float(self.exact_cache_hit_seconds)
-        raise ValueError(f"Unknown declared performance workload: {workload}")
 
 
 @dataclass(slots=True)
@@ -135,127 +102,7 @@ class PhaseTimer:
         return snapshot
 
 
-def _positive_seconds(value: Any, *, name: str, default: float) -> float:
-    """Coerce one finite positive duration or return ``default``."""
-
-    if value is None:
-        return float(default)
-    try:
-        result = float(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{name} must be a finite positive number") from exc
-    if (
-        result <= 0.0
-        or result != result
-        or result in {float("inf"), float("-inf")}
-    ):
-        raise ValueError(f"{name} must be a finite positive number")
-    return result
-
-
-def resolve_performance_budget(
-    accuracy_controls: Mapping[str, Any] | None,
-) -> PerformanceBudget | None:
-    """Resolve an optional declared wall-time budget from accuracy controls."""
-
-    controls = accuracy_controls or {}
-    raw_budget = controls.get("performance_budget")
-    if raw_budget is None and controls.get("runtime_envelope") == "bounded":
-        raw_budget = {}
-    if raw_budget is None:
-        return None
-    if raw_budget == "bounded":
-        raw_budget = {}
-    if not isinstance(raw_budget, Mapping):
-        raise ValueError(
-            "cmb.perturbations.accuracy_controls.performance_budget must be "
-            "a mapping or the preset 'bounded'"
-        )
-    if "joint_mcmc_seconds" in raw_budget:
-        raise ValueError(
-            "cmb.perturbations.accuracy_controls.performance_budget."
-            "joint_mcmc_seconds was removed; use "
-            "warm_parameter_seconds"
-        )
-    return PerformanceBudget(
-        full_spectrum_seconds=_positive_seconds(
-            raw_budget.get("full_spectrum_seconds"),
-            name=(
-                "cmb.perturbations.accuracy_controls.performance_budget."
-                "full_spectrum_seconds"
-            ),
-            default=180.0,
-        ),
-        warm_parameter_seconds=_positive_seconds(
-            raw_budget.get("warm_parameter_seconds"),
-            name=(
-                "cmb.perturbations.accuracy_controls.performance_budget."
-                "warm_parameter_seconds"
-            ),
-            default=5.0,
-        ),
-        exact_cache_hit_seconds=_positive_seconds(
-            raw_budget.get("exact_cache_hit_seconds"),
-            name=(
-                "cmb.perturbations.accuracy_controls.performance_budget."
-                "exact_cache_hit_seconds"
-            ),
-            default=1.0,
-        ),
-    )
-
-
-def enforce_performance_budget(
-    elapsed_seconds: float,
-    *,
-    workload: str,
-    budget: PerformanceBudget | None,
-    cache_state: str | None = None,
-) -> None:
-    """Raise when one measured workload exceeds its declared budget.
-
-    Cache state defines the measured workload boundary. Cold requests own
-    structural setup, warm requests are parameter rebounds, and exact hits
-    must not redo numerical work.
-    """
-
-    if budget is None:
-        return
-    elapsed = float(elapsed_seconds)
-    if elapsed < 0.0 or elapsed != elapsed:
-        raise ValueError("Declared workload elapsed time must be finite")
-    normalized_cache_state = str(cache_state or "cold").strip().lower()
-    budget_workloads = {
-        "cold": "full_spectrum",
-        "warm": "warm_parameter",
-        "exact_cache_hit": "exact_cache_hit",
-    }
-    try:
-        budget_workload = budget_workloads[normalized_cache_state]
-    except KeyError as exc:
-        raise ValueError(
-            "Declared performance cache state is invalid: " f"{cache_state}"
-        ) from exc
-    limit = budget.limit_for(budget_workload)
-    if elapsed > limit:
-        raise PerformanceBudgetError(
-            "Declared CMB performance budget exceeded for "
-            f"{workload}: {elapsed:.3f}s > {limit:.3f}s",
-            context={
-                "budget_workload": str(budget_workload),
-                "cache_state": normalized_cache_state or None,
-                "elapsed_seconds": elapsed,
-                "limit_seconds": limit,
-                "workload": str(workload),
-            },
-        )
-
-
 __all__ = [
     "CMB_PHASE_NAMES",
-    "PerformanceBudget",
-    "PerformanceBudgetError",
     "PhaseTimer",
-    "enforce_performance_budget",
-    "resolve_performance_budget",
 ]

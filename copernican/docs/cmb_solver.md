@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-18
+**Last Updated:** 2026-08-19
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1119,8 +1119,8 @@ Declared failures cross the likelihood boundary as typed errors. A sampled
 point outside a scientifically valid parameter domain returns negative
 infinity and contributes to rate-limited rejection diagnostics. Unsupported
 capabilities, invalid contracts, convergence failures, non-finite evolution,
-constraint violations, performance-budget failures, and implementation
-faults abort execution. Their diagnostics retain model and parameter values,
+constraint violations, and implementation faults abort execution. Their
+diagnostics retain model and parameter values,
 gauge, numerical tier, requested spectra, workload, and k or conformal-time
 location when available. The nominal model point is evaluated before walker
 creation or multiprocessing startup, so an invalid initial state cannot
@@ -1182,29 +1182,20 @@ neutrino family. The option is an explicit numerical control, not a change
 to the equations or collision declarations; contracts that omit it retain
 the staged route and its gauge-equivalent trajectory behavior.
 
-The `bounded` runtime envelope includes separate declared performance
-acceptance
-budgets for cold full-spectrum, warm-parameter, and exact-cache requests. The
-reference limits are 180 seconds, 5 seconds, and 1 second respectively. A
-contract may state the values explicitly when it needs to make the acceptance
-policy visible:
+The `bounded` runtime envelope governs declared numerical work-unit coverage;
+it does not impose a wall-clock limit. Production CMB likelihood calls still
+classify requests as `cold`, `warm`, or `exact` for cache provenance, while
+phase timings and work-unit counts remain diagnostic only. A valid spectrum is
+returned even when its CPU evaluation is slow.
 
-```yaml
-accuracy_controls:
-  runtime_envelope: bounded
-  performance_budget:
-    full_spectrum_seconds: 180
-    warm_parameter_seconds: 5
-    exact_cache_hit_seconds: 1
-```
-
-Measured full-spectrum time is checked against the declared cold budget after
-output assembly. Production CMB likelihood calls classify each request as
-`cold`, `warm`, or `exact`, so structural worker initialization, parameter
-rebound, and complete cache reuse are governed independently. The declared
-performance report records deterministic median and p95 samples for each
-workload; a budget overrun raises a typed performance error rather than
-publishing a partial or misleading spectrum.
+Projection quadrature is owned by the declared numerical surface rather than
+by the particular likelihood rows in one request. Consequently, sparse or
+late-start multipole requests reuse the same low- and high-ell boundaries as a
+contiguous request. This keeps a low-ell result invariant when a caller adds
+other multipoles later. The bounded Bessel-input cache is an implementation
+detail: an active projection supplies its mode-local x-grid directly when an
+older cached grid has been evicted, so cache pressure cannot turn a valid
+projection into a missing-grid failure.
 
 ### Ensemble acceptance and resource envelope
 
@@ -1216,8 +1207,8 @@ proposal requests. The effective pool is bounded by
 `min(requested_pool, max(cpu_count - 1, 0), n_walkers)`; an unset or unit pool
 runs in the parent process. Spawned workers request one numerical thread so
 process and BLAS/OpenMP parallelism cannot multiply into host oversubscription.
-The payload marks `oversubscribed` and `budget_passed` explicitly and uses the
-1800-second end-to-end ensemble acceptance budget.
+The payload marks `oversubscribed` explicitly and records elapsed time without
+an end-to-end acceptance budget.
 
 The governed reference manifest is deterministic: it compares LambdaCDM with
 TORG using Union3, compound BAO, and Planck 2018 Lite, seed 0, five burn-in

@@ -1307,6 +1307,7 @@ def _get_cached_declared_projection_kernel_batch(
     ell_signature: tuple[int, ...],
     x_signature: str,
     *,
+    x_values: numpy.ndarray | None = None,
     precomputed_bessel: (
         tuple[tuple[int, ...], numpy.ndarray, numpy.ndarray] | None
     ) = None,
@@ -1323,9 +1324,15 @@ def _get_cached_declared_projection_kernel_batch(
     cached = cache.get_declared_projection_kernel_batch(cache_key)
     if cached is not None:
         return cached
-    x_values = cache.get_bessel_inputs(x_signature)
-    if x_values is None:  # pragma: no cover - projection stores inputs first
+    cached_x_values = cache.get_bessel_inputs(x_signature)
+    if cached_x_values is None:
+        cached_x_values = x_values
+    if cached_x_values is None:
+        # Projection normally supplies the mode-local grid when a bounded
+        # cache evicts an older mode before its prepared kernel is consumed.
+        # Keep this guard for direct helper callers that omit both sources.
         raise KeyError(x_signature)
+    x_values = numpy.asarray(cached_x_values, dtype=float)
     shape = (len(ell_signature), x_values.size)
     if precomputed_bessel is None:
         j_l_matrix, j_l_derivative_matrix = _compute_spherical_bessel_batch(

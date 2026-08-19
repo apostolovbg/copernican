@@ -335,6 +335,44 @@ class BackgroundModuleTestCase(unittest.TestCase):
                 },
             )
 
+    def test_projection_kernel_rebuild_uses_mode_grid_after_cache_eviction(
+        self,
+    ) -> None:
+        """An input-cache eviction must not lose the active mode grid."""
+
+        cache.clear_cmb_parameter_caches()
+        try:
+            x_signature = "slice-deterministic-projection-eviction-active"
+            x_values = numpy.asarray((0.25, 0.75, 1.5), dtype=float)
+            for index in range(513):
+                cache.store_bessel_inputs(
+                    f"slice-deterministic-projection-eviction-{index}",
+                    x_values,
+                )
+            self.assertIsNone(cache.get_bessel_inputs(x_signature))
+
+            kernel_batch = (
+                background._get_cached_declared_projection_kernel_batch(
+                    (2, 5),
+                    x_signature,
+                    x_values=x_values,
+                    required_sectors=("scalar",),
+                )
+            )
+            expected_values = background._compute_spherical_bessel_batch(
+                (2, 5),
+                x_values,
+            )[0]
+
+            numpy.testing.assert_allclose(
+                kernel_batch.j_l,
+                expected_values,
+                rtol=1.0e-14,
+                atol=1.0e-14,
+            )
+        finally:
+            cache.clear_cmb_parameter_caches()
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

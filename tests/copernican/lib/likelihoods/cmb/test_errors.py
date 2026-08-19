@@ -18,7 +18,6 @@ from copernican.lib.likelihoods.cmb.errors import (
     InitialPointError,
     NonFiniteEvolutionError,
     ParameterDomainError,
-    PerformanceBudgetError,
     UnsupportedCapabilityError,
     classify_exception,
     failure_context,
@@ -53,7 +52,6 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
         self.assertTrue(issubclass(ConvergenceError, CMBError))
         self.assertTrue(issubclass(ImplementationError, CMBError))
         self.assertTrue(issubclass(InitialPointError, CMBError))
-        self.assertTrue(issubclass(PerformanceBudgetError, CMBError))
         self.assertTrue(issubclass(UnsupportedCapabilityError, CMBError))
 
     def test_failure_context_and_classifier_are_structured(self) -> None:
@@ -91,10 +89,6 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
             (
                 ValueError("Einstein constraint exceeded tolerance"),
                 ConstraintViolationError,
-            ),
-            (
-                ValueError("declared performance budget exceeded"),
-                PerformanceBudgetError,
             ),
             (ValueError("invalid contract field"), ContractError),
             (

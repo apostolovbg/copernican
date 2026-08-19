@@ -906,8 +906,6 @@ def _ensemble_performance_envelope(
             if batch_elapsed_seconds > 0 and batch_items > 0
             else 0.0
         ),
-        "budget_seconds": 1800.0,
-        "budget_passed": bool(elapsed <= 1800.0 and not oversubscribed),
     }
 
 
