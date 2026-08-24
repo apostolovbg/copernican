@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-19
+**Last Updated:** 2026-08-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -60,6 +60,21 @@ coupled Einstein constraint surface. The runtime records the ordered mode set,
 residual terms, normalization scales, and constraint provenance with the
 spectrum data so scientific failures can be traced without silently skipping
 high-k modes.
+Generated scalar contracts keep their declared regular superhorizon metric
+seed during this preflight. The nearly singular early-time energy constraint
+is validated rather than solved for a replacement potential, preventing
+low-k round-off from collapsing the initial metric and corrupting every
+projected spectrum.
+
+Final generated scalar spectra promote the declared Fourier ladder to at least
+512 modes. This resolves the rapidly oscillating spherical-Bessel phase that
+a 64-mode smoke-test ladder aliases into a jagged CMB curve. The hierarchy
+also uses quarter-cycle Runge-Kutta stages through recombination, then returns
+to the declared phase step for the late integrated Sachs-Wolfe tail.
+The bundled final LambdaCDM contract additionally declares a bounded
+phase-aware line-of-sight grid. Its runtime envelope records the effective
+eta-node count and spacing, so raw projection resolution is inspectable rather
+than hidden by plotting.
 
 Evolved scalar Einstein residuals use the sum of absolute declared equation
 terms as their dimensionless normalization. Copernican records the maximum
@@ -105,6 +120,52 @@ and hierarchy thresholds. Explicit graphs without a sector registry retain
 their active sector identity from compiled observable and tensor-character
 metadata, so runtime envelopes cannot silently omit executed sectors.
 
+The fixed-parameter CCMBS diagnostics API is independent of samplers and
+plots. `discover_bundled_cmb_plugins()` enumerates all bundled CMB models;
+`run_cmb_model_diagnostic()` captures raw transfer components, raw and public
+TT/TE/EE spectra, runtime-envelope metadata, and doubled-k-grid refinement
+errors before plotting. `run_bundled_cmb_diagnostics()` applies the same
+report shape to the full corpus, preserving explicit non-convergence instead
+of hiding it. `compare_cmb_spectra_to_reference()` adds backend-neutral
+fractional auto-spectrum and normalized cross-spectrum checks for independent
+fixed-point fixtures. Generated scalar contracts validate explicit metric
+derivatives and compiler-backed source and closure expressions before runtime;
+`Psi_tau` and `Phi_history_tau` use explicit runtime history-gradient
+bindings, so missing derivatives cannot become implicit zero histories. BAO
+has a fixed-background regression that deliberately breaks the CMB entrypoint
+and verifies that BAO evaluation remains usable.
+Fixed-point reports also carry compact raw source-history samples and
+independently recomputed metric, visibility, polarization, and ISW residuals;
+an unavailable or failed audit remains explicit rather than being treated as
+parity evidence. Raw projection certification records those residuals for the
+generated-hierarchy slice, while final certification remains the acceptance
+boundary.
+Production contracts may additionally declare a doubled scalar
+`k_sample_count` convergence rule. CCMBS evaluates the declared TT, TE, and
+EE surfaces at both resolutions, records per-spectrum errors in the runtime
+envelope, and raises a typed convergence failure when the declared tolerance
+is not met. `audit_bundled_cmb_contracts()` separately inventories every
+bundled declaration for contract version, gauge, sectors, spectra, hierarchy
+families, numerical bounds, and runtime-envelope consistency; this structural
+audit does not substitute for hierarchy or CAMB scientific validation.
+The final certification helpers build a deterministic matrix from those raw
+reports, reject missing residual or reference evidence, retain every raw
+array, and write a hash-addressed JSON record. The independent test-owned
+CAMB fixture freezes the LCDM parameter point, multipole ordering, `D_ell`
+normalization, TT/TE/EE tolerances, and CAMB provenance. BAO isolation tests
+deliberately make the CMB entrypoint unavailable while requiring identical
+fixed-background values and covariance handling.
+The final LambdaCDM declaration uses 2048 k, eta, and evolution nodes. CCMBS
+keeps the generated hierarchy history at the declared LOS phase resolution so
+acoustic sources are not aliased by sparse-history interpolation.
+Source histories are cached independently from complete spectra only when
+their structural contract, parameter identity, solver, source grid, and
+requested source roles match exactly. Runtime envelopes report source-cache
+hits and misses, while the phase-aware k status records the physical node
+requirement and whether the bounded grid resolves it. A contract may require
+that phase check explicitly; an under-resolved grid is then rejected with its
+metrics instead of being presented as converged.
+
 Declared MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics
@@ -131,7 +192,9 @@ tight-coupling transition. Only valid parameter-domain exclusions become
 rejected proposals; contract, convergence, non-finite, constraint, and
 capability failures stop execution with typed diagnostics. Runtime telemetry
 records phase timings, cache states, and work units without imposing a
-wall-clock limit on valid solver evaluations.
+wall-clock limit on valid solver evaluations. Large fixed-point requests use
+deterministic ordered mode and projection chunks, and their configured and
+effective numerical controls remain visible in the runtime envelope.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived

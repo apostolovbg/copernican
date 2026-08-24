@@ -717,6 +717,7 @@ class _CustomCMBNumerics:
     source_grid_multiplier: int = 2
     initial_redshift: float = 1.0e5
     lensing_sampling_factor: float = 1.4
+    k_grid_refinement_factor: int = 1
 
 
 @dataclass(slots=True)
@@ -1155,9 +1156,6 @@ def _compute_spherical_bessel_batch(
         if numpy.any(downward_mask):
             downward_x = positive_x[downward_mask]
             downward_columns = positive_indices[downward_mask]
-            # For x << ell the high-order tail is exponentially small.  A
-            # fixed ``maximum_ell + 64`` start point is needlessly expensive
-            # for the low-k columns that dominate the large-ell projection.
             effective_maximum = numpy.minimum(
                 maximum_ell,
                 (
@@ -1837,6 +1835,19 @@ def _resolve_custom_cmb_numerics(
     raw = contract.get("numerical", {}) or {}
     if not isinstance(raw, Mapping):
         raise ValueError("cmb.numerical must be a mapping when declared")
+    raw = dict(raw)
+    overrides = contract.get("_numerical_overrides", {}) or {}
+    if not isinstance(overrides, Mapping):
+        raise ValueError("_numerical_overrides must be a mapping")
+    raw.update(overrides)
+    k_grid_refinement_factor = int(
+        _coerce_numeric_scalar(
+            contract.get("_k_grid_refinement_factor", 1),
+            name="_k_grid_refinement_factor",
+        )
+    )
+    if k_grid_refinement_factor < 1:
+        raise ValueError("_k_grid_refinement_factor must be positive")
     accuracy_controls = _resolve_declared_accuracy_controls(contract)
     defaults = _CustomCMBNumerics()
 
@@ -2123,6 +2134,7 @@ def _resolve_custom_cmb_numerics(
         source_grid_multiplier=source_grid_multiplier,
         initial_redshift=initial_redshift,
         lensing_sampling_factor=lensing_sampling_factor,
+        k_grid_refinement_factor=k_grid_refinement_factor,
     )
 
 

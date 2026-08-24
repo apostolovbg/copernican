@@ -6,6 +6,8 @@ provide an external comparison surface for declared solver acceptance tests.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 from typing import Any, Iterable, Mapping, Sequence
@@ -18,6 +20,33 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
 CAMB_REFERENCE_IDENTITY = f"camb:{camb.__version__}"
+
+# This contract is intentionally frozen in the test-owned reference surface.
+# It mirrors the bundled LambdaCDM initial point but never enters production
+# CCMBS code or becomes a backend fallback.
+FIXED_LCDM_REFERENCE_CONTRACT = {
+    "backend": "camb",
+    "param_map": {
+        "H0": 75.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.18,
+        "tau": 0.054,
+        "As": 2.1e-9,
+        "ns": 0.965,
+        "Neff": 3.0,
+        "YHe": 0.245,
+    },
+    "grids": {},
+    "values": {},
+    "calls": [],
+}
+FIXED_LCDM_REFERENCE_ELL_VALUES = (2, 20, 100, 200, 500, 1000, 1500, 2000)
+FIXED_LCDM_REFERENCE_SPECTRA = ("TT", "TE", "EE")
+FIXED_LCDM_REFERENCE_TOLERANCES = {
+    "TT": 0.02,
+    "TE": 0.03,
+    "EE": 0.02,
+}
 
 
 def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
@@ -381,9 +410,80 @@ def describe_camb_configuration() -> dict[str, Any]:
     }
 
 
+def _reference_jsonable(value: Any) -> Any:
+    """Convert NumPy values into deterministic fixture JSON values."""
+
+    if isinstance(value, numpy.ndarray):
+        return value.tolist()
+    if isinstance(value, numpy.generic):
+        return value.item()
+    if isinstance(value, Mapping):
+        return {
+            str(key): _reference_jsonable(item)
+            for key, item in sorted(
+                value.items(), key=lambda pair: str(pair[0])
+            )
+        }
+    if isinstance(value, (tuple, list)):
+        return [_reference_jsonable(item) for item in value]
+    return value
+
+
+def reference_fixture_sha256(fixture: Mapping[str, Any]) -> str:
+    """Return the deterministic digest for one frozen reference fixture."""
+
+    payload = json.dumps(
+        _reference_jsonable(fixture), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def build_lcdm_reference_fixture(
+    ells: Iterable[int] = FIXED_LCDM_REFERENCE_ELL_VALUES,
+    *,
+    spectra: Sequence[str] = FIXED_LCDM_REFERENCE_SPECTRA,
+) -> dict[str, Any]:
+    """Return the fixed CAMB LCDM spectra and auditable provenance."""
+
+    ell_values = tuple(int(value) for value in ells)
+    requested_spectra = tuple(str(value).upper() for value in spectra)
+    computed = compute_cmb_spectrum_from_camb_contract(
+        FIXED_LCDM_REFERENCE_CONTRACT,
+        ell_values,
+        spectra=requested_spectra,
+    )
+    if not isinstance(computed, Mapping):
+        computed = {requested_spectra[0]: computed}
+    fixture: dict[str, Any] = {
+        "schema_version": 1,
+        "reference_identity": CAMB_REFERENCE_IDENTITY,
+        "normalization": "unlensed_scalar_D_ell_microkelvin_squared",
+        "ell_values": ell_values,
+        "spectra": {
+            name: numpy.asarray(computed[name], dtype=float)
+            for name in requested_spectra
+        },
+        "contract": FIXED_LCDM_REFERENCE_CONTRACT,
+        "tolerances": {
+            name: float(FIXED_LCDM_REFERENCE_TOLERANCES[name])
+            for name in requested_spectra
+            if name in FIXED_LCDM_REFERENCE_TOLERANCES
+        },
+        "provenance": describe_camb_configuration(),
+    }
+    fixture["fixture_sha256"] = reference_fixture_sha256(fixture)
+    return fixture
+
+
 __all__ = [
     "CAMB_REFERENCE_IDENTITY",
+    "FIXED_LCDM_REFERENCE_CONTRACT",
+    "FIXED_LCDM_REFERENCE_ELL_VALUES",
+    "FIXED_LCDM_REFERENCE_SPECTRA",
+    "FIXED_LCDM_REFERENCE_TOLERANCES",
+    "build_lcdm_reference_fixture",
     "compute_camb_background_observables",
     "compute_cmb_spectrum_from_camb_contract",
     "describe_camb_configuration",
+    "reference_fixture_sha256",
 ]

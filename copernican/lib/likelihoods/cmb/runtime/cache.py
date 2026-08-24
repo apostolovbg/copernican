@@ -127,6 +127,10 @@ _CMB_TRANSFER_CACHE = _BoundedCacheStore(
     limit=16,
     max_bytes=64 * 1024 * 1024,
 )
+_CMB_SOURCE_HISTORY_CACHE = _BoundedCacheStore(
+    limit=128,
+    max_bytes=128 * 1024 * 1024,
+)
 _CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
 _CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
 _CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
@@ -280,6 +284,18 @@ def set_cmb_transfer(cache_key: Any, transfer_data: Any) -> None:
     """Store one bounded transfer-product payload."""
 
     _CMB_TRANSFER_CACHE.set(cache_key, transfer_data)
+
+
+def get_cmb_source_history(cache_key: Any):
+    """Return source arrays cached for one exact parameter/grid identity."""
+
+    return _CMB_SOURCE_HISTORY_CACHE.get(cache_key)
+
+
+def set_cmb_source_history(cache_key: Any, source_data: Any) -> None:
+    """Store immutable source arrays for one exact parameter/grid identity."""
+
+    _CMB_SOURCE_HISTORY_CACHE.set(cache_key, source_data)
 
 
 def remember_cmb_request_identity(cache_key: Any) -> None:
@@ -559,6 +575,7 @@ def clear_cmb_parameter_caches() -> None:
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
         _CMB_TRANSFER_CACHE,
+        _CMB_SOURCE_HISTORY_CACHE,
         _CMB_BESSEL_INPUT_CACHE,
         _CMB_BESSEL_VALUE_CACHE,
         _CMB_BESSEL_BATCH_CACHE,
@@ -584,6 +601,7 @@ def clear_cmb_caches() -> None:
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
         _CMB_TRANSFER_CACHE,
+        _CMB_SOURCE_HISTORY_CACHE,
         _CMB_BESSEL_INPUT_CACHE,
         _CMB_BESSEL_VALUE_CACHE,
         _CMB_BESSEL_BATCH_CACHE,
@@ -616,6 +634,7 @@ def cmb_cache_stats() -> dict[str, dict[str, int]]:
         ),
         "declared_spectrum": _CMB_SPECTRUM_CACHE.snapshot(),
         "declared_transfer": _CMB_TRANSFER_CACHE.snapshot(),
+        "source_history": _CMB_SOURCE_HISTORY_CACHE.snapshot(),
         "bessel_inputs": _CMB_BESSEL_INPUT_CACHE.snapshot(),
         "bessel_values": _CMB_BESSEL_VALUE_CACHE.snapshot(),
         "declared_projection_kernel_batch": (
@@ -640,6 +659,7 @@ def cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
         "declared_projection_kernel_batch": "parameter",
         "declared_spectrum": "result",
         "declared_transfer": "parameter",
+        "source_history": "parameter",
     }
     snapshots = cmb_cache_stats()
     return {

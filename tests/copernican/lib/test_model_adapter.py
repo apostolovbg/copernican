@@ -1665,7 +1665,17 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                         reconstruction["method"],
                         "source_history_coupled_einstein_reconstruction",
                     )
-                    self.assertGreater(int(reconstruction["mode_count"]), 0)
+                    self.assertEqual(int(reconstruction["mode_count"]), 0)
+                    self.assertFalse(
+                        spectrum_data.runtime_envelope[
+                            "source_history_reconstruction_enabled"
+                        ]
+                    )
+                    self.assertTrue(
+                        spectrum_data.runtime_envelope[
+                            "source_history_reconstruction_diagnostic_only"
+                        ]
+                    )
 
     def test_declared_lcdm_full_spectrum_returns_finite_spectra(
         self,

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-19
+**Last Updated:** 2026-08-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,778 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-24:
+  Change: Fixed CCMBS smoke-tier validation, row-wise power integration, and
+    diagnostic source-history accounting.
+  Why: Declared finite-model checks rejected explicit low-resolution probes,
+    sparse unrelated multipoles changed one another, and source diagnostics
+    were confused with production reconstruction.
+  Impact: Exposed generated-source diagnostics with the correct cache and
+    history behavior while keeping direct sampler spectra bounded and
+    low-multipole requests stable.
+  Files:
+  .pre-commit-config.yaml
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-23:
+  Change: Optimized batched collision projection and bounded the joint MCMC
+    CCMBS grid.
+  Why: Component likelihood tests spent minutes in per-mode collision algebra
+    and unnecessarily expanded the declared final production surface.
+  Impact: CCMBS retains the declared production grid while joint MCMC uses an
+    explicit bounded path for finite likelihood evaluation.
+  Files:
+  .pre-commit-config.yaml
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/models/model_lcdm.yml
+  copernican/lib/perturbation_contract.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-23:
+  Change: Closed generated hierarchy residual auditing for the CCMBS slice.
+  Why: Repaired relation recomputation and recorded raw hierarchy and
+    initial-condition evidence without reconstruction masking.
+  Impact: Fixed-point diagnostics now preserve independent normalized/absolute
+    tolerance decisions and source-control provenance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  copernican/docs/cmb_solver.md
+  docs/model_template.yml
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-23:
+  Change: Restructured Slice Four and renumbered the remaining scientific
+    closure slices.
+  Why: Separate completed CCMBS infrastructure from unresolved hierarchy,
+    projection, and parity evidence without falsely closing scientific work.
+  Impact: Slice Four now closes its infrastructure boundary; residual
+    physics, LCDM parity, bundled-model certification, and final closure are
+    tracked as Slices Five through Eight.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-23:
+  Change: Hardened generated CCMBS metric-history validation and projected
+    source residual acceptance for Slice Four.
+  Why: Generated Phi and Psi derivatives must remain explicit, finite,
+    aligned, independently auditable, and on the Einstein constraint surface
+    before scientific certification.
+  Impact: Runtime evidence now records derivative validation, keeps
+    algebraic source reconstruction diagnostic-only, and rejects
+    source-closure failures without hiding raw data.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-08-23:
+  Change: Revalidated the staged Slice One runtime boundaries and refreshed
+    the scientific-closure plan for the active gate session.
+  Why: The split runtime slices must remain traceable when verification is
+    repeated on a later UTC date.
+  Impact: Slice One remains explicitly closed by its bounded evidence while
+    the staged revision retains complete file-level changelog coverage.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Restructured CCMBS scientific closure into six bounded slices.
+  Why: The original runtime slice combined accounting, execution, and
+    evidence work behind an unmeasured full-resolution acceptance boundary.
+  Impact: Runtime accounting, ordered execution, and direct evidence now
+    close independently before hierarchy, corpus, and final certification.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Marked the fixed-point runtime slice in progress with bounded raw
+    LCDM fixture evidence.
+  Why: The declared-resolution report remains unmeasured after the machine
+    resource cost exceeded the bounded fixture run.
+  Impact: PLAN.md records delivered runtime plumbing without claiming
+    scientific closure before full-resolution evidence is serialized.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Documented deferred source-residual acceptance for raw CCMBS
+    projection reports.
+  Why: Runtime evidence must preserve failed closure metrics while the next
+    slice repairs the generated hierarchy.
+  Impact: README and solver documentation now distinguish raw projection
+    evidence from final scientific certification.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+
+- 2026-08-22:
+  Change: Recorded source-closure diagnostics without blocking raw runtime
+    certification.
+  Why: Generated-hierarchy residual acceptance belongs to the next scientific
+    slice while Slice One must certify that projection completes.
+  Impact: Fixed-point reports preserve residual failures for later repair
+    instead of misclassifying them as runtime projection failures.
+  Files:
+  copernican/lib/likelihoods/cmb/diagnostics.py
+
+- 2026-08-22:
+  Change: Removed duplicate CCMBS evolution from fixed-point diagnostics.
+  Why: The diagnostic harness evolved each requested grid twice before
+    recording one raw report, obscuring the runtime evidence cost.
+  Impact: Raw spectra and refinement reports now reuse their producing
+    projection pass without changing solver equations or resolution.
+  Files:
+  copernican/lib/likelihoods/cmb/diagnostics.py
+
+- 2026-08-22:
+  Change: Removed preset CCMBS work ceilings and added deterministic ordered
+    evolution and projection chunk accounting.
+  Why: Fixed LCDM requests were rejected before projection when their honest
+    declared work exceeded a machine-local nominal budget.
+  Impact: Valid fixed-point requests retain their configured resolution,
+    expose configured/effective controls, and preserve ordered provenance;
+    malformed operator limits still fail explicitly.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  docs/model_template.yml
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Replaced PLAN.md with a staged path to CCMBS scientific closure.
+  Why: Split runtime unblocking, LCDM parity, corpus certification, and final
+    evidence so no unmeasured result can be declared complete.
+  Impact: Added four evidence-gated slices and recorded the evolution-work
+    envelope blocker as the first required correction.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Added Slice Two scientific certification and fixed-background
+  reference reporting for CCMBS.
+  Why: Froze independent LCDM CAMB provenance, validated raw evidence paths,
+  and rejected incomplete residual, convergence, shape, or reference reports.
+  Impact: Added deterministic certification serialization, preserved BAO
+  isolation, and recorded effective line-of-sight limits without clipping;
+  production parity remains explicitly unmeasured until the matrix runs.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-08-22:
+  Change: Completed CCMBS phase-aware quadrature and source-history reuse.
+  Why: Ensured bounded wave-number ladders and repeated hierarchy solves
+    expose explicit resolution evidence, safe batching, and typed checks.
+  Impact: Slice One now records phase status, reuses parameter-safe histories,
+    audits metric derivatives, and closes with focused numerical evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-22:
+  Change: Replaced the CCMBS follow-on roadmap with two completion slices.
+  Why: Consolidated remaining quadrature, hierarchy, CAMB-parity, spectrum,
+    and BAO evidence into the smallest verifiable plan.
+  Impact: Added a two-slice completion boundary and recorded explicit
+    raw-source acceptance evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-22:
+  Change: Enforced explicit CCMBS history-derivative bindings in generated
+    scalar contracts and bundled source-graph audits.
+  Why: Prevented missing `Psi_tau` and `Phi_history_tau` derivatives from
+    becoming silent zero histories during projection.
+  Impact: Generated hierarchies now reject compilation when metric-source
+    bindings or Einstein-driving dependencies are incomplete.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-08-22:
+  Change: Added independent CCMBS source-history residual audits and
+    diagnostic source capture.
+  Why: Raw closure evidence is required to distinguish hierarchy defects from
+    plotting or sampler effects before LCDM parity acceptance.
+  Impact: Fixed-point reports recompute metric, visibility, polarization, and
+    ISW residuals while preserving explicit unavailable audits and reference
+    mismatches.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-21:
+  Change: Raised final LambdaCDM phase resolution and aligned generated
+    hierarchy histories with the line-of-sight quadrature.
+  Why: Sparse retained evolution histories aliased acoustic sources before
+    projection and produced non-physical CCMBS spectra.
+  Impact: Final LCDM requests retain 2048 k, eta, and evolution nodes, record
+    the evolution-resolution floor, and preserve phase evidence in provenance.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  PLAN.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-21:
+  Change: Added generated-source validation and reference-spectrum diagnostics;
+    stabilized phase-aware power integration with explicit raw-grid evidence.
+  Why: CCMBS must reject missing metric/source graph pieces and expose
+    independent convergence and physical-shape failures before plotting.
+  Impact: Validated bundled source graphs are compiler-checked, auto-spectrum
+    quadrature rejects material negative power, and diagnostics can record
+    backend-neutral fixed-point reference comparisons.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-21:
+  Change: Enforced production scalar doubled-grid convergence and audited
+    bundled CMB contracts.
+  Why: Fixed-point refinement evidence needed a production failure boundary,
+    and declaration drift needed a complete machine-testable inventory.
+  Impact: CCMBS records TT/TE/EE refinement metrics and raises typed
+    convergence failures; ten bundled contracts now have structural checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+
+- 2026-08-20:
+  Change: Added fixed-parameter CCMBS diagnostics and BAO isolation tests.
+  Why: Made raw spectra, transfer products, runtime envelopes, and doubled-k
+    refinement evidence inspectable before plotting while proving BAO does not
+    require CMB solver execution.
+  Impact: Every bundled CMB model is discoverable through one diagnostic
+    report shape; non-convergence remains explicit and the open scientific
+    CCMBS parity work is recorded separately.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-20:
+  Change: Added bounded phase-aware CCMBS line-of-sight quadrature and raw
+    eta-grid provenance for generated final scalar spectra.
+  Why: Replaced the hidden generated-scalar LOS downsampling cap so acoustic
+    spherical-Bessel phase is resolved before source projection.
+  Impact: Enabled final LambdaCDM requests with a declared 1024--2048-node
+    LOS grid; low-resolution fixtures and BAO evaluation remain unchanged.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-20:
+  Change: Repaired CCMBS generated scalar seeds, physical neutrino
+    Einstein-source weighting, and final transfer resolution while preserving
+    batched source evolution.
+  Why: Removed the low-k algebraic initial solve and corrected the under-
+    resolved 64-mode, two-radian path that amplified constraint round-off and
+    aliased the spherical-Bessel acoustic phase.
+  Impact: Generated final spectra retain their regular metric seed, use a
+    512-mode projection ladder with phase-refined recombination evolution,
+    and expose per-mode diagnostics without changing BAO execution.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/README.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-08-19:
   Change: Corrected projection-bound fallback and declared-surface selection.

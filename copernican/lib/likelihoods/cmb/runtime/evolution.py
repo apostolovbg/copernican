@@ -186,6 +186,7 @@ class _DeclaredGraphExecutionPlan:
     start_condition_entries: tuple[Any, ...]
     end_condition_entries: tuple[Any, ...]
     equation_slot_plans: tuple[_DeclaredEquationSlotPlan, ...]
+    relation_target_names: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -369,6 +370,7 @@ def _integrate_batched_rk4(
 @lru_cache(maxsize=256)
 def _compile_ordered_context_program(
     value_specs: tuple[tuple[str, str], ...],
+    overwrite_outputs: tuple[str, ...] = (),
 ) -> Any:
     """Compile one direct-assignment program for a prepared value order."""
 
@@ -382,31 +384,43 @@ def _compile_ordered_context_program(
         expression_node = copy.deepcopy(_parse_safe_expression(expression))
         expression_node = _ContextNameRewriter().visit(expression_node)
         expression_node = ast.fix_missing_locations(expression_node)
-        condition = ast.BoolOp(
-            op=ast.And(),
-            values=[
-                ast.Compare(
-                    left=ast.Constant(output_name),
-                    ops=[ast.NotIn()],
-                    comparators=[
-                        ast.Name(
-                            id="context",
-                            ctx=ast.Load(),
-                        )
-                    ],
-                ),
-                ast.Compare(
-                    left=ast.Constant(output_name),
-                    ops=[ast.NotIn()],
-                    comparators=[
-                        ast.Name(
-                            id="suppressed_outputs",
-                            ctx=ast.Load(),
-                        )
-                    ],
-                ),
-            ],
-        )
+        if output_name in overwrite_outputs:
+            condition = ast.Compare(
+                left=ast.Constant(output_name),
+                ops=[ast.NotIn()],
+                comparators=[
+                    ast.Name(
+                        id="suppressed_outputs",
+                        ctx=ast.Load(),
+                    )
+                ],
+            )
+        else:
+            condition = ast.BoolOp(
+                op=ast.And(),
+                values=[
+                    ast.Compare(
+                        left=ast.Constant(output_name),
+                        ops=[ast.NotIn()],
+                        comparators=[
+                            ast.Name(
+                                id="context",
+                                ctx=ast.Load(),
+                            )
+                        ],
+                    ),
+                    ast.Compare(
+                        left=ast.Constant(output_name),
+                        ops=[ast.NotIn()],
+                        comparators=[
+                            ast.Name(
+                                id="suppressed_outputs",
+                                ctx=ast.Load(),
+                            )
+                        ],
+                    ),
+                ],
+            )
         statements.append(
             ast.If(
                 test=condition,
@@ -1247,6 +1261,9 @@ def _compile_declared_graph_execution_plan(
         start_condition_entries=start_condition_entries,
         end_condition_entries=end_condition_entries,
         equation_slot_plans=tuple(equation_slot_plans),
+        relation_target_names=tuple(
+            sorted(str(name) for name in relation_entries)
+        ),
     )
     cache.set_declared_graph_execution_plan(cache_token, compiled_plan)
     return compiled_plan
@@ -2392,7 +2409,13 @@ def _resolve_declared_graph_context_ordered(
                 for step in value_steps
             )
             compiled_value_program = _compile_ordered_context_program(
-                value_specs
+                value_specs,
+                tuple(
+                    output_name
+                    for output_name in execution_plan.relation_target_names
+                    if output_name
+                    in {step.output_name for step in value_steps}
+                ),
             )
         try:
             compiled_value_program(context, suppressed)
@@ -2417,7 +2440,11 @@ def _resolve_declared_graph_context_ordered(
                     step.output_name
                 ]
                 continue
-            if step.output_name in context:
+            if (
+                step.output_name in context
+                and step.output_name
+                not in execution_plan.relation_target_names
+            ):
                 continue
             if any(
                 dependency not in context for dependency in step.dependencies

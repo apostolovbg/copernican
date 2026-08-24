@@ -298,6 +298,31 @@ ci_and_test:
 pre_commit:
   overlays:
     exclude: (?x)^(?:copernican/datasets)/(?!.*(?:dataset_parser_|metadata_)).*
+    repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      hooks:
+      - id: end-of-file-fixer
+        exclude: (?x)^copernican/lib/vendor/
+      - id: trailing-whitespace
+        exclude: (?x)^copernican/lib/vendor/
+    - repo: https://github.com/psf/black
+      hooks:
+      - id: black
+        exclude: (?x)(?:^|/)(?:[^/]+\.egg-info|copernican/lib/vendor)(?:/|$)
+    - repo: https://github.com/pycqa/isort
+      hooks:
+      - id: isort
+        exclude: (?x)(?:^|/)(?:[^/]+\.egg-info|copernican/lib/vendor)(?:/|$)
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      hooks:
+      - id: ruff
+        exclude: (?x)(?:^|/)(?:[^/]+\.egg-info|copernican/lib/vendor)(?:/|$)
+      - id: ruff-format
+        exclude: (?x)(?:^|/)(?:[^/]+\.egg-info|copernican/lib/vendor)(?:/|$)
+    - repo: https://github.com/pycqa/flake8
+      hooks:
+      - id: flake8
+        exclude: (?x)(?:^|/)(?:[^/]+\.egg-info|copernican/lib/vendor)(?:/|$)
   overrides: {}
 
 # -------------------------------------------------------------------

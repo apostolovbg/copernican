@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-19
+**Last Updated:** 2026-08-24
 **Project Version:** 12.0.26
 
 ## Overview
@@ -49,6 +49,94 @@ The declared route uses conformal time `tau`, conformal distance
 dimensionless perturbations are Fourier amplitudes in the same plane-wave
 convention used by the declared graph compiler and the declared line-of-sight
 integrator.
+
+## Fixed-Parameter Diagnostics
+
+The public CMB diagnostics helpers provide a sampler- and plot-independent
+scientific evidence path. `discover_bundled_cmb_plugins()` enumerates every
+bundled model whose declaration enables CMB output. `run_cmb_model_diagnostic`
+then evaluates one model at its fixed initial-guess parameter vector and
+returns the public TT, TE, and EE spectra together with the unscaled raw
+spectra, raw transfer-component arrays, resolved runtime envelope, and source
+history diagnostics. `run_bundled_cmb_diagnostics()` applies the same report
+shape to the complete bundled corpus.
+
+The report optionally repeats the fixed request after doubling
+`k_sample_count`. It records component-wise relative errors and tolerances;
+non-convergence marks the report unsuccessful rather than being hidden.
+This evidence is collected before plotting or likelihood construction and can
+be serialized with `CMBModelDiagnostic.to_dict()`. The
+`compare_cmb_spectra_to_reference()` helper applies explicit auto-spectrum
+fractional and cross-spectrum RMS tolerances to an independent fixed-point
+reference without importing that backend into production CCMBS. The
+diagnostic harness does not turn a non-converged or reference-mismatched
+spectrum into an accepted scientific result; CAMB parity and hierarchy
+closure acceptance remain separate gates.
+
+The final certification surface is `build_cmb_certification_report()`. It
+requires every requested public and raw spectrum, doubled-grid convergence,
+finite physical-shape evidence, an independently recomputed source residual
+audit, and (by default) a passing fixed-point reference comparison. Missing
+evidence is recorded as a rejection, never as an unavailable-but-accepted
+model. `write_cmb_certification_report()` preserves the full raw arrays in a
+deterministic JSON record and adds a SHA-256 digest for provenance. The
+test-owned CAMB fixture freezes the LCDM parameter point, multipole order,
+unlensed scalar `D_ell` microkelvin-squared convention, tolerances, and
+backend identity; production CCMBS never imports or falls back to it.
+
+The runtime keeps source-history caching separate from complete-spectrum
+caching. A history is reusable only when its static contract, dynamic
+parameters, CCMBS identity, source eta grid, and source-role set all match;
+the runtime envelope records the hit and miss counts. Phase-aware k ladders
+also retain their uncapped physical node requirement in `phase_grid_status`.
+Contracts that set `require_phase_resolution` reject a capped ladder before
+evolution, while bounded diagnostic fixtures may retain the explicit
+under-resolved status for evidence.
+
+Each fixed-point runtime envelope also stores compact raw source-history
+samples at deterministic eta anchors. `audit_source_history_residuals()`
+recomputes the metric Einstein, visibility, polarization, and ISW closures
+from those terms rather than reading solver-owned aggregate diagnostics. A
+model whose declaration does not expose the generated scalar source basis
+reports an unavailable audit; that state is preserved and is never promoted
+to scientific parity evidence. The runtime report records failed residuals
+without blocking the raw projection slice; generated-hierarchy acceptance and
+final certification still require those residuals to pass. Every audit records
+both normalized and absolute tolerances. The normalized criterion is useful
+when the source terms have a meaningful scale, while the explicit absolute
+criterion prevents a near-zero sum of terms from turning a finite-difference
+round-off floor into a false failure. Contracts may override the declared
+defaults under `accuracy_controls.source_residual_audit`; the runtime records
+the control provenance and which criterion accepted each residual. Initial
+Einstein constraints are audited separately from evolved hierarchy equations,
+so a finite initial state cannot mask a later source-history failure.
+
+Generated scalar contracts are validated at compilation. CCMBS requires
+explicit `Phi_tau`, `Psi_tau`, and evolved-history `Phi_history_tau` metadata,
+compiler-backed source and closure expressions, and the declared monopole,
+Doppler, ISW, polarization, and potential roles. `Psi_tau` and
+`Phi_history_tau` are typed runtime history-gradient bindings; they cannot
+fall back to a zero expression. The compiler permits the binding to refer to
+the first derivative of an evolved state only when that binding is explicit.
+The bundled inventory adds the generated initial-condition and
+visibility-closure checks. Missing source derivatives therefore fail at the
+contract boundary instead of becoming implicit zero histories.
+
+Production contracts can declare `production_scalar_convergence`. CCMBS then
+evaluates the required scalar spectra on the declared wave-number grid and on
+a grid multiplied by `k_refinement_factor` (normally two). Per-spectrum
+relative errors and the pass/fail decision are stored under
+`production_scalar_k_convergence` in the raw runtime envelope. With
+`fail_on_nonconvergence: true`, an unresolved doubled-grid comparison raises
+the typed `ConvergenceError` before likelihood output is accepted. The
+`audit_bundled_cmb_contracts()` helper performs a separate declaration-level
+inventory across all bundled models; it checks structural consistency only,
+not hierarchy physics or CAMB parity.
+
+BAO evaluation remains independent of this path. Its fixed-background
+regression exercises the BAO likelihood while the CCMBS entrypoint is made to
+fail, proving that BAO distances and sound-horizon handling do not require a
+CMB solver call.
 
 ## Declared Model Declarations
 `copernican/models/model_lcdm.yml` is the canonical declared LambdaCDM
@@ -176,11 +264,14 @@ damping term. Projection batching applies only to radial kernels and does not
 alter scalar state evolution. Cache entries store compiled graph structure and
 reusable numerical data; they never store or substitute observable results.
 
-The runtime envelope governs requested work before evolution begins. It
-rejects unbounded or under-declared state, grid, hierarchy, source, and
-projection work rather than lowering the declared physical calculation.
-Scalar execution remains declared and does not import or call CAMB or CLASS;
-those packages appear only in independent scientific reference tests.
+The runtime envelope accounts for requested state, grid, hierarchy, source,
+and projection work before evolution begins. The `bounded` preset records
+that accounting and enables deterministic chunking; it does not impose a
+machine-local work or wall-clock ceiling. Explicit `maximum_*_work_units`
+entries are retained as operator metadata and validated for shape and
+positivity, but they do not reject a valid physical request. Scalar execution
+remains declared and does not import or call CAMB or CLASS; those packages
+appear only in independent scientific reference tests.
 
 ## Scalar Metric Convention
 The canonical scalar convention is the conformal-Newtonian convention
@@ -569,6 +660,10 @@ evaluates the starting Einstein energy, momentum, and shear residuals and
 the declared fast-manifold collision expressions. It also evaluates the
 declared conservation rules at the start surface. Non-finite or
 out-of-tolerance initial data are rejected before evolution.
+The declared regular metric seed remains authoritative on this early-time
+surface. The runtime validates the nearly singular energy constraint but does
+not replace the seed with an algebraic low-`k` solve, which would amplify a
+small truncation residual into a spurious zero potential.
 
 ## Regular Tensor Initial Mode
 The generated tensor route materializes the regular `tensor_mode` family.
@@ -602,7 +697,7 @@ components share one source surface:
 
 - `matter_density_source = (Omega_c0 delta_c + Omega_b0 delta_b) / a`
 - `radiation_density_source = (4 Omega_gamma0 Theta_gamma,0
-  + f_nu delta_nu) / a^2`
+  + Omega_nu0 delta_nu) / a^2`
 - `total_density_source` is the sum of the matter and radiation pieces
   plus `massive_neutrino_density_source` when the massive hierarchy is
   active.
@@ -639,11 +734,12 @@ adds the analytic integral below `a_min` to both `eta` and the sound horizon,
 so superhorizon initial conditions and hierarchy closures use the same clock.
 The generated scalar initial state obtains `Theta_gamma,2` and
 `E_gamma,2` from declared regular-series expressions that use the compiled
-collision rate before `Phi` is seeded from the regular Einstein shear
-relation. The generated hierarchy therefore starts from the same declared
-quadrupole collision block used during evolution. The regular adiabatic seed
-converts primordial curvature into the radiation-era curvature and lapse
-potentials using the declared relativistic-neutrino fraction.
+collision rate. The generated hierarchy therefore starts from the same
+declared quadrupole collision block used during evolution. The regular
+adiabatic seed converts primordial curvature into the radiation-era curvature
+and lapse potentials using the declared relativistic-neutrino fraction; the
+runtime preserves that declared `Phi` seed while validating the initial
+Einstein surface.
 The default hydrogen recombination quantities use the photon temperature
 before Compton decoupling and the adiabatically cooled matter temperature
 afterward. The declared case-B coefficient includes the standard RECFAST
@@ -983,6 +1079,25 @@ declared node budget instead of adding an unbounded high-k tail. Reference-ell
 anchors remain explicit inputs to the bounded grid. Contracts without this
 control retain the bounded anchor-and-gap grid.
 
+When a generated scalar hierarchy declares the `final` accuracy tier, CCMBS
+promotes its Fourier ladder to at least 512 modes even when the model's base
+smoke-test count is smaller. This is a quadrature-resolution safeguard, not a
+new physical source or a post-projection smoothing step. The same final route
+uses a quarter-cycle explicit-RK phase target through recombination, where the
+acoustic transfer is formed, and returns to the declared phase target for the
+late integrated Sachs-Wolfe tail. The runtime envelope records the effective
+k-grid size so provenance exposes this promotion. The bundled final LambdaCDM
+contract also declares 2048 k, eta, and evolution nodes plus a bounded
+phase-aware line-of-sight grid. A final route with an explicit phase-aware
+line-of-sight section raises the retained generated hierarchy history to that
+section's maximum eta-node budget. This prevents a sparse evolution history
+from being interpolated onto a dense LOS grid and aliasing acoustic sources
+before projection. CCMBS records whether the LOS grid was applied, its node
+bounds, the effective eta-node count, the evolution-history floor, and its
+smallest and largest spacing in the raw runtime envelope. Contracts without
+the explicit section retain their declared LOS grid and do not inherit this
+production multiplier.
+
 Single-sector declared routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.
 The tensor route reads `r` as the tensor-to-scalar amplitude ratio and `nt`
@@ -1167,12 +1282,13 @@ This reserves quadrature coverage without rescaling or replacing a declared
 tensor source.
 
 Accuracy controls can require minimum ell, k, eta, hierarchy, source-grid,
-and momentum-grid coverage. A declared `runtime_envelope` can also cap
-evolution, projection, and total work units. The declared runtime validates
-those limits before the expensive per-wave-number integration begins. A
-momentum-grid declaration supplies the q nodes and weights for a massive or
-other momentum-resolved hierarchy; minimum counts are checked against the
-accuracy controls before the grid enters the cache.
+and momentum-grid coverage. A declared `runtime_envelope` records the
+deterministic evolution, projection, momentum, and total work estimates. A
+large request is split into ordered mode and projection chunks without
+clipping its requested resolution. A momentum-grid declaration supplies the
+q nodes and weights for a massive or other momentum-resolved hierarchy;
+minimum counts are checked against the accuracy controls before the grid
+enters the cache.
 
 Split collision operators use the declaration-driven staged integrator by
 default. A contract may opt into the continuous stiff collision integrator
@@ -1245,11 +1361,13 @@ runtime records that distinction as `tolerance_kind` and `tolerance_source`.
 Set `scalar_constraint_reference_eta_samples` to the eta-grid size associated
 with the normalized tolerances. Under-resolved grids report their residuals
 as deferred rather than claiming a physical acceptance verdict, while
-explicitly declared conservation rules remain enforced. Before declared
-line-of-sight sources are evaluated, generated source histories reconstruct
-the observable metric on the coupled Einstein surface. The runtime records
-the reconstruction count and largest relative metric correction in
-`scalar_constraint_projection`.
+explicitly declared conservation rules remain enforced. Production
+line-of-sight sources retain the evolved metric histories. Algebraic source
+history reconstruction is diagnostic-only unless a contract explicitly opts
+in through `source_history_reconstruction`; this avoids amplifying ordinary
+early-time super-horizon truncation error by dividing by `k**2`. The runtime
+records the reconstruction count, diagnostic-only status, and largest
+relative metric correction in `scalar_constraint_projection`.
 
 Runtime envelopes expose `scalar_constraint_diagnostics` with the full-history
 absolute and normalized maxima, eta location, grid fraction, physical regime,

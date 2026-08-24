@@ -41,6 +41,17 @@ class AdaptiveControls:
 
 
 @dataclass(frozen=True, slots=True)
+class LOSQuadratureControls:
+    """Validated phase-resolution controls for line-of-sight integration."""
+
+    enabled: bool = False
+    minimum_nodes: int = 0
+    maximum_nodes: int = 0
+    phase_points_per_cycle: float = 8.0
+    configured_maximum_nodes: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ConvergenceEstimate:
     """Maximum absolute and relative difference between two approximations."""
 
@@ -159,15 +170,25 @@ def resolve_adaptive_controls(
     """Validate the adaptive accuracy sections of a declared contract.
 
     ``adaptive_k_quadrature`` remains an accepted spelling for the transfer
-    section so contracts written before the unified controls can migrate
-    without changing their numerical meaning.
+    section when its declared mode is ``transfer``.  Source-mode contracts
+    stay on the source path instead of being silently reinterpreted as
+    transfer refinement.
     """
 
     controls = accuracy_controls or {}
+    legacy_k_quadrature = _section(controls, "adaptive_k_quadrature")
+    legacy_k_mode = (
+        "transfer"
+        if legacy_k_quadrature is None
+        else str(legacy_k_quadrature.get("mode", "transfer")).strip().lower()
+    )
+    transfer_aliases = (
+        ("adaptive_k_quadrature",) if legacy_k_mode == "transfer" else ()
+    )
     transfer = _section(
         controls,
         "adaptive_transfer",
-        aliases=("adaptive_k_quadrature",),
+        aliases=transfer_aliases,
     )
     source = _section(
         controls,
@@ -298,6 +319,64 @@ def resolve_adaptive_controls(
     )
 
 
+def resolve_los_quadrature_controls(
+    accuracy_controls: Mapping[str, Any],
+    *,
+    base_eta_nodes: int,
+) -> LOSQuadratureControls:
+    """Resolve the explicit phase-aware line-of-sight grid controls.
+
+    The line-of-sight grid is intentionally opt-in.  A declared production
+    contract can request a bounded phase grid without changing low-resolution
+    fixtures or silently multiplying their runtime envelope.
+    """
+
+    section = _section(accuracy_controls or {}, "los_phase_quadrature")
+    if section is None:
+        return LOSQuadratureControls()
+    enabled = bool(section.get("enabled", True))
+    base_nodes = max(4, int(base_eta_nodes))
+    minimum_nodes = _positive_int(
+        section.get("minimum_nodes", max(base_nodes, 512)),
+        name=(
+            "cmb.perturbations.accuracy_controls."
+            "los_phase_quadrature.minimum_nodes"
+        ),
+        minimum=4,
+    )
+    configured_maximum_nodes = _positive_int(
+        section.get("maximum_nodes", max(2 * minimum_nodes, 2048)),
+        name=(
+            "cmb.perturbations.accuracy_controls."
+            "los_phase_quadrature.maximum_nodes"
+        ),
+        minimum=minimum_nodes,
+    )
+    # The sampled background history is already part of the resolved grid.
+    # A cap below that history length cannot refine or even represent the
+    # input grid and previously failed with an opaque minimum/maximum error.
+    # Promote the effective cap to the existing history length while keeping
+    # the configured value visible in the runtime envelope.
+    maximum_nodes = max(configured_maximum_nodes, base_nodes)
+    phase_points = _positive_float(
+        section.get(
+            "phase_points_per_cycle",
+            (accuracy_controls or {}).get("phase_points_per_cycle", 8.0),
+        ),
+        name=(
+            "cmb.perturbations.accuracy_controls."
+            "los_phase_quadrature.phase_points_per_cycle"
+        ),
+    )
+    return LOSQuadratureControls(
+        enabled=enabled,
+        minimum_nodes=minimum_nodes,
+        maximum_nodes=maximum_nodes,
+        phase_points_per_cycle=phase_points,
+        configured_maximum_nodes=configured_maximum_nodes,
+    )
+
+
 def phase_aware_k_grid(
     k_min: float,
     k_max: float,
@@ -308,8 +387,14 @@ def phase_aware_k_grid(
     eta_distance: float,
     sound_horizon: float,
     anchors: tuple[float, ...] = (),
+    require_phase_resolution: bool = False,
 ) -> numpy.ndarray:
-    """Build a bounded logarithmic k grid with physical phase anchors."""
+    """Build a bounded logarithmic k grid with physical phase anchors.
+
+    The node budget is deliberately explicit.  Callers that are making a
+    production acceptance decision may set ``require_phase_resolution`` so a
+    capped smoke-test ladder cannot be mistaken for a resolved quadrature.
+    """
 
     lower = _positive_float(k_min, name="k_min")
     upper = _positive_float(k_max, name="k_max")
@@ -350,7 +435,22 @@ def phase_aware_k_grid(
         )
         result = numpy.insert(result, gap_index + 1, midpoint)
     if result.size <= maximum:
-        return numpy.asarray(result, dtype=float)
+        resolved = numpy.asarray(result, dtype=float)
+        if require_phase_resolution:
+            requirements = phase_aware_k_grid_requirements(
+                lower,
+                upper,
+                phase_points_per_cycle=phase_points,
+                eta_distance=distance,
+                sound_horizon=acoustic_distance,
+            )
+            if resolved.size < int(requirements["required_nodes"]):
+                raise ValueError(
+                    "Phase-aware k quadrature is under-resolved: "
+                    f"actual_nodes={resolved.size}, "
+                    f"required_nodes={requirements['required_nodes']}"
+                )
+        return resolved
     required = {float(result[0]), float(result[-1])}
     required.update(float(value) for value in anchors)
     required = {value for value in required if lower <= value <= upper}
@@ -361,7 +461,109 @@ def phase_aware_k_grid(
     if len(optional) > budget:
         indices = numpy.linspace(0, len(optional) - 1, budget, dtype=int)
         optional = [optional[int(index)] for index in sorted(set(indices))]
-    return numpy.asarray(sorted(required | set(optional)), dtype=float)
+    resolved = numpy.asarray(sorted(required | set(optional)), dtype=float)
+    if require_phase_resolution:
+        requirements = phase_aware_k_grid_requirements(
+            lower,
+            upper,
+            phase_points_per_cycle=phase_points,
+            eta_distance=distance,
+            sound_horizon=acoustic_distance,
+        )
+        if resolved.size < int(requirements["required_nodes"]):
+            raise ValueError(
+                "Phase-aware k quadrature is under-resolved: "
+                f"actual_nodes={resolved.size}, "
+                f"required_nodes={requirements['required_nodes']}"
+            )
+    return resolved
+
+
+def phase_aware_k_grid_status(
+    k_values: numpy.ndarray,
+    *,
+    phase_points_per_cycle: float,
+    eta_distance: float,
+    sound_horizon: float,
+) -> dict[str, int | float | bool]:
+    """Describe whether a bounded phase-aware grid meets its phase budget."""
+
+    values = numpy.asarray(k_values, dtype=float)
+    if (
+        values.ndim != 1
+        or values.size < 2
+        or not numpy.all(numpy.isfinite(values))
+    ):
+        raise ValueError(
+            "Phase-aware status requires a finite one-dimensional k grid"
+        )
+    requirements = phase_aware_k_grid_requirements(
+        float(values[0]),
+        float(values[-1]),
+        phase_points_per_cycle=phase_points_per_cycle,
+        eta_distance=eta_distance,
+        sound_horizon=sound_horizon,
+    )
+    actual = int(values.size)
+    required = int(requirements["required_nodes"])
+    return {
+        "actual_nodes": actual,
+        "required_nodes": required,
+        "radial_required_nodes": int(requirements["radial_required_nodes"]),
+        "acoustic_required_nodes": int(
+            requirements["acoustic_required_nodes"]
+        ),
+        "phase_step": float(requirements["phase_step"]),
+        "resolved": bool(actual >= required),
+    }
+
+
+def phase_aware_k_grid_requirements(
+    k_min: float,
+    k_max: float,
+    *,
+    phase_points_per_cycle: float,
+    eta_distance: float,
+    sound_horizon: float,
+) -> dict[str, int | float]:
+    """Report the physical node count required by a phase-aware k ladder.
+
+    ``phase_aware_k_grid`` accepts an explicit node budget because callers
+    may need a bounded smoke-test grid.  This companion calculation keeps
+    the physical requirement visible in runtime evidence instead of letting
+    a capped ladder appear converged merely because it returned successfully.
+    The count is the largest of the endpoint-inclusive phase ladders for the
+    radial and acoustic distances.
+    """
+
+    lower = _positive_float(k_min, name="k_min")
+    upper = _positive_float(k_max, name="k_max")
+    if upper <= lower:
+        raise ValueError("k_max must be greater than k_min")
+    phase_points = _positive_float(
+        phase_points_per_cycle,
+        name="phase_points_per_cycle",
+    )
+    distance = _positive_float(eta_distance, name="eta_distance")
+    acoustic_distance = _positive_float(
+        sound_horizon,
+        name="sound_horizon",
+    )
+    phase_step = numpy.pi / phase_points
+    radial_count = max(
+        2,
+        int(numpy.ceil((upper - lower) * distance / phase_step)) + 1,
+    )
+    acoustic_count = max(
+        2,
+        int(numpy.ceil((upper - lower) * acoustic_distance / phase_step)) + 1,
+    )
+    return {
+        "radial_required_nodes": radial_count,
+        "acoustic_required_nodes": acoustic_count,
+        "required_nodes": max(radial_count, acoustic_count),
+        "phase_step": float(phase_step),
+    }
 
 
 def phase_aware_eta_grid(

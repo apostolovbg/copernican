@@ -10,6 +10,17 @@ from copernican.lib.diagnostics import (
     bao_residual_diagnostics,
     cmb_residual_diagnostics,
 )
+from copernican.lib.likelihoods import cmb as cmb_package
+from copernican.lib.likelihoods.cmb import diagnostics as cmb_module
+from copernican.lib.likelihoods.cmb.contracts_audit import (
+    CMBContractAudit,
+    audit_bundled_cmb_contracts,
+)
+from copernican.lib.likelihoods.cmb.diagnostics import (
+    CMBModelDiagnostic,
+    run_bundled_cmb_diagnostics,
+    run_cmb_model_diagnostic,
+)
 
 
 class DiagnosticsTestCase(unittest.TestCase):
@@ -18,6 +29,24 @@ class DiagnosticsTestCase(unittest.TestCase):
     def test_public_symbols_are_exposed(self) -> None:
         self.assertTrue(hasattr(module, "bao_residual_diagnostics"))
         self.assertTrue(hasattr(module, "cmb_residual_diagnostics"))
+
+    def test_ccmbs_diagnostic_symbols_are_exposed(self) -> None:
+        """The fixed-point CCMBS diagnostics surface remains importable."""
+
+        self.assertIs(cmb_module.CMBModelDiagnostic, CMBModelDiagnostic)
+        self.assertIs(
+            cmb_module.run_bundled_cmb_diagnostics,
+            run_bundled_cmb_diagnostics,
+        )
+        self.assertIs(
+            cmb_module.run_cmb_model_diagnostic,
+            run_cmb_model_diagnostic,
+        )
+        self.assertIs(cmb_package.CMBContractAudit, CMBContractAudit)
+        self.assertIs(
+            cmb_package.audit_bundled_cmb_contracts,
+            audit_bundled_cmb_contracts,
+        )
 
     def test_bao_diagnostics_groups_observables(self):
         data_frame = pandas.DataFrame(

@@ -133,7 +133,7 @@ cmb:
     k_max: 1.0
     k_sample_count: 64
     eta_sample_count: 192
-    evolution_eta_sample_count: 128
+    evolution_eta_sample_count: 192
     evolution_phase_step: 2.0
     ode_rtol: 1.0e-5
     ode_atol: 1.0e-8
@@ -295,6 +295,7 @@ cmb:
         spin: 0.0
     accuracy_controls:
       accuracy_tier: final
+      source_history_reconstruction: false
       minimum_k_sample_count: 64
       scalar_reference_ells:
       - 2
@@ -309,6 +310,23 @@ cmb:
         einstein_energy_residual: 3.0e-3
         einstein_momentum_residual: 1.0e-6
         einstein_shear_residual: 1.0e-6
+      los_phase_quadrature:
+        enabled: true
+        minimum_nodes: 256
+        maximum_nodes: 256
+        phase_points_per_cycle: 4.0
+      production_scalar_convergence:
+        enabled: true
+        k_refinement_factor: 2
+        required_spectra:
+        - TT
+        - TE
+        - EE
+        relative_tolerances:
+          TT: 1.0e-2
+          TE: 2.0e-2
+          EE: 1.0e-2
+        fail_on_nonconvergence: true
       runtime_envelope: bounded
     variables: {}
     derived: {}
@@ -326,7 +344,7 @@ cmb:
       k_max: 1.0
       k_sample_count: 64
       eta_sample_count: 192
-      evolution_eta_sample_count: 128
+      evolution_eta_sample_count: 192
       evolution_phase_step: 2.0
       ode_rtol: 1.0e-5
       ode_atol: 1.0e-8

@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: 8f42e67f598a6ee7f2fe9c3c57b27dd1d9db6d9f30cddb28458a8effe9a83801
+  policy_registry_input_hash: 98addbcf5d88ebfc1cd70054e0bd181cf8e78d46aac7925b51e1bdceffa397c8
 project-governance:
   project_name: copernican
   project_description: A Python toolkit for evaluating cosmological models against

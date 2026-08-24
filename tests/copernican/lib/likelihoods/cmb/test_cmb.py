@@ -1660,7 +1660,7 @@ def _capture_visible_scalar_monopole_history(
 ) -> tuple[numpy.ndarray, numpy.ndarray, dict[str, numpy.ndarray]]:
     """Return a scalar history and spectra captured from one solver run."""
 
-    cache.clear_cmb_result_caches()
+    cache.clear_cmb_parameter_caches()
     captured: list[tuple[numpy.ndarray, numpy.ndarray]] = []
     original = cmb_projection._evaluate_compiled_expression_noerr
 
@@ -4372,6 +4372,40 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             places=12,
         )
 
+    def test_declared_los_phase_grid_records_effective_resolution(
+        self,
+    ) -> None:
+        """A bounded generated request exposes its phase-aware LOS grid."""
+
+        contract = _declared_scalar_hierarchy_contract(sum_mnu=0.0)
+        contract["perturbations"]["accuracy_controls"] = {
+            "los_phase_quadrature": {
+                "enabled": True,
+                "minimum_nodes": 512,
+                "maximum_nodes": 512,
+                "phase_points_per_cycle": 4.0,
+            },
+            "runtime_envelope": "bounded",
+        }
+        spectrum_data = _raw_declared_spectrum_data(
+            contract,
+            numpy.asarray((20, 30), dtype=int),
+        )
+        envelope = spectrum_data.runtime_envelope
+
+        self.assertTrue(envelope["los_phase_quadrature_enabled"])
+        self.assertTrue(envelope["los_phase_quadrature_applied"])
+        self.assertEqual(envelope["los_phase_eta_sample_count"], 512)
+        self.assertEqual(envelope["eta_sample_count"], 512)
+        self.assertEqual(envelope["los_phase_minimum_nodes"], 512)
+        self.assertEqual(envelope["los_phase_maximum_nodes"], 512)
+        self.assertEqual(envelope["los_phase_points_per_cycle"], 4.0)
+        self.assertGreater(envelope["los_phase_eta_min_step"], 0.0)
+        self.assertGreaterEqual(
+            envelope["los_phase_eta_max_step"],
+            envelope["los_phase_eta_min_step"],
+        )
+
     def test_declared_nonuniform_gradient_preserves_quadratic_derivative(
         self,
     ) -> None:
@@ -4740,6 +4774,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Generated scalar sources should see the background tau history."""
 
+        cache.clear_cmb_parameter_caches()
         contract_data = _declared_scalar_hierarchy_contract()
         contract_data["numerical"].update(
             {
@@ -4762,7 +4797,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
             if (
                 getattr(expression_data, "expression", "")
-                == "exp(-tau) * (Phi_tau + Psi_tau)"
+                == "exp(-tau) * (Phi_history_tau + Psi_tau)"
                 and not captured_tau
             ):
                 captured_tau.append(
@@ -7619,6 +7654,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.ones(2, dtype=float),
         )
 
+    def test_compiled_context_program_can_overwrite_stale_relation(
+        self,
+    ) -> None:
+        """Recompute relation targets from the current state context."""
+
+        program = evolution._compile_ordered_context_program(
+            (("double_signal", "2.0 * signal"),),
+            overwrite_outputs=("double_signal",),
+        )
+        context = {"signal": 3.0, "double_signal": -99.0}
+
+        program(context, {})
+
+        self.assertEqual(context["double_signal"], 6.0)
+
     def test_compiled_expression_tuple_reuses_one_context_executor(
         self,
     ) -> None:
@@ -7691,8 +7741,34 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(envelope["batched_diagnostic_value_step_count"]),
         )
 
-    def test_runtime_envelope_rejects_unbounded_work_units(self) -> None:
-        """Declared runtime envelopes should fail before large runs start."""
+    def test_adaptive_k_projection_reuses_batched_mode_evolution(self) -> None:
+        """Adaptive k projection must not fall back to scalar mode solves."""
+
+        raw_contract = _declared_scalar_hierarchy_contract()
+        accuracy_controls = raw_contract["perturbations"]["accuracy_controls"]
+        accuracy_controls["adaptive_k_quadrature"] = {
+            "mode": "source",
+            "node_count": 64,
+            "ell_min": 2,
+            "ell_stride": 1,
+            "eta_stride": 4,
+        }
+        contract = _prepare_declared_contract(raw_contract)
+        cache.clear_cmb_caches()
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.asarray((20, 60, 120), dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        envelope = spectrum_data.runtime_envelope
+        self.assertGreaterEqual(int(envelope["batch_count"]), 1)
+        self.assertTrue(
+            bool(numpy.all(numpy.isfinite(spectrum_data.spectra["TT"])))
+        )
+
+    def test_runtime_envelope_records_explicit_work_hints(self) -> None:
+        """Explicit work hints should not reject a valid physical request."""
 
         contract = _speedup_contract(_analytic_signal_contract())
         contract["perturbations"]["accuracy_controls"] = {
@@ -7701,14 +7777,17 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         }
         contract = _prepare_declared_contract(contract)
-        with self.assertRaisesRegex(
-            ValueError,
-            "runtime_envelope exceeded maximum_total_work_units",
-        ):
-            cmb_projection._compute_custom_cmb_spectrum_data(
-                contract,
-                numpy.arange(20, 25, dtype=int),
-            )
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 25, dtype=int),
+        )
+        self.assertEqual(
+            spectrum_data.runtime_envelope["work_limits"],
+            {"maximum_total_work_units": 1000},
+        )
+        self.assertFalse(
+            spectrum_data.runtime_envelope["work_limits_enforced"]
+        )
 
     def test_conservation_rule_violation_fails_loudly(self) -> None:
         """Conservation residuals should fail once they exceed tolerance."""
@@ -9661,6 +9740,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         diagnostics = spectrum_data.runtime_envelope[
             "scalar_constraint_diagnostics"
         ]
+        self.assertTrue(
+            spectrum_data.runtime_envelope["generated_scalar_hierarchy"]
+        )
+        derivative_validation = spectrum_data.runtime_envelope[
+            "metric_history_derivative_validation"
+        ]
+        self.assertEqual(
+            derivative_validation["required"],
+            ("Phi_tau", "Psi_tau", "Phi_history_tau"),
+        )
+        self.assertGreater(int(derivative_validation["mode_count"]), 0)
+        self.assertTrue(derivative_validation["finite"])
         self.assertEqual(
             set(diagnostics),
             {
@@ -9742,6 +9833,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 metrics["normalization_source"],
                 "sum_abs_declared_einstein_terms",
             )
+
+    def test_generated_scalar_initial_metric_seed_is_preserved(
+        self,
+    ) -> None:
+        """Generated scalar evolution must retain its declared metric seed."""
+
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_scalar_hierarchy_contract())
+        )
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+        )
+
+        state_history = spectrum_data.runtime_envelope[
+            "state_history_max_abs_by_k"
+        ]
+        self.assertTrue(state_history)
+        self.assertGreater(
+            max(float(values["Phi"]) for values in state_history.values()),
+            0.1,
+        )
 
     def test_projection_k_grid_rejects_undeclared_high_k_request(
         self,
@@ -10924,6 +11038,21 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "compute_cmb_spectrum_batch",
                 "compute_cmb_spectrum_cached",
                 "compute_cmb_spectrum_from_contract",
+                "CMBContractAudit",
+                "CMBSourceGraphAudit",
+                "CMBModelDiagnostic",
+                "assess_physical_spectrum_shape",
+                "audit_source_history_residuals",
+                "build_cmb_certification_report",
+                "compare_cmb_spectra_to_reference",
+                "assert_bundled_cmb_contracts",
+                "assert_bundled_cmb_source_graphs",
+                "audit_bundled_cmb_contracts",
+                "audit_bundled_cmb_source_graphs",
+                "discover_bundled_cmb_plugins",
+                "run_bundled_cmb_diagnostics",
+                "run_cmb_model_diagnostic",
+                "write_cmb_certification_report",
             },
         )
         self.assertTrue(hasattr(cmb, "CMBLike"))
@@ -10931,6 +11060,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
         self.assertTrue(callable(cmb.compute_cmb_spectrum_batch))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_cached))
         self.assertTrue(callable(cmb.compute_cmb_spectrum_from_contract))
+        self.assertTrue(callable(cmb.build_cmb_certification_report))
+        self.assertTrue(callable(cmb.write_cmb_certification_report))
         self.assertFalse(hasattr(cmb, "compute_camb_background_observables"))
         self.assertFalse(
             hasattr(cmb, "compute_cmb_spectrum_from_legacy_params_for_tests")

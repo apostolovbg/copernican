@@ -5,12 +5,14 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as numpy_module
 
 import copernican.lib.model_adapter as model_plugin_validation
 from copernican.lib import dataset_registry
 from copernican.lib.likelihoods import bao
+from copernican.lib.likelihoods.cmb import cmb
 from copernican.lib.statistics import chi_squared_bao
 
 
@@ -112,6 +114,48 @@ class BAOCovarianceTestCase(unittest.TestCase):
         self.assertAlmostEqual(chi2_cov, chi2_cov_manual)
         self.assertAlmostEqual(chi2_diag, chi2_diag_manual)
         self.assertNotEqual(chi2_cov, chi2_diag)
+
+    def test_bao_is_unchanged_when_cmb_entrypoint_is_unavailable(self) -> None:
+        """BAO evaluation must not depend on the CMB solver entrypoint."""
+
+        sound_horizon_mpc = 150.0
+        redshifts_array = self.bao_dataframe["redshift"].to_numpy(dtype=float)
+        observable_types_array = self.bao_dataframe[
+            "observable_type"
+        ].to_numpy()
+        observable_values_array = self.bao_dataframe["value"].to_numpy(
+            dtype=float
+        )
+        observable_errors_array = self.bao_dataframe["error"].to_numpy(
+            dtype=float
+        )
+        cov_inv = self.bao_dataframe.attrs.get("covariance_matrix_inv")
+        baseline = chi_squared_bao(
+            redshifts_array,
+            observable_types_array,
+            observable_values_array,
+            observable_errors_array,
+            self.plugin,
+            (),
+            sound_horizon_mpc,
+            covariance_matrix_inv=cov_inv,
+        )
+        with mock.patch.object(
+            cmb,
+            "compute_cmb_spectrum_from_contract",
+            side_effect=RuntimeError("CMB solver deliberately unavailable"),
+        ):
+            isolated = chi_squared_bao(
+                redshifts_array,
+                observable_types_array,
+                observable_values_array,
+                observable_errors_array,
+                self.plugin,
+                (),
+                sound_horizon_mpc,
+                covariance_matrix_inv=cov_inv,
+            )
+        self.assertEqual(isolated, baseline)
 
 
 class BAOPublicSymbolCoverageTestCase(unittest.TestCase):

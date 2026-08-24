@@ -425,9 +425,14 @@ notes: |
     `spin2_b_window`, or `lensing_potential_window`, and declare any needed
     `required_projection_roles` explicitly.
   * `cmb.perturbations.accuracy_controls` can require minimum `ell`, `k`,
-    `eta`, hierarchy, source-grid, and momentum-grid coverage, and may
-    declare `runtime_envelope.maximum_*_work_units` limits so declared runs
-    fail before drifting back into unmanaged workloads.
+    `eta`, hierarchy, source-grid, and momentum-grid coverage. The
+    `runtime_envelope` records deterministic work estimates and chunking;
+    optional `maximum_*_work_units` entries are positive operator metadata,
+    not machine-local ceilings that reject a valid physical request.
+  * Generated-source diagnostics retain normalized and absolute residual
+    bounds. Use `source_residual_audit` for reviewed per-source overrides;
+    the runtime records whether each independent closure passed by its
+    relative or absolute criterion and preserves the control provenance.
   * Angular power-spectrum observables only name their `primary` and
     `secondary` transfer components. Keep projection, kernel, and source-term
     declarations on the transfer components themselves so manifest provenance

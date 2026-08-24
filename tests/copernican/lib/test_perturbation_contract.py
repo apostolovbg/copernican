@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import yaml
@@ -38,6 +39,7 @@ from copernican.lib.perturbation_contract import (
     PerturbationVariableData,
     compile_perturbation_contract,
     evaluate_compiled_expression,
+    validate_generated_scalar_source_graph,
 )
 
 
@@ -734,6 +736,121 @@ class PerturbationContractTestCase(unittest.TestCase):
             perturbation_contract_module.compile_perturbation_contract,
             compile_perturbation_contract,
         )
+
+    def test_generated_source_validator_rejects_missing_derivatives(self):
+        """Generated graphs fail before runtime when derivatives are absent.
+
+        The validator must reject an incomplete graph before the projection
+        runtime can substitute any implicit history values.
+        """
+
+        validator = (
+            perturbation_contract_module.validate_generated_scalar_source_graph
+        )
+        self.assertIs(validator, validate_generated_scalar_source_graph)
+        broken = SimpleNamespace(
+            manifest_summary={"generated_scalar_hierarchy": True},
+            variables={"Phi": object(), "Psi": object()},
+            derived={},
+            sources={},
+            closures={},
+        )
+        with self.assertRaisesRegex(ValueError, "metric derivative"):
+            validate_generated_scalar_source_graph(broken)
+
+    def test_generated_source_validator_rejects_zero_history_fallback(self):
+        """History derivatives cannot be represented by a zero fallback."""
+
+        generated = SimpleNamespace(
+            manifest_summary={"generated_scalar_hierarchy": True},
+            variables={"Phi": object(), "Psi": object()},
+            derived={
+                "Phi_tau": SimpleNamespace(
+                    expression=("metric_momentum_source_drive - Hconf * Psi"),
+                    dependencies=(
+                        "metric_momentum_source_drive",
+                        "Hconf",
+                        "Psi",
+                    ),
+                ),
+                "Psi_tau": SimpleNamespace(
+                    expression=None,
+                    variable="Psi",
+                    wrt="tau",
+                    order=1,
+                    binding="runtime_history_gradient",
+                ),
+                "Phi_history_tau": SimpleNamespace(
+                    expression="0.0",
+                    variable=None,
+                    wrt=None,
+                    order=None,
+                    binding=None,
+                    description="runtime binds this history",
+                ),
+            },
+            sources={},
+            closures={
+                "psi_closure": SimpleNamespace(),
+                "visibility_polarization_moment_closure": SimpleNamespace(),
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "Phi_history_tau"):
+            validate_generated_scalar_source_graph(generated)
+
+    def test_generated_source_validator_requires_declared_phi_tau_inputs(self):
+        """The compiled Phi_tau expression must retain Einstein inputs."""
+
+        source_names = (
+            "monopole",
+            "additive",
+            "additive_derivative",
+            "doppler",
+            "isw",
+            "polarization",
+            "polarization_b",
+            "potential",
+        )
+        generated = SimpleNamespace(
+            manifest_summary={"generated_scalar_hierarchy": True},
+            variables={"Phi": object(), "Psi": object()},
+            derived={
+                "Phi_tau": SimpleNamespace(
+                    expression="Hconf",
+                    dependencies=("Hconf",),
+                ),
+                "Psi_tau": SimpleNamespace(
+                    expression=None,
+                    variable="Psi",
+                    wrt="tau",
+                    order=1,
+                    binding="runtime_history_gradient",
+                ),
+                "Phi_history_tau": SimpleNamespace(
+                    expression=None,
+                    variable="Phi",
+                    wrt="tau",
+                    order=1,
+                    binding="runtime_history_gradient",
+                    description="runtime binds this history",
+                ),
+            },
+            sources={
+                name: SimpleNamespace(
+                    role=name,
+                    compiled_expression=object(),
+                )
+                for name in source_names
+            },
+            closures={
+                "psi_closure": SimpleNamespace(compiled_expression=object()),
+                "visibility_polarization_moment_closure": SimpleNamespace(
+                    compiled_expression=object()
+                ),
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "Phi_tau must depend"):
+            validate_generated_scalar_source_graph(generated)
 
     def test_scalar_metadata_contract_materializes_runtime_graph(self) -> None:
         """Metadata-only scalar contracts should expand into graph entries."""
@@ -1966,6 +2083,22 @@ class PerturbationContractTestCase(unittest.TestCase):
             "Omega_gamma0 * observable_theta_gamma2",
             compiled.derived["total_shear_source"].expression,
         )
+        self.assertIn(
+            "Omega_nu0 * observable_delta_nu",
+            compiled.derived["radiation_density_source"].expression,
+        )
+        self.assertNotIn(
+            "massless_neutrino_fraction * observable_delta_nu",
+            compiled.derived["radiation_density_source"].expression,
+        )
+        self.assertIn(
+            "Omega_nu0 * observable_theta_nu",
+            compiled.derived["total_momentum_source"].expression,
+        )
+        self.assertIn(
+            "Omega_nu0 * sigma_nu",
+            compiled.derived["total_shear_source"].expression,
+        )
         self.assertIn("evolve_Phi", compiled.equations)
         self.assertEqual(
             compiled.equations["evolve_Phi"].rhs,
@@ -2008,9 +2141,21 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.derived["Phi_tau"].expression,
         )
         self.assertIsNone(compiled.derived["Psi_tau"].expression)
+        self.assertEqual(
+            compiled.derived["Psi_tau"].binding,
+            "runtime_history_gradient",
+        )
         self.assertEqual(compiled.derived["Psi_tau"].variable, "Psi")
         self.assertEqual(compiled.derived["Psi_tau"].wrt, "tau")
         self.assertEqual(compiled.derived["Psi_tau"].order, 1)
+        self.assertIsNone(compiled.derived["Phi_history_tau"].expression)
+        self.assertEqual(compiled.derived["Phi_history_tau"].variable, "Phi")
+        self.assertEqual(compiled.derived["Phi_history_tau"].wrt, "tau")
+        self.assertEqual(compiled.derived["Phi_history_tau"].order, 1)
+        self.assertEqual(
+            compiled.derived["Phi_history_tau"].binding,
+            "runtime_history_gradient",
+        )
         self.assertIn("einstein_energy_residual", compiled.derived)
         self.assertIn("einstein_momentum_residual", compiled.derived)
         self.assertIn("einstein_shear_residual", compiled.derived)
@@ -2340,7 +2485,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.sources["temperature_isw"].expression,
-            "exp(-tau) * (Phi_tau + Psi_tau)",
+            "exp(-tau) * (Phi_history_tau + Psi_tau)",
         )
         self.assertEqual(
             compiled.sources["lensing_potential"].expression,

@@ -161,6 +161,7 @@ _SUPPORTED_VARIABLE_KEYS = {
     "units",
 }
 _SUPPORTED_DERIVED_KEYS = {
+    "binding",
     "description",
     "domain",
     "expression",
@@ -171,6 +172,7 @@ _SUPPORTED_DERIVED_KEYS = {
     "variable",
     "wrt",
 }
+_SUPPORTED_DERIVED_BINDINGS = {"runtime_history_gradient"}
 _SUPPORTED_EQUATION_KEYS = {
     "dependencies",
     "description",
@@ -1969,7 +1971,7 @@ def _materialize_declared_scalar_hierarchy_contract(
     )
     if has_massless_neutrino:
         radiation_density_source_expression += (
-            " + massless_neutrino_fraction * observable_delta_nu"
+            " + Omega_nu0 * observable_delta_nu"
         )
     radiation_density_source_expression += ") / (a * a)"
     total_density_source_expression = (
@@ -1988,7 +1990,7 @@ def _materialize_declared_scalar_hierarchy_contract(
     ]
     if has_massless_neutrino:
         radiation_momentum_terms.append(
-            "(4.0 / 3.0) * massless_neutrino_fraction * observable_theta_nu"
+            "(4.0 / 3.0) * Omega_nu0 * observable_theta_nu"
         )
     total_momentum_source_expression = (
         f"({ ' + '.join(matter_momentum_terms) }) / a + "
@@ -1996,7 +1998,7 @@ def _materialize_declared_scalar_hierarchy_contract(
     )
     shear_terms = ["4.0 * Omega_gamma0 * observable_theta_gamma2"]
     if has_massless_neutrino:
-        shear_terms.append("2.0 * massless_neutrino_fraction * sigma_nu")
+        shear_terms.append("2.0 * Omega_nu0 * sigma_nu")
     total_shear_source_expression = f"({ ' + '.join(shear_terms) }) / (a * a)"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
@@ -2382,11 +2384,25 @@ def _materialize_declared_scalar_hierarchy_contract(
             },
             "Psi_tau": {
                 "kind": "metric_potential_time_derivative",
+                "binding": "runtime_history_gradient",
                 "variable": "Psi",
                 "wrt": "tau",
                 "order": 1,
                 "description": (
                     "History-derived lapse-potential time derivative."
+                ),
+                "units": _INVERSE_MPC_UNITS,
+            },
+            "Phi_history_tau": {
+                "kind": "metric_history_time_derivative",
+                "binding": "runtime_history_gradient",
+                "variable": "Phi",
+                "wrt": "tau",
+                "order": 1,
+                "description": (
+                    "History-derived curvature-potential time derivative "
+                    "used by the integrated Sachs-Wolfe source; the runtime "
+                    "binds this symbol to the evolved Phi history gradient."
                 ),
                 "units": _INVERSE_MPC_UNITS,
             },
@@ -2806,7 +2822,7 @@ def _materialize_declared_scalar_hierarchy_contract(
             ),
         },
         "temperature_isw": {
-            "expression": "exp(-tau) * (Phi_tau + Psi_tau)",
+            "expression": "exp(-tau) * (Phi_history_tau + Psi_tau)",
             "role": "isw",
             "description": (
                 "Integrated Sachs-Wolfe source from the Weyl-potential "
@@ -4780,6 +4796,7 @@ class PerturbationDerivedData:
 
     name: str
     kind: str
+    binding: str | None = None
     expression: str | None = None
     variable: str | None = None
     wrt: str | None = None
@@ -5324,6 +5341,20 @@ def _validate_optional_string(
     if value is None:
         return None
     return _validate_string(value, label=label)
+
+
+def _validate_derived_binding(
+    value: Any,
+    *,
+    label: str,
+) -> str | None:
+    """Validate an explicit runtime binding for a derived history symbol."""
+
+    binding = _validate_optional_string(value, label=label)
+    if binding is not None and binding not in _SUPPORTED_DERIVED_BINDINGS:
+        supported = ", ".join(sorted(_SUPPORTED_DERIVED_BINDINGS))
+        raise ValueError(f"{label} must be one of: {supported}")
+    return binding
 
 
 def _validate_optional_int(
@@ -6816,6 +6847,133 @@ def _build_execution_route_summary() -> dict[str, Any]:
     }
 
 
+def validate_generated_scalar_source_graph(contract: Any) -> None:
+    """Validate the generated scalar source graph before runtime use.
+
+    Generated scalar contracts are materialized from one shared template, but
+    the compiled graph remains the authority consumed by the solver.  Keep
+    this validation at that boundary so a future template or model-specific
+    override cannot omit metric derivatives, source roles, or closures and
+    have the runtime silently substitute zeros.  Bundled initial-condition
+    completeness is audited separately because small generated fixtures may
+    intentionally declare only the regular mode under test.
+    """
+
+    manifest = getattr(contract, "manifest_summary", {}) or {}
+    if not bool(manifest.get("generated_scalar_hierarchy")):
+        return
+
+    variables = getattr(contract, "variables", {}) or {}
+    derived = getattr(contract, "derived", {}) or {}
+    sources = getattr(contract, "sources", {}) or {}
+    closures = getattr(contract, "closures", {}) or {}
+    issues: list[str] = []
+
+    if not {"Phi", "Psi"}.issubset(variables):
+        issues.append("generated scalar hierarchy must expose Phi and Psi")
+    required_derivatives = {"Phi_tau", "Psi_tau", "Phi_history_tau"}
+    missing_derivatives = sorted(required_derivatives - set(derived))
+    if missing_derivatives:
+        issues.append(
+            "missing generated metric derivative(s): "
+            + ", ".join(missing_derivatives)
+        )
+    phi_tau = derived.get("Phi_tau")
+    if phi_tau is not None:
+        if not str(getattr(phi_tau, "expression", "") or "").strip():
+            issues.append("Phi_tau must have an explicit graph expression")
+        phi_tau_dependencies = set(getattr(phi_tau, "dependencies", ()) or ())
+        for dependency in ("metric_momentum_source_drive", "Hconf", "Psi"):
+            if dependency not in phi_tau_dependencies:
+                issues.append(
+                    "Phi_tau must depend on the declared "
+                    f"{dependency} source"
+                )
+    psi_tau = derived.get("Psi_tau")
+    if psi_tau is not None:
+        if (
+            str(getattr(psi_tau, "variable", "")) != "Psi"
+            or str(getattr(psi_tau, "wrt", "")) != "tau"
+            or int(getattr(psi_tau, "order", 0) or 0) != 1
+        ):
+            issues.append("Psi_tau must be the first tau derivative of Psi")
+        if getattr(psi_tau, "expression", None) is not None:
+            issues.append("Psi_tau must not replace its history derivative")
+        if getattr(psi_tau, "binding", None) != "runtime_history_gradient":
+            issues.append(
+                "Psi_tau must declare the runtime history-gradient binding"
+            )
+    phi_history_tau = derived.get("Phi_history_tau")
+    if phi_history_tau is not None:
+        if (
+            str(getattr(phi_history_tau, "variable", "")) != "Phi"
+            or str(getattr(phi_history_tau, "wrt", "")) != "tau"
+            or int(getattr(phi_history_tau, "order", 0) or 0) != 1
+        ):
+            issues.append(
+                "Phi_history_tau must be the first tau derivative of Phi"
+            )
+        if getattr(phi_history_tau, "expression", None) is not None:
+            issues.append(
+                "Phi_history_tau must not use a zero-expression fallback"
+            )
+        if getattr(phi_history_tau, "binding", None) != (
+            "runtime_history_gradient"
+        ):
+            issues.append(
+                "Phi_history_tau must declare the runtime history-gradient "
+                "binding"
+            )
+        if (
+            "runtime binds"
+            not in str(
+                getattr(phi_history_tau, "description", "") or ""
+            ).lower()
+        ):
+            issues.append("Phi_history_tau must document runtime binding")
+
+    required_roles = {
+        "monopole",
+        "additive",
+        "additive_derivative",
+        "doppler",
+        "isw",
+        "polarization",
+        "polarization_b",
+        "potential",
+    }
+    source_roles = {
+        str(getattr(entry, "role", "")) for entry in sources.values()
+    }
+    missing_roles = sorted(required_roles - source_roles)
+    if missing_roles:
+        issues.append(
+            "missing generated source role(s): " + ", ".join(missing_roles)
+        )
+    # Initial-condition family completeness is audited against the bundled
+    # model inventory.  Small generated fixtures may intentionally exercise a
+    # single regular mode, so the compiler only enforces the source graph
+    # symbols needed by every generated runtime here.
+    for closure_name in (
+        "psi_closure",
+        "visibility_polarization_moment_closure",
+    ):
+        if closure_name not in closures:
+            issues.append(f"generated hierarchy must declare {closure_name}")
+    for source_name, source in sources.items():
+        if getattr(source, "compiled_expression", None) is None:
+            issues.append(f"source '{source_name}' is not compiler-backed")
+    for closure_name, closure in closures.items():
+        if getattr(closure, "compiled_expression", None) is None:
+            issues.append(f"closure '{closure_name}' is not compiler-backed")
+
+    if issues:
+        raise ValueError(
+            "Generated scalar source graph validation failed: "
+            + "; ".join(sorted(set(issues)))
+        )
+
+
 def compile_perturbation_contract(
     contract: Mapping[str, Any],
     *,
@@ -7145,6 +7303,10 @@ def compile_perturbation_contract(
                     derived_def.get("kind") or "derivative_symbol",
                     label=f"cmb.perturbations.derived.{name}.kind",
                 ),
+                binding=_validate_derived_binding(
+                    derived_def.get("binding"),
+                    label=f"cmb.perturbations.derived.{name}.binding",
+                ),
                 variable=variable_name,
                 wrt=wrt_name,
                 order=order_value,
@@ -7186,6 +7348,10 @@ def compile_perturbation_contract(
             kind=_validate_string(
                 derived_def.get("kind") or "expression",
                 label=f"cmb.perturbations.derived.{name}.kind",
+            ),
+            binding=_validate_derived_binding(
+                derived_def.get("binding"),
+                label=f"cmb.perturbations.derived.{name}.binding",
             ),
             expression=clean_expression,
             description=_validate_optional_string(
@@ -8697,6 +8863,12 @@ def compile_perturbation_contract(
         _relation_target_nodes(constraint_entries, closure_entries)
     )
     for key, required_order in derivative_symbol_orders.items():
+        runtime_bound = any(
+            entry.expression is None
+            and entry.binding == "runtime_history_gradient"
+            and (str(entry.variable), str(entry.wrt)) == key
+            for entry in derived_entries.values()
+        )
         if key not in equation_orders:
             variable_name, wrt_name = key
             if variable_name in relation_target_names:
@@ -8705,7 +8877,7 @@ def compile_perturbation_contract(
                 "Derivative symbol requires an evolved variable: "
                 f"{variable_name} wrt {wrt_name}"
             )
-        if required_order >= equation_orders[key]:
+        if required_order >= equation_orders[key] and not runtime_bound:
             variable_name, wrt_name = key
             raise ValueError(
                 "Derivative symbol order exceeds the declared differential "
@@ -9090,6 +9262,7 @@ def compile_perturbation_contract(
         projection_typing=FrozenMapping(projection_typing_entries),
         accuracy_controls=accuracy_controls_mapping,
     )
+    validate_generated_scalar_source_graph(compiled)
     _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
     return _get_cached_perturbation_contract(cache_key)
 
@@ -9122,4 +9295,5 @@ __all__ = [
     "PerturbationVariableData",
     "compile_perturbation_contract",
     "evaluate_compiled_expression",
+    "validate_generated_scalar_source_graph",
 ]

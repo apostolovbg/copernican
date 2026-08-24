@@ -14,11 +14,13 @@ from copernican.lib.likelihoods.cmb.runtime.convergence import (
     FINAL_SPECTRUM_RELATIVE_TOLERANCES,
     ConvergenceReport,
     NumericalEnvelope,
+    ProductionScalarConvergenceControls,
     RefinementMetric,
     evaluate_control_refinement,
     evaluate_spectrum_refinement,
     require_convergence,
     resolve_declared_numerical_envelope,
+    resolve_production_scalar_convergence,
 )
 
 
@@ -101,9 +103,45 @@ class ConvergenceTestCase(unittest.TestCase):
         self.assertEqual(ConvergenceReport.__name__, "ConvergenceReport")
         self.assertEqual(RefinementMetric.__name__, "RefinementMetric")
         self.assertEqual(
+            ProductionScalarConvergenceControls.__name__,
+            "ProductionScalarConvergenceControls",
+        )
+        self.assertEqual(
             evaluate_control_refinement.__name__,
             "evaluate_control_refinement",
         )
+
+    def test_production_scalar_rule_resolves_declared_doubled_grid(
+        self,
+    ) -> None:
+        """Production scalar controls retain factor, surfaces, and bounds."""
+
+        contract = _final_tier_contract()
+        contract["perturbation_data"].accuracy_controls[
+            "production_scalar_convergence"
+        ] = {
+            "enabled": True,
+            "k_refinement_factor": 2,
+            "required_spectra": ["TT", "TE", "EE"],
+            "relative_tolerances": {"TT": 0.01, "TE": 0.02, "EE": 0.01},
+            "fail_on_nonconvergence": True,
+        }
+        controls = resolve_production_scalar_convergence(contract)
+
+        self.assertTrue(controls.enabled)
+        self.assertEqual(controls.k_refinement_factor, 2)
+        self.assertEqual(controls.required_spectra, ("TT", "TE", "EE"))
+        self.assertTrue(controls.fail_on_nonconvergence)
+
+    def test_production_scalar_rule_rejects_invalid_factor(self) -> None:
+        """A production rule cannot silently skip the doubled-grid check."""
+
+        contract = _final_tier_contract()
+        contract["perturbation_data"].accuracy_controls[
+            "production_scalar_convergence"
+        ] = {"enabled": True, "k_refinement_factor": 1}
+        with self.assertRaisesRegex(ValueError, "at least 2"):
+            resolve_production_scalar_convergence(contract)
 
     def test_final_tier_records_every_physical_control_family(self) -> None:
         """The final envelope records grids, sectors, hierarchies, and q."""
@@ -133,7 +171,7 @@ class ConvergenceTestCase(unittest.TestCase):
             payload["numerical_controls"]["lensing_sampling_factor"],
             1.4,
         )
-        self.assertEqual(len(payload["runtime_limits"]), 4)
+        self.assertEqual(payload["runtime_limits"], {})
 
     def test_envelope_infers_sector_from_compiled_graph_metadata(self) -> None:
         """Explicit graphs without sector blocks retain their graph sector."""

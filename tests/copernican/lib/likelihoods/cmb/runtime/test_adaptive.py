@@ -10,12 +10,16 @@ from copernican.lib.likelihoods.cmb.runtime.adaptive import (
     AdaptiveControls,
     ConvergenceEstimate,
     HistoryConvergence,
+    LOSQuadratureControls,
     estimate_convergence,
     estimate_history_convergence,
     phase_aware_eta_grid,
     phase_aware_k_grid,
+    phase_aware_k_grid_requirements,
+    phase_aware_k_grid_status,
     require_convergence,
     resolve_adaptive_controls,
+    resolve_los_quadrature_controls,
 )
 
 
@@ -28,6 +32,8 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(callable(estimate_convergence))
         self.assertTrue(callable(phase_aware_eta_grid))
         self.assertTrue(callable(phase_aware_k_grid))
+        self.assertTrue(callable(phase_aware_k_grid_requirements))
+        self.assertTrue(callable(phase_aware_k_grid_status))
         self.assertTrue(callable(require_convergence))
         self.assertTrue(callable(resolve_adaptive_controls))
         self.assertEqual(
@@ -94,6 +100,52 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertEqual(controls.evolution_maximum_nodes, 256)
         self.assertAlmostEqual(controls.evolution_relative_tolerance, 1.0e-2)
 
+    def test_los_phase_controls_resolve_explicit_bounded_grid(self) -> None:
+        """LOS phase controls preserve explicit minimum and maximum nodes."""
+
+        controls = resolve_los_quadrature_controls(
+            {
+                "los_phase_quadrature": {
+                    "minimum_nodes": 512,
+                    "maximum_nodes": 2048,
+                    "phase_points_per_cycle": 4,
+                }
+            },
+            base_eta_nodes=192,
+        )
+
+        self.assertIsInstance(controls, LOSQuadratureControls)
+        self.assertTrue(controls.enabled)
+        self.assertEqual(controls.minimum_nodes, 512)
+        self.assertEqual(controls.maximum_nodes, 2048)
+        self.assertEqual(controls.phase_points_per_cycle, 4.0)
+
+    def test_los_phase_controls_are_disabled_without_declaration(self) -> None:
+        """Low-resolution contracts do not inherit a hidden LOS multiplier."""
+
+        controls = resolve_los_quadrature_controls({}, base_eta_nodes=192)
+
+        self.assertFalse(controls.enabled)
+        self.assertEqual(controls.minimum_nodes, 0)
+        self.assertEqual(controls.maximum_nodes, 0)
+
+    def test_los_phase_cap_promotes_existing_history_length(self) -> None:
+        """A phase cap cannot discard an already sampled history grid."""
+
+        controls = resolve_los_quadrature_controls(
+            {
+                "los_phase_quadrature": {
+                    "minimum_nodes": 512,
+                    "maximum_nodes": 2048,
+                    "phase_points_per_cycle": 4,
+                }
+            },
+            base_eta_nodes=3000,
+        )
+
+        self.assertEqual(controls.configured_maximum_nodes, 2048)
+        self.assertEqual(controls.maximum_nodes, 3000)
+
     def test_phase_aware_k_grid_tracks_acoustic_and_radial_phase(self) -> None:
         """The transfer grid adds physical phase nodes within its bounds."""
 
@@ -115,6 +167,62 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertAlmostEqual(float(grid[-1]), 0.25)
         self.assertTrue(numpy.any(numpy.isclose(grid, 0.05)))
         self.assertTrue(numpy.any(numpy.isclose(grid, 0.1)))
+
+    def test_phase_requirements_report_uncapped_physical_resolution(
+        self,
+    ) -> None:
+        """Runtime evidence exposes the phase ladder's physical node need."""
+
+        requirements = phase_aware_k_grid_requirements(
+            0.01,
+            0.25,
+            phase_points_per_cycle=8.0,
+            eta_distance=14000.0,
+            sound_horizon=140.0,
+        )
+
+        self.assertGreater(
+            requirements["radial_required_nodes"],
+            requirements["acoustic_required_nodes"],
+        )
+        self.assertEqual(
+            requirements["required_nodes"],
+            requirements["radial_required_nodes"],
+        )
+        self.assertGreater(requirements["phase_step"], 0.0)
+
+    def test_phase_status_exposes_capped_grid_as_under_resolved(
+        self,
+    ) -> None:
+        """A bounded ladder reports its physical phase-resolution status."""
+
+        status = phase_aware_k_grid_status(
+            numpy.geomspace(0.01, 0.25, 8),
+            phase_points_per_cycle=8.0,
+            eta_distance=14000.0,
+            sound_horizon=140.0,
+        )
+
+        self.assertFalse(bool(status["resolved"]))
+        self.assertGreater(
+            int(status["required_nodes"]),
+            int(status["actual_nodes"]),
+        )
+
+    def test_phase_grid_can_reject_an_under_resolved_budget(self) -> None:
+        """Production callers may reject a capped phase ladder explicitly."""
+
+        with self.assertRaisesRegex(ValueError, "under-resolved"):
+            phase_aware_k_grid(
+                0.01,
+                0.25,
+                minimum_nodes=8,
+                maximum_nodes=16,
+                phase_points_per_cycle=8.0,
+                eta_distance=14000.0,
+                sound_horizon=140.0,
+                require_phase_resolution=True,
+            )
 
     def test_phase_aware_eta_grid_refines_visibility_and_oscillations(
         self,

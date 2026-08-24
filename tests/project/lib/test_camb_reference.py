@@ -46,6 +46,33 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         )
         self.assertIn("describe_camb_configuration", camb_reference.__all__)
         self.assertIn("CAMB_REFERENCE_IDENTITY", camb_reference.__all__)
+        self.assertIn("build_lcdm_reference_fixture", camb_reference.__all__)
+        self.assertIn("reference_fixture_sha256", camb_reference.__all__)
+
+    def test_fixed_lcdm_fixture_is_self_describing(self):
+        """The frozen fixture records arrays, conventions, and its digest."""
+
+        fixture = camb_reference.build_lcdm_reference_fixture(
+            (2, 20, 100),
+            spectra=("TT", "TE", "EE"),
+        )
+
+        self.assertEqual(fixture["ell_values"], (2, 20, 100))
+        self.assertEqual(set(fixture["spectra"]), {"TT", "TE", "EE"})
+        self.assertEqual(
+            fixture["fixture_sha256"],
+            camb_reference.reference_fixture_sha256(
+                {
+                    key: value
+                    for key, value in fixture.items()
+                    if key != "fixture_sha256"
+                }
+            ),
+        )
+        self.assertEqual(
+            fixture["normalization"],
+            "unlensed_scalar_D_ell_microkelvin_squared",
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

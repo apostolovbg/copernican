@@ -17,6 +17,25 @@ from .contracts import (  # noqa: F401
     CMBSolverCapabilities,
     CMBSolverProtocol,
 )
+from .contracts_audit import (
+    CMBContractAudit,
+    CMBSourceGraphAudit,
+    assert_bundled_cmb_contracts,
+    assert_bundled_cmb_source_graphs,
+    audit_bundled_cmb_contracts,
+    audit_bundled_cmb_source_graphs,
+)
+from .diagnostics import (
+    CMBModelDiagnostic,
+    assess_physical_spectrum_shape,
+    audit_source_history_residuals,
+    build_cmb_certification_report,
+    compare_cmb_spectra_to_reference,
+    discover_bundled_cmb_plugins,
+    run_bundled_cmb_diagnostics,
+    run_cmb_model_diagnostic,
+    write_cmb_certification_report,
+)
 from .errors import (
     CMBError,
     ConstraintViolationError,
@@ -39,6 +58,9 @@ from .solvers.registry import solver_provenance  # noqa: F401
 
 __all__ = [
     "CMBLike",
+    "CMBContractAudit",
+    "CMBSourceGraphAudit",
+    "CMBModelDiagnostic",
     "CMBBatchResult",
     "CMBError",
     "ConstraintViolationError",
@@ -53,4 +75,16 @@ __all__ = [
     "compute_cmb_spectrum_batch",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_contract",
+    "assess_physical_spectrum_shape",
+    "audit_source_history_residuals",
+    "build_cmb_certification_report",
+    "compare_cmb_spectra_to_reference",
+    "assert_bundled_cmb_contracts",
+    "assert_bundled_cmb_source_graphs",
+    "audit_bundled_cmb_contracts",
+    "audit_bundled_cmb_source_graphs",
+    "discover_bundled_cmb_plugins",
+    "run_bundled_cmb_diagnostics",
+    "run_cmb_model_diagnostic",
+    "write_cmb_certification_report",
 ]

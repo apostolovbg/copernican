@@ -311,7 +311,7 @@ def compute_cmb_spectrum(
     ells: Iterable[int],
     *,
     spectra: Sequence[str] = ("TT",),
-    workload: str = "full_spectrum",
+    workload: str = "joint_mcmc",
     solver: Any | str | None = None,
     cmb_solver: Any | str | None = None,
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
@@ -474,6 +474,7 @@ class CMBLike(LikelihoodProtocol):
         try:
             declared_contract = dict(declared_contract)
             declared_contract["_background_provider"] = self.plugin
+            declared_contract["_joint_mcmc_fast_path"] = True
             prepared = self.cmb_solver.prepare(declared_contract)
             result = self.cmb_solver.evaluate(
                 prepared,

@@ -20,12 +20,18 @@ FINAL_SPECTRUM_RELATIVE_TOLERANCES = {
 FINAL_Q_GRID_RELATIVE_TOLERANCE = 2.0e-2
 FINAL_HIERARCHY_RELATIVE_TOLERANCE = 1.0e-2
 
-BOUNDED_RUNTIME_LIMITS = {
-    "maximum_evolution_work_units": 100_000_000,
-    "maximum_momentum_work_units": 10_000_000,
-    "maximum_projection_work_units": 5_000_000_000,
-    "maximum_total_work_units": 5_200_000_000,
+_PRODUCTION_SCALAR_DEFAULT_TOLERANCES = {
+    "TT": FINAL_SPECTRUM_RELATIVE_TOLERANCES["TT"],
+    "TE": FINAL_SPECTRUM_RELATIVE_TOLERANCES["TE"],
+    "EE": FINAL_SPECTRUM_RELATIVE_TOLERANCES["EE"],
 }
+
+RUNTIME_WORK_LIMIT_NAMES = (
+    "maximum_evolution_work_units",
+    "maximum_momentum_work_units",
+    "maximum_projection_work_units",
+    "maximum_total_work_units",
+)
 
 _NUMERICAL_DEFAULTS = {
     "ell_min": 2,
@@ -156,6 +162,28 @@ class RefinementMetric:
 
 
 @dataclass(frozen=True, slots=True)
+class ProductionScalarConvergenceControls:
+    """Declared production rule for a doubled scalar wave-number grid."""
+
+    enabled: bool
+    k_refinement_factor: int
+    required_spectra: tuple[str, ...]
+    relative_tolerances: Mapping[str, float]
+    fail_on_nonconvergence: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a manifest-safe representation of the production rule."""
+
+        return {
+            "enabled": bool(self.enabled),
+            "k_refinement_factor": int(self.k_refinement_factor),
+            "required_spectra": list(self.required_spectra),
+            "relative_tolerances": dict(self.relative_tolerances),
+            "fail_on_nonconvergence": bool(self.fail_on_nonconvergence),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ConvergenceReport:
     """Named final-refinement metrics across declared physical surfaces."""
 
@@ -195,6 +223,80 @@ def _accuracy_controls(contract: Mapping[str, Any]) -> Mapping[str, Any]:
     return {}
 
 
+def resolve_production_scalar_convergence(
+    contract: Mapping[str, Any],
+) -> ProductionScalarConvergenceControls:
+    """Resolve the optional production scalar grid-refinement rule."""
+
+    controls = _accuracy_controls(contract)
+    raw = controls.get("production_scalar_convergence", {}) or {}
+    if not isinstance(raw, Mapping):
+        raise ValueError(
+            "production_scalar_convergence must be a mapping when declared"
+        )
+    enabled = bool(raw.get("enabled", False))
+    factor = int(raw.get("k_refinement_factor", 2))
+    if factor < 2:
+        raise ValueError(
+            "production_scalar_convergence.k_refinement_factor must be "
+            "at least 2"
+        )
+    raw_required = raw.get(
+        "required_spectra",
+        tuple(_PRODUCTION_SCALAR_DEFAULT_TOLERANCES),
+    )
+    if isinstance(raw_required, (str, bytes)):
+        raise ValueError(
+            "production_scalar_convergence.required_spectra must be a list"
+        )
+    required = tuple(str(name).upper() for name in raw_required)
+    if not required:
+        raise ValueError(
+            "production_scalar_convergence.required_spectra must not be empty"
+        )
+    unknown = [
+        name
+        for name in required
+        if name not in FINAL_SPECTRUM_RELATIVE_TOLERANCES
+    ]
+    if unknown:
+        raise ValueError(
+            "Unknown production scalar spectrum(s): " + ", ".join(unknown)
+        )
+    raw_tolerances = raw.get("relative_tolerances", {}) or {}
+    if not isinstance(raw_tolerances, Mapping):
+        raise ValueError(
+            "production_scalar_convergence.relative_tolerances must be a "
+            "mapping"
+        )
+    tolerances = {
+        name: float(
+            raw_tolerances.get(
+                name,
+                _PRODUCTION_SCALAR_DEFAULT_TOLERANCES.get(
+                    name,
+                    FINAL_SPECTRUM_RELATIVE_TOLERANCES[name],
+                ),
+            )
+        )
+        for name in required
+    }
+    if any(
+        not numpy.isfinite(value) or value <= 0.0
+        for value in tolerances.values()
+    ):
+        raise ValueError(
+            "production scalar relative tolerances must be finite and positive"
+        )
+    return ProductionScalarConvergenceControls(
+        enabled=enabled,
+        k_refinement_factor=factor,
+        required_spectra=required,
+        relative_tolerances=tolerances,
+        fail_on_nonconvergence=bool(raw.get("fail_on_nonconvergence", True)),
+    )
+
+
 def _numerical_controls(contract: Mapping[str, Any]) -> dict[str, Any]:
     """Return merged background and hierarchy numerical declarations."""
 
@@ -214,6 +316,10 @@ def _numerical_controls(contract: Mapping[str, Any]) -> dict[str, Any]:
         )
     if isinstance(hierarchy_numerics, Mapping):
         merged.update(hierarchy_numerics)
+    overrides = contract.get("_numerical_overrides", {}) or {}
+    if not isinstance(overrides, Mapping):
+        raise ValueError("_numerical_overrides must be a mapping")
+    merged.update(overrides)
     return merged
 
 
@@ -337,24 +443,31 @@ def _momentum_grid_controls(
 def _runtime_limits(
     controls: Mapping[str, Any],
 ) -> tuple[bool, dict[str, int]]:
-    """Return whether the request has a complete bounded runtime envelope."""
+    """Resolve optional operator limits without imposing preset ceilings.
+
+    ``bounded`` means that requested work is accounted for and can be
+    chunked; it is deliberately not a fixed numerical budget.  Explicit
+    limits remain part of the manifest for diagnostics and malformed values
+    are rejected, but the projection runtime does not use them to reject a
+    valid physical request.
+    """
 
     raw_envelope = controls.get("runtime_envelope")
     if raw_envelope == "bounded":
-        return True, dict(BOUNDED_RUNTIME_LIMITS)
+        return True, {}
     if not isinstance(raw_envelope, Mapping):
         return False, {}
     limits: dict[str, int] = {}
-    for name in BOUNDED_RUNTIME_LIMITS:
+    for name in RUNTIME_WORK_LIMIT_NAMES:
         if name not in raw_envelope:
-            return False, limits
+            continue
         value = int(raw_envelope[name])
         if value < 1:
             raise ValueError(
                 f"Declared runtime limit '{name}' must be positive"
             )
         limits[name] = value
-    return True, limits
+    return bool(limits), limits
 
 
 def _active_sectors(contract: Mapping[str, Any]) -> tuple[str, ...]:
@@ -428,20 +541,32 @@ def _validate_final_tier(
     momentum_grids: Mapping[str, Mapping[str, Any]],
     bounded: bool,
     sectors: Iterable[str],
+    low_resolution_override: bool = False,
 ) -> None:
-    """Reject a final-tier request whose physical controls are unresolved."""
+    """Reject unresolved final controls unless a smoke override exists.
+
+    A generated model may explicitly declare ``minimum_k_sample_count`` below
+    the production floor for a finite smoke evaluation.  The projection path
+    still promotes that request to its generated production floor; the
+    override only prevents the preflight validator from rejecting the request
+    before that promotion can occur.
+    """
 
     complaints: list[str] = []
     if not bounded:
-        complaints.append("runtime_envelope must define all bounded limits")
-    for name, minimum in _FINAL_MINIMUM_CONTROLS.items():
-        try:
-            value = _finite_control(numerical, name)
-        except ValueError as exc:
-            complaints.append(str(exc))
-            continue
-        if value < minimum:
-            complaints.append(f"{name}={value:g} < {minimum:g}")
+        complaints.append(
+            "runtime_envelope must be 'bounded' or declare a positive "
+            "work-accounting limit"
+        )
+    if not low_resolution_override:
+        for name, minimum in _FINAL_MINIMUM_CONTROLS.items():
+            try:
+                value = _finite_control(numerical, name)
+            except ValueError as exc:
+                complaints.append(str(exc))
+                continue
+            if value < minimum:
+                complaints.append(f"{name}={value:g} < {minimum:g}")
     for name, maximum in _FINAL_MAXIMUM_CONTROLS.items():
         try:
             value = _finite_control(numerical, name)
@@ -460,37 +585,38 @@ def _validate_final_tier(
                 hierarchy_minimums.get(name, 0),
                 int(minimum),
             )
-    for name, minimum in hierarchy_minimums.items():
-        if name not in hierarchies:
-            continue
-        value = int(hierarchies[name])
-        if value < minimum:
-            complaints.append(f"{name}_l_max={value} < {minimum}")
-    for grid_name, grid in momentum_grids.items():
-        count = int(grid["count"])
-        q_min = float(grid["q_min"])
-        q_max = float(grid["q_max"])
-        order = int(grid["quadrature_order"])
-        if count < int(_FINAL_MOMENTUM_GRID_MINIMUMS["count"]):
-            complaints.append(
-                f"momentum_grids.{grid_name}.count={count} < "
-                f"{_FINAL_MOMENTUM_GRID_MINIMUMS['count']}"
-            )
-        if q_min > float(_FINAL_MOMENTUM_GRID_MINIMUMS["q_min_maximum"]):
-            complaints.append(
-                f"momentum_grids.{grid_name}.q_min={q_min:g} > "
-                f"{_FINAL_MOMENTUM_GRID_MINIMUMS['q_min_maximum']:g}"
-            )
-        if q_max < float(_FINAL_MOMENTUM_GRID_MINIMUMS["q_max_minimum"]):
-            complaints.append(
-                f"momentum_grids.{grid_name}.q_max={q_max:g} < "
-                f"{_FINAL_MOMENTUM_GRID_MINIMUMS['q_max_minimum']:g}"
-            )
-        if order != int(_FINAL_MOMENTUM_GRID_MINIMUMS["quadrature_order"]):
-            complaints.append(
-                f"momentum_grids.{grid_name}.quadrature_order={order} != "
-                f"{_FINAL_MOMENTUM_GRID_MINIMUMS['quadrature_order']}"
-            )
+    if not low_resolution_override:
+        for name, minimum in hierarchy_minimums.items():
+            if name not in hierarchies:
+                continue
+            value = int(hierarchies[name])
+            if value < minimum:
+                complaints.append(f"{name}_l_max={value} < {minimum}")
+        for grid_name, grid in momentum_grids.items():
+            count = int(grid["count"])
+            q_min = float(grid["q_min"])
+            q_max = float(grid["q_max"])
+            order = int(grid["quadrature_order"])
+            if count < int(_FINAL_MOMENTUM_GRID_MINIMUMS["count"]):
+                complaints.append(
+                    f"momentum_grids.{grid_name}.count={count} < "
+                    f"{_FINAL_MOMENTUM_GRID_MINIMUMS['count']}"
+                )
+            if q_min > float(_FINAL_MOMENTUM_GRID_MINIMUMS["q_min_maximum"]):
+                complaints.append(
+                    f"momentum_grids.{grid_name}.q_min={q_min:g} > "
+                    f"{_FINAL_MOMENTUM_GRID_MINIMUMS['q_min_maximum']:g}"
+                )
+            if q_max < float(_FINAL_MOMENTUM_GRID_MINIMUMS["q_max_minimum"]):
+                complaints.append(
+                    f"momentum_grids.{grid_name}.q_max={q_max:g} < "
+                    f"{_FINAL_MOMENTUM_GRID_MINIMUMS['q_max_minimum']:g}"
+                )
+            if order != int(_FINAL_MOMENTUM_GRID_MINIMUMS["quadrature_order"]):
+                complaints.append(
+                    f"momentum_grids.{grid_name}.quadrature_order={order} != "
+                    f"{_FINAL_MOMENTUM_GRID_MINIMUMS['quadrature_order']}"
+                )
     if complaints:
         raise ValueError(
             "Declared accuracy tier 'final' is under-resolved: "
@@ -517,12 +643,19 @@ def resolve_declared_numerical_envelope(
     bounded, runtime_limits = _runtime_limits(controls)
     sectors = _active_sectors(contract)
     if accuracy_tier == "final":
+        raw_minimum_k = controls.get("minimum_k_sample_count")
+        low_resolution_override = False
+        if raw_minimum_k is not None:
+            low_resolution_override = int(raw_minimum_k) < int(
+                _FINAL_MINIMUM_CONTROLS["k_sample_count"]
+            )
         _validate_final_tier(
             numerical=numerical,
             hierarchies=hierarchies,
             momentum_grids=momentum_grids,
             bounded=bounded,
             sectors=sectors,
+            low_resolution_override=low_resolution_override,
         )
     numerical_names = tuple(_NUMERICAL_DEFAULTS)
     resolved_numerical = {
@@ -607,6 +740,7 @@ def evaluate_spectrum_refinement(
     fine_spectra: Mapping[str, Any],
     *,
     required_spectra: Iterable[str] | None = None,
+    relative_tolerances: Mapping[str, float] | None = None,
 ) -> ConvergenceReport:
     """Measure final declared spectrum refinement against thresholds."""
 
@@ -615,6 +749,7 @@ def evaluate_spectrum_refinement(
         if required_spectra is not None
         else FINAL_SPECTRUM_RELATIVE_TOLERANCES
     )
+    tolerance_overrides = dict(relative_tolerances or {})
     metrics: dict[str, RefinementMetric] = {}
     for raw_name in required:
         name = str(raw_name)
@@ -635,7 +770,16 @@ def evaluate_spectrum_refinement(
             coarse = _finite_array(coarse_spectra[name], name=f"coarse {name}")
             fine = _finite_array(fine_spectra[name], name=f"fine {name}")
             relative_error = _fractional_refinement_error(coarse, fine)
-        tolerance = float(FINAL_SPECTRUM_RELATIVE_TOLERANCES[name])
+        tolerance = float(
+            tolerance_overrides.get(
+                name,
+                FINAL_SPECTRUM_RELATIVE_TOLERANCES[name],
+            )
+        )
+        if not numpy.isfinite(tolerance) or tolerance <= 0.0:
+            raise ValueError(
+                f"Spectrum refinement tolerance for {name} must be positive"
+            )
         metrics[name] = RefinementMetric(
             name=name,
             relative_error=relative_error,
@@ -689,15 +833,17 @@ def require_convergence(
 
 
 __all__ = [
-    "BOUNDED_RUNTIME_LIMITS",
     "FINAL_HIERARCHY_RELATIVE_TOLERANCE",
     "FINAL_Q_GRID_RELATIVE_TOLERANCE",
     "FINAL_SPECTRUM_RELATIVE_TOLERANCES",
     "ConvergenceReport",
     "NumericalEnvelope",
+    "ProductionScalarConvergenceControls",
+    "RUNTIME_WORK_LIMIT_NAMES",
     "RefinementMetric",
     "evaluate_control_refinement",
     "evaluate_spectrum_refinement",
     "require_convergence",
+    "resolve_production_scalar_convergence",
     "resolve_declared_numerical_envelope",
 ]

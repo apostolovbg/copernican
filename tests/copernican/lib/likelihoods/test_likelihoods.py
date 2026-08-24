@@ -213,6 +213,31 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertGreater(tracking_plugin.calls["hz"], 0)
         self.assertGreater(tracking_plugin.calls["rs"], 0)
 
+    def test_bao_fixed_background_survives_cmb_solver_failure(self):
+        """A fixed BAO background remains evaluable without CCMBS."""
+
+        params = self.plugin.INITIAL_GUESSES
+        bao_df = self._prepare_bao()
+        bao_like = likelihoods.BAOLike(
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
+            model_plugin=self.plugin,
+            covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
+        )
+        baseline = bao_like.loglike(params)
+        with mock.patch(
+            "copernican.lib.likelihoods.cmb.cmb."
+            "compute_cmb_spectrum_from_contract",
+            side_effect=AssertionError("CMB solver must not run for BAO"),
+        ):
+            isolated = bao_like.loglike(params)
+
+        self.assertTrue(numpy.isfinite(baseline))
+        self.assertEqual(isolated, baseline)
+        self.assertTrue(numpy.isfinite(bao_like.state["chi2"]))
+
     def test_bao_loglike_rejects_divergent_sound_horizon(self):
         """Divergent sound-horizon integrals must abort BAO predictions."""
 

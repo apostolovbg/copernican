@@ -157,6 +157,7 @@ class CacheModuleTestCase(unittest.TestCase):
         self.assertIn("background", stats)
         self.assertIn("declared_spectrum", stats)
         self.assertIn("declared_transfer", stats)
+        self.assertIn("source_history", stats)
         self.assertIn("runtime_assets", stats)
         self.assertIn("declared_momentum_topology", stats)
         self.assertNotIn("custom_background", stats)
@@ -203,6 +204,18 @@ class CacheModuleTestCase(unittest.TestCase):
         cache.set_declared_momentum_topology("topology", "nodes")
         cache.set_declared_momentum_grid("grid", "bound-grid")
         cache.set_cmb_background("background", "tables")
+        source_key = ("contract", "model", "solver", "grid", 0.1)
+        cache.set_cmb_source_history(
+            source_key,
+            {"temperature": numpy.asarray([1.0, 2.0])},
+        )
+        self.assertTrue(callable(cache.set_cmb_source_history))
+        self.assertTrue(
+            numpy.array_equal(
+                cache.get_cmb_source_history(source_key)["temperature"],
+                numpy.asarray([1.0, 2.0]),
+            )
+        )
         cache.set_cmb_spectrum("spectrum", "result")
 
         inventory = cache.cmb_cache_inventory()
@@ -227,6 +240,7 @@ class CacheModuleTestCase(unittest.TestCase):
         self.assertEqual(stats["declared_momentum_grid"]["entries"], 0)
         self.assertEqual(stats["background"]["entries"], 0)
         self.assertEqual(stats["declared_spectrum"]["entries"], 0)
+        self.assertEqual(stats["source_history"]["entries"], 0)
 
     def test_result_and_request_accounting_helpers_are_explicit(self):
         """Result invalidation and request mutation should stay observable."""
