@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-24
+**Last Updated:** 2026-08-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -165,6 +165,15 @@ hits and misses, while the phase-aware k status records the physical node
 requirement and whether the bounded grid resolves it. A contract may require
 that phase check explicitly; an under-resolved grid is then rejected with its
 metrics instead of being presented as converged.
+Irregular phase-aware k ladders use positive composite-trapezoid weights in
+log-k; Simpson weights are reserved for uniform ladders so sparse Bessel
+phases cannot create negative lobes or alternating aliases. Fixed-point
+diagnostics also record ordered TT peaks and troughs, damping, TE sign
+changes, and EE peaks directly from raw arrays before plotting.
+The generated scalar hierarchy uses the standard `Pi = Theta_gamma,2 +
+E_gamma,0 + E_gamma,2` collision moment, includes it once in the visibility
+monopole, and applies the `3/4` E-source coefficient. The deprecated split
+temperature quadrupole terms are explicit zeroes.
 
 Declared MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,

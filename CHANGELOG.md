@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-24
+**Last Updated:** 2026-08-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,74 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-25:
+  Change: Stabilized irregular phase-grid quadrature with Simpson integration
+    on small declared grids and aligned scalar history coverage with the
+    generated source convention.
+  Why: Corrected residual refinement failures without weakening production
+    safeguards or reverting the CCMBS source and projection work.
+  Impact: Final scalar convergence checks pass while hidden-prefix and gauge
+    history tests capture the active generated monopole source.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-24:
+  Change: Completed the CCMBS projection and fixed-LCDM correctness slice,
+    corrected generated scalar source normalization, and validated phase-gap
+    resolution alongside raw acoustic diagnostics.
+  Why: Corrected duplicated generated polarization sources and rejected phase
+    status that reported node counts without proving local phase spacing.
+  Impact: Enabled the standard scalar collision/source convention, explicit
+    rejection of unresolved phase gaps, and serialization of raw evidence for
+    the next bundled-model certification slice.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-24:
+  Change: Replaced irregular CCMBS log-k Simpson weights with positive
+  composite-trapezoid integration and expanded fixed-point acoustic evidence.
+  Why: Sparse phase-aware ladders could create alternating quadrature lobes
+  and reports did not retain enough raw peak, phase, and damping evidence.
+  Impact: Runtime envelopes identify the active quadrature and diagnostics
+  preserve base/refined arrays and raw acoustic-shape decisions while the
+  unresolved LCDM/CAMB parity boundary remains explicit.
+  Files:
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/docs/cmb_solver.md
+  copernican/README.md
+  README.md
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  PLAN.md
+  CHANGELOG.md
 
 - 2026-08-24:
   Change: Fixed CCMBS smoke-tier validation, row-wise power integration, and

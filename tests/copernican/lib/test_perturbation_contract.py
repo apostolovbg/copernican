@@ -2302,8 +2302,8 @@ class PerturbationContractTestCase(unittest.TestCase):
                     "0.0",
                     "0.0",
                 ),
-                ("0.0", "0.0", "-0.9", "0.6"),
-                ("0.0", "0.0", "0.1", "-0.4"),
+                ("0.0", "0.0", "-0.8", "0.1"),
+                ("0.0", "0.0", "0.05", "-0.25"),
             ),
         )
         self.assertIn("thomson_drag_balance", compiled.conservation_rules)
@@ -2455,7 +2455,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.derived["polarization_moment"].expression,
-            "0.1 * theta_gamma2 + 0.6 * e_gamma2",
+            "theta_gamma2 + e_gamma0 + e_gamma2",
         )
         self.assertEqual(
             compiled.derived[
@@ -2469,15 +2469,15 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.sources["temperature_quadrupole"].expression,
-            "(5.0 / 2.0) * visibility * polarization_moment",
+            "0.0",
         )
         self.assertEqual(
             compiled.sources["temperature_quadrupole_derivative"].expression,
-            "(15.0 / 2.0) * visibility * polarization_moment",
+            "0.0",
         )
         self.assertEqual(
             compiled.sources["polarization_source"].expression,
-            "(15.0 / 2.0) * visibility * polarization_moment",
+            "0.75 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_doppler"].expression,

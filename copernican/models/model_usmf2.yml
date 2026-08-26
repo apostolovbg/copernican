@@ -715,7 +715,7 @@ cmb:
           variable: theta_gamma0
           wrt: tau
           order: 1
-        rhs: -acoustic_k * theta_gamma1 + Phi_tau
+        rhs: -acoustic_k * theta_gamma1 - Phi_tau
         role: photon_continuity
         description: Photon temperature monopole equation.
         notes: >-

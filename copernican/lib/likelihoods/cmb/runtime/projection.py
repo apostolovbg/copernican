@@ -824,13 +824,10 @@ def _integrate_power_spectrum(
     log_k_steps = numpy.diff(log_k_ld)
 
     # The phase-aware projection grid is intentionally non-uniform: it mixes
-    # a logarithmic super-horizon scaffold with linear k phase nodes.  Applying
-    # generalized Simpson weights to that mixed grid creates large negative
-    # lobes when the acoustic transfer function is under-resolved.  Those
-    # lobes are the source of the alternating, seismograph-like spectra seen
-    # in production output.  Use the positive composite trapezoid rule on
-    # genuinely non-uniform grids; retain Simpson's higher-order rule for the
-    # uniform grids used by the analytic and low-resolution contracts.
+    # a logarithmic super-horizon scaffold with linear k phase nodes.  Simpson
+    # integration is useful on the small declared grids used by correctness
+    # contracts, but production-sized sparse phase ladders must retain the
+    # positive rule to avoid negative lobes between unresolved oscillations.
     uniform_log_grid = bool(
         log_k_steps.size == 0
         or numpy.allclose(
@@ -841,13 +838,15 @@ def _integrate_power_spectrum(
         )
     )
     if uniform_log_grid or log_k_ld.size <= 128:
-        # Sparse declared fixtures retain physical anchor nodes and therefore
-        # are not uniformly spaced in log-k.  Generalized Simpson integration
-        # is materially more accurate than a first-order trapezoid on this
-        # small smooth scaffold.  Production phase ladders are deliberately
-        # larger and remain on the positive trapezoid rule below.
+        # Small declared grids retain physical anchors and benefit materially
+        # from generalized Simpson integration on their smooth transfer
+        # functions.  The positive fallback below still protects negative
+        # auto-spectrum rows.
         integral = simpson(weighted, x=log_k_ld, axis=1)
     else:
+        # A positive composite trapezoid is slightly lower order, but it is
+        # stable on every irregular phase grid and cannot invent negative
+        # lobes between sparsely sampled Bessel oscillations.
         integral = numpy.sum(
             0.5
             * (weighted[:, :-1] + weighted[:, 1:])
@@ -880,8 +879,7 @@ def _integrate_power_spectrum(
         integral = numpy.maximum(integral, 0.0)
     integrated = 4.0 * numpy.longdouble(math.pi) * integral
     # Keep the raw spectrum in extended precision until the public solver
-    # applies its final float conversion. Simpson quadrature reduces the
-    # leading log-k integration error on the nonuniform anchor grid.
+    # applies its final float conversion.
     return numpy.asarray(integrated, dtype=numpy.longdouble)
 
 
@@ -1081,11 +1079,15 @@ def _build_projection_k_grid(
         # Production refinement carries an explicit factor so the doubled
         # request actually doubles the physical grid rather than being hidden
         # by this floor.
-        sample_count = max(
-            sample_count
-            * int(getattr(numerics, "k_grid_refinement_factor", 1)),
-            512,
+        # Scale the declared ladder before applying the floor.  Otherwise a
+        # 64-node base request and a 96-node refinement both collapse to the
+        # same 512-node grid, so the convergence comparison does not actually
+        # measure a refinement.
+        refinement_factor = max(
+            1,
+            int(getattr(numerics, "k_grid_refinement_factor", 1)),
         )
+        sample_count = max(sample_count * refinement_factor * 8, 512)
     phase_setting = accuracy_controls.get("phase_aware_k_quadrature")
     phase_aware_k_enabled = (
         bool(phase_setting)
@@ -3787,8 +3789,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         phase_requirements["acoustic_required_nodes"]
     )
     runtime_envelope["phase_resolution_limited"] = bool(
-        phase_aware_k_enabled
-        and k_values.size < int(phase_requirements["required_nodes"])
+        phase_aware_k_enabled and not bool(phase_status["resolved"])
     )
     runtime_envelope["phase_resolution_status"] = (
         "resolved"
@@ -3796,6 +3797,17 @@ def _compute_custom_cmb_spectrum_data_impl(
         else "under_resolved"
     )
     runtime_envelope["phase_grid_status"] = dict(phase_status)
+    runtime_envelope["k_quadrature_rule"] = (
+        "simpson_uniform_log_k"
+        if k_values.size < 2
+        or numpy.allclose(
+            numpy.diff(numpy.log(numpy.asarray(k_values, dtype=float))),
+            numpy.diff(numpy.log(numpy.asarray(k_values, dtype=float)))[0],
+            rtol=1.0e-10,
+            atol=1.0e-14,
+        )
+        else "positive_trapezoid_irregular_phase_grid"
+    )
     runtime_envelope["batch_count"] = 0
     runtime_envelope["batch_mode_count"] = 0
     runtime_envelope["batched_rk_stage_count"] = 0

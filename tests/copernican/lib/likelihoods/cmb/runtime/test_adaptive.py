@@ -204,6 +204,8 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         )
 
         self.assertFalse(bool(status["resolved"]))
+        self.assertFalse(bool(status["spacing_resolved"]))
+        self.assertGreater(float(status["maximum_radial_phase_step"]), 0.0)
         self.assertGreater(
             int(status["required_nodes"]),
             int(status["actual_nodes"]),

@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-24
+**Last Updated:** 2026-08-25
 **Project Version:** 12.0.26
 
 ## Overview
@@ -92,6 +92,19 @@ also retain their uncapped physical node requirement in `phase_grid_status`.
 Contracts that set `require_phase_resolution` reject a capped ladder before
 evolution, while bounded diagnostic fixtures may retain the explicit
 under-resolved status for evidence.
+
+Irregular phase-aware k ladders use a positive composite trapezoid rule in
+log-k. Simpson integration is retained only for a genuinely uniform
+logarithmic ladder; this prevents generalized Simpson weights from creating
+negative lobes between sparsely sampled Bessel phases. Fixed-point reports
+also include acoustic evidence: ordered TT peaks and troughs, the damping
+tail, TE sign changes, and EE peak locations. These metrics are computed from
+raw public arrays before plotting, and an incomplete or unresolved feature is
+recorded as a scientific failure rather than being smoothed away.
+Phase status records both the uncapped physical node requirement and the
+largest radial and acoustic phase gaps. A grid is resolved only when its node
+count and every phase gap satisfy the declared bound; a dense count with one
+large gap is therefore still rejected.
 
 Each fixed-point runtime envelope also stores compact raw source-history
 samples at deterministic eta anchors. `audit_source_history_residuals()`
@@ -343,13 +356,15 @@ multipoles `E_gamma,l`.
 Vector and tensor sectors use the same dimensionless spin-2 polarization
 convention and may carry odd-parity multipoles.
 
-`polarization_moment` means
+For the generated scalar hierarchy, `polarization_moment` means
 
 ```text
-polarization_moment = Theta_gamma,2 / 10 + 3 E_gamma,2 / 5
+polarization_moment = Theta_gamma,2 + E_gamma,0 + E_gamma,2
 ```
 
-This is the dimensionless scalar Thomson source moment.
+This is the dimensionless scalar Thomson source moment used by the standard
+truncated scalar collision block. Vector and tensor contracts may declare
+their own sector-specific moment normalization.
 
 `polarization_b_mode_seed` is the declared odd-parity transfer seed carried
 through exact lensing when a model declares primordial or sourced `B`.
@@ -465,8 +480,8 @@ Vector temperature uses the two flat-space radial families
 `sqrt(l(l+1)/2) j_l(x)/x` and
 `sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
 the corresponding spin-1 radial limits.
-The scalar E-mode line-of-sight source applies the CAMB `15/2` normalization
-to the declared `visibility * polarization_moment` before the declared spin-2
+The generated scalar E-mode line-of-sight source is
+`3/4 * visibility * polarization_moment` before the declared spin-2
 projection. The scalar radial window carries the standard spin-2 factorial
 prefactor and `j_l / x^2`.
 
@@ -751,12 +766,16 @@ leave a numerical free-electron floor in the post-recombination tail.
 ### Photon Temperature Hierarchy
 
 ```text
-Theta_gamma,0' = -k Theta_gamma,1 + Phi'
+Theta_gamma,0' = -k Theta_gamma,1 - Phi'
 Theta_gamma,1' = k (Theta_gamma,0 + Psi - 2 Theta_gamma,2) / 3
                  - tau_dot (Theta_gamma,1 - v_b / 3)
 Theta_gamma,2' = 2 k Theta_gamma,1 / 5
                  - 3 k Theta_gamma,3 / 5
-                 - tau_dot (Theta_gamma,2 - polarization_moment)
+                 + photon_quadrupole_collision
+
+[Theta_gamma,2', E_gamma,2']_collision = tau_dot *
+    [[-4/5, 1/10], [1/20, -1/4]]
+    [Theta_gamma,2, E_gamma,2]
 ```
 
 Higher photon multipoles use the standard free-streaming recurrence with a
@@ -886,16 +905,14 @@ q-resolved massive-neutrino closures; an unknown closure name fails during
 contract preparation rather than selecting a hidden fallback.
 
 ## Line-Of-Sight Source Convention
-The canonical scalar source decomposition is:
+The generated scalar source decomposition is:
 
 ```text
-S_T = g (Theta_gamma,0 + Psi)
-    + (5/2) g polarization_moment
-    + (15/2) (g polarization_moment)'' / k^2
+S_T = g (Theta_gamma,0 + Psi + polarization_moment / 4)
     + d/d eta [g v_b] / k
     + exp(-tau) (Phi' + Psi')
 
-S_E = 15 g polarization_moment / 2
+S_E = 3 g polarization_moment / 4
 
 S_B = 0 for scalar modes
 
@@ -903,9 +920,9 @@ S_phi = Phi + Psi
 ```
 
 The declared photon multipoles use the same temperature and polarization
-normalization as the declared reference hierarchy. The generated scalar
-source uses the factors above, and the photon contribution to the Einstein
-shear source is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
+normalization as the generated hierarchy. The generated scalar source uses
+the factors above, and the photon contribution to the Einstein shear source
+is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
 
 The source-role contract is the authoritative dispatch table for these
 terms. Monopole, ISW, and additive roles use the ordinary spherical-Bessel
@@ -945,12 +962,11 @@ arrays.
 
 The generated scalar Doppler source uses the baryon velocity
 `v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
-Bessel kernel. The temperature polarization-quadrupole source is split into
-a local `(5/2) g polarization_moment` term and a `(15/2) (g
-polarization_moment)'' / k^2` term. The latter is evaluated from the declared
-second conformal-time derivative history and projected with the ordinary
-spherical-Bessel kernel. This preserves the canonical line-of-sight source
-normalization.
+Bessel kernel. The polarization contribution is included once, as
+`g polarization_moment / 4` in the visibility monopole. The deprecated split
+quadrupole and second-derivative roles are explicit zeroes, preventing a
+second copy of the polarization source from entering the temperature
+transfer.
 
 During tight coupling, the declared hierarchy evolves one photon-baryon
 velocity by the declared momentum-weighted combination of the photon and
@@ -1527,10 +1543,10 @@ reference-relative floor; cross-spectra use RMS errors normalized by the
 independent reference RMS so their sign changes and zero crossings remain
 well-defined.
 
-The scalar source uses the independent-reference coefficients `5 / 2` and
-`15 / 2` for the temperature quadrupole terms and polarization source. The
-declared `polarization_moment` uses the same normalization as the declared
-reference hierarchy, so no post-projection conversion is applied.
+The generated scalar source uses the independent-reference coefficients
+`1 / 4` in the visibility monopole and `3 / 4` for the E source. The declared
+`polarization_moment` uses the same normalization as the generated hierarchy,
+so no post-projection conversion is applied.
 
 Declared projection preparation reuses bounded Bessel and projection-kernel
 caches. Projection kernels are evaluated in ell batches so a high-multipole

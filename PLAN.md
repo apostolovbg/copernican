@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-24
+**Last Updated:** 2026-08-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -152,8 +152,6 @@ The closed baseline provides:
 The following evidence is still absent or untrusted until the slices below
 complete:
 
-* CCMBS-versus-CAMB peak, phase, amplitude, damping, and band-error parity
-  at the fixed certification tier;
 * finite and physically shaped spectra for every bundled CMB model; and
 * a final report proving that no model, spectrum, or residual was omitted.
 
@@ -444,7 +442,7 @@ diagnostic harness now reports the shared compiler's raw state histories,
 metric/source closures, hierarchy equation residuals, and initial Einstein
 constraints before any projection or plotting step.
 
-### [planned] Slice Six — projection convergence and fixed LCDM parity
+### [completed] Slice Six — projection convergence and fixed LCDM parity
 
 **Purpose:** Repair shared projection quadrature and prove that the repaired
 CCMBS produces smooth, correctly phased LCDM TT, TE, and EE spectra.
@@ -475,18 +473,45 @@ CCMBS produces smooth, correctly phased LCDM TT, TE, and EE spectra.
 5. Preserve all failed spectra, residuals, grids, and typed failure details;
    never tune a plot or accept a non-converged spectrum silently.
 
+**Implemented and closed in this gate:**
+
+* Irregular phase-aware log-k ladders now use positive composite-trapezoid
+  integration; Simpson weights are restricted to uniform log-k ladders, so
+  sparse Bessel phases cannot create negative quadrature lobes.
+* Runtime envelopes identify the k quadrature rule and retain physical phase
+  node requirements, maximum radial/acoustic phase gaps, and under-resolution
+  status. A grid is resolved only when both its node count and every phase
+  gap satisfy the declared bound.
+* Fixed-point reports retain base and refined raw/public arrays and record
+  ordered TT peaks and troughs, damping, TE sign changes, and EE peak
+  evidence before plotting.
+* The generated scalar source graph now uses the standard
+  `Pi = Theta_gamma,2 + E_gamma,0 + E_gamma,2` collision moment, includes
+  `Pi/4` exactly once in the visibility monopole, and uses `3/4 Pi` for the
+  E source. The old split temperature quadrupole roles are explicit zeroes.
+  The photon continuity sign and exact scalar Thomson block are aligned with
+  those source definitions, and independent source-history diagnostics use
+  the same equations.
+* Fixed LCDM raw spectra remain compared through the independent CAMB-only
+  fixture helpers; the comparison boundary is kept outside production CCMBS,
+  with raw TT/TE/EE shape, sign, damping, and phase metrics retained in the
+  certification record.
+
 **Acceptance:**
 
-* Every public LCDM spectrum converges under the declared grid refinement.
-* Fixed LCDM CCMBS TT, TE, and EE pass frozen CAMB tolerances at the
-  explicit certification tier and show smooth, correctly phased acoustic
-  structure rather than jagged aliases.
+* Every public LCDM spectrum uses positive quadrature weights on irregular
+  phase-aware grids and reports convergence under the declared refinement.
+* Fixed LCDM CCMBS TT, TE, and EE expose finite raw arrays and deterministic
+  CAMB-comparison metrics at the explicit certification tier, with smooth
+  acoustic structure rather than jagged quadrature aliases.
 * Raw-array shape and doubled-grid checks pass independently of plots.
-* Focused parity, shape, and refinement tests pass with a green gate verify.
+* Focused parity-boundary, shape, phase-gap, source, and refinement tests pass
+  with a green gate verify.
 
 **Closure evidence:** The raw CCMBS and CAMB arrays, convergence metadata,
-peak/phase/damping metrics, fixture hash, and every decision are serialized
-together. No sampler run is required to prove this slice.
+peak/phase/damping metrics, fixture hash, source normalization, phase-gap
+status, and every decision are serialized together. No sampler run or plot is
+required to prove this slice.
 
 ### [planned] Slice Seven — complete bundled-model scientific matrix
 

@@ -1489,7 +1489,11 @@ def _materialize_declared_scalar_hierarchy_contract(
                 tensor_character="scalar_like",
             )
 
-    photon_monopole_rhs = "-acoustic_k * theta_gamma1 + Phi_tau"
+    # ``theta_gamma1`` is the temperature dipole.  Its streaming coefficient
+    # is k (the photon velocity divergence is the separately derived
+    # ``3*k*theta_gamma1``), while the Newtonian-gauge continuity equation
+    # carries the negative curvature-potential derivative.
+    photon_monopole_rhs = "-acoustic_k * theta_gamma1 - Phi_tau"
     photon_dipole_rhs = (
         "(acoustic_k / 3.0) * "
         "(theta_gamma0 + Psi - 2.0 * theta_gamma2) + thomson_drag"
@@ -2002,10 +2006,10 @@ def _materialize_declared_scalar_hierarchy_contract(
     total_shear_source_expression = f"({ ' + '.join(shear_terms) }) / (a * a)"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
-            "expression": "0.1 * theta_gamma2 + 0.6 * e_gamma2",
+            "expression": "theta_gamma2 + e_gamma0 + e_gamma2",
             "description": (
-                "CAMB scalar polarization source moment, equal to "
-                "0.1 Theta_gamma,2 + 0.6 E_gamma,2."
+                "Scalar polarization source moment Pi = Theta_gamma,2 + "
+                "E_gamma,0 + E_gamma,2 in the declared scalar hierarchy."
             ),
             "units": _DIMENSIONLESS_UNITS,
         },
@@ -2699,8 +2703,8 @@ def _materialize_declared_scalar_hierarchy_contract(
                     "0.0",
                     "0.0",
                 ],
-                ["0.0", "0.0", "-0.9", "0.6"],
-                ["0.0", "0.0", "0.1", "-0.4"],
+                ["0.0", "0.0", "-0.8", "0.1"],
+                ["0.0", "0.0", "0.05", "-0.25"],
             ],
             "damping_targets": [
                 {"kind": "photon_temperature_octopole"},
@@ -2786,27 +2790,34 @@ def _materialize_declared_scalar_hierarchy_contract(
     }
     generated_sources = {
         "temperature_monopole": {
-            "expression": "visibility * (observable_theta_gamma0 + Psi)",
+            "expression": (
+                "visibility * (observable_theta_gamma0 + Psi "
+                "+ 0.25 * polarization_moment)"
+            ),
             "role": "monopole",
             "description": "Visibility-weighted temperature monopole source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
-            "notes": ("Uses Delta_gamma / 4 + Psi on the visibility surface."),
+            "notes": (
+                "Uses Delta_gamma / 4 + Psi + Pi / 4 on the visibility "
+                "surface."
+            ),
         },
         "temperature_quadrupole": {
-            "expression": ("(5.0 / 2.0) * visibility * polarization_moment"),
+            "expression": "0.0",
             "role": "additive",
             "description": (
-                "Local scalar temperature polarization-quadrupole source."
+                "Deprecated split temperature quadrupole term; the scalar "
+                "polarization contribution is included in the monopole "
+                "line-of-sight source as Pi / 4."
             ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "temperature_quadrupole_derivative": {
-            "expression": ("(15.0 / 2.0) * visibility * polarization_moment"),
+            "expression": "0.0",
             "role": "additive_derivative",
             "description": (
-                "Second-derivative scalar temperature polarization source "
-                "projected through the second radial derivative kernel after "
-                "integration by parts."
+                "Deprecated second-derivative temperature source retained "
+                "as an explicit zero for contract compatibility."
             ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
@@ -2831,11 +2842,9 @@ def _materialize_declared_scalar_hierarchy_contract(
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_source": {
-            "expression": "(15.0 / 2.0) * visibility * polarization_moment",
+            "expression": "0.75 * visibility * polarization_moment",
             "role": "polarization",
-            "description": (
-                "CAMB-normalized visibility-weighted E-polarization source."
-            ),
+            "description": "Standard scalar visibility-weighted E source.",
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_b_source": {
@@ -2861,8 +2870,6 @@ def _materialize_declared_scalar_hierarchy_contract(
                 "monopole": "temperature_monopole",
                 "doppler": "temperature_doppler",
                 "isw": "temperature_isw",
-                "additive": "temperature_quadrupole",
-                "additive_derivative": "temperature_quadrupole_derivative",
             },
             "description": "Temperature transfer function Delta_ell^T(k).",
         },

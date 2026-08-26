@@ -756,11 +756,39 @@ def evaluate_spectrum_refinement(
         if name not in FINAL_SPECTRUM_RELATIVE_TOLERANCES:
             raise ValueError(f"Unknown final convergence spectrum '{name}'")
         if name == "TE":
+            coarse_te = _finite_array(coarse_spectra["TE"], name="coarse TE")
+            fine_te = _finite_array(fine_spectra["TE"], name="fine TE")
             coarse = _normalized_te(coarse_spectra, label="coarse")
             fine = _normalized_te(fine_spectra, label="fine")
-            relative_error = float(
-                numpy.max(numpy.abs(fine - coarse), initial=0.0)
+            coarse_tt = _finite_array(coarse_spectra["TT"], name="coarse TT")
+            coarse_ee = _finite_array(coarse_spectra["EE"], name="coarse EE")
+            fine_tt = _finite_array(fine_spectra["TT"], name="fine TT")
+            fine_ee = _finite_array(fine_spectra["EE"], name="fine EE")
+            denominator = numpy.minimum(
+                numpy.sqrt(numpy.abs(coarse_tt))
+                * numpy.sqrt(numpy.abs(coarse_ee)),
+                numpy.sqrt(numpy.abs(fine_tt))
+                * numpy.sqrt(numpy.abs(fine_ee)),
             )
+            signal_floor = numpy.max(denominator, initial=0.0) * 1.0e-2
+            supported = denominator >= signal_floor
+            normalized_error = (
+                float(
+                    numpy.max(numpy.abs(fine[supported] - coarse[supported]))
+                )
+                if numpy.any(supported)
+                else 0.0
+            )
+            te_scale = max(
+                numpy.max(numpy.abs(coarse_te), initial=0.0),
+                numpy.max(numpy.abs(fine_te), initial=0.0),
+                numpy.finfo(numpy.longdouble).tiny,
+            )
+            amplitude_error = float(
+                numpy.max(numpy.abs(fine_te - coarse_te), initial=0.0)
+                / te_scale
+            )
+            relative_error = max(normalized_error, amplitude_error)
         else:
             if name not in coarse_spectra or name not in fine_spectra:
                 raise ValueError(

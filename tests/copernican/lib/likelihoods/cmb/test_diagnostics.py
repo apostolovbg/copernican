@@ -16,6 +16,7 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
 )
 from copernican.lib.likelihoods.cmb.diagnostics import (
     CMBModelDiagnostic,
+    assess_acoustic_structure,
     assess_physical_spectrum_shape,
     audit_source_history_residuals,
     build_cmb_certification_report,
@@ -147,6 +148,40 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertFalse(report["smooth"])
         self.assertIn("unresolved", " ".join(report["issues"]))
 
+    def test_acoustic_structure_records_peak_phase_and_damping_evidence(
+        self,
+    ) -> None:
+        """The raw shape audit records features before any plot is made."""
+
+        ells = numpy.arange(2, 42, dtype=int)
+        phase = numpy.linspace(0.0, 7.0 * numpy.pi, ells.size)
+        tt_spectrum = (
+            120.0
+            * numpy.exp(-0.012 * ells)
+            * (1.0 + 0.7 * numpy.sin(phase) ** 2)
+        )
+        te_spectrum = 20.0 * numpy.exp(-0.015 * ells) * numpy.sin(phase)
+        ee_spectrum = (
+            18.0
+            * numpy.exp(-0.014 * ells)
+            * (1.0 + 0.6 * numpy.sin(phase + 0.4) ** 2)
+        )
+        evidence = assess_acoustic_structure(
+            ells,
+            {
+                "TT": tt_spectrum,
+                "TE": te_spectrum,
+                "EE": ee_spectrum,
+            },
+        )
+
+        self.assertTrue(evidence["available"])
+        self.assertTrue(evidence["peak_ordered"])
+        self.assertGreaterEqual(evidence["tt"]["peak_count"], 3)
+        self.assertGreater(evidence["te"]["sign_change_count"], 2)
+        self.assertGreater(evidence["ee"]["peak_count"], 0)
+        self.assertLess(float(evidence["damping_ratio"]), 1.0)
+
     def test_reference_comparison_reports_auto_and_cross_metrics(self) -> None:
         """Independent reference data receives explicit scientific metrics."""
 
@@ -163,6 +198,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
 
         self.assertTrue(comparison["converged"])
         self.assertTrue(callable(assess_physical_spectrum_shape))
+        self.assertTrue(callable(assess_acoustic_structure))
         self.assertTrue(callable(compare_cmb_spectra_to_reference))
         self.assertTrue(callable(write_cmb_certification_report))
         self.assertEqual(comparison["metrics"]["TT"]["kind"], "auto")
@@ -225,14 +261,13 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "observable_theta_gamma0": theta_gamma0,
             "observable_theta_b": theta_b,
             "polarization_moment": polarization_moment,
-            "temperature_monopole": visibility * (theta_gamma0 + psi),
-            "temperature_quadrupole": 2.5 * visibility * polarization_moment,
-            "temperature_quadrupole_derivative": (
-                7.5 * visibility * polarization_moment
-            ),
+            "temperature_monopole": visibility
+            * (theta_gamma0 + psi + 0.25 * polarization_moment),
+            "temperature_quadrupole": 0.0,
+            "temperature_quadrupole_derivative": 0.0,
             "temperature_doppler": visibility * theta_b / acoustic_k,
             "temperature_isw": numpy.exp(-tau) * (0.4 + psi_tau),
-            "polarization_source": 7.5 * visibility * polarization_moment,
+            "polarization_source": 0.75 * visibility * polarization_moment,
         }
         audit = audit_source_history_residuals(
             {

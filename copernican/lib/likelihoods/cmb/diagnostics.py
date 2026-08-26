@@ -132,6 +132,132 @@ def assess_physical_spectrum_shape(
     return result
 
 
+def assess_acoustic_structure(
+    ell_values: Iterable[int],
+    spectra: Mapping[str, Any],
+    *,
+    minimum_peak_prominence: float = 1.0e-3,
+) -> dict[str, Any]:
+    """Extract deterministic acoustic-shape evidence from public spectra.
+
+    The projection runtime can produce finite numbers while still aliasing
+    the radial Bessel phase.  This audit therefore records the observable
+    features that a reference comparison needs: TT peak and trough ordering,
+    a high-to-low damping ratio, TE zero crossings and signs, and EE peak
+    locations.  It never smooths, interpolates, or rescales the input arrays;
+    sparse requests are reported as incomplete evidence instead of being
+    promoted to a successful shape decision.
+    """
+
+    ells = numpy.asarray(tuple(ell_values), dtype=int)
+    if ells.ndim != 1 or ells.size == 0 or numpy.any(numpy.diff(ells) <= 0):
+        raise ValueError("Acoustic-shape ell values must be increasing")
+    result: dict[str, Any] = {
+        "schema_version": 1,
+        "available": False,
+        "peak_ordered": False,
+        "damping_ratio": None,
+        "tt": {},
+        "te": {},
+        "ee": {},
+        "issues": [],
+    }
+    issues: list[str] = result["issues"]
+    if ells.size < 16:
+        issues.append("acoustic structure requires at least 16 multipoles")
+        result["issues"] = tuple(issues)
+        return result
+
+    def _finite_values(name: str) -> numpy.ndarray | None:
+        """Return one finite spectrum with the requested ell shape."""
+
+        if name not in spectra:
+            issues.append(f"{name} spectrum is unavailable")
+            return None
+        values = numpy.asarray(spectra[name], dtype=float)
+        if values.shape != ells.shape or not numpy.all(numpy.isfinite(values)):
+            issues.append(f"{name} spectrum is non-finite or has wrong shape")
+            return None
+        return values
+
+    def _extrema(values: numpy.ndarray, *, maximum: bool) -> list[int]:
+        """Return ell positions of resolvable local extrema."""
+
+        scale = max(float(numpy.max(numpy.abs(values))), 1.0e-30)
+        prominence = max(float(minimum_peak_prominence) * scale, 1.0e-30)
+        positions: list[int] = []
+        for index in range(1, values.size - 1):
+            left, current, right = values[index - 1 : index + 2]
+            candidate = (
+                current > left and current >= right
+                if maximum
+                else current < left and current <= right
+            )
+            if (
+                candidate
+                and abs(float(current) - float((left + right) / 2))
+                >= prominence
+            ):
+                positions.append(int(ells[index]))
+        return positions
+
+    tt_spectrum = _finite_values("TT")
+    if tt_spectrum is not None:
+        peaks = _extrema(tt_spectrum, maximum=True)
+        troughs = _extrema(tt_spectrum, maximum=False)
+        positive = numpy.maximum(tt_spectrum, numpy.finfo(float).tiny)
+        split = max(2, positive.size // 3)
+        low = float(numpy.median(positive[:split]))
+        high = float(numpy.median(positive[-split:]))
+        damping_ratio = high / max(low, numpy.finfo(float).tiny)
+        result["tt"] = {
+            "peak_ells": tuple(peaks),
+            "trough_ells": tuple(troughs),
+            "peak_count": len(peaks),
+            "trough_count": len(troughs),
+        }
+        result["damping_ratio"] = damping_ratio
+        result["peak_ordered"] = bool(
+            peaks
+            and troughs
+            and peaks[0] < troughs[0]
+            and all(left < right for left, right in zip(peaks, peaks[1:]))
+        )
+        if not result["peak_ordered"]:
+            issues.append("TT acoustic peaks are missing or unordered")
+        if not numpy.isfinite(damping_ratio) or damping_ratio >= 1.0:
+            issues.append("TT damping tail does not decrease")
+
+    te_spectrum = _finite_values("TE")
+    if te_spectrum is not None:
+        signs = numpy.signbit(te_spectrum).astype(int)
+        crossings = numpy.flatnonzero(numpy.diff(signs) != 0)
+        result["te"] = {
+            "zero_crossing_ells": tuple(
+                int(ells[index]) for index in crossings
+            ),
+            "sign_change_count": int(crossings.size),
+            "finite": True,
+        }
+        if crossings.size == 0:
+            issues.append("TE has no resolved sign changes")
+
+    ee_spectrum = _finite_values("EE")
+    if ee_spectrum is not None:
+        ee_peaks = _extrema(ee_spectrum, maximum=True)
+        result["ee"] = {
+            "peak_ells": tuple(ee_peaks),
+            "peak_count": len(ee_peaks),
+            "finite": True,
+        }
+        if not ee_peaks:
+            issues.append("EE has no resolved acoustic peaks")
+
+    result["available"] = not issues
+    result["issues"] = tuple(issues)
+    return result
+
+
 def compare_cmb_spectra_to_reference(
     actual: Mapping[str, Any],
     reference: Mapping[str, Any],
@@ -257,6 +383,7 @@ _SOURCE_RESIDUAL_DEFINITIONS = {
         "visibility",
         "observable_theta_gamma0",
         "Psi",
+        "polarization_moment",
         "temperature_monopole",
     ),
     "visibility_quadrupole": (
@@ -496,17 +623,21 @@ def audit_source_history_residuals(
         elif name == "visibility_monopole":
             terms = (
                 values["visibility"]
-                * (values["observable_theta_gamma0"] + values["Psi"]),
+                * (
+                    values["observable_theta_gamma0"]
+                    + values["Psi"]
+                    + 0.25 * values["polarization_moment"]
+                ),
                 -values["temperature_monopole"],
             )
         elif name == "visibility_quadrupole":
             terms = (
-                2.5 * values["visibility"] * values["polarization_moment"],
+                0.0,
                 -values["temperature_quadrupole"],
             )
         elif name == "visibility_quadrupole_derivative":
             terms = (
-                7.5 * values["visibility"] * values["polarization_moment"],
+                0.0,
                 -values["temperature_quadrupole_derivative"],
             )
         elif name == "visibility_doppler":
@@ -518,7 +649,7 @@ def audit_source_history_residuals(
             )
         elif name == "polarization":
             terms = (
-                7.5 * values["visibility"] * values["polarization_moment"],
+                0.75 * values["visibility"] * values["polarization_moment"],
                 -values["polarization_source"],
             )
         else:
@@ -858,6 +989,7 @@ class CMBModelDiagnostic:
     runtime_envelope: Mapping[str, Any] = field(default_factory=dict)
     refinement: Mapping[str, Any] = field(default_factory=dict)
     shape: Mapping[str, Any] = field(default_factory=dict)
+    acoustic_structure: Mapping[str, Any] = field(default_factory=dict)
     source_residual_audit: Mapping[str, Any] = field(default_factory=dict)
     reference_comparison: Mapping[str, Any] = field(default_factory=dict)
     failure: Mapping[str, Any] | None = None
@@ -883,6 +1015,7 @@ class CMBModelDiagnostic:
             "reference_comparison": _jsonable(self.reference_comparison),
             "source_residual_audit": _jsonable(self.source_residual_audit),
             "shape": _jsonable(self.shape),
+            "acoustic_structure": _jsonable(self.acoustic_structure),
             "requested_ells": self.requested_ells,
             "requested_spectra": self.requested_spectra,
             "runtime_envelope": _jsonable(self.runtime_envelope),
@@ -919,6 +1052,9 @@ def _certification_evidence_status(
         issues.append("auto spectrum contains negative power")
     if shape.get("smooth") is False:
         issues.append("TT shape contains unresolved quadrature structure")
+    acoustic = report.acoustic_structure
+    if acoustic and not bool(acoustic.get("available", False)):
+        issues.append("acoustic peak and phase evidence is unavailable")
     refinement = report.refinement
     if refinement.get("converged") is not True:
         issues.append("doubled-grid convergence is unavailable or failed")
@@ -1105,7 +1241,26 @@ def run_cmb_model_diagnostic(
             "declared_refined_count": None,
             "metrics": {},
             "converged": None,
+            "base_raw_spectra": _jsonable(raw_spectra),
+            "base_public_spectra": _jsonable(public_spectra),
+            "refined_raw_spectra": None,
+            "refined_public_spectra": None,
         }
+        phase_resolution = {
+            "status": raw_data.runtime_envelope.get(
+                "phase_resolution_status", "not_applicable"
+            ),
+            "grid_status": _jsonable(
+                raw_data.runtime_envelope.get("phase_grid_status", {})
+            ),
+            "required_nodes": int(
+                raw_data.runtime_envelope.get("phase_required_nodes", 0)
+            ),
+            "actual_nodes": int(
+                raw_data.runtime_envelope.get("k_grid_actual_count", 0)
+            ),
+        }
+        refinement["phase_resolution"] = phase_resolution
         if refine_wave_number_grid:
             base_k_count = int(base["numerical"].get("k_sample_count", 0))
             if base_k_count < 1:
@@ -1129,6 +1284,8 @@ def run_cmb_model_diagnostic(
                 requested_ells,
                 refined_raw_spectra,
             )
+            refinement["refined_raw_spectra"] = _jsonable(refined_raw_spectra)
+            refinement["refined_public_spectra"] = _jsonable(refined_spectra)
             metrics = {}
             for name in requested_spectra:
                 error = _relative_error(
@@ -1149,7 +1306,21 @@ def run_cmb_model_diagnostic(
                 metrics and all(item["converged"] for item in metrics.values())
             )
         failure = None
-        if refine_wave_number_grid and not refinement["converged"]:
+        if phase_resolution["status"] == "under_resolved":
+            failure = _diagnostic_failure(
+                ConvergenceError(
+                    (
+                        "Fixed-parameter CCMBS projection k-grid is "
+                        "under-resolved"
+                    ),
+                    context={"phase_resolution": phase_resolution},
+                )
+            )
+        if (
+            failure is None
+            and refine_wave_number_grid
+            and not refinement["converged"]
+        ):
             failure = _diagnostic_failure(
                 ConvergenceError(
                     "Fixed-parameter CCMBS spectrum did not converge under "
@@ -1163,6 +1334,10 @@ def run_cmb_model_diagnostic(
                 )
             )
         shape = assess_physical_spectrum_shape(requested_ells, public_spectra)
+        acoustic_structure = assess_acoustic_structure(
+            requested_ells,
+            public_spectra,
+        )
         source_residual_audit = audit_source_history_residuals(
             raw_data.runtime_envelope
         )
@@ -1216,6 +1391,12 @@ def run_cmb_model_diagnostic(
                 "message": "; ".join(shape["issues"]),
                 "shape": _jsonable(shape),
             }
+        if failure is None and acoustic_structure["issues"]:
+            failure = {
+                "error_type": "acoustic_shape_failure",
+                "message": "; ".join(acoustic_structure["issues"]),
+                "acoustic_structure": _jsonable(acoustic_structure),
+            }
         return CMBModelDiagnostic(
             model_filename=model_filename,
             model_name=model_name,
@@ -1238,6 +1419,7 @@ def run_cmb_model_diagnostic(
             runtime_envelope=dict(raw_data.runtime_envelope),
             refinement=refinement,
             shape=shape,
+            acoustic_structure=acoustic_structure,
             source_residual_audit=source_residual_audit,
             reference_comparison=reference_comparison,
             failure=failure,
@@ -1354,6 +1536,7 @@ def run_bundled_cmb_diagnostics(
 
 __all__ = [
     "CMBModelDiagnostic",
+    "assess_acoustic_structure",
     "assess_physical_spectrum_shape",
     "audit_source_history_residuals",
     "build_cmb_certification_report",

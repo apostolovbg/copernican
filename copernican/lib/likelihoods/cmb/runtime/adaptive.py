@@ -437,18 +437,17 @@ def phase_aware_k_grid(
     if result.size <= maximum:
         resolved = numpy.asarray(result, dtype=float)
         if require_phase_resolution:
-            requirements = phase_aware_k_grid_requirements(
-                lower,
-                upper,
+            status = phase_aware_k_grid_status(
+                resolved,
                 phase_points_per_cycle=phase_points,
                 eta_distance=distance,
                 sound_horizon=acoustic_distance,
             )
-            if resolved.size < int(requirements["required_nodes"]):
+            if not bool(status["resolved"]):
                 raise ValueError(
                     "Phase-aware k quadrature is under-resolved: "
                     f"actual_nodes={resolved.size}, "
-                    f"required_nodes={requirements['required_nodes']}"
+                    f"required_nodes={status['required_nodes']}"
                 )
         return resolved
     required = {float(result[0]), float(result[-1])}
@@ -463,18 +462,17 @@ def phase_aware_k_grid(
         optional = [optional[int(index)] for index in sorted(set(indices))]
     resolved = numpy.asarray(sorted(required | set(optional)), dtype=float)
     if require_phase_resolution:
-        requirements = phase_aware_k_grid_requirements(
-            lower,
-            upper,
+        status = phase_aware_k_grid_status(
+            resolved,
             phase_points_per_cycle=phase_points,
             eta_distance=distance,
             sound_horizon=acoustic_distance,
         )
-        if resolved.size < int(requirements["required_nodes"]):
+        if not bool(status["resolved"]):
             raise ValueError(
                 "Phase-aware k quadrature is under-resolved: "
                 f"actual_nodes={resolved.size}, "
-                f"required_nodes={requirements['required_nodes']}"
+                f"required_nodes={status['required_nodes']}"
             )
     return resolved
 
@@ -506,6 +504,19 @@ def phase_aware_k_grid_status(
     )
     actual = int(values.size)
     required = int(requirements["required_nodes"])
+    phase_step = float(requirements["phase_step"])
+    gaps = numpy.diff(values)
+    maximum_radial_phase_step = float(
+        numpy.max(gaps, initial=0.0) * float(eta_distance)
+    )
+    maximum_acoustic_phase_step = float(
+        numpy.max(gaps, initial=0.0) * float(sound_horizon)
+    )
+    count_resolved = actual >= required
+    spacing_resolved = (
+        maximum_radial_phase_step <= phase_step
+        and maximum_acoustic_phase_step <= phase_step
+    )
     return {
         "actual_nodes": actual,
         "required_nodes": required,
@@ -513,8 +524,12 @@ def phase_aware_k_grid_status(
         "acoustic_required_nodes": int(
             requirements["acoustic_required_nodes"]
         ),
-        "phase_step": float(requirements["phase_step"]),
-        "resolved": bool(actual >= required),
+        "phase_step": phase_step,
+        "maximum_radial_phase_step": maximum_radial_phase_step,
+        "maximum_acoustic_phase_step": maximum_acoustic_phase_step,
+        "count_resolved": count_resolved,
+        "spacing_resolved": spacing_resolved,
+        "resolved": bool(count_resolved and spacing_resolved),
     }
 
 
