@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-25
+**Last Updated:** 2026-08-26
 **Project Version:** 12.0.26
 
 ## Overview
