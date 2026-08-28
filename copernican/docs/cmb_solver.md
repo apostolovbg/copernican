@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-26
+**Last Updated:** 2026-08-28
 **Project Version:** 12.0.26
 
 ## Overview
@@ -83,6 +83,25 @@ deterministic JSON record and adds a SHA-256 digest for provenance. The
 test-owned CAMB fixture freezes the LCDM parameter point, multipole order,
 unlensed scalar `D_ell` microkelvin-squared convention, tolerances, and
 backend identity; production CCMBS never imports or falls back to it.
+
+Slice Seven adds the strict bundled-model matrix API. The frozen
+`BUNDLED_CMB_MODEL_FILENAMES` tuple is the corpus key, and
+`CMB_CERTIFICATION_TIER` names the fixed multipole, spectrum, and refinement
+request. `run_bundled_cmb_matrix()` evaluates each filename once through
+CCMBS, attaches contract and generated-source audits, and preserves typed
+unavailable or rejected outcomes. `build_bundled_cmb_matrix_report()` and
+`write_bundled_cmb_matrix_report()` require one row per filename, explicit
+contract identity, source residuals, doubled-grid evidence, and scalar/batch
+and cache-isolation evidence before counting a model as accepted. The exact
+ordered batch audit is exposed by
+`assess_scalar_batch_cache_evidence()`; an unmeasured check remains an
+explicit non-passing decision. A complete matrix exposes
+`decision_complete: true` even when a model is explicitly rejected, while
+`success` remains false until every row is scientifically accepted. The
+opt-in matrix execution can also evaluate two bounded parameter points through
+both public scalar and ordered batch paths, recording per-point equality and
+cache identities; a model with no independently variable parameter remains
+explicitly unavailable for that comparison.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

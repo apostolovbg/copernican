@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-26
+**Last Updated:** 2026-08-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,85 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-28:
+  Change: Replaced the CCMBS roadmap with a six-slice, evidence-led
+    scientific-repair plan for the valid bundled model corpus.
+  Why: Clarified structural model-contract validity and the shared source-
+    residual and projection failures that currently reject spectra.
+  Impact: Future slices now repair shared CCMBS physics before narrowly
+    justified model declarations, then certify every model with raw evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-08-28:
+  Change: Closed Slice Seven with a deterministic, decision-complete
+    ten-model CCMBS matrix and explicit rejected-row evidence.
+  Why: Distinguished complete corpus decisions from scientific acceptance so
+    unresolved model physics remains visible for the final certification
+    slice instead of being reported as a false pass.
+  Impact: Matrix reports expose `decision_complete`, require parity evidence
+    only for measured rows, and preserve typed failures for every rejected or
+    unavailable model.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-08-27:
+  Change: Corrected bundled CCMBS matrix batching and canonicalized extended-
+    precision diagnostic values.
+  Why: Ensured generated batch rows restore their native evolution context
+    before source audits and made complete matrix reports JSON serializable.
+  Impact: Fixed-point corpus runs now preserve per-mode history alignment,
+    expose actionable shape context, and write deterministic reports.
+  Files:
+  CHANGELOG.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-08-27:
+  Change: Added a frozen bundled-model CCMBS matrix and exact batch/cache
+    evidence audits.
+  Why: Recorded Slice Seven's requirement to freeze one deterministic row for
+    every CMB model and preserve unmeasured or failed scientific evidence.
+  Impact: Matrix reports now identify contracts, source graphs, spectra,
+    failures, ordering, and cache decisions without false certification.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
 
 - 2026-08-26:
   Change: Updated CCMBS convergence documentation and changelog metadata.

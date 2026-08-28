@@ -2844,7 +2844,7 @@ def _materialize_declared_scalar_hierarchy_contract(
         "polarization_source": {
             "expression": "0.75 * visibility * polarization_moment",
             "role": "polarization",
-            "description": "Standard scalar visibility-weighted E source.",
+            "description": ("Standard scalar visibility-weighted E source."),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_b_source": {

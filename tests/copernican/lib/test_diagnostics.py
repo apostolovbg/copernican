@@ -42,6 +42,12 @@ class DiagnosticsTestCase(unittest.TestCase):
             cmb_module.run_cmb_model_diagnostic,
             run_cmb_model_diagnostic,
         )
+        self.assertTrue(
+            callable(cmb_module.assess_scalar_batch_cache_evidence)
+        )
+        self.assertTrue(callable(cmb_module.build_bundled_cmb_matrix_report))
+        self.assertTrue(callable(cmb_module.run_bundled_cmb_matrix))
+        self.assertTrue(callable(cmb_module.write_bundled_cmb_matrix_report))
         self.assertIs(cmb_package.CMBContractAudit, CMBContractAudit)
         self.assertIs(
             cmb_package.audit_bundled_cmb_contracts,

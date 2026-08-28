@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy
 import yaml
@@ -15,10 +16,16 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
     audit_bundled_cmb_contracts,
 )
 from copernican.lib.likelihoods.cmb.diagnostics import (
+    BUNDLED_CMB_MODEL_FILENAMES,
+    CMB_CERTIFICATION_TIER,
     CMBModelDiagnostic,
+    _jsonable,
+    _run_scalar_batch_cache_check,
     assess_acoustic_structure,
     assess_physical_spectrum_shape,
+    assess_scalar_batch_cache_evidence,
     audit_source_history_residuals,
+    build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
     compare_cmb_spectra_to_reference,
     discover_bundled_cmb_plugins,
@@ -26,10 +33,25 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     run_cmb_model_diagnostic,
     write_cmb_certification_report,
 )
+from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
 
 class CCMBSDiagnosticTestCase(unittest.TestCase):
     """Verify raw fixed-point evidence is captured before plotting."""
+
+    def test_jsonable_normalizes_extended_precision_arrays(self):
+        """Canonical reports must encode NumPy extended scalars."""
+
+        payload = _jsonable(
+            {
+                "array": numpy.asarray(
+                    [numpy.longdouble("1.25"), numpy.longdouble("2.5")]
+                ),
+                "scalar": numpy.longdouble("3.75"),
+            }
+        )
+
+        self.assertEqual(payload, {"array": [1.25, 2.5], "scalar": 3.75})
 
     @staticmethod
     def _low_resolution_plugin():
@@ -415,6 +437,189 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             loaded["reports"][0]["report"]["raw_spectra"]["TT"],
             [1.0, 2.0],
         )
+
+    def test_matrix_corpus_is_frozen_and_rejects_duplicate_rows(self):
+        """The matrix must contain one row for every frozen model filename."""
+
+        self.assertEqual(len(BUNDLED_CMB_MODEL_FILENAMES), 10)
+        self.assertEqual(
+            tuple(sorted(BUNDLED_CMB_MODEL_FILENAMES)),
+            BUNDLED_CMB_MODEL_FILENAMES,
+        )
+        row = CMBModelDiagnostic(
+            model_filename=BUNDLED_CMB_MODEL_FILENAMES[0],
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2,),
+            requested_spectra=("TT",),
+            spectra={"TT": numpy.array([1.0])},
+            raw_spectra={"TT": numpy.array([1.0])},
+            shape={"finite": True, "auto_spectra_nonnegative": True},
+            refinement={"converged": True},
+            source_residual_audit={"available": True, "converged": True},
+            availability="measured",
+            contract_identity={"sha256": "fixture"},
+            scalar_batch_evidence={"available": True, "converged": True},
+            cache_isolation_evidence={"available": True, "isolated": True},
+        )
+        audits = {
+            row.model_filename: {"valid": True},
+        }
+        matrix = build_bundled_cmb_matrix_report(
+            (row, row),
+            required_model_filenames=(row.model_filename,),
+            required_spectra=("TT",),
+            contract_audits=audits,
+            source_graph_audits=audits,
+        )
+        self.assertFalse(matrix["complete"])
+        self.assertIn(row.model_filename, matrix["rejected_models"])
+        self.assertIn(
+            "appears more than once",
+            " ".join(matrix["rejected_models"][row.model_filename]),
+        )
+
+    def test_matrix_report_records_tier_and_explicit_unavailability(self):
+        """An unmeasured row is retained with a typed, non-passing reason."""
+
+        filename = BUNDLED_CMB_MODEL_FILENAMES[0]
+        row = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=tuple(CMB_CERTIFICATION_TIER["ells"]),
+            requested_spectra=("TT", "TE", "EE"),
+            availability="unavailable",
+            contract_identity={"sha256": "fixture"},
+            failure={
+                "error_type": "diagnostic_execution_unavailable",
+                "category": "unavailable",
+                "message": "fixture did not run",
+            },
+        )
+        audits = {filename: {"valid": True}}
+        matrix = build_bundled_cmb_matrix_report(
+            (row,),
+            required_model_filenames=(filename,),
+            contract_audits=audits,
+            source_graph_audits=audits,
+        )
+        self.assertFalse(matrix["success"])
+        self.assertTrue(matrix["decision_complete"])
+        self.assertEqual(
+            matrix["certification_tier"]["id"],
+            CMB_CERTIFICATION_TIER["id"],
+        )
+        self.assertIn(filename, matrix["rejected_models"])
+        self.assertIn(
+            "not measured", " ".join(matrix["rejected_models"][filename])
+        )
+
+    def test_scalar_batch_cache_audit_requires_order_and_unique_identities(
+        self,
+    ):
+        """Batch equality is accepted only with ordered isolated identities."""
+
+        class Result:
+            def __init__(self, index, identity):
+                self.index = index
+                self.spectrum = {"TT": numpy.array([1.0, 2.0])}
+                self.failure = None
+                self.cache_provenance = {"cache_identity": identity}
+
+        evidence = assess_scalar_batch_cache_evidence(
+            {"TT": numpy.array([1.0, 2.0])},
+            (Result(0, "zero"), Result(1, "one")),
+        )
+        self.assertTrue(evidence["available"])
+        self.assertTrue(evidence["converged"])
+        self.assertTrue(evidence["ordering_preserved"])
+        self.assertTrue(evidence["cache_isolated"])
+
+    def test_scalar_batch_cache_audit_accepts_per_point_scalar_payloads(self):
+        """Each batch point must equal its own scalar reference spectrum."""
+
+        class Result:
+            def __init__(self, index, values, identity):
+                self.index = index
+                self.spectrum = {"TT": numpy.asarray(values)}
+                self.failure = None
+                self.cache_provenance = {"cache_identity": identity}
+
+        evidence = assess_scalar_batch_cache_evidence(
+            (
+                {"TT": numpy.array([1.0, 2.0])},
+                {"TT": numpy.array([2.0, 3.0])},
+            ),
+            (
+                Result(0, [1.0, 2.0], "zero"),
+                Result(1, [2.0, 3.0], "one"),
+            ),
+        )
+
+        self.assertTrue(evidence["available"])
+        self.assertEqual(evidence["scalar_count"], 2)
+        self.assertEqual(evidence["identity_count"], 2)
+
+    def test_scalar_batch_cache_check_records_ordered_runtime_evidence(self):
+        """The opt-in matrix check records ordered cache evidence."""
+
+        class Plugin:
+            INITIAL_GUESSES = (1.0,)
+            PARAMETER_BOUNDS = ((0.0, 2.0),)
+
+            @staticmethod
+            def get_cmb_declared_runtime(parameters):
+                return {"parameters": tuple(parameters)}
+
+        report = CMBModelDiagnostic(
+            model_filename="model_fixture.yml",
+            model_name="Fixture",
+            parameter_names=("x",),
+            parameter_values=(1.0,),
+            requested_ells=(2, 3),
+            requested_spectra=("TT",),
+            spectra={"TT": numpy.array([1.0, 2.0])},
+            availability="measured",
+        )
+        batch_results = (
+            CMBBatchResult(
+                index=0,
+                spectrum={"TT": numpy.array([1.0, 2.0])},
+                cache_provenance={"cache_identity": "zero"},
+            ),
+            CMBBatchResult(
+                index=1,
+                spectrum={"TT": numpy.array([2.0, 3.0])},
+                cache_provenance={"cache_identity": "one"},
+            ),
+        )
+        with (
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.cmb."
+                "compute_cmb_spectrum_cached",
+                return_value={"TT": numpy.array([2.0, 3.0])},
+            ) as scalar,
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.cmb."
+                "compute_cmb_spectrum_batch",
+                return_value=batch_results,
+            ) as batch,
+        ):
+            evidence, cache_evidence = _run_scalar_batch_cache_check(
+                Plugin(),
+                report,
+                ells=(2, 3),
+                spectra=("TT",),
+            )
+
+        scalar.assert_called_once()
+        batch.assert_called_once()
+        self.assertTrue(evidence["available"])
+        self.assertEqual(evidence["status"], "passed")
+        self.assertTrue(cache_evidence["isolated"])
 
 
 if __name__ == "__main__":

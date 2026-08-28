@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -20,6 +20,10 @@ import numpy
 
 from ... import model_adapter, model_coder, model_spec_validator
 from ...cmb_contract import audit_cmb_capabilities
+from .contracts_audit import (
+    audit_bundled_cmb_contracts,
+    audit_bundled_cmb_source_graphs,
+)
 from .errors import CMBError, ConvergenceError
 from .runtime.projection import _compute_custom_cmb_spectrum_data
 
@@ -29,6 +33,36 @@ _DEFAULT_RELATIVE_TOLERANCES = {
     "TT": 1.0e-2,
     "TE": 2.0e-2,
     "EE": 1.0e-2,
+}
+
+# The bundled corpus is a scientific input, not an incidental directory
+# listing.  Keeping its filename order frozen makes missing, duplicate, or
+# newly introduced model rows visible in every matrix digest.
+BUNDLED_CMB_MODEL_FILENAMES = (
+    "model_lcdm.yml",
+    "model_lcdm_mnu.yml",
+    "model_qauc.yml",
+    "model_qrsf.yml",
+    "model_ref_planck2018.yml",
+    "model_tog.yml",
+    "model_torg.yml",
+    "model_usmf2.yml",
+    "model_w0wa.yml",
+    "model_wcdm.yml",
+)
+
+# This is deliberately a named, reproducible request.  It is a bounded
+# evidence tier for the matrix and is never substituted for a model's
+# production numerical declaration.
+CMB_CERTIFICATION_TIER = {
+    "id": "ccmbs-slice-seven-fixed-point-v1",
+    # The first acoustic feature is near ell=200.  A certification surface
+    # that stops below it can only test finiteness, not the physical acoustic
+    # structure required by the matrix acceptance contract.
+    "ells": tuple(range(2, 301)),
+    "spectra": _DEFAULT_SPECTRA,
+    "refine_wave_number_grid": True,
+    "numerical_overrides": {"k_sample_count": 1024},
 }
 
 _AUTO_REFERENCE_SPECTRA = {
@@ -181,11 +215,24 @@ def assess_acoustic_structure(
         return values
 
     def _extrema(values: numpy.ndarray, *, maximum: bool) -> list[int]:
-        """Return ell positions of resolvable local extrema."""
+        """Return separated, materially prominent extrema.
+
+        A raw one-multipole scan mistakes integration noise for acoustic
+        structure.  The audit therefore ranks local candidates by their
+        immediate prominence and keeps only one candidate in each physical
+        separation window.  This is a selection rule on the supplied samples,
+        not a smoothing or interpolation step, so a jagged quadrature result
+        cannot pass merely because it was visually smoothed first.
+        """
 
         scale = max(float(numpy.max(numpy.abs(values))), 1.0e-30)
-        prominence = max(float(minimum_peak_prominence) * scale, 1.0e-30)
-        positions: list[int] = []
+        dynamic_range = float(numpy.max(values) - numpy.min(values))
+        prominence = max(
+            float(minimum_peak_prominence) * scale,
+            0.02 * dynamic_range,
+            1.0e-30,
+        )
+        candidates: list[tuple[float, int]] = []
         for index in range(1, values.size - 1):
             left, current, right = values[index - 1 : index + 2]
             candidate = (
@@ -193,13 +240,30 @@ def assess_acoustic_structure(
                 if maximum
                 else current < left and current <= right
             )
-            if (
-                candidate
-                and abs(float(current) - float((left + right) / 2))
-                >= prominence
+            if not candidate:
+                continue
+            local_prominence = (
+                float(current - max(left, right))
+                if maximum
+                else float(min(left, right) - current)
+            )
+            if local_prominence >= prominence:
+                candidates.append((local_prominence, index))
+        if not candidates:
+            return []
+        minimum_separation = max(
+            1,
+            int(round(float(ells[-1] - ells[0]) / 12.0)),
+        )
+        selected: list[int] = []
+        for _, index in sorted(candidates, reverse=True):
+            ell = int(ells[index])
+            if all(
+                abs(ell - int(ells[other])) >= minimum_separation
+                for other in selected
             ):
-                positions.append(int(ells[index]))
-        return positions
+                selected.append(index)
+        return [int(ells[index]) for index in sorted(selected)]
 
     tt_spectrum = _finite_values("TT")
     if tt_spectrum is not None:
@@ -207,9 +271,23 @@ def assess_acoustic_structure(
         troughs = _extrema(tt_spectrum, maximum=False)
         positive = numpy.maximum(tt_spectrum, numpy.finfo(float).tiny)
         split = max(2, positive.size // 3)
-        low = float(numpy.median(positive[:split]))
         high = float(numpy.median(positive[-split:]))
-        damping_ratio = high / max(low, numpy.finfo(float).tiny)
+        acoustic_start = max(
+            int(ells[0]) + max(1, int(round((ells[-1] - ells[0]) / 12.0))),
+            20,
+        )
+        acoustic_peak_indices = numpy.flatnonzero(
+            numpy.isin(ells, numpy.asarray(peaks, dtype=int))
+            & (ells >= acoustic_start)
+        )
+        if acoustic_peak_indices.size:
+            # Use the strongest resolved acoustic crest as the envelope
+            # anchor.  The first few multipoles contain the Sachs--Wolfe
+            # plateau and are not part of the damping-tail comparison.
+            anchor = float(numpy.max(positive[acoustic_peak_indices]))
+        else:
+            anchor = float(numpy.max(positive))
+        damping_ratio = high / max(anchor, numpy.finfo(float).tiny)
         result["tt"] = {
             "peak_ells": tuple(peaks),
             "trough_ells": tuple(troughs),
@@ -217,11 +295,24 @@ def assess_acoustic_structure(
             "trough_count": len(troughs),
         }
         result["damping_ratio"] = damping_ratio
+        relevant_peaks = [peak for peak in peaks if peak >= acoustic_start]
+        relevant_troughs = [
+            trough for trough in troughs if trough >= acoustic_start
+        ]
+        first_interval_has_trough = bool(
+            len(relevant_peaks) >= 2
+            and any(
+                relevant_peaks[0] < trough < relevant_peaks[1]
+                for trough in relevant_troughs
+            )
+        )
         result["peak_ordered"] = bool(
-            peaks
-            and troughs
-            and peaks[0] < troughs[0]
-            and all(left < right for left, right in zip(peaks, peaks[1:]))
+            len(relevant_peaks) >= 2
+            and all(
+                left < right
+                for left, right in zip(relevant_peaks, relevant_peaks[1:])
+            )
+            and first_interval_has_trough
         )
         if not result["peak_ordered"]:
             issues.append("TT acoustic peaks are missing or unordered")
@@ -914,9 +1005,18 @@ def _jsonable(value: Any) -> Any:
     """Return one deterministic JSON-compatible diagnostic value."""
 
     if isinstance(value, numpy.ndarray):
-        return value.tolist()
+        # ``ndarray.tolist`` preserves extended-precision scalar classes
+        # (notably ``longdouble``), which the standard JSON encoder cannot
+        # serialize.  Recurse through the resulting containers so every
+        # scalar is normalized at the same boundary.
+        return _jsonable(value.tolist())
     if isinstance(value, numpy.generic):
-        return value.item()
+        scalar = value.item()
+        if isinstance(scalar, numpy.generic):
+            if isinstance(value, numpy.complexfloating):
+                return complex(value)
+            return float(value)
+        return scalar
     if isinstance(value, CMBError):
         return value.diagnostic()
     if isinstance(value, Mapping):
@@ -960,6 +1060,87 @@ def _bound_contract(
     return bound
 
 
+def _contract_identity(plugin: Any) -> dict[str, Any]:
+    """Return a stable identity for one compiled model contract."""
+
+    perturbation_data = getattr(plugin, "CMB_PERTURBATION_DATA", None)
+    runtime_signature = str(
+        getattr(perturbation_data, "runtime_signature", "")
+        or getattr(plugin, "CMB_RUNTIME_SIGNATURE", "")
+    )
+    get_runtime = getattr(plugin, "get_cmb_declared_runtime", None)
+    if not runtime_signature and callable(get_runtime):
+        try:
+            runtime = get_runtime(getattr(plugin, "INITIAL_GUESSES", ()))
+            runtime_signature = str(runtime.get("runtime_signature", ""))
+        except (AttributeError, TypeError, ValueError, RuntimeError):
+            runtime_signature = ""
+    contract = {
+        "model_filename": str(getattr(plugin, "MODEL_FILENAME", "")),
+        "model_name": str(getattr(plugin, "MODEL_NAME", "")),
+        "contract_version": int(
+            getattr(perturbation_data, "contract_version", 0) or 0
+        ),
+        "gauge": str(getattr(perturbation_data, "gauge", "")),
+        "runtime_signature": runtime_signature,
+        "sectors": sorted(
+            str(name)
+            for name in (getattr(perturbation_data, "sectors", {}) or {})
+        ),
+        "spectra": sorted(
+            str(name).upper()
+            for name in (getattr(perturbation_data, "observables", {}) or {})
+            if str(
+                getattr(
+                    (getattr(perturbation_data, "observables", {}) or {}).get(
+                        name
+                    ),
+                    "kind",
+                    "",
+                )
+            ).lower()
+            == "angular_power_spectrum"
+        ),
+    }
+    canonical = json.dumps(
+        _jsonable(contract), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    contract["sha256"] = hashlib.sha256(canonical).hexdigest()
+    return contract
+
+
+def _unavailable_report(
+    plugin: Any,
+    *,
+    requested_ells: tuple[int, ...],
+    requested_spectra: tuple[str, ...],
+    error_type: str,
+    message: str,
+    category: str = "unavailable",
+) -> "CMBModelDiagnostic":
+    """Create an explicit matrix row when a fixed point was not measured."""
+
+    return CMBModelDiagnostic(
+        model_filename=str(getattr(plugin, "MODEL_FILENAME", "<unknown>")),
+        model_name=str(getattr(plugin, "MODEL_NAME", "<unknown>")),
+        parameter_names=tuple(
+            str(value) for value in getattr(plugin, "PARAMETER_NAMES", ())
+        ),
+        parameter_values=tuple(
+            float(value) for value in getattr(plugin, "INITIAL_GUESSES", ())
+        ),
+        requested_ells=requested_ells,
+        requested_spectra=requested_spectra,
+        availability="unavailable",
+        contract_identity=_contract_identity(plugin),
+        failure={
+            "error_type": error_type,
+            "category": category,
+            "message": message,
+        },
+    )
+
+
 def _relative_error(reference: Any, refined: Any) -> float:
     """Return a scale-safe maximum relative difference between arrays."""
 
@@ -992,7 +1173,22 @@ class CMBModelDiagnostic:
     acoustic_structure: Mapping[str, Any] = field(default_factory=dict)
     source_residual_audit: Mapping[str, Any] = field(default_factory=dict)
     reference_comparison: Mapping[str, Any] = field(default_factory=dict)
+    availability: str = "measured"
+    contract_identity: Mapping[str, Any] = field(default_factory=dict)
+    scalar_batch_evidence: Mapping[str, Any] = field(default_factory=dict)
+    cache_isolation_evidence: Mapping[str, Any] = field(default_factory=dict)
     failure: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the explicit measured/unavailable matrix state."""
+
+        availability = str(self.availability).lower()
+        if availability not in {"measured", "unavailable", "rejected"}:
+            raise ValueError(
+                "Diagnostic availability must be measured, unavailable, "
+                "or rejected"
+            )
+        object.__setattr__(self, "availability", availability)
 
     @property
     def success(self) -> bool:
@@ -1004,6 +1200,11 @@ class CMBModelDiagnostic:
         """Return complete serializable evidence, including raw arrays."""
 
         return {
+            "availability": self.availability,
+            "cache_isolation_evidence": _jsonable(
+                self.cache_isolation_evidence
+            ),
+            "contract_identity": _jsonable(self.contract_identity),
             "failure": _jsonable(self.failure),
             "model_filename": self.model_filename,
             "model_name": self.model_name,
@@ -1019,6 +1220,7 @@ class CMBModelDiagnostic:
             "requested_ells": self.requested_ells,
             "requested_spectra": self.requested_spectra,
             "runtime_envelope": _jsonable(self.runtime_envelope),
+            "scalar_batch_evidence": _jsonable(self.scalar_batch_evidence),
             "spectra": _jsonable(self.spectra),
             "success": self.success,
         }
@@ -1071,12 +1273,67 @@ def _certification_evidence_status(
     return not issues, tuple(issues)
 
 
+def _matrix_evidence_status(
+    report: CMBModelDiagnostic,
+    *,
+    required_spectra: Sequence[str],
+    require_reference: bool,
+    contract_audit: Mapping[str, Any] | None,
+    source_graph_audit: Mapping[str, Any] | None,
+) -> tuple[bool, tuple[str, ...]]:
+    """Apply the complete bundled-model matrix acceptance contract."""
+
+    accepted, base_issues = _certification_evidence_status(
+        report,
+        required_spectra=required_spectra,
+        require_reference=require_reference,
+    )
+    issues = list(base_issues)
+    if report.availability != "measured":
+        issues.append(
+            "fixed-point status is " f"{report.availability}, not measured"
+        )
+    if not report.contract_identity:
+        issues.append("compiled contract identity is unavailable")
+    elif not str(report.contract_identity.get("sha256", "")):
+        issues.append("compiled contract identity has no digest")
+    if contract_audit is None:
+        issues.append("contract declaration audit is unavailable")
+    elif not bool(contract_audit.get("valid", False)):
+        issues.append("contract declaration audit failed")
+    if source_graph_audit is None:
+        issues.append("source graph audit is unavailable")
+    elif not bool(source_graph_audit.get("valid", False)):
+        issues.append("source graph audit failed")
+    # Batch and cache parity are acceptance evidence for rows that reached a
+    # measured fixed point.  A row rejected by the scalar solver must retain
+    # its typed scientific reason without being misclassified as a second,
+    # unrelated batch/cache failure; Slice Eight promotes only measured rows.
+    measured = report.availability == "measured" and report.failure is None
+    if measured:
+        batch = report.scalar_batch_evidence
+        if not bool(batch.get("available", False)):
+            issues.append("scalar/batch equivalence evidence is unavailable")
+        elif not bool(batch.get("converged", False)):
+            issues.append("scalar/batch equivalence failed")
+        cache_evidence = report.cache_isolation_evidence
+        if not bool(cache_evidence.get("available", False)):
+            issues.append("cache-isolation evidence is unavailable")
+        elif not bool(cache_evidence.get("isolated", False)):
+            issues.append("cache identities are not isolated")
+    return accepted and not issues, tuple(issues)
+
+
 def build_cmb_certification_report(
     reports: Iterable[CMBModelDiagnostic],
     *,
     required_model_filenames: Iterable[str] | None = None,
     required_spectra: Sequence[str] = _DEFAULT_SPECTRA,
     require_reference: bool = True,
+    matrix_mode: bool = False,
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic final certification record from raw reports.
 
@@ -1089,33 +1346,61 @@ def build_cmb_certification_report(
     ordered_reports = tuple(
         sorted(reports, key=lambda item: str(item.model_filename))
     )
-    expected = tuple(
-        sorted(
-            str(name)
-            for name in (
-                required_model_filenames
-                if required_model_filenames is not None
-                else (item.model_filename for item in ordered_reports)
-            )
+    expected_values = tuple(
+        str(name)
+        for name in (
+            required_model_filenames
+            if required_model_filenames is not None
+            else (item.model_filename for item in ordered_reports)
         )
     )
-    required = tuple(str(name).upper() for name in required_spectra)
-    seen = {str(item.model_filename) for item in ordered_reports}
+    expected = tuple(sorted(set(expected_values)))
+    expected_duplicates = sorted(
+        name
+        for name in set(expected_values)
+        if expected_values.count(name) > 1
+    )
+    required_values = tuple(str(name).upper() for name in required_spectra)
+    if len(set(required_values)) != len(required_values):
+        raise ValueError("Certification spectra must be unique")
+    required = required_values
+    seen_values = tuple(str(item.model_filename) for item in ordered_reports)
+    seen = set(seen_values)
+    duplicate_models = sorted(
+        name for name in seen if seen_values.count(name) > 1
+    )
     missing_models = sorted(set(expected) - seen)
+    unexpected_models = sorted(seen - set(expected))
     model_records: list[dict[str, Any]] = []
     accepted: list[str] = []
     rejected: dict[str, list[str]] = {}
     for report in ordered_reports:
-        valid, issues = _certification_evidence_status(
-            report,
-            required_spectra=required,
-            require_reference=require_reference,
+        audit = (contract_audits or {}).get(str(report.model_filename))
+        graph_audit = (source_graph_audits or {}).get(
+            str(report.model_filename)
         )
+        if matrix_mode:
+            valid, issues = _matrix_evidence_status(
+                report,
+                required_spectra=required,
+                require_reference=require_reference,
+                contract_audit=audit,
+                source_graph_audit=graph_audit,
+            )
+        else:
+            valid, issues = _certification_evidence_status(
+                report,
+                required_spectra=required,
+                require_reference=require_reference,
+            )
         model_name = str(report.model_filename)
         model_records.append(
             {
                 "model_filename": model_name,
                 "accepted": valid,
+                "availability": report.availability,
+                "contract_audit": _jsonable(audit),
+                "source_graph_audit": _jsonable(graph_audit),
                 "issues": list(issues),
                 "report": report.to_dict(),
             }
@@ -1126,16 +1411,55 @@ def build_cmb_certification_report(
             rejected[model_name] = list(issues)
     for model_name in missing_models:
         rejected[model_name] = ["model is missing from diagnostic matrix"]
-    complete = not missing_models and set(seen) == set(expected)
+    for model_name in unexpected_models:
+        rejected[model_name] = ["model is not in the frozen CMB corpus"]
+    for model_name in duplicate_models:
+        rejected.setdefault(model_name, []).append(
+            "model appears more than once in diagnostic matrix"
+        )
+    for model_name in expected_duplicates:
+        rejected.setdefault(model_name, []).append(
+            "required model list contains duplicate entries"
+        )
+    complete = (
+        not missing_models
+        and not duplicate_models
+        and not expected_duplicates
+        and seen == set(expected)
+        and len(ordered_reports) == len(expected)
+    )
+    # Matrix completeness is a decision property, not a claim that every
+    # model is scientifically accepted.  A complete report may legitimately
+    # contain typed rejected/unavailable rows; those rows feed the later
+    # repair/certification slice and are never counted in ``success``.
+    decision_complete = (
+        complete
+        and all(
+            bool(item["accepted"]) or bool(item["issues"])
+            for item in model_records
+        )
+        and len(rejected) == len(expected) - len(accepted)
+    )
     success = complete and len(accepted) == len(expected) and not rejected
     record: dict[str, Any] = {
         "schema_version": 1,
         "required_spectra": list(required),
         "required_models": list(expected),
+        "certification_tier": _jsonable(certification_tier or {}),
+        "matrix_mode": bool(matrix_mode),
         "complete": complete,
+        "decision_complete": bool(decision_complete),
         "success": success,
         "accepted_models": sorted(accepted),
         "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "contract_audits": {
+            name: _jsonable((contract_audits or {}).get(name))
+            for name in sorted(contract_audits or {})
+        },
+        "source_graph_audits": {
+            name: _jsonable((source_graph_audits or {}).get(name))
+            for name in sorted(source_graph_audits or {})
+        },
         "reports": model_records,
     }
     canonical = json.dumps(
@@ -1152,6 +1476,10 @@ def write_cmb_certification_report(
     required_model_filenames: Iterable[str] | None = None,
     required_spectra: Sequence[str] = _DEFAULT_SPECTRA,
     require_reference: bool = True,
+    matrix_mode: bool = False,
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Serialize a certification record and return the written payload."""
 
@@ -1160,6 +1488,10 @@ def write_cmb_certification_report(
         required_model_filenames=required_model_filenames,
         required_spectra=required_spectra,
         require_reference=require_reference,
+        matrix_mode=matrix_mode,
+        certification_tier=certification_tier,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
     )
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1180,6 +1512,7 @@ def run_cmb_model_diagnostic(
     relative_tolerances: Mapping[str, float] | None = None,
     reference_spectra: Mapping[str, Any] | None = None,
     reference_tolerances: Mapping[str, float] | None = None,
+    matrix_fast_path: bool = False,
 ) -> CMBModelDiagnostic:
     """Collect raw CCMBS evidence for one fixed initial-guess parameter point.
 
@@ -1203,6 +1536,7 @@ def run_cmb_model_diagnostic(
         or f"{getattr(plugin, 'MODEL_NAME', 'model')}.yml"
     )
     model_name = str(getattr(plugin, "MODEL_NAME", model_filename))
+    contract_identity = _contract_identity(plugin)
     parameter_names = tuple(
         str(value) for value in getattr(plugin, "PARAMETER_NAMES", ())
     )
@@ -1214,6 +1548,12 @@ def run_cmb_model_diagnostic(
 
     base_contract = plugin.get_cmb_declared_runtime(parameter_values)
     base = _bound_contract(base_contract, numerical_overrides)
+    if matrix_fast_path:
+        # Matrix certification uses the declared tier's physical node count
+        # directly.  The production floor is an optional sampling safeguard
+        # for long likelihood runs, not part of fixed-point evidence, and
+        # would otherwise multiply every model audit by eight.
+        base["_diagnostic_matrix_fast_path"] = True
     try:
         raw_data = _compute_custom_cmb_spectrum_data(
             base,
@@ -1422,6 +1762,8 @@ def run_cmb_model_diagnostic(
             acoustic_structure=acoustic_structure,
             source_residual_audit=source_residual_audit,
             reference_comparison=reference_comparison,
+            availability="rejected" if failure is not None else "measured",
+            contract_identity=contract_identity,
             failure=failure,
         )
     except (
@@ -1440,8 +1782,425 @@ def run_cmb_model_diagnostic(
             parameter_values=parameter_values,
             requested_ells=requested_ells,
             requested_spectra=requested_spectra,
+            availability="unavailable",
+            contract_identity=contract_identity,
             failure=_diagnostic_failure(error),
         )
+
+
+def assess_scalar_batch_cache_evidence(
+    scalar_spectra: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None,
+    batch_results: Sequence[Any] | None,
+    *,
+    expected_indices: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """Audit exact scalar/batch equality and cache identity separation.
+
+    The helper accepts public batch results without importing a sampler.  A
+    missing result or missing cache identity is reported as unavailable; it
+    is never converted into a passing matrix row.
+    """
+
+    evidence: dict[str, Any] = {
+        "schema_version": 1,
+        "available": False,
+        "converged": False,
+        "ordering_preserved": False,
+        "spectra_equal": False,
+        "cache_isolated": False,
+        "issues": [],
+    }
+    issues: list[str] = evidence["issues"]
+    if not batch_results:
+        issues.append("scalar and ordered batch results are required")
+        evidence["issues"] = tuple(issues)
+        return evidence
+    if isinstance(scalar_spectra, Mapping):
+        scalar_payloads = tuple(
+            scalar_spectra for _ in range(len(batch_results))
+        )
+    elif isinstance(scalar_spectra, Sequence) and not isinstance(
+        scalar_spectra, (str, bytes)
+    ):
+        scalar_payloads = tuple(scalar_spectra)
+        if len(scalar_payloads) != len(batch_results):
+            issues.append("scalar and batch result counts do not match")
+            evidence["issues"] = tuple(issues)
+            return evidence
+    else:
+        issues.append("scalar and ordered batch results are required")
+        evidence["issues"] = tuple(issues)
+        return evidence
+    if not all(isinstance(payload, Mapping) for payload in scalar_payloads):
+        issues.append("scalar results must contain spectrum mappings")
+        evidence["issues"] = tuple(issues)
+        return evidence
+    expected = tuple(
+        range(len(batch_results))
+        if expected_indices is None
+        else (int(value) for value in expected_indices)
+    )
+    observed_indices: list[int] = []
+    identities: list[str] = []
+    equal = True
+    for position, result in enumerate(batch_results):
+        if getattr(result, "failure", None) is not None:
+            issues.append(f"batch item {position} returned a typed failure")
+            equal = False
+            continue
+        payload = getattr(result, "spectrum", result)
+        if not isinstance(payload, Mapping):
+            issues.append(f"batch item {position} has no spectrum mapping")
+            equal = False
+            continue
+        observed_indices.append(int(getattr(result, "index", position)))
+        scalar_payload = scalar_payloads[position]
+        for name, values in scalar_payload.items():
+            if name not in payload or not numpy.array_equal(
+                numpy.asarray(values), numpy.asarray(payload[name])
+            ):
+                issues.append(f"batch item {position} differs for {name}")
+                equal = False
+        provenance = getattr(result, "cache_provenance", {}) or {}
+        identity = provenance.get("cache_identity")
+        if identity is not None:
+            identities.append(repr(identity))
+    ordering = tuple(observed_indices) == expected
+    if not ordering:
+        issues.append("batch result ordering does not match input ordering")
+    isolated = bool(identities) and len(set(identities)) == len(identities)
+    if not isolated:
+        issues.append("batch cache identities are missing or cross-talked")
+    evidence.update(
+        {
+            "available": not issues,
+            "converged": not issues,
+            "ordering_preserved": ordering,
+            "spectra_equal": equal,
+            "cache_isolated": isolated,
+            "scalar_count": len(scalar_payloads),
+            "identity_count": len(identities),
+            "issues": tuple(issues),
+        }
+    )
+    return evidence
+
+
+def _matrix_batch_parameter_points(
+    plugin: Any,
+) -> tuple[tuple[tuple[float, ...], ...], str | None]:
+    """Choose two bounded points for an exact scalar/batch comparison."""
+
+    initial = tuple(
+        float(value) for value in getattr(plugin, "INITIAL_GUESSES", ())
+    )
+    bounds = tuple(getattr(plugin, "PARAMETER_BOUNDS", ()) or ())
+    if not initial or len(bounds) != len(initial):
+        return (initial,), "model parameter bounds are unavailable"
+    varied = list(initial)
+    for index, (value, bound) in enumerate(zip(initial, bounds)):
+        if bound is None or len(bound) != 2:
+            continue
+        lower, upper = bound
+        if lower is None or upper is None:
+            continue
+        lower_value = float(lower)
+        upper_value = float(upper)
+        if not numpy.isfinite(lower_value) or not numpy.isfinite(upper_value):
+            continue
+        span = upper_value - lower_value
+        if span <= 0.0:
+            continue
+        step = max(span * 1.0e-2, numpy.finfo(float).eps)
+        candidate = value + step
+        if candidate > upper_value:
+            candidate = value - step
+        if candidate < lower_value or candidate == value:
+            continue
+        varied[index] = candidate
+        return (initial, tuple(varied)), None
+    return (initial,), "model contract has no independently variable parameter"
+
+
+def _run_scalar_batch_cache_check(
+    plugin: Any,
+    report: CMBModelDiagnostic,
+    *,
+    ells: Sequence[int],
+    spectra: Sequence[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Compare scalar and ordered batch results at two parameter points."""
+
+    unavailable = {
+        "available": False,
+        "converged": False,
+        "status": "unavailable",
+        "reason": "fixed-point scalar evidence is unavailable",
+    }
+    cache_unavailable = {
+        "available": False,
+        "isolated": False,
+        "status": "unavailable",
+        "reason": "fixed-point scalar evidence is unavailable",
+    }
+    if report.failure is not None or not report.spectra:
+        return unavailable, cache_unavailable
+    points, reason = _matrix_batch_parameter_points(plugin)
+    if reason is not None:
+        unavailable = dict(unavailable)
+        unavailable["reason"] = reason
+        cache_unavailable = dict(cache_unavailable)
+        cache_unavailable["reason"] = reason
+        return unavailable, cache_unavailable
+    try:
+        from .cmb import (
+            compute_cmb_spectrum_batch,
+            compute_cmb_spectrum_cached,
+        )
+
+        scalar_payloads: list[Mapping[str, Any]] = [report.spectra]
+        contracts: list[Mapping[str, Any]] = []
+        for index, parameters in enumerate(points):
+            contract = plugin.get_cmb_declared_runtime(parameters)
+            contracts.append(contract)
+            if index:
+                scalar = compute_cmb_spectrum_cached(
+                    plugin,
+                    parameters,
+                    ells,
+                    spectra=spectra,
+                    workload="matrix_batch_scalar_reference",
+                )
+                if isinstance(scalar, Mapping):
+                    scalar_payloads.append(scalar)
+                else:
+                    scalar_payloads.append({spectra[0]: scalar})
+        batch_results = compute_cmb_spectrum_batch(
+            contracts,
+            ells,
+            background_provider=plugin,
+            requested_spectra=spectra,
+        )
+        evidence = assess_scalar_batch_cache_evidence(
+            scalar_payloads,
+            batch_results,
+            expected_indices=range(len(points)),
+        )
+        evidence = dict(evidence)
+        evidence.update(
+            {
+                "status": "passed" if evidence["available"] else "failed",
+                "parameter_points": [list(point) for point in points],
+                "batch_results": [
+                    _jsonable(result.to_dict()) for result in batch_results
+                ],
+            }
+        )
+        cache_evidence = {
+            "available": bool(evidence["available"]),
+            "isolated": bool(evidence["cache_isolated"]),
+            "status": evidence["status"],
+            "identity_count": int(evidence.get("identity_count", 0)),
+            "issues": tuple(evidence.get("issues", ())),
+        }
+        return evidence, cache_evidence
+    except (
+        ArithmeticError,
+        AttributeError,
+        CMBError,
+        KeyError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as error:
+        failure = _diagnostic_failure(error)
+        unavailable = dict(unavailable)
+        unavailable.update(
+            {
+                "reason": "scalar/batch check raised a typed failure",
+                "failure": failure,
+            }
+        )
+        cache_unavailable = dict(cache_unavailable)
+        cache_unavailable.update(
+            {
+                "reason": "cache isolation could not be measured",
+                "failure": failure,
+            }
+        )
+        return unavailable, cache_unavailable
+
+
+def build_bundled_cmb_matrix_report(
+    reports: Iterable[CMBModelDiagnostic],
+    *,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    required_spectra: Sequence[str] = _DEFAULT_SPECTRA,
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build the strict filename-keyed scientific matrix for Slice Seven."""
+
+    return build_cmb_certification_report(
+        reports,
+        required_model_filenames=required_model_filenames,
+        required_spectra=required_spectra,
+        require_reference=False,
+        matrix_mode=True,
+        certification_tier=certification_tier or CMB_CERTIFICATION_TIER,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+    )
+
+
+def write_bundled_cmb_matrix_report(
+    reports: Iterable[CMBModelDiagnostic],
+    destination: str | Path,
+    *,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    required_spectra: Sequence[str] = _DEFAULT_SPECTRA,
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Write a deterministic bundled-model matrix report to JSON."""
+
+    record = build_bundled_cmb_matrix_report(
+        reports,
+        required_model_filenames=required_model_filenames,
+        required_spectra=required_spectra,
+        certification_tier=certification_tier,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+    )
+    path = Path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return record
+
+
+def run_bundled_cmb_matrix(
+    *,
+    model_directory: str | Path | None = None,
+    certification_tier: Mapping[str, Any] | None = None,
+    numerical_overrides: Mapping[str, Any] | None = None,
+    reference_spectra_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    reference_tolerances_by_model: (
+        Mapping[str, Mapping[str, float]] | None
+    ) = None,
+    execute_batch_checks: bool = False,
+) -> dict[str, Any]:
+    """Run the fixed-point matrix and preserve every explicit outcome.
+
+    ``execute_batch_checks`` is opt-in because the exact scalar-to-batch
+    adapter intentionally repeats the expensive solver call.  When it is
+    false, the matrix records a typed unavailable evidence decision instead
+    of claiming scalar/batch parity.
+    """
+
+    tier = dict(CMB_CERTIFICATION_TIER)
+    tier.update(certification_tier or {})
+    requested_ells = tuple(int(value) for value in tier.get("ells", ()))
+    requested_spectra = tuple(
+        str(value).upper() for value in tier.get("spectra", _DEFAULT_SPECTRA)
+    )
+    if not requested_ells or not requested_spectra:
+        raise ValueError("Certification tier must declare ells and spectra")
+    tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
+    tier_overrides.update(numerical_overrides or {})
+    plugins = discover_bundled_cmb_plugins(model_directory)
+    default_corpus = model_directory is None
+    expected = (
+        BUNDLED_CMB_MODEL_FILENAMES
+        if default_corpus
+        else tuple(sorted(str(plugin.MODEL_FILENAME) for plugin in plugins))
+    )
+    contract_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_contracts(model_directory)
+    }
+    source_graph_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_source_graphs(model_directory)
+    }
+    reports: list[CMBModelDiagnostic] = []
+    for plugin in plugins:
+        filename = str(plugin.MODEL_FILENAME)
+        try:
+            report = run_cmb_model_diagnostic(
+                plugin,
+                ells=requested_ells,
+                spectra=requested_spectra,
+                numerical_overrides=tier_overrides,
+                refine_wave_number_grid=bool(
+                    tier.get("refine_wave_number_grid", True)
+                ),
+                reference_spectra=(reference_spectra_by_model or {}).get(
+                    filename
+                ),
+                reference_tolerances=(reference_tolerances_by_model or {}).get(
+                    filename
+                ),
+                matrix_fast_path=True,
+            )
+        except (
+            ArithmeticError,
+            AttributeError,
+            CMBError,
+            KeyError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as error:  # pragma: no cover - defensive boundary
+            report = _unavailable_report(
+                plugin,
+                requested_ells=requested_ells,
+                requested_spectra=requested_spectra,
+                error_type=type(error).__name__,
+                message=str(error),
+            )
+        scalar_batch = report.scalar_batch_evidence
+        cache_isolation = report.cache_isolation_evidence
+        if execute_batch_checks:
+            scalar_batch, cache_isolation = _run_scalar_batch_cache_check(
+                plugin,
+                report,
+                ells=requested_ells,
+                spectra=requested_spectra,
+            )
+        else:
+            scalar_batch = {
+                "available": False,
+                "converged": False,
+                "status": "not_measured",
+                "reason": "exact ordered batch check was not executed",
+            }
+            cache_isolation = {
+                "available": False,
+                "isolated": False,
+                "status": "not_measured",
+                "reason": "cache identity comparison was not executed",
+            }
+        report = replace(
+            report,
+            contract_identity=report.contract_identity
+            or _contract_identity(plugin),
+            scalar_batch_evidence=scalar_batch,
+            cache_isolation_evidence=cache_isolation,
+        )
+        reports.append(report)
+    return build_bundled_cmb_matrix_report(
+        reports,
+        required_model_filenames=expected,
+        required_spectra=requested_spectra,
+        certification_tier=tier,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+    )
 
 
 def discover_bundled_cmb_plugins(
@@ -1535,14 +2294,20 @@ def run_bundled_cmb_diagnostics(
 
 
 __all__ = [
+    "BUNDLED_CMB_MODEL_FILENAMES",
+    "CMB_CERTIFICATION_TIER",
     "CMBModelDiagnostic",
+    "assess_scalar_batch_cache_evidence",
     "assess_acoustic_structure",
     "assess_physical_spectrum_shape",
     "audit_source_history_residuals",
+    "build_bundled_cmb_matrix_report",
     "build_cmb_certification_report",
     "compare_cmb_spectra_to_reference",
     "discover_bundled_cmb_plugins",
+    "run_bundled_cmb_matrix",
     "run_bundled_cmb_diagnostics",
     "run_cmb_model_diagnostic",
+    "write_bundled_cmb_matrix_report",
     "write_cmb_certification_report",
 ]

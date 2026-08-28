@@ -969,8 +969,15 @@ def _build_projection_k_grid(
     numerics: Any,
     perturbation_data: Any,
     allow_final_production_floor: bool = True,
+    surface_ell_max_override: int | None = None,
 ) -> numpy.ndarray:
-    """Return a projection k-grid that satisfies declared numerical bounds."""
+    """Return a projection k-grid that satisfies declared numerical bounds.
+
+    Fixed-point diagnostics may request a bounded multipole surface.  That
+    surface is explicit at the call site and never changes ordinary
+    production requests, which continue to use the contract's full ell
+    ceiling.
+    """
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
     sample_count = max(8, int(numerics.k_sample_count))
@@ -993,7 +1000,15 @@ def _build_projection_k_grid(
     declared_required_k_max = 1.5 * (
         (float(declared_ell_max) + 16.0) / eta_rec_distance
     )
-    if declared_required_k_max <= declared_k_max:
+    if surface_ell_max_override is not None:
+        requested_surface_ell_max = int(surface_ell_max_override)
+        if requested_surface_ell_max < int(ell_values.max()):
+            raise ValueError(
+                "Projection surface ell ceiling cannot exclude a requested "
+                "multipole"
+            )
+        surface_ell_max = min(declared_ell_max, requested_surface_ell_max)
+    elif declared_required_k_max <= declared_k_max:
         surface_ell_max = declared_ell_max
     else:
         # A low-ell request can still be evaluated when a model declares an
@@ -3034,9 +3049,13 @@ def _compute_custom_cmb_spectrum_data_impl(
         ]
         | None
     ) = None
-    shared_generated_mode_grids_enabled = (
-        numerics.evolution_eta_sample_count is not None
-    )
+    # Generated scalar modes use one common evolution schedule.  When a
+    # contract omits an explicit evolution sample count, deriving a separate
+    # super-horizon prefix for every k disables batching and makes the fixed
+    # corpus audit needlessly serial.  The shared schedule is anchored to the
+    # largest requested k in ``_mode_grids_for_k`` so every mode still retains
+    # the longest required early-time prefix.
+    shared_generated_mode_grids_enabled = bool(generated_scalar_hierarchy)
 
     with performance_timer.phase("preparation"):
         k_values = _build_projection_k_grid(
@@ -3046,6 +3065,16 @@ def _compute_custom_cmb_spectrum_data_impl(
             perturbation_data=perturbation_data,
             allow_final_production_floor=not bool(
                 contract_or_params.get("_joint_mcmc_fast_path", False)
+                or contract_or_params.get(
+                    "_diagnostic_matrix_fast_path", False
+                )
+            ),
+            surface_ell_max_override=(
+                int(ell_arr.max())
+                if contract_or_params.get(
+                    "_diagnostic_matrix_fast_path", False
+                )
+                else None
             ),
         )
         if adaptive_controls.transfer_enabled:
@@ -3091,7 +3120,11 @@ def _compute_custom_cmb_spectrum_data_impl(
             float(k_values[0]),
             float(k_values[-1]),
             phase_points_per_cycle=float(
-                declared_accuracy_controls.get("phase_points_per_cycle", 8.0)
+                _accuracy_control_value(
+                    declared_accuracy_controls,
+                    "phase_points_per_cycle",
+                )
+                or 8.0
             ),
             eta_distance=max(
                 float(background.eta0) - float(background.eta_rec),
@@ -3110,7 +3143,11 @@ def _compute_custom_cmb_spectrum_data_impl(
         phase_status = phase_aware_k_grid_status(
             k_values,
             phase_points_per_cycle=float(
-                declared_accuracy_controls.get("phase_points_per_cycle", 8.0)
+                _accuracy_control_value(
+                    declared_accuracy_controls,
+                    "phase_points_per_cycle",
+                )
+                or 8.0
             ),
             eta_distance=max(
                 float(background.eta0) - float(background.eta_rec),
@@ -3423,7 +3460,14 @@ def _compute_custom_cmb_spectrum_data_impl(
             raise NonFiniteEvolutionError(
                 "Generated scalar hierarchy audit histories must be finite "
                 "and aligned with the source eta grid",
-                context={"k": float(mode_k_value)},
+                context={
+                    "k": float(mode_k_value),
+                    "eta_size": int(eta_values.size),
+                    "history_shapes": {
+                        str(name): tuple(values.shape)
+                        for name, values in histories.items()
+                    },
+                },
             )
         derivatives = {
             name: _nonuniform_gradient(values, eta_values)
@@ -3444,6 +3488,8 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         equation_metrics: dict[str, dict[str, float]] = {}
         anchor_residuals: dict[str, dict[str, dict[str, float]]] = {}
+        collision_active_anchor_indices: list[int] = []
+        audited_anchor_indices: list[int] = []
         for index in anchor_indices:
             state_size = max(state_slots_by_index) + 1
             state_vector = numpy.zeros(state_size, dtype=float)
@@ -3458,6 +3504,17 @@ def _compute_custom_cmb_spectrum_data_impl(
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                 exit_ratio=float(numerics.tight_coupling_exit_ratio),
             )
+            if collision_active:
+                # The split collision integrator advances this interval with
+                # the declaration's exact/implicit collision map after the
+                # explicit hierarchy RHS.  Comparing the finite-difference
+                # history with the unsplit RHS at a tight-coupling anchor
+                # would therefore report the omitted operator as an equation
+                # error.  Record the anchor explicitly and audit the free
+                # streaming intervals below instead.
+                collision_active_anchor_indices.append(int(index))
+                continue
+            audited_anchor_indices.append(int(index))
             rhs = _mode_rhs(
                 state_vector,
                 step_index=index,
@@ -3541,7 +3598,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                     ] = context_anchor
         hierarchy_equation_residuals_by_k[f"{float(mode_k_value):.12g}"] = {
             "k": float(mode_k_value),
-            "sample_count": int(len(anchor_indices)),
+            "sample_count": int(len(audited_anchor_indices)),
+            "candidate_sample_count": int(len(anchor_indices)),
+            "collision_active_anchor_indices": tuple(
+                collision_active_anchor_indices
+            ),
+            "audited_anchor_indices": tuple(audited_anchor_indices),
             "equations": equation_metrics,
             "anchors": anchor_residuals,
         }
@@ -6407,7 +6469,15 @@ def _compute_custom_cmb_spectrum_data_impl(
                     "continuous_collision_solver must be a boolean"
                 )
             continuous_collision_solver = bool(
-                (continuous_collision_control or diagnostic_source_audit)
+                (
+                    continuous_collision_control
+                    or (
+                        diagnostic_source_audit
+                        and not contract_or_params.get(
+                            "_diagnostic_matrix_fast_path", False
+                        )
+                    )
+                )
                 and split_collision_runtimes
                 and "massive_neutrino"
                 not in set(manifest_summary.get("hierarchy_family_names", ()))
@@ -6836,19 +6906,6 @@ def _compute_custom_cmb_spectrum_data_impl(
             numpy.isfinite(k_values_batch)
         ):
             raise ValueError("Batched CMB evolution requires finite k modes")
-        if diagnostic_source_audit:
-            # Fixed-point scientific diagnostics must retain the native
-            # per-mode histories.  The scalar path records equation residuals
-            # on the actual evolution grid; forcing a batched interpolation
-            # here would make the audit measure interpolation error instead of
-            # the compiled hierarchy.
-            return {
-                int(mode_index): _evolve_declared_mode(
-                    float(mode_k_value),
-                    collect_diagnostics=True,
-                )[1]
-                for mode_index, mode_k_value in enumerate(k_values_batch)
-            }
         if not _can_batch_declared_evolution(
             generated_scalar_hierarchy=generated_scalar_hierarchy,
             shared_mode_grids_enabled=shared_generated_mode_grids_enabled,
@@ -7761,6 +7818,9 @@ def _compute_custom_cmb_spectrum_data_impl(
             schedule_correction_required = bool(
                 generated_scalar_hierarchy
                 and declared_accuracy_controls.get("accuracy_tier") != "final"
+                and not contract_or_params.get(
+                    "_diagnostic_matrix_fast_path", False
+                )
             )
             history_names = tuple(
                 slot.variable
@@ -7769,6 +7829,18 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
             source_eta = numpy.asarray(source_grids["eta"], dtype=float)
             for row_index, mode_index in enumerate(group["indices"]):
+                # Source evaluation binds the nonlocal runtime grids to the
+                # line-of-sight grid.  Restore this batch's native evolution
+                # context before auditing the next row so the finite-
+                # difference history and compiled RHS use the same eta grid.
+                (
+                    active_grids,
+                    active_declared_background_histories,
+                    active_coordinate_rate_histories,
+                ) = group["grids"]
+                active_k_value = float(local_k_values[row_index])
+                scalar_base_context_cache = {}
+                scalar_background_context_cache = {}
                 source_histories = {
                     name: numpy.asarray(
                         histories[row_index, :, slot.index],
@@ -7778,6 +7850,14 @@ def _compute_custom_cmb_spectrum_data_impl(
                     for slot in runtime_spec.state_slots
                     if slot.variable == name and slot.order == 0
                 }
+                mode_k_value = float(local_k_values[row_index])
+                if diagnostic_source_audit:
+                    # Audit native hierarchy states before interpolation onto
+                    # the line-of-sight source grid.
+                    _record_hierarchy_equation_residuals(
+                        mode_k_value,
+                        source_histories,
+                    )
                 if not numpy.array_equal(eta_values, source_eta):
                     source_histories = {
                         name: numpy.asarray(
@@ -7786,7 +7866,6 @@ def _compute_custom_cmb_spectrum_data_impl(
                         )
                         for name, values in source_histories.items()
                     }
-                mode_k_value = float(local_k_values[row_index])
                 state_history_max_abs_by_k[f"{mode_k_value:.12g}"] = {
                     name: float(numpy.max(numpy.abs(history), initial=0.0))
                     for name, history in source_histories.items()
@@ -10023,7 +10102,11 @@ def _compute_custom_cmb_spectrum_data(
             contract_or_params
         )
         production_enforced = bool(
-            production_controls.enabled and workload != "joint_mcmc"
+            production_controls.enabled
+            and workload != "joint_mcmc"
+            and not contract_or_params.get(
+                "_diagnostic_matrix_fast_path", False
+            )
         )
         if production_enforced and requested is not None:
             effective_requested_spectra = tuple(

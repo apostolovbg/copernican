@@ -1042,13 +1042,24 @@ def _accuracy_control_value(
     controls: Mapping[str, Any],
     key: str,
 ) -> Any:
-    """Return ``key`` from ``controls`` or its runtime envelope mapping."""
+    """Return one accuracy value from the declared control envelopes.
+
+    Projection controls are grouped under ``los_phase_quadrature`` in model
+    contracts.  Resolving that group here keeps the declaration authoritative
+    for both production and fixed-point diagnostics instead of silently
+    falling back to a different phase density.
+    """
 
     if key in controls:
         return controls[key]
-    runtime_envelope = controls.get("runtime_envelope")
-    if isinstance(runtime_envelope, Mapping) and key in runtime_envelope:
-        return runtime_envelope[key]
+    for group_name in (
+        "runtime_envelope",
+        "los_phase_quadrature",
+        "production_scalar_convergence",
+    ):
+        group = controls.get(group_name)
+        if isinstance(group, Mapping) and key in group:
+            return group[key]
     return None
 
 

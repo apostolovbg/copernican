@@ -415,6 +415,60 @@ def phase_aware_k_grid(
         sound_horizon,
         name="sound_horizon",
     )
+
+    # If the explicit budget can hold the physical radial phase ladder,
+    # preserve that ladder as an indivisible set.  The previous construction
+    # merged logarithmic, radial, and acoustic ladders and then uniformly
+    # thinned the union when it exceeded ``maximum_nodes``; that thinning
+    # could remove every other phase node and report a false gap twice the
+    # declared step.  Optional logarithmic nodes may be thinned, but required
+    # phase nodes are never discarded.
+    requirements = phase_aware_k_grid_requirements(
+        lower,
+        upper,
+        phase_points_per_cycle=phase_points,
+        eta_distance=distance,
+        sound_horizon=acoustic_distance,
+    )
+    required_count = int(requirements["required_nodes"])
+    if required_count <= maximum:
+        phase_nodes = numpy.linspace(lower, upper, required_count)
+        required_nodes = set(float(value) for value in phase_nodes)
+        required_nodes.update(
+            float(value) for value in anchors if lower <= float(value) <= upper
+        )
+        if len(required_nodes) > maximum:
+            # Anchors are supplementary in this branch; the endpoint-
+            # inclusive phase ladder is the non-negotiable evidence set.
+            required_nodes = set(float(value) for value in phase_nodes)
+        optional_budget = max(0, maximum - len(required_nodes))
+        if optional_budget:
+            optional_nodes = numpy.geomspace(
+                lower,
+                upper,
+                optional_budget + 2,
+            )[1:-1]
+            required_nodes.update(float(value) for value in optional_nodes)
+        resolved = numpy.asarray(sorted(required_nodes), dtype=float)
+        if resolved.size < minimum:
+            raise ValueError(
+                "Phase-aware k quadrature could not satisfy its minimum "
+                "node budget"
+            )
+        if require_phase_resolution:
+            status = phase_aware_k_grid_status(
+                resolved,
+                phase_points_per_cycle=phase_points,
+                eta_distance=distance,
+                sound_horizon=acoustic_distance,
+            )
+            if not bool(status["resolved"]):
+                raise ValueError(
+                    "Phase-aware k quadrature is under-resolved: "
+                    f"actual_nodes={resolved.size}, "
+                    f"required_nodes={status['required_nodes']}"
+                )
+        return resolved
     nodes = list(numpy.geomspace(lower, upper, minimum))
     nodes.extend(float(value) for value in anchors)
     acoustic_phase_step = numpy.pi / phase_points
