@@ -256,6 +256,39 @@ class ProjectionModuleTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.isfinite(actual)))
         self.assertGreaterEqual(float(actual[0]), 0.0)
 
+    def test_coarse_projection_preserves_empty_optional_sectors(self):
+        """Coarsening scalar kernels must not index absent vector sectors."""
+
+        scalar = numpy.ones((2, 4), dtype=float)
+        empty = numpy.empty((2, 0), dtype=float)
+        kernel_batch = SimpleNamespace(
+            j_l=scalar,
+            j_l_derivative=scalar,
+            j_l_second_derivative=scalar,
+            e_kernel=scalar,
+            b_kernel=scalar,
+            vector_temperature_1=empty,
+            vector_temperature_2=empty,
+            vector_e=empty,
+            vector_b=empty,
+            tensor_temperature=empty,
+            tensor_e=empty,
+            tensor_b=empty,
+        )
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            coarse = projection._slice_projection_kernel_batch(
+                kernel_batch,
+                numpy.asarray((0, 3), dtype=int),
+            )
+
+        self.assertFalse(
+            any(item.category is DeprecationWarning for item in captured)
+        )
+        self.assertEqual(coarse.j_l.shape, (2, 2))
+        self.assertEqual(coarse.vector_temperature_1.shape, (2, 0))
+        self.assertEqual(coarse.tensor_e.shape, (2, 0))
+
     def test_batched_collision_overflow_is_handled_without_runtime_warnings(
         self,
     ):

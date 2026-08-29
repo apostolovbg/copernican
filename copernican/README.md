@@ -204,6 +204,9 @@ The generated scalar hierarchy uses the standard `Pi = Theta_gamma,2 +
 E_gamma,0 + E_gamma,2` collision moment, includes it once in the visibility
 monopole, and applies the `3/4` E-source coefficient. The deprecated split
 temperature quadrupole terms are explicit zeroes.
+Coarsened projection batches preserve zero-width optional vector and tensor
+sectors without indexing absent kernels, so scalar refinement remains warning
+free under NumPy's strict empty-axis rules.
 
 Generated scalar manifests publish a source-closure summary with derivative
 kind, conformal-time coordinate, binding, dependencies, source-role ownership,

@@ -1866,19 +1866,37 @@ def _slice_projection_kernel_batch(
     """Return one radial-kernel batch restricted to an eta subset."""
 
     selected = numpy.asarray(indices, dtype=int)
+
+    def _slice_kernel(values: numpy.ndarray) -> numpy.ndarray:
+        """Slice an eta kernel, preserving intentionally empty sectors."""
+
+        array = numpy.asarray(values)
+        if array.ndim != 2:
+            raise ValueError("Projection kernels must be two-dimensional")
+        # Optional vector/tensor sectors are represented by zero-width
+        # arrays when the request does not declare them.  NumPy 2.x warns
+        # (and will eventually raise) when non-empty indices are applied to
+        # such an axis even though the sector is never consumed.  Preserve
+        # the empty-sector sentinel instead of indexing it.
+        if array.shape[1] == 0:
+            return array[:, :0].copy()
+        return array[:, selected]
+
     return _DeclaredProjectionKernelBatch(
-        j_l=kernel_batch.j_l[:, selected],
-        j_l_derivative=kernel_batch.j_l_derivative[:, selected],
-        j_l_second_derivative=kernel_batch.j_l_second_derivative[:, selected],
-        e_kernel=kernel_batch.e_kernel[:, selected],
-        b_kernel=kernel_batch.b_kernel[:, selected],
-        vector_temperature_1=kernel_batch.vector_temperature_1[:, selected],
-        vector_temperature_2=kernel_batch.vector_temperature_2[:, selected],
-        vector_e=kernel_batch.vector_e[:, selected],
-        vector_b=kernel_batch.vector_b[:, selected],
-        tensor_temperature=kernel_batch.tensor_temperature[:, selected],
-        tensor_e=kernel_batch.tensor_e[:, selected],
-        tensor_b=kernel_batch.tensor_b[:, selected],
+        j_l=_slice_kernel(kernel_batch.j_l),
+        j_l_derivative=_slice_kernel(kernel_batch.j_l_derivative),
+        j_l_second_derivative=_slice_kernel(
+            kernel_batch.j_l_second_derivative
+        ),
+        e_kernel=_slice_kernel(kernel_batch.e_kernel),
+        b_kernel=_slice_kernel(kernel_batch.b_kernel),
+        vector_temperature_1=_slice_kernel(kernel_batch.vector_temperature_1),
+        vector_temperature_2=_slice_kernel(kernel_batch.vector_temperature_2),
+        vector_e=_slice_kernel(kernel_batch.vector_e),
+        vector_b=_slice_kernel(kernel_batch.vector_b),
+        tensor_temperature=_slice_kernel(kernel_batch.tensor_temperature),
+        tensor_e=_slice_kernel(kernel_batch.tensor_e),
+        tensor_b=_slice_kernel(kernel_batch.tensor_b),
     )
 
 

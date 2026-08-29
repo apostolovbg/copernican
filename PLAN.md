@@ -348,7 +348,7 @@ anchor diagnostics.  The remaining numerical residual values are preserved
 as raw evidence and are intentionally not relabelled as accepted by this
 structural closure slice.
 
-### [planned] Slice Three — projection convergence and LCDM parity
+### [closed] Slice Three — projection convergence and LCDM parity
 
 **Purpose:** Repair the source-to-observable path until fixed LCDM produces
 smooth, correctly phased TT, TE, and EE spectra that agree with CAMB.
@@ -397,6 +397,34 @@ smooth, correctly phased TT, TE, and EE spectra that agree with CAMB.
 **Closure evidence:** The fixed LCDM and QRSF reports preserve source inputs,
 base/refined raw/public arrays, grids, quadrature rule, peak/phase/damping
 metrics, frozen fixture digest, and acceptance decision.
+
+**Implemented and closed in this gate:**
+
+* The shared projection path retains phase-aware radial and acoustic gap
+  requirements, applies positive composite-trapezoid weights on irregular
+  log-k ladders, and records the selected rule and effective grid in the raw
+  runtime envelope.
+* Source histories are cached only under their complete physical identity;
+  ordered evolution and ell-batched projection reuse those histories without
+  changing sector or multipole ordering.
+* Production scalar requests compare base and doubled k grids for every
+  requested TT, TE, and EE surface. Failed comparisons retain both raw and
+  public arrays and raise a typed convergence error.
+* Public D-ell normalization, raw shape/acoustic audits, phase-gap evidence,
+  and the backend-neutral reference comparator are exercised independently of
+  plotting. The test-owned CAMB surface remains outside production CCMBS.
+* Optional vector and tensor kernels use an empty-sector sentinel safely when
+  a scalar refinement coarsens a kernel batch. This removes NumPy empty-axis
+  deprecation warnings without fabricating a source or changing scalar
+  projections.
+
+**Verification:** The focused adaptive, diagnostic, projection, and scientific
+reference suites pass. The scientific reference suite covers batched Bessel
+kernels, scalar CAMB response and background anchors, tensor absolute anchors,
+lensing normalization, massive-neutrino reference moments, and declared
+CAMB-free production boundaries. The final scalar and independent source-grid
+refinement tests pass their one-percent bounds with warnings treated as
+errors, and the empty optional-sector regression is green.
 
 ### [planned] Slice Four — theory-faithful bundled model declarations
 

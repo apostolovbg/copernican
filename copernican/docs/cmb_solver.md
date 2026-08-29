@@ -1134,6 +1134,9 @@ sound-horizon scales. The helper keeps acoustic phase coverage inside the
 declared node budget instead of adding an unbounded high-k tail. Reference-ell
 anchors remain explicit inputs to the bounded grid. Contracts without this
 control retain the bounded anchor-and-gap grid.
+Coarsened projection batches preserve zero-width optional vector and tensor
+sectors without indexing absent kernels, so scalar refinement remains warning
+free under NumPy's strict empty-axis rules.
 
 When a generated scalar hierarchy declares the `final` accuracy tier, CCMBS
 promotes its Fourier ladder to at least 512 modes even when the model's base

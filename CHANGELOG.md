@@ -80,6 +80,22 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-29:
+  Change: Closed Slice Three with phase-aware projection evidence and safe
+    optional-sector coarsening.
+  Why: Ensured irregular k quadrature, doubled-grid checks, raw CAMB parity
+    diagnostics, and scalar refinement remain scientifically auditable and
+    warning-free.
+  Impact: CCMBS preserves positive phase-aware integration and complete raw
+    convergence evidence without indexing absent vector or tensor kernels.
+  Files:
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+
+- 2026-08-29:
   Change: Closed Slice Two with strict generated scalar source-closure
     validation and derivative provenance.
   Why: Prevented missing Einstein terms, implicit history gradients, and
