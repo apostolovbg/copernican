@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-28
+**Last Updated:** 2026-08-29
 **Project Version:** 12.0.26
 
 ## Overview
@@ -84,18 +84,30 @@ test-owned CAMB fixture freezes the LCDM parameter point, multipole order,
 unlensed scalar `D_ell` microkelvin-squared convention, tolerances, and
 backend identity; production CCMBS never imports or falls back to it.
 
-Slice Seven adds the strict bundled-model matrix API. The frozen
-`BUNDLED_CMB_MODEL_FILENAMES` tuple is the corpus key, and
-`CMB_CERTIFICATION_TIER` names the fixed multipole, spectrum, and refinement
-request. `run_bundled_cmb_matrix()` evaluates each filename once through
-CCMBS, attaches contract and generated-source audits, and preserves typed
-unavailable or rejected outcomes. `build_bundled_cmb_matrix_report()` and
-`write_bundled_cmb_matrix_report()` require one row per filename, explicit
-contract identity, source residuals, doubled-grid evidence, and scalar/batch
-and cache-isolation evidence before counting a model as accepted. The exact
-ordered batch audit is exposed by
-`assess_scalar_batch_cache_evidence()`; an unmeasured check remains an
-explicit non-passing decision. A complete matrix exposes
+Slice One records the pre-repair corpus baseline before any shared physics is
+changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
+ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and
+doubled-k refinement. `run_bundled_cmb_corpus_baseline()` evaluates each
+frozen `BUNDLED_CMB_MODEL_FILENAMES` row once, attaches contract and
+source-graph audits, and preserves raw source histories, transfer components,
+public and raw spectra, residual vectors, numerical metadata, cache
+identities, and typed decisions before a plot is made.
+
+USMF2 follows named finite node-count tiers rather than a wall-clock limit.
+An incomplete progression is recorded as `unclassified` with its remaining
+work and never relabelled `unavailable`. `build_cmb_corpus_baseline_report()`
+and `write_cmb_corpus_baseline_report()` serialize the ten exact rows in a
+canonical order with per-row and report SHA-256 digests. Rejected evidence is
+therefore preserved as a scientific baseline rather than hidden as a pass.
+
+The later strict bundled-model matrix uses `CMB_CERTIFICATION_TIER` for final
+scientific acceptance. `run_bundled_cmb_matrix()` evaluates each filename
+through CCMBS, while `build_bundled_cmb_matrix_report()` and
+`write_bundled_cmb_matrix_report()` require explicit contract identity,
+source residuals, doubled-grid evidence, and scalar/batch cache-isolation
+evidence before counting a model as accepted. The exact ordered batch audit
+is exposed by `assess_scalar_batch_cache_evidence()`; an unmeasured check
+remains an explicit non-passing decision. A complete matrix exposes
 `decision_complete: true` even when a model is explicitly rejected, while
 `success` remains false until every row is scientifically accepted. The
 opt-in matrix execution can also evaluate two bounded parameter points through

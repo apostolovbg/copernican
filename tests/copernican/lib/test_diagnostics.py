@@ -17,9 +17,13 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
     audit_bundled_cmb_contracts,
 )
 from copernican.lib.likelihoods.cmb.diagnostics import (
+    CMBCorpusBaselineRow,
     CMBModelDiagnostic,
+    build_cmb_corpus_baseline_report,
+    run_bundled_cmb_corpus_baseline,
     run_bundled_cmb_diagnostics,
     run_cmb_model_diagnostic,
+    write_cmb_corpus_baseline_report,
 )
 
 
@@ -34,6 +38,19 @@ class DiagnosticsTestCase(unittest.TestCase):
         """The fixed-point CCMBS diagnostics surface remains importable."""
 
         self.assertIs(cmb_module.CMBModelDiagnostic, CMBModelDiagnostic)
+        self.assertIs(cmb_module.CMBCorpusBaselineRow, CMBCorpusBaselineRow)
+        self.assertIs(
+            cmb_module.build_cmb_corpus_baseline_report,
+            build_cmb_corpus_baseline_report,
+        )
+        self.assertIs(
+            cmb_module.run_bundled_cmb_corpus_baseline,
+            run_bundled_cmb_corpus_baseline,
+        )
+        self.assertIs(
+            cmb_module.write_cmb_corpus_baseline_report,
+            write_cmb_corpus_baseline_report,
+        )
         self.assertIs(
             cmb_module.run_bundled_cmb_diagnostics,
             run_bundled_cmb_diagnostics,
@@ -52,6 +69,10 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertIs(
             cmb_package.audit_bundled_cmb_contracts,
             audit_bundled_cmb_contracts,
+        )
+        self.assertIs(
+            cmb_package.run_bundled_cmb_corpus_baseline,
+            run_bundled_cmb_corpus_baseline,
         )
 
     def test_bao_diagnostics_groups_observables(self):

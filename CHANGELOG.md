@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-28
+**Last Updated:** 2026-08-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,41 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-29:
+  Change: Updated CMB public-symbol coverage for the corpus-baseline API.
+  Why: Aligned the package export contract with the newly published baseline
+    helpers.
+  Impact: Full-suite coverage now recognizes every supported baseline symbol.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-08-29:
+  Change: Added a canonical ten-row CCMBS corpus baseline and closed Slice
+    One.
+  Why: Recorded raw pre-plot evidence and finite USMF2 tier classifications
+    before shared solver repairs.
+  Impact: Preserved deterministic accepted, rejected, unavailable, and
+    unclassified outcomes for later scientific comparisons.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
 
 - 2026-08-28:
   Change: Replaced the CCMBS roadmap with a six-slice, evidence-led

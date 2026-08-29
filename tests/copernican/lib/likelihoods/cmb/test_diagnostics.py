@@ -18,6 +18,9 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
 from copernican.lib.likelihoods.cmb.diagnostics import (
     BUNDLED_CMB_MODEL_FILENAMES,
     CMB_CERTIFICATION_TIER,
+    CMB_CORPUS_BASELINE_REQUEST,
+    CMB_USMF2_BASELINE_TIERS,
+    CMBCorpusBaselineRow,
     CMBModelDiagnostic,
     _jsonable,
     _run_scalar_batch_cache_check,
@@ -27,11 +30,14 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     audit_source_history_residuals,
     build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
+    build_cmb_corpus_baseline_report,
     compare_cmb_spectra_to_reference,
     discover_bundled_cmb_plugins,
     resolve_source_residual_audit_controls,
+    run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
     write_cmb_certification_report,
+    write_cmb_corpus_baseline_report,
 )
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
@@ -101,6 +107,296 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
+    @staticmethod
+    def _corpus_fixture_report(
+        filename: str,
+        *,
+        decision: str = "rejected",
+    ) -> CMBModelDiagnostic:
+        """Build complete raw evidence without invoking the costly runtime."""
+
+        raw_spectra = {
+            "TT": numpy.asarray([1.0, 2.0, 3.0]),
+            "TE": numpy.asarray([-0.2, 0.0, 0.2]),
+            "EE": numpy.asarray([0.1, 0.3, 0.5]),
+        }
+        failure = None
+        availability = "measured"
+        if decision == "rejected":
+            availability = "rejected"
+            failure = {
+                "error_type": "FixtureRejection",
+                "category": "rejected",
+                "message": "The fixture preserves a pre-repair rejection.",
+            }
+        return CMBModelDiagnostic(
+            model_filename=filename,
+            model_name=filename.removeprefix("model_").removesuffix(".yml"),
+            parameter_names=("H_0",),
+            parameter_values=(70.0,),
+            requested_ells=tuple(CMB_CORPUS_BASELINE_REQUEST["ells"]),
+            requested_spectra=("TT", "TE", "EE"),
+            spectra=raw_spectra,
+            raw_spectra=raw_spectra,
+            raw_transfer_components={
+                "temperature_source": numpy.asarray([0.1, 0.2, 0.3]),
+            },
+            runtime_envelope={
+                "configured_numerical_controls": {
+                    "k_sample_count": 1024,
+                    "eta_sample_count": 192,
+                },
+                "effective_numerical_controls": {
+                    "k_sample_count": 1024,
+                    "eta_sample_count": 192,
+                },
+                "k_grid_actual_count": 1024,
+                "source_history_residual_sample_schema": 1,
+                "source_history_residual_samples_by_k": {
+                    "0.100000": {
+                        "sample_count": 1,
+                        "samples": ({"eta": 1.0, "Theta_0": 0.2},),
+                    },
+                },
+            },
+            refinement={
+                "axis": "k_sample_count",
+                "base_count": 1024,
+                "refined_count": 2048,
+                "converged": False,
+            },
+            shape={"finite": True},
+            acoustic_structure={"available": True},
+            source_residual_audit={
+                "available": True,
+                "converged": False,
+                "residual_vectors": {"metric": [0.0, 0.0]},
+            },
+            contract_identity={"sha256": f"contract-{filename}"},
+            cache_identity={
+                "base": {"available": True, "sha256": f"base-{filename}"},
+                "refined": {
+                    "available": True,
+                    "sha256": f"refined-{filename}",
+                },
+            },
+            availability=availability,
+            failure=failure,
+        )
+
+    @classmethod
+    def _corpus_fixture_row(
+        cls,
+        filename: str,
+        *,
+        decision: str = "rejected",
+    ) -> CMBCorpusBaselineRow:
+        """Wrap one fixed raw diagnostic in a complete baseline row."""
+
+        report = cls._corpus_fixture_report(filename, decision=decision)
+        incomplete = decision == "unclassified"
+        return CMBCorpusBaselineRow(
+            model_filename=filename,
+            model_name=report.model_name,
+            decision=decision,
+            diagnostic=report,
+            contract_audit={"valid": True},
+            source_graph_audit={"valid": True},
+            request_identity={
+                "baseline_request_sha256": "fixture-request",
+                "parameter_source": "model_initial_guesses",
+            },
+            projection_metadata={
+                "configured_numerical_controls": {
+                    "k_sample_count": 1024,
+                    "eta_sample_count": 192,
+                },
+                "effective_numerical_controls": {
+                    "k_sample_count": 1024,
+                    "eta_sample_count": 192,
+                },
+                "k_grid_actual_count": 1024,
+            },
+            source_history_metadata={
+                "available": True,
+                "raw_data_path": (
+                    "diagnostic.runtime_envelope."
+                    "source_history_residual_samples_by_k"
+                ),
+                "sample_schema": 1,
+                "mode_count": 1,
+                "sample_count": 1,
+            },
+            work_estimate={
+                "unit": "grid_product_lower_bound",
+                "not_a_wall_clock_estimate": True,
+            },
+            completion_state="incomplete" if incomplete else "completed",
+            decision_context=(
+                {"remaining_tiers": ({"id": "final"},)} if incomplete else {}
+            ),
+        )
+
+    def test_corpus_baseline_request_is_explicit_and_versioned(self):
+        """Every corpus record must derive from one direct fixed request."""
+
+        request = CMB_CORPUS_BASELINE_REQUEST
+
+        self.assertEqual(request["schema_version"], 1)
+        self.assertEqual(request["id"], "ccmbs-corpus-baseline-v1")
+        self.assertEqual(request["parameter_source"], "model_initial_guesses")
+        self.assertEqual(request["ells"][0], 2)
+        self.assertEqual(request["ells"][-1], 300)
+        self.assertEqual(request["spectra"], ("TT", "TE", "EE"))
+        self.assertEqual(
+            request["numerical_overrides"],
+            {"k_sample_count": 1024, "eta_sample_count": 192},
+        )
+        self.assertEqual(
+            request["source_anchor_policy"],
+            "quartiles-plus-visibility-peak-v1",
+        )
+        self.assertEqual(
+            request["refinement"],
+            {"axis": "k_sample_count", "factor": 2, "required": True},
+        )
+
+    def test_corpus_baseline_serializes_each_frozen_row_once(self):
+        """The pre-repair record remains complete and deterministic."""
+
+        rows = [
+            self._corpus_fixture_row(
+                filename,
+                decision=(
+                    "unclassified"
+                    if filename == "model_usmf2.yml"
+                    else "rejected"
+                ),
+            )
+            for filename in BUNDLED_CMB_MODEL_FILENAMES
+        ]
+
+        first = build_cmb_corpus_baseline_report(reversed(rows))
+        second = build_cmb_corpus_baseline_report(rows)
+
+        self.assertTrue(first["complete"])
+        self.assertTrue(first["evidence_complete"])
+        self.assertFalse(first["decision_complete"])
+        self.assertEqual(first["record_sha256"], second["record_sha256"])
+        self.assertEqual(len(first["rows"]), 10)
+        self.assertEqual(first["outcome_counts"]["rejected"], 9)
+        self.assertEqual(first["unclassified_models"], ["model_usmf2.yml"])
+        self.assertEqual(
+            first["rows"][0]["diagnostic"]["raw_spectra"],
+            {
+                "EE": [0.1, 0.3, 0.5],
+                "TE": [-0.2, 0.0, 0.2],
+                "TT": [1.0, 2.0, 3.0],
+            },
+        )
+        self.assertTrue(
+            first["rows"][0]["source_history_metadata"]["available"]
+        )
+
+        with tempfile.TemporaryDirectory() as output_directory:
+            destination = Path(output_directory) / "corpus-baseline.json"
+            written = write_cmb_corpus_baseline_report(rows, destination)
+            self.assertEqual(written["record_sha256"], first["record_sha256"])
+            self.assertIn(
+                "record_sha256",
+                destination.read_text(encoding="utf-8"),
+            )
+
+    def test_corpus_baseline_keeps_usmf2_incomplete_until_final_tier(self):
+        """Partial USMF2 work remains unclassified rather than unavailable."""
+
+        class Plugin:
+            """Provide the frozen filename and direct parameters to a mock."""
+
+            valid_for_cmb = True
+            PARAMETER_NAMES = ("H_0",)
+            INITIAL_GUESSES = (70.0,)
+
+            def __init__(self, filename: str) -> None:
+                self.MODEL_FILENAME = filename
+                self.MODEL_NAME = filename.removeprefix("model_").removesuffix(
+                    ".yml"
+                )
+
+        class Audit:
+            """Supply the immutable audit shape needed by a baseline row."""
+
+            def __init__(self, filename: str) -> None:
+                self.model_filename = filename
+
+            def to_dict(self) -> dict[str, object]:
+                return {"model_filename": self.model_filename, "valid": True}
+
+        plugins = tuple(
+            Plugin(filename) for filename in BUNDLED_CMB_MODEL_FILENAMES
+        )
+        audits = tuple(
+            Audit(filename) for filename in BUNDLED_CMB_MODEL_FILENAMES
+        )
+
+        def fixture_run(plugin, **_kwargs):
+            """Return raw fixed-point evidence without executing CCMBS."""
+
+            return self._corpus_fixture_report(plugin.MODEL_FILENAME)
+
+        with (
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "discover_bundled_cmb_plugins",
+                return_value=plugins,
+            ),
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "audit_bundled_cmb_contracts",
+                return_value=audits,
+            ),
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "audit_bundled_cmb_source_graphs",
+                return_value=audits,
+            ),
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "run_cmb_model_diagnostic",
+                side_effect=fixture_run,
+            ) as runner,
+        ):
+            partial = run_bundled_cmb_corpus_baseline(
+                usmf2_progression=CMB_USMF2_BASELINE_TIERS[:1]
+            )
+            complete = run_bundled_cmb_corpus_baseline()
+
+        partial_row = next(
+            row
+            for row in partial["rows"]
+            if row["model_filename"] == "model_usmf2.yml"
+        )
+        complete_row = next(
+            row
+            for row in complete["rows"]
+            if row["model_filename"] == "model_usmf2.yml"
+        )
+        self.assertTrue(partial["complete"])
+        self.assertFalse(partial["decision_complete"])
+        self.assertEqual(partial_row["decision"], "unclassified")
+        self.assertEqual(partial_row["completion_state"], "incomplete")
+        self.assertEqual(
+            len(partial_row["decision_context"]["remaining_tiers"]),
+            2,
+        )
+        self.assertNotIn("timeout", str(partial_row).lower())
+        self.assertTrue(complete["complete"])
+        self.assertTrue(complete["decision_complete"])
+        self.assertEqual(complete_row["decision"], "rejected")
+        self.assertEqual(complete_row["completion_state"], "completed")
+        self.assertEqual(len(complete_row["progression"]), 3)
+        self.assertEqual(runner.call_count, 22)
+
     def test_discovery_covers_every_bundled_cmb_model(self) -> None:
         """The harness must enumerate the complete bundled CMB corpus."""
 
@@ -137,6 +433,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertEqual(set(report.raw_spectra), {"TT", "TE", "EE"})
         self.assertTrue(report.raw_transfer_components)
         self.assertIn("k_sample_count", report.runtime_envelope)
+        self.assertIn(
+            "source_history_residual_samples_by_k",
+            report.runtime_envelope,
+        )
         self.assertEqual(report.refinement["base_count"], 8)
         self.assertEqual(report.refinement["refined_count"], 16)
         self.assertEqual(report.refinement["declared_base_count"], 8)
@@ -144,6 +444,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertIn("metrics", report.refinement)
         serialized = report.to_dict()
         self.assertTrue(serialized["raw_transfer_components"])
+        self.assertTrue(serialized["cache_identity"]["base"]["available"])
+        self.assertTrue(serialized["cache_identity"]["refined"]["available"])
         self.assertEqual(serialized["success"], False)
 
     def test_bundled_contract_audit_is_complete_and_consistent(self) -> None:

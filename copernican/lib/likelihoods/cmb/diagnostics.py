@@ -25,6 +25,7 @@ from .contracts_audit import (
     audit_bundled_cmb_source_graphs,
 )
 from .errors import CMBError, ConvergenceError
+from .runtime import cache
 from .runtime.projection import _compute_custom_cmb_spectrum_data
 
 _DEFAULT_SPECTRA = ("TT", "TE", "EE")
@@ -64,6 +65,60 @@ CMB_CERTIFICATION_TIER = {
     "refine_wave_number_grid": True,
     "numerical_overrides": {"k_sample_count": 1024},
 }
+
+# The baseline deliberately predates final scientific certification.  It is
+# one named, fixed, direct request that records the corpus' pre-repair state,
+# including rejected and unfinished outcomes, without turning either into a
+# passing result.  ``eta_sample_count`` is explicit because a k-only label
+# cannot describe the source history used to make the projected spectra.
+CMB_CORPUS_BASELINE_REQUEST = {
+    "schema_version": 1,
+    "id": "ccmbs-corpus-baseline-v1",
+    "parameter_source": "model_initial_guesses",
+    "ells": tuple(range(2, 301)),
+    "spectra": _DEFAULT_SPECTRA,
+    "numerical_overrides": {
+        "k_sample_count": 1024,
+        "eta_sample_count": 192,
+    },
+    "source_anchor_policy": "quartiles-plus-visibility-peak-v1",
+    "refinement": {
+        "axis": "k_sample_count",
+        "factor": 2,
+        "required": True,
+    },
+}
+
+# USMF2 is run through finite, node-count-defined tiers.  The progression has
+# no time-based exit: a caller that provides only a prefix receives an honest
+# ``unclassified`` record with the remaining declared work, never a timeout
+# relabelled as model unavailability.
+CMB_USMF2_BASELINE_TIERS = (
+    {
+        "id": "usmf2-baseline-probe-v1",
+        "numerical_overrides": {
+            "k_sample_count": 64,
+            "eta_sample_count": 192,
+        },
+        "refine_wave_number_grid": False,
+    },
+    {
+        "id": "usmf2-baseline-intermediate-v1",
+        "numerical_overrides": {
+            "k_sample_count": 256,
+            "eta_sample_count": 192,
+        },
+        "refine_wave_number_grid": False,
+    },
+    {
+        "id": "usmf2-baseline-request-v1",
+        "numerical_overrides": {
+            "k_sample_count": 1024,
+            "eta_sample_count": 192,
+        },
+        "refine_wave_number_grid": True,
+    },
+)
 
 _AUTO_REFERENCE_SPECTRA = {
     "TT",
@@ -1141,6 +1196,51 @@ def _unavailable_report(
     )
 
 
+def _cache_identity_payload() -> dict[str, Any]:
+    """Return a path-free, stable record of the latest CCMBS cache key.
+
+    Runtime cache keys may contain compiled callables and large frozen
+    contracts, so serializing their ``repr`` would both leak implementation
+    details and make reports needlessly large.  The payload hashes each
+    semantic key component and preserves the selected solver identity.  It is
+    therefore sufficient to prove which direct base/refined requests were
+    distinct without exposing a machine-local representation.
+    """
+
+    identity = cache.latest_cmb_request_identity()
+    if identity is None:
+        return {
+            "available": False,
+            "identity_schema": "ccmbs-runtime-cache-identity-sha256-v1",
+            "reason": "CCMBS did not publish a spectrum cache identity",
+        }
+    components = {
+        "contract_static": repr(identity.contract_static),
+        "model_static": repr(identity.model_static),
+        "request_specific": repr(identity.request_specific),
+        "execution_solver": str(identity.execution_solver),
+    }
+    payload = {
+        "available": True,
+        "identity_schema": "ccmbs-runtime-cache-identity-sha256-v1",
+        "contract_static_sha256": hashlib.sha256(
+            components["contract_static"].encode("utf-8")
+        ).hexdigest(),
+        "model_static_sha256": hashlib.sha256(
+            components["model_static"].encode("utf-8")
+        ).hexdigest(),
+        "request_specific_sha256": hashlib.sha256(
+            components["request_specific"].encode("utf-8")
+        ).hexdigest(),
+        "execution_solver": components["execution_solver"],
+    }
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    payload["sha256"] = hashlib.sha256(canonical).hexdigest()
+    return payload
+
+
 def _relative_error(reference: Any, refined: Any) -> float:
     """Return a scale-safe maximum relative difference between arrays."""
 
@@ -1175,12 +1275,13 @@ class CMBModelDiagnostic:
     reference_comparison: Mapping[str, Any] = field(default_factory=dict)
     availability: str = "measured"
     contract_identity: Mapping[str, Any] = field(default_factory=dict)
+    cache_identity: Mapping[str, Any] = field(default_factory=dict)
     scalar_batch_evidence: Mapping[str, Any] = field(default_factory=dict)
     cache_isolation_evidence: Mapping[str, Any] = field(default_factory=dict)
     failure: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
-        """Validate the explicit measured/unavailable matrix state."""
+        """Validate the explicit measured, rejected, or unavailable state."""
 
         availability = str(self.availability).lower()
         if availability not in {"measured", "unavailable", "rejected"}:
@@ -1201,6 +1302,7 @@ class CMBModelDiagnostic:
 
         return {
             "availability": self.availability,
+            "cache_identity": _jsonable(self.cache_identity),
             "cache_isolation_evidence": _jsonable(
                 self.cache_isolation_evidence
             ),
@@ -1224,6 +1326,621 @@ class CMBModelDiagnostic:
             "spectra": _jsonable(self.spectra),
             "success": self.success,
         }
+
+
+def _canonical_sha256(payload: Any) -> str:
+    """Return the canonical SHA-256 digest for JSON diagnostic evidence."""
+
+    canonical = json.dumps(
+        _jsonable(payload), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _positive_node_count(value: Any, *, field_name: str) -> int:
+    """Normalize one explicit numerical node count for a baseline request."""
+
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a positive integer")
+    try:
+        count = int(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{field_name} must be a positive integer") from error
+    if count < 1 or count != value:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return count
+
+
+def _normalize_corpus_baseline_request(
+    request: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Validate the versioned direct request shared by the frozen corpus."""
+
+    supplied = dict(request or {})
+    unknown_fields = sorted(set(supplied) - set(CMB_CORPUS_BASELINE_REQUEST))
+    if unknown_fields:
+        raise ValueError(
+            "Corpus baseline request has unknown fields: "
+            + ", ".join(unknown_fields)
+        )
+    for field_name, expected_fields in (
+        ("numerical_overrides", {"k_sample_count", "eta_sample_count"}),
+        ("refinement", {"axis", "factor", "required"}),
+    ):
+        supplied_fields = supplied.get(field_name, {}) or {}
+        if not isinstance(supplied_fields, Mapping):
+            raise ValueError(f"Corpus baseline {field_name} must be a mapping")
+        unexpected_fields = sorted(set(supplied_fields) - expected_fields)
+        if unexpected_fields:
+            raise ValueError(
+                f"Corpus baseline {field_name} has unknown fields: "
+                + ", ".join(unexpected_fields)
+            )
+    normalized = dict(CMB_CORPUS_BASELINE_REQUEST)
+    normalized.update(supplied)
+    numerical = dict(CMB_CORPUS_BASELINE_REQUEST["numerical_overrides"])
+    numerical.update(supplied.get("numerical_overrides", {}) or {})
+    refinement = dict(CMB_CORPUS_BASELINE_REQUEST["refinement"])
+    refinement.update(supplied.get("refinement", {}) or {})
+    requested_ells = tuple(int(value) for value in normalized["ells"])
+    if (
+        not requested_ells
+        or requested_ells[0] < 2
+        or any(
+            later <= earlier
+            for earlier, later in zip(requested_ells, requested_ells[1:])
+        )
+    ):
+        raise ValueError(
+            "Corpus baseline multipoles must be increasing integers from "
+            "ell=2"
+        )
+    requested_spectra = tuple(
+        str(value).upper() for value in normalized["spectra"]
+    )
+    if requested_spectra != _DEFAULT_SPECTRA:
+        raise ValueError(
+            "Corpus baseline must request ordered TT, TE, and EE spectra"
+        )
+    if int(normalized.get("schema_version", 0)) != 1:
+        raise ValueError("Corpus baseline request schema_version must be 1")
+    if not str(normalized.get("id", "")).strip():
+        raise ValueError("Corpus baseline request must define a versioned id")
+    if normalized.get("parameter_source") != "model_initial_guesses":
+        raise ValueError(
+            "Corpus baseline parameters must use model_initial_guesses"
+        )
+    if (
+        normalized.get("source_anchor_policy")
+        != "quartiles-plus-visibility-peak-v1"
+    ):
+        raise ValueError(
+            "Corpus baseline must use the declared source-anchor policy"
+        )
+    if refinement.get("axis") != "k_sample_count":
+        raise ValueError("Corpus baseline refinement must use k_sample_count")
+    if (
+        _positive_node_count(
+            refinement.get("factor"), field_name="refinement.factor"
+        )
+        != 2
+    ):
+        raise ValueError("Corpus baseline refinement factor must equal 2")
+    if refinement.get("required") is not True:
+        raise ValueError(
+            "Corpus baseline must require doubled-grid refinement"
+        )
+    normalized_numerical = {
+        "k_sample_count": _positive_node_count(
+            numerical.get("k_sample_count"),
+            field_name="numerical_overrides.k_sample_count",
+        ),
+        "eta_sample_count": _positive_node_count(
+            numerical.get("eta_sample_count"),
+            field_name="numerical_overrides.eta_sample_count",
+        ),
+    }
+    result = {
+        "schema_version": 1,
+        "id": str(normalized["id"]),
+        "parameter_source": "model_initial_guesses",
+        "ells": requested_ells,
+        "spectra": requested_spectra,
+        "numerical_overrides": normalized_numerical,
+        "source_anchor_policy": "quartiles-plus-visibility-peak-v1",
+        "refinement": {
+            "axis": "k_sample_count",
+            "factor": 2,
+            "required": True,
+        },
+    }
+    frozen = {
+        "schema_version": 1,
+        "id": str(CMB_CORPUS_BASELINE_REQUEST["id"]),
+        "parameter_source": "model_initial_guesses",
+        "ells": tuple(CMB_CORPUS_BASELINE_REQUEST["ells"]),
+        "spectra": tuple(CMB_CORPUS_BASELINE_REQUEST["spectra"]),
+        "numerical_overrides": {
+            "k_sample_count": int(
+                CMB_CORPUS_BASELINE_REQUEST["numerical_overrides"][
+                    "k_sample_count"
+                ]
+            ),
+            "eta_sample_count": int(
+                CMB_CORPUS_BASELINE_REQUEST["numerical_overrides"][
+                    "eta_sample_count"
+                ]
+            ),
+        },
+        "source_anchor_policy": "quartiles-plus-visibility-peak-v1",
+        "refinement": {
+            "axis": "k_sample_count",
+            "factor": 2,
+            "required": True,
+        },
+    }
+    if result != frozen:
+        raise ValueError(
+            "Corpus baseline request is fixed; use the named v1 request"
+        )
+    return result
+
+
+def _normalize_usmf2_baseline_tiers(
+    tiers: Iterable[Mapping[str, Any]] | None,
+    *,
+    baseline_request: Mapping[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    """Validate finite USMF2 work tiers without introducing time limits."""
+
+    canonical_tiers = tuple(CMB_USMF2_BASELINE_TIERS)
+    values = tuple(canonical_tiers if tiers is None else tuple(tiers))
+    if not values:
+        raise ValueError("USMF2 baseline progression must contain a tier")
+    if len(values) > len(canonical_tiers):
+        raise ValueError("USMF2 baseline progression exceeds the named tiers")
+    identifiers: set[str] = set()
+    normalized: list[dict[str, Any]] = []
+    for position, value in enumerate(values, start=1):
+        if not isinstance(value, Mapping):
+            raise ValueError("USMF2 baseline tiers must be mappings")
+        identifier = str(value.get("id", "")).strip()
+        if not identifier or identifier in identifiers:
+            raise ValueError("USMF2 baseline tier ids must be unique")
+        canonical_tier = canonical_tiers[position - 1]
+        if identifier != str(canonical_tier["id"]):
+            raise ValueError(
+                "USMF2 baseline tiers must be an ordered prefix of the "
+                "named progression"
+            )
+        identifiers.add(identifier)
+        overrides = dict(baseline_request["numerical_overrides"])
+        overrides.update(value.get("numerical_overrides", {}) or {})
+        normalized_tier = {
+            "position": position,
+            "id": identifier,
+            "numerical_overrides": {
+                "k_sample_count": _positive_node_count(
+                    overrides.get("k_sample_count"),
+                    field_name=("USMF2 " f"tier {identifier} k_sample_count"),
+                ),
+                "eta_sample_count": _positive_node_count(
+                    overrides.get("eta_sample_count"),
+                    field_name=(
+                        "USMF2 " f"tier {identifier} eta_sample_count"
+                    ),
+                ),
+            },
+            "refine_wave_number_grid": bool(
+                value.get("refine_wave_number_grid", False)
+            ),
+        }
+        expected_overrides = dict(baseline_request["numerical_overrides"])
+        expected_overrides.update(canonical_tier["numerical_overrides"])
+        expected_refinement = bool(canonical_tier["refine_wave_number_grid"])
+        if (
+            normalized_tier["numerical_overrides"] != expected_overrides
+            or normalized_tier["refine_wave_number_grid"]
+            != expected_refinement
+        ):
+            raise ValueError(
+                "USMF2 baseline tiers must retain the named node counts and "
+                "refinement settings"
+            )
+        normalized.append(normalized_tier)
+    return tuple(normalized)
+
+
+def _baseline_projection_metadata(
+    report: CMBModelDiagnostic,
+) -> dict[str, Any]:
+    """Extract the declared and effective pre-plot projection metadata."""
+
+    envelope = report.runtime_envelope
+    keys = (
+        "configured_numerical_controls",
+        "effective_numerical_controls",
+        "declared_k_sample_count",
+        "k_grid_actual_count",
+        "dynamic_mode_count",
+        "phase_aware_k_enabled",
+        "phase_required_nodes",
+        "phase_grid_status",
+        "source_grid_count",
+        "declared_source_history_convergence",
+        "source_history_mode_count",
+        "source_history_cache_hit_count",
+        "source_history_cache_miss_count",
+    )
+    return {key: _jsonable(envelope[key]) for key in keys if key in envelope}
+
+
+def _baseline_source_history_metadata(
+    report: CMBModelDiagnostic,
+) -> dict[str, Any]:
+    """Index raw source-history samples retained by the nested report."""
+
+    envelope = report.runtime_envelope
+    histories = envelope.get("source_history_residual_samples_by_k", {})
+    if not isinstance(histories, Mapping):
+        histories = {}
+    sample_count = 0
+    for values in histories.values():
+        if isinstance(values, Mapping):
+            sample_count += int(values.get("sample_count", 0))
+    return {
+        "available": bool(histories),
+        "raw_data_path": (
+            "diagnostic.runtime_envelope."
+            "source_history_residual_samples_by_k"
+        ),
+        "sample_schema": envelope.get("source_history_residual_sample_schema"),
+        "mode_count": len(histories),
+        "sample_count": sample_count,
+    }
+
+
+def _baseline_work_estimate(
+    baseline_request: Mapping[str, Any],
+    *,
+    report: CMBModelDiagnostic | None = None,
+) -> dict[str, Any]:
+    """Describe finite numerical work in grid products, never wall time."""
+
+    controls = dict(baseline_request["numerical_overrides"])
+    if report is not None:
+        effective = report.runtime_envelope.get(
+            "effective_numerical_controls", {}
+        )
+        if isinstance(effective, Mapping):
+            controls.update(
+                {
+                    name: effective[name]
+                    for name in ("k_sample_count", "eta_sample_count")
+                    if name in effective
+                }
+            )
+    k_count = _positive_node_count(
+        controls["k_sample_count"], field_name="work k_sample_count"
+    )
+    eta_count = _positive_node_count(
+        controls["eta_sample_count"], field_name="work eta_sample_count"
+    )
+    ell_count = len(tuple(baseline_request["ells"]))
+    spectrum_count = len(tuple(baseline_request["spectra"]))
+    source_anchor_count = 6
+    refinement = dict(baseline_request["refinement"])
+
+    def _work_for_nodes(nodes: int) -> dict[str, int]:
+        """Return lower-bound grid products for one direct solve tier."""
+
+        evolution_cells = nodes * eta_count
+        projection_cells = nodes * ell_count * spectrum_count
+        anchor_values = nodes * source_anchor_count
+        return {
+            "k_mode_count": nodes,
+            "eta_nodes_per_mode": eta_count,
+            "evolution_grid_cells": evolution_cells,
+            "projection_surface_cells": projection_cells,
+            "source_anchor_values": anchor_values,
+            "lower_bound_work_units": (
+                evolution_cells + projection_cells + anchor_values
+            ),
+        }
+
+    base = _work_for_nodes(k_count)
+    refined = None
+    total = int(base["lower_bound_work_units"])
+    if refinement["required"]:
+        refined = _work_for_nodes(k_count * int(refinement["factor"]))
+        total += int(refined["lower_bound_work_units"])
+    return {
+        "schema_version": 1,
+        "unit": "grid_product_lower_bound",
+        "not_a_wall_clock_estimate": True,
+        "source_anchor_policy": baseline_request["source_anchor_policy"],
+        "base": base,
+        "refined": refined,
+        "total_lower_bound_work_units": total,
+    }
+
+
+def _baseline_decision(report: CMBModelDiagnostic) -> str:
+    """Map a completed direct diagnostic to one honest baseline decision."""
+
+    if report.availability == "unavailable":
+        return "unavailable"
+    if report.failure is None and report.availability == "measured":
+        return "accepted"
+    return "rejected"
+
+
+@dataclass(frozen=True, slots=True)
+class CMBCorpusBaselineRow:
+    """One canonical pre-repair CCMBS corpus measurement record.
+
+    The nested diagnostic retains raw source histories and spectra.  The row
+    adds corpus-level audits, request identity, bounded work metadata, and the
+    explicit decision vocabulary needed to distinguish an unfinished USMF2
+    request from a solver or model failure.
+    """
+
+    model_filename: str
+    model_name: str
+    decision: str
+    diagnostic: CMBModelDiagnostic
+    contract_audit: Mapping[str, Any] = field(default_factory=dict)
+    source_graph_audit: Mapping[str, Any] = field(default_factory=dict)
+    request_identity: Mapping[str, Any] = field(default_factory=dict)
+    projection_metadata: Mapping[str, Any] = field(default_factory=dict)
+    source_history_metadata: Mapping[str, Any] = field(default_factory=dict)
+    work_estimate: Mapping[str, Any] = field(default_factory=dict)
+    completion_state: str = "completed"
+    progression: Sequence[Mapping[str, Any]] = field(default_factory=tuple)
+    decision_context: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Keep completion state and baseline decision vocabulary aligned."""
+
+        decision = str(self.decision).lower()
+        if decision not in {
+            "accepted",
+            "rejected",
+            "unavailable",
+            "unclassified",
+        }:
+            raise ValueError("Corpus baseline decision is invalid")
+        completion_state = str(self.completion_state).lower()
+        if completion_state not in {"completed", "incomplete"}:
+            raise ValueError("Corpus baseline completion state is invalid")
+        if (decision == "unclassified") != (completion_state == "incomplete"):
+            raise ValueError(
+                "Unclassified baseline rows must have incomplete execution"
+            )
+        if self.model_filename != self.diagnostic.model_filename:
+            raise ValueError(
+                "Corpus baseline row and diagnostic filenames must match"
+            )
+        object.__setattr__(self, "decision", decision)
+        object.__setattr__(self, "completion_state", completion_state)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return one hashable row with raw evidence nested exactly once."""
+
+        record: dict[str, Any] = {
+            "model_filename": self.model_filename,
+            "model_name": self.model_name,
+            "decision": self.decision,
+            "completion_state": self.completion_state,
+            "decision_context": _jsonable(self.decision_context),
+            "request_identity": _jsonable(self.request_identity),
+            "contract_audit": _jsonable(self.contract_audit),
+            "source_graph_audit": _jsonable(self.source_graph_audit),
+            "projection_metadata": _jsonable(self.projection_metadata),
+            "source_history_metadata": _jsonable(self.source_history_metadata),
+            "work_estimate": _jsonable(self.work_estimate),
+            "progression": _jsonable(self.progression),
+            "diagnostic": self.diagnostic.to_dict(),
+        }
+        record["row_sha256"] = _canonical_sha256(record)
+        return record
+
+
+def _baseline_evidence_issues(
+    row: CMBCorpusBaselineRow,
+    *,
+    baseline_request: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """Identify missing baseline evidence without reclassifying an outcome."""
+
+    issues: list[str] = []
+    report = row.diagnostic
+    if row.decision in {"accepted", "rejected"}:
+        required = set(baseline_request["spectra"])
+        missing_raw = sorted(required - set(report.raw_spectra))
+        missing_public = sorted(required - set(report.spectra))
+        if missing_raw:
+            issues.append("missing raw spectra: " + ", ".join(missing_raw))
+        if missing_public:
+            issues.append(
+                "missing public spectra: " + ", ".join(missing_public)
+            )
+        if not report.raw_transfer_components:
+            issues.append("missing raw transfer components")
+        if not bool(row.source_history_metadata.get("available", False)):
+            issues.append("missing raw source-history samples")
+        if not report.source_residual_audit:
+            issues.append("missing source residual vectors")
+        metadata = row.projection_metadata
+        if "configured_numerical_controls" not in metadata:
+            issues.append("missing configured numerical controls")
+        if "effective_numerical_controls" not in metadata:
+            issues.append("missing effective numerical controls")
+        base_identity = report.cache_identity.get("base", {})
+        if not bool(base_identity.get("available", False)):
+            issues.append("missing base cache identity")
+        if baseline_request["refinement"]["required"]:
+            refined_identity = report.cache_identity.get("refined", {})
+            if not bool(refined_identity.get("available", False)):
+                issues.append("missing refined cache identity")
+    elif row.decision == "unavailable" and report.failure is None:
+        issues.append("unavailable row has no typed failure")
+    elif row.decision == "unclassified":
+        remaining = row.decision_context.get("remaining_tiers", ())
+        if not remaining:
+            issues.append("unclassified row has no remaining work record")
+    return tuple(issues)
+
+
+def _baseline_row_order_key(
+    row: CMBCorpusBaselineRow,
+) -> tuple[str, str]:
+    """Sort a row by filename and its canonical evidence digest."""
+
+    return row.model_filename, str(row.to_dict()["row_sha256"])
+
+
+def build_cmb_corpus_baseline_report(
+    rows: Iterable[CMBCorpusBaselineRow],
+    *,
+    baseline_request: Mapping[str, Any] | None = None,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    discovered_model_filenames: Iterable[str] | None = None,
+) -> dict[str, Any]:
+    """Build the deterministic ten-row pre-repair CCMBS baseline report.
+
+    Structural completeness means every frozen filename has one row.  It is
+    deliberately independent from scientific acceptance: rejected,
+    unavailable, and honestly unclassified rows remain part of the baseline
+    instead of disappearing from the digest.
+    """
+
+    request = _normalize_corpus_baseline_request(baseline_request)
+    expected_values = tuple(str(value) for value in required_model_filenames)
+    expected_duplicates = tuple(
+        sorted(
+            name
+            for name in set(expected_values)
+            if expected_values.count(name) > 1
+        )
+    )
+    expected = tuple(dict.fromkeys(expected_values))
+    ordered_rows = tuple(sorted(rows, key=_baseline_row_order_key))
+    seen_values = tuple(row.model_filename for row in ordered_rows)
+    seen = set(seen_values)
+    duplicate_models = tuple(
+        sorted(name for name in seen if seen_values.count(name) > 1)
+    )
+    missing_models = tuple(sorted(set(expected) - seen))
+    unexpected_models = tuple(sorted(seen - set(expected)))
+    discovered = tuple(
+        sorted(
+            str(value)
+            for value in (
+                expected
+                if discovered_model_filenames is None
+                else discovered_model_filenames
+            )
+        )
+    )
+    discovery_missing = tuple(sorted(set(expected) - set(discovered)))
+    discovery_unexpected = tuple(sorted(set(discovered) - set(expected)))
+    records: list[dict[str, Any]] = []
+    outcome_counts = {
+        "accepted": 0,
+        "rejected": 0,
+        "unavailable": 0,
+        "unclassified": 0,
+    }
+    for row in ordered_rows:
+        record = row.to_dict()
+        evidence_issues = _baseline_evidence_issues(
+            row,
+            baseline_request=request,
+        )
+        record["evidence_complete"] = not evidence_issues
+        record["evidence_issues"] = list(evidence_issues)
+        records.append(record)
+        outcome_counts[row.decision] += 1
+    complete = (
+        not expected_duplicates
+        and not duplicate_models
+        and not missing_models
+        and not unexpected_models
+        and not discovery_missing
+        and not discovery_unexpected
+        and len(ordered_rows) == len(expected)
+    )
+    evidence_complete = bool(
+        complete and all(record["evidence_complete"] for record in records)
+    )
+    decision_complete = bool(complete and not outcome_counts["unclassified"])
+    record: dict[str, Any] = {
+        "schema_version": 1,
+        "kind": "ccmbs_corpus_pre_repair_baseline",
+        "baseline_request": _jsonable(request),
+        "baseline_request_sha256": _canonical_sha256(request),
+        "required_model_filenames": list(expected),
+        "discovered_model_filenames": list(discovered),
+        "missing_models": list(missing_models),
+        "unexpected_models": list(unexpected_models),
+        "duplicate_models": list(duplicate_models),
+        "required_model_duplicates": list(expected_duplicates),
+        "discovery_missing_models": list(discovery_missing),
+        "discovery_unexpected_models": list(discovery_unexpected),
+        "complete": complete,
+        "evidence_complete": evidence_complete,
+        "decision_complete": decision_complete,
+        "outcome_counts": outcome_counts,
+        "accepted_models": [
+            row.model_filename
+            for row in ordered_rows
+            if row.decision == "accepted"
+        ],
+        "rejected_models": [
+            row.model_filename
+            for row in ordered_rows
+            if row.decision == "rejected"
+        ],
+        "unavailable_models": [
+            row.model_filename
+            for row in ordered_rows
+            if row.decision == "unavailable"
+        ],
+        "unclassified_models": [
+            row.model_filename
+            for row in ordered_rows
+            if row.decision == "unclassified"
+        ],
+        "rows": records,
+    }
+    record["record_sha256"] = _canonical_sha256(record)
+    return record
+
+
+def write_cmb_corpus_baseline_report(
+    rows: Iterable[CMBCorpusBaselineRow],
+    destination: str | Path,
+    *,
+    baseline_request: Mapping[str, Any] | None = None,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    discovered_model_filenames: Iterable[str] | None = None,
+) -> dict[str, Any]:
+    """Write one canonical pre-repair corpus baseline JSON record."""
+
+    record = build_cmb_corpus_baseline_report(
+        rows,
+        baseline_request=baseline_request,
+        required_model_filenames=required_model_filenames,
+        discovered_model_filenames=discovered_model_filenames,
+    )
+    path = Path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return record
 
 
 def _certification_evidence_status(
@@ -1561,6 +2278,8 @@ def run_cmb_model_diagnostic(
             requested_spectra=requested_spectra,
             workload="fixed_parameter_diagnostic",
         )
+        base_cache_identity = _cache_identity_payload()
+        refined_cache_identity: Mapping[str, Any] | None = None
         # The raw CCMBS result contains dimensionless C_ell products. Apply
         # the same deterministic public normalization as the solver without
         # evolving every mode a second time.
@@ -1615,6 +2334,7 @@ def run_cmb_model_diagnostic(
                 requested_spectra=requested_spectra,
                 workload="fixed_parameter_diagnostic_refinement",
             )
+            refined_cache_identity = _cache_identity_payload()
             refined_raw_spectra = refined_raw_data.spectra
             if not isinstance(refined_raw_spectra, Mapping):
                 refined_raw_spectra = {
@@ -1764,6 +2484,10 @@ def run_cmb_model_diagnostic(
             reference_comparison=reference_comparison,
             availability="rejected" if failure is not None else "measured",
             contract_identity=contract_identity,
+            cache_identity={
+                "base": base_cache_identity,
+                "refined": refined_cache_identity,
+            },
             failure=failure,
         )
     except (
@@ -2293,21 +3017,338 @@ def run_bundled_cmb_diagnostics(
     return tuple(reports)
 
 
+def _build_corpus_baseline_row(
+    report: CMBModelDiagnostic,
+    *,
+    baseline_request: Mapping[str, Any],
+    contract_audit: Mapping[str, Any] | None,
+    source_graph_audit: Mapping[str, Any] | None,
+    decision: str | None = None,
+    completion_state: str = "completed",
+    progression: Sequence[Mapping[str, Any]] = (),
+    decision_context: Mapping[str, Any] | None = None,
+) -> CMBCorpusBaselineRow:
+    """Attach corpus-level evidence to one direct diagnostic report."""
+
+    context = {
+        "reported_availability": report.availability,
+        "typed_failure": _jsonable(report.failure),
+    }
+    context.update(decision_context or {})
+    request_identity = {
+        "baseline_request_sha256": _canonical_sha256(baseline_request),
+        "parameter_source": baseline_request["parameter_source"],
+        "parameter_names": list(report.parameter_names),
+        "parameter_values": list(report.parameter_values),
+    }
+    return CMBCorpusBaselineRow(
+        model_filename=report.model_filename,
+        model_name=report.model_name,
+        decision=decision or _baseline_decision(report),
+        diagnostic=report,
+        contract_audit=dict(contract_audit or {}),
+        source_graph_audit=dict(source_graph_audit or {}),
+        request_identity=request_identity,
+        projection_metadata=_baseline_projection_metadata(report),
+        source_history_metadata=_baseline_source_history_metadata(report),
+        work_estimate=_baseline_work_estimate(
+            baseline_request,
+            report=report,
+        ),
+        completion_state=completion_state,
+        progression=tuple(progression),
+        decision_context=context,
+    )
+
+
+def _missing_corpus_baseline_report(
+    filename: str,
+    *,
+    baseline_request: Mapping[str, Any],
+) -> CMBModelDiagnostic:
+    """Represent a missing frozen corpus plugin as a typed unavailable row."""
+
+    return CMBModelDiagnostic(
+        model_filename=filename,
+        model_name=filename,
+        parameter_names=(),
+        parameter_values=(),
+        requested_ells=tuple(baseline_request["ells"]),
+        requested_spectra=tuple(baseline_request["spectra"]),
+        availability="unavailable",
+        failure={
+            "error_type": "CorpusDiscoveryError",
+            "category": "unavailable",
+            "message": "Frozen CMB corpus model was not discovered",
+        },
+    )
+
+
+def _tier_baseline_request(
+    baseline_request: Mapping[str, Any],
+    tier: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind one USMF2 tier to the common baseline dimensions."""
+
+    tier_request = dict(baseline_request)
+    tier_request["numerical_overrides"] = dict(tier["numerical_overrides"])
+    tier_request["refinement"] = {
+        "axis": "k_sample_count",
+        "factor": 2,
+        "required": bool(tier["refine_wave_number_grid"]),
+    }
+    return tier_request
+
+
+def _completed_usmf2_progression(
+    completed_tiers: Sequence[Mapping[str, Any]],
+    required_tiers: Sequence[Mapping[str, Any]],
+) -> bool:
+    """Return whether a progression executed every named USMF2 tier."""
+
+    return tuple(tier["id"] for tier in completed_tiers) == tuple(
+        tier["id"] for tier in required_tiers
+    )
+
+
+def _run_usmf2_corpus_baseline(
+    plugin: Any,
+    *,
+    baseline_request: Mapping[str, Any],
+    tiers: Sequence[Mapping[str, Any]],
+    required_tiers: Sequence[Mapping[str, Any]],
+    contract_audit: Mapping[str, Any] | None,
+    source_graph_audit: Mapping[str, Any] | None,
+) -> CMBCorpusBaselineRow:
+    """Measure USMF2 by finite tiers and preserve incomplete obligations."""
+
+    progression: list[dict[str, Any]] = []
+    terminal_report: CMBModelDiagnostic | None = None
+    for tier in tiers:
+        tier_request = _tier_baseline_request(baseline_request, tier)
+        try:
+            report = run_cmb_model_diagnostic(
+                plugin,
+                ells=baseline_request["ells"],
+                spectra=baseline_request["spectra"],
+                numerical_overrides=tier["numerical_overrides"],
+                refine_wave_number_grid=bool(tier["refine_wave_number_grid"]),
+                matrix_fast_path=True,
+            )
+        except (
+            ArithmeticError,
+            AttributeError,
+            CMBError,
+            KeyError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as error:
+            report = _unavailable_report(
+                plugin,
+                requested_ells=tuple(baseline_request["ells"]),
+                requested_spectra=tuple(baseline_request["spectra"]),
+                error_type=type(error).__name__,
+                message=str(error),
+            )
+        terminal_report = report
+        progression.append(
+            {
+                "position": int(tier["position"]),
+                "id": str(tier["id"]),
+                "numerical_overrides": _jsonable(tier["numerical_overrides"]),
+                "refine_wave_number_grid": bool(
+                    tier["refine_wave_number_grid"]
+                ),
+                "completion_state": "completed",
+                "decision": _baseline_decision(report),
+                "work_estimate": _baseline_work_estimate(tier_request),
+                "typed_failure": _jsonable(report.failure),
+                "diagnostic_sha256": _canonical_sha256(report.to_dict()),
+            }
+        )
+    if terminal_report is None:  # pragma: no cover - tier validation guards it
+        raise ValueError("USMF2 baseline progression did not execute a tier")
+    if _completed_usmf2_progression(tiers, required_tiers):
+        return _build_corpus_baseline_row(
+            terminal_report,
+            baseline_request=baseline_request,
+            contract_audit=contract_audit,
+            source_graph_audit=source_graph_audit,
+            progression=progression,
+            decision_context={
+                "progression_complete": True,
+                "remaining_tiers": (),
+            },
+        )
+    remaining_tiers = tuple(
+        {
+            "position": int(tier["position"]),
+            "id": str(tier["id"]),
+            "numerical_overrides": _jsonable(tier["numerical_overrides"]),
+            "refine_wave_number_grid": bool(tier["refine_wave_number_grid"]),
+            "work_estimate": _baseline_work_estimate(
+                _tier_baseline_request(baseline_request, tier)
+            ),
+        }
+        for tier in required_tiers[len(tiers) :]
+    )
+    return _build_corpus_baseline_row(
+        terminal_report,
+        baseline_request=baseline_request,
+        contract_audit=contract_audit,
+        source_graph_audit=source_graph_audit,
+        decision="unclassified",
+        completion_state="incomplete",
+        progression=progression,
+        decision_context={
+            "progression_complete": False,
+            "incomplete_reason": (
+                "The supplied USMF2 progression stopped before the named "
+                "corpus baseline request."
+            ),
+            "remaining_tiers": remaining_tiers,
+        },
+    )
+
+
+def run_bundled_cmb_corpus_baseline(
+    *,
+    model_directory: str | Path | None = None,
+    baseline_request: Mapping[str, Any] | None = None,
+    usmf2_progression: Iterable[Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run the direct pre-repair baseline once for every bundled CMB model.
+
+    This is intentionally separate from final matrix certification.  It runs
+    the common fixed request, attaches declaration and source-graph audits,
+    and records rejected or unfinished evidence without inventing a passing
+    scientific result.  USMF2 only becomes classified after the supplied
+    finite progression reaches the exact named baseline request.
+    """
+
+    request = _normalize_corpus_baseline_request(baseline_request)
+    tiers = _normalize_usmf2_baseline_tiers(
+        usmf2_progression,
+        baseline_request=request,
+    )
+    required_usmf2_tiers = _normalize_usmf2_baseline_tiers(
+        None,
+        baseline_request=request,
+    )
+    plugins = discover_bundled_cmb_plugins(model_directory)
+    discovered_filenames = tuple(
+        str(plugin.MODEL_FILENAME) for plugin in plugins
+    )
+    expected = (
+        BUNDLED_CMB_MODEL_FILENAMES
+        if model_directory is None
+        else tuple(sorted(discovered_filenames))
+    )
+    contract_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_contracts(model_directory)
+    }
+    source_graph_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_source_graphs(model_directory)
+    }
+    plugin_by_filename = {
+        str(plugin.MODEL_FILENAME): plugin for plugin in plugins
+    }
+    rows: list[CMBCorpusBaselineRow] = []
+    for filename in expected:
+        plugin = plugin_by_filename.get(filename)
+        if plugin is None:
+            report = _missing_corpus_baseline_report(
+                filename,
+                baseline_request=request,
+            )
+            rows.append(
+                _build_corpus_baseline_row(
+                    report,
+                    baseline_request=request,
+                    contract_audit=contract_audits.get(filename),
+                    source_graph_audit=source_graph_audits.get(filename),
+                )
+            )
+            continue
+        if filename == "model_usmf2.yml":
+            rows.append(
+                _run_usmf2_corpus_baseline(
+                    plugin,
+                    baseline_request=request,
+                    tiers=tiers,
+                    required_tiers=required_usmf2_tiers,
+                    contract_audit=contract_audits.get(filename),
+                    source_graph_audit=source_graph_audits.get(filename),
+                )
+            )
+            continue
+        try:
+            report = run_cmb_model_diagnostic(
+                plugin,
+                ells=request["ells"],
+                spectra=request["spectra"],
+                numerical_overrides=request["numerical_overrides"],
+                refine_wave_number_grid=bool(
+                    request["refinement"]["required"]
+                ),
+                matrix_fast_path=True,
+            )
+        except (
+            ArithmeticError,
+            AttributeError,
+            CMBError,
+            KeyError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as error:
+            report = _unavailable_report(
+                plugin,
+                requested_ells=tuple(request["ells"]),
+                requested_spectra=tuple(request["spectra"]),
+                error_type=type(error).__name__,
+                message=str(error),
+            )
+        rows.append(
+            _build_corpus_baseline_row(
+                report,
+                baseline_request=request,
+                contract_audit=contract_audits.get(filename),
+                source_graph_audit=source_graph_audits.get(filename),
+            )
+        )
+    return build_cmb_corpus_baseline_report(
+        rows,
+        baseline_request=request,
+        required_model_filenames=expected,
+        discovered_model_filenames=discovered_filenames,
+    )
+
+
 __all__ = [
     "BUNDLED_CMB_MODEL_FILENAMES",
     "CMB_CERTIFICATION_TIER",
+    "CMB_CORPUS_BASELINE_REQUEST",
+    "CMB_USMF2_BASELINE_TIERS",
+    "CMBCorpusBaselineRow",
     "CMBModelDiagnostic",
     "assess_scalar_batch_cache_evidence",
     "assess_acoustic_structure",
     "assess_physical_spectrum_shape",
     "audit_source_history_residuals",
     "build_bundled_cmb_matrix_report",
+    "build_cmb_corpus_baseline_report",
     "build_cmb_certification_report",
     "compare_cmb_spectra_to_reference",
     "discover_bundled_cmb_plugins",
     "run_bundled_cmb_matrix",
+    "run_bundled_cmb_corpus_baseline",
     "run_bundled_cmb_diagnostics",
     "run_cmb_model_diagnostic",
     "write_bundled_cmb_matrix_report",
+    "write_cmb_corpus_baseline_report",
     "write_cmb_certification_report",
 ]

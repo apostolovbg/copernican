@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-28
+**Last Updated:** 2026-08-29
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -234,7 +234,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [planned] Slice One — corpus baseline and USMF2 classification
+### [closed] Slice One — corpus baseline and USMF2 classification
 
 **Purpose:** Freeze a complete, bounded, deterministic pre-repair scientific
 baseline without treating an incomplete run as a model decision.
@@ -272,9 +272,12 @@ baseline without treating an incomplete run as a model decision.
 * Repeating the same completed diagnostic produces identical ordering and
   report identity.
 
-**Closure evidence:** A hashable ten-row baseline report records the exact
-request, source and projection metadata, each outcome, and the USMF2 decision
-or explicit unfinished measurement state.
+**Closure evidence:** `CMB_CORPUS_BASELINE_REQUEST` and
+`run_bundled_cmb_corpus_baseline()` now emit one canonical ten-row report with
+the frozen request, raw pre-plot data, source and projection metadata, cache
+identities, typed outcomes, and stable per-row/report digests. USMF2 tier
+prefixes remain explicitly `unclassified` with named remaining work; no
+wall-clock condition can convert unfinished work into `unavailable`.
 
 ### [planned] Slice Two — shared hierarchy and source closure
 
