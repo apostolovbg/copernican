@@ -5,11 +5,15 @@ from types import SimpleNamespace
 
 from copernican.lib.likelihoods.cmb.contracts_audit import (
     CMBContractAudit,
+    CMBModelDeclarationDecision,
     CMBSourceGraphAudit,
+    _audit_declaration_plugin,
     _audit_source_graph_plugin,
     assert_bundled_cmb_contracts,
+    assert_bundled_cmb_declarations,
     assert_bundled_cmb_source_graphs,
     audit_bundled_cmb_contracts,
+    audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
 )
 
@@ -66,6 +70,94 @@ class CMBContractAuditTestCase(unittest.TestCase):
                 if audit.generated_scalar_hierarchy
             )
         )
+
+    def test_bundled_declarations_have_explicit_theory_routes(self) -> None:
+        """Every bundle is classified without an LCDM surrogate route."""
+
+        decisions = audit_bundled_cmb_declarations()
+        self.assertEqual(len(decisions), 10)
+        assert_bundled_cmb_declarations(decisions)
+        self.assertTrue(
+            all(decision.decision == "ready" for decision in decisions)
+        )
+        self.assertEqual(
+            {decision.execution_route for decision in decisions},
+            {"generated_scalar_hierarchy", "explicit_scalar_graph"},
+        )
+        usmf2 = next(
+            decision
+            for decision in decisions
+            if decision.model_filename == "model_usmf2.yml"
+        )
+        self.assertEqual(usmf2.execution_route, "explicit_scalar_graph")
+        self.assertFalse(usmf2.generated_scalar_hierarchy)
+        self.assertEqual(usmf2.theory_specific_source_names, ())
+        qrsf = next(
+            decision
+            for decision in decisions
+            if decision.model_filename == "model_qrsf.yml"
+        )
+        self.assertEqual(
+            qrsf.theory_specific_source_names,
+            (
+                "qrsf_baryon_euler",
+                "qrsf_matter_density",
+                "qrsf_matter_momentum",
+            ),
+        )
+        self.assertTrue(qrsf.source_rationales)
+        self.assertTrue(
+            all(decision.to_dict()["valid"] for decision in decisions)
+        )
+
+    def test_explicit_route_rejects_missing_projection_source_role(
+        self,
+    ) -> None:
+        """An explicit graph cannot hide a missing temperature source."""
+
+        plugin = SimpleNamespace(
+            MODEL_FILENAME="broken-explicit.yml",
+            MODEL_NAME="Broken Explicit",
+            valid_for_cmb=True,
+            CMB_PERTURBATION_DATA=SimpleNamespace(
+                manifest_summary={"generated_scalar_hierarchy": False},
+                variables={"Phi": object(), "Psi": object()},
+                species={},
+                sources={
+                    "temperature_monopole": SimpleNamespace(
+                        role="monopole",
+                        description="Explicit monopole source",
+                    )
+                },
+            ),
+        )
+        contract = CMBContractAudit(
+            model_filename="broken-explicit.yml",
+            model_name="Broken Explicit",
+            valid_for_cmb=True,
+            contract_version=2,
+            gauge="conformal_newtonian",
+            sectors=("scalar",),
+            hierarchy_families=("photon_temperature",),
+            spectra=("EE", "TE", "TT"),
+        )
+        graph = CMBSourceGraphAudit(
+            model_filename="broken-explicit.yml",
+            generated_scalar_hierarchy=False,
+            metric_state_names=("Phi", "Psi"),
+            metric_derivative_names=(),
+            source_roles=("monopole",),
+            closure_targets=(),
+            compiled_source_count=1,
+        )
+        decision = _audit_declaration_plugin(
+            plugin,
+            contract_audit=contract,
+            source_graph_audit=graph,
+        )
+        self.assertIsInstance(decision, CMBModelDeclarationDecision)
+        self.assertEqual(decision.decision, "rejected")
+        self.assertIn("missing source role", " ".join(decision.issues))
 
     def test_source_graph_audit_rejects_missing_metric_derivative(
         self,

@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-29:
+  Change: Added theory-faithful bundled CMB declaration classification and
+    explicit-route validation.
+  Why: Distinguished complete model-owned graphs from rejected declarations
+    and explicit unavailable capabilities without changing model equations.
+  Impact: All ten bundled CMB declarations now report deterministic routes,
+    species, source ownership, and theory rationale; QRSF, TORG, and USMF2
+    remain on their declared theories without LCDM fallbacks.
+  Files:
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  PLAN.md
+
+- 2026-08-29:
   Change: Closed Slice Three with phase-aware projection evidence and safe
     optional-sector coarsening.
   Why: Ensured irregular k quadrature, doubled-grid checks, raw CAMB parity

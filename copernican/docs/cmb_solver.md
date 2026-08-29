@@ -185,6 +185,15 @@ the typed `ConvergenceError` before likelihood output is accepted. The
 `audit_bundled_cmb_contracts()` helper performs a separate declaration-level
 inventory across all bundled models; it checks structural consistency only,
 not hierarchy physics or CAMB parity.
+`audit_bundled_cmb_declarations()` then classifies the model-owned route. A
+`ready` row has a complete enabled contract and source graph, `rejected` marks
+an enabled declaration that is structurally incomplete, and `unavailable` is
+reserved for a contract that explicitly disables CMB output. The row records
+the shared generated-scalar versus explicit model-authored route, species,
+source roles, theory-specific source equations, and validity notes. QRSF and
+TORG therefore retain their baryon-locked density, momentum, and Euler source
+closures, while USMF2 is explicitly classified as its own scalar graph with
+no generated-hierarchy or LCDM fallback.
 
 BAO evaluation remains independent of this path. Its fixed-background
 regression exercises the BAO likelihood while the CCMBS entrypoint is made to

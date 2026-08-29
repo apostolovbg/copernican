@@ -148,6 +148,15 @@ is not met. `audit_bundled_cmb_contracts()` separately inventories every
 bundled declaration for contract version, gauge, sectors, spectra, hierarchy
 families, numerical bounds, and runtime-envelope consistency; this structural
 audit does not substitute for hierarchy or CAMB scientific validation.
+`audit_bundled_cmb_declarations()` adds the model-facing classification used
+by the declaration slice: `ready` means the model-owned contract and source
+graph are complete, `rejected` means an enabled declaration is structurally
+incomplete, and `unavailable` is reserved for a model that explicitly disables
+CMB output. The report also records whether execution uses the shared
+generated scalar hierarchy or an explicit model-authored scalar graph, along
+with any theory-specific source equations. QRSF and TORG retain their named
+baryon-locked source closures; USMF2 is classified as an explicit scalar
+graph, never as a generated-hierarchy or LCDM fallback.
 The final certification helpers build a deterministic matrix from those raw
 reports, reject missing residual or reference evidence, retain every raw
 array, and write a hash-addressed JSON record. The independent test-owned

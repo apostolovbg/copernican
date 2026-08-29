@@ -20,6 +20,28 @@ _REQUIRED_NUMERICS = (
     "k_max",
     "k_sample_count",
 )
+_COMMON_GENERATED_SOURCE_ROLES = frozenset(
+    {
+        "monopole",
+        "additive",
+        "additive_derivative",
+        "doppler",
+        "isw",
+        "polarization",
+        "polarization_b",
+        "potential",
+    }
+)
+_EXPLICIT_SOURCE_ROLES = frozenset(
+    {
+        "monopole",
+        "doppler",
+        "isw",
+        "polarization",
+        "polarization_b",
+        "potential",
+    }
+)
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
@@ -115,6 +137,78 @@ class CMBSourceGraphAudit:
             "source_roles": list(self.source_roles),
             "closure_targets": list(self.closure_targets),
             "compiled_source_count": self.compiled_source_count,
+            "issues": list(self.issues),
+            "valid": self.valid,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CMBModelDeclarationDecision:
+    """Theory-facing decision for one bundled CMB declaration.
+
+    This is a declaration audit, not a numerical certification.  ``ready``
+    means that the model's own graph is structurally complete for its declared
+    route.  ``unavailable`` is reserved for a model that explicitly disables
+    CMB output; an invalid enabled declaration is ``rejected``.  Keeping these
+    states separate prevents a model-specific omission from being hidden as a
+    runtime limitation.
+    """
+
+    model_filename: str
+    model_name: str
+    decision: str
+    execution_route: str
+    generated_scalar_hierarchy: bool
+    sectors: tuple[str, ...]
+    species: tuple[str, ...]
+    hierarchy_families: tuple[str, ...]
+    source_names: tuple[str, ...]
+    source_roles: tuple[str, ...]
+    theory_specific_source_names: tuple[str, ...] = ()
+    source_rationales: Mapping[str, str] = field(default_factory=dict)
+    declaration_rationale: str = ""
+    theory_notes: str = ""
+    issues: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Validate the closed vocabulary used by corpus reports."""
+
+        if self.decision not in {"ready", "rejected", "unavailable"}:
+            raise ValueError("Invalid bundled CMB declaration decision")
+        if self.execution_route not in {
+            "generated_scalar_hierarchy",
+            "explicit_scalar_graph",
+        }:
+            raise ValueError("Invalid bundled CMB declaration route")
+
+    @property
+    def valid(self) -> bool:
+        """Return whether the declaration is ready or unavailable."""
+
+        return self.decision in {"ready", "unavailable"} and not (
+            self.decision == "ready" and self.issues
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a deterministic, JSON-compatible declaration record."""
+
+        return {
+            "model_filename": self.model_filename,
+            "model_name": self.model_name,
+            "decision": self.decision,
+            "execution_route": self.execution_route,
+            "generated_scalar_hierarchy": self.generated_scalar_hierarchy,
+            "sectors": list(self.sectors),
+            "species": list(self.species),
+            "hierarchy_families": list(self.hierarchy_families),
+            "source_names": list(self.source_names),
+            "source_roles": list(self.source_roles),
+            "theory_specific_source_names": list(
+                self.theory_specific_source_names
+            ),
+            "source_rationales": dict(self.source_rationales),
+            "declaration_rationale": self.declaration_rationale,
+            "theory_notes": self.theory_notes,
             "issues": list(self.issues),
             "valid": self.valid,
         }
@@ -314,6 +408,176 @@ def audit_bundled_cmb_source_graphs(
     )
 
 
+def _audit_declaration_plugin(
+    plugin: Any,
+    *,
+    contract_audit: CMBContractAudit,
+    source_graph_audit: CMBSourceGraphAudit,
+) -> CMBModelDeclarationDecision:
+    """Classify one declaration without substituting another theory."""
+
+    perturbation_data = getattr(plugin, "CMB_PERTURBATION_DATA", None)
+    manifest = _mapping(getattr(perturbation_data, "manifest_summary", {}))
+    source_mapping = _mapping(getattr(perturbation_data, "sources", {}))
+    source_names = tuple(sorted(str(name) for name in source_mapping))
+    source_roles_by_name = {
+        str(name): str(getattr(entry, "role", ""))
+        for name, entry in source_mapping.items()
+    }
+    source_roles = tuple(
+        sorted({role for role in source_roles_by_name.values() if role})
+    )
+    theory_specific_names = tuple(
+        sorted(
+            name
+            for name, role in source_roles_by_name.items()
+            if role not in _COMMON_GENERATED_SOURCE_ROLES
+        )
+    )
+    source_rationales = {
+        name: str(getattr(source_mapping[name], "description", "") or "")
+        for name in theory_specific_names
+        if str(getattr(source_mapping[name], "description", "") or "")
+    }
+    generated = bool(source_graph_audit.generated_scalar_hierarchy)
+    execution_route = (
+        "generated_scalar_hierarchy" if generated else "explicit_scalar_graph"
+    )
+    issues = list(contract_audit.issues) + list(source_graph_audit.issues)
+    if not generated:
+        missing_roles = sorted(_EXPLICIT_SOURCE_ROLES - set(source_roles))
+        if missing_roles:
+            issues.append(
+                "explicit scalar graph is missing source role(s): "
+                + ", ".join(missing_roles)
+            )
+        if set(source_graph_audit.metric_state_names) != {"Phi", "Psi"}:
+            issues.append("explicit scalar graph must expose both Phi and Psi")
+    if generated:
+        if theory_specific_names:
+            rationale = (
+                "Uses the shared generated scalar hierarchy; theory-specific "
+                "source closures remain explicit: "
+                + ", ".join(theory_specific_names)
+                + "."
+            )
+        else:
+            rationale = (
+                "Uses the shared generated scalar hierarchy with the common "
+                "declared projection source basis."
+            )
+    else:
+        rationale = (
+            "Uses an explicit model-authored scalar graph; generated-source "
+            "validation is not applicable and no generated fallback is used."
+        )
+    valid_for_cmb = bool(getattr(plugin, "valid_for_cmb", False))
+    if not valid_for_cmb:
+        decision = "unavailable"
+    elif issues:
+        decision = "rejected"
+    else:
+        decision = "ready"
+    return CMBModelDeclarationDecision(
+        model_filename=str(getattr(plugin, "MODEL_FILENAME", "<unknown>")),
+        model_name=str(getattr(plugin, "MODEL_NAME", "<unknown>")),
+        decision=decision,
+        execution_route=execution_route,
+        generated_scalar_hierarchy=generated,
+        sectors=contract_audit.sectors,
+        species=tuple(
+            sorted(
+                str(name)
+                for name in _mapping(getattr(perturbation_data, "species", {}))
+            )
+        ),
+        hierarchy_families=contract_audit.hierarchy_families,
+        source_names=source_names,
+        source_roles=source_roles,
+        theory_specific_source_names=theory_specific_names,
+        source_rationales=source_rationales,
+        declaration_rationale=rationale,
+        theory_notes=str(manifest.get("validity_notes", "") or ""),
+        issues=tuple(sorted(set(issues))),
+    )
+
+
+def audit_bundled_cmb_declarations(
+    model_directory: str | None = None,
+) -> tuple[CMBModelDeclarationDecision, ...]:
+    """Classify every bundled CMB declaration and its execution route.
+
+    The returned rows are intentionally declaration-level.  A ``ready`` row
+    has a complete model-owned contract and source graph, but still requires
+    the numerical certification matrix before it can be called scientifically
+    accepted.  This distinction keeps theory declarations auditable without
+    turning a structural pass into a spectrum claim.
+    """
+
+    from .diagnostics import discover_bundled_cmb_plugins
+
+    plugins = discover_bundled_cmb_plugins(model_directory)
+    contract_audits = {
+        audit.model_filename: audit
+        for audit in audit_bundled_cmb_contracts(model_directory)
+    }
+    source_graph_audits = {
+        audit.model_filename: audit
+        for audit in audit_bundled_cmb_source_graphs(model_directory)
+    }
+    decisions: list[CMBModelDeclarationDecision] = []
+    for plugin in plugins:
+        filename = str(getattr(plugin, "MODEL_FILENAME", "<unknown>"))
+        contract_audit = contract_audits.get(filename)
+        source_graph_audit = source_graph_audits.get(filename)
+        if contract_audit is None or source_graph_audit is None:
+            missing = []
+            if contract_audit is None:
+                missing.append("contract audit")
+            if source_graph_audit is None:
+                missing.append("source graph audit")
+            decisions.append(
+                CMBModelDeclarationDecision(
+                    model_filename=filename,
+                    model_name=str(getattr(plugin, "MODEL_NAME", filename)),
+                    decision="rejected",
+                    execution_route="explicit_scalar_graph",
+                    generated_scalar_hierarchy=False,
+                    sectors=(),
+                    species=(),
+                    hierarchy_families=(),
+                    source_names=(),
+                    source_roles=(),
+                    issues=("missing " + " and ".join(missing),),
+                )
+            )
+            continue
+        decisions.append(
+            _audit_declaration_plugin(
+                plugin,
+                contract_audit=contract_audit,
+                source_graph_audit=source_graph_audit,
+            )
+        )
+    return tuple(sorted(decisions, key=lambda item: item.model_filename))
+
+
+def assert_bundled_cmb_declarations(
+    decisions: Iterable[CMBModelDeclarationDecision],
+) -> None:
+    """Raise when an enabled bundled declaration is structurally rejected."""
+
+    failures = [
+        f"{row.model_filename}: {'; '.join(row.issues)}"
+        for row in decisions
+        if row.decision == "rejected"
+    ]
+    if failures:
+        raise ValueError(
+            "Bundled CMB declaration audit failed: " + " | ".join(failures)
+        )
+
+
 def assert_bundled_cmb_source_graphs(
     audits: Iterable[CMBSourceGraphAudit],
 ) -> None:
@@ -482,9 +746,12 @@ def assert_bundled_cmb_contracts(
 
 __all__ = [
     "CMBContractAudit",
+    "CMBModelDeclarationDecision",
     "CMBSourceGraphAudit",
+    "assert_bundled_cmb_declarations",
     "assert_bundled_cmb_contracts",
     "assert_bundled_cmb_source_graphs",
+    "audit_bundled_cmb_declarations",
     "audit_bundled_cmb_contracts",
     "audit_bundled_cmb_source_graphs",
 ]

@@ -426,7 +426,7 @@ CAMB-free production boundaries. The final scalar and independent source-grid
 refinement tests pass their one-percent bounds with warnings treated as
 errors, and the empty optional-sector regression is green.
 
-### [planned] Slice Four — theory-faithful bundled model declarations
+### [closed] Slice Four — theory-faithful bundled model declarations
 
 **Purpose:** Correct only residual model-specific declarations after the
 shared runtime is proven, without altering the scientific essence of any
@@ -474,6 +474,19 @@ model.
 **Closure evidence:** The corpus report maps each model's equation-level
 declaration decision to source, projection, convergence, and typed outcome
 evidence. It records no theory-changing model patch.
+
+**Implementation and verification:** Added the deterministic
+`CMBModelDeclarationDecision` audit and its bundled assertion helper. The
+audit composes the contract and source-graph records, classifies the actual
+execution route, preserves theory-specific source descriptions, and keeps
+`ready`, `rejected`, and explicit `unavailable` distinct. All ten frozen CMB
+models are `ready`: eight use the shared generated scalar hierarchy, QRSF and
+TORG retain their named baryon-locked density/momentum/Euler source closures,
+and USMF2 is independently classified as an explicit scalar graph. No model
+YAML equation, prior, species, or background theory was changed. Focused
+contract, diagnostics, and public-symbol tests pass; the declaration audit is
+deterministic and rejects an explicit graph that omits a required projection
+source role. Numerical spectrum certification remains owned by Slice Five.
 
 ### [planned] Slice Five — scalar, batch, cache, and corpus certification
 

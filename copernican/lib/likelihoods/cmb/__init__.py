@@ -19,10 +19,13 @@ from .contracts import (  # noqa: F401
 )
 from .contracts_audit import (
     CMBContractAudit,
+    CMBModelDeclarationDecision,
     CMBSourceGraphAudit,
     assert_bundled_cmb_contracts,
+    assert_bundled_cmb_declarations,
     assert_bundled_cmb_source_graphs,
     audit_bundled_cmb_contracts,
+    audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
 )
 from .diagnostics import (
@@ -65,6 +68,7 @@ from .solvers.registry import solver_provenance  # noqa: F401
 __all__ = [
     "CMBLike",
     "CMBContractAudit",
+    "CMBModelDeclarationDecision",
     "CMBSourceGraphAudit",
     "CMB_CORPUS_BASELINE_REQUEST",
     "CMB_USMF2_BASELINE_TIERS",
@@ -90,7 +94,9 @@ __all__ = [
     "build_cmb_certification_report",
     "compare_cmb_spectra_to_reference",
     "assert_bundled_cmb_contracts",
+    "assert_bundled_cmb_declarations",
     "assert_bundled_cmb_source_graphs",
+    "audit_bundled_cmb_declarations",
     "audit_bundled_cmb_contracts",
     "audit_bundled_cmb_source_graphs",
     "discover_bundled_cmb_plugins",
