@@ -205,6 +205,15 @@ E_gamma,0 + E_gamma,2` collision moment, includes it once in the visibility
 monopole, and applies the `3/4` E-source coefficient. The deprecated split
 temperature quadrupole terms are explicit zeroes.
 
+Generated scalar manifests publish a source-closure summary with derivative
+kind, conformal-time coordinate, binding, dependencies, source-role ownership,
+closure names, and Einstein residual names. Runtime envelopes repeat that
+provenance and require finite, eta-aligned raw source-history fields before
+independent residual recomputation. Generated constraints use strict term
+lookup, so an omitted term raises a typed failure instead of being normalized
+against its own residual. Explicit model graphs are recorded as
+`not_applicable` for this generated summary and are never silently rewritten.
+
 Declared MCMC workers prepare immutable graph structure once per model and
 reuse it across parameter proposals. Bounded caches distinguish structural,
 parameter-dependent, and complete-result data, while request diagnostics

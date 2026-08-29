@@ -166,6 +166,15 @@ The bundled inventory adds the generated initial-condition and
 visibility-closure checks. Missing source derivatives therefore fail at the
 contract boundary instead of becoming implicit zero histories.
 
+Generated scalar manifests publish a source-closure summary with derivative
+kind, conformal-time coordinate, binding, dependencies, source-role ownership,
+closure names, and Einstein residual names. Runtime envelopes repeat that
+provenance and require finite, eta-aligned raw source-history fields before
+independent residual recomputation. Generated constraints use strict term
+lookup, so an omitted term raises a typed failure instead of being normalized
+against its own residual. Explicit model graphs are recorded as
+`not_applicable` for this generated summary and are never silently rewritten.
+
 Production contracts can declare `production_scalar_convergence`. CCMBS then
 evaluates the required scalar spectra on the declared wave-number grid and on
 a grid multiplied by `k_refinement_factor` (normally two). Per-spectrum

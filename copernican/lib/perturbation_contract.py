@@ -6887,6 +6887,12 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
         )
     phi_tau = derived.get("Phi_tau")
     if phi_tau is not None:
+        if getattr(phi_tau, "kind", None) != (
+            "metric_potential_time_derivative"
+        ):
+            issues.append(
+                "Phi_tau must declare the metric-potential derivative kind"
+            )
         if not str(getattr(phi_tau, "expression", "") or "").strip():
             issues.append("Phi_tau must have an explicit graph expression")
         phi_tau_dependencies = set(getattr(phi_tau, "dependencies", ()) or ())
@@ -6898,6 +6904,12 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
                 )
     psi_tau = derived.get("Psi_tau")
     if psi_tau is not None:
+        if getattr(psi_tau, "kind", None) != (
+            "metric_potential_time_derivative"
+        ):
+            issues.append(
+                "Psi_tau must declare the metric-potential derivative kind"
+            )
         if (
             str(getattr(psi_tau, "variable", "")) != "Psi"
             or str(getattr(psi_tau, "wrt", "")) != "tau"
@@ -6912,6 +6924,13 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
             )
     phi_history_tau = derived.get("Phi_history_tau")
     if phi_history_tau is not None:
+        if getattr(phi_history_tau, "kind", None) != (
+            "metric_history_time_derivative"
+        ):
+            issues.append(
+                "Phi_history_tau must declare the metric-history derivative "
+                "kind"
+            )
         if (
             str(getattr(phi_history_tau, "variable", "")) != "Phi"
             or str(getattr(phi_history_tau, "wrt", "")) != "tau"
@@ -6957,6 +6976,18 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
         issues.append(
             "missing generated source role(s): " + ", ".join(missing_roles)
         )
+    required_residuals = {
+        "einstein_energy_residual",
+        "einstein_momentum_residual",
+        "einstein_shear_residual",
+    }
+    missing_residuals = sorted(required_residuals - set(derived))
+    if missing_residuals:
+        issues.append(
+            "missing generated scalar residual(s): "
+            + ", ".join(missing_residuals)
+        )
+
     # Initial-condition family completeness is audited against the bundled
     # model inventory.  Small generated fixtures may intentionally exercise a
     # single regular mode, so the compiler only enforces the source graph
@@ -6979,6 +7010,91 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
             "Generated scalar source graph validation failed: "
             + "; ".join(sorted(set(issues)))
         )
+
+
+def _generated_scalar_source_closure_summary(contract: Any) -> dict[str, Any]:
+    """Return immutable-friendly provenance for a validated scalar graph.
+
+    The summary is attached to the compiled manifest and is consumed by the
+    runtime diagnostics.  It records the distinction between an algebraic
+    Einstein derivative (``Phi_tau``) and history-bound derivatives used by
+    line-of-sight sources.  Keeping this provenance in the contract prevents
+    a later runtime path from silently replacing one kind with the other.
+    """
+
+    manifest = getattr(contract, "manifest_summary", {}) or {}
+    if not bool(manifest.get("generated_scalar_hierarchy")):
+        return {
+            "schema_version": 1,
+            "status": "not_applicable",
+            "metric_derivatives": {},
+            "source_roles": {},
+            "closure_names": (),
+            "residual_names": (),
+        }
+    derived = getattr(contract, "derived", {}) or {}
+    sources = getattr(contract, "sources", {}) or {}
+    closures = getattr(contract, "closures", {}) or {}
+    metric_derivatives = {}
+    for name in ("Phi_tau", "Psi_tau", "Phi_history_tau"):
+        entry = derived.get(name)
+        if entry is None:
+            continue
+        metric_derivatives[name] = {
+            "kind": str(getattr(entry, "kind", "")),
+            "variable": (
+                None
+                if getattr(entry, "variable", None) is None
+                else str(entry.variable)
+            ),
+            "wrt": (
+                None if getattr(entry, "wrt", None) is None else str(entry.wrt)
+            ),
+            "order": (
+                None
+                if getattr(entry, "order", None) is None
+                else int(entry.order)
+            ),
+            "binding": (
+                None
+                if getattr(entry, "binding", None) is None
+                else str(entry.binding)
+            ),
+            "expression": (
+                None
+                if getattr(entry, "expression", None) is None
+                else str(entry.expression)
+            ),
+            "dependencies": tuple(
+                str(value)
+                for value in (getattr(entry, "dependencies", ()) or ())
+            ),
+        }
+    role_to_sources: dict[str, list[str]] = {}
+    for source_name, source in sources.items():
+        role_to_sources.setdefault(str(getattr(source, "role", "")), [])
+        role_to_sources[str(getattr(source, "role", ""))].append(
+            str(source_name)
+        )
+    return {
+        "schema_version": 1,
+        "status": "validated",
+        "metric_derivatives": metric_derivatives,
+        "source_roles": {
+            role: tuple(sorted(names))
+            for role, names in sorted(role_to_sources.items())
+        },
+        "closure_names": tuple(sorted(str(name) for name in closures)),
+        "residual_names": tuple(
+            name
+            for name in (
+                "einstein_energy_residual",
+                "einstein_momentum_residual",
+                "einstein_shear_residual",
+            )
+            if name in derived
+        ),
+    }
 
 
 def compile_perturbation_contract(
@@ -9194,49 +9310,47 @@ def compile_perturbation_contract(
         for name, entry in observable_entries.items()
         if entry.kind == "angular_power_spectrum"
     }
-    manifest_summary = FrozenMapping(
-        _build_manifest_summary(
-            model_name=model_name,
-            contract_version=contract_version,
-            gauge=gauge,
-            variables=dependency_summary.variable_names,
-            derived=dependency_summary.derived_names,
-            equations=dependency_summary.equation_names,
-            constraints=dependency_summary.constraint_names,
-            closures=dependency_summary.closure_names,
-            interactions=dependency_summary.interaction_names,
-            conservation_rules=(dependency_summary.conservation_rule_names),
-            sources=dependency_summary.source_names,
-            observables=dependency_summary.observable_names,
-            initial_conditions=dependency_summary.initial_condition_names,
-            boundary_conditions=(dependency_summary.boundary_condition_names),
-            sectors=tuple(sorted(sector_entries)),
-            species=tuple(sorted(species_entries)),
-            hierarchy_families=tuple(sorted(hierarchy_family_entries)),
-            collision_operators=tuple(sorted(collision_operator_entries)),
-            initial_condition_families=tuple(
-                sorted(initial_condition_family_entries)
-            ),
-            projection_extensions=tuple(sorted(projection_extension_entries)),
-            projection_typing=tuple(sorted(projection_typing_entries)),
-            validity=validity_data,
-            numerics=numerics_mapping,
-            accuracy_controls=accuracy_controls_mapping,
-            dependency_summary=dependency_summary,
-            generated_scalar_hierarchy=materialized_scalar_hierarchy,
-            generated_vector_hierarchy=materialized_vector_hierarchy,
-            generated_tensor_hierarchy=materialized_tensor_hierarchy,
-            equation_wrt_by_variable={
-                entry.lhs.variable: entry.lhs.wrt
-                for entry in equation_entries.values()
-            },
-            boundary_condition_anchors={
-                name: entry.anchor
-                for name, entry in boundary_condition_entries.items()
-            },
-            transfer_component_contracts=transfer_component_contracts,
-            angular_power_spectrum_targets=angular_power_spectrum_targets,
-        )
+    manifest_summary_data = _build_manifest_summary(
+        model_name=model_name,
+        contract_version=contract_version,
+        gauge=gauge,
+        variables=dependency_summary.variable_names,
+        derived=dependency_summary.derived_names,
+        equations=dependency_summary.equation_names,
+        constraints=dependency_summary.constraint_names,
+        closures=dependency_summary.closure_names,
+        interactions=dependency_summary.interaction_names,
+        conservation_rules=(dependency_summary.conservation_rule_names),
+        sources=dependency_summary.source_names,
+        observables=dependency_summary.observable_names,
+        initial_conditions=dependency_summary.initial_condition_names,
+        boundary_conditions=(dependency_summary.boundary_condition_names),
+        sectors=tuple(sorted(sector_entries)),
+        species=tuple(sorted(species_entries)),
+        hierarchy_families=tuple(sorted(hierarchy_family_entries)),
+        collision_operators=tuple(sorted(collision_operator_entries)),
+        initial_condition_families=tuple(
+            sorted(initial_condition_family_entries)
+        ),
+        projection_extensions=tuple(sorted(projection_extension_entries)),
+        projection_typing=tuple(sorted(projection_typing_entries)),
+        validity=validity_data,
+        numerics=numerics_mapping,
+        accuracy_controls=accuracy_controls_mapping,
+        dependency_summary=dependency_summary,
+        generated_scalar_hierarchy=materialized_scalar_hierarchy,
+        generated_vector_hierarchy=materialized_vector_hierarchy,
+        generated_tensor_hierarchy=materialized_tensor_hierarchy,
+        equation_wrt_by_variable={
+            entry.lhs.variable: entry.lhs.wrt
+            for entry in equation_entries.values()
+        },
+        boundary_condition_anchors={
+            name: entry.anchor
+            for name, entry in boundary_condition_entries.items()
+        },
+        transfer_component_contracts=transfer_component_contracts,
+        angular_power_spectrum_targets=angular_power_spectrum_targets,
     )
 
     compiled = PerturbationContractData(
@@ -9255,7 +9369,7 @@ def compile_perturbation_contract(
         numerics=numerics_mapping,
         validity=validity_data,
         dependency_graph_summary=dependency_summary,
-        manifest_summary=manifest_summary,
+        manifest_summary=FrozenMapping(manifest_summary_data),
         sectors=FrozenMapping(sector_entries),
         species=FrozenMapping(species_entries),
         hierarchy_families=FrozenMapping(hierarchy_family_entries),
@@ -9270,6 +9384,13 @@ def compile_perturbation_contract(
         accuracy_controls=accuracy_controls_mapping,
     )
     validate_generated_scalar_source_graph(compiled)
+    manifest_summary_data["generated_scalar_source_closure"] = (
+        _generated_scalar_source_closure_summary(compiled)
+    )
+    compiled = replace(
+        compiled,
+        manifest_summary=FrozenMapping(manifest_summary_data),
+    )
     _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
     return _get_cached_perturbation_contract(cache_key)
 

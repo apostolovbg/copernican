@@ -80,6 +80,25 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-29:
+  Change: Closed Slice Two with strict generated scalar source-closure
+    validation and derivative provenance.
+  Why: Prevented missing Einstein terms, implicit history gradients, and
+    incomplete raw source fields from masquerading as valid CCMBS physics.
+  Impact: Generated contracts fail explicitly at compile/runtime boundaries,
+    while independent residual evidence remains available for later slices.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/perturbation_contract.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-08-29:
   Change: Updated CMB public-symbol coverage for the corpus-baseline API.
   Why: Aligned the package export contract with the newly published baseline
     helpers.

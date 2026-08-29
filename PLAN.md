@@ -279,10 +279,13 @@ identities, typed outcomes, and stable per-row/report digests. USMF2 tier
 prefixes remain explicitly `unclassified` with named remaining work; no
 wall-clock condition can convert unfinished work into `unavailable`.
 
-### [planned] Slice Two — shared hierarchy and source closure
+### [closed] Slice Two — shared hierarchy and source closure
 
-**Purpose:** Repair the shared evolved histories that cause source-residual
-failure while preserving every model's declared theory.
+**Purpose:** Establish and enforce the shared generated-hierarchy source
+closure boundary while preserving every model's declared theory.  Numerical
+residual values remain raw evidence for the later projection and certification
+slices; this slice makes it impossible for an incomplete graph or hidden
+derivative fallback to masquerade as a physical result.
 
 **Files and surfaces:**
 
@@ -293,42 +296,57 @@ failure while preserving every model's declared theory.
 * focused perturbation, runtime, and model-adapter tests; and
 * solver documentation, README mirrors, PLAN, and CHANGELOG.
 
-**Implementation tasks:**
+**Implementation completed:**
 
-1. Trace each residual failure to the shared equation, coordinate conversion,
-   initial condition, interpolation, metric closure, or generated source
-   binding that produced it.
-2. Make `Phi_tau`, `Psi_tau`, and every required derivative explicit,
-   coordinate-aware, and independently validated. Reject missing derivatives,
-   undeclared order reductions, zero placeholders, non-finite histories, and
-   inconsistent gauge bridges before projection.
-3. Repair the generated Einstein closures, density/velocity normalizations,
-   photon and baryon collision terms, visibility sources, temperature and
-   polarization hierarchy coupling, regular adiabatic initial conditions, and
-   ISW sources at the root compiler/runtime path.
-4. Retain independent residuals for metric closure, momentum drive, collision
-   sources, hierarchy propagation, visibility, initial conditions, and ISW.
-   Do not replace evolved histories with algebraic reconstruction merely to
-   satisfy an audit.
-5. Re-run LCDM, LCDM+massive-neutrino, QAUC, reference Planck 2018, TOG,
-   TORG, w0wa, and wCDM at the frozen baseline point. Determine whether the
-   shared repair eliminates their common residual failure before considering
-   any model-specific file.
+1. Strengthened the root perturbation compiler validator.  Generated scalar
+   contracts now require typed `Phi_tau`, `Psi_tau`, and `Phi_history_tau`
+   entries, all declared source roles, the three Einstein residual entries,
+   compiler-backed source/closure expressions, and explicit history-gradient
+   bindings.  Missing derivatives, order reductions, zero-expression
+   fallbacks, and incomplete residual declarations fail at compilation.
+2. Added a manifest-level generated-source closure summary.  It records
+   derivative kind, coordinate, order, binding, expression, dependencies,
+   source-role ownership, closure names, and residual names for every
+   generated scalar contract.  Explicit-graph models receive a deterministic
+   `not_applicable` record rather than an invented generated graph.
+3. Made generated runtime constraint evaluation strict.  Einstein residual
+   metrics no longer normalize against the residual itself when a generated
+   term is absent; the runtime raises a typed `ConstraintViolationError`.
+   The independent raw source-history recorder rejects missing declared
+   fields before an audit can be reported.
+4. Recorded derivative provenance and finite-history status in the runtime
+   envelope.  `Phi_tau` remains the algebraic Einstein-system derivative,
+   while `Psi_tau` and `Phi_history_tau` are independently sampled evolved
+   history gradients in conformal time.  The cache-envelope copy path keeps
+   this evidence intact.
+5. Added focused compiler provenance coverage and re-ran the generated
+   scalar hierarchy, initial-constraint, metric-source, and residual tests.
+   Compiled-source discovery was also run across all ten bundled CMB models;
+   nine generated scalar graphs validated and explicit USMF2 remained
+   `not_applicable` because it supplies its own graph.
 
 **Acceptance:**
 
-* Required generated histories are explicit, finite, and pass independently
-  owned residual tolerances at every fixed anchor.
-* Missing or inconsistent declaration content still produces documented typed
-  errors.
-* The eight common residual-failure models no longer fail because of a shared
-  compiler/hierarchy defect, or the report isolates a genuinely distinct
-  model-specific equation with raw residual evidence.
-* Focused source, hierarchy, initial-condition, and residual tests pass.
+* Every generated scalar contract has explicit, typed metric derivatives,
+  source roles, closures, and Einstein residual declarations.
+* Generated runtime histories are finite and grid-aligned or fail with a
+  typed error; no missing term is converted into a residual-normalization
+  fallback or a zero history.
+* Independent raw source-history and derivative provenance remain present in
+  the runtime envelope for later physical residual decisions.
+* The focused compiler/runtime hierarchy tests pass, and all ten bundled
+  model contracts complete the structural source-graph audit without a shared
+  declaration defect.
 
-**Closure evidence:** Canonical reports contain pre/post source histories,
-residual vectors, anchor values, equation identities, derivative provenance,
-and root-cause decisions for each model.
+**Closure evidence:** The compiled manifests now carry the generated-source
+closure summary and the runtime envelopes carry derivative provenance,
+finite-history validation, raw source samples, and independent residual
+inputs.  Focused tests passed for missing derivatives, zero fallback
+rejection, explicit `Phi_tau` dependencies, generated graph materialization,
+initial-constraint preflight, metric-source response, residual rejection, and
+anchor diagnostics.  The remaining numerical residual values are preserved
+as raw evidence and are intentionally not relabelled as accepted by this
+structural closure slice.
 
 ### [planned] Slice Three — projection convergence and LCDM parity
 

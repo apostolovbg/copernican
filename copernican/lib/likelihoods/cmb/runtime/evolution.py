@@ -2587,6 +2587,8 @@ _SCALAR_EINSTEIN_RESIDUAL_NAMES = (
 def _scalar_einstein_constraint_metrics(
     context: Mapping[str, Any],
     residual_name: str,
+    *,
+    strict: bool = False,
 ) -> dict[str, Any]:
     """Return dimensionally matched terms and normalized residual metrics.
 
@@ -2664,9 +2666,22 @@ def _scalar_einstein_constraint_metrics(
                 * gravity
                 * numpy.asarray(context["total_shear_source"], dtype=float),
             }
-    except KeyError:
-        # A hand-authored diagnostic can still be validated, but generated
-        # scalar contracts must provide the complete term set above.
+    except KeyError as error:
+        # A hand-authored diagnostic can still be validated with its declared
+        # residual alone.  Generated scalar contracts have a complete source
+        # closure and must fail loudly if any term disappears; using the
+        # residual itself as its normalization would make the audit
+        # tautological.
+        if strict:
+            missing_name = str(error.args[0]) if error.args else "unknown"
+            raise ConstraintViolationError(
+                "Generated scalar Einstein constraint omitted its declared "
+                f"term '{missing_name}' for {residual_name}",
+                context={
+                    "residual": residual_name,
+                    "missing_term": missing_name,
+                },
+            ) from error
         residual_values = numpy.asarray(context[residual_name], dtype=float)
         scale = numpy.maximum(
             numpy.abs(residual_values),
@@ -2828,7 +2843,23 @@ def _validate_generated_scalar_initial_constraints(
     for residual_name in _SCALAR_EINSTEIN_RESIDUAL_NAMES:
         if residual_name not in context:
             continue
-        metrics = _scalar_einstein_constraint_metrics(context, residual_name)
+        metrics = _scalar_einstein_constraint_metrics(
+            context,
+            residual_name,
+            strict=bool(
+                (
+                    getattr(
+                        perturbation_data,
+                        "manifest_summary",
+                        {},
+                    )
+                    or {}
+                )
+                .get("generated_scalar_source_closure", {})
+                .get("status")
+                == "validated"
+            ),
+        )
         residual_values = numpy.asarray(
             metrics["residual_values"],
             dtype=float,

@@ -852,6 +852,35 @@ class PerturbationContractTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Phi_tau must depend"):
             validate_generated_scalar_source_graph(generated)
 
+    def test_generated_manifest_records_source_closure_provenance(self):
+        """Generated manifests retain the derivative/source ownership split."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        closure = compiled.manifest_summary["generated_scalar_source_closure"]
+        self.assertEqual(closure["schema_version"], 1)
+        self.assertEqual(closure["status"], "validated")
+        self.assertEqual(
+            closure["metric_derivatives"]["Phi_tau"]["kind"],
+            "metric_potential_time_derivative",
+        )
+        self.assertEqual(
+            closure["metric_derivatives"]["Psi_tau"]["binding"],
+            "runtime_history_gradient",
+        )
+        self.assertEqual(
+            closure["metric_derivatives"]["Phi_history_tau"]["variable"],
+            "Phi",
+        )
+        self.assertEqual(
+            set(closure["residual_names"]),
+            {
+                "einstein_energy_residual",
+                "einstein_momentum_residual",
+                "einstein_shear_residual",
+            },
+        )
+        self.assertIn("monopole", closure["source_roles"])
+
     def test_scalar_metadata_contract_materializes_runtime_graph(self) -> None:
         """Metadata-only scalar contracts should expand into graph entries."""
 

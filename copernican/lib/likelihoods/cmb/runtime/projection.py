@@ -2448,8 +2448,19 @@ def _validate_scalar_constraint_histories(
             accuracy_tolerances[residual_key] = float(tolerance)
 
     diagnostics: dict[str, dict[str, Any]] = {}
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    strict_generated_graph = bool(
+        (
+            manifest_summary.get("generated_scalar_source_closure", {}) or {}
+        ).get("status")
+        == "validated"
+    )
     for residual_name in residual_names:
-        metrics = _scalar_einstein_constraint_metrics(context, residual_name)
+        metrics = _scalar_einstein_constraint_metrics(
+            context,
+            residual_name,
+            strict=strict_generated_graph,
+        )
         values = numpy.asarray(metrics["residual_values"], dtype=float)
         normalized_values = numpy.asarray(
             metrics["normalized_values"],
@@ -3417,6 +3428,50 @@ def _compute_custom_cmb_spectrum_data_impl(
                 if numpy.isfinite(scalar):
                     sample[name] = scalar
             samples.append(sample)
+        if generated_scalar_hierarchy:
+            required_history_fields = {
+                "eta",
+                "Phi",
+                "Psi",
+                "Phi_tau",
+                "Psi_tau",
+                "Phi_history_tau",
+                "Hconf",
+                "acoustic_k",
+                "acoustic_k_sq",
+                "einstein_gravity_strength",
+                "metric_shear_correction",
+                "total_density_source",
+                "total_momentum_source",
+                "total_shear_source",
+                "visibility",
+                "tau",
+                "observable_theta_gamma0",
+                "observable_theta_b",
+                "polarization_moment",
+                "temperature_monopole",
+                "temperature_quadrupole",
+                "temperature_quadrupole_derivative",
+                "temperature_doppler",
+                "temperature_isw",
+                "polarization_source",
+            }
+            missing_by_sample = {
+                int(index): tuple(
+                    sorted(required_history_fields - set(sample))
+                )
+                for index, sample in enumerate(samples)
+                if required_history_fields - set(sample)
+            }
+            if missing_by_sample:
+                raise ConstraintViolationError(
+                    "Generated scalar source-history audit omitted declared "
+                    "terms",
+                    context={
+                        "k": float(mode_k_value),
+                        "missing_by_sample": missing_by_sample,
+                    },
+                )
         source_history_residual_samples_by_k[f"{float(mode_k_value):.12g}"] = {
             "k": float(mode_k_value),
             "sample_count": int(len(samples)),
@@ -3810,6 +3865,38 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["configured_numerical_controls"] = dict(
         numerical_envelope.numerical_controls
     )
+    runtime_envelope["generated_scalar_source_closure"] = dict(
+        (manifest_summary.get("generated_scalar_source_closure", {}) or {})
+    )
+    if generated_scalar_hierarchy:
+        runtime_envelope["source_history_derivative_provenance"] = {
+            "Phi_tau": {
+                "kind": "algebraic_einstein_derivative",
+                "variable": "Phi",
+                "wrt": "tau",
+                "order": 1,
+                "independent_from_history_gradient": True,
+            },
+            "Psi_tau": {
+                "kind": "evolved_history_gradient",
+                "variable": "Psi",
+                "wrt": "tau",
+                "order": 1,
+                "independent_from_algebraic_closure": True,
+            },
+            "Phi_history_tau": {
+                "kind": "evolved_history_gradient",
+                "variable": "Phi",
+                "wrt": "tau",
+                "order": 1,
+                "independent_from_algebraic_closure": True,
+            },
+        }
+    else:
+        runtime_envelope["source_history_derivative_provenance"] = {
+            "status": "not_applicable",
+            "reason": "explicit_model_graph",
+        }
     runtime_envelope["effective_numerical_controls"] = {
         **dict(numerical_envelope.numerical_controls),
         "k_sample_count": int(k_values.size),
@@ -5395,6 +5482,20 @@ def _compute_custom_cmb_spectrum_data_impl(
                 name: numpy.asarray(values, dtype=float)
                 for name, values in source_histories.items()
             }
+        strict_generated_graph = bool(
+            (
+                (
+                    getattr(
+                        perturbation_data,
+                        "manifest_summary",
+                        {},
+                    )
+                    or {}
+                ).get("generated_scalar_source_closure", {})
+                or {}
+            ).get("status")
+            == "validated"
+        )
         should_reconstruct = (
             source_history_reconstruction_enabled
             if apply_reconstruction is None
@@ -5528,6 +5629,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         energy_metrics = _scalar_einstein_constraint_metrics(
             reconstructed_context,
             "einstein_energy_residual",
+            strict=strict_generated_graph,
         )
         maximum_normalized = float(
             numpy.max(
@@ -8009,6 +8111,8 @@ def _compute_custom_cmb_spectrum_data_impl(
             "source_history_cache_reused",
             "source_history_reconstruction_enabled",
             "source_history_reconstruction_diagnostic_only",
+            "generated_scalar_source_closure",
+            "source_history_derivative_provenance",
             "numerical_envelope",
             "accuracy_tier",
             "lensing_sampling_factor",
@@ -9946,10 +10050,19 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         for name in ("Phi_tau", "Psi_tau", "Phi_history_tau")
     }
+    derivative_validation_finite = bool(
+        all(
+            numpy.isfinite(float(value))
+            for residuals in metric_history_gradient_residual_by_k.values()
+            for value in residuals.values()
+        )
+    )
     runtime_envelope["metric_history_derivative_validation"] = {
         "required": ("Phi_tau", "Psi_tau", "Phi_history_tau"),
         "mode_count": int(len(metric_history_gradient_residual_by_k)),
-        "finite": True,
+        "finite": derivative_validation_finite,
+        "coordinate": "tau",
+        "independent_history_gradients": True,
         "maximum_normalized_residual": derivative_validation,
     }
     runtime_envelope["source_history_residual_samples_by_k"] = {

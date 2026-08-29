@@ -383,6 +383,22 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
             3.0 * gravity * total_shear_source,
         )
 
+    def test_generated_metrics_reject_missing_declared_term(self) -> None:
+        """Generated constraints must not use residual-only normalization."""
+
+        context = {
+            "einstein_energy_residual": numpy.asarray((1.0,)),
+        }
+        with self.assertRaisesRegex(
+            ConstraintViolationError,
+            "omitted its declared term",
+        ):
+            evolution._scalar_einstein_constraint_metrics(
+                context,
+                "einstein_energy_residual",
+                strict=True,
+            )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
