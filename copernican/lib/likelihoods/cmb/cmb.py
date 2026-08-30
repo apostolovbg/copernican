@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -34,6 +35,11 @@ from .solvers.registry import resolve_cmb_solver, solver_provenance
 
 prepare_cmb_execution_contract = _prepare_cmb_contract
 prepare_declared_cmb_execution_contract = _prepare_cmb_contract
+
+_LAST_CMB_RESULT: ContextVar[CMBResult | None] = ContextVar(
+    "last_cmb_result",
+    default=None,
+)
 
 
 def _compute_declared_perturbation_spectrum(
@@ -131,6 +137,9 @@ def compute_cmb_spectrum_from_contract(
     r"""Return theoretical :math:`D_\ell` spectra from one CMB contract."""
 
     selected_solver = _select_cmb_solver(solver, cmb_solver)
+    requested_ells = tuple(int(value) for value in ells)
+    requested_spectra = tuple(str(value) for value in spectra)
+    _LAST_CMB_RESULT.set(None)
     prepared_contract = contract_or_params
     if background_provider is not None and isinstance(
         prepared_contract, Mapping
@@ -141,10 +150,11 @@ def compute_cmb_spectrum_from_contract(
         prepared = selected_solver.prepare(prepared_contract)
         result = selected_solver.evaluate(
             prepared,
-            tuple(int(value) for value in ells),
-            spectra=tuple(str(value) for value in spectra),
+            requested_ells,
+            spectra=requested_spectra,
             workload=workload,
         )
+        _LAST_CMB_RESULT.set(result)
     # DEVCOV_ALLOW_BROAD_ONCE declared solver boundary.
     except Exception as exc:
         context = failure_context(
@@ -152,7 +162,17 @@ def compute_cmb_spectrum_from_contract(
             workload=workload,
             spectra=spectra,
         )
-        raise classify_exception(exc, context=context) from exc
+        failure = classify_exception(exc, context=context)
+        _LAST_CMB_RESULT.set(
+            CMBResult(
+                requested_ells=requested_ells,
+                requested_spectra=requested_spectra,
+                failure=failure,
+                solver_id=getattr(selected_solver, "solver_id", ""),
+                solver_label=getattr(selected_solver, "solver_label", ""),
+            )
+        )
+        raise failure from exc
     return _unwrap_cmb_result(result)
 
 
@@ -201,6 +221,7 @@ def compute_cmb_spectrum_batch(
     *,
     background_provider: Any | None = None,
     requested_spectra: Iterable[str] | None = None,
+    workload: str = "full_spectrum",
     solver: Any | str | None = None,
     cmb_solver: Any | str | None = None,
 ) -> tuple[CMBBatchResult, ...]:
@@ -218,14 +239,18 @@ def compute_cmb_spectrum_batch(
     for index, contract in enumerate(contracts):
         before_cache = cache.cmb_cache_stats()
         before_requests = int(cache.cmb_performance_stats().get("requests", 0))
+        solver_result: CMBResult | None = None
         try:
+            _LAST_CMB_RESULT.set(None)
             spectrum = compute_cmb_spectrum_from_contract(
                 contract,
                 ell_values,
                 spectra=spectra,
                 background_provider=background_provider,
+                workload=workload,
                 solver=selected_solver,
             )
+            solver_result = _LAST_CMB_RESULT.get()
             failure = None
         # DEVCOV_ALLOW_BROAD_ONCE: isolate batch item failures.
         except Exception as exc:
@@ -233,12 +258,13 @@ def compute_cmb_spectrum_batch(
                 exc,
                 context=failure_context(
                     contract,
-                    workload="full_spectrum",
+                    workload=workload,
                     spectra=spectra,
                 ),
             )
             failure.add_context(batch_index=index)
             spectrum = None
+            solver_result = _LAST_CMB_RESULT.get()
         after_cache = cache.cmb_cache_stats()
         performance_record = cache.latest_cmb_performance_record()
         after_requests = int(cache.cmb_performance_stats().get("requests", 0))
@@ -259,6 +285,31 @@ def compute_cmb_spectrum_batch(
                     after_cache,
                     include_identity=performance_record is not None,
                 ),
+                requested_ells=ell_values,
+                requested_spectra=spectra,
+                diagnostics=(
+                    {} if solver_result is None else solver_result.diagnostics
+                ),
+                phase_timings=(
+                    {}
+                    if solver_result is None
+                    else solver_result.phase_timings
+                ),
+                raw_spectra=(
+                    None
+                    if solver_result is None
+                    else solver_result.raw_spectra
+                ),
+                solver_id=(
+                    selected_solver.solver_id
+                    if solver_result is None
+                    else solver_result.solver_id
+                ),
+                solver_label=(
+                    selected_solver.solver_label
+                    if solver_result is None
+                    else solver_result.solver_label
+                ),
             )
         )
     return tuple(results)
@@ -271,38 +322,61 @@ def compute_cmb_spectrum_cached(
     *,
     spectra: Sequence[str] = ("TT",),
     workload: str = "full_spectrum",
+    numerical_overrides: Mapping[str, Any] | None = None,
+    diagnostic_matrix_fast_path: bool = False,
     solver: Any | str | None = None,
     cmb_solver: Any | str | None = None,
 ) -> numpy.ndarray | Mapping[str, numpy.ndarray]:
     r"""Return theoretical :math:`D_\ell` spectra using the model plugin."""
 
     selected_solver = _select_cmb_solver(solver, cmb_solver)
+    requested_ells = tuple(int(value) for value in ells)
+    requested_spectra = tuple(str(value) for value in spectra)
+    _LAST_CMB_RESULT.set(None)
     try:
         declared_contract = _resolve_plugin_cmb_contract(
             plugin,
             model_params,
         )
-        prepared_contract = declared_contract
-    # DEVCOV_ALLOW_BROAD_ONCE plugin contract normalization boundary.
-    except Exception as exc:
-        raise classify_exception(
-            exc,
-            context={
-                "parameters": tuple(float(value) for value in model_params),
-                "requested_spectra": tuple(str(name) for name in spectra),
-                "workload": str(workload),
-            },
-        ) from exc
-    if isinstance(prepared_contract, Mapping):
-        prepared_contract = dict(prepared_contract)
+        prepared_contract = dict(declared_contract)
         prepared_contract["_background_provider"] = plugin
-    prepared = selected_solver.prepare(prepared_contract)
-    result = selected_solver.evaluate(
-        prepared,
-        tuple(int(value) for value in ells),
-        spectra=tuple(str(value) for value in spectra),
-        workload=workload,
-    )
+        if numerical_overrides:
+            numerical = dict(prepared_contract.get("numerical", {}) or {})
+            numerical.update(
+                {
+                    str(name): value
+                    for name, value in numerical_overrides.items()
+                }
+            )
+            prepared_contract["numerical"] = numerical
+        if diagnostic_matrix_fast_path:
+            prepared_contract["_diagnostic_matrix_fast_path"] = True
+        prepared = selected_solver.prepare(prepared_contract)
+        result = selected_solver.evaluate(
+            prepared,
+            requested_ells,
+            spectra=requested_spectra,
+            workload=workload,
+        )
+        _LAST_CMB_RESULT.set(result)
+    # DEVCOV_ALLOW_BROAD_ONCE plugin and solver boundary.
+    except Exception as exc:
+        context = failure_context(
+            prepared_contract if "prepared_contract" in locals() else {},
+            workload=workload,
+            spectra=requested_spectra,
+        )
+        failure = classify_exception(exc, context=context)
+        _LAST_CMB_RESULT.set(
+            CMBResult(
+                requested_ells=requested_ells,
+                requested_spectra=requested_spectra,
+                failure=failure,
+                solver_id=getattr(selected_solver, "solver_id", ""),
+                solver_label=getattr(selected_solver, "solver_label", ""),
+            )
+        )
+        raise failure from exc
     return _unwrap_cmb_result(result)
 
 

@@ -40,6 +40,13 @@ class CMBBatchResult:
     failure: CMBError | None = None
     performance_envelope: Mapping[str, Any] = field(default_factory=dict)
     cache_provenance: Mapping[str, Any] = field(default_factory=dict)
+    requested_ells: tuple[int, ...] = ()
+    requested_spectra: tuple[str, ...] = ()
+    diagnostics: Mapping[str, Any] = field(default_factory=dict)
+    phase_timings: Mapping[str, float] = field(default_factory=dict)
+    solver_id: str = ""
+    solver_label: str = ""
+    raw_spectra: Mapping[str, numpy.ndarray] | None = None
 
     def __post_init__(self) -> None:
         """Validate one-and-only-one success or typed failure outcome."""
@@ -66,6 +73,28 @@ class CMBBatchResult:
             "cache_provenance",
             dict(self.cache_provenance or {}),
         )
+        object.__setattr__(
+            self,
+            "requested_ells",
+            tuple(int(value) for value in self.requested_ells),
+        )
+        object.__setattr__(
+            self,
+            "requested_spectra",
+            tuple(str(value) for value in self.requested_spectra),
+        )
+        object.__setattr__(self, "diagnostics", dict(self.diagnostics or {}))
+        object.__setattr__(
+            self,
+            "phase_timings",
+            dict(self.phase_timings or {}),
+        )
+        if self.raw_spectra is not None:
+            if not isinstance(self.raw_spectra, Mapping):
+                raise TypeError("Batch raw spectra must be a named mapping")
+            object.__setattr__(self, "raw_spectra", dict(self.raw_spectra))
+        object.__setattr__(self, "solver_id", str(self.solver_id))
+        object.__setattr__(self, "solver_label", str(self.solver_label))
 
     @property
     def success(self) -> bool:
@@ -82,7 +111,18 @@ class CMBBatchResult:
                 None if self.failure is None else _jsonable(self.failure)
             ),
             "index": self.index,
+            "diagnostics": _jsonable(self.diagnostics),
+            "phase_timings": _jsonable(self.phase_timings),
             "performance_envelope": _jsonable(self.performance_envelope),
+            "requested_ells": self.requested_ells,
+            "requested_spectra": self.requested_spectra,
+            "raw_spectra": (
+                None
+                if self.raw_spectra is None
+                else _jsonable(self.raw_spectra)
+            ),
+            "solver_id": self.solver_id,
+            "solver_label": self.solver_label,
             "spectrum": (
                 None if self.spectrum is None else _jsonable(self.spectrum)
             ),

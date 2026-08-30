@@ -42,6 +42,7 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
         self.assertTrue(
             callable(cmb_solver._compute_declared_perturbation_spectrum)
         )
+        self.assertTrue(callable(cmb_solver.last_declared_raw_spectra))
 
     def test_lensed_assembly_uses_declared_unlensed_and_pp_surfaces(self):
         """Lensed output must be assembled from declared surfaces."""

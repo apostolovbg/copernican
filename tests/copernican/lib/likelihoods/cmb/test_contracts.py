@@ -129,6 +129,19 @@ class TestCMBSolverContract(unittest.TestCase):
         self.assertEqual(payload["solver_id"], "test_solver")
         self.assertTrue(result.success)
 
+    def test_result_serializes_optional_raw_spectra(self):
+        """The solver result can carry named raw spectra for parity audits."""
+
+        result = CMBResult(
+            spectra={"TT": numpy.array([2.5])},
+            requested_ells=(2,),
+            requested_spectra=("TT",),
+            raw_spectra={"TT": numpy.array([0.25])},
+            solver_id="test_solver",
+        )
+
+        self.assertEqual(result.to_dict()["raw_spectra"]["TT"], [0.25])
+
     def test_unknown_solver_fails_as_typed_capability_error(self):
         """Unknown manifest selections fail before any numerical work."""
 

@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-29
+**Last Updated:** 2026-08-30
 **Project Version:** 12.0.26
 
 ## Overview
@@ -38,6 +38,10 @@ result. The initial implementation is an exact scalar-to-batch adapter; it
 therefore shares only identities that the declared cache already proves safe
 and
 does not approximate parameter-dependent background or transfer state.
+Successful results retain requested multipole and spectrum order, solver
+identity, and an optional raw-spectrum payload. The diagnostics parity audit
+compares public arrays exactly and checks raw arrays and runtime metadata when
+present; missing cache identities or required request metadata are failures.
 
 The MCMC sampler accepts `cmb_batch_size` as an explicit setting. `0` is the
 default and preserves the scalar reference path. A value greater than one
@@ -114,6 +118,10 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
+Tier-controlled parity uses the same declared numerical overrides and workload
+for both paths. The cached scalar wrapper retains its typed result, raw
+unscaled spectra, request metadata, solver identity, and phase provenance so
+the audit compares solver products rather than plot output.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

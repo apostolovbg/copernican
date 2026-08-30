@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-29
+**Last Updated:** 2026-08-30
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,49 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-30:
+  Change: Completed Slice Five scalar, batch, cache, and corpus evidence.
+  Why: Bound parity checks to the same tiered request and retained raw
+    solver products while preserving scientific rejection reasons.
+  Impact: Bundled matrix rows now provide deterministic typed outcomes,
+    exact public/raw parity, stable metadata, and isolated cache identities.
+  Files:
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/contracts.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/results.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_results.py
+
+- 2026-08-30:
+  Change: Strengthened ordered CMB batch parity and corpus-matrix evidence.
+  Why: Preserve exact request metadata, optional raw spectra, typed outcomes,
+    and declaration audits before a model can pass certification.
+  Impact: Scalar/batch checks now reject missing identities or metadata while
+    retaining deterministic, serializable evidence for every bundled model.
+  Files:
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/contracts.py
+  copernican/lib/likelihoods/cmb/results.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts.py
+  tests/copernican/lib/likelihoods/cmb/test_results.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
 
 - 2026-08-29:
   Change: Added theory-faithful bundled CMB declaration classification and

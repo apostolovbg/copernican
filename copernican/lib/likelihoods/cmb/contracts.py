@@ -84,6 +84,7 @@ class CMBResult:
     failure: CMBError | None = None
     solver_id: str = ""
     solver_label: str = ""
+    raw_spectra: Mapping[str, numpy.ndarray] | None = None
 
     def __post_init__(self) -> None:
         """Validate and normalize one successful or failed outcome."""
@@ -117,6 +118,10 @@ class CMBResult:
         object.__setattr__(
             self, "phase_timings", dict(self.phase_timings or {})
         )
+        if self.raw_spectra is not None:
+            if not isinstance(self.raw_spectra, Mapping):
+                raise TypeError("CMB raw spectra must be a named mapping")
+            object.__setattr__(self, "raw_spectra", dict(self.raw_spectra))
 
     @property
     def success(self) -> bool:
@@ -148,6 +153,11 @@ class CMBResult:
             "phase_timings": _jsonable(self.phase_timings),
             "requested_ells": self.requested_ells,
             "requested_spectra": self.requested_spectra,
+            "raw_spectra": (
+                None
+                if self.raw_spectra is None
+                else _jsonable(self.raw_spectra)
+            ),
             "solver_id": self.solver_id,
             "solver_label": self.solver_label,
             "spectra": (

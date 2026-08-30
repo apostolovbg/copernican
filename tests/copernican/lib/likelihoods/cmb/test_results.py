@@ -37,6 +37,9 @@ class CMBBatchContractTestCase(unittest.TestCase):
         self.assertTrue(result.success)
         numpy.testing.assert_array_equal(result.spectrum, [2.5, 2.5])
         self.assertIsNone(result.failure)
+        self.assertEqual(result.requested_ells, (2, 3))
+        self.assertEqual(result.requested_spectra, ("TT",))
+        self.assertEqual(result.solver_id, "ccmbs_numpy")
         json.dumps(result.to_dict(), sort_keys=True)
 
     def test_batch_preserves_input_order_and_isolates_typed_failures(self):
@@ -62,9 +65,33 @@ class CMBBatchContractTestCase(unittest.TestCase):
         self.assertFalse(results[1].success)
         self.assertIsInstance(results[1].failure, ParameterDomainError)
         self.assertEqual(results[1].failure.context["batch_index"], 1)
+        self.assertEqual(results[1].requested_ells, (2,))
+        self.assertEqual(results[1].requested_spectra, ("TT",))
         self.assertTrue(results[2].success)
         numpy.testing.assert_array_equal(results[0].spectrum, [1.0])
         numpy.testing.assert_array_equal(results[2].spectrum, [3.0])
+
+    def test_batch_result_serializes_request_and_raw_metadata(self):
+        """Batch results retain exact request and optional raw products."""
+
+        result = CMBBatchResult(
+            index=2,
+            spectrum={"TT": numpy.array([1.0, 2.0])},
+            requested_ells=(8, 3),
+            requested_spectra=("TT",),
+            diagnostics={"work_units": 4},
+            phase_timings={"projection": 0.25},
+            solver_id="ccmbs_numpy",
+            solver_label="CCMBS NumPy",
+            raw_spectra={"TT": numpy.array([0.1, 0.2])},
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["requested_ells"], (8, 3))
+        self.assertEqual(payload["requested_spectra"], ("TT",))
+        self.assertEqual(payload["solver_id"], "ccmbs_numpy")
+        self.assertEqual(payload["raw_spectra"]["TT"], [0.1, 0.2])
+        json.dumps(payload, sort_keys=True)
 
     def test_cmb_likelihood_batch_matches_scalar_and_uses_one_cmb_call(
         self,

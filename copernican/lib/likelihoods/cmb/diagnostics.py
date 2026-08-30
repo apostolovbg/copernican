@@ -22,6 +22,7 @@ from ... import model_adapter, model_coder, model_spec_validator
 from ...cmb_contract import audit_cmb_capabilities
 from .contracts_audit import (
     audit_bundled_cmb_contracts,
+    audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
 )
 from .errors import CMBError, ConvergenceError
@@ -56,7 +57,7 @@ BUNDLED_CMB_MODEL_FILENAMES = (
 # evidence tier for the matrix and is never substituted for a model's
 # production numerical declaration.
 CMB_CERTIFICATION_TIER = {
-    "id": "ccmbs-slice-seven-fixed-point-v1",
+    "id": "ccmbs-slice-five-fixed-point-v1",
     # The first acoustic feature is near ell=200.  A certification surface
     # that stops below it can only test finiteness, not the physical acoustic
     # structure required by the matrix acceptance contract.
@@ -1997,6 +1998,7 @@ def _matrix_evidence_status(
     require_reference: bool,
     contract_audit: Mapping[str, Any] | None,
     source_graph_audit: Mapping[str, Any] | None,
+    declaration_audit: Mapping[str, Any] | None,
 ) -> tuple[bool, tuple[str, ...]]:
     """Apply the complete bundled-model matrix acceptance contract."""
 
@@ -2022,6 +2024,10 @@ def _matrix_evidence_status(
         issues.append("source graph audit is unavailable")
     elif not bool(source_graph_audit.get("valid", False)):
         issues.append("source graph audit failed")
+    if declaration_audit is None:
+        issues.append("declaration audit is unavailable")
+    elif not bool(declaration_audit.get("valid", False)):
+        issues.append("declaration audit failed")
     # Batch and cache parity are acceptance evidence for rows that reached a
     # measured fixed point.  A row rejected by the scalar solver must retain
     # its typed scientific reason without being misclassified as a second,
@@ -2051,6 +2057,7 @@ def build_cmb_certification_report(
     certification_tier: Mapping[str, Any] | None = None,
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic final certification record from raw reports.
 
@@ -2096,6 +2103,9 @@ def build_cmb_certification_report(
         graph_audit = (source_graph_audits or {}).get(
             str(report.model_filename)
         )
+        declaration_audit = (declaration_audits or {}).get(
+            str(report.model_filename)
+        )
         if matrix_mode:
             valid, issues = _matrix_evidence_status(
                 report,
@@ -2103,6 +2113,7 @@ def build_cmb_certification_report(
                 require_reference=require_reference,
                 contract_audit=audit,
                 source_graph_audit=graph_audit,
+                declaration_audit=declaration_audit,
             )
         else:
             valid, issues = _certification_evidence_status(
@@ -2117,6 +2128,7 @@ def build_cmb_certification_report(
                 "accepted": valid,
                 "availability": report.availability,
                 "contract_audit": _jsonable(audit),
+                "declaration_audit": _jsonable(declaration_audit),
                 "source_graph_audit": _jsonable(graph_audit),
                 "issues": list(issues),
                 "report": report.to_dict(),
@@ -2173,6 +2185,10 @@ def build_cmb_certification_report(
             name: _jsonable((contract_audits or {}).get(name))
             for name in sorted(contract_audits or {})
         },
+        "declaration_audits": {
+            name: _jsonable((declaration_audits or {}).get(name))
+            for name in sorted(declaration_audits or {})
+        },
         "source_graph_audits": {
             name: _jsonable((source_graph_audits or {}).get(name))
             for name in sorted(source_graph_audits or {})
@@ -2197,6 +2213,7 @@ def write_cmb_certification_report(
     certification_tier: Mapping[str, Any] | None = None,
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Serialize a certification record and return the written payload."""
 
@@ -2209,6 +2226,7 @@ def write_cmb_certification_report(
         certification_tier=certification_tier,
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
     )
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -2469,7 +2487,7 @@ def run_cmb_model_diagnostic(
                 for name, values in public_spectra.items()
             },
             raw_spectra={
-                str(name): numpy.asarray(values, dtype=float)
+                str(name): numpy.asarray(values, dtype=numpy.longdouble)
                 for name, values in raw_data.spectra.items()
             },
             raw_transfer_components={
@@ -2512,25 +2530,154 @@ def run_cmb_model_diagnostic(
         )
 
 
+_BATCH_PARITY_METADATA_KEYS = frozenset(
+    {
+        "spectrum",
+        "spectra",
+        "raw_spectra",
+        "requested_ells",
+        "requested_spectra",
+        "failure",
+        "solver_id",
+        "solver_label",
+        "diagnostics",
+        "phase_timings",
+    }
+)
+
+
+def _batch_parity_payload(value: Any) -> dict[str, Any]:
+    """Normalize scalar mappings and ordered batch items for parity checks."""
+
+    if isinstance(value, Mapping):
+        has_metadata = bool(
+            _BATCH_PARITY_METADATA_KEYS.intersection(value.keys())
+        )
+        spectrum = value.get("spectrum", value.get("spectra"))
+        if spectrum is None and not has_metadata:
+            spectrum = value
+        elif spectrum is None:
+            spectrum = {}
+        payload = {
+            "spectrum": spectrum,
+            "raw_spectra": value.get("raw_spectra"),
+            "requested_ells": value.get("requested_ells"),
+            "requested_spectra": value.get("requested_spectra"),
+            "failure": value.get("failure"),
+            "solver_id": value.get("solver_id"),
+            "solver_label": value.get("solver_label"),
+            "diagnostics": value.get("diagnostics"),
+            "phase_timings": value.get("phase_timings"),
+        }
+    else:
+        payload = {
+            "spectrum": getattr(value, "spectrum", None),
+            "raw_spectra": getattr(value, "raw_spectra", None),
+            "requested_ells": getattr(value, "requested_ells", None),
+            "requested_spectra": getattr(value, "requested_spectra", None),
+            "failure": getattr(value, "failure", None),
+            "solver_id": getattr(value, "solver_id", None),
+            "solver_label": getattr(value, "solver_label", None),
+            "diagnostics": getattr(value, "diagnostics", None),
+            "phase_timings": getattr(value, "phase_timings", None),
+        }
+    spectrum = payload["spectrum"]
+    if isinstance(spectrum, numpy.ndarray):
+        spectrum = {"TT": spectrum}
+    elif spectrum is not None and not isinstance(spectrum, Mapping):
+        spectrum = {"TT": numpy.asarray(spectrum)}
+    payload["spectrum"] = spectrum
+    return payload
+
+
+def _batch_failure_signature(value: Any) -> Any:
+    """Keep typed failure comparisons stable across runtime diagnostics."""
+
+    if value is None:
+        return None
+    if isinstance(value, CMBError):
+        diagnostic = value.diagnostic()
+        return {
+            "error_type": type(value).__name__,
+            "category": diagnostic.get("category"),
+            "message": diagnostic.get("message"),
+        }
+    if isinstance(value, Mapping):
+        return {
+            "error_type": _jsonable(
+                value.get("error_type") or value.get("type")
+            ),
+            "category": _jsonable(value.get("category")),
+            "message": _jsonable(value.get("message")),
+        }
+    return {"error_type": type(value).__name__, "message": str(value)}
+
+
+def _batch_arrays_equal(
+    left: Mapping[str, Any] | None,
+    right: Mapping[str, Any] | None,
+) -> bool:
+    """Compare two named spectrum payloads without tolerances or coercion."""
+
+    if left is None or right is None:
+        return left is None and right is None
+    if set(left) != set(right):
+        return False
+    return all(
+        numpy.array_equal(
+            numpy.asarray(left[name]), numpy.asarray(right[name])
+        )
+        for name in left
+    )
+
+
+def _stable_batch_diagnostics(value: Any) -> Any:
+    """Remove per-call counters and timings before metadata comparison."""
+
+    if not isinstance(value, Mapping):
+        return value
+    normalized = dict(value)
+    performance = normalized.get("performance_record")
+    if isinstance(performance, Mapping):
+        stable = {
+            key: performance[key]
+            for key in ("workload", "outcome", "stop_phase", "failure")
+            if key in performance
+        }
+        context = performance.get("context")
+        if isinstance(context, Mapping):
+            stable["context"] = context
+        normalized["performance_record"] = stable
+    normalized.pop("elapsed_seconds", None)
+    normalized.pop("cache_state", None)
+    return _jsonable(normalized)
+
+
 def assess_scalar_batch_cache_evidence(
     scalar_spectra: Mapping[str, Any] | Sequence[Mapping[str, Any]] | None,
     batch_results: Sequence[Any] | None,
     *,
     expected_indices: Sequence[int] | None = None,
+    expected_requested_ells: Sequence[int] | None = None,
+    expected_requested_spectra: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    """Audit exact scalar/batch equality and cache identity separation.
+    """Audit exact scalar/batch equality, metadata, and cache separation.
 
-    The helper accepts public batch results without importing a sampler.  A
-    missing result or missing cache identity is reported as unavailable; it
-    is never converted into a passing matrix row.
+    Public scalar spectrum mappings remain supported for compatibility.  A
+    richer mapping may additionally provide raw spectra, requested grids,
+    solver metadata, and a typed failure; fields present in either result
+    are compared exactly.  Missing cache identities or metadata required by
+    the caller are reported as non-passing evidence.
     """
 
     evidence: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "available": False,
         "converged": False,
         "ordering_preserved": False,
         "spectra_equal": False,
+        "raw_spectra_equal": None,
+        "metadata_equal": False,
         "cache_isolated": False,
         "issues": [],
     }
@@ -2562,29 +2709,77 @@ def assess_scalar_batch_cache_evidence(
     expected = tuple(
         range(len(batch_results))
         if expected_indices is None
-        else (int(value) for value in expected_indices)
+        else tuple(int(value) for value in expected_indices)
     )
+    if len(expected) != len(batch_results):
+        issues.append("expected batch indices do not match result count")
     observed_indices: list[int] = []
     identities: list[str] = []
     equal = True
+    raw_equal = True
+    raw_measured = False
+    metadata_equal = True
     for position, result in enumerate(batch_results):
-        if getattr(result, "failure", None) is not None:
-            issues.append(f"batch item {position} returned a typed failure")
-            equal = False
-            continue
-        payload = getattr(result, "spectrum", result)
-        if not isinstance(payload, Mapping):
-            issues.append(f"batch item {position} has no spectrum mapping")
-            equal = False
-            continue
+        scalar = _batch_parity_payload(scalar_payloads[position])
+        batch = _batch_parity_payload(result)
         observed_indices.append(int(getattr(result, "index", position)))
-        scalar_payload = scalar_payloads[position]
-        for name, values in scalar_payload.items():
-            if name not in payload or not numpy.array_equal(
-                numpy.asarray(values), numpy.asarray(payload[name])
-            ):
-                issues.append(f"batch item {position} differs for {name}")
+        scalar_failure = _batch_failure_signature(scalar["failure"])
+        batch_failure = _batch_failure_signature(batch["failure"])
+        if scalar_failure != batch_failure:
+            issues.append(f"batch item {position} typed failure differs")
+            equal = False
+        if scalar_failure is None:
+            if not _batch_arrays_equal(scalar["spectrum"], batch["spectrum"]):
+                issues.append(f"batch item {position} public spectra differ")
                 equal = False
+            scalar_raw = scalar["raw_spectra"]
+            batch_raw = batch["raw_spectra"]
+            if scalar_raw is not None:
+                raw_measured = True
+                if not _batch_arrays_equal(scalar_raw, batch_raw):
+                    issues.append(f"batch item {position} raw spectra differ")
+                    raw_equal = False
+            elif batch_raw is not None:
+                issues.append(
+                    "batch item "
+                    f"{position} has raw spectra without scalar data"
+                )
+                raw_equal = False
+        for key, expected_value in (
+            ("requested_ells", expected_requested_ells),
+            ("requested_spectra", expected_requested_spectra),
+        ):
+            if expected_value is None:
+                continue
+            actual = batch[key]
+            if actual is None:
+                issues.append(f"batch item {position} omits {key}")
+                metadata_equal = False
+            elif tuple(actual) != tuple(expected_value):
+                issues.append(f"batch item {position} differs for {key}")
+                metadata_equal = False
+            scalar_value = scalar[key]
+            if scalar_value is not None and tuple(scalar_value) != tuple(
+                expected_value
+            ):
+                issues.append(f"scalar item {position} differs for {key}")
+                metadata_equal = False
+        for key in ("solver_id", "solver_label"):
+            scalar_value = scalar[key]
+            if scalar_value is not None and scalar_value != batch[key]:
+                issues.append(f"batch item {position} differs for {key}")
+                metadata_equal = False
+        if scalar["diagnostics"] is not None and _stable_batch_diagnostics(
+            scalar["diagnostics"]
+        ) != _stable_batch_diagnostics(batch["diagnostics"]):
+            issues.append(f"batch item {position} differs for diagnostics")
+            metadata_equal = False
+        if (
+            scalar["phase_timings"] is not None
+            and batch["phase_timings"] is None
+        ):
+            issues.append(f"batch item {position} differs for phase_timings")
+            metadata_equal = False
         provenance = getattr(result, "cache_provenance", {}) or {}
         identity = provenance.get("cache_identity")
         if identity is not None:
@@ -2592,7 +2787,9 @@ def assess_scalar_batch_cache_evidence(
     ordering = tuple(observed_indices) == expected
     if not ordering:
         issues.append("batch result ordering does not match input ordering")
-    isolated = bool(identities) and len(set(identities)) == len(identities)
+    isolated = len(identities) == len(batch_results) and len(
+        set(identities)
+    ) == len(identities)
     if not isolated:
         issues.append("batch cache identities are missing or cross-talked")
     evidence.update(
@@ -2601,6 +2798,8 @@ def assess_scalar_batch_cache_evidence(
             "converged": not issues,
             "ordering_preserved": ordering,
             "spectra_equal": equal,
+            "raw_spectra_equal": raw_equal if raw_measured else None,
+            "metadata_equal": metadata_equal,
             "cache_isolated": isolated,
             "scalar_count": len(scalar_payloads),
             "identity_count": len(identities),
@@ -2652,6 +2851,7 @@ def _run_scalar_batch_cache_check(
     *,
     ells: Sequence[int],
     spectra: Sequence[str],
+    numerical_overrides: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Compare scalar and ordered batch results at two parameter points."""
 
@@ -2667,7 +2867,7 @@ def _run_scalar_batch_cache_check(
         "status": "unavailable",
         "reason": "fixed-point scalar evidence is unavailable",
     }
-    if report.failure is not None or not report.spectra:
+    if not report.spectra and report.failure is not None:
         return unavailable, cache_unavailable
     points, reason = _matrix_batch_parameter_points(plugin)
     if reason is not None:
@@ -2677,38 +2877,118 @@ def _run_scalar_batch_cache_check(
         cache_unavailable["reason"] = reason
         return unavailable, cache_unavailable
     try:
+        from . import cmb as cmb_api
         from .cmb import (
             compute_cmb_spectrum_batch,
             compute_cmb_spectrum_cached,
         )
 
-        scalar_payloads: list[Mapping[str, Any]] = [report.spectra]
+        # A diagnostic can reject a finite solve for shape or residual
+        # evidence.  Parity still has to compare its scalar spectrum with the
+        # ordered batch item; only a report with no spectrum at all carries a
+        # failure into this execution audit.
+        scalar_payloads: list[Mapping[str, Any]] = [
+            {
+                "spectrum": report.spectra or None,
+                "raw_spectra": report.raw_spectra or None,
+                "requested_ells": report.requested_ells,
+                "requested_spectra": report.requested_spectra,
+                "failure": None if report.spectra else report.failure,
+            }
+        ]
         contracts: list[Mapping[str, Any]] = []
         for index, parameters in enumerate(points):
             contract = plugin.get_cmb_declared_runtime(parameters)
+            if numerical_overrides:
+                contract = _bound_contract(contract, numerical_overrides)
+            contract = dict(contract)
+            contract["_diagnostic_matrix_fast_path"] = True
             contracts.append(contract)
             if index:
-                scalar = compute_cmb_spectrum_cached(
-                    plugin,
-                    parameters,
-                    ells,
-                    spectra=spectra,
-                    workload="matrix_batch_scalar_reference",
-                )
-                if isinstance(scalar, Mapping):
-                    scalar_payloads.append(scalar)
+                try:
+                    cmb_api._LAST_CMB_RESULT.set(None)
+                    scalar = compute_cmb_spectrum_cached(
+                        plugin,
+                        parameters,
+                        ells,
+                        spectra=spectra,
+                        workload="matrix_batch_reference",
+                        numerical_overrides=numerical_overrides,
+                        diagnostic_matrix_fast_path=True,
+                    )
+                # DEVCOV_ALLOW_BROAD_ONCE: isolate scalar batch failures.
+                except Exception as error:
+                    scalar_result = cmb_api._LAST_CMB_RESULT.get()
+                    scalar_payloads.append(
+                        {
+                            "spectrum": None,
+                            "raw_spectra": None,
+                            "requested_ells": ells,
+                            "requested_spectra": spectra,
+                            "failure": (
+                                None
+                                if scalar_result is None
+                                else scalar_result.failure
+                            )
+                            or _diagnostic_failure(error),
+                        }
+                    )
+                    continue
+                scalar_result = cmb_api._LAST_CMB_RESULT.get()
+                if scalar_result is not None:
+                    scalar_payloads.append(
+                        {
+                            "spectrum": scalar_result.spectra,
+                            "raw_spectra": scalar_result.raw_spectra,
+                            "requested_ells": scalar_result.requested_ells,
+                            "requested_spectra": (
+                                scalar_result.requested_spectra
+                            ),
+                            "failure": scalar_result.failure,
+                            "solver_id": scalar_result.solver_id,
+                            "solver_label": scalar_result.solver_label,
+                            "diagnostics": scalar_result.diagnostics,
+                            "phase_timings": scalar_result.phase_timings,
+                        }
+                    )
+                elif isinstance(scalar, Mapping):
+                    scalar_payloads.append(
+                        {
+                            "spectrum": scalar,
+                            "requested_ells": ells,
+                            "requested_spectra": spectra,
+                        }
+                    )
                 else:
-                    scalar_payloads.append({spectra[0]: scalar})
+                    scalar_payloads.append(
+                        {
+                            "spectrum": {spectra[0]: scalar},
+                            "requested_ells": ells,
+                            "requested_spectra": spectra,
+                        }
+                    )
         batch_results = compute_cmb_spectrum_batch(
             contracts,
             ells,
             background_provider=plugin,
             requested_spectra=spectra,
+            workload="matrix_batch_reference",
+        )
+        batch_metadata_available = all(
+            bool(getattr(item, "requested_ells", ()))
+            and bool(getattr(item, "requested_spectra", ()))
+            for item in batch_results
         )
         evidence = assess_scalar_batch_cache_evidence(
             scalar_payloads,
             batch_results,
             expected_indices=range(len(points)),
+            expected_requested_ells=(
+                ells if batch_metadata_available else None
+            ),
+            expected_requested_spectra=(
+                spectra if batch_metadata_available else None
+            ),
         )
         evidence = dict(evidence)
         evidence.update(
@@ -2763,8 +3043,9 @@ def build_bundled_cmb_matrix_report(
     certification_tier: Mapping[str, Any] | None = None,
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build the strict filename-keyed scientific matrix for Slice Seven."""
+    """Build the strict filename-keyed scientific matrix for Slice Five."""
 
     return build_cmb_certification_report(
         reports,
@@ -2775,6 +3056,7 @@ def build_bundled_cmb_matrix_report(
         certification_tier=certification_tier or CMB_CERTIFICATION_TIER,
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
     )
 
 
@@ -2787,6 +3069,7 @@ def write_bundled_cmb_matrix_report(
     certification_tier: Mapping[str, Any] | None = None,
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Write a deterministic bundled-model matrix report to JSON."""
 
@@ -2797,6 +3080,7 @@ def write_bundled_cmb_matrix_report(
         certification_tier=certification_tier,
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
     )
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -2851,6 +3135,10 @@ def run_bundled_cmb_matrix(
         audit.model_filename: audit.to_dict()
         for audit in audit_bundled_cmb_source_graphs(model_directory)
     }
+    declaration_audits = {
+        decision.model_filename: decision.to_dict()
+        for decision in audit_bundled_cmb_declarations(model_directory)
+    }
     reports: list[CMBModelDiagnostic] = []
     for plugin in plugins:
         filename = str(plugin.MODEL_FILENAME)
@@ -2895,6 +3183,7 @@ def run_bundled_cmb_matrix(
                 report,
                 ells=requested_ells,
                 spectra=requested_spectra,
+                numerical_overrides=tier_overrides,
             )
         else:
             scalar_batch = {
@@ -2924,6 +3213,7 @@ def run_bundled_cmb_matrix(
         certification_tier=tier,
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
     )
 
 

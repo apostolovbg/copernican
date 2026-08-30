@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-29
+**Last Updated:** 2026-08-30
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -194,6 +194,10 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
+Tier-controlled parity uses the same declared numerical overrides and workload
+for both paths. The cached scalar wrapper retains its typed result, raw
+unscaled spectra, request metadata, solver identity, and phase provenance so
+the audit compares solver products rather than plot output.
 The final LambdaCDM declaration uses 2048 k, eta, and evolution nodes. CCMBS
 keeps the generated hierarchy history at the declared LOS phase resolution so
 acoustic sources are not aliased by sparse-history interpolation.
@@ -235,6 +239,11 @@ sequence of declared contracts and returns one serializable result per input,
 including typed failures and cache provenance. It starts as an exact
 scalar-to-batch adapter, so parameter-dependent state remains isolated while
 shared-structure and vectorized kernels are validated independently.
+Each successful result also records the requested multipole and spectrum
+order, solver identity, and optional raw-spectrum payload. The diagnostics
+parity audit compares public arrays exactly and compares raw arrays and
+runtime metadata whenever those fields are present; missing cache identities
+or required request metadata cannot pass as evidence.
 The MCMC sampler exposes `cmb_batch_size` as an explicit opt-in setting;
 the default `0` keeps the exact scalar sampler and fallback path unchanged.
 Sampler progress also reports worker-pool launch and walker initialization

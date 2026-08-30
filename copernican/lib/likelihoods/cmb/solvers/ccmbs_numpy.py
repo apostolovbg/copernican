@@ -15,7 +15,10 @@ from ....cmb_identity import CCMBS_ID, CCMBS_LABEL
 from ....model_coder import prepare_declared_cmb_execution_contract
 from ..contracts import CMBResult, CMBSolverCapabilities
 from ..errors import classify_exception, failure_context
-from ..orchestrators.ccmbs import _compute_declared_perturbation_spectrum
+from ..orchestrators.ccmbs import (
+    _compute_declared_perturbation_spectrum,
+    last_declared_raw_spectra,
+)
 from ..runtime import cache
 from ..runtime.evolution import prepare_runtime_assets
 
@@ -160,6 +163,12 @@ class CCMBSNumpySolver:
             )
         started = perf_counter()
         try:
+            # Do not allow a previous successful request to leak raw products
+            # into a failed result.  The orchestrator replaces this sentinel
+            # after the custom projection has produced its unscaled spectra.
+            from ..orchestrators import ccmbs as ccmbs_orchestrator
+
+            ccmbs_orchestrator._LAST_DECLARED_RAW_SPECTRA.set(None)
             executor = _compute_declared_perturbation_spectrum
             try:
                 from .. import cmb as cmb_api
@@ -215,6 +224,7 @@ class CCMBSNumpySolver:
             phase_timings=phases,
             solver_id=self.solver_id,
             solver_label=self.solver_label,
+            raw_spectra=last_declared_raw_spectra(),
         )
 
     def evaluate_batch(

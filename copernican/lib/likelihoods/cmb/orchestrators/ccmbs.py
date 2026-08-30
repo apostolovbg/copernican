@@ -3,6 +3,7 @@ r"""Declared-graph CMB solver orchestration helpers."""
 from __future__ import annotations
 
 import math
+from contextvars import ContextVar
 from time import perf_counter
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -29,6 +30,19 @@ _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_e",
     "temperature",
 }
+
+_LAST_DECLARED_RAW_SPECTRA: ContextVar[Mapping[str, numpy.ndarray] | None] = (
+    ContextVar(
+        "last_declared_raw_spectra",
+        default=None,
+    )
+)
+
+
+def last_declared_raw_spectra() -> Mapping[str, numpy.ndarray] | None:
+    """Return raw unscaled spectra from the most recent declared solve."""
+
+    return _LAST_DECLARED_RAW_SPECTRA.get()
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -343,6 +357,12 @@ def _compute_declared_perturbation_spectrum_impl(
         background_provider=background_provider,
         requested_spectra=base_requested_spectra,
         workload=workload,
+    )
+    _LAST_DECLARED_RAW_SPECTRA.set(
+        {
+            str(name): numpy.asarray(values, dtype=numpy.longdouble).copy()
+            for name, values in custom_data.spectra.items()
+        }
     )
     ell_factor = (
         numpy.asarray(custom_data.ell_grid, dtype=numpy.longdouble)

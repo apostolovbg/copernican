@@ -865,6 +865,43 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertEqual(evidence["scalar_count"], 2)
         self.assertEqual(evidence["identity_count"], 2)
 
+    def test_scalar_batch_audit_checks_raw_arrays_and_request_metadata(self):
+        """Rich parity payloads compare raw arrays and request metadata."""
+
+        class Result:
+            index = 0
+            spectrum = {"TT": numpy.array([1.0, 2.0])}
+            raw_spectra = {"TT": numpy.array([0.1, 0.2])}
+            requested_ells = (2, 3)
+            requested_spectra = ("TT",)
+            solver_id = "ccmbs_numpy"
+            solver_label = "CCMBS NumPy"
+            diagnostics = {"work_units": 2}
+            phase_timings = {"projection": 0.1}
+            failure = None
+            cache_provenance = {"cache_identity": "zero"}
+
+        scalar = {
+            "spectrum": {"TT": numpy.array([1.0, 2.0])},
+            "raw_spectra": {"TT": numpy.array([0.1, 0.2])},
+            "requested_ells": (2, 3),
+            "requested_spectra": ("TT",),
+            "solver_id": "ccmbs_numpy",
+            "solver_label": "CCMBS NumPy",
+            "diagnostics": {"work_units": 2},
+            "phase_timings": {"projection": 0.1},
+        }
+        evidence = assess_scalar_batch_cache_evidence(
+            scalar,
+            (Result(),),
+            expected_requested_ells=(2, 3),
+            expected_requested_spectra=("TT",),
+        )
+
+        self.assertTrue(evidence["available"])
+        self.assertTrue(evidence["raw_spectra_equal"])
+        self.assertTrue(evidence["metadata_equal"])
+
     def test_scalar_batch_cache_check_records_ordered_runtime_evidence(self):
         """The opt-in matrix check records ordered cache evidence."""
 

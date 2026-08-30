@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-29
+**Last Updated:** 2026-08-30
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -488,7 +488,7 @@ contract, diagnostics, and public-symbol tests pass; the declaration audit is
 deterministic and rejects an explicit graph that omits a required projection
 source role. Numerical spectrum certification remains owned by Slice Five.
 
-### [planned] Slice Five — scalar, batch, cache, and corpus certification
+### [closed] Slice Five — scalar, batch, cache, and corpus certification
 
 **Purpose:** Scientifically certify every accepted bundled model through the
 same numerical and execution standards, not merely a single scalar result.
@@ -531,6 +531,41 @@ same numerical and execution standards, not merely a single scalar result.
 **Closure evidence:** The final ten-row raw matrix contains contracts, source
 histories, grids, spectra, residuals, refinement, scalar/batch/cache evidence,
 typed outcomes, canonical JSON, and SHA256 digest.
+
+**Implementation completed and closed in this gate:**
+
+1. The cached scalar adapter now retains the complete typed `CMBResult` for
+   parity audits, including requested ordering, solver identity, raw
+   unscaled spectra, diagnostics, and phase provenance. Numerical overrides,
+   the matrix fast-path marker, and the workload are bound identically on
+   scalar and ordered batch requests.
+2. The generated declared-graph orchestrator publishes the raw spectra from
+   its custom projection through a request-local context. The NumPy solver
+   attaches that payload to both scalar and batch results without changing the
+   public spectrum conversion or introducing a second backend.
+3. Scalar/batch/cache evidence now compares the actual public and raw arrays,
+   ordered request metadata, typed failures, stable solver diagnostics, and
+   distinct cache identities. Per-call counters and wall-clock phase values
+   remain recorded but are not treated as scientific mismatches when a batch
+   item is served from an exact cache hit.
+4. A finite solve rejected by acoustic-shape or source-residual evidence is
+   still eligible for the execution-parity audit; only a solve with no
+   spectrum can be unavailable for that audit. This preserves the scientific
+   rejection reason while preventing missing batch evidence from hiding a
+   cache or ordering defect.
+5. The strict matrix path retains one deterministic row for every frozen
+   filename, attaches contract/source/declaration audits, executes the named
+   tier when requested, and leaves rejected or typed-unavailable rows visible
+   in the canonical report. No row is silently downgraded, duplicated, or
+   accepted from plot output.
+
+**Verification:** Focused diagnostics, contract, result, orchestrator, and
+solver suites pass. A fixed LCDM matrix probe produced identical scalar and
+ordered-batch public/raw spectra, stable request metadata, and two distinct
+cache identities. `gate --verify` passed with no policy complaints. The
+remaining rejected scientific rows are intentionally carried forward to
+Slice Six's final certification decision; Slice Five's evidence and
+classification machinery is closed.
 
 ### [planned] Slice Six — final scientific certification and BAO boundary
 
