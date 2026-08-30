@@ -3092,11 +3092,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             background=background,
             numerics=numerics,
             perturbation_data=perturbation_data,
+            # The sampler may request the joint-MCMC workload, but that
+            # workload must not opt out of the declared final phase grid.
+            # Only the explicit matrix diagnostic path is allowed to retain
+            # its bounded, under-resolved scaffold for raw evidence.
             allow_final_production_floor=not bool(
-                contract_or_params.get("_joint_mcmc_fast_path", False)
-                or contract_or_params.get(
-                    "_diagnostic_matrix_fast_path", False
-                )
+                contract_or_params.get("_diagnostic_matrix_fast_path", False)
             ),
             surface_ell_max_override=(
                 int(ell_arr.max())

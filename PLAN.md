@@ -20,15 +20,18 @@ Use `PLAN.md` to track active implementation work below this block.
 > necessary hygiene; it is never scientific closure.
 
 **Goal:** Scientifically repair and certify the CPU-reference Copernican
-Cosmic Microwave Background Solver (CCMBS). At closure, every bundled model
-that declares CMB capability must be either accepted by the same finite,
-converged, physically shaped, source-residual, scalar/batch, and cache-
-isolation standards, or explicitly unavailable because its contract truthfully
-does not provide CMB physics. The fixed LCDM reference must reproduce the
-frozen CAMB comparison fixture without using CAMB as a runtime fallback.
+Cosmic Microwave Background Solver (CCMBS) as a complete replacement for the
+old CAMB-backed solver. At closure, every bundled model that declares CMB
+capability must be accepted by the same finite, converged, physically shaped,
+source-residual, scalar/batch, and cache-isolation standards, or explicitly
+unavailable because its contract truthfully does not provide that physics.
+The fixed LCDM reference must reproduce the frozen CAMB comparison fixture
+for every declared sector and observable, without using CAMB as a runtime
+fallback.
 
 **Scope:** This plan owns the shared CCMBS generated-source compiler,
-hierarchy, line-of-sight projection, numerical convergence, bundled-model
+hierarchy, line-of-sight projection, numerical convergence, all declared
+scalar/vector/tensor sectors, unlensed and lensed observables, bundled-model
 contract audit, raw scientific evidence, and final BAO-isolation check. It
 does not add Taichi, GPU code, a surrogate, delayed acceptance, broad sampler
 optimization, another production Boltzmann backend, or a BAO sound-horizon
@@ -46,12 +49,14 @@ completed a bounded fixed-point classification. No model is currently
 scientifically accepted. The shared runtime must be repaired before model-
 specific declarations are changed.
 
-**Completion target:** Six bounded slices close in order. They establish one
-reproducible diagnostic baseline, repair the shared source compiler and
-hierarchy, repair projection and LCDM reference parity, then audit only any
-remaining genuinely model-specific declarations before certifying the entire
-corpus. A model file must never be weakened, relabelled unavailable, or
-declared valid merely to hide a shared CCMBS defect.
+**Completion target:** Twelve bounded slices close in order. Slices One
+through Seven establish the baseline, source/compiler safeguards, projection
+infrastructure, declaration and execution evidence, certification boundary,
+and the restored scalar-source convention. Slices Eight through Twelve
+explicitly own the independent CAMB fixture, all-source repair, full raw
+parity for every declared observable, complete bundled-model certification,
+and final closure. A model file must never be weakened, relabelled
+unavailable, or declared valid merely to hide a shared CCMBS defect.
 
 ## Global Constraints
 
@@ -348,10 +353,11 @@ anchor diagnostics.  The remaining numerical residual values are preserved
 as raw evidence and are intentionally not relabelled as accepted by this
 structural closure slice.
 
-### [closed] Slice Three — projection convergence and LCDM parity
+### [closed] Slice Three — projection infrastructure and reference comparison
 
-**Purpose:** Repair the source-to-observable path until fixed LCDM produces
-smooth, correctly phased TT, TE, and EE spectra that agree with CAMB.
+**Purpose:** Establish the source-to-observable infrastructure and the
+backend-neutral comparison boundary needed by the later scientific parity
+slices. This slice does not claim that CCMBS has already passed CAMB parity.
 
 **Files and surfaces:**
 
@@ -385,18 +391,18 @@ smooth, correctly phased TT, TE, and EE spectra that agree with CAMB.
 
 **Acceptance:**
 
-* LCDM TT, TE, and EE are finite, smooth, correctly phased, and converged at
-  the declared doubled-grid criterion.
-* LCDM passes frozen CAMB raw-array tolerances for all requested sectors.
-* QRSF passes the same physical-shape and convergence checks once its source
-  residual evidence is valid.
-* Irregular phase-aware grids cannot create negative or alias-driven
-  quadrature artifacts.
-* Focused projection, shape, refinement, and CAMB-comparison tests pass.
+* phase-aware projection grids use positive, documented quadrature weights and
+  retain their effective-node metadata;
+* base/refined raw arrays and typed non-convergence failures are preserved;
+* scalar projection, ordered batching, and source-history caching retain their
+  declared ordering and provenance; and
+* the comparison boundary accepts independent raw reference arrays without
+  making the reference backend a CCMBS runtime fallback.
 
 **Closure evidence:** The fixed LCDM and QRSF reports preserve source inputs,
 base/refined raw/public arrays, grids, quadrature rule, peak/phase/damping
-metrics, frozen fixture digest, and acceptance decision.
+metrics, and comparison metadata. The raw parity decision is intentionally
+owned by Slices Eight through Ten.
 
 **Implemented and closed in this gate:**
 
@@ -488,10 +494,11 @@ contract, diagnostics, and public-symbol tests pass; the declaration audit is
 deterministic and rejects an explicit graph that omits a required projection
 source role. Numerical spectrum certification remains owned by Slice Five.
 
-### [closed] Slice Five — scalar, batch, cache, and corpus certification
+### [closed] Slice Five — scalar, batch, cache, and corpus evidence
 
-**Purpose:** Scientifically certify every accepted bundled model through the
-same numerical and execution standards, not merely a single scalar result.
+**Purpose:** Capture complete scalar, ordered-batch, cache-isolation, and
+bundled-matrix evidence under one deterministic request. Scientific model
+acceptance is performed by Slice Eleven after shared CAMB parity is proven.
 
 **Files and surfaces:**
 
@@ -521,12 +528,12 @@ same numerical and execution standards, not merely a single scalar result.
 
 **Acceptance:**
 
-* Every accepted model has finite, physically shaped, source-residual-clean,
-  doubled-grid-converged TT/TE/EE arrays.
-* Scalar/batch equality and cache isolation pass for every accepted model.
-* Every unavailable model is explicitly and truthfully unavailable by
-  contract; every other failure is rejected with a typed raw-evidence reason.
-* The complete corpus report is deterministic across clean processes.
+* the matrix preserves finite or typed-failure raw arrays, histories, grids,
+  residuals, and convergence evidence for every requested model;
+* scalar/batch equality, ordering, failure semantics, and cache identities are
+  recorded without treating a cache hit as a scientific mismatch; and
+* the complete corpus report is deterministic across clean processes, while
+  its scientific decisions remain explicit rather than upgraded to success.
 
 **Closure evidence:** The final ten-row raw matrix contains contracts, source
 histories, grids, spectra, residuals, refinement, scalar/batch/cache evidence,
@@ -563,15 +570,14 @@ typed outcomes, canonical JSON, and SHA256 digest.
 solver suites pass. A fixed LCDM matrix probe produced identical scalar and
 ordered-batch public/raw spectra, stable request metadata, and two distinct
 cache identities. `gate --verify` passed with no policy complaints. The
-remaining rejected scientific rows are intentionally carried forward to
-Slice Six's final certification decision; Slice Five's evidence and
-classification machinery is closed.
+scientific decisions remain open until Slice Eleven's post-parity matrix.
 
 ### [closed] Slice Six — final scientific certification and BAO boundary
 
-**Purpose:** Publish one reproducible certification decision, prove the CMB
-repair has not changed BAO's independent fixed-background behavior, and close
-the plan only if no scientific obligation remains.
+**Purpose:** Publish the deterministic certification boundary and prove the
+CMB work has not changed BAO's independent fixed-background behavior. The
+actual CCMBS/CAMB and corpus closure decisions are assigned to Slices Eight
+through Twelve.
 
 **Files and surfaces:**
 
@@ -599,16 +605,11 @@ the plan only if no scientific obligation remains.
 
 **Acceptance:**
 
-* Fixed LCDM passes the frozen independent CAMB reference at the declared
-  raw-array tolerances.
-* Every bundled CMB model is accepted by the common certification contract or
-  explicitly unavailable for a truthfully declared lack of CMB capability.
-* The report is complete, deterministic, hashable, and contains no failed or
-  omitted scientific decision disguised as success.
+* the report boundary is complete, deterministic, hashable, and contains no
+  failed or omitted scientific decision disguised as success;
 * BAO is independently evaluable and numerically unchanged at fixed
   background parameters.
-* Focused acceptance tests pass and the staged revision has a green
-  `source .venv/bin/activate && python -m devcovenant gate --verify`.
+* focused report and BAO isolation tests pass.
 
 **Closure evidence:** Only this slice may mark the plan complete. A green
 policy gate, finite output, or attractive plot without the final raw report is
@@ -622,29 +623,324 @@ path-free comparison boundary and does not invoke CCMBS. Focused final-report
 and BAO regression tests cover passing evidence and explicit rejection. The
 writer never upgrades rejected or unavailable scientific rows to success.
 
-## Completion Standard
+### [closed] Slice Seven — enforce source contract and production phase floor
 
-This plan is complete only when all six slices are closed and all of the
-following are true:
+**Purpose:** Keep the tested generated scalar source contract intact after
+the convergence hardening work and prevent joint MCMC execution from selecting
+the under-resolved diagnostic ladder for production spectra.
 
-* every CMB-capable model contract is structurally valid and theory-faithful;
-* generated metric, visibility, temperature, polarization, initial-condition,
-  and ISW histories are explicit, finite, and independently residual-clean;
-* fixed LCDM TT/TE/EE are smooth, correctly phased, converged, and within the
-  frozen independent CAMB comparison tolerance;
-* every bundled model has finite, physically shaped, converged raw spectra or
-  a truthfully declared non-CMB unavailable capability;
-* no model is hidden, synthetically substituted, rejected by convenience, or
-  accepted by a weakened criterion;
-* scalar/batch equivalence and cache isolation are present for every accepted
-  model;
+**Files and surfaces:**
+
+* generated scalar source declarations in `perturbation_contract.py`;
+* projection-grid policy in `runtime/projection.py`;
+* focused CCMBS source and workload-floor tests; and
+* CMB solver documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Validate the generated source contract against the physical scalar
+   collision and line-of-sight contract: the `-Phi_tau` photon monopole term,
+   `theta_gamma2 + e_gamma0 + e_gamma2` polarization moment, exact collision
+   block, monopole `Pi / 4` term, explicit zero split quadrupole terms, and
+   `3/4` E-source coefficient.
+2. Keep the strict metric-history provenance and residual validation introduced
+   by the convergence work; restoring the source convention must not re-add a
+   missing-derivative fallback or suppress a closure failure.
+3. Require the final production phase-grid floor for joint MCMC requests.
+   Only the explicitly named matrix diagnostic fast path may retain the
+   bounded low-node scaffold used by structural tests.
+4. Add regression coverage for the restored generated expressions and for the
+   final phase-grid floor, then synchronize the solver documentation and both
+   README mirrors with the implementation.
+
+**Acceptance:**
+
+* the generated scalar manifest exposes the tested photon, polarization,
+  collision, temperature, and E-source expressions exactly;
+* additive source-role bindings remain present and metric-history validation
+  remains strict;
+* a final-tier joint MCMC projection uses at least the production phase-grid
+  floor rather than the 64-node diagnostic ladder;
+* the focused source, hidden-prefix, hierarchy, and phase-floor tests pass;
+  and
+* no CAMB fallback, surrogate, weakened convergence tolerance, or model-only
+  declaration patch is introduced.
+
+**Closure evidence (2026-08-30):** The tested generated scalar convention is
+preserved in the shared contract, the joint-MCMC bypass of the final
+phase-grid floor was removed, and the focused source, collision, hidden-prefix,
+phase-floor, and full-declared-LCDM tests passed. Raw generated expressions,
+collision metadata, and the resulting projection-grid size are asserted
+directly. This closes the source-contract/workload-floor regression slice.
+Independent CAMB parity is explicitly assigned to Slices Eight through Ten,
+and final corpus acceptance and report closure to Slices Eleven and Twelve.
+
+### [planned] Slice Eight — freeze the full independent CAMB fixture
+
+**Purpose:** Establish the exact, immutable reference against which a fully
+functional CCMBS will be judged. The fixture is comparison-only: CAMB must
+never be called from a production CCMBS evaluation or used as a fallback.
+
+**Files and surfaces:**
+
+* CAMB comparison fixtures and their versioned metadata;
+* CCMBS raw-spectrum comparison and normalization helpers;
+* declared-sector, observable, multipole, and unit-ordering tests; and
+* solver documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Freeze one fixed LCDM parameter point and all numerical controls used by
+   the old CAMB solver, including every requested scalar, vector, and tensor
+   sector and every requested unlensed/lensed observable.
+2. Generate and store raw CAMB arrays for TT, TE, EE, BB, PP, TP, EP, and
+   every applicable lensed spectrum on the canonical ell grid. Preserve
+   transfer/source metadata where CAMB exposes it, plus units and conversion
+   conventions.
+3. Hash the fixture and record CAMB version, settings, data ordering, ell
+   range, precision, and provenance in a machine-independent manifest.
+4. Build a comparator that aligns arrays without interpolation shortcuts,
+   checks finite values and exact ordering, and reports absolute, relative,
+   band-limited, peak/phase, sign, and damping errors by observable.
+5. Add a test proving the comparison fixture is unreachable from the CCMBS
+   runtime path and that a missing comparison backend produces a typed test
+   failure rather than a runtime fallback.
+
+**Acceptance:**
+
+* the fixture is deterministic, hashable, and complete for every declared
+  observable and sector;
+* raw `C_ell` and `D_ell` conventions are explicit and reversible;
+* all later parity slices consume this same fixture without changing its
+  arrays or tolerances; and
+* no CAMB import, subprocess, surrogate, or fallback is reachable from a
+  production CCMBS request.
+
+**Closure evidence:** A frozen fixture manifest, raw-array hashes, comparator
+reports, and runtime-isolation test output are committed before Slice Eight
+is closed. Any missing CAMB observable is recorded as a fixture limitation,
+not silently treated as parity.
+
+### [planned] Slice Nine — repair shared histories and source physics
+
+**Purpose:** Make the generated CCMBS histories physically correct before
+projection is judged. This slice owns shared background, metric, hierarchy,
+collision, initial-condition, gauge, visibility, and ISW defects.
+
+**Files and surfaces:**
+
+* generated hierarchy/source compiler and runtime evolution;
+* background and recombination histories;
+* scalar, vector, tensor, and polarization source residual diagnostics;
+* source-history tests and raw evidence reports; and
+* solver documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Compare the generated source graph and independently sampled histories
+   against the frozen LCDM reference requirements for every declared sector.
+2. Repair equations, signs, normalizations, derivatives, closure bindings,
+   collision terms, initial conditions, visibility normalization, and ISW
+   sources in shared code. Preserve each model's declared theory.
+3. Validate `Phi_tau`, `Psi_tau`, `Phi_history_tau`, density/velocity moments,
+   polarization moments, and source derivatives on independent eta and k
+   grids. Missing or non-finite terms remain typed failures.
+4. Require source-history convergence under independent eta, evolution, and
+   k refinements. Record raw histories, residual vectors, and closure metrics
+   before any line-of-sight projection.
+5. Prove the repaired scalar source histories reproduce the old CAMB solver's
+   transfer-source sign, phase, and normalization conventions at the fixed
+   point; extend the same check to vector and tensor sources where declared.
+
+**Acceptance:**
+
+* all declared source histories are finite, explicit, grid-converged, and
+  independently residual-clean;
+* metric, hierarchy, collision, visibility, polarization, initial-condition,
+  and ISW closures pass without zero-expression fallbacks;
+* scalar/vector/tensor source signs and normalizations agree with the frozen
+  reference conventions; and
+* a source failure is rejected explicitly rather than hidden by projection,
+  plotting, or a model-specific patch.
+
+**Closure evidence:** The raw source-history bundle contains residuals,
+derivative provenance, refinement arrays, closure decisions, and a digest for
+each applicable sector. Slice Nine closes only when the histories, not merely
+the generated declarations, pass these tests.
+
+### [planned] Slice Ten — prove full observable CAMB parity
+
+**Purpose:** Repair and certify the complete source-to-observable CCMBS path
+against the frozen CAMB fixture. This is the central scientific slice: it
+must make CCMBS work as the old CAMB solver worked, across all observables the
+model declares.
+
+**Files and surfaces:**
+
+* line-of-sight kernels, Bessel evaluation, projection, and normalization;
+* scalar/vector/tensor transfer and lensing projections;
+* unlensed and lensed spectrum assembly;
+* raw-array parity, physical-shape, and convergence tests; and
+* solver documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Audit radial distance, Bessel conventions, source interpolation, phase
+   coverage, quadrature weights, k integration, ell integration, and all
+   `C_ell`/`D_ell` conversions against the frozen reference.
+2. Repair the projection until fixed LCDM raw arrays match CAMB for every
+   applicable TT, TE, EE, BB, PP, TP, EP, lensed, vector, and tensor output.
+3. Require independent base/refined convergence for every requested surface,
+   including low-ell, acoustic, damping-tail, tensor, and lensing ranges.
+4. Check acoustic peak/trough positions, amplitudes, damping, TE zero
+   crossings and signs, EE/BB structure, PP response, and lensed smoothing
+   from raw arrays rather than plots.
+5. Compare multiple fixed parameter perturbations to prove the parity is a
+   physical response, not a single-point normalization coincidence.
+6. Keep scalar CCMBS as the reference implementation and prove any ordered
+   sector batching is numerically identical before using it in production.
+
+**Acceptance:**
+
+* fixed LCDM passes explicit raw-array CAMB tolerances for every declared
+  observable and sector, not only TT/TE/EE;
+* all requested spectra are finite, phase-correct, normalized, converged,
+  and physically shaped, including lensed and parity-odd outputs;
+* no declared observable is omitted, synthesized, clipped, or accepted from
+  a plot; and
+* all failures retain base/refined arrays and typed diagnostics.
+
+**Closure evidence:** The parity report contains one raw comparison row per
+observable and sector, complete error bands and shape metrics, refinement
+evidence, fixture digest, and a final pass decision. Slice Ten cannot close
+on finite output alone.
+
+### [planned] Slice Eleven — certify every bundled model and workload
+
+**Purpose:** Apply the shared repaired solver to the entire bundled corpus
+without changing model theories. Every model must compute every observable
+it declares, including BB, PP, cross-spectra, and lensed outputs.
+
+**Files and surfaces:**
+
+* all bundled model declarations and explicit graph adapters;
+* corpus matrix, scalar/batch, cache, and failure-semantics paths;
+* model-specific raw parity and physical-shape reports; and
+* model-template documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Execute all ten bundled models at the final named tier with every declared
+   sector and observable, retaining raw histories, spectra, grids, residuals,
+   and doubled-refinement evidence.
+2. For every model with CMB capability, classify it as accepted only after
+   finite, source-clean, converged, physically shaped output passes the
+   applicable CAMB/reference comparison. A model with no genuinely declared
+   CMB sector is explicitly unavailable, never silently skipped.
+3. Compare scalar and ordered-batch results at multiple parameter points,
+   including public/raw arrays, sector and ell ordering, metadata, typed
+   failures, and lensed/unlensed distinctions.
+4. Prove cache isolation across models, gauges, sectors, and parameter points;
+   completion order must not affect any result.
+5. Repair only theory-faithful model declarations that remain incomplete
+   after Slices Nine and Ten. No YAML edit may weaken a tolerance or turn a
+   shared solver defect into an unavailable result.
+6. Complete USMF2 and every other previously unclassified row with a bounded,
+   reproducible outcome and named raw evidence.
+
+**Acceptance:**
+
+* every CMB-capable model is accepted by the common full-observable contract
+  or has a truthful, typed unavailable capability;
+* no model remains unclassified, and no declared observable is omitted;
+* scalar/batch equivalence, cache isolation, ordering, convergence, and
+  failure semantics pass for every accepted model; and
+* the corpus report is deterministic across clean processes.
+
+**Closure evidence:** The complete matrix contains one canonical row per
+model, full-observable raw arrays, source residuals, parity decisions,
+batch/cache evidence, typed failures, and stable row/report digests.
+
+### [planned] Slice Twelve — final closure and BAO independence
+
+**Purpose:** Close the mission only after CCMBS is proven equivalent to the
+old CAMB solver at the full declared-observable boundary and the independent
+BAO behavior is preserved.
+
+**Files and surfaces:**
+
+* final certification report and canonical artifact writer;
+* frozen CAMB fixture and complete bundled-model matrix;
+* BAO fixed-background isolation regression;
+* runtime fallback/alias/dependency audits; and
+* solver documentation, README mirrors, PLAN, and CHANGELOG.
+
+**Implementation tasks:**
+
+1. Build one deterministic, hashable final report containing fixed parameters,
+   solver and dataset identities, all sector/observable parity arrays and
+   hashes, source residuals, refinement evidence, model decisions, and cache
+   identities.
+2. Re-run BAO with the CMB entrypoint unavailable and prove identical values,
+   covariance handling, and typed failure classification at fixed background
+   parameters. Do not alter BAO's sound-horizon convention.
+3. Audit the repository for CAMB runtime imports, surrogates, delayed
+   acceptance, hidden aliases, arbitrary timeouts, machine-local paths,
+   unchecked declaration bridges, omitted spectra, and plot-only decisions.
+4. Reconcile code, model templates, comments, docstrings, tests, README
+   mirrors, solver documentation, PLAN, and CHANGELOG with the certified
+   capability boundary.
+5. Run the focused acceptance suites and the complete required workflow. Run
+   `source .venv/bin/activate && python -m devcovenant gate --verify` on the
+   staged revision, then mark the entire plan closed only if all evidence is
+   green.
+
+**Acceptance:**
+
+* CCMBS reproduces the old CAMB solver's fixed LCDM results for every
+  applicable declared sector and observable within explicit raw tolerances;
+* every bundled model is fully certified or truthfully unavailable, with no
+  omitted output or unclassified row;
 * BAO remains independently evaluable and unchanged at fixed background
   parameters;
+* no runtime fallback, surrogate, hidden compatibility path, or convenience
+  rejection exists; and
+* the canonical report, tests, staged tree, and gate verification are green.
+
+**Closure evidence:** Only Slice Twelve may mark the plan complete. Its final
+report is the proof: a green policy gate alone is insufficient, and no
+remaining scientific requirement may exist outside Slices Eight through
+Twelve.
+
+## Completion Standard
+
+This plan is complete only when all twelve slices are closed. Every criterion
+below is a derived check whose implementation and evidence are assigned to
+the slices named in parentheses; this section introduces no unassigned work.
+
+* every CMB-capable model contract is structurally valid and theory-faithful
+  (Slices Four and Eleven);
+* generated metric, visibility, temperature, polarization, initial-condition,
+  and ISW histories are explicit, finite, and independently residual-clean
+  (Slices Two and Nine);
+* fixed LCDM matches the old CAMB solver for every applicable declared
+  scalar, vector, tensor, unlensed, lensed, parity-even, parity-odd, and
+  cross-spectrum observable within the frozen raw-array tolerances
+  (Slices Eight through Ten and Twelve);
+* every bundled model has finite, physically shaped, converged raw spectra or
+  a truthfully declared non-CMB unavailable capability (Slice Eleven);
+* no model is hidden, synthetically substituted, rejected by convenience, or
+  accepted by a weakened criterion (Slices Eight, Ten, Eleven, and Twelve);
+* scalar/batch equivalence and cache isolation are present for every accepted
+  model (Slices Five and Eleven);
+* BAO remains independently evaluable and unchanged at fixed background
+  parameters (Slices Six and Twelve);
 * no runtime fallback, surrogate, delayed acceptance, Taichi dependency,
   wall-clock rejection, hidden compatibility path, or plot-only acceptance is
-  present; and
+  present (Slices Eight, Ten, Eleven, and Twelve); and
 * raw evidence is canonical, hashable, reproducible, documented, and staged
-  with a green gate verify.
+  with a green gate verify (Slices Eight through Twelve).
 
-The raw scientific certification report, not a gate result, is proof that
-CCMBS and the bundled model corpus are closed.
+The raw scientific certification report from Slice Twelve, not a gate result,
+is proof that CCMBS works as the old CAMB solver worked and that the bundled
+model corpus is closed.

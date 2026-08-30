@@ -6957,6 +6957,41 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 )
             )
 
+    def test_joint_mcmc_keeps_final_phase_grid_floor(self) -> None:
+        """Joint likelihood evaluation must not use the smoke k ladder."""
+
+        raw_contract = _declared_scalar_hierarchy_contract()
+        raw_contract["numerical"].update(
+            {
+                "k_sample_count": 64,
+                "eta_sample_count": 64,
+                "evolution_eta_sample_count": 64,
+            }
+        )
+        raw_contract["perturbations"]["accuracy_controls"] = {
+            "accuracy_tier": "final",
+            "scalar_reference_ells": [2, 120],
+            "runtime_envelope": "bounded",
+        }
+        contract = _prepare_declared_contract(raw_contract)
+        numerics = cmb_background._resolve_custom_cmb_numerics(contract)
+        physical_params = (
+            cmb_background._resolve_custom_cmb_physical_parameters(contract)
+        )
+        background_data = cmb_background._build_custom_cmb_background(
+            contract,
+            physical_params,
+            numerics,
+        )
+        k_grid = cmb_projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((20, 60, 120), dtype=int),
+            background=background_data,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+            allow_final_production_floor=True,
+        )
+        self.assertGreaterEqual(int(k_grid.size), 512)
+
     def test_declared_tensor_k_grid_covers_spin2_tail(self) -> None:
         """Tensor k sampling must retain the spin-2 projection tail."""
 

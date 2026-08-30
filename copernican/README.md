@@ -204,7 +204,10 @@ unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
 The final LambdaCDM declaration uses 2048 k, eta, and evolution nodes. CCMBS
 keeps the generated hierarchy history at the declared LOS phase resolution so
-acoustic sources are not aliased by sparse-history interpolation.
+acoustic sources are not aliased by sparse-history interpolation. Joint MCMC
+evaluation may defer the doubled-grid comparison, but it cannot bypass the
+declared final phase-grid floor; a low-node smoke path is restricted to the
+explicit diagnostic matrix.
 Source histories are cached independently from complete spectra only when
 their structural contract, parameter identity, solver, source grid, and
 requested source roles match exactly. Runtime envelopes report source-cache

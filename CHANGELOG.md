@@ -80,6 +80,56 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-30:
+  Change: Corrected the generated scalar source contract to the tested
+  physical collision and line-of-sight convention while retaining the final
+  production phase-grid floor.
+  Why: Full-suite execution exposed the speculative source rewrite as two
+  contract failures and a non-convergent declared LCDM spectrum.
+  Impact: Restored finite full-spectrum execution and aligned source tests,
+  solver documentation, and the CCMBS plan with the active contract.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-30:
+  Change: Reframed the CCMBS plan around full CAMB-parity closure for every
+  declared sector and observable.
+  Why: Assigned fixture, source-physics, projection-parity, corpus, and final
+  certification work to explicit slices instead of leaving it deferred in a
+  completion standard.
+  Impact: Updated the plan to require CCMBS to match the old CAMB solver and
+  prove all model, workload, evidence, and BAO boundaries.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-30:
+  Change: Restored the generated scalar source convention and enforced the
+  final phase-grid floor for joint MCMC evaluation.
+  Why: Prevented a convergence-hardening regression and an under-resolved
+  production ladder from producing non-physical CCMBS spectra.
+  Impact: Repaired shared photon, polarization, collision, and line-of-sight
+  source contracts and added focused workload-floor coverage.
+  Files:
+  README.md
+  PLAN.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-30:
   Change: Completed final CCMBS certification provenance and BAO isolation
   evidence boundaries.
   Why: Recorded every raw decision and fixed-background independence check
