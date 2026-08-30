@@ -80,6 +80,25 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-30:
+  Change: Completed final CCMBS certification provenance and BAO isolation
+  evidence boundaries.
+  Why: Recorded every raw decision and fixed-background independence check
+  without hiding failed scientific evidence.
+  Impact: Final reports are deterministic, hashable, and explicit about
+  integrity, references, and BAO boundary status.
+  Files:
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/bao/__init__.py
+  copernican/docs/cmb_solver.md
+  README.md
+  copernican/README.md
+  PLAN.md
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+
+- 2026-08-30:
   Change: Completed Slice Five scalar, batch, cache, and corpus evidence.
   Why: Bound parity checks to the same tiered request and retained raw
     solver products while preserving scientific rejection reasons.

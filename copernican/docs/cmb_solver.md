@@ -88,6 +88,14 @@ test-owned CAMB fixture freezes the LCDM parameter point, multipole order,
 unlensed scalar `D_ell` microkelvin-squared convention, tolerances, and
 backend identity; production CCMBS never imports or falls back to it.
 
+The final boundary is `build_final_cmb_certification_report()`. It adds
+solver and dataset identities, independent fixture hashes, per-model raw
+evidence digests, and explicit integrity decisions for fallback, surrogate,
+timeout, alias, and declaration-bridge paths. It also requires a captured
+BAO isolation record before reporting `certified`. The pure comparison helper
+`assess_bao_cmb_isolation()` compares fixed-background values, covariance
+metadata, and typed failures without importing or invoking a CMB solver.
+
 Slice One records the pre-repair corpus baseline before any shared physics is
 changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and

@@ -164,6 +164,10 @@ CAMB fixture freezes the LCDM parameter point, multipole ordering, `D_ell`
 normalization, TT/TE/EE tolerances, and CAMB provenance. BAO isolation tests
 deliberately make the CMB entrypoint unavailable while requiring identical
 fixed-background values and covariance handling.
+`build_final_cmb_certification_report()` extends that boundary with solver
+and dataset identities, fixture hashes, per-model raw evidence digests, and
+explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
+BAO values, covariance metadata, and typed failures without invoking CCMBS.
 Slice One records the pre-repair corpus baseline before any shared physics is
 changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and

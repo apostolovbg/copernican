@@ -31,6 +31,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
     build_cmb_corpus_baseline_report,
+    build_final_cmb_certification_report,
     compare_cmb_spectra_to_reference,
     discover_bundled_cmb_plugins,
     resolve_source_residual_audit_controls,
@@ -38,6 +39,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     run_cmb_model_diagnostic,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
+    write_final_cmb_certification_report,
 )
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
@@ -525,6 +527,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(callable(assess_acoustic_structure))
         self.assertTrue(callable(compare_cmb_spectra_to_reference))
         self.assertTrue(callable(write_cmb_certification_report))
+        self.assertTrue(callable(build_final_cmb_certification_report))
+        self.assertTrue(callable(write_final_cmb_certification_report))
         self.assertEqual(comparison["metrics"]["TT"]["kind"], "auto")
         self.assertEqual(comparison["metrics"]["TE"]["kind"], "cross")
 
@@ -818,6 +822,89 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertIn(
             "not measured", " ".join(matrix["rejected_models"][filename])
         )
+
+    def test_final_certification_requires_integrity_and_bao_evidence(self):
+        """Final status cannot hide missing provenance or boundary checks."""
+
+        filename = "model_lcdm.yml"
+        report = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2, 20),
+            requested_spectra=("TT", "TE", "EE"),
+            spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            raw_spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            refinement={"converged": True},
+            shape={
+                "finite": True,
+                "auto_spectra_nonnegative": True,
+                "smooth": True,
+            },
+            source_residual_audit={"available": True, "converged": True},
+            reference_comparison={"available": True, "converged": True},
+            contract_identity={"sha256": "contract"},
+            scalar_batch_evidence={"available": True, "converged": True},
+            cache_isolation_evidence={"available": True, "isolated": True},
+        )
+        audits = {filename: {"valid": True}}
+        record = build_final_cmb_certification_report(
+            (report,),
+            required_model_filenames=(filename,),
+            reference_required_models=(filename,),
+            contract_audits=audits,
+            source_graph_audits=audits,
+            declaration_audits=audits,
+            solver_identity="ccmbs_numpy",
+            dataset_identities={"cmb": "fixture"},
+            fixture_hashes={"lcdm": "fixture"},
+            integrity_checks={
+                key: True
+                for key in (
+                    "no_camb_fallback",
+                    "no_surrogate_spectra",
+                    "no_delayed_acceptance",
+                    "no_hidden_aliases",
+                    "no_arbitrary_timeout",
+                    "no_unchecked_declaration_bridge",
+                    "no_machine_local_paths",
+                    "raw_evidence_used",
+                )
+            },
+            bao_isolation={"available": True, "converged": True},
+        )
+        self.assertTrue(record["success"])
+        self.assertEqual(record["final_certification"]["status"], "certified")
+        self.assertEqual(
+            record["provenance"]["raw_evidence_digests"][filename],
+            record["reports"][0]["raw_evidence_sha256"],
+        )
+
+    def test_final_certification_keeps_failed_decisions_explicit(self):
+        """Incomplete final evidence is rejected, never relabelled as pass."""
+
+        filename = "model_lcdm.yml"
+        report = self._corpus_fixture_report(filename)
+        record = build_final_cmb_certification_report(
+            (report,),
+            required_model_filenames=(filename,),
+            reference_required_models=(),
+            contract_audits={filename: {"valid": True}},
+            source_graph_audits={filename: {"valid": True}},
+            declaration_audits={filename: {"valid": True}},
+        )
+        self.assertFalse(record["success"])
+        self.assertEqual(record["final_certification"]["status"], "rejected")
+        self.assertTrue(record["final_certification"]["issues"])
 
     def test_scalar_batch_cache_audit_requires_order_and_unique_identities(
         self,

@@ -567,7 +567,7 @@ remaining rejected scientific rows are intentionally carried forward to
 Slice Six's final certification decision; Slice Five's evidence and
 classification machinery is closed.
 
-### [planned] Slice Six — final scientific certification and BAO boundary
+### [closed] Slice Six — final scientific certification and BAO boundary
 
 **Purpose:** Publish one reproducible certification decision, prove the CMB
 repair has not changed BAO's independent fixed-background behavior, and close
@@ -613,6 +613,14 @@ the plan only if no scientific obligation remains.
 **Closure evidence:** Only this slice may mark the plan complete. A green
 policy gate, finite output, or attractive plot without the final raw report is
 not closure.
+
+**Implementation closure (2026-08-30):** The final report builder and writer
+now persist solver/dataset identities, fixture hashes, per-model raw evidence
+digests, explicit integrity checks, selected independent-reference decisions,
+and the BAO isolation decision. `assess_bao_cmb_isolation()` is a pure,
+path-free comparison boundary and does not invoke CCMBS. Focused final-report
+and BAO regression tests cover passing evidence and explicit rejection. The
+writer never upgrades rejected or unavailable scientific rows to success.
 
 ## Completion Standard
 

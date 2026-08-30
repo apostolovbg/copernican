@@ -157,6 +157,31 @@ class BAOCovarianceTestCase(unittest.TestCase):
             )
         self.assertEqual(isolated, baseline)
 
+    def test_isolation_evidence_preserves_values_covariance_and_failures(self):
+        """The final boundary records exact fixed-background BAO parity."""
+
+        baseline = {
+            "chi2": 12.5,
+            "loglike": -6.25,
+            "predictions": numpy_module.array([1.0, 2.0]),
+            "covariance_matrix_inv": numpy_module.eye(2),
+            "typed_failure": None,
+        }
+        evidence = bao.assess_bao_cmb_isolation(baseline, dict(baseline))
+        self.assertTrue(evidence["available"])
+        self.assertTrue(evidence["converged"])
+        self.assertTrue(evidence["covariance_preserved"])
+        self.assertTrue(evidence["typed_failures_preserved"])
+
+    def test_isolation_evidence_rejects_changed_bao_output(self):
+        """A changed fixed-background value is a scientific regression."""
+
+        baseline = {"chi2": 12.5, "covariance": "full"}
+        isolated = {"chi2": 12.6, "covariance": "full"}
+        evidence = bao.assess_bao_cmb_isolation(baseline, isolated)
+        self.assertFalse(evidence["converged"])
+        self.assertFalse(evidence["values_preserved"])
+
 
 class BAOPublicSymbolCoverageTestCase(unittest.TestCase):
     """Expose the BAO helper API to the coverage policy."""

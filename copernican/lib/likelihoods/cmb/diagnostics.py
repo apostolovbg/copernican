@@ -57,7 +57,7 @@ BUNDLED_CMB_MODEL_FILENAMES = (
 # evidence tier for the matrix and is never substituted for a model's
 # production numerical declaration.
 CMB_CERTIFICATION_TIER = {
-    "id": "ccmbs-slice-five-fixed-point-v1",
+    "id": "ccmbs-slice-six-final-certification-v1",
     # The first acoustic feature is near ell=200.  A certification surface
     # that stops below it can only test finiteness, not the physical acoustic
     # structure required by the matrix acceptance contract.
@@ -66,6 +66,17 @@ CMB_CERTIFICATION_TIER = {
     "refine_wave_number_grid": True,
     "numerical_overrides": {"k_sample_count": 1024},
 }
+
+_FINAL_CERTIFICATION_INTEGRITY_KEYS = (
+    "no_camb_fallback",
+    "no_surrogate_spectra",
+    "no_delayed_acceptance",
+    "no_hidden_aliases",
+    "no_arbitrary_timeout",
+    "no_unchecked_declaration_bridge",
+    "no_machine_local_paths",
+    "raw_evidence_used",
+)
 
 # The baseline deliberately predates final scientific certification.  It is
 # one named, fixed, direct request that records the corpus' pre-repair state,
@@ -1338,6 +1349,27 @@ def _canonical_sha256(payload: Any) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+def _infer_solver_identities(
+    reports: Sequence[CMBModelDiagnostic],
+) -> dict[str, Any]:
+    """Collect path-free solver identities from diagnostic envelopes."""
+
+    identities: dict[str, str] = {}
+    for report in reports:
+        envelope = report.runtime_envelope
+        solver_id = envelope.get("solver_id")
+        if not solver_id:
+            provenance = envelope.get("solver_provenance", {})
+            if isinstance(provenance, Mapping):
+                solver_id = provenance.get("solver_id")
+        if solver_id:
+            identities[str(report.model_filename)] = str(solver_id)
+    return {
+        "models": {name: identities[name] for name in sorted(identities)},
+        "unique": sorted(set(identities.values())),
+    }
+
+
 def _positive_node_count(value: Any, *, field_name: str) -> int:
     """Normalize one explicit numerical node count for a baseline request."""
 
@@ -2058,6 +2090,9 @@ def build_cmb_certification_report(
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
     declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    solver_identity: Mapping[str, Any] | str | None = None,
+    dataset_identities: Mapping[str, Any] | None = None,
+    fixture_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic final certification record from raw reports.
 
@@ -2127,6 +2162,7 @@ def build_cmb_certification_report(
                 "model_filename": model_name,
                 "accepted": valid,
                 "availability": report.availability,
+                "raw_evidence_sha256": _canonical_sha256(report.to_dict()),
                 "contract_audit": _jsonable(audit),
                 "declaration_audit": _jsonable(declaration_audit),
                 "source_graph_audit": _jsonable(graph_audit),
@@ -2193,6 +2229,20 @@ def build_cmb_certification_report(
             name: _jsonable((source_graph_audits or {}).get(name))
             for name in sorted(source_graph_audits or {})
         },
+        "provenance": {
+            "schema_version": 1,
+            "solver_identity": _jsonable(
+                solver_identity
+                if solver_identity is not None
+                else _infer_solver_identities(ordered_reports)
+            ),
+            "dataset_identities": _jsonable(dataset_identities or {}),
+            "fixture_hashes": _jsonable(fixture_hashes or {}),
+            "raw_evidence_digests": {
+                str(item.model_filename): _canonical_sha256(item.to_dict())
+                for item in ordered_reports
+            },
+        },
         "reports": model_records,
     }
     canonical = json.dumps(
@@ -2214,6 +2264,9 @@ def write_cmb_certification_report(
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
     declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    solver_identity: Mapping[str, Any] | str | None = None,
+    dataset_identities: Mapping[str, Any] | None = None,
+    fixture_hashes: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Serialize a certification record and return the written payload."""
 
@@ -2227,7 +2280,172 @@ def write_cmb_certification_report(
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
         declaration_audits=declaration_audits,
+        solver_identity=solver_identity,
+        dataset_identities=dataset_identities,
+        fixture_hashes=fixture_hashes,
     )
+    path = Path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return record
+
+
+def build_final_cmb_certification_report(
+    reports: Iterable[CMBModelDiagnostic],
+    *,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    required_spectra: Sequence[str] = _DEFAULT_SPECTRA,
+    reference_required_models: Iterable[str] = ("model_lcdm.yml",),
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    solver_identity: Mapping[str, Any] | str | None = None,
+    dataset_identities: Mapping[str, Any] | None = None,
+    fixture_hashes: Mapping[str, Any] | None = None,
+    integrity_checks: Mapping[str, Any] | None = None,
+    bao_isolation: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the strict, final corpus decision and its provenance.
+
+    The ordinary certification builder remains useful for intermediate
+    evidence.  This boundary additionally requires the frozen corpus, a
+    declared reference for selected models, provenance metadata, all runtime
+    integrity checks, and an independent BAO result.  An explicitly disabled
+    CMB model is reported as ``unavailable``; an enabled model with a failed
+    run remains rejected.
+    """
+
+    ordered_reports = tuple(reports)
+    required_models = tuple(str(name) for name in required_model_filenames)
+    reference_models = tuple(str(name) for name in reference_required_models)
+    base = build_cmb_certification_report(
+        ordered_reports,
+        required_model_filenames=required_models,
+        required_spectra=required_spectra,
+        require_reference=False,
+        matrix_mode=True,
+        certification_tier=certification_tier or CMB_CERTIFICATION_TIER,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
+        solver_identity=solver_identity,
+        dataset_identities=dataset_identities,
+        fixture_hashes=fixture_hashes,
+    )
+    report_by_name = {
+        str(report.model_filename): report for report in ordered_reports
+    }
+    accepted = set(str(name) for name in base["accepted_models"])
+    rejected = {
+        str(name): list(issues)
+        for name, issues in base["rejected_models"].items()
+    }
+    unavailable: set[str] = set()
+    for name in sorted(set(required_models) & set(report_by_name)):
+        report = report_by_name[name]
+        row = next(
+            item
+            for item in base["reports"]
+            if str(item["model_filename"]) == name
+        )
+        declaration = row.get("declaration_audit") or {}
+        explicitly_unavailable = (
+            report.availability == "unavailable"
+            and str((report.failure or {}).get("category", ""))
+            == "unavailable"
+            and str(declaration.get("decision", "")) == "unavailable"
+            and bool(declaration.get("valid", False))
+        )
+        if explicitly_unavailable:
+            accepted.discard(name)
+            rejected.pop(name, None)
+            unavailable.add(name)
+
+    for name in reference_models:
+        report = report_by_name.get(name)
+        comparison = report.reference_comparison if report else {}
+        if report is None:
+            rejected.setdefault(name, []).append(
+                "required independent reference model is missing"
+            )
+        elif not bool(comparison.get("available", False)):
+            accepted.discard(name)
+            rejected.setdefault(name, []).append(
+                "required independent reference comparison is unavailable"
+            )
+        elif not bool(comparison.get("converged", False)):
+            accepted.discard(name)
+            rejected.setdefault(name, []).append(
+                "required independent reference comparison failed"
+            )
+
+    checks = {
+        key: bool((integrity_checks or {}).get(key, False))
+        for key in _FINAL_CERTIFICATION_INTEGRITY_KEYS
+    }
+    integrity_issues = [
+        f"integrity check failed: {key}"
+        for key, passed in checks.items()
+        if not passed
+    ]
+    provenance = base.get("provenance", {})
+    metadata_issues: list[str] = []
+    if not provenance.get("solver_identity"):
+        metadata_issues.append("solver identity is missing")
+    if not provenance.get("dataset_identities"):
+        metadata_issues.append("dataset identities are missing")
+    if not provenance.get("fixture_hashes"):
+        metadata_issues.append("independent fixture hashes are missing")
+    bao_evidence = dict(bao_isolation or {})
+    bao_passed = bool(
+        bao_evidence.get("available", False)
+        and bao_evidence.get("converged", False)
+    )
+    if not bao_passed:
+        metadata_issues.append("BAO CMB-isolation evidence is unavailable")
+
+    global_issues = integrity_issues + metadata_issues
+    final_success = bool(
+        base["complete"]
+        and base["decision_complete"]
+        and not rejected
+        and not global_issues
+    )
+    base["accepted_models"] = sorted(accepted)
+    base["rejected_models"] = {
+        name: rejected[name] for name in sorted(rejected)
+    }
+    base["success"] = final_success
+    base["final_certification"] = {
+        "schema_version": 1,
+        "status": "certified" if final_success else "rejected",
+        "accepted_models": sorted(accepted),
+        "unavailable_models": sorted(unavailable),
+        "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "reference_required_models": sorted(reference_models),
+        "integrity_checks": checks,
+        "bao_isolation": _jsonable(bao_evidence),
+        "issues": sorted(global_issues),
+    }
+    canonical = json.dumps(
+        _jsonable(base), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    base["record_sha256"] = hashlib.sha256(canonical).hexdigest()
+    return base
+
+
+def write_final_cmb_certification_report(
+    reports: Iterable[CMBModelDiagnostic],
+    destination: str | Path,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Write one final certification decision as deterministic JSON."""
+
+    record = build_final_cmb_certification_report(reports, **kwargs)
     path = Path(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -3632,6 +3850,7 @@ __all__ = [
     "build_bundled_cmb_matrix_report",
     "build_cmb_corpus_baseline_report",
     "build_cmb_certification_report",
+    "build_final_cmb_certification_report",
     "compare_cmb_spectra_to_reference",
     "discover_bundled_cmb_plugins",
     "run_bundled_cmb_matrix",
@@ -3641,4 +3860,5 @@ __all__ = [
     "write_bundled_cmb_matrix_report",
     "write_cmb_corpus_baseline_report",
     "write_cmb_certification_report",
+    "write_final_cmb_certification_report",
 ]
