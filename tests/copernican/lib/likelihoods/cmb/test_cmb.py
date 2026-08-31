@@ -2928,6 +2928,67 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         )
         self.assertNotIn("declared", reference_contract)
 
+    def test_generated_source_history_bundle_is_digest_addressed(self) -> None:
+        """Generated source evidence must be complete and reproducible."""
+
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_scalar_hierarchy_contract())
+        )
+        cache.clear_cmb_result_caches()
+        first = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+            workload="fixed_parameter_diagnostic_slice_nine",
+        )
+        bundle = first.runtime_envelope["source_history_bundle_digest"]
+        self.assertEqual(bundle["schema_version"], 1)
+        self.assertEqual(bundle["status"], "complete")
+        self.assertRegex(bundle["sha256"], r"^[0-9a-f]{64}$")
+        self.assertGreater(int(bundle["mode_count"]), 0)
+        self.assertGreater(int(bundle["sample_count"]), 0)
+        self.assertEqual(
+            set(bundle["included_fields"]),
+            {
+                "source_history_residual_samples_by_k",
+                "hierarchy_equation_residuals_by_k",
+                "initial_state_diagnostics_by_k",
+                "metric_history_gradient_residual_by_k",
+                "source_history_refinement",
+                "declared_source_history_convergence",
+                "source_history_derivative_provenance",
+                "source_residual_audit_controls",
+                "independent_source_residual_audit",
+                "generated_scalar_source_closure",
+            },
+        )
+        refinement = first.runtime_envelope["source_history_refinement"]
+        self.assertEqual(refinement["axis"], "eta")
+        self.assertEqual(
+            refinement["fine_sample_count"],
+            first.runtime_envelope["eta_sample_count"],
+        )
+        self.assertEqual(
+            refinement["coarse_sample_count"],
+            len(refinement["coarse_eta"]),
+        )
+        self.assertEqual(
+            refinement["fine_sample_count"],
+            len(refinement["fine_eta"]),
+        )
+
+        cache.clear_cmb_result_caches()
+        second = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+            workload="fixed_parameter_diagnostic_slice_nine",
+        )
+        self.assertEqual(
+            second.runtime_envelope["source_history_bundle_digest"]["sha256"],
+            bundle["sha256"],
+        )
+
     def test_camb_reference_returns_requested_finite_cls(self) -> None:
         """The independent reference path must return finite requested data."""
 

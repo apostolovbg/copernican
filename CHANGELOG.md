@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-31:
+  Change: Added digest-addressed source-history refinement evidence and
+  closed Slice Nine's shared-history validation work.
+  Why: Made generated metric, hierarchy, collision, visibility,
+  polarization, and ISW evidence reproducible before projection parity.
+  Impact: Runtime reports now retain fine/coarse eta grids, closure inputs,
+  independent audits, and a deterministic source bundle identity.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-08-31:
   Change: Updated the Slice Eight reference surface and verified repository
   policy compliance against the current gate date.
   Why: Corrected stale documentation metadata detected by gate verification.

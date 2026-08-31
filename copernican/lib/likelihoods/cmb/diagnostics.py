@@ -1630,6 +1630,9 @@ def _baseline_source_history_metadata(
         "sample_schema": envelope.get("source_history_residual_sample_schema"),
         "mode_count": len(histories),
         "sample_count": sample_count,
+        "bundle_digest": _jsonable(
+            envelope.get("source_history_bundle_digest", {})
+        ),
     }
 
 

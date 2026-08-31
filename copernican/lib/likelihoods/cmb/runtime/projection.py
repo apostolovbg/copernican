@@ -3,6 +3,7 @@ r"""Declared transfer projection and spectrum integration helpers."""
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from dataclasses import dataclass
 from time import perf_counter
@@ -100,6 +101,108 @@ from .evolution import (
     prepare_runtime_assets,
 )
 from .performance import PhaseTimer
+
+
+def _canonical_source_history_value(value: Any) -> Any:
+    """Normalize source evidence before deterministic JSON hashing."""
+
+    if isinstance(value, numpy.ndarray):
+        return _canonical_source_history_value(value.tolist())
+    if isinstance(value, numpy.generic):
+        return _canonical_source_history_value(value.item())
+    if isinstance(value, Mapping):
+        return {
+            str(key): _canonical_source_history_value(value[key])
+            for key in sorted(value, key=lambda item: str(item))
+        }
+    if isinstance(value, (tuple, list)):
+        return [_canonical_source_history_value(item) for item in value]
+    if isinstance(value, (set, frozenset)):
+        return [
+            _canonical_source_history_value(item)
+            for item in sorted(value, key=str)
+        ]
+    return value
+
+
+def _build_source_history_bundle_digest(
+    *,
+    source_eta_signature: str,
+    source_history_refinement: Mapping[str, Any],
+    source_history_residual_samples_by_k: Mapping[str, Any],
+    hierarchy_equation_residuals_by_k: Mapping[str, Any],
+    initial_state_diagnostics_by_k: Mapping[str, Any],
+    metric_history_gradient_residual_by_k: Mapping[str, Any],
+    runtime_envelope: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Hash the complete generated-source evidence before projection output."""
+
+    evidence_fields = (
+        "source_history_residual_samples_by_k",
+        "hierarchy_equation_residuals_by_k",
+        "initial_state_diagnostics_by_k",
+        "metric_history_gradient_residual_by_k",
+        "source_history_refinement",
+        "declared_source_history_convergence",
+        "source_history_derivative_provenance",
+        "source_residual_audit_controls",
+        "independent_source_residual_audit",
+        "generated_scalar_source_closure",
+    )
+    payload = {
+        "schema_version": 1,
+        "source_eta_sha256": source_eta_signature,
+        "source_history_residual_sample_schema": int(
+            runtime_envelope.get("source_history_residual_sample_schema", 1)
+        ),
+        "source_history_residual_samples_by_k": (
+            source_history_residual_samples_by_k
+        ),
+        "hierarchy_equation_residuals_by_k": (
+            hierarchy_equation_residuals_by_k
+        ),
+        "initial_state_diagnostics_by_k": initial_state_diagnostics_by_k,
+        "metric_history_gradient_residual_by_k": (
+            metric_history_gradient_residual_by_k
+        ),
+        "source_history_refinement": source_history_refinement,
+        "declared_source_history_convergence": runtime_envelope.get(
+            "declared_source_history_convergence", {}
+        ),
+        "source_history_derivative_provenance": runtime_envelope.get(
+            "source_history_derivative_provenance", {}
+        ),
+        "source_residual_audit_controls": runtime_envelope.get(
+            "source_residual_audit_controls", {}
+        ),
+        "independent_source_residual_audit": runtime_envelope.get(
+            "independent_source_residual_audit", {}
+        ),
+        "generated_scalar_source_closure": runtime_envelope.get(
+            "generated_scalar_source_closure", {}
+        ),
+    }
+    canonical = json.dumps(
+        _canonical_source_history_value(payload),
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    sample_count = sum(
+        int(values.get("sample_count", 0))
+        for values in source_history_residual_samples_by_k.values()
+        if isinstance(values, Mapping)
+    )
+    return {
+        "schema_version": 1,
+        "status": "complete",
+        "sha256": hashlib.sha256(canonical).hexdigest(),
+        "source_eta_sha256": source_eta_signature,
+        "mode_count": int(len(source_history_residual_samples_by_k)),
+        "sample_count": int(sample_count),
+        "included_fields": evidence_fields,
+    }
+
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
 _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
@@ -8123,8 +8226,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             "source_context_pre_resolution_max_abs_by_k",
             "metric_history_gradient_residual_by_k",
             "metric_history_derivative_validation",
+            "source_eta_signature",
             "source_history_residual_samples_by_k",
             "source_history_residual_sample_schema",
+            "source_history_refinement",
+            "source_history_refinement_mode_count",
+            "source_history_bundle_digest",
             "source_history_cache_hit_count",
             "source_history_cache_miss_count",
             "source_history_cache_reused",
@@ -10113,6 +10220,35 @@ def _compute_custom_cmb_spectrum_data_impl(
             adaptive_controls.source_absolute_tolerance
         ),
     }
+    coarse_eta_values = numpy.asarray(
+        source_grids["eta"][source_eta_indices],
+        dtype=numpy.float64,
+    )
+    coarse_eta_signature = hashlib.sha256(
+        coarse_eta_values.tobytes()
+    ).hexdigest()
+    source_history_refinement = {
+        "axis": "eta",
+        "coarse_indices": tuple(int(index) for index in source_eta_indices),
+        "coarse_eta": tuple(float(value) for value in coarse_eta_values),
+        "fine_eta": tuple(
+            float(value)
+            for value in numpy.asarray(source_grids["eta"], dtype=float)
+        ),
+        "coarse_eta_sha256": coarse_eta_signature,
+        "fine_eta_sha256": source_eta_signature,
+        "coarse_sample_count": int(coarse_eta_values.size),
+        "fine_sample_count": int(source_grids["eta"].size),
+        "mode_count": int(source_history_mode_count),
+        "refinement_mode_count": int(source_history_refinement_mode_count),
+        "relative_error": float(source_history_error),
+        "absolute_error": float(source_history_absolute_error),
+    }
+    runtime_envelope["source_eta_signature"] = source_eta_signature
+    runtime_envelope["source_history_refinement"] = source_history_refinement
+    runtime_envelope["source_history_refinement_mode_count"] = int(
+        source_history_refinement_mode_count
+    )
     if generated_scalar_hierarchy and source_history_residual_samples_by_k:
         # Keep the independent audit in the raw runtime envelope as well as
         # in the fixed-point diagnostic harness.  The import is local to
@@ -10148,6 +10284,42 @@ def _compute_custom_cmb_spectrum_data_impl(
                     "mode_count": int(source_history_mode_count),
                 },
             )
+        runtime_envelope["source_history_bundle_digest"] = (
+            _build_source_history_bundle_digest(
+                source_eta_signature=source_eta_signature,
+                source_history_refinement=source_history_refinement,
+                source_history_residual_samples_by_k=(
+                    source_history_residual_samples_by_k
+                ),
+                hierarchy_equation_residuals_by_k=(
+                    hierarchy_equation_residuals_by_k
+                ),
+                initial_state_diagnostics_by_k=initial_state_diagnostics_by_k,
+                metric_history_gradient_residual_by_k=(
+                    metric_history_gradient_residual_by_k
+                ),
+                runtime_envelope=runtime_envelope,
+            )
+        )
+    else:
+        bundle_status = (
+            "unavailable" if generated_scalar_hierarchy else "not_applicable"
+        )
+        bundle_reason = (
+            "diagnostic source-history capture disabled"
+            if generated_scalar_hierarchy
+            else "generated source-history samples unavailable"
+        )
+        runtime_envelope["source_history_bundle_digest"] = {
+            "schema_version": 1,
+            "status": bundle_status,
+            "reason": bundle_reason,
+            "sha256": None,
+            "source_eta_sha256": source_eta_signature,
+            "mode_count": int(source_history_mode_count),
+            "sample_count": 0,
+            "included_fields": (),
+        }
     kernel_cache_after = cache.cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-08-30
+**Last Updated:** 2026-08-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -140,6 +140,12 @@ an unavailable or failed audit remains explicit rather than being treated as
 parity evidence. Raw projection certification records those residuals for the
 generated-hierarchy slice, while final certification remains the acceptance
 boundary.
+Generated histories also retain fine and coarse eta arrays in
+`source_history_refinement`. The `source_history_bundle_digest` binds those
+arrays, raw source terms, hierarchy and initial-state residuals, derivative
+provenance, audit controls, and the independent closure decision to one
+deterministic SHA-256 value. Explicit model graphs report a typed
+`not_applicable` digest instead of fabricating generated-history evidence.
 Production contracts may additionally declare a doubled scalar
 `k_sample_count` convergence rule. CCMBS evaluates the declared TT, TE, and
 EE surfaces at both resolutions, records per-spectrum errors in the runtime

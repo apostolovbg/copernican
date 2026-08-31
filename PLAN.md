@@ -734,7 +734,7 @@ CCMBS and that declared execution remains CAMB-free. Vector and tensor outputs
 are recorded as not declared by the bundled scalar models; their dedicated
 fixtures are owned by the later sector-parity slices.
 
-### [planned] Slice Nine — repair shared histories and source physics
+### [closed] Slice Nine — repair shared histories and source physics
 
 **Purpose:** Make the generated CCMBS histories physically correct before
 projection is judged. This slice owns shared background, metric, hierarchy,
@@ -780,6 +780,16 @@ collision, initial-condition, gauge, visibility, and ISW defects.
 derivative provenance, refinement arrays, closure decisions, and a digest for
 each applicable sector. Slice Nine closes only when the histories, not merely
 the generated declarations, pass these tests.
+
+**Closure evidence (2026-08-31):** Generated scalar histories now retain
+fine/coarse eta arrays, residual vectors, derivative provenance, audit
+controls, closure decisions, and a deterministic SHA-256 bundle digest in the
+runtime envelope. The digest is marked `not_applicable` for explicit model
+graphs rather than fabricating generated-history evidence. The Slice Nine
+reference and scientific validation suites pass (23 focused tests), covering
+metric/background constraints, collision and visibility conventions,
+polarization and ISW sources, massive-neutrino terms, tensor/vector kernels,
+and reproducible source-history evidence.
 
 ### [planned] Slice Ten — prove full observable CAMB parity
 

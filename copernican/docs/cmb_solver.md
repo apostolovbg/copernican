@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-30
+**Last Updated:** 2026-08-31
 **Project Version:** 12.0.26
 
 ## Overview
@@ -170,6 +170,13 @@ defaults under `accuracy_controls.source_residual_audit`; the runtime records
 the control provenance and which criterion accepted each residual. Initial
 Einstein constraints are audited separately from evolved hierarchy equations,
 so a finite initial state cannot mask a later source-history failure.
+
+Generated histories also retain the fine and coarse eta arrays in
+`source_history_refinement`. The `source_history_bundle_digest` binds those
+arrays, raw source terms, hierarchy and initial-state residuals, derivative
+provenance, audit controls, and the independent closure decision to one
+deterministic SHA-256 value. Explicit model graphs report a typed
+`not_applicable` digest instead of fabricating generated-history evidence.
 
 Generated scalar contracts are validated at compilation. CCMBS requires
 explicit `Phi_tau`, `Psi_tau`, and evolved-history `Phi_history_tau` metadata,
