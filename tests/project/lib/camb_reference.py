@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 import camb
@@ -42,11 +43,44 @@ FIXED_LCDM_REFERENCE_CONTRACT = {
 }
 FIXED_LCDM_REFERENCE_ELL_VALUES = (2, 20, 100, 200, 500, 1000, 1500, 2000)
 FIXED_LCDM_REFERENCE_SPECTRA = ("TT", "TE", "EE")
+FIXED_LCDM_FULL_REFERENCE_SPECTRA = (
+    "TT",
+    "TE",
+    "EE",
+    "BB",
+    "PP",
+    "TP",
+    "EP",
+    "lensed_TT",
+    "lensed_TE",
+    "lensed_EE",
+    "lensed_BB",
+)
 FIXED_LCDM_REFERENCE_TOLERANCES = {
     "TT": 0.02,
     "TE": 0.03,
     "EE": 0.02,
 }
+FIXED_LCDM_FULL_REFERENCE_TOLERANCES = {
+    "TT": 0.02,
+    "TE": 0.03,
+    "EE": 0.02,
+    "BB": 0.02,
+    "PP": 0.03,
+    "TP": 0.05,
+    "EP": 0.05,
+    "lensed_TT": 0.02,
+    "lensed_TE": 0.03,
+    "lensed_EE": 0.02,
+    "lensed_BB": 0.05,
+}
+FULL_LCDM_REFERENCE_FIXTURE_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "fixtures"
+    / "camb_lcdm_reference.json"
+)
+_CMB_SPECTRUM_COLUMNS = {"TT": 0, "EE": 1, "BB": 2, "TE": 3}
+_LENSING_SPECTRUM_COLUMNS = {"PP": 0, "TP": 1, "EP": 2}
 
 
 def _coerce_numeric_scalar(value: Any, *, name: str) -> float:
@@ -276,14 +310,20 @@ def _compute_cmb_spectrum_direct(
     params = _make_camb_params(contract_or_params, lmax=lmax)
     results = camb.get_results(params)
     cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    lensed_cls = results.get_lensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    lensing_cls = results.get_lens_potential_cls(lmax=lmax, CMB_unit="muK")
     out: dict[str, numpy.ndarray] = {}
-    if "TT" in spectra:
-        out["TT"] = cls[:, 0]
-    if "EE" in spectra:
-        out["EE"] = cls[:, 1]
-    if "TE" in spectra:
-        out["TE"] = cls[:, 3]
-    result = {spec: out[spec][ell_arr] for spec in spectra}
+    for spectrum_name in spectra:
+        name = str(spectrum_name)
+        if name in _CMB_SPECTRUM_COLUMNS:
+            out[name] = cls[:, _CMB_SPECTRUM_COLUMNS[name]]
+        elif name.startswith("lensed_") and name[7:] in _CMB_SPECTRUM_COLUMNS:
+            out[name] = lensed_cls[:, _CMB_SPECTRUM_COLUMNS[name[7:]]]
+        elif name in _LENSING_SPECTRUM_COLUMNS:
+            out[name] = lensing_cls[:, _LENSING_SPECTRUM_COLUMNS[name]]
+        else:
+            raise ValueError(f"Unsupported CAMB reference spectrum: {name}")
+    result = {spec: out[str(spec)][ell_arr] for spec in spectra}
     if len(result) == 1:
         return next(iter(result.values()))
     return result
@@ -475,15 +515,219 @@ def build_lcdm_reference_fixture(
     return fixture
 
 
+def build_lcdm_full_reference_fixture(
+    ells: Iterable[int] = FIXED_LCDM_REFERENCE_ELL_VALUES,
+) -> dict[str, Any]:
+    """Return the complete fixed scalar CAMB comparison fixture.
+
+    The fixture stores both raw ``C_ell`` and CAMB-native ``D_ell`` values.
+    CAMB's lens-potential spectra use their documented deflection-potential
+    convention; the per-observable conversion metadata makes that distinction
+    explicit instead of treating lensing outputs as CMB temperature spectra.
+    """
+
+    ell_values = tuple(int(value) for value in ells)
+    if not ell_values or any(value < 2 for value in ell_values):
+        raise ValueError("ells must contain values at or above 2")
+    if tuple(sorted(set(ell_values))) != ell_values:
+        raise ValueError("ells must be sorted and unique")
+    requested = FIXED_LCDM_FULL_REFERENCE_SPECTRA
+    ell_array = numpy.asarray(ell_values, dtype=int)
+    lmax = int(ell_array.max())
+    params = _make_camb_params(FIXED_LCDM_REFERENCE_CONTRACT, lmax=lmax)
+    results = camb.get_results(params)
+    unlensed_d = numpy.asarray(
+        results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=float,
+    )
+    unlensed_c = numpy.asarray(
+        results.get_unlensed_scalar_cls(
+            lmax=lmax, CMB_unit="muK", raw_cl=True
+        ),
+        dtype=float,
+    )
+    lensed_d = numpy.asarray(
+        results.get_lensed_scalar_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=float,
+    )
+    lensed_c = numpy.asarray(
+        results.get_lensed_scalar_cls(lmax=lmax, CMB_unit="muK", raw_cl=True),
+        dtype=float,
+    )
+    lensing_d = numpy.asarray(
+        results.get_lens_potential_cls(lmax=lmax, CMB_unit="muK"),
+        dtype=float,
+    )
+    lensing_c = numpy.asarray(
+        results.get_lens_potential_cls(lmax=lmax, CMB_unit="muK", raw_cl=True),
+        dtype=float,
+    )
+    spectra: dict[str, dict[str, list[float]]] = {}
+    for name in requested:
+        if name in _CMB_SPECTRUM_COLUMNS:
+            column = _CMB_SPECTRUM_COLUMNS[name]
+            d_values = unlensed_d[ell_array, column]
+            c_values = unlensed_c[ell_array, column]
+        elif name.startswith("lensed_"):
+            base_name = name[7:]
+            column = _CMB_SPECTRUM_COLUMNS[base_name]
+            d_values = lensed_d[ell_array, column]
+            c_values = lensed_c[ell_array, column]
+        else:
+            column = _LENSING_SPECTRUM_COLUMNS[name]
+            d_values = lensing_d[ell_array, column]
+            c_values = lensing_c[ell_array, column]
+        if not numpy.all(numpy.isfinite(d_values)) or not numpy.all(
+            numpy.isfinite(c_values)
+        ):
+            raise ValueError(f"CAMB returned non-finite {name} reference")
+        spectra[name] = {
+            "C_ell": [float(value) for value in c_values],
+            "D_ell": [float(value) for value in d_values],
+        }
+    fixture: dict[str, Any] = {
+        "schema_version": 2,
+        "reference_identity": CAMB_REFERENCE_IDENTITY,
+        "backend": "camb",
+        "model": "LambdaCDM",
+        "sector": "scalar",
+        "ell_values": ell_values,
+        "spectra": spectra,
+        "declared_observables": requested,
+        "applicability": {
+            "scalar": {
+                "included": requested,
+                "omitted": (),
+                "reason": "All scalar CMB and lensing observables requested",
+            },
+            "vector": {
+                "included": (),
+                "omitted": requested,
+                "reason": "No vector sector is declared by bundled models",
+            },
+            "tensor": {
+                "included": (),
+                "omitted": requested,
+                "reason": (
+                    "Tensor sectors require a separate nonzero-r fixture"
+                ),
+            },
+        },
+        "conventions": {
+            "cmb": "D_ell = ell*(ell+1)*C_ell/(2*pi)",
+            "PP": "D_ell = ell^2*(ell+1)^2*C_ell/(2*pi)",
+            "TP_EP": ("D_ell = [ell*(ell+1)]^(3/2)*C_ell/(2*pi)"),
+            "temperature_polarization_unit": "microkelvin_squared",
+            "lensing_potential_unit": "dimensionless_PP_and_microkelvin_cross",
+            "source": "CAMB get_*_cls raw_cl and native D_ell outputs",
+        },
+        "contract": FIXED_LCDM_REFERENCE_CONTRACT,
+        "tolerances": {
+            name: float(FIXED_LCDM_FULL_REFERENCE_TOLERANCES[name])
+            for name in requested
+        },
+        "provenance": describe_camb_configuration(),
+    }
+    fixture["fixture_sha256"] = reference_fixture_sha256(fixture)
+    return fixture
+
+
+def write_lcdm_full_reference_fixture(
+    path: str | Path = FULL_LCDM_REFERENCE_FIXTURE_PATH,
+) -> Path:
+    """Write one canonical full LCDM fixture and return its path."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    fixture = build_lcdm_full_reference_fixture()
+    destination.write_text(
+        json.dumps(_reference_jsonable(fixture), indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
+def load_lcdm_full_reference_fixture(
+    path: str | Path = FULL_LCDM_REFERENCE_FIXTURE_PATH,
+) -> dict[str, Any]:
+    """Load and integrity-check the tracked full LCDM fixture."""
+
+    source = Path(path)
+    fixture = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(fixture, dict):
+        raise ValueError("CAMB fixture root must be an object")
+    stored_digest = fixture.get("fixture_sha256")
+    if not isinstance(stored_digest, str):
+        raise ValueError("CAMB fixture is missing fixture_sha256")
+    actual_digest = reference_fixture_sha256(
+        {
+            key: value
+            for key, value in fixture.items()
+            if key != "fixture_sha256"
+        }
+    )
+    if stored_digest != actual_digest:
+        raise ValueError(
+            "CAMB fixture digest mismatch: "
+            f"{stored_digest} != {actual_digest}"
+        )
+    return fixture
+
+
+def compare_lcdm_reference_spectra(
+    actual: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    *,
+    representation: str = "D_ell",
+) -> dict[str, dict[str, float]]:
+    """Compare aligned fixture spectra without interpolation or fallback."""
+
+    if representation not in {"C_ell", "D_ell"}:
+        raise ValueError("representation must be C_ell or D_ell")
+    metrics: dict[str, dict[str, float]] = {}
+    for name, reference_entry in reference.items():
+        if name not in actual:
+            raise KeyError(f"Missing spectrum '{name}' for comparison")
+        if not isinstance(reference_entry, Mapping):
+            raise ValueError(f"Reference spectrum '{name}' is not structured")
+        expected = numpy.asarray(reference_entry[representation], dtype=float)
+        observed = numpy.asarray(actual[name], dtype=float)
+        if expected.shape != observed.shape:
+            raise ValueError(
+                f"Spectrum '{name}' shape mismatch: "
+                f"{observed.shape} != {expected.shape}"
+            )
+        if not numpy.all(numpy.isfinite(expected)) or not numpy.all(
+            numpy.isfinite(observed)
+        ):
+            raise ValueError(f"Spectrum '{name}' contains non-finite values")
+        delta = numpy.abs(observed - expected)
+        scale = numpy.maximum(numpy.abs(expected), 1.0e-30)
+        metrics[name] = {
+            "max_absolute": float(numpy.max(delta, initial=0.0)),
+            "max_fractional": float(numpy.max(delta / scale, initial=0.0)),
+            "sample_count": float(expected.size),
+        }
+    return metrics
+
+
 __all__ = [
     "CAMB_REFERENCE_IDENTITY",
     "FIXED_LCDM_REFERENCE_CONTRACT",
     "FIXED_LCDM_REFERENCE_ELL_VALUES",
     "FIXED_LCDM_REFERENCE_SPECTRA",
     "FIXED_LCDM_REFERENCE_TOLERANCES",
+    "FIXED_LCDM_FULL_REFERENCE_SPECTRA",
+    "FIXED_LCDM_FULL_REFERENCE_TOLERANCES",
+    "FULL_LCDM_REFERENCE_FIXTURE_PATH",
     "build_lcdm_reference_fixture",
+    "build_lcdm_full_reference_fixture",
+    "compare_lcdm_reference_spectra",
     "compute_camb_background_observables",
     "compute_cmb_spectrum_from_camb_contract",
     "describe_camb_configuration",
+    "load_lcdm_full_reference_fixture",
     "reference_fixture_sha256",
+    "write_lcdm_full_reference_fixture",
 ]

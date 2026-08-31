@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-30
+**Last Updated:** 2026-08-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,33 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-08-31:
+  Change: Updated the Slice Eight reference surface and verified repository
+  policy compliance against the current gate date.
+  Why: Corrected stale documentation metadata detected by gate verification.
+  Impact: The staged fixture, helper, tests, plan, and changelog remain
+  traceable for the active verification session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/fixtures/camb_lcdm_reference.json
+
+- 2026-08-30:
+  Change: Froze a complete test-owned CAMB LambdaCDM scalar reference fixture
+  with raw and native spectra plus strict comparison helpers.
+  Why: Defined immutable, independently generated CAMB evidence for every
+  scalar CMB and lensing observable declared by the bundled models.
+  Impact: Later CCMBS parity slices can compare aligned TT, TE, EE, BB, PP,
+  TP, EP, and lensed surfaces without runtime CAMB fallback or interpolation.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/fixtures/camb_lcdm_reference.json
 
 - 2026-08-30:
   Change: Corrected the generated scalar source contract to the tested

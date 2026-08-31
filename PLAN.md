@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-30
+**Last Updated:** 2026-08-31
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -675,7 +675,7 @@ directly. This closes the source-contract/workload-floor regression slice.
 Independent CAMB parity is explicitly assigned to Slices Eight through Ten,
 and final corpus acceptance and report closure to Slices Eleven and Twelve.
 
-### [planned] Slice Eight — freeze the full independent CAMB fixture
+### [closed] Slice Eight — freeze the full independent CAMB fixture
 
 **Purpose:** Establish the exact, immutable reference against which a fully
 functional CCMBS will be judged. The fixture is comparison-only: CAMB must
@@ -720,6 +720,19 @@ never be called from a production CCMBS evaluation or used as a fallback.
 reports, and runtime-isolation test output are committed before Slice Eight
 is closed. Any missing CAMB observable is recorded as a fixture limitation,
 not silently treated as parity.
+
+**Closure evidence (2026-08-30):** The test-owned CAMB reference now freezes a
+versioned LambdaCDM scalar fixture at eight canonical multipoles. It stores
+finite `C_ell` and native `D_ell` arrays for TT, TE, EE, BB, PP, TP, EP, and
+all applicable lensed scalar surfaces, with explicit lens-potential
+conventions, applicability records, CAMB identity, numerical settings, and a
+SHA-256 digest. The strict comparator rejects missing, mis-shaped, or
+non-finite arrays and never interpolates. The fixture loader verifies its
+digest, and regeneration reproduces the frozen arrays. Existing production
+boundary tests continue to prove that the test-only CAMB contract cannot enter
+CCMBS and that declared execution remains CAMB-free. Vector and tensor outputs
+are recorded as not declared by the bundled scalar models; their dedicated
+fixtures are owned by the later sector-parity slices.
 
 ### [planned] Slice Nine — repair shared histories and source physics
 
