@@ -77,6 +77,19 @@ diagnostic harness does not turn a non-converged or reference-mismatched
 spectrum into an accepted scientific result; CAMB parity and hierarchy
 closure acceptance remain separate gates.
 
+Full observable parity is provided by
+`compare_full_cmb_observable_parity()` and `build_cmb_parity_report()`.
+They accept direct, sector-nested, or structured fixture payloads and retain
+one raw comparison row for every requested TT, TE, EE, BB, PP, TP, EP, and
+lensed surface. Scalar, vector, tensor, and total sectors remain distinct.
+The selected `C_ell` or `D_ell` representation is compared without
+interpolation; when both are present, the declared conversion is checked
+using `L/(2*pi)` for temperature/polarization power, `L**2/(2*pi)` for PP,
+and `L**1.5/(2*pi)` for TP/EP. Reports also require finite physical power,
+cross-spectrum sign agreement, independent base/refined evidence, fixture
+digests, and optional fixed-parameter response points. A missing or
+mismatched row is retained with typed issues and rejects the report.
+
 The final certification surface is `build_cmb_certification_report()`. It
 requires every requested public and raw spectrum, doubled-grid convergence,
 finite physical-shape evidence, an independently recomputed source residual

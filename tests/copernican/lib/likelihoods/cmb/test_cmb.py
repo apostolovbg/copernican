@@ -20,6 +20,7 @@ from scipy.linalg import expm
 
 from copernican.lib import model_coder
 from copernican.lib.likelihoods import cmb
+from copernican.lib.likelihoods.cmb import diagnostics as cmb_diagnostics
 from copernican.lib.likelihoods.cmb.orchestrators import ccmbs as cmb_solver
 from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
 from copernican.lib.likelihoods.cmb.runtime import (
@@ -3015,6 +3016,82 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
 
 class CMBScientificReferenceValidationTestCase(unittest.TestCase):
     """CAMB-backed scientific reference checks for the CMB surface."""
+
+    def test_full_parity_report_covers_structured_observable_surface(
+        self,
+    ) -> None:
+        """Full parity evidence retains every scalar CAMB observable row."""
+
+        ells = numpy.asarray((2, 20, 100), dtype=int)
+        ell_product = ells * (ells + 1.0)
+        factors = {
+            "TT": ell_product / (2.0 * numpy.pi),
+            "TE": ell_product / (2.0 * numpy.pi),
+            "EE": ell_product / (2.0 * numpy.pi),
+            "BB": ell_product / (2.0 * numpy.pi),
+            "PP": ell_product**2 / (2.0 * numpy.pi),
+            "TP": ell_product**1.5 / (2.0 * numpy.pi),
+            "EP": ell_product**1.5 / (2.0 * numpy.pi),
+            "lensed_TT": ell_product / (2.0 * numpy.pi),
+            "lensed_TE": ell_product / (2.0 * numpy.pi),
+            "lensed_EE": ell_product / (2.0 * numpy.pi),
+            "lensed_BB": ell_product / (2.0 * numpy.pi),
+        }
+        c_values = {
+            name: numpy.asarray((1.0, 2.0, 3.0), dtype=float)
+            for name in factors
+        }
+        c_values["BB"] = numpy.zeros(3, dtype=float)
+        reference = {
+            "sector": "scalar",
+            "ell_values": tuple(ells),
+            "spectra": {
+                name: {
+                    "C_ell": values,
+                    "D_ell": values * factors[name],
+                }
+                for name, values in c_values.items()
+            },
+        }
+        actual = {
+            "scalar": {
+                name: values * factors[name]
+                for name, values in c_values.items()
+            },
+            "ell_values": tuple(ells),
+        }
+        report = cmb_diagnostics.compare_full_cmb_observable_parity(
+            actual,
+            reference,
+            refinement={"converged": True},
+            fixture_digest="a" * 64,
+            require_fixture_digest=True,
+        )
+        self.assertTrue(report["accepted"])
+        self.assertEqual(report["row_count"], 11)
+        self.assertEqual(
+            {row["row"] for row in report["rows"]},
+            {f"scalar:{name}" for name in factors},
+        )
+
+    def test_full_parity_report_rejects_missing_refinement(self) -> None:
+        """Finite arrays alone cannot pass the full parity gate."""
+
+        actual = {"TT": numpy.asarray((1.0, 2.0, 3.0))}
+        reference = {"TT": numpy.asarray((1.0, 2.0, 3.0))}
+        report = cmb_diagnostics.compare_full_cmb_observable_parity(
+            actual,
+            reference,
+            ell_values=(2, 20, 100),
+        )
+        self.assertFalse(report["accepted"])
+        self.assertTrue(
+            any(
+                "convergence" in issue
+                for row in report["rows"]
+                for issue in row["issues"]
+            )
+        )
 
     def test_camb_tensor_reference_returns_absolute_cls(self) -> None:
         """Tensor references must expose unlensed and lensed spectra."""
@@ -10072,6 +10149,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             t_cmb_muK=float(t_cmb_muK),
             lensing_mode=True,
         )
+        tp_scale = cmb_solver._power_spectrum_scale_factor(
+            None,
+            "TP",
+            ell_factor=ell_factor,
+            t_cmb_muK=float(t_cmb_muK),
+            lensing_mode=True,
+        )
 
         numpy.testing.assert_allclose(
             numpy.asarray(tt_scale, dtype=numpy.longdouble),
@@ -10080,6 +10164,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         numpy.testing.assert_allclose(
             numpy.asarray(pp_scale, dtype=numpy.longdouble),
             2.0 * numpy.longdouble(numpy.pi) * ell_factor * ell_factor,
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(tp_scale, dtype=numpy.longdouble),
+            ell_factor
+            * numpy.sqrt(2.0 * numpy.longdouble(numpy.pi) * ell_factor)
+            * t_cmb_muK,
         )
 
     def test_declared_power_spectrum_uses_log_k_simpson_quadrature(

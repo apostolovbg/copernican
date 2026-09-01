@@ -20,6 +20,7 @@ import numpy
 
 from ... import model_adapter, model_coder, model_spec_validator
 from ...cmb_contract import audit_cmb_capabilities
+from ...cmb_output import canonical_cmb_spectrum_name, describe_cmb_spectrum
 from .contracts_audit import (
     audit_bundled_cmb_contracts,
     audit_bundled_cmb_declarations,
@@ -165,7 +166,13 @@ def _public_spectrum_values(
         scale = (
             ell_factor * temperature_scale
             if token in {"TT", "TE", "EE", "BB"}
-            else ell_factor
+            else (
+                ell_factor
+                * numpy.sqrt(2.0 * numpy.pi * ell_factor)
+                * numpy.longdouble("2.7255e6")
+                if token in {"TP", "EP"}
+                else ell_factor
+            )
         )
         converted[str(name)] = numpy.asarray(
             numpy.asarray(values, dtype=numpy.longdouble) * scale,
@@ -422,6 +429,7 @@ def compare_cmb_spectra_to_reference(
     *,
     relative_tolerances: Mapping[str, float] | None = None,
     auto_spectrum_floor: float = 1.0e-10,
+    representation: str = "D_ell",
 ) -> dict[str, Any]:
     """Compare raw public spectra with an independent fixed-point reference.
 
@@ -432,6 +440,27 @@ def compare_cmb_spectra_to_reference(
     free.
     """
 
+    selected_representation = str(representation).upper()
+    if selected_representation not in _FULL_PARITY_REPRESENTATIONS:
+        raise ValueError("representation must be C_ell or D_ell")
+    reference_payload = reference.get("spectra", reference)
+    if not isinstance(reference_payload, Mapping):
+        raise TypeError("Reference spectra must be a mapping")
+    normalized_reference: dict[str, Any] = {}
+    for name, value in reference_payload.items():
+        if isinstance(value, Mapping):
+            candidate = value.get(
+                "C_ell" if selected_representation == "C_ELL" else "D_ell"
+            )
+            if candidate is None:
+                raise ValueError(
+                    f"Reference spectrum '{name}' lacks "
+                    f"{representation} values"
+                )
+            normalized_reference[str(name)] = candidate
+        else:
+            normalized_reference[str(name)] = value
+    reference = normalized_reference
     tolerances = dict(_DEFAULT_RELATIVE_TOLERANCES)
     tolerances.update(relative_tolerances or {})
     metrics: dict[str, dict[str, Any]] = {}
@@ -511,6 +540,498 @@ def compare_cmb_spectra_to_reference(
         "converged": bool(metrics)
         and all(bool(metric["converged"]) for metric in metrics.values()),
     }
+
+
+_FULL_PARITY_AUTO_SPECTRA = frozenset(
+    {
+        "TT",
+        "EE",
+        "BB",
+        "PP",
+        "LENSED_TT",
+        "LENSED_EE",
+        "LENSED_BB",
+    }
+)
+_FULL_PARITY_SECTORS = frozenset({"scalar", "vector", "tensor", "total"})
+_FULL_PARITY_REPRESENTATIONS = frozenset({"C_ELL", "D_ELL"})
+
+
+def _canonical_parity_surface(sector: str, name: str) -> str:
+    """Return a stable ``sector:observable`` parity row identifier."""
+
+    canonical = canonical_cmb_spectrum_name(name)
+    metadata = describe_cmb_spectrum(canonical)
+    component = metadata.component
+    selected_sector = str(sector or "scalar").casefold()
+    if component in _FULL_PARITY_SECTORS:
+        if selected_sector == "scalar" or selected_sector == "total":
+            selected_sector = str(component)
+        prefix = f"{component}_"
+        if canonical.casefold().startswith(prefix):
+            canonical = canonical[len(prefix) :]
+    if selected_sector not in _FULL_PARITY_SECTORS:
+        raise ValueError(f"Unsupported parity sector '{selected_sector}'")
+    return f"{selected_sector}:{canonical}"
+
+
+def _flatten_parity_surfaces(
+    payload: Mapping[str, Any],
+    *,
+    default_sector: str = "scalar",
+) -> dict[str, tuple[str, Any]]:
+    """Flatten direct, sector-nested, and fixture ``spectra`` payloads."""
+
+    if not isinstance(payload, Mapping):
+        raise TypeError("Parity spectra must be supplied as a mapping")
+    root_sector = str(payload.get("sector", default_sector))
+    source: Mapping[str, Any] = payload
+    nested = payload.get("spectra")
+    if isinstance(nested, Mapping):
+        source = nested
+    flattened: dict[str, tuple[str, Any]] = {}
+    for raw_name, value in source.items():
+        name = str(raw_name)
+        if name in {"sector", "spectra", "ell_values", "declared_observables"}:
+            continue
+        if name.casefold() in _FULL_PARITY_SECTORS and isinstance(
+            value, Mapping
+        ):
+            for nested_name, nested_value in value.items():
+                row_name = _canonical_parity_surface(name, str(nested_name))
+                if row_name in flattened:
+                    raise ValueError(f"Duplicate parity surface '{row_name}'")
+                flattened[row_name] = (str(nested_name), nested_value)
+            continue
+        row_name = _canonical_parity_surface(root_sector, name)
+        if row_name in flattened:
+            raise ValueError(f"Duplicate parity surface '{row_name}'")
+        flattened[row_name] = (name, value)
+    if not flattened:
+        raise ValueError("Parity spectra payload contains no observables")
+    return flattened
+
+
+def _parity_representation_values(
+    entry: Any,
+    *,
+    representation: str,
+) -> tuple[numpy.ndarray, str, Mapping[str, Any] | None]:
+    """Select one representation without silently changing its units."""
+
+    selected = str(representation).upper()
+    if selected not in _FULL_PARITY_REPRESENTATIONS:
+        raise ValueError("representation must be C_ell or D_ell")
+    if not isinstance(entry, Mapping):
+        return numpy.asarray(entry, dtype=numpy.longdouble), selected, None
+    normalized = {str(key).upper(): value for key, value in entry.items()}
+    selected_value = normalized.get(selected)
+    if selected_value is None:
+        if "VALUES" in normalized:
+            selected_value = normalized["VALUES"]
+        else:
+            raise ValueError(
+                f"Parity entry has no declared {selected} representation"
+            )
+    return (
+        numpy.asarray(selected_value, dtype=numpy.longdouble),
+        selected,
+        normalized,
+    )
+
+
+def _parity_conversion_factor(
+    observable: str,
+    ell_values: numpy.ndarray,
+) -> numpy.ndarray:
+    """Return the CAMB C-to-D factor for one observable family."""
+
+    base_name = describe_cmb_spectrum(observable).base_spectrum
+    ell_product = ell_values * (ell_values + 1.0)
+    if base_name in {"TT", "TE", "EE", "BB"}:
+        return ell_product / (2.0 * numpy.longdouble(numpy.pi))
+    if base_name == "PP":
+        return numpy.square(ell_product) / (2.0 * numpy.longdouble(numpy.pi))
+    if base_name in {"TP", "EP"}:
+        return numpy.power(ell_product, 1.5) / (
+            2.0 * numpy.longdouble(numpy.pi)
+        )
+    raise ValueError(
+        f"No C_ell/D_ell convention is declared for '{observable}'"
+    )
+
+
+def _parity_row_shape(
+    observable: str,
+    values: numpy.ndarray,
+    ell_values: numpy.ndarray,
+) -> dict[str, Any]:
+    """Record finite, sign, and resolved-structure evidence for one row."""
+
+    finite = bool(
+        values.ndim == 1
+        and values.shape == ell_values.shape
+        and numpy.all(numpy.isfinite(values))
+    )
+    base_name = describe_cmb_spectrum(observable).base_spectrum
+    auto = base_name in {"TT", "EE", "BB", "PP"}
+    nonnegative = bool(
+        not auto or not finite or numpy.min(values) >= numpy.longdouble(0.0)
+    )
+    scale = max(float(numpy.max(numpy.abs(values), initial=0.0)), 1.0e-30)
+    sign_threshold = numpy.longdouble("1.0e-3") * scale
+    supported = finite & (numpy.abs(values) > sign_threshold)
+    sign_changes = int(
+        numpy.count_nonzero(
+            numpy.diff(numpy.signbit(values[supported]).astype(int))
+        )
+        if numpy.count_nonzero(supported) > 1
+        else 0
+    )
+    return {
+        "finite": finite,
+        "auto": auto,
+        "nonnegative": nonnegative,
+        "sign_change_count": sign_changes,
+        "maximum_abs": float(numpy.max(numpy.abs(values), initial=0.0)),
+        "ell_min": int(ell_values[0]),
+        "ell_max": int(ell_values[-1]),
+    }
+
+
+def compare_full_cmb_observable_parity(
+    actual: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    *,
+    ell_values: Iterable[int] | None = None,
+    representation: str = "D_ell",
+    relative_tolerances: Mapping[str, float] | None = None,
+    auto_spectrum_floor: float = 1.0e-10,
+    zero_tolerance: float = 1.0e-12,
+    refinement: Mapping[str, Any] | None = None,
+    fixture_digest: str | None = None,
+    require_refinement: bool = True,
+    require_fixture_digest: bool = False,
+) -> dict[str, Any]:
+    """Compare every raw sector/observable row without interpolation.
+
+    The input may be a flat spectrum mapping, a sector mapping, or the
+    structured CAMB fixture used by the scientific tests.  Every expected
+    row is retained, including missing and unexpected rows.  If both
+    ``C_ell`` and ``D_ell`` are supplied, their declared conversion is
+    checked before the selected representation is compared.
+    """
+
+    selected_token = str(representation).upper()
+    if selected_token not in _FULL_PARITY_REPRESENTATIONS:
+        raise ValueError("representation must be C_ell or D_ell")
+    selected_representation = "C_ell" if selected_token == "C_ELL" else "D_ell"
+    actual_rows = _flatten_parity_surfaces(actual)
+    reference_rows = _flatten_parity_surfaces(reference)
+    reference_ells = reference.get("ell_values")
+    actual_ells = actual.get("ell_values")
+    if ell_values is None:
+        ell_values = (
+            reference_ells if reference_ells is not None else actual_ells
+        )
+    if ell_values is None:
+        raise ValueError("Full parity comparison requires ell_values")
+    ell_array = numpy.asarray(tuple(ell_values), dtype=int)
+    if (
+        ell_array.ndim != 1
+        or ell_array.size == 0
+        or numpy.any(numpy.diff(ell_array) <= 0)
+    ):
+        raise ValueError("Parity ell_values must be strictly increasing")
+    for label, candidate in (
+        ("actual", actual_ells),
+        ("reference", reference_ells),
+    ):
+        if candidate is not None and not numpy.array_equal(
+            numpy.asarray(tuple(candidate), dtype=int), ell_array
+        ):
+            raise ValueError(f"{label} ell_values do not match parity grid")
+
+    tolerances = dict(_DEFAULT_RELATIVE_TOLERANCES)
+    tolerances.update(
+        {
+            "BB": 0.02,
+            "PP": 0.03,
+            "TP": 0.05,
+            "EP": 0.05,
+            "LENSED_TT": 0.02,
+            "LENSED_TE": 0.03,
+            "LENSED_EE": 0.02,
+            "LENSED_BB": 0.05,
+        }
+    )
+    tolerances.update(
+        {
+            str(name).upper(): float(value)
+            for name, value in (relative_tolerances or {}).items()
+        }
+    )
+    rows: list[dict[str, Any]] = []
+    all_names = sorted(set(reference_rows) | set(actual_rows))
+    for row_name in all_names:
+        actual_entry = actual_rows.get(row_name)
+        reference_entry = reference_rows.get(row_name)
+        sector, observable = row_name.split(":", 1)
+        row: dict[str, Any] = {
+            "sector": sector,
+            "observable": observable,
+            "row": row_name,
+            "representation": selected_representation,
+            "status": "rejected",
+            "issues": [],
+        }
+        issues: list[str] = row["issues"]
+        if actual_entry is None:
+            issues.append("missing actual spectrum")
+            rows.append(row)
+            continue
+        if reference_entry is None:
+            issues.append("unexpected actual spectrum")
+            rows.append(row)
+            continue
+        try:
+            actual_values, _, actual_mapping = _parity_representation_values(
+                actual_entry[1], representation=selected_representation
+            )
+            reference_values, _, reference_mapping = (
+                _parity_representation_values(
+                    reference_entry[1], representation=selected_representation
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            issues.append(str(exc))
+            rows.append(row)
+            continue
+        if actual_values.shape != ell_array.shape:
+            issues.append("actual spectrum has the wrong shape")
+        if reference_values.shape != ell_array.shape:
+            issues.append("reference spectrum has the wrong shape")
+        if issues:
+            row["actual"] = _jsonable(actual_values)
+            row["reference"] = _jsonable(reference_values)
+            rows.append(row)
+            continue
+        actual_shape = _parity_row_shape(observable, actual_values, ell_array)
+        reference_shape = _parity_row_shape(
+            observable, reference_values, ell_array
+        )
+        row["actual_shape"] = actual_shape
+        row["reference_shape"] = reference_shape
+        row["actual"] = _jsonable(actual_values)
+        row["reference"] = _jsonable(reference_values)
+        if not actual_shape["finite"] or not reference_shape["finite"]:
+            issues.append("spectrum contains non-finite values")
+        if not actual_shape["nonnegative"]:
+            issues.append("actual auto-spectrum contains negative power")
+        if not reference_shape["nonnegative"]:
+            issues.append("reference auto-spectrum contains negative power")
+        for mapping_name, mapping in (
+            ("actual", actual_mapping),
+            ("reference", reference_mapping),
+        ):
+            if mapping is not None:
+                if "C_ELL" not in mapping or "D_ELL" not in mapping:
+                    continue
+                c_values = numpy.asarray(
+                    mapping["C_ELL"], dtype=numpy.longdouble
+                )
+                d_values = numpy.asarray(
+                    mapping["D_ELL"], dtype=numpy.longdouble
+                )
+                factor = _parity_conversion_factor(observable, ell_array)
+                if (
+                    c_values.shape != ell_array.shape
+                    or d_values.shape != ell_array.shape
+                ):
+                    issues.append(f"{mapping_name} C_ell/D_ell shapes differ")
+                    continue
+                expected_d = c_values * factor
+                conversion_scale = max(
+                    float(numpy.max(numpy.abs(d_values), initial=0.0)),
+                    1.0e-30,
+                )
+                conversion_error = float(
+                    numpy.max(numpy.abs(expected_d - d_values), initial=0.0)
+                    / conversion_scale
+                )
+                row.setdefault("representation_consistency", {})[
+                    mapping_name
+                ] = {
+                    "maximum_relative_error": conversion_error,
+                    "converged": bool(conversion_error <= 1.0e-10),
+                }
+                if conversion_error > 1.0e-10:
+                    issues.append(
+                        f"{mapping_name} C_ell/D_ell conversion is "
+                        "inconsistent"
+                    )
+        name_key = observable.upper()
+        tolerance = float(
+            tolerances.get(
+                f"{sector.upper()}:{name_key}",
+                tolerances.get(name_key, 1.0e-2),
+            )
+        )
+        reference_scale = numpy.max(
+            numpy.abs(reference_values), initial=numpy.longdouble(0.0)
+        )
+        if (
+            name_key in _FULL_PARITY_AUTO_SPECTRA
+            and reference_scale <= numpy.longdouble("1.0e-30")
+        ):
+            maximum_error = float(
+                numpy.max(numpy.abs(actual_values), initial=0.0)
+            )
+            metric = {
+                "kind": "zero_auto",
+                "max_absolute": maximum_error,
+                "tolerance": float(zero_tolerance),
+                "converged": bool(maximum_error <= float(zero_tolerance)),
+            }
+        elif name_key in _FULL_PARITY_AUTO_SPECTRA:
+            floor = max(
+                numpy.longdouble("1.0e-30"),
+                numpy.longdouble(auto_spectrum_floor) * reference_scale,
+            )
+            supported = numpy.abs(reference_values) > floor
+            fractional = numpy.abs(
+                (actual_values[supported] - reference_values[supported])
+                / reference_values[supported]
+            )
+            p90 = float(numpy.percentile(fractional, 90.0))
+            metric = {
+                "kind": "auto",
+                "median_fractional": float(numpy.median(fractional)),
+                "p90_fractional": p90,
+                "max_fractional": float(numpy.max(fractional, initial=0.0)),
+                "tolerance": tolerance,
+                "converged": bool(p90 <= tolerance),
+            }
+        else:
+            delta = actual_values - reference_values
+            reference_rms = numpy.sqrt(
+                numpy.mean(numpy.square(reference_values))
+            )
+            normalized_rms = float(
+                numpy.sqrt(numpy.mean(numpy.square(delta)))
+                / max(reference_rms, numpy.longdouble("1.0e-30"))
+            )
+            sign_floor = max(
+                numpy.longdouble("1.0e-30"),
+                numpy.longdouble(auto_spectrum_floor) * reference_scale,
+            )
+            supported = numpy.abs(reference_values) > sign_floor
+            sign_mismatches = int(
+                numpy.count_nonzero(
+                    numpy.signbit(actual_values[supported])
+                    != numpy.signbit(reference_values[supported])
+                )
+            )
+            metric = {
+                "kind": "cross",
+                "normalized_rms": normalized_rms,
+                "sign_mismatch_count": sign_mismatches,
+                "tolerance": tolerance,
+                "converged": bool(
+                    normalized_rms <= tolerance and sign_mismatches == 0
+                ),
+            }
+        row["metric"] = metric
+        if not metric["converged"]:
+            issues.append("raw-array parity tolerance failed")
+        row_refinement = refinement
+        if isinstance(refinement, Mapping) and row_name in refinement:
+            candidate = refinement[row_name]
+            row_refinement = (
+                candidate if isinstance(candidate, Mapping) else {}
+            )
+        row["refinement"] = _jsonable(row_refinement or {})
+        if require_refinement and not bool(
+            isinstance(row_refinement, Mapping)
+            and row_refinement.get("converged") is True
+        ):
+            issues.append(
+                "independent base/refined convergence is unavailable"
+            )
+        row["status"] = "accepted" if not issues else "rejected"
+        rows.append(row)
+    digest = str(fixture_digest or "")
+    digest_valid = bool(
+        digest
+        and len(digest) == 64
+        and all(char in "0123456789abcdef" for char in digest)
+    )
+    issues = []
+    if set(reference_rows) - set(actual_rows):
+        issues.append("one or more reference observables are missing")
+    if set(actual_rows) - set(reference_rows):
+        issues.append("unexpected observables were supplied")
+    if require_fixture_digest and not digest_valid:
+        issues.append("fixture digest is missing or malformed")
+    if not rows:
+        issues.append("no parity rows were compared")
+    accepted = not issues and all(row["status"] == "accepted" for row in rows)
+    report = {
+        "schema_version": 1,
+        "representation": selected_representation,
+        "ell_values": tuple(int(value) for value in ell_array),
+        "rows": rows,
+        "row_count": len(rows),
+        "fixture_digest": digest or None,
+        "fixture_digest_valid": digest_valid,
+        "refinement_required": bool(require_refinement),
+        "issues": tuple(issues),
+        "converged": bool(accepted),
+        "accepted": bool(accepted),
+    }
+    report["report_sha256"] = _canonical_sha256(report)
+    return report
+
+
+def build_cmb_parity_report(
+    actual: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    *,
+    parameter_points: Mapping[str, Mapping[str, Any]] | None = None,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Build a canonical full-observable report with response points."""
+
+    report = compare_full_cmb_observable_parity(actual, reference, **kwargs)
+    points: dict[str, Any] = {}
+    for label, point in (parameter_points or {}).items():
+        if not isinstance(point, Mapping):
+            raise TypeError(f"Parameter point '{label}' must be a mapping")
+        if "actual" not in point or "reference" not in point:
+            raise ValueError(
+                f"Parameter point '{label}' requires actual and reference"
+            )
+        point_kwargs = dict(kwargs)
+        point_kwargs["require_fixture_digest"] = False
+        point_kwargs["fixture_digest"] = point.get("fixture_digest")
+        if "ell_values" in point:
+            point_kwargs["ell_values"] = point["ell_values"]
+        if "refinement" in point:
+            point_kwargs["refinement"] = point["refinement"]
+        points[str(label)] = compare_full_cmb_observable_parity(
+            point["actual"], point["reference"], **point_kwargs
+        )
+    report["parameter_points"] = points
+    report["parameter_point_count"] = len(points) + 1
+    report["response_points_converged"] = all(
+        bool(point["accepted"]) for point in points.values()
+    )
+    report["accepted"] = bool(
+        report["accepted"] and report["response_points_converged"]
+    )
+    report["converged"] = report["accepted"]
+    report["report_sha256"] = _canonical_sha256(report)
+    return report
 
 
 _SOURCE_RESIDUAL_DEFINITIONS = {
@@ -3853,8 +4374,10 @@ __all__ = [
     "build_bundled_cmb_matrix_report",
     "build_cmb_corpus_baseline_report",
     "build_cmb_certification_report",
+    "build_cmb_parity_report",
     "build_final_cmb_certification_report",
     "compare_cmb_spectra_to_reference",
+    "compare_full_cmb_observable_parity",
     "discover_bundled_cmb_plugins",
     "run_bundled_cmb_matrix",
     "run_bundled_cmb_corpus_baseline",

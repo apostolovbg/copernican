@@ -31,8 +31,10 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
     build_cmb_corpus_baseline_report,
+    build_cmb_parity_report,
     build_final_cmb_certification_report,
     compare_cmb_spectra_to_reference,
+    compare_full_cmb_observable_parity,
     discover_bundled_cmb_plugins,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
@@ -46,6 +48,37 @@ from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
 class CCMBSDiagnosticTestCase(unittest.TestCase):
     """Verify raw fixed-point evidence is captured before plotting."""
+
+    def test_full_parity_helpers_build_and_compare_raw_rows(self):
+        """Full parity helpers preserve strict raw-row acceptance."""
+
+        ell_values = (2, 20)
+        c_values = numpy.asarray([1.0, 2.0])
+        d_values = (
+            c_values
+            * (numpy.asarray(ell_values) * (numpy.asarray(ell_values) + 1.0))
+            / (2.0 * numpy.pi)
+        )
+        reference = {
+            "ell_values": ell_values,
+            "spectra": {
+                "TT": {"C_ell": c_values, "D_ell": d_values},
+            },
+        }
+        actual = {"ell_values": ell_values, "TT": d_values}
+        kwargs = {
+            "refinement": {"converged": True},
+            "fixture_digest": "b" * 64,
+            "require_fixture_digest": True,
+        }
+        self.assertTrue(
+            compare_full_cmb_observable_parity(actual, reference, **kwargs)[
+                "accepted"
+            ]
+        )
+        report = build_cmb_parity_report(actual, reference, **kwargs)
+        self.assertTrue(report["accepted"])
+        self.assertEqual(report["row_count"], 1)
 
     def test_jsonable_normalizes_extended_precision_arrays(self):
         """Canonical reports must encode NumPy extended scalars."""

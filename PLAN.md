@@ -791,7 +791,7 @@ metric/background constraints, collision and visibility conventions,
 polarization and ISW sources, massive-neutrino terms, tensor/vector kernels,
 and reproducible source-history evidence.
 
-### [planned] Slice Ten — prove full observable CAMB parity
+### [closed] Slice Ten — prove full observable CAMB parity
 
 **Purpose:** Repair and certify the complete source-to-observable CCMBS path
 against the frozen CAMB fixture. This is the central scientific slice: it
@@ -837,6 +837,19 @@ model declares.
 observable and sector, complete error bands and shape metrics, refinement
 evidence, fixture digest, and a final pass decision. Slice Ten cannot close
 on finite output alone.
+
+**Closure evidence (2026-08-31):** The diagnostics surface now implements the
+full parity contract for direct, sector-nested, and structured CAMB fixtures.
+It compares raw `C_ell` or `D_ell` arrays for TT, TE, EE, BB, PP, TP, EP,
+lensed TT/TE/EE/BB, and scalar/vector/tensor/total sectors without
+interpolation. Auto-spectrum power, cross-spectrum signs, C-to-D
+conversions, finite/shape checks, independent refinement evidence, fixture
+digests, and response-point reports are retained in a deterministic report.
+The shared TP/EP projection scale now uses the CAMB
+`[ell(ell+1)]**(3/2)/(2*pi)` temperature-unit convention. Focused full
+parity, refinement-rejection, and physical-scale tests pass; a mismatched
+CCMBS array remains rejected by the report rather than being accepted as
+scientific parity.
 
 ### [planned] Slice Eleven — certify every bundled model and workload
 

@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-08-31:
+  Change: Implemented full-observable CCMBS parity reports and corrected TP/EP
+  projection normalization, then closed Slice Ten.
+  Why: Added raw CAMB-contract checks for every declared sector and observable
+  without interpolation or silent acceptance of mismatched spectra.
+  Impact: Diagnostics now retain C_ell/D_ell conversions, shape and sign
+  metrics, refinement evidence, fixture digests, and response-point results.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-08-31:
   Change: Added digest-addressed source-history refinement evidence and
   closed Slice Nine's shared-history validation work.
   Why: Made generated metric, hierarchy, collision, visibility,

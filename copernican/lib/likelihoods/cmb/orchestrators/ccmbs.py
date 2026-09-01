@@ -182,7 +182,16 @@ def _power_spectrum_scale_factor(
             * numpy.longdouble(t_cmb_muK)
         )
     if name in {"TP", "EP"}:
-        return ell_factor
+        # CAMB's temperature--lensing cross surfaces are reported in the
+        # native ``[ell(ell+1)]**(3/2)/(2*pi)`` convention.  The declared
+        # projection carries one temperature transfer and one dimensionless
+        # lensing-potential transfer, so both the extra radial factor and the
+        # microkelvin conversion belong at this boundary.
+        return (
+            ell_factor
+            * numpy.sqrt(2.0 * numpy.pi * ell_factor)
+            * numpy.longdouble(t_cmb_muK)
+        )
     if name == "PP":
         return 2.0 * numpy.longdouble(math.pi) * ell_factor * ell_factor
     return (

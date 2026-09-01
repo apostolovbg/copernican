@@ -134,6 +134,15 @@ derivatives and compiler-backed source and closure expressions before runtime;
 bindings, so missing derivatives cannot become implicit zero histories. BAO
 has a fixed-background regression that deliberately breaks the CMB entrypoint
 and verifies that BAO evaluation remains usable.
+Full observable parity is available through
+`compare_full_cmb_observable_parity()` and `build_cmb_parity_report()` in
+`copernican.lib.likelihoods.cmb.diagnostics`. These helpers compare raw
+`C_ell` or `D_ell` arrays for TT, TE, EE, BB, PP, TP, EP, lensed surfaces,
+and explicit scalar/vector/tensor/total sectors. They retain finite and
+physical-shape checks, cross-spectrum sign checks, C-to-D convention checks,
+independent refinement evidence, fixture digests, and optional parameter
+response points; missing or mismatched rows are rejected rather than
+interpolated or silently substituted.
 Fixed-point reports also carry compact raw source-history samples and
 independently recomputed metric, visibility, polarization, and ISW residuals;
 an unavailable or failed audit remains explicit rather than being treated as
