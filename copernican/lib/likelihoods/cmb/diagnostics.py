@@ -171,7 +171,11 @@ def _public_spectrum_values(
                 * numpy.sqrt(2.0 * numpy.pi * ell_factor)
                 * numpy.longdouble("2.7255e6")
                 if token in {"TP", "EP"}
-                else ell_factor
+                else (
+                    2.0 * numpy.longdouble(numpy.pi) * ell_factor * ell_factor
+                    if token == "PP"
+                    else ell_factor
+                )
             )
         )
         converted[str(name)] = numpy.asarray(
@@ -1695,6 +1699,28 @@ def _contract_identity(plugin: Any) -> dict[str, Any]:
     ).encode("utf-8")
     contract["sha256"] = hashlib.sha256(canonical).hexdigest()
     return contract
+
+
+def declared_cmb_spectrum_names(plugin_or_contract: Any) -> tuple[str, ...]:
+    """Return every angular spectrum explicitly declared by a CMB graph.
+
+    The corpus matrix must derive its request from the model contract rather
+    than from a solver-wide default.  Transfer components are intentionally
+    excluded, while component and lensed names are preserved through the
+    canonical output-name normalizer.
+    """
+
+    perturbation_data = getattr(
+        plugin_or_contract, "CMB_PERTURBATION_DATA", plugin_or_contract
+    )
+    observables = getattr(perturbation_data, "observables", {}) or {}
+    names = {
+        canonical_cmb_spectrum_name(name)
+        for name, entry in observables.items()
+        if str(getattr(entry, "kind", "")).casefold()
+        == "angular_power_spectrum"
+    }
+    return tuple(sorted(names))
 
 
 def _unavailable_report(
@@ -3802,6 +3828,338 @@ def build_bundled_cmb_matrix_report(
     )
 
 
+def build_bundled_cmb_full_matrix_report(
+    reports: Iterable[CMBModelDiagnostic],
+    *,
+    required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
+    declared_spectra_by_model: Mapping[str, Sequence[str]] | None = None,
+    certification_tier: Mapping[str, Any] | None = None,
+    contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
+    declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build the complete per-model observable certification matrix.
+
+    Unlike the historical TT/TE/EE matrix, this report derives required
+    spectra per model and records an explicit classification for every row.
+    A declaration-level ``unavailable`` decision is the only acceptable
+    unavailable outcome; an enabled model that fails execution is rejected.
+    Thus no missing output can be hidden by a corpus-wide default request.
+    """
+
+    ordered_reports = tuple(
+        sorted(reports, key=lambda item: str(item.model_filename))
+    )
+    expected_values = tuple(str(name) for name in required_model_filenames)
+    expected = tuple(sorted(set(expected_values)))
+    expected_duplicates = sorted(
+        name
+        for name in set(expected_values)
+        if expected_values.count(name) > 1
+    )
+    seen_values = tuple(str(item.model_filename) for item in ordered_reports)
+    seen = set(seen_values)
+    duplicate_models = sorted(
+        name for name in seen if seen_values.count(name) > 1
+    )
+    missing_models = sorted(set(expected) - seen)
+    unexpected_models = sorted(seen - set(expected))
+    declared_map = {
+        str(name): tuple(
+            canonical_cmb_spectrum_name(value) for value in values
+        )
+        for name, values in (declared_spectra_by_model or {}).items()
+    }
+    records: list[dict[str, Any]] = []
+    accepted: list[str] = []
+    unavailable: list[str] = []
+    rejected: dict[str, list[str]] = {}
+    classifications: dict[str, str] = {}
+    for report in ordered_reports:
+        filename = str(report.model_filename)
+        declared = declared_map.get(filename, ())
+        issues: list[str] = []
+        declaration = (declaration_audits or {}).get(filename) or {}
+        declaration_decision = str(declaration.get("decision", ""))
+        if filename not in declared_map:
+            issues.append("declared observable inventory is unavailable")
+        if tuple(report.requested_spectra) != tuple(declared):
+            issues.append(
+                "diagnostic request does not exactly match declared spectra"
+            )
+        if declaration_decision == "unavailable":
+            if report.availability != "unavailable":
+                issues.append(
+                    "unavailable declaration must retain a typed unavailable "
+                    "diagnostic outcome"
+                )
+            outcome = "unavailable" if not issues else "rejected"
+        else:
+            valid, evidence_issues = _matrix_evidence_status(
+                report,
+                required_spectra=declared,
+                require_reference=False,
+                contract_audit=(contract_audits or {}).get(filename),
+                source_graph_audit=(source_graph_audits or {}).get(filename),
+                declaration_audit=declaration,
+            )
+            issues.extend(evidence_issues)
+            outcome = "accepted" if valid and not issues else "rejected"
+        classifications[filename] = outcome
+        if outcome == "accepted":
+            accepted.append(filename)
+        elif outcome == "unavailable":
+            unavailable.append(filename)
+        else:
+            rejected[filename] = list(issues)
+        records.append(
+            {
+                "model_filename": filename,
+                "classification": outcome,
+                "accepted": outcome == "accepted",
+                "availability": report.availability,
+                "declared_spectra": list(declared),
+                "raw_evidence_sha256": _canonical_sha256(report.to_dict()),
+                "contract_audit": _jsonable(
+                    (contract_audits or {}).get(filename)
+                ),
+                "declaration_audit": _jsonable(declaration),
+                "source_graph_audit": _jsonable(
+                    (source_graph_audits or {}).get(filename)
+                ),
+                "issues": list(issues),
+                "report": report.to_dict(),
+            }
+        )
+    for filename in missing_models:
+        classifications[filename] = "rejected"
+        rejected[filename] = ["model is missing from diagnostic matrix"]
+    for filename in unexpected_models:
+        classifications[filename] = "rejected"
+        rejected[filename] = ["model is not in the frozen CMB corpus"]
+    for filename in duplicate_models:
+        classifications[filename] = "rejected"
+        rejected.setdefault(filename, []).append(
+            "model appears more than once in diagnostic matrix"
+        )
+    for filename in expected_duplicates:
+        classifications[filename] = "rejected"
+        rejected.setdefault(filename, []).append(
+            "required model list contains duplicate entries"
+        )
+    complete = (
+        not missing_models
+        and not unexpected_models
+        and not duplicate_models
+        and not expected_duplicates
+        and seen == set(expected)
+        and len(ordered_reports) == len(expected)
+    )
+    decision_complete = bool(
+        complete
+        and all(
+            classifications.get(filename)
+            in {"accepted", "rejected", "unavailable"}
+            for filename in expected
+        )
+    )
+    record: dict[str, Any] = {
+        "schema_version": 1,
+        "kind": "ccmbs_bundled_full_observable_matrix",
+        "required_models": list(expected),
+        "declared_spectra_by_model": {
+            name: list(declared_map.get(name, ())) for name in expected
+        },
+        "certification_tier": _jsonable(certification_tier or {}),
+        "complete": complete,
+        "decision_complete": decision_complete,
+        "no_unclassified_models": decision_complete,
+        "success": bool(complete and not rejected),
+        "accepted_models": sorted(accepted),
+        "unavailable_models": sorted(unavailable),
+        "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "classifications": {
+            name: classifications[name] for name in sorted(classifications)
+        },
+        "reports": records,
+    }
+    record["record_sha256"] = _canonical_sha256(record)
+    return record
+
+
+def run_bundled_cmb_full_matrix(
+    *,
+    model_directory: str | Path | None = None,
+    certification_tier: Mapping[str, Any] | None = None,
+    numerical_overrides: Mapping[str, Any] | None = None,
+    reference_spectra_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    reference_tolerances_by_model: (
+        Mapping[str, Mapping[str, float]] | None
+    ) = None,
+    execute_batch_checks: bool = True,
+) -> dict[str, Any]:
+    """Execute the full declared-observable matrix for every CMB model.
+
+    Requests are taken from each compiled model's angular-spectrum
+    declarations.  This keeps BB/PP/cross and future lensed observables in
+    the same raw-evidence path, while retaining typed unavailable outcomes for
+    models that explicitly disable CMB output.
+    """
+
+    tier = dict(CMB_CERTIFICATION_TIER)
+    tier.update(certification_tier or {})
+    requested_ells = tuple(int(value) for value in tier.get("ells", ()))
+    if not requested_ells:
+        raise ValueError("Certification tier must declare ells")
+    tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
+    tier_overrides.update(numerical_overrides or {})
+    plugins = discover_bundled_cmb_plugins(model_directory)
+    default_corpus = model_directory is None
+    expected = (
+        BUNDLED_CMB_MODEL_FILENAMES
+        if default_corpus
+        else tuple(sorted(str(plugin.MODEL_FILENAME) for plugin in plugins))
+    )
+    contract_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_contracts(model_directory)
+    }
+    source_graph_audits = {
+        audit.model_filename: audit.to_dict()
+        for audit in audit_bundled_cmb_source_graphs(model_directory)
+    }
+    declaration_audits = {
+        decision.model_filename: decision.to_dict()
+        for decision in audit_bundled_cmb_declarations(model_directory)
+    }
+    declared_map = {
+        str(plugin.MODEL_FILENAME): declared_cmb_spectrum_names(plugin)
+        for plugin in plugins
+    }
+    reports: list[CMBModelDiagnostic] = []
+    for plugin in plugins:
+        filename = str(plugin.MODEL_FILENAME)
+        requested_spectra = declared_map.get(filename, ())
+        declaration = declaration_audits.get(filename, {})
+        if not requested_spectra:
+            reports.append(
+                _unavailable_report(
+                    plugin,
+                    requested_ells=requested_ells,
+                    requested_spectra=(),
+                    error_type="NoDeclaredCMBObservable",
+                    message="Model declares no angular CMB spectrum",
+                    category="unavailable",
+                )
+            )
+            continue
+        if declaration.get("decision") == "unavailable":
+            reports.append(
+                _unavailable_report(
+                    plugin,
+                    requested_ells=requested_ells,
+                    requested_spectra=requested_spectra,
+                    error_type="CMBCapabilityUnavailable",
+                    message="Model declaration explicitly disables CMB output",
+                    category="unavailable",
+                )
+            )
+            continue
+        try:
+            report = run_cmb_model_diagnostic(
+                plugin,
+                ells=requested_ells,
+                spectra=requested_spectra,
+                numerical_overrides=tier_overrides,
+                refine_wave_number_grid=bool(
+                    tier.get("refine_wave_number_grid", True)
+                ),
+                reference_spectra=(reference_spectra_by_model or {}).get(
+                    filename
+                ),
+                reference_tolerances=(reference_tolerances_by_model or {}).get(
+                    filename
+                ),
+                matrix_fast_path=True,
+            )
+        except (
+            ArithmeticError,
+            AttributeError,
+            CMBError,
+            KeyError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as error:
+            report = _unavailable_report(
+                plugin,
+                requested_ells=requested_ells,
+                requested_spectra=requested_spectra,
+                error_type=type(error).__name__,
+                message=str(error),
+                category="rejected",
+            )
+            report = replace(report, availability="rejected")
+        scalar_batch = report.scalar_batch_evidence
+        cache_isolation = report.cache_isolation_evidence
+        if execute_batch_checks and report.availability == "measured":
+            scalar_batch, cache_isolation = _run_scalar_batch_cache_check(
+                plugin,
+                report,
+                ells=requested_ells,
+                spectra=requested_spectra,
+                numerical_overrides=tier_overrides,
+            )
+        elif not execute_batch_checks:
+            scalar_batch = {
+                "available": False,
+                "converged": False,
+                "status": "not_measured",
+                "reason": "exact ordered batch check was not executed",
+            }
+            cache_isolation = {
+                "available": False,
+                "isolated": False,
+                "status": "not_measured",
+                "reason": "cache identity comparison was not executed",
+            }
+        reports.append(
+            replace(
+                report,
+                contract_identity=report.contract_identity
+                or _contract_identity(plugin),
+                scalar_batch_evidence=scalar_batch,
+                cache_isolation_evidence=cache_isolation,
+            )
+        )
+    return build_bundled_cmb_full_matrix_report(
+        reports,
+        required_model_filenames=expected,
+        declared_spectra_by_model=declared_map,
+        certification_tier=tier,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
+    )
+
+
+def write_bundled_cmb_full_matrix_report(
+    reports: Iterable[CMBModelDiagnostic],
+    destination: str | Path,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Write one deterministic full-observable corpus matrix report."""
+
+    record = build_bundled_cmb_full_matrix_report(reports, **kwargs)
+    path = Path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return record
+
+
 def write_bundled_cmb_matrix_report(
     reports: Iterable[CMBModelDiagnostic],
     destination: str | Path,
@@ -4372,6 +4730,7 @@ __all__ = [
     "assess_physical_spectrum_shape",
     "audit_source_history_residuals",
     "build_bundled_cmb_matrix_report",
+    "build_bundled_cmb_full_matrix_report",
     "build_cmb_corpus_baseline_report",
     "build_cmb_certification_report",
     "build_cmb_parity_report",
@@ -4380,9 +4739,12 @@ __all__ = [
     "compare_full_cmb_observable_parity",
     "discover_bundled_cmb_plugins",
     "run_bundled_cmb_matrix",
+    "run_bundled_cmb_full_matrix",
     "run_bundled_cmb_corpus_baseline",
     "run_bundled_cmb_diagnostics",
     "run_cmb_model_diagnostic",
+    "declared_cmb_spectrum_names",
+    "write_bundled_cmb_full_matrix_report",
     "write_bundled_cmb_matrix_report",
     "write_cmb_corpus_baseline_report",
     "write_cmb_certification_report",

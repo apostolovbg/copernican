@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 **Project Version:** 12.0.26
 
 ## Overview
@@ -139,6 +139,18 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
+Slice Eleven adds the full corpus boundary. `declared_cmb_spectrum_names()`
+reads every angular-power observable from a compiled model, so a matrix
+request cannot silently collapse to TT/TE/EE. `run_bundled_cmb_full_matrix()`
+executes those per-model requests, including BB, PP, TP, EP, and any lensed
+names a future contract declares. `build_bundled_cmb_full_matrix_report()`
+requires an exact declared/requested match and records one classification per
+model: accepted, rejected with typed evidence, or unavailable only when the
+declaration explicitly disables CMB output. Raw spectra, transfer histories,
+source residuals, doubled-grid evidence, scalar/batch comparisons, and cache
+identities remain nested in each row; missing or unclassified models are never
+promoted to a passing corpus result. `write_bundled_cmb_full_matrix_report()`
+serializes the same hashable matrix without dropping any raw fields.
 Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so

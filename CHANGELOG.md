@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,25 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-01:
+  Change: Added the full bundled-model CCMBS observable matrix and closed
+  Slice Eleven.
+  Why: Derived requests from each model's angular-power declarations so BB,
+  PP, cross-spectra, and future lensed outputs cannot be omitted or hidden by
+  a TT/TE/EE default.
+  Impact: Corpus reports now preserve exact declared requests, raw evidence,
+  typed accepted/rejected/unavailable classifications, scalar/batch checks,
+  cache identities, and deterministic digests for all ten models.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
 
 - 2026-08-31:
   Change: Implemented full-observable CCMBS parity reports and corrected TP/EP

@@ -28,6 +28,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     assess_physical_spectrum_shape,
     assess_scalar_batch_cache_evidence,
     audit_source_history_residuals,
+    build_bundled_cmb_full_matrix_report,
     build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
     build_cmb_corpus_baseline_report,
@@ -35,10 +36,12 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     build_final_cmb_certification_report,
     compare_cmb_spectra_to_reference,
     compare_full_cmb_observable_parity,
+    declared_cmb_spectrum_names,
     discover_bundled_cmb_plugins,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
+    write_bundled_cmb_full_matrix_report,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
     write_final_cmb_certification_report,
@@ -452,6 +455,126 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 "model_wcdm.yml",
             },
         )
+
+    def test_declared_spectrum_inventory_includes_full_angular_contract(self):
+        """The corpus request is derived from each model's own graph."""
+
+        plugins = discover_bundled_cmb_plugins()
+        inventories = {
+            plugin.MODEL_FILENAME: declared_cmb_spectrum_names(plugin)
+            for plugin in plugins
+        }
+        self.assertEqual(len(inventories), 10)
+        self.assertTrue(
+            all(
+                inventory == ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+                for inventory in inventories.values()
+            )
+        )
+
+    def test_full_matrix_requires_exact_declared_observable_request(self):
+        """A dropped declared surface is rejected, never silently omitted."""
+
+        names = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        row = CMBModelDiagnostic(
+            model_filename="model_fixture.yml",
+            model_name="Fixture",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2,),
+            requested_spectra=names[:-1],
+            spectra={name: numpy.ones(1) for name in names[:-1]},
+            raw_spectra={name: numpy.ones(1) for name in names[:-1]},
+            availability="unavailable",
+            contract_identity={"sha256": "fixture"},
+            failure={
+                "error_type": "UnsupportedCapabilityError",
+                "category": "unavailable",
+                "message": "TT was not returned",
+            },
+        )
+        audit = {"valid": True, "decision": "ready"}
+        matrix = build_bundled_cmb_full_matrix_report(
+            (row,),
+            required_model_filenames=(row.model_filename,),
+            declared_spectra_by_model={row.model_filename: names},
+            contract_audits={row.model_filename: audit},
+            source_graph_audits={row.model_filename: audit},
+            declaration_audits={row.model_filename: audit},
+        )
+        self.assertTrue(matrix["decision_complete"])
+        self.assertEqual(
+            matrix["classifications"][row.model_filename], "rejected"
+        )
+        self.assertIn(
+            "does not exactly match",
+            " ".join(matrix["rejected_models"][row.model_filename]),
+        )
+
+    def test_full_matrix_accepts_truthful_unavailable_declaration(self):
+        """Explicitly non-CMB declarations receive a typed unavailable row."""
+
+        row = CMBModelDiagnostic(
+            model_filename="model_fixture.yml",
+            model_name="Fixture",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2,),
+            requested_spectra=(),
+            availability="unavailable",
+            contract_identity={"sha256": "fixture"},
+            failure={
+                "error_type": "CMBCapabilityUnavailable",
+                "category": "unavailable",
+                "message": "CMB disabled by declaration",
+            },
+        )
+        audit = {"valid": True, "decision": "unavailable"}
+        matrix = build_bundled_cmb_full_matrix_report(
+            (row,),
+            required_model_filenames=(row.model_filename,),
+            declared_spectra_by_model={row.model_filename: ()},
+            contract_audits={row.model_filename: audit},
+            source_graph_audits={row.model_filename: audit},
+            declaration_audits={row.model_filename: audit},
+        )
+        self.assertTrue(matrix["success"])
+        self.assertEqual(
+            matrix["classifications"][row.model_filename], "unavailable"
+        )
+
+    def test_full_matrix_writer_preserves_digest(self):
+        """The full corpus writer emits the same canonical matrix digest."""
+
+        row = CMBModelDiagnostic(
+            model_filename="model_fixture.yml",
+            model_name="Fixture",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2,),
+            requested_spectra=(),
+            availability="unavailable",
+            contract_identity={"sha256": "fixture"},
+            failure={
+                "error_type": "CMBCapabilityUnavailable",
+                "category": "unavailable",
+                "message": "CMB disabled by declaration",
+            },
+        )
+        audit = {"valid": True, "decision": "unavailable"}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "full-matrix.json"
+            record = write_bundled_cmb_full_matrix_report(
+                (row,),
+                path,
+                required_model_filenames=(row.model_filename,),
+                declared_spectra_by_model={row.model_filename: ()},
+                contract_audits={row.model_filename: audit},
+                source_graph_audits={row.model_filename: audit},
+                declaration_audits={row.model_filename: audit},
+            )
+            loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        self.assertEqual(loaded["record_sha256"], record["record_sha256"])
 
     def test_fixed_point_report_contains_raw_spectra_and_refinement(self):
         """A report retains raw products, metadata, and grid evidence."""

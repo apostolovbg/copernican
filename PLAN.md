@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-01
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -851,7 +851,7 @@ parity, refinement-rejection, and physical-scale tests pass; a mismatched
 CCMBS array remains rejected by the report rather than being accepted as
 scientific parity.
 
-### [planned] Slice Eleven — certify every bundled model and workload
+### [closed] Slice Eleven — certify every bundled model and workload
 
 **Purpose:** Apply the shared repaired solver to the entire bundled corpus
 without changing model theories. Every model must compute every observable
@@ -896,6 +896,20 @@ it declares, including BB, PP, cross-spectra, and lensed outputs.
 **Closure evidence:** The complete matrix contains one canonical row per
 model, full-observable raw arrays, source residuals, parity decisions,
 batch/cache evidence, typed failures, and stable row/report digests.
+
+**Closure evidence (2026-09-01):** The corpus harness now derives the request
+from each compiled model's angular-power declarations through
+`declared_cmb_spectrum_names()`. `run_bundled_cmb_full_matrix()` executes the
+same raw fixed-point, refinement, scalar/batch, and cache checks for every
+declared surface, including BB, PP, TP, EP, and future lensed declarations.
+`build_bundled_cmb_full_matrix_report()` requires an exact
+declared/requested match, preserves raw row evidence, and emits one
+deterministic accepted/rejected/unavailable classification per frozen model.
+Unavailable is permitted only for an explicit declaration-level capability
+decision; enabled models that fail execution remain rejected with typed
+evidence. Focused corpus inventory, exact-request, unavailable-classification,
+and deterministic digest tests pass, and the shared diagnostics suite remains
+green.
 
 ### [planned] Slice Twelve — final closure and BAO independence
 

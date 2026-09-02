@@ -19,10 +19,14 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
 from copernican.lib.likelihoods.cmb.diagnostics import (
     CMBCorpusBaselineRow,
     CMBModelDiagnostic,
+    build_bundled_cmb_full_matrix_report,
     build_cmb_corpus_baseline_report,
+    declared_cmb_spectrum_names,
     run_bundled_cmb_corpus_baseline,
     run_bundled_cmb_diagnostics,
+    run_bundled_cmb_full_matrix,
     run_cmb_model_diagnostic,
+    write_bundled_cmb_full_matrix_report,
     write_cmb_corpus_baseline_report,
 )
 
@@ -65,6 +69,22 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertTrue(callable(cmb_module.build_bundled_cmb_matrix_report))
         self.assertTrue(callable(cmb_module.run_bundled_cmb_matrix))
         self.assertTrue(callable(cmb_module.write_bundled_cmb_matrix_report))
+        self.assertIs(
+            cmb_module.build_bundled_cmb_full_matrix_report,
+            build_bundled_cmb_full_matrix_report,
+        )
+        self.assertIs(
+            cmb_module.declared_cmb_spectrum_names,
+            declared_cmb_spectrum_names,
+        )
+        self.assertIs(
+            cmb_module.run_bundled_cmb_full_matrix,
+            run_bundled_cmb_full_matrix,
+        )
+        self.assertIs(
+            cmb_module.write_bundled_cmb_full_matrix_report,
+            write_bundled_cmb_full_matrix_report,
+        )
         self.assertIs(cmb_package.CMBContractAudit, CMBContractAudit)
         self.assertIs(
             cmb_package.audit_bundled_cmb_contracts,
