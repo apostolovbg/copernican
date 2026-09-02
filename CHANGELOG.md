@@ -80,6 +80,19 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-02:
+  Change: Replaced the CCMBS plan with a model-complete scientific closure
+  roadmap covering all bundled models, full observables, CAMB parity, and
+  production graph certification.
+  Why: The latest production run exposed missing LCDM output and nonsensical
+  Planck spectra despite infrastructure-focused closure claims.
+  Impact: Implemented explicit slices for every remaining solver, model,
+  observable, BAO boundary, and end-to-end graph requirement with acceptance
+  evidence.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+
+- 2026-09-02:
   Change: Closed Slice Twelve with the final CCMBS certification boundary.
   Why: Added deterministic repository-integrity evidence and automatic BAO
   isolation composition so final closure cannot omit full-matrix or backend
