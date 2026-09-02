@@ -11,6 +11,7 @@ import numpy
 import yaml
 
 from copernican.lib import model_adapter, model_coder, model_spec_validator
+from copernican.lib.likelihoods.cmb import diagnostics
 from copernican.lib.likelihoods.cmb.contracts_audit import (
     assert_bundled_cmb_contracts,
     audit_bundled_cmb_contracts,
@@ -27,6 +28,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     assess_acoustic_structure,
     assess_physical_spectrum_shape,
     assess_scalar_batch_cache_evidence,
+    audit_cmb_repository_integrity,
     audit_source_history_residuals,
     build_bundled_cmb_full_matrix_report,
     build_bundled_cmb_matrix_report,
@@ -685,6 +687,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(callable(write_cmb_certification_report))
         self.assertTrue(callable(build_final_cmb_certification_report))
         self.assertTrue(callable(write_final_cmb_certification_report))
+        self.assertTrue(callable(audit_cmb_repository_integrity))
         self.assertEqual(comparison["metrics"]["TT"]["kind"], "auto")
         self.assertEqual(comparison["metrics"]["TE"]["kind"], "cross")
 
@@ -1043,6 +1046,79 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertEqual(
             record["provenance"]["raw_evidence_digests"][filename],
             record["reports"][0]["raw_evidence_sha256"],
+        )
+
+    def test_repository_integrity_audit_is_deterministic_and_clean(self):
+        """Production source and bundled declarations pass the final audit."""
+
+        first = audit_cmb_repository_integrity()
+        second = audit_cmb_repository_integrity()
+        self.assertTrue(first["valid"], first["violations"])
+        self.assertEqual(first, second)
+        self.assertTrue(first["checks"]["no_camb_fallback"])
+        self.assertTrue(first["checks"]["no_taichi_dependency"])
+        self.assertTrue(first["checks"]["no_omitted_spectra"])
+        self.assertGreater(len(first["file_digests"]), 0)
+
+    def test_final_certification_derives_bao_isolation_and_tracks_matrix(self):
+        """The final boundary records BAO and matrix evidence."""
+
+        filename = "model_lcdm.yml"
+        report = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2, 20),
+            requested_spectra=("TT", "TE", "EE"),
+            spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            raw_spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            refinement={"converged": True},
+            shape={
+                "finite": True,
+                "auto_spectra_nonnegative": True,
+                "smooth": True,
+            },
+            source_residual_audit={"available": True, "converged": True},
+            reference_comparison={"available": True, "converged": True},
+            contract_identity={"sha256": "contract"},
+            scalar_batch_evidence={"available": True, "converged": True},
+            cache_isolation_evidence={"available": True, "isolated": True},
+        )
+        checks = {
+            key: True
+            for key in diagnostics._FINAL_CERTIFICATION_INTEGRITY_KEYS
+        }
+        record = build_final_cmb_certification_report(
+            (report,),
+            required_model_filenames=(filename,),
+            reference_required_models=(filename,),
+            contract_audits={filename: {"valid": True}},
+            source_graph_audits={filename: {"valid": True}},
+            declaration_audits={filename: {"valid": True}},
+            solver_identity="ccmbs_numpy",
+            dataset_identities={"cmb": "fixture"},
+            fixture_hashes={"lcdm": "fixture"},
+            integrity_checks=checks,
+            bao_baseline={"chi2": 4.0, "covariance": "full"},
+            bao_isolated={"chi2": 4.0, "covariance": "full"},
+            full_matrix={"success": True, "record_sha256": "matrix"},
+        )
+        self.assertTrue(record["success"])
+        self.assertTrue(
+            record["final_certification"]["bao_isolation"]["converged"]
+        )
+        self.assertEqual(
+            record["final_certification"]["full_matrix"]["record_sha256"],
+            "matrix",
         )
 
     def test_final_certification_keeps_failed_decisions_explicit(self):

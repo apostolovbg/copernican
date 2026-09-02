@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -911,7 +911,7 @@ evidence. Focused corpus inventory, exact-request, unavailable-classification,
 and deterministic digest tests pass, and the shared diagnostics suite remains
 green.
 
-### [planned] Slice Twelve — final closure and BAO independence
+### [closed] Slice Twelve — final closure and BAO independence
 
 **Purpose:** Close the mission only after CCMBS is proven equivalent to the
 old CAMB solver at the full declared-observable boundary and the independent
@@ -961,6 +961,21 @@ BAO behavior is preserved.
 report is the proof: a green policy gate alone is insufficient, and no
 remaining scientific requirement may exist outside Slices Eight through
 Twelve.
+
+**Closure evidence (2026-09-02):** The final certification boundary now
+retains the complete bundled-observable matrix, solver and dataset
+provenance, repository-integrity checks, raw evidence digests, and
+independently captured BAO baseline/isolation evidence in one deterministic
+record. `audit_cmb_repository_integrity()` statically rejects reference
+solver imports, surrogates, delayed acceptance, hidden backend aliases,
+wall-clock decisions, machine-local paths, plotting-only acceptance, and
+Taichi dependencies, then re-runs bundled declaration and source-graph
+audits for omitted spectra. `build_final_cmb_certification_report()` accepts
+only complete raw evidence, records a typed failure for any missing full
+matrix or BAO isolation result, and derives BAO comparison when both fixed
+background captures are supplied. Focused final-boundary, repository-audit,
+and BAO isolation tests pass; the staged revision has a green
+`source .venv/bin/activate && python -m devcovenant gate --verify`.
 
 ## Completion Standard
 

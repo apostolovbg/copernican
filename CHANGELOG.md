@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,24 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-02:
+  Change: Closed Slice Twelve with the final CCMBS certification boundary.
+  Why: Added deterministic repository-integrity evidence and automatic BAO
+  isolation composition so final closure cannot omit full-matrix or backend
+  independence checks.
+  Impact: Final reports now retain full-observable evidence, provenance,
+  static runtime audits, typed failures, and fixed-background BAO comparisons
+  under one hashable record.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
 
 - 2026-09-01:
   Change: Added the full bundled-model CCMBS observable matrix and closed

@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 **Project Version:** 12.0.26
 
 ## Overview
@@ -155,6 +155,14 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
+Slice Twelve closes the final evidence boundary. The
+`audit_cmb_repository_integrity()` helper checks production CCMBS sources for
+reference-solver imports, surrogates, delayed acceptance, hidden backend
+aliases, wall-clock decisions, local paths, plot-only acceptance, and omitted
+declared spectra while re-running contract and source-graph audits.
+`build_final_cmb_certification_report()` retains the full-observable matrix,
+integrity record, and independently captured BAO baseline/isolation evidence
+in one deterministic digest.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

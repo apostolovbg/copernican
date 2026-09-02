@@ -9,6 +9,7 @@ spectrum.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import tempfile
@@ -77,6 +78,32 @@ _FINAL_CERTIFICATION_INTEGRITY_KEYS = (
     "no_unchecked_declaration_bridge",
     "no_machine_local_paths",
     "raw_evidence_used",
+)
+
+_CMB_RUNTIME_FORBIDDEN_IMPORTS = frozenset({"camb", "classy", "taichi"})
+_CMB_RUNTIME_FORBIDDEN_SYMBOLS = {
+    "compute_camb_background_observables": "no_camb_fallback",
+    "compute_cmb_spectrum_from_camb_contract": "no_camb_fallback",
+    "camb_solver": "no_camb_fallback",
+    "classy": "no_camb_fallback",
+    "surrogate_spectra": "no_surrogate_spectra",
+    "synthetic_spectra": "no_surrogate_spectra",
+    "delayed_acceptance": "no_delayed_acceptance",
+    "accept_later": "no_delayed_acceptance",
+    "camb_alias": "no_hidden_aliases",
+    "legacy_camb": "no_hidden_aliases",
+    "wall_clock_limit": "no_arbitrary_timeout",
+    "time_limit_seconds": "no_arbitrary_timeout",
+}
+_CMB_RUNTIME_TIMEOUT_KEYWORDS = frozenset(
+    {"timeout", "timeout_seconds", "max_seconds"}
+)
+_CMB_RUNTIME_LOCAL_PATH_MARKERS = (
+    "/Users/",
+    "/home/",
+    "/private/var/",
+    "C:\\Users\\",
+    "D:\\Users\\",
 )
 
 # The baseline deliberately predates final scientific certification.  It is
@@ -1701,6 +1728,268 @@ def _contract_identity(plugin: Any) -> dict[str, Any]:
     return contract
 
 
+def audit_cmb_repository_integrity(
+    repository_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Audit production CCMBS sources and declarations for closure hazards.
+
+    The audit is intentionally static at the backend boundary: the
+    production package must not import a reference solver, manufacture a
+    spectrum, impose a wall-clock decision, or accept plot-only evidence.
+    Contract and declaration audits provide the dynamic declaration check;
+    all other checks retain deterministic source paths and line numbers.
+    """
+
+    package_root = Path(__file__).resolve().parents[3]
+    module_root = package_root / "lib" / "likelihoods" / "cmb"
+    if repository_root is None:
+        repo_root = package_root.parent
+    else:
+        candidate = Path(repository_root).resolve()
+        if (candidate / "copernican" / "lib" / "likelihoods" / "cmb").is_dir():
+            repo_root = candidate
+            module_root = (
+                candidate / "copernican" / "lib" / "likelihoods" / "cmb"
+            )
+        elif (candidate / "lib" / "likelihoods" / "cmb").is_dir():
+            repo_root = candidate.parent
+            module_root = candidate / "lib" / "likelihoods" / "cmb"
+        elif candidate.name == "cmb" and candidate.is_dir():
+            module_root = candidate
+            repo_root = candidate.parents[3]
+        else:
+            raise ValueError(
+                "repository_root must contain copernican/lib/likelihoods/cmb"
+            )
+
+    source_files = tuple(sorted(module_root.rglob("*.py")))
+    checks = {key: True for key in _FINAL_CERTIFICATION_INTEGRITY_KEYS}
+    checks.update(
+        {
+            "no_taichi_dependency": True,
+            "no_omitted_spectra": True,
+            "no_plot_only_acceptance": True,
+        }
+    )
+    violations: dict[str, list[dict[str, Any]]] = {key: [] for key in checks}
+
+    def record(
+        check: str,
+        path: Path,
+        line: int,
+        message: str,
+    ) -> None:
+        """Retain one deterministic source violation."""
+
+        checks[check] = False
+        relative = path.relative_to(repo_root).as_posix()
+        violations[check].append(
+            {"path": relative, "line": int(line), "message": message}
+        )
+
+    file_digests: dict[str, str] = {}
+    for source_path in source_files:
+        relative = source_path.relative_to(repo_root).as_posix()
+        source = source_path.read_text(encoding="utf-8")
+        file_digests[relative] = hashlib.sha256(
+            source.encode("utf-8")
+        ).hexdigest()
+        try:
+            tree = ast.parse(source, filename=relative)
+        except SyntaxError as error:
+            record(
+                "no_unchecked_declaration_bridge",
+                source_path,
+                int(error.lineno or 1),
+                "production CCMBS source does not parse",
+            )
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported = tuple(
+                    alias.name.split(".", maxsplit=1)[0].casefold()
+                    for alias in node.names
+                )
+                for name in imported:
+                    if name in _CMB_RUNTIME_FORBIDDEN_IMPORTS:
+                        check = (
+                            "no_taichi_dependency"
+                            if name == "taichi"
+                            else "no_camb_fallback"
+                        )
+                        record(
+                            check,
+                            source_path,
+                            node.lineno,
+                            f"forbidden production import: {name}",
+                        )
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                name = node.module.split(".", maxsplit=1)[0].casefold()
+                if name in _CMB_RUNTIME_FORBIDDEN_IMPORTS:
+                    check = (
+                        "no_taichi_dependency"
+                        if name == "taichi"
+                        else "no_camb_fallback"
+                    )
+                    record(
+                        check,
+                        source_path,
+                        node.lineno,
+                        f"forbidden production import: {name}",
+                    )
+            if isinstance(node, ast.Name):
+                symbol = node.id
+                check = _CMB_RUNTIME_FORBIDDEN_SYMBOLS.get(symbol)
+                if check:
+                    record(
+                        check,
+                        source_path,
+                        node.lineno,
+                        f"forbidden production symbol: {symbol}",
+                    )
+            elif isinstance(node, ast.Attribute):
+                symbol = node.attr
+                check = _CMB_RUNTIME_FORBIDDEN_SYMBOLS.get(symbol)
+                if check:
+                    record(
+                        check,
+                        source_path,
+                        node.lineno,
+                        f"forbidden production symbol: {symbol}",
+                    )
+            if isinstance(node, ast.keyword) and node.arg in (
+                *_CMB_RUNTIME_TIMEOUT_KEYWORDS,
+            ):
+                record(
+                    "no_arbitrary_timeout",
+                    source_path,
+                    node.lineno,
+                    f"wall-clock keyword is not allowed: {node.arg}",
+                )
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if (
+                    any(
+                        marker in node.value
+                        for marker in _CMB_RUNTIME_LOCAL_PATH_MARKERS
+                    )
+                    and node.value not in _CMB_RUNTIME_LOCAL_PATH_MARKERS
+                ):
+                    record(
+                        "no_machine_local_paths",
+                        source_path,
+                        node.lineno,
+                        "machine-local path embedded in production source",
+                    )
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                imported = (
+                    tuple(
+                        alias.name.split(".", maxsplit=1)[0].casefold()
+                        for alias in node.names
+                    )
+                    if isinstance(node, ast.Import)
+                    else (
+                        (node.module.split(".", maxsplit=1)[0].casefold(),)
+                        if node.module
+                        else ()
+                    )
+                )
+                if any(name in {"matplotlib", "seaborn"} for name in imported):
+                    record(
+                        "no_plot_only_acceptance",
+                        source_path,
+                        node.lineno,
+                        "plotting backend imported by production CCMBS",
+                    )
+
+    models_path = module_root.parents[2] / "models"
+    if models_path.is_dir():
+        try:
+            contract_audits = audit_bundled_cmb_contracts(str(models_path))
+            declaration_audits = audit_bundled_cmb_declarations(
+                str(models_path)
+            )
+            source_graph_audits = audit_bundled_cmb_source_graphs(
+                str(models_path)
+            )
+            for audit in (*contract_audits, *source_graph_audits):
+                if not audit.valid:
+                    record(
+                        "no_unchecked_declaration_bridge",
+                        module_root / "contracts_audit.py",
+                        1,
+                        f"invalid declaration audit: {audit.model_filename}",
+                    )
+            for decision in declaration_audits:
+                if decision.decision == "rejected":
+                    record(
+                        "no_unchecked_declaration_bridge",
+                        module_root / "contracts_audit.py",
+                        1,
+                        f"rejected declaration: {decision.model_filename}",
+                    )
+            plugins = discover_bundled_cmb_plugins(str(models_path))
+            for plugin in plugins:
+                declared = set(declared_cmb_spectrum_names(plugin))
+                supported = set(
+                    audit_cmb_capabilities(
+                        plugin.CMB_PERTURBATION_DATA
+                    ).supported_observables
+                )
+                omitted = sorted(declared - supported)
+                if omitted:
+                    record(
+                        "no_omitted_spectra",
+                        module_root / "diagnostics.py",
+                        1,
+                        f"declared spectra lack capability support: "
+                        f"{plugin.MODEL_FILENAME}: {', '.join(omitted)}",
+                    )
+        except (AttributeError, OSError, TypeError, ValueError) as error:
+            record(
+                "no_unchecked_declaration_bridge",
+                module_root / "contracts_audit.py",
+                1,
+                f"declaration audit failed: {type(error).__name__}: {error}",
+            )
+
+    raw_source = (module_root / "diagnostics.py").read_text(encoding="utf-8")
+    if (
+        "raw_spectra" not in raw_source
+        or "raw_evidence_sha256" not in raw_source
+    ):
+        record(
+            "raw_evidence_used",
+            module_root / "diagnostics.py",
+            1,
+            "final diagnostics do not retain raw evidence digests",
+        )
+
+    normalized_violations = {
+        key: sorted(
+            values,
+            key=lambda item: (
+                str(item["path"]),
+                int(item["line"]),
+                str(item["message"]),
+            ),
+        )
+        for key, values in violations.items()
+    }
+    record: dict[str, Any] = {
+        "schema_version": 1,
+        "source_root": module_root.relative_to(repo_root).as_posix(),
+        "files": sorted(file_digests),
+        "file_digests": file_digests,
+        "checks": checks,
+        "violations": normalized_violations,
+        "valid": bool(
+            all(checks.values()) and not any(normalized_violations.values())
+        ),
+    }
+    record["record_sha256"] = _canonical_sha256(record)
+    return record
+
+
 def declared_cmb_spectrum_names(plugin_or_contract: Any) -> tuple[str, ...]:
     """Return every angular spectrum explicitly declared by a CMB graph.
 
@@ -2858,6 +3147,11 @@ def build_final_cmb_certification_report(
     fixture_hashes: Mapping[str, Any] | None = None,
     integrity_checks: Mapping[str, Any] | None = None,
     bao_isolation: Mapping[str, Any] | None = None,
+    bao_baseline: Mapping[str, Any] | None = None,
+    bao_isolated: Mapping[str, Any] | None = None,
+    full_matrix: Mapping[str, Any] | None = None,
+    repository_integrity: Mapping[str, Any] | None = None,
+    repository_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build the strict, final corpus decision and its provenance.
 
@@ -2870,6 +3164,21 @@ def build_final_cmb_certification_report(
     """
 
     ordered_reports = tuple(reports)
+    if repository_integrity is None and repository_root is not None:
+        repository_integrity = audit_cmb_repository_integrity(repository_root)
+    if bao_isolation is None and (
+        bao_baseline is not None or bao_isolated is not None
+    ):
+        if bao_baseline is None or bao_isolated is None:
+            raise ValueError(
+                "bao_baseline and bao_isolated must be supplied together"
+            )
+        from ..bao.diagnostics import assess_bao_cmb_isolation
+
+        bao_isolation = assess_bao_cmb_isolation(
+            bao_baseline,
+            bao_isolated,
+        )
     required_models = tuple(str(name) for name in required_model_filenames)
     reference_models = tuple(str(name) for name in reference_required_models)
     base = build_cmb_certification_report(
@@ -2937,6 +3246,15 @@ def build_final_cmb_certification_report(
         key: bool((integrity_checks or {}).get(key, False))
         for key in _FINAL_CERTIFICATION_INTEGRITY_KEYS
     }
+    if repository_integrity is not None:
+        declared_checks = repository_integrity.get("checks", {})
+        if isinstance(declared_checks, Mapping):
+            checks.update(
+                {
+                    key: bool(declared_checks.get(key, checks.get(key, False)))
+                    for key in _FINAL_CERTIFICATION_INTEGRITY_KEYS
+                }
+            )
     integrity_issues = [
         f"integrity check failed: {key}"
         for key, passed in checks.items()
@@ -2957,6 +3275,14 @@ def build_final_cmb_certification_report(
     )
     if not bao_passed:
         metadata_issues.append("BAO CMB-isolation evidence is unavailable")
+    if repository_integrity is not None and not bool(
+        repository_integrity.get("valid", False)
+    ):
+        metadata_issues.append("repository-integrity audit is not valid")
+    if full_matrix is not None and not bool(full_matrix.get("success", False)):
+        metadata_issues.append(
+            "full bundled observable matrix is not scientifically certified"
+        )
 
     global_issues = integrity_issues + metadata_issues
     final_success = bool(
@@ -2969,6 +3295,8 @@ def build_final_cmb_certification_report(
     base["rejected_models"] = {
         name: rejected[name] for name in sorted(rejected)
     }
+    base["repository_integrity"] = _jsonable(repository_integrity or {})
+    base["full_matrix"] = _jsonable(full_matrix or {})
     base["success"] = final_success
     base["final_certification"] = {
         "schema_version": 1,
@@ -2978,6 +3306,8 @@ def build_final_cmb_certification_report(
         "rejected_models": {name: rejected[name] for name in sorted(rejected)},
         "reference_required_models": sorted(reference_models),
         "integrity_checks": checks,
+        "repository_integrity": _jsonable(repository_integrity or {}),
+        "full_matrix": _jsonable(full_matrix or {}),
         "bao_isolation": _jsonable(bao_evidence),
         "issues": sorted(global_issues),
     }
@@ -4735,6 +5065,7 @@ __all__ = [
     "build_cmb_certification_report",
     "build_cmb_parity_report",
     "build_final_cmb_certification_report",
+    "audit_cmb_repository_integrity",
     "compare_cmb_spectra_to_reference",
     "compare_full_cmb_observable_parity",
     "discover_bundled_cmb_plugins",

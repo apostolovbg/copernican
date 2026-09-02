@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-01
+**Last Updated:** 2026-09-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -229,6 +229,14 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
+Slice Twelve closes the final evidence boundary. The
+`audit_cmb_repository_integrity()` helper checks the production CCMBS tree
+for reference-solver imports, surrogates,
+delayed acceptance, hidden backend aliases, wall-clock decisions, local paths,
+plot-only acceptance, and omitted declared spectra while re-running contract
+and source-graph audits. `build_final_cmb_certification_report()` can retain
+the full-observable matrix, repository-integrity record, and independently
+captured BAO baseline/isolation comparison in one deterministic digest.
 The final LambdaCDM declaration uses 2048 k, eta, and evolution nodes. CCMBS
 keeps the generated hierarchy history at the declared LOS phase resolution so
 acoustic sources are not aliased by sparse-history interpolation. Joint MCMC

@@ -19,6 +19,7 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
 from copernican.lib.likelihoods.cmb.diagnostics import (
     CMBCorpusBaselineRow,
     CMBModelDiagnostic,
+    audit_cmb_repository_integrity,
     build_bundled_cmb_full_matrix_report,
     build_cmb_corpus_baseline_report,
     declared_cmb_spectrum_names,
@@ -72,6 +73,10 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertIs(
             cmb_module.build_bundled_cmb_full_matrix_report,
             build_bundled_cmb_full_matrix_report,
+        )
+        self.assertIs(
+            cmb_module.audit_cmb_repository_integrity,
+            audit_cmb_repository_integrity,
         )
         self.assertIs(
             cmb_module.declared_cmb_spectrum_names,
