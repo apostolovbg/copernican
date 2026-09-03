@@ -419,6 +419,185 @@ def _resolve_declared_background_context(
     )
 
 
+def _dark_energy_density_factor(
+    scale_factor: Any,
+    *,
+    equation_of_state_today: float,
+    equation_of_state_slope: float = 0.0,
+) -> numpy.ndarray:
+    """Return the normalized constant-w/CPL dark-energy density factor.
+
+    The expression is evaluated in logarithmic scale-factor space to keep
+    the constant-w and CPL branches identical at ``a=1`` and to avoid the
+    cancellation that occurs when the CPL exponent is assembled from several
+    powers.  A non-positive or non-finite scale factor is a contract error;
+    overflow is reported rather than silently clipped into a surrogate.
+    """
+
+    values = numpy.asarray(scale_factor, dtype=float)
+    if values.ndim == 0:
+        values = values.reshape(1)
+    if values.ndim != 1 or values.size == 0:
+        raise ValueError(
+            "Dark-energy scale-factor grid must be one-dimensional"
+        )
+    if not numpy.all(numpy.isfinite(values)) or numpy.any(values <= 0.0):
+        raise ValueError(
+            "Dark-energy scale-factor grid must be finite and positive"
+        )
+    eos_today = float(equation_of_state_today)
+    eos_slope = float(equation_of_state_slope)
+    if not numpy.isfinite(eos_today) or not numpy.isfinite(eos_slope):
+        raise ValueError("Dark-energy equation-of-state values must be finite")
+    with numpy.errstate(over="ignore", invalid="ignore", divide="ignore"):
+        log_factor = -3.0 * (
+            (1.0 + eos_today + eos_slope) * numpy.log(values)
+            + eos_slope * (1.0 - values)
+        )
+        factor = numpy.exp(log_factor)
+    if not numpy.all(numpy.isfinite(factor)) or numpy.any(factor <= 0.0):
+        raise ValueError(
+            "Dark-energy density factor is non-finite or non-positive"
+        )
+    return numpy.asarray(factor, dtype=float)
+
+
+def _audit_declared_dark_energy_background(
+    context: Mapping[str, Any],
+    *,
+    scale_factor: Any,
+) -> dict[str, Any]:
+    """Validate declared dark-energy density, pressure, and EoS histories.
+
+    Smooth dark energy is intentionally a background-only component in the
+    current scalar hierarchy.  The audit makes that choice explicit and
+    checks the declared factor against the exact constant-w/CPL law before
+    recombination or line-of-sight evolution consumes it.
+    """
+
+    if "dark_energy_density_factor" not in context:
+        return {"declared": False, "treatment": "not_declared"}
+    a_values = numpy.asarray(scale_factor, dtype=float)
+    factor = numpy.asarray(context["dark_energy_density_factor"], dtype=float)
+    if factor.ndim == 0:
+        factor = numpy.full(a_values.shape, float(factor), dtype=float)
+    if factor.shape != a_values.shape:
+        raise ValueError(
+            "Declared dark-energy density factor has an invalid shape"
+        )
+    eos_today_history = context.get("w0")
+    eos_slope_history = context.get("wa", 0.0)
+    if eos_today_history is None:
+        raise ValueError(
+            "Declared dark-energy density factor requires a w0 history"
+        )
+    eos_today_array = numpy.asarray(eos_today_history, dtype=float)
+    eos_slope_array = numpy.asarray(eos_slope_history, dtype=float)
+    if eos_today_array.ndim == 0:
+        eos_today_array = numpy.full(
+            a_values.shape,
+            float(eos_today_array),
+            dtype=float,
+        )
+    if eos_slope_array.ndim == 0:
+        eos_slope_array = numpy.full(
+            a_values.shape,
+            float(eos_slope_array),
+            dtype=float,
+        )
+    if (
+        eos_today_array.shape != a_values.shape
+        or eos_slope_array.shape != a_values.shape
+    ):
+        raise ValueError("Declared dark-energy EoS histories have bad shapes")
+    expected = _dark_energy_density_factor(
+        a_values,
+        equation_of_state_today=float(eos_today_array[-1]),
+        equation_of_state_slope=float(eos_slope_array[-1]),
+    )
+    relative_error = numpy.abs(factor - expected) / numpy.maximum(
+        numpy.abs(expected), 1.0e-300
+    )
+    if (
+        not numpy.all(numpy.isfinite(relative_error))
+        or float(numpy.max(relative_error)) > 1.0e-10
+    ):
+        raise ValueError(
+            "Declared dark-energy density factor does not match its "
+            "constant-w/CPL equation"
+        )
+    present_index = int(numpy.argmax(a_values))
+    if abs(float(factor[present_index]) - 1.0) > 1.0e-10:
+        raise ValueError(
+            "Declared dark-energy density factor must be normalized at a=1"
+        )
+    pressure = context.get("dark_energy_pressure_factor")
+    pressure_error = 0.0
+    if pressure is not None:
+        pressure_array = numpy.asarray(pressure, dtype=float)
+        if pressure_array.ndim == 0:
+            pressure_array = numpy.full(a_values.shape, float(pressure_array))
+        if pressure_array.shape != a_values.shape:
+            raise ValueError(
+                "Declared dark-energy pressure factor has an invalid shape"
+            )
+        eos_history = context.get("dark_energy_eos_a")
+        if eos_history is None:
+            eos_array = eos_today_array
+        else:
+            eos_array = numpy.asarray(eos_history, dtype=float)
+            if eos_array.ndim == 0:
+                eos_array = numpy.full(a_values.shape, float(eos_array))
+            if eos_array.shape != a_values.shape or not numpy.all(
+                numpy.isfinite(eos_array)
+            ):
+                raise ValueError(
+                    "Declared dark-energy EoS history has an invalid shape"
+                )
+        pressure_expected = eos_array * factor
+        pressure_error = float(
+            numpy.max(
+                numpy.abs(pressure_array - pressure_expected)
+                / numpy.maximum(numpy.abs(pressure_expected), 1.0e-300)
+            )
+        )
+        if not numpy.isfinite(pressure_error) or pressure_error > 1.0e-10:
+            raise ValueError(
+                "Declared dark-energy pressure factor does not match w(a)"
+            )
+    sound_speed = context.get("dark_energy_sound_speed_sq")
+    if sound_speed is not None:
+        sound_speed_array = numpy.asarray(sound_speed, dtype=float)
+        if sound_speed_array.ndim == 0:
+            sound_speed_array = numpy.full(
+                a_values.shape,
+                float(sound_speed_array),
+            )
+        if (
+            sound_speed_array.shape != a_values.shape
+            or not numpy.all(numpy.isfinite(sound_speed_array))
+            or numpy.any(sound_speed_array < 0.0)
+        ):
+            raise ValueError(
+                "Declared dark-energy sound speed must be finite and "
+                "non-negative"
+            )
+    return {
+        "declared": True,
+        "treatment": "smooth_background",
+        "w0": float(eos_today_array[-1]),
+        "wa": float(eos_slope_array[-1]),
+        "density_factor_max_relative_error": float(numpy.max(relative_error)),
+        "pressure_factor_max_relative_error": pressure_error,
+        "density_factor_at_present": float(factor[present_index]),
+        "sound_speed_squared": (
+            None
+            if sound_speed is None
+            else float(numpy.asarray(sound_speed, dtype=float).reshape(-1)[-1])
+        ),
+    }
+
+
 def _get_declared_reionization_section(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
@@ -796,6 +975,7 @@ class _CustomCMBBackgroundData:
     x_e_of_eta: PchipInterpolator
     sound_speed_of_eta: PchipInterpolator
     baryon_sound_speed_sq_of_eta: PchipInterpolator
+    dark_energy_audit: Mapping[str, Any] = field(default_factory=dict)
 
     def sample(
         self, eta_values: numpy.ndarray | float
@@ -2630,6 +2810,10 @@ def _build_custom_cmb_background(
         a_values=a_grid,
         z_values=z_grid,
     )
+    dark_energy_audit = _audit_declared_dark_energy_background(
+        background_grid_context,
+        scale_factor=a_grid,
+    )
 
     def _coerce_background_history(
         *,
@@ -2671,6 +2855,79 @@ def _build_custom_cmb_background(
             "Declared CMB background expansion history must stay positive."
         )
     H_grid = numpy.asarray(hubble_entry[0], dtype=float)
+    # Massive-neutrino declarations expose a q-resolved Fermi-Dirac
+    # background through the perturbation runtime.  The model expression is
+    # retained as the declared baseline, but its interpolation is replaced
+    # by the exact q moment here so the expansion history and hierarchy use
+    # the same energy density.  This also removes the non-differentiable
+    # ``max(relativistic, nonrelativistic)`` construction from the physical
+    # background while preserving each model's own matter and dark-energy
+    # terms.
+    perturbation_data = contract.get("perturbation_data")
+    if perturbation_data is not None:
+        from .evolution import _declared_momentum_grid_context
+
+        momentum_context = _declared_momentum_grid_context(
+            perturbation_data,
+            model_parameters=contract.get("param_map", {}) or {},
+            physical_params=physical_params,
+            scale_factor=a_grid,
+        )
+        exact_massive = momentum_context.get(
+            "massive_neutrino_density_fraction"
+        )
+        if exact_massive is not None:
+            massive_density = numpy.asarray(exact_massive, dtype=float)
+            if massive_density.ndim == 0:
+                massive_density = numpy.full_like(
+                    a_grid,
+                    float(massive_density),
+                    dtype=float,
+                )
+            if massive_density.shape != a_grid.shape:
+                raise ValueError(
+                    "Declared massive-neutrino q density has an invalid "
+                    "shape for the background grid."
+                )
+            if not numpy.all(numpy.isfinite(massive_density)) or numpy.any(
+                massive_density < 0.0
+            ):
+                raise ValueError(
+                    "Declared massive-neutrino q density must be finite and "
+                    "non-negative."
+                )
+            declared_massive = background_grid_context.get("Omega_nu_massive0")
+            transition = background_grid_context.get(
+                "massive_neutrino_transition_a"
+            )
+            if declared_massive is not None and transition is not None:
+                declared_massive = float(
+                    numpy.asarray(declared_massive, dtype=float).reshape(-1)[0]
+                )
+                transition = float(
+                    numpy.asarray(transition, dtype=float).reshape(-1)[0]
+                )
+                a_safe = numpy.maximum(a_grid, 1.0e-30)
+                transition_sq = transition * transition
+                approximate_massive = (
+                    declared_massive
+                    * numpy.sqrt(a_safe * a_safe + transition_sq)
+                    / (
+                        numpy.sqrt(1.0 + transition_sq)
+                        * numpy.power(a_safe, 4.0)
+                    )
+                )
+                hubble_constant = float(physical_params.H0_km_s_Mpc)
+                h2_grid = numpy.square(H_grid / hubble_constant)
+                h2_grid = h2_grid + massive_density - approximate_massive
+                if not numpy.all(numpy.isfinite(h2_grid)) or numpy.any(
+                    h2_grid <= 0.0
+                ):
+                    raise ValueError(
+                        "Q-resolved massive-neutrino correction produced an "
+                        "invalid expansion history."
+                    )
+                H_grid = hubble_constant * numpy.sqrt(h2_grid)
     radiation_density = max(
         float(physical_params.Omega_r0 or 0.0),
         float(physical_params.Omega_gamma0),
@@ -3822,6 +4079,7 @@ def _build_custom_cmb_background(
         x_e_of_eta=x_e_of_eta,
         sound_speed_of_eta=sound_speed_of_eta,
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
+        dark_energy_audit=dark_energy_audit,
     )
     cache.set_cmb_background(cache_key, background_data)
     return _get_cached_custom_cmb_background(cache_key)

@@ -1657,19 +1657,40 @@ def _declared_momentum_grid_context(
         del runtime
 
         if total_mass_eV > 0.0:
-            return total_mass_eV / (
-                _NEUTRINO_DENSITY_EV_H2
-                * max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
+            neutrino_count = max(
+                float(model_parameters.get("num_massive_neutrinos", 1)),
+                1.0e-30,
+            )
+            effective_neff = max(
+                float(physical_params.Neff or 0.0),
+                1.0e-30,
+            )
+            effective_massive_species = 0.5 * (
+                effective_neff
+                + neutrino_count
+                - abs(effective_neff - neutrino_count)
+            )
+            species_fraction = effective_massive_species / neutrino_count
+            return (
+                species_fraction
+                * total_mass_eV
+                / (
+                    _NEUTRINO_DENSITY_EV_H2
+                    * max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
+                )
             )
         neutrino_count = max(
-            int(
-                round(float(model_parameters.get("num_massive_neutrinos", 1)))
-            ),
-            0,
+            float(model_parameters.get("num_massive_neutrinos", 1)),
+            0.0,
         )
         effective_neff = max(float(physical_params.Neff or 0.0), 1.0e-30)
+        effective_massive_species = 0.5 * (
+            effective_neff
+            + neutrino_count
+            - abs(effective_neff - neutrino_count)
+        )
         return max(float(physical_params.Omega_nu0 or 0.0), 0.0) * (
-            float(neutrino_count) / effective_neff
+            effective_massive_species / effective_neff
         )
 
     for runtime in runtimes:

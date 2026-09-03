@@ -251,7 +251,18 @@ This keeps massive and massless radiation from being counted twice while
 leaving pure-massless LCDM contracts on their original `Omega_nu0` path.
 The LambdaCDM+Mnu and Planck reference backgrounds now apply the same split
 to `H(a)`: massless radiation stays proportional to `a^-4`, while the
-q-resolved massive component transitions continuously to its present density.
+q-resolved Fermi-Dirac density and pressure moments supply the massive
+component at every scale factor. The declared transition is a smooth
+numerical baseline and is corrected to the q integral before recombination.
+The effective massive-species allocation is bounded by `N_eff`, so points
+below three massive species cannot overcount the early radiation.
+The wCDM and w0waCDM CMB declarations use that same density closure while
+evolving constant-`w0` and CPL dark-energy factors, respectively; their
+`w=-1`, `wa=0` limit is continuous with the shared background path.
+Both contracts declare dark energy as a smooth background component with
+unit rest-frame sound speed and zero anisotropic stress. CCMBS validates the
+analytic density and pressure factors on the full scale-factor grid before
+recombination and line-of-sight evolution.
 Pipeline summaries now retain typed CMB failures, and CMB plot infoboxes show
 the failure category and message when a theory cannot be computed; a failed
 theory is never silently reduced to an unlabeled data-only panel.

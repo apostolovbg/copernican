@@ -179,6 +179,16 @@ hierarchy uses the residual massless-neutrino density for its massless source
 terms, while pure-massless LCDM contracts retain the full `Omega_nu0` weight.
 This bookkeeping prevents a massive species from being counted in both the
 massless and massive perturbation sources.
+The wCDM and w0waCDM declarations apply the same component accounting while
+retaining their distinct dark-energy laws: constant `w0` for wCDM and the
+CPL factor `a**(-3*(1+w0+wa))*exp(-3*wa*(1-a))` for w0waCDM. Their CMB
+backgrounds normalize the dark-energy density at `a=1`, evolve the massive
+neutrino transition explicitly, and preserve a continuous `w=-1` and
+`wa=0` limit.
+The declarations also identify dark energy as a smooth background species
+with unit sound speed and zero anisotropic stress. The runtime checks the
+declared density and pressure factors against the analytic EoS on every
+background grid before using the expansion history.
 Pipeline summaries retain typed CMB failures, and CMB plot infoboxes expose
 the failure category and message instead of silently rendering a data-only
 theory panel.
@@ -534,11 +544,15 @@ When `sum_mnu` or `mnu` is declared, the q family uses the per-species mass
 mass sum for normalization.
 
 The declared background splits the neutrino density into the residual
-massless fraction and the q-resolved massive fraction. The latter follows a
-finite relativistic-to-nonrelativistic interpolation in `a`, while the
-present-day normalization is tied to `sum_mnu / (93.14 h^2)` and remains
-continuous at zero mass. `Omega_c0` is derived after subtracting the massive
-component, so the Friedmann source counts each component exactly once.
+massless fraction and the q-resolved massive fraction. A smooth transition
+expression provides the model's algebraic baseline, then the background
+runtime replaces that term with the same q-resolved Fermi-Dirac density
+moment used by the hierarchy. The present-day normalization is tied to
+`sum_mnu / (93.14 h^2)` and remains continuous at zero mass. The effective
+massive-species count is `min(N_eff, num_massive_neutrinos)` in algebraic
+form, leaving a non-negative residual massless fraction even below three
+species. `Omega_c0` is derived after subtracting the massive component, so
+the Friedmann source counts each component exactly once.
 
 The authoritative evolved states are the q-resolved hierarchy members:
 

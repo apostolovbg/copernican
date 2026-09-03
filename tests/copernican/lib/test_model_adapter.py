@@ -21,6 +21,7 @@ from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.lib.likelihoods.cmb import cache, cmb, projection
 from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
+from copernican.lib.likelihoods.cmb.runtime import evolution
 from copernican.lib.model_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
@@ -893,6 +894,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "model_wcdm.yml": {
                 "baryon",
                 "cdm",
+                "dark_energy",
                 "massless_neutrino",
                 "massive_neutrino",
                 "photon",
@@ -900,6 +902,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "model_w0wa.yml": {
                 "baryon",
                 "cdm",
+                "dark_energy",
                 "massless_neutrino",
                 "massive_neutrino",
                 "photon",
@@ -1533,6 +1536,130 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             places=15,
         )
 
+    def test_lcdm_mnu_low_neff_does_not_overcount_neutrinos(self) -> None:
+        """Low ``N_eff`` must allocate the available species only once."""
+
+        plugin = self._build_plugin("model_lcdm_mnu.yml")
+        values = list(plugin.INITIAL_GUESSES)
+        values[4] = 2.5
+        values[5] = 0.0
+        runtime = plugin.get_cmb_declared_runtime(tuple(values))
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
+            runtime
+        )
+        context = cmb_background._resolve_declared_background_context(
+            runtime,
+            a_values=numpy.asarray((1.0e-6, 1.0)),
+            z_values=numpy.asarray((1.0e6 - 1.0, 0.0)),
+        )
+        momentum = evolution._declared_momentum_grid_context(
+            runtime["perturbation_data"],
+            model_parameters=runtime["param_map"],
+            physical_params=physical,
+            scale_factor=numpy.asarray((1.0e-6, 1.0)),
+        )
+        neutrino_total = float(context["Omega_nu0"])
+        self.assertGreater(neutrino_total, 0.0)
+        self.assertGreaterEqual(
+            float(context["Omega_nu_massless0"]),
+            0.0,
+        )
+        self.assertLessEqual(
+            float(context["Omega_nu_massive_rel0"]),
+            neutrino_total,
+        )
+        self.assertAlmostEqual(
+            float(
+                context["Omega_nu_massless0"]
+                + context["Omega_nu_massive_rel0"]
+            ),
+            neutrino_total,
+            places=15,
+        )
+        numpy.testing.assert_allclose(
+            numpy.asarray(momentum["massive_neutrino_density_fraction"])[-1],
+            neutrino_total,
+            rtol=1.0e-10,
+            atol=1.0e-30,
+        )
+        self.assertAlmostEqual(
+            float(momentum["massive_neutrino_density_fraction"][0])
+            * 1.0e-24,
+            neutrino_total,
+            delta=neutrino_total * 1.0e-10,
+        )
+
+    def test_lcdm_mnu_mass_neff_matrix_closes_q_background(self) -> None:
+        """Mass and ``N_eff`` anchors preserve q-density closure."""
+
+        plugin = self._build_plugin("model_lcdm_mnu.yml")
+        for neff in (2.5, 3.046, 3.5):
+            for sum_mnu in (0.0, 0.06, 0.15, 0.30):
+                with self.subTest(neff=neff, sum_mnu=sum_mnu):
+                    values = list(plugin.INITIAL_GUESSES)
+                    values[4] = neff
+                    values[5] = sum_mnu
+                    runtime = plugin.get_cmb_declared_runtime(tuple(values))
+                    physical = (
+                        cmb_background._resolve_custom_cmb_physical_parameters(
+                            runtime
+                        )
+                    )
+                    context = (
+                        cmb_background._resolve_declared_background_context(
+                            runtime,
+                            a_values=numpy.asarray((1.0e-6, 1.0)),
+                            z_values=numpy.asarray((1.0e6 - 1.0, 0.0)),
+                        )
+                    )
+                    momentum = evolution._declared_momentum_grid_context(
+                        runtime["perturbation_data"],
+                        model_parameters=runtime["param_map"],
+                        physical_params=physical,
+                        scale_factor=numpy.asarray((1.0e-6, 1.0)),
+                    )
+                    for key in (
+                        "Omega_nu_massless0",
+                        "Omega_nu_massive_rel0",
+                        "Omega_nu_massive_nr0",
+                        "Omega_nu_massive0",
+                    ):
+                        self.assertTrue(numpy.isfinite(float(context[key])))
+                    self.assertGreaterEqual(
+                        float(context["Omega_nu_massless0"]),
+                        0.0,
+                    )
+                    self.assertLessEqual(
+                        float(context["Omega_nu_massive_rel0"]),
+                        float(context["Omega_nu0"]) + 1.0e-30,
+                    )
+                    self.assertAlmostEqual(
+                        float(
+                            context["Omega_nu_massless0"]
+                            + context["Omega_nu_massive_rel0"]
+                        ),
+                        float(context["Omega_nu0"]),
+                        places=15,
+                    )
+                    self.assertTrue(
+                        numpy.all(
+                            numpy.isfinite(
+                                momentum[
+                                    "massive_neutrino_density_fraction"
+                                ]
+                            )
+                        )
+                    )
+                    self.assertAlmostEqual(
+                        float(
+                            momentum[
+                                "massive_neutrino_density_fraction"
+                            ][-1]
+                        ),
+                        float(context["Omega_nu_massive0"]),
+                        places=12,
+                    )
+
     def test_lcdm_mnu_declared_surfaces_are_finite(self) -> None:
         """The massive-neutrino route must emit every declared surface."""
 
@@ -1589,6 +1716,206 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         for values in spectra.values():
             self.assertEqual(values.shape, ells.shape)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    @staticmethod
+    def _build_low_resolution_dark_energy_plugin(model_name: str):
+        """Build a wCDM-family model on a deterministic small grid."""
+
+        source_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / model_name
+        )
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        for numerics in (
+            model_data["cmb"]["numerical"],
+            model_data["cmb"]["perturbations"]["numerics"],
+        ):
+            numerics.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": 20,
+                    "k_min": 1.0e-4,
+                    "k_max": 2.0e-2,
+                    "k_sample_count": 4,
+                    "eta_sample_count": 48,
+                    "source_grid_multiplier": 1,
+                    "a_min": 1.0e-3,
+                    "initial_redshift": 99.0,
+                }
+            )
+        controls = model_data["cmb"]["perturbations"]["accuracy_controls"]
+        controls["minimum_k_sample_count"] = 1
+        controls["scalar_reference_ells"] = [2, 20]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model_path = Path(temp_dir) / source_path.name
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            cache_path = model_spec_validator.validate_and_cache_model(
+                model_path,
+                Path(temp_dir) / "cache",
+            )
+            functions, parsed = model_coder.generate_callables(cache_path)
+        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        plugin.MODEL_FILENAME = source_path.name
+        return plugin
+
+    def test_dark_energy_background_closes_and_has_standard_limit(
+        self,
+    ) -> None:
+        """wCDM and CPL backgrounds close and share their Λ limit."""
+
+        scale_factors = numpy.asarray((1.0e-3, 1.0e-2, 0.1, 0.5, 1.0))
+        contexts = {}
+        for model_name in ("model_wcdm.yml", "model_w0wa.yml"):
+            plugin = self._build_low_resolution_dark_energy_plugin(model_name)
+            runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+            context = cmb_background._resolve_declared_background_context(
+                runtime,
+                a_values=scale_factors,
+                z_values=1.0 / scale_factors - 1.0,
+            )
+            contexts[model_name] = context
+            for name in (
+                "H",
+                "Omega_r0",
+                "Omega_nu_massive0",
+                "Omega_de0",
+                "dark_energy_density_factor",
+            ):
+                self.assertTrue(numpy.all(numpy.isfinite(context[name])), name)
+            self.assertTrue(numpy.all(context["H"] > 0.0))
+            present_total = (
+                context["Omega_b0"]
+                + context["Omega_c0"]
+                + context["Omega_nu_massive0"]
+                + context["Omega_gamma0"]
+                + context["Omega_nu_massless0"]
+                + context["Omega_de0"]
+                + context["Omega_k0"]
+            )
+            self.assertAlmostEqual(float(present_total), 1.0, places=12)
+            self.assertAlmostEqual(
+                float(context["H"][-1]),
+                float(plugin.INITIAL_GUESSES[0]),
+                places=10,
+            )
+
+        numpy.testing.assert_allclose(
+            contexts["model_wcdm.yml"]["H"],
+            contexts["model_w0wa.yml"]["H"],
+            rtol=1.0e-12,
+            atol=1.0e-8,
+        )
+
+        wcdm = self._build_low_resolution_dark_energy_plugin("model_wcdm.yml")
+        changed = list(wcdm.INITIAL_GUESSES)
+        changed[6] = -0.7
+        changed_runtime = wcdm.get_cmb_declared_runtime(tuple(changed))
+        changed_context = cmb_background._resolve_declared_background_context(
+            changed_runtime,
+            a_values=scale_factors,
+            z_values=1.0 / scale_factors - 1.0,
+        )
+        self.assertFalse(
+            numpy.allclose(
+                changed_context["H"],
+                contexts["model_wcdm.yml"]["H"],
+                rtol=1.0e-12,
+                atol=1.0e-8,
+            )
+        )
+
+    def test_dark_energy_models_emit_finite_declared_surfaces(self) -> None:
+        """wCDM and CPL routes emit all declared finite surfaces."""
+
+        ell_grid = numpy.asarray([2, 5, 10, 20], dtype=int)
+        for model_name, parameter_index, delta in (
+            ("model_wcdm.yml", 6, 0.2),
+            ("model_w0wa.yml", 7, 0.5),
+        ):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                baseline = cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    plugin.INITIAL_GUESSES,
+                    ell_grid,
+                    spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+                )
+                changed = list(plugin.INITIAL_GUESSES)
+                changed[parameter_index] += delta
+                response = cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    tuple(changed),
+                    ell_grid,
+                    spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+                )
+                expected = {"TT", "TE", "EE", "BB", "PP", "TP", "EP"}
+                self.assertEqual(set(baseline), expected)
+                self.assertEqual(set(response), expected)
+                for values in baseline.values():
+                    self.assertEqual(values.shape, ell_grid.shape)
+                    self.assertTrue(numpy.all(numpy.isfinite(values)))
+                self.assertFalse(
+                    numpy.allclose(
+                        baseline["TT"],
+                        response["TT"],
+                        rtol=1.0e-12,
+                        atol=0.0,
+                    )
+                )
+
+    def test_dark_energy_contract_declares_smooth_background_closure(
+        self,
+    ) -> None:
+        """Dark-energy metadata and analytic pressure remain explicit."""
+
+        scale_factors = numpy.asarray((1.0e-3, 0.01, 0.1, 1.0))
+        for model_name in ("model_wcdm.yml", "model_w0wa.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                perturbations = plugin.get_cmb_perturbation_data(
+                    plugin.INITIAL_GUESSES
+                )
+                dark_energy = perturbations.species["dark_energy"]
+                self.assertIsNone(dark_energy.hierarchy_family)
+                self.assertEqual(dark_energy.background_reference, "Omega_de0")
+                self.assertEqual(dark_energy.anisotropic_stress, "zero")
+                self.assertEqual(dark_energy.sound_speed, "1.0")
+                runtime = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                context = cmb_background._resolve_declared_background_context(
+                    runtime,
+                    a_values=scale_factors,
+                    z_values=1.0 / scale_factors - 1.0,
+                )
+                audit = cmb_background._audit_declared_dark_energy_background(
+                    context,
+                    scale_factor=scale_factors,
+                )
+                self.assertTrue(audit["declared"])
+                self.assertEqual(audit["treatment"], "smooth_background")
+                self.assertLessEqual(
+                    audit["density_factor_max_relative_error"],
+                    1.0e-12,
+                )
+                self.assertLessEqual(
+                    audit["pressure_factor_max_relative_error"],
+                    1.0e-12,
+                )
+                self.assertAlmostEqual(
+                    audit["density_factor_at_present"],
+                    1.0,
+                    places=12,
+                )
 
     @staticmethod
     def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):

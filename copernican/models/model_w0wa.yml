@@ -163,7 +163,8 @@ cmb:
   param_map:
     H0: H0
     ombh2: Omega_b * (H0/100)**2
-    omch2: (Omega_m0 - Omega_b) * (H0/100)**2
+    omnuh2: 0.06 / 93.14
+    omch2: (Omega_m0 - Omega_b) * (H0/100)**2 - 0.06 / 93.14
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -201,10 +202,41 @@ cmb:
       Omega_c0: omch2 / (h * h)
       Omega_gamma0: Omega_gamma
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
-      Omega_r0: Omega_gamma0 + Omega_nu0
-      Omega_de0: 1.0 - Omega_m0 - Omega_r0 - Omega_k0
-      H: H0 * sqrt(Omega_m0 / (a ** 3) + Omega_r0 / (a ** 4) + Omega_de0 * a ** (-3
-        * (1 + w0 + wa)) * exp(-3 * wa * (1 - a)) + Omega_k0 / (a ** 2))
+      effective_massive_neutrino_species: 0.5 * (Neff
+        + num_massive_neutrinos - abs(Neff - num_massive_neutrinos))
+      Omega_nu_massless0: Omega_nu0 * (Neff
+        - effective_massive_neutrino_species) / Neff
+      massive_neutrino_mass_eV: sum_mnu / (num_massive_neutrinos + 1.0e-30)
+      massive_neutrino_transition_a: (3.151 * ((4.0 / 11.0) ** (1.0 / 3.0))
+        * 8.617333262145e-5 * Tcmb_K) / (massive_neutrino_mass_eV + 1.0e-30)
+      Omega_nu_massive_rel0: Omega_nu0 * effective_massive_neutrino_species
+        / Neff
+      Omega_nu_massive_nr0: sum_mnu / (93.14 * h * h)
+        * effective_massive_neutrino_species
+        / (num_massive_neutrinos + 1.0e-30)
+      Omega_nu_massive0: Omega_nu_massive_nr0
+        + (Omega_nu_massive_rel0 - Omega_nu_massive_nr0)
+        * exp(-massive_neutrino_mass_eV / 1.0e-4)
+      Omega_r0: Omega_gamma0 + Omega_nu_massless0
+        + Omega_nu_massive_rel0
+      Omega_de0: 1.0 - Omega_b0 - Omega_c0 - Omega_nu_massive0
+        - Omega_gamma0 - Omega_nu_massless0 - Omega_k0
+      massive_neutrino_energy_factor: sqrt(a * a
+        + massive_neutrino_transition_a * massive_neutrino_transition_a)
+        / (sqrt(1.0 + massive_neutrino_transition_a
+        * massive_neutrino_transition_a) * (a ** 4))
+      massive_neutrino_density_a4: Omega_nu_massive0
+        * massive_neutrino_energy_factor
+      dark_energy_density_factor: a ** (-3 * (1 + w0 + wa))
+        * exp(-3 * wa * (1 - a))
+      dark_energy_eos_a: w0 + wa * (1 - a)
+      dark_energy_pressure_factor: dark_energy_eos_a
+        * dark_energy_density_factor
+      dark_energy_sound_speed_sq: 1.0
+      H: H0 * sqrt((Omega_gamma0 + Omega_nu_massless0) / (a ** 4)
+        + massive_neutrino_density_a4 + (Omega_b0 + Omega_c0)
+        / (a ** 3) + Omega_de0 * dark_energy_density_factor
+        + Omega_k0 / (a ** 2))
     reionization:
       calibration:
         symbol: reionization_log10_amplitude
@@ -242,6 +274,7 @@ cmb:
         - cdm
         - massless_neutrino
         - massive_neutrino
+        - dark_energy
         hierarchy_families:
         - photon_temperature
         - photon_polarization_e
@@ -276,6 +309,14 @@ cmb:
         hierarchy_family: massive_neutrino
         background_reference: Omega_nu0
         anisotropic_stress: supported
+      dark_energy:
+        sector: scalar
+        equation_of_state: w0 + wa * (1 - a)
+        sound_speed: '1.0'
+        anisotropic_stress: zero
+        background_reference: Omega_de0
+        description: Smooth CPL dark-energy background; no scalar hierarchy
+          is declared for this effective component.
     hierarchy_families:
       photon_temperature:
         sector: scalar

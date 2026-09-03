@@ -80,6 +80,79 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-03:
+  Change: Completed Slice Three dark-energy model closure.
+  Why: Validated the constant-w and CPL background contracts after the
+    q-resolved neutrino repair and made smooth dark energy explicit.
+  Impact: CCMBS now checks normalized density and pressure factors, records
+    the background audit, and exercises both wCDM-family declarations across
+    their complete declared spectra.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-03:
+  Change: Corrected q-resolved massive-neutrino background closure.
+  Why: Corrected lower `N_eff` bookkeeping because the algebraic transition
+    could overcount radiation and was not the hierarchy's Fermi-Dirac moment.
+  Impact: Bounded species allocation, exact runtime density correction, and
+    zero-mass closure now govern all declared massive-neutrino models.
+  Files:
+  CHANGELOG.md
+  README.md
+  PLAN.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-03:
+  Change: Reopened Slice Two and strengthened neutrino parity requirements.
+  Why: The reduced neutrino request did not prove production CAMB parity and
+    the lower declared `N_eff` range could overcount radiation.
+  Impact: Effective-species allocation, q-integrated background validation,
+    production parity, and Slice Three revalidation are added to the plan.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-03:
+  Change: Completed Slice Three with dark-energy background closure and
+  responsive wCDM and w0waCDM declared spectra.
+  Why: Corrected the CMB component budget so constant-w and CPL expansion
+  laws evolve alongside the resolved massive-neutrino density.
+  Impact: Both dark-energy models now normalize at the present epoch,
+  preserve their Lambda limit, and emit finite complete declared surfaces.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/models/model_wcdm.yml
+  copernican/models/model_w0wa.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-03:
   Change: Completed Slice Two with dynamic massive-neutrino background
   closure, model declarations, and finite full-observable tests.
   Why: Corrected the neutrino sector's massless and massive density

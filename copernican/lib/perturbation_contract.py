@@ -1952,12 +1952,19 @@ def _materialize_declared_scalar_hierarchy_contract(
 
     materialized["variables"] = variables
     massless_fraction_expression = "0.0"
+    effective_massive_neutrino_expression: str | None = None
+    effective_massive_neutrino_name = (
+        "effective_massive_neutrino_species_runtime"
+    )
     if has_massless_neutrino:
         massless_fraction_expression = "Omega_nu0"
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
+        effective_massive_neutrino_expression = (
+            "0.5 * (Neff + num_massive_neutrinos - "
+            "abs(Neff - num_massive_neutrinos))"
+        )
         massless_fraction_expression = (
-            "Omega_nu0 * 0.5 * (Neff - num_massive_neutrinos + "
-            "abs(Neff - num_massive_neutrinos)) / Neff"
+            "Omega_nu0 * (Neff - " f"{effective_massive_neutrino_name}) / Neff"
         )
     matter_density_terms = ["Omega_b0 * observable_delta_b"]
     if has_cdm:
@@ -2201,6 +2208,15 @@ def _materialize_declared_scalar_hierarchy_contract(
             "description": "Baryon-side Thomson drag counterpart.",
         },
     }
+    if effective_massive_neutrino_expression is not None:
+        derived_entries[effective_massive_neutrino_name] = {
+            "expression": effective_massive_neutrino_expression,
+            "description": (
+                "Effective massive-neutrino species count bounded by "
+                "the declared N_eff and species count."
+            ),
+            "units": _DIMENSIONLESS_UNITS,
+        }
     if has_cdm:
         derived_entries.update(
             {

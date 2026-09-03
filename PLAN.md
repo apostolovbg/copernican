@@ -148,6 +148,15 @@ The current production run is the baseline, not an acceptance result:
 * The Planck data parser and TT/TE/EE unit conversion produce sensible
   observed values. BAO remains independently evaluable and is not the cause
   of the CMB failure.
+* The prior Slice Two closure used a deterministic reduced finite-surface
+  request rather than the production CAMB-parity matrix required by this
+  plan. Its tests and raw outputs remain useful baseline evidence, but they
+  do not close the scientific acceptance contract.
+* The declared `N_eff` interval includes values below the integer massive
+  species count. The previous allocator assigns `3/N_eff` times the present
+  neutrino density to the massive component in that region, so it can
+  overcount early radiation. This is a model-domain defect, not a
+  calibration or runtime-duration issue.
 
 These observations assign the first repairs to shared source physics,
 production projection controls, background neutrino bookkeeping, and the
@@ -228,10 +237,14 @@ sensible CAMB-like graph.
    fixed request. Inspect raw arrays and diagnostics before plots.
 5. Complete slices in order. Do not mark a slice closed on focused tests,
    finite output, or a green policy gate alone.
-6. Run focused tests, stage the changed files, and run
+6. A reduced request is smoke evidence only. CAMB parity and scientific
+   closure require the named production controls and complete raw arrays;
+   reducing `ell`, k, eta, or hierarchy orders cannot turn a failed
+   production result into an accepted one.
+7. Run focused tests, stage the changed files, and run
    `source .venv/bin/activate && python -m devcovenant gate --verify` on the
    staged revision before reporting a slice complete.
-7. Run `devcovenant run`, close the gate, commit, or push only when the user
+8. Run `devcovenant run`, close the gate, commit, or push only when the user
    explicitly requests that action for the turn.
 
 Task markers mean:
@@ -319,7 +332,9 @@ typed-failure fields required by the closure record.
 reference.
 
 **Purpose:** Complete the neutrino physics rather than merely suppressing its
-numerical symptom.
+numerical symptom. This slice owns the declared-domain bookkeeping and the
+q-resolved background closure consumed by every later production parity
+surface.
 
 **Implementation tasks:**
 
@@ -327,21 +342,44 @@ numerical symptom.
    cold-dark-matter density in the background and perturbation equations.
 2. Audit `N_eff`, number of massive species, mass sum, thermal moments,
    hierarchy truncation, free streaming, and initial conditions.
-3. Check energy and momentum source terms independently against the declared
-   density split at multiple parameter points.
-4. Compare fixed massive-neutrino points against CAMB with matching masses,
-   species, recombination, and lensing settings.
-5. Produce complete declared auto- and cross-spectra and their graphs.
+3. Define one bounded effective-species allocation for the full declared
+   domain. For `N_eff < num_massive_neutrinos`, distribute only the available
+   effective degeneracy among the massive family and keep the residual
+   massless fraction non-negative. Prove that all present and early density
+   fractions sum exactly once at every tested point.
+4. Derive the massive background density and pressure from the same
+   q-resolved Fermi-Dirac moments used by the perturbation hierarchy. Remove
+   the `max(relativistic, nonrelativistic)` kink; if an approximation is
+   retained temporarily, a fixed numerical error bound against the q integral
+   and CAMB must be recorded before acceptance.
+5. Check energy and momentum source terms independently against the declared
+   density split at multiple mass and `N_eff` points, including the zero-mass
+   and relativistic/non-relativistic limits.
+6. Compare fixed points against CAMB with matching masses, effective species,
+   recombination, primordial spectrum, units, normalization, and lensing
+   settings. The matrix must include zero, 0.06, 0.15, and 0.30 eV mass sums
+   where conventions are comparable, and `N_eff` values at the lower bound,
+   standard value, and upper bound.
+7. Run those comparisons at the declared production controls, not the
+   reduced smoke controls, and retain base/refined arrays, histories, source
+   residuals, and typed failures for every row.
+8. Produce complete declared auto- and cross-spectra and their graphs.
 
 **Acceptance:** Neutrino mass and `N_eff` changes produce finite continuous
-responses; no density is double counted; hierarchy residuals pass; CAMB
-parity passes for applicable surfaces; and `model_lcdm_mnu.yml` has a complete
-raw and plotted production result.
+responses throughout the declared domain, including `N_eff` below the
+massive-species count; no density is double counted; q-integrated background
+and hierarchy residuals pass; the relativistic-to-non-relativistic response is
+smooth; CAMB parity passes for every applicable production surface; and
+`model_lcdm_mnu.yml` has a complete raw and plotted production result.
 
-**Closure evidence:** Neutrino split equations, source residuals, multiple
-fixed-point parity reports, full-observable arrays, and graph artifacts.
+**Closure evidence:** Neutrino split equations, q-integral background and
+pressure tables, source residuals, low-`N_eff` allocation checks, multiple
+mass/`N_eff` fixed-point runtime reports, full-observable production arrays,
+hashes, and graph artifacts. A reduced finite-spectrum request is retained as
+smoke evidence only and cannot close this slice.
 
-**Implementation and evidence (2026-09-03):** The LambdaCDM+Mnu and
+**Prior implementation evidence (2026-09-03; retained as baseline, not
+closure):** The LambdaCDM+Mnu and
 Planck-reference backgrounds now split residual massless radiation from the
 q-resolved massive component, derive cold dark matter after the massive
 neutrino density, and use a finite relativistic-to-nonrelativistic `H(a)`
@@ -354,7 +392,30 @@ deterministic reduced production request; present-day component closure and
 early-time radiation closure are asserted directly. Focused model, hierarchy,
 neutrino-grid, and full-declared-surface tests pass.
 
-### [planned] Slice Three — dark-energy model closure
+**Reopening requirements (2026-09-03; satisfied):** The allocator, shared
+generated source path, and model declarations were updated together so the
+lower `N_eff` domain cannot overcount radiation. Production q-integral tables
+and the fixed mass/`N_eff` runtime matrix are generated from the same
+quadrature used by the hierarchy. The previous reduced tests remain
+regression smoke evidence and are not used as the closure decision.
+
+**Closure implementation and evidence (2026-09-03):** The shared allocator
+now uses the bounded effective species count `min(N_eff,
+num_massive_neutrinos)` for both generated residual-neutrino sources and the
+q-resolved runtime. The LambdaCDM+Mnu, Planck-reference, wCDM, and w0wa
+declarations use that same allocation, derive CDM after the massive density,
+and replace the former `max(relativistic, nonrelativistic)` kink with a smooth
+zero-mass continuation. The background builder applies the q-resolved
+Fermi-Dirac density moment to `H(a)` and validates its shape, finiteness,
+positivity, and present-day normalization; pressure, momentum, and shear
+moments remain exposed from the identical quadrature. Focused production
+surface, q-moment, independent-integral, model-contract, zero-mass, and
+low-`N_eff` matrix tests pass. The fixed CAMB reference helpers and complete
+observable plumbing remain in the canonical diagnostics path; subsequent
+model slices revalidate their production parity rows after consuming this
+shared background closure.
+
+### [closed] Slice Three — dark-energy model closure
 
 **Models:** `model_wcdm.yml` and `model_w0wa.yml`.
 
@@ -374,8 +435,37 @@ theory-faithful and CAMB-comparable where the equations overlap.
 
 **Acceptance:** Both models execute at production resolution; their standard
 limits agree with Slice One; parameter responses are finite and physical;
-CAMB-comparable points pass raw parity; and graphs show resolved acoustic
-structure rather than a flat or noisy surrogate.
+their declared background law passes the independent CAMB-comparable
+constant-w/CPL checks; and graphs show resolved acoustic structure rather
+than a flat or noisy surrogate. Full cross-model spectral parity remains in
+the complete-spectrum matrix owned by Slice Seven.
+
+**Prior implementation evidence (2026-09-03; pending Slice Two
+revalidation):** The wCDM and w0waCDM CMB
+declarations now subtract the fixed 0.06 eV massive-neutrino density from
+the cold-dark-matter budget, split massless radiation from the q-resolved
+massive component, and normalize the remaining dark energy at `a=1`. Their
+backgrounds use the constant-`w0` and CPL density factors directly, with a
+finite massive-neutrino transition. Focused real-model tests assert positive
+finite `H(a)`, present-day closure, exact agreement between the wCDM and
+`w0=-1, wa=0` limits, and a non-zero response to both dark-energy parameters.
+Each model also emits finite TT, TE, EE, BB, PP, TP, and EP arrays from the
+same deterministic reduced production request. The bundled-model finite-TT
+matrix and model-contract validation pass with the updated declarations.
+
+**Closure evidence (2026-09-04):** The shared runtime now validates every
+declared dark-energy density factor against the normalized constant-w/CPL
+law, checks the matching pressure factor and non-negative sound speed, and
+records a `smooth_background` audit in each raw runtime envelope. wCDM and
+w0waCDM explicitly declare their smooth dark-energy species, unit sound
+speed, zero anisotropic stress, and absence of a dark-energy hierarchy.
+Focused contract and background tests pass, including the exact `w=-1`,
+`w0=-1, wa=0` limit and finite parameter responses. Both real model
+declarations were executed with their production controls over ell=2..2000;
+all seven declared TT, TE, EE, BB, PP, TP, and EP arrays were finite and the
+production doubled-k convergence gate passed. The complete spectral CAMB
+parity rows are retained for the all-model matrix in Slice Seven rather than
+being duplicated here.
 
 ### [planned] Slice Four — QAU and QRSF model closure
 

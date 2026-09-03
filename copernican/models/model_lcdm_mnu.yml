@@ -170,16 +170,21 @@ cmb:
       Omega_c0: omch2 / (h * h)
       Omega_gamma0: Omega_gamma
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
-      Omega_nu_massless0: Omega_nu0 * 0.5 * (Neff - num_massive_neutrinos
-        + abs(Neff - num_massive_neutrinos)) / Neff
+      effective_massive_neutrino_species: 0.5 * (Neff
+        + num_massive_neutrinos - abs(Neff - num_massive_neutrinos))
+      Omega_nu_massless0: Omega_nu0 * (Neff
+        - effective_massive_neutrino_species) / Neff
       massive_neutrino_mass_eV: sum_mnu / (num_massive_neutrinos + 1.0e-30)
       massive_neutrino_transition_a: (3.151 * ((4.0 / 11.0) ** (1.0 / 3.0))
         * 8.617333262145e-5 * Tcmb_K) / (massive_neutrino_mass_eV + 1.0e-30)
-      Omega_nu_massive_rel0: Omega_nu0 * num_massive_neutrinos / Neff
+      Omega_nu_massive_rel0: Omega_nu0 * effective_massive_neutrino_species
+        / Neff
       Omega_nu_massive_nr0: sum_mnu / (93.14 * h * h)
-      Omega_nu_massive0: 0.5 * (Omega_nu_massive_rel0
-        + Omega_nu_massive_nr0 + abs(Omega_nu_massive_rel0
-        - Omega_nu_massive_nr0))
+        * effective_massive_neutrino_species
+        / (num_massive_neutrinos + 1.0e-30)
+      Omega_nu_massive0: Omega_nu_massive_nr0
+        + (Omega_nu_massive_rel0 - Omega_nu_massive_nr0)
+        * exp(-massive_neutrino_mass_eV / 1.0e-4)
       Omega_r0: Omega_gamma0 + Omega_nu_massless0
         + Omega_nu_massive_rel0
       Omega_de0: 1.0 - Omega_b0 - Omega_c0 - Omega_nu_massive0
