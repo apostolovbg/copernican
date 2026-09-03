@@ -249,6 +249,9 @@ The fixed Planck-reference declaration maps its 0.06 eV neutrino mass to
 hierarchy weights the residual massless-neutrino source by its own density.
 This keeps massive and massless radiation from being counted twice while
 leaving pure-massless LCDM contracts on their original `Omega_nu0` path.
+The LambdaCDM+Mnu and Planck reference backgrounds now apply the same split
+to `H(a)`: massless radiation stays proportional to `a^-4`, while the
+q-resolved massive component transitions continuously to its present density.
 Pipeline summaries now retain typed CMB failures, and CMB plot infoboxes show
 the failure category and message when a theory cannot be computed; a failed
 theory is never silently reduced to an unlabeled data-only panel.

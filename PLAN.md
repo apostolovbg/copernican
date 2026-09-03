@@ -313,7 +313,7 @@ Focused contract, model-mapping, plotting, pipeline, and quadrature tests
 pass. The raw runtime envelopes retain the source, grid, refinement, and
 typed-failure fields required by the closure record.
 
-### [planned] Slice Two — massive-neutrino and radiation closure
+### [closed] Slice Two — massive-neutrino and radiation closure
 
 **Model:** `model_lcdm_mnu.yml`, including the shared path used by the Planck
 reference.
@@ -340,6 +340,19 @@ raw and plotted production result.
 
 **Closure evidence:** Neutrino split equations, source residuals, multiple
 fixed-point parity reports, full-observable arrays, and graph artifacts.
+
+**Implementation and evidence (2026-09-03):** The LambdaCDM+Mnu and
+Planck-reference backgrounds now split residual massless radiation from the
+q-resolved massive component, derive cold dark matter after the massive
+neutrino density, and use a finite relativistic-to-nonrelativistic `H(a)`
+interpolation normalized at `a=1`. The zero-mass limit remains finite and
+continuous. Fixed q-grid tests cover physical temperature, density, pressure,
+momentum, and shear weights, relativistic and nonrelativistic limits, q-grid
+refinement, and hierarchy refinement. The real bundled LambdaCDM+Mnu
+declaration emits finite TT, TE, EE, BB, PP, TP, and EP surfaces under a
+deterministic reduced production request; present-day component closure and
+early-time radiation closure are asserted directly. Focused model, hierarchy,
+neutrino-grid, and full-declared-surface tests pass.
 
 ### [planned] Slice Three — dark-energy model closure
 

@@ -533,6 +533,13 @@ When `sum_mnu` or `mnu` is declared, the q family uses the per-species mass
 `sum_mnu / num_massive_neutrinos`; the total present density uses the declared
 mass sum for normalization.
 
+The declared background splits the neutrino density into the residual
+massless fraction and the q-resolved massive fraction. The latter follows a
+finite relativistic-to-nonrelativistic interpolation in `a`, while the
+present-day normalization is tied to `sum_mnu / (93.14 h^2)` and remains
+continuous at zero mass. `Omega_c0` is derived after subtracting the massive
+component, so the Friedmann source counts each component exactly once.
+
 The authoritative evolved states are the q-resolved hierarchy members:
 
 - `delta_nu_massive_q<i>`
@@ -827,7 +834,7 @@ components share one source surface:
 
 - `matter_density_source = (Omega_c0 delta_c + Omega_b0 delta_b) / a`
 - `radiation_density_source = (4 Omega_gamma0 Theta_gamma,0
-  + Omega_nu0 delta_nu) / a^2`
+  + Omega_nu,massless delta_nu) / a^2`
 - `total_density_source` is the sum of the matter and radiation pieces
   plus `massive_neutrino_density_source` when the massive hierarchy is
   active.

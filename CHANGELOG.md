@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-03:
+  Change: Completed Slice Two with dynamic massive-neutrino background
+  closure, model declarations, and finite full-observable tests.
+  Why: Corrected the neutrino sector's massless and massive density
+  bookkeeping instead of masking its source terms numerically.
+  Impact: LambdaCDM+Mnu and the Planck reference now preserve density
+  closure, finite zero-mass behavior, and complete declared CCMBS surfaces.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-03:
   Change: Updated Slice One closure records and synchronized touched
   documentation after the verification gate audit.
   Why: The policy gate requires a current changelog entry and UTC markers

@@ -20,6 +20,7 @@ from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.lib.likelihoods.cmb import cache, cmb, projection
+from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
 from copernican.lib.model_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
@@ -1444,6 +1445,150 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         self.assertEqual(controls["accuracy_tier"], "final")
         self.assertTrue(controls["phase_aware_k_quadrature"])
         self.assertTrue(controls["production_scalar_convergence"]["enabled"])
+
+    def test_lcdm_mnu_background_splits_dynamic_neutrino_density(self) -> None:
+        """The massive-neutrino background must close at every scale factor."""
+
+        plugin = self._build_plugin("model_lcdm_mnu.yml")
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        scale_factors = numpy.asarray((1.0e-6, 1.0e-3, 1.0e-2, 0.1, 1.0))
+        context = cmb_background._resolve_declared_background_context(
+            runtime,
+            a_values=scale_factors,
+            z_values=1.0 / scale_factors - 1.0,
+        )
+
+        for name in (
+            "H",
+            "Omega_nu_massless0",
+            "Omega_nu_massive_rel0",
+            "Omega_nu_massive_nr0",
+            "Omega_nu_massive0",
+            "Omega_r0",
+            "Omega_de0",
+        ):
+            self.assertTrue(numpy.all(numpy.isfinite(context[name])), name)
+        self.assertTrue(numpy.all(context["H"] > 0.0))
+        self.assertAlmostEqual(
+            float(
+                context["Omega_nu_massless0"]
+                + context["Omega_nu_massive_rel0"]
+            ),
+            float(context["Omega_nu0"]),
+            places=15,
+        )
+        self.assertAlmostEqual(
+            float(
+                context["Omega_gamma0"]
+                + context["Omega_nu_massless0"]
+                + context["Omega_nu_massive_rel0"]
+            ),
+            float(context["Omega_r0"]),
+            places=15,
+        )
+        present_total = (
+            context["Omega_b0"]
+            + context["Omega_c0"]
+            + context["Omega_nu_massive0"]
+            + context["Omega_gamma0"]
+            + context["Omega_nu_massless0"]
+            + context["Omega_de0"]
+            + context["Omega_k0"]
+        )
+        self.assertAlmostEqual(float(present_total), 1.0, places=12)
+        self.assertAlmostEqual(
+            float(context["H"][-1]),
+            float(plugin.INITIAL_GUESSES[0]),
+            places=10,
+        )
+        self.assertAlmostEqual(
+            float(context["Omega_nu_massive0"]),
+            float(context["Omega_nu_massive_nr0"]),
+            places=15,
+        )
+
+    def test_lcdm_mnu_zero_mass_limit_remains_finite(self) -> None:
+        """The q-resolved massless limit must not create a singular H(a)."""
+
+        plugin = self._build_plugin("model_lcdm_mnu.yml")
+        scale_factors = numpy.asarray((1.0e-6, 1.0e-3, 1.0e-2, 1.0))
+        zero_mass_context = None
+        for sum_mnu in (0.0, 1.0e-8, 0.06):
+            values = list(plugin.INITIAL_GUESSES)
+            values[5] = sum_mnu
+            runtime = plugin.get_cmb_declared_runtime(tuple(values))
+            context = cmb_background._resolve_declared_background_context(
+                runtime,
+                a_values=scale_factors,
+                z_values=1.0 / scale_factors - 1.0,
+            )
+            self.assertTrue(numpy.all(numpy.isfinite(context["H"])))
+            self.assertTrue(numpy.all(context["H"] > 0.0))
+            if sum_mnu == 0.0:
+                zero_mass_context = context
+        self.assertIsNotNone(zero_mass_context)
+        self.assertAlmostEqual(
+            float(zero_mass_context["Omega_nu_massive0"]),
+            float(zero_mass_context["Omega_nu_massive_rel0"]),
+            places=15,
+        )
+
+    def test_lcdm_mnu_declared_surfaces_are_finite(self) -> None:
+        """The massive-neutrino route must emit every declared surface."""
+
+        source_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / "model_lcdm_mnu.yml"
+        )
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        for numerics in (
+            model_data["cmb"]["numerical"],
+            model_data["cmb"]["perturbations"]["numerics"],
+        ):
+            numerics.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": 20,
+                    "k_min": 1.0e-4,
+                    "k_max": 2.0e-2,
+                    "k_sample_count": 4,
+                    "eta_sample_count": 48,
+                    "source_grid_multiplier": 1,
+                    "a_min": 1.0e-3,
+                    "initial_redshift": 99.0,
+                }
+            )
+        controls = model_data["cmb"]["perturbations"]["accuracy_controls"]
+        controls["minimum_k_sample_count"] = 1
+        controls["scalar_reference_ells"] = [2, 20]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir) / source_path.name
+            temp_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            cache_path = model_spec_validator.validate_and_cache_model(
+                temp_path,
+                Path(temp_dir) / "cache",
+            )
+            functions, parsed = model_coder.generate_callables(cache_path)
+            plugin = model_plugin_validation.build_plugin(parsed, functions)
+            ells = numpy.arange(2, 21, dtype=int)
+            spectra = cmb.compute_cmb_spectrum_cached(
+                plugin,
+                plugin.INITIAL_GUESSES,
+                ells,
+                spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+            )
+        self.assertEqual(
+            set(spectra),
+            {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
+        )
+        for values in spectra.values():
+            self.assertEqual(values.shape, ells.shape)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
 
     @staticmethod
     def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):

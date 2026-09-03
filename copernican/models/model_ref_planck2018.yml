@@ -137,10 +137,26 @@ cmb:
       Omega_c0: omch2 / (h * h)
       Omega_gamma0: Omega_gamma
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
-      Omega_r0: Omega_gamma0 + Omega_nu0
-      Omega_de0: 1.0 - Omega_m0 - Omega_r0 - Omega_k0
-      H: H0 * sqrt(Omega_m0 / (a ** 3) + Omega_r0 / (a ** 4) + Omega_k0 / (a ** 2)
-        + Omega_de0)
+      Omega_nu_massless0: Omega_nu0 * 0.5 * (Neff - num_massive_neutrinos
+        + abs(Neff - num_massive_neutrinos)) / Neff
+      massive_neutrino_mass_eV: sum_mnu / (num_massive_neutrinos + 1.0e-30)
+      massive_neutrino_transition_a: (3.151 * ((4.0 / 11.0) ** (1.0 / 3.0))
+        * 8.617333262145e-5 * Tcmb_K) / (massive_neutrino_mass_eV + 1.0e-30)
+      Omega_nu_massive_rel0: Omega_nu0 * num_massive_neutrinos / Neff
+      Omega_nu_massive_nr0: omnuh2 / (h * h)
+      Omega_nu_massive0: 0.5 * (Omega_nu_massive_rel0
+        + Omega_nu_massive_nr0 + abs(Omega_nu_massive_rel0
+        - Omega_nu_massive_nr0))
+      Omega_r0: Omega_gamma0 + Omega_nu_massless0
+        + Omega_nu_massive_rel0
+      Omega_de0: 1.0 - Omega_b0 - Omega_c0 - Omega_nu_massive0
+        - Omega_gamma0 - Omega_nu_massless0 - Omega_k0
+      H: H0 * sqrt((Omega_gamma0 + Omega_nu_massless0) / (a ** 4)
+        + Omega_nu_massive0 * sqrt(a * a + massive_neutrino_transition_a
+        * massive_neutrino_transition_a) / (sqrt(1.0
+        + massive_neutrino_transition_a * massive_neutrino_transition_a)
+        * (a ** 4)) + (Omega_b0 + Omega_c0) / (a ** 3)
+        + Omega_k0 / (a ** 2) + Omega_de0)
     reionization:
       calibration:
         symbol: reionization_log10_amplitude
