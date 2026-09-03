@@ -1974,8 +1974,13 @@ def _materialize_declared_scalar_hierarchy_contract(
         "(4.0 * Omega_gamma0 * observable_theta_gamma0"
     )
     if has_massless_neutrino:
+        neutrino_density_weight = (
+            "massless_neutrino_fraction"
+            if has_massive_neutrino and massive_neutrino_grid_count > 0
+            else "Omega_nu0"
+        )
         radiation_density_source_expression += (
-            " + Omega_nu0 * observable_delta_nu"
+            f" + {neutrino_density_weight} * observable_delta_nu"
         )
     radiation_density_source_expression += ") / (a * a)"
     total_density_source_expression = (
@@ -1993,8 +1998,14 @@ def _materialize_declared_scalar_hierarchy_contract(
         "(4.0 / 3.0) * Omega_gamma0 * photon_velocity_divergence"
     ]
     if has_massless_neutrino:
+        neutrino_momentum_weight = (
+            "massless_neutrino_fraction"
+            if has_massive_neutrino and massive_neutrino_grid_count > 0
+            else "Omega_nu0"
+        )
         radiation_momentum_terms.append(
-            "(4.0 / 3.0) * Omega_nu0 * observable_theta_nu"
+            "(4.0 / 3.0) * "
+            f"{neutrino_momentum_weight} * observable_theta_nu"
         )
     total_momentum_source_expression = (
         f"({ ' + '.join(matter_momentum_terms) }) / a + "
@@ -2002,7 +2013,12 @@ def _materialize_declared_scalar_hierarchy_contract(
     )
     shear_terms = ["4.0 * Omega_gamma0 * observable_theta_gamma2"]
     if has_massless_neutrino:
-        shear_terms.append("2.0 * Omega_nu0 * sigma_nu")
+        neutrino_shear_weight = (
+            "massless_neutrino_fraction"
+            if has_massive_neutrino and massive_neutrino_grid_count > 0
+            else "Omega_nu0"
+        )
+        shear_terms.append(f"2.0 * {neutrino_shear_weight} * sigma_nu")
     total_shear_source_expression = f"({ ' + '.join(shear_terms) }) / (a * a)"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {

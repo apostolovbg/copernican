@@ -74,6 +74,22 @@ class TestPlotter(unittest.TestCase):
     def test_format_model_summary_text_numeric_rendering(self) -> None:
         _case_format_model_summary_text_numeric_rendering(self)
 
+    def test_format_model_summary_text_exposes_cmb_failure(self) -> None:
+        """Typed CMB failures remain visible in the model summary."""
+
+        summary = plotter.format_model_summary_text(
+            _DummyPlugin,
+            "cmb",
+            {"fitted_model_params": types.MappingProxyType({})},
+            cmb_failure={
+                "category": "convergence_failure",
+                "message": "doubled grid did not converge",
+            },
+        )
+
+        self.assertIn("convergence_failure", summary)
+        self.assertIn("doubled grid did not converge", summary)
+
     def test_plot_corner_renders_expected_file(
         self,
         tmp_path=None,

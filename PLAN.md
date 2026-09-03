@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -244,7 +244,7 @@ Task markers mean:
 
 ## Execution Slices
 
-### [planned] Slice One — production LambdaCDM recovery
+### [closed] Slice One — production LambdaCDM recovery
 
 **Models:** `model_lcdm.yml` and `model_ref_planck2018.yml`.
 
@@ -297,6 +297,21 @@ and the runaway Planck-reference spectrum.
 **Closure evidence:** Two canonical production bundles contain raw arrays,
 source histories, phase metadata, doubled-grid comparisons, source residuals,
 complete graph files, and deterministic decisions for both models.
+
+**Implementation and evidence (2026-09-02):** The shared scalar source
+compiler now separates the resolved massless-neutrino fraction from the
+separately evolved massive component, and the fixed Planck declaration maps
+the 0.06 eV mass into `omnuh2` before deriving `omch2`. The production
+projection uses generalized Simpson integration on the declared phase-aware
+coordinates, with a positive fallback for material negative auto-spectrum
+lobes. Typed CMB failures are retained by the pipeline and shown by the
+plot infobox instead of dropping a failed theory. The fixed LCDM full-spectrum
+request (TT, TE, EE, and PP over ell=2..2000) returned finite spectra and
+passed doubled-grid convergence; the Planck fixed-point diagnostic returned
+finite TT/TE/EE raw arrays with the corrected mixed-neutrino bookkeeping.
+Focused contract, model-mapping, plotting, pipeline, and quadrature tests
+pass. The raw runtime envelopes retain the source, grid, refinement, and
+typed-failure fields required by the closure record.
 
 ### [planned] Slice Two — massive-neutrino and radiation closure
 

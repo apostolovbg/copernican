@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,72 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-03:
+  Change: Updated Slice One closure records and synchronized touched
+  documentation after the verification gate audit.
+  Why: The policy gate requires a current changelog entry and UTC markers
+  for every documentation file changed in the active session.
+  Impact: Slice One evidence remains traceable and the staged revision is
+  ready for the user-run workflow test.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_plotter.py
+
+- 2026-09-02:
+  Change: Completed Slice One with converged production quadrature,
+  corrected source bookkeeping, and typed CMB failure reporting.
+  Why: Restored finite LambdaCDM spectra and prevented mixed-neutrino
+  double counting from corrupting the Planck-reference prediction.
+  Impact: The baseline models now retain refinement evidence, expose failures,
+  and provide a closed scientific starting point for the remaining slices.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_plotter.py
+
+- 2026-09-02:
+  Change: Corrected mixed-neutrino CCMBS source weights and Planck-reference
+  density mapping, then added final phase-aware production controls.
+  Why: The reference spectrum counted the same neutrino density in separate
+  massless and massive hierarchies, producing runaway CMB amplitudes.
+  Impact: Pure-massless LCDM keeps its original radiation source while mixed
+  declarations use the resolved residual fraction and retain convergence
+  metadata for production refinement.
+  Files:
+  copernican/lib/perturbation_contract.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/models/model_ref_planck2018.yml
+  copernican/lib/run_pipeline.py
+  copernican/lib/plotter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_plotter.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  CHANGELOG.md
 
 - 2026-09-02:
   Change: Replaced the CCMBS plan with a model-complete scientific closure

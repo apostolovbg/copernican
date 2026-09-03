@@ -1421,6 +1421,30 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             CCMBS_ID,
         )
 
+    def test_planck_reference_separates_cdm_and_massive_neutrinos(
+        self,
+    ) -> None:
+        """The Planck anchor must count each matter component once."""
+
+        plugin = self._build_plugin("model_ref_planck2018.yml")
+        contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
+        self.assertIn("omnuh2", contract["param_map"])
+        self.assertAlmostEqual(
+            float(contract["param_map"]["omnuh2"]),
+            0.06 / 93.14,
+        )
+        expected_omch2 = (0.3111 - 0.04897) * (67.66 / 100.0) ** 2
+        expected_omch2 -= 0.06 / 93.14
+        self.assertAlmostEqual(
+            float(contract["param_map"]["omch2"]),
+            expected_omch2,
+        )
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        controls = runtime["perturbation_data"].accuracy_controls
+        self.assertEqual(controls["accuracy_tier"], "final")
+        self.assertTrue(controls["phase_aware_k_quadrature"])
+        self.assertTrue(controls["production_scalar_convergence"]["enabled"])
+
     @staticmethod
     def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):
         """Build USMF2 with a small deterministic grid for contract tests."""

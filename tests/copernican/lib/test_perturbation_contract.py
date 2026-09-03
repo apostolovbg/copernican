@@ -2068,6 +2068,53 @@ class PerturbationContractTestCase(unittest.TestCase):
         ):
             self._compile(contract)
 
+    def test_mixed_neutrino_sources_use_the_resolved_massless_fraction(
+        self,
+    ) -> None:
+        """Mixed hierarchies must not count massive neutrinos twice."""
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "hierarchy_family": "massive_neutrino",
+            "background_reference": "Omega_nu0",
+        }
+        contract["hierarchy_families"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "species": ["massive_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_massive_l",
+            "momentum_grid": "massive_neutrino_default",
+        }
+        contract["numerics"]["momentum_grids"] = {
+            "massive_neutrino_default": {
+                "count": 2,
+                "q_min": 0.05,
+                "q_max": 18.0,
+                "mass_parameter": 0.06,
+            }
+        }
+
+        compiled = self._compile(contract)
+        density_source = compiled.derived[
+            "radiation_density_source"
+        ].expression
+        momentum_source = compiled.derived["total_momentum_source"].expression
+        shear_source = compiled.derived["total_shear_source"].expression
+        self.assertIn(
+            "massless_neutrino_fraction * observable_delta_nu",
+            density_source,
+        )
+        self.assertIn(
+            "massless_neutrino_fraction * observable_theta_nu",
+            momentum_source,
+        )
+        self.assertIn("massless_neutrino_fraction * sigma_nu", shear_source)
+        self.assertNotIn("Omega_nu0 * observable_delta_nu", density_source)
+        self.assertNotIn("Omega_nu0 * observable_theta_nu", momentum_source)
+        self.assertNotIn("Omega_nu0 * sigma_nu", shear_source)
+
     def test_scalar_hierarchy_uses_time_dependent_einstein_sources(
         self,
     ) -> None:

@@ -926,36 +926,12 @@ def _integrate_power_spectrum(
     weighted = primordial_ld[numpy.newaxis, :] * (primary_ld * secondary_ld)
     log_k_steps = numpy.diff(log_k_ld)
 
-    # The phase-aware projection grid is intentionally non-uniform: it mixes
-    # a logarithmic super-horizon scaffold with linear k phase nodes.  Simpson
-    # integration is useful on the small declared grids used by correctness
-    # contracts, but production-sized sparse phase ladders must retain the
-    # positive rule to avoid negative lobes between unresolved oscillations.
-    uniform_log_grid = bool(
-        log_k_steps.size == 0
-        or numpy.allclose(
-            log_k_steps,
-            log_k_steps[0],
-            rtol=1.0e-10,
-            atol=1.0e-14,
-        )
-    )
-    if uniform_log_grid or log_k_ld.size <= 128:
-        # Small declared grids retain physical anchors and benefit materially
-        # from generalized Simpson integration on their smooth transfer
-        # functions.  The positive fallback below still protects negative
-        # auto-spectrum rows.
-        integral = simpson(weighted, x=log_k_ld, axis=1)
-    else:
-        # A positive composite trapezoid is slightly lower order, but it is
-        # stable on every irregular phase grid and cannot invent negative
-        # lobes between sparsely sampled Bessel oscillations.
-        integral = numpy.sum(
-            0.5
-            * (weighted[:, :-1] + weighted[:, 1:])
-            * log_k_steps[numpy.newaxis, :],
-            axis=1,
-        )
+    # The phase-aware grid intentionally combines a logarithmic scaffold with
+    # linear phase nodes.  Generalized Simpson integration on the actual
+    # coordinates removes the first-order bias of a trapezoid rule while
+    # preserving those physical anchors.  The positivity guard below handles
+    # any material negative lobe on an under-resolved cross-spectrum.
+    integral = simpson(weighted, x=log_k_ld, axis=1)
     if auto_spectrum and numpy.any(integral < 0.0):
         # Generalized Simpson weights can become negative on a sparse
         # anchor grid.  Re-evaluate only those rows with the positive

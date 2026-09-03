@@ -99,7 +99,8 @@ cmb:
   param_map:
     H0: H_0
     ombh2: Omega_b * (H_0/100)**2
-    omch2: (Omega_{m0} - Omega_b) * (H_0/100)**2
+    omnuh2: 0.06 / 93.14
+    omch2: (Omega_{m0} - Omega_b) * (H_0/100)**2 - 0.06 / 93.14
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
@@ -274,10 +275,41 @@ cmb:
         parity: even
         spin: 0.0
     accuracy_controls:
+      accuracy_tier: final
+      phase_aware_k_quadrature: true
+      require_phase_resolution: false
+      phase_points_per_cycle: 4.0
       minimum_k_sample_count: 64
       scalar_reference_ells:
       - 2
       - 2000
+      scalar_constraint_anchors:
+        early: 0.05
+        recombination: 0.50
+        late: 0.95
+      scalar_constraint_normalization: sum_abs_declared_einstein_terms
+      scalar_constraint_reference_eta_samples: 192
+      scalar_constraint_tolerances:
+        einstein_energy_residual: 3.0e-3
+        einstein_momentum_residual: 1.0e-6
+        einstein_shear_residual: 1.0e-6
+      los_phase_quadrature:
+        enabled: true
+        minimum_nodes: 256
+        maximum_nodes: 256
+        phase_points_per_cycle: 4.0
+      production_scalar_convergence:
+        enabled: true
+        k_refinement_factor: 2
+        required_spectra:
+        - TT
+        - TE
+        - EE
+        relative_tolerances:
+          TT: 1.0e-2
+          TE: 2.0e-2
+          EE: 1.0e-2
+        fail_on_nonconvergence: true
       runtime_envelope: bounded
     variables: {}
     derived: {}
@@ -295,19 +327,26 @@ cmb:
       k_max: 0.3
       k_sample_count: 64
       eta_sample_count: 192
+      evolution_eta_sample_count: 192
+      evolution_phase_step: 2.0
       ode_rtol: 1.0e-05
       ode_atol: 1.0e-08
-      tight_coupling_ratio: 80.0
+      tight_coupling_ratio: 1600.0
+      tight_coupling_exit_ratio: 0.1
       a_min: 1.0e-06
       source_grid_multiplier: 2
       initial_redshift: 2.0e4
-      massive_neutrino_hierarchy_l_max: 5
+      photon_hierarchy_l_max: 10
+      photon_polarization_hierarchy_l_max: 10
+      neutrino_hierarchy_l_max: 8
+      massive_neutrino_hierarchy_l_max: 8
+      lensing_sampling_factor: 1.4
       momentum_grids:
         massive_neutrino_default:
-          count: 8
+          count: 16
           q_min: 0.05
           q_max: 18.0
-          mass_parameter: sum_mnu
+          mass_parameter: 0.06
     validity:
       regimes:
       - linear

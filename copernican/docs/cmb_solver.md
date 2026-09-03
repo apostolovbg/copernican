@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-03
 **Project Version:** 12.0.26
 
 ## Overview
@@ -173,10 +173,20 @@ Contracts that set `require_phase_resolution` reject a capped ladder before
 evolution, while bounded diagnostic fixtures may retain the explicit
 under-resolved status for evidence.
 
-Irregular phase-aware k ladders use a positive composite trapezoid rule in
-log-k. Simpson integration is retained only for a genuinely uniform
-logarithmic ladder; this prevents generalized Simpson weights from creating
-negative lobes between sparsely sampled Bessel phases. Fixed-point reports
+The fixed Planck-reference declaration maps its 0.06 eV neutrino mass to
+`omnuh2` and subtracts that contribution from `omch2`. The generated mixed
+hierarchy uses the residual massless-neutrino density for its massless source
+terms, while pure-massless LCDM contracts retain the full `Omega_nu0` weight.
+This bookkeeping prevents a massive species from being counted in both the
+massless and massive perturbation sources.
+Pipeline summaries retain typed CMB failures, and CMB plot infoboxes expose
+the failure category and message instead of silently rendering a data-only
+theory panel.
+
+Phase-aware k ladders use generalized Simpson integration on their actual
+log-k coordinates, retaining physical anchors while removing the first-order
+bias of a trapezoid rule. Material negative auto-spectrum lobes still fall
+back to the positive trapezoid rule. Fixed-point reports
 also include acoustic evidence: ordered TT peaks and troughs, the damping
 tail, TE sign changes, and EE peak locations. These metrics are computed from
 raw public arrays before plotting, and an incomplete or unresolved feature is

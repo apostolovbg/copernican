@@ -10,7 +10,7 @@ import math
 import os
 import textwrap
 import tkinter
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import matplotlib.pyplot as plt
 import numpy
@@ -1018,6 +1018,16 @@ def format_model_summary_text(
         lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
         chi2_cmb = kwargs.get("chi2_cmb", numpy.nan)
         lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
+        failure = kwargs.get("cmb_failure")
+        if failure:
+            if isinstance(failure, Mapping):
+                category = str(failure.get("category", "cmb_failure"))
+                message = str(failure.get("message", ""))
+            else:
+                category = "cmb_failure"
+                message = str(failure)
+            lines.append(r"$\mathbf{CMB\ Execution\ Failure:}$")
+            lines.append(f"  {category}: {message}")
         if "chi2_total" in kwargs:
             chi2_tot = kwargs.get("chi2_total", numpy.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))

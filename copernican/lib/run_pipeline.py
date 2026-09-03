@@ -16,6 +16,7 @@ from copernican.lib.cmb_output import (
     observed_cmb_spectrum_names,
 )
 from copernican.lib.likelihoods import compute_cmb_spectrum_cached
+from copernican.lib.likelihoods.cmb.errors import CMBError
 from copernican.lib.likelihoods.cmb.solvers.registry import resolve_cmb_solver
 from copernican.lib.model_selection import ComparisonRequest
 
@@ -485,6 +486,7 @@ def execute_run_pipeline(
             ),
             "theory_spectrum": None,
             "spectrum_metadata": {},
+            "cmb_failure": None,
         }
         if not _component_enabled(fit_results, "cmb"):
             return summary
@@ -516,6 +518,16 @@ def execute_run_pipeline(
                 spectra=components,
                 solver=selected_cmb_solver,
             )
+        except CMBError as exc:
+            failure = exc.diagnostic()
+            summary["cmb_failure"] = failure
+            logger.error(
+                "%s failed to compute CMB spectrum (%s): %s",
+                model_plugin.MODEL_NAME,
+                failure.get("category", "cmb_failure"),
+                failure.get("message", str(exc)),
+            )
+            return summary
         except (
             AttributeError,
             ImportError,
@@ -524,6 +536,10 @@ def execute_run_pipeline(
             TypeError,
             ValueError,
         ) as exc:
+            summary["cmb_failure"] = {
+                "category": "implementation_failure",
+                "message": str(exc),
+            }
             logger.warning(
                 "%s failed to compute CMB spectrum: %s",
                 model_plugin.MODEL_NAME,

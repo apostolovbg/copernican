@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-02
+**Last Updated:** 2026-09-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -237,12 +237,21 @@ plot-only acceptance, and omitted declared spectra while re-running contract
 and source-graph audits. `build_final_cmb_certification_report()` can retain
 the full-observable matrix, repository-integrity record, and independently
 captured BAO baseline/isolation comparison in one deterministic digest.
-The final LambdaCDM declaration uses 2048 k, eta, and evolution nodes. CCMBS
-keeps the generated hierarchy history at the declared LOS phase resolution so
+The final LambdaCDM declaration keeps one fixed phase-aware production
+surface for k, eta, and evolution. CCMBS keeps the generated hierarchy
+history at the declared LOS phase resolution so
 acoustic sources are not aliased by sparse-history interpolation. Joint MCMC
 evaluation may defer the doubled-grid comparison, but it cannot bypass the
 declared final phase-grid floor; a low-node smoke path is restricted to the
 explicit diagnostic matrix.
+The fixed Planck-reference declaration maps its 0.06 eV neutrino mass to
+`omnuh2` and subtracts that contribution from `omch2`; the generated mixed
+hierarchy weights the residual massless-neutrino source by its own density.
+This keeps massive and massless radiation from being counted twice while
+leaving pure-massless LCDM contracts on their original `Omega_nu0` path.
+Pipeline summaries now retain typed CMB failures, and CMB plot infoboxes show
+the failure category and message when a theory cannot be computed; a failed
+theory is never silently reduced to an unlabeled data-only panel.
 Source histories are cached independently from complete spectra only when
 their structural contract, parameter identity, solver, source grid, and
 requested source roles match exactly. Runtime envelopes report source-cache
@@ -250,9 +259,10 @@ hits and misses, while the phase-aware k status records the physical node
 requirement and whether the bounded grid resolves it. A contract may require
 that phase check explicitly; an under-resolved grid is then rejected with its
 metrics instead of being presented as converged.
-Irregular phase-aware k ladders use positive composite-trapezoid weights in
-log-k; Simpson weights are reserved for uniform ladders so sparse Bessel
-phases cannot create negative lobes or alternating aliases. Fixed-point
+Phase-aware k ladders use generalized Simpson integration on their actual
+log-k coordinates, retaining physical anchors while removing the first-order
+bias of a trapezoid rule. Material negative auto-spectrum lobes still fall
+back to the positive trapezoid rule. Fixed-point
 diagnostics also record ordered TT peaks and troughs, damping, TE sign
 changes, and EE peaks directly from raw arrays before plotting.
 The generated scalar hierarchy uses the standard `Pi = Theta_gamma,2 +
