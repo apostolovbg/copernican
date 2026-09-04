@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-03
+**Last Updated:** 2026-09-04
 **Project Version:** 12.0.26
 
 ## Overview
@@ -189,6 +189,16 @@ The declarations also identify dark energy as a smooth background species
 with unit sound speed and zero anisotropic stress. The runtime checks the
 declared density and pressure factors against the analytic EoS on every
 background grid before using the expansion history.
+QAUC and QRSF expose their modified backgrounds through the same explicit
+route: QAUC normalizes its oscillatory attractor envelope at `a=1`, while
+QRSF normalizes baryon locking and relational release together. QRSF's
+matter-density, matter-momentum, and baryon-Euler source closures remain
+theory-specific, with no generic LCDM substitution.
+TOG exposes a present-normalized volume-activation factor and the same
+q-resolved neutrino split used by the declared hierarchy. TORG exposes its
+present-normalized baryon-locked matter and temporal-response factors, keeps
+residual radiation separate from massless and massive neutrinos, and retains
+its explicit baryon density, momentum, and Euler source closures.
 Pipeline summaries retain typed CMB failures, and CMB plot infoboxes expose
 the failure category and message instead of silently rendering a data-only
 theory panel.
@@ -308,10 +318,12 @@ The bundled ontology is explicit at the model boundary:
 * LambdaCDM+Mnu and the Planck reference add a q-resolved massive-neutrino
   family.
 * wCDM, w0waCDM, QAUC, and TOG retain their declared cold-matter and neutrino
-  species while replacing only their theory-specific background expansion.
+  species while replacing only their theory-specific background expansion;
+  QAUC also declares its smooth attractor dark-energy component.
 * QRSF and TORG declare photons, baryons, and neutrinos without a CDM species.
-  Their named matter-density, matter-momentum, and baryon-Euler closures
-  provide baryon-locked relational sources.
+  QRSF declares its smooth relational-release component, while the named
+  matter-density, matter-momentum, and baryon-Euler closures provide its
+  baryon-locked relational sources.
 * USMF2 declares photons, baryons, and massless neutrinos plus one explicit
   shrink-field scalar degree of freedom. Its sourced equations, constraints,
   initial family, projections, and observables execute through the declared

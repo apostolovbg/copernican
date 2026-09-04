@@ -598,6 +598,231 @@ def _audit_declared_dark_energy_background(
     }
 
 
+def _audit_modified_model_background(
+    context: Mapping[str, Any],
+    *,
+    scale_factor: Any,
+) -> dict[str, Any]:
+    """Validate explicit modified-model background contracts.
+
+    Modified models must expose their own normalized background terms to the
+    CCMBS runtime.  This audit deliberately keys off those declarations
+    rather than model names, so a future model can opt into the same checks
+    without being routed through a LambdaCDM surrogate.
+    """
+
+    a_values = numpy.asarray(scale_factor, dtype=float)
+    if a_values.ndim != 1 or a_values.size == 0:
+        raise ValueError("Modified-model scale-factor grid is invalid")
+    audit: dict[str, Any] = {}
+
+    if (
+        "qauc_dark_energy_factor" in context
+        or "qauc_attractor_envelope" in context
+    ):
+        if (
+            "qauc_dark_energy_factor" not in context
+            or "qauc_attractor_envelope" not in context
+        ):
+            raise ValueError("QAUC background must declare both factors")
+        factor = numpy.asarray(
+            context.get("qauc_dark_energy_factor"),
+            dtype=float,
+        )
+        envelope = numpy.asarray(
+            context.get("qauc_attractor_envelope"),
+            dtype=float,
+        )
+        if factor.ndim == 0 or envelope.ndim == 0:
+            raise ValueError("QAUC background factors must be grid histories")
+        if factor.shape != a_values.shape or envelope.shape != a_values.shape:
+            raise ValueError("QAUC background factors have invalid shapes")
+        if (
+            not numpy.all(numpy.isfinite(factor))
+            or not numpy.all(numpy.isfinite(envelope))
+            or numpy.any(factor <= 0.0)
+            or numpy.any(envelope <= 0.0)
+        ):
+            raise ValueError(
+                "QAUC background factors must be finite and positive"
+            )
+        present_index = int(numpy.argmax(a_values))
+        factor_at_present = float(factor[present_index])
+        if abs(factor_at_present - 1.0) > 1.0e-10:
+            raise ValueError(
+                "QAUC dark-energy factor is not present-normalized"
+            )
+        expected_factor = envelope / envelope[present_index]
+        relative_error = numpy.abs(factor - expected_factor) / numpy.maximum(
+            numpy.abs(expected_factor),
+            1.0e-300,
+        )
+        if float(numpy.max(relative_error)) > 1.0e-10:
+            raise ValueError(
+                "QAUC dark-energy factor is inconsistently normalized"
+            )
+        eos = context.get("qauc_attractor_eos")
+        if eos is not None:
+            eos_array = numpy.asarray(eos, dtype=float)
+            if eos_array.shape != a_values.shape or not numpy.all(
+                numpy.isfinite(eos_array)
+            ):
+                raise ValueError("QAUC attractor EoS history is invalid")
+        audit["qauc"] = {
+            "normalization": "present_attractor",
+            "factor_at_present": factor_at_present,
+            "factor_max_relative_error": float(numpy.max(relative_error)),
+            "factor_min": float(numpy.min(factor)),
+            "factor_max": float(numpy.max(factor)),
+        }
+
+    if (
+        "qrsf_background_normalization" in context
+        or "qrsf_density_normalization" in context
+    ):
+        if (
+            "qrsf_background_normalization" not in context
+            or "qrsf_density_normalization" not in context
+        ):
+            raise ValueError(
+                "QRSF background must declare both normalizations"
+            )
+        normalization = float(
+            numpy.asarray(
+                context.get("qrsf_background_normalization"),
+                dtype=float,
+            ).reshape(-1)[0]
+        )
+        density_normalization = float(
+            numpy.asarray(
+                context.get("qrsf_density_normalization"),
+                dtype=float,
+            ).reshape(-1)[0]
+        )
+        if (
+            not numpy.isfinite(normalization)
+            or not numpy.isfinite(density_normalization)
+            or normalization <= 0.0
+            or density_normalization <= 0.0
+        ):
+            raise ValueError("QRSF background normalizations must be positive")
+        normalization_error = abs(normalization * density_normalization - 1.0)
+        if normalization_error > 1.0e-10:
+            raise ValueError("QRSF density normalization is not reciprocal")
+        histories: dict[str, numpy.ndarray] = {}
+        for name in ("qrsf_matter_factor", "qrsf_rel_factor"):
+            if name not in context:
+                raise ValueError(f"QRSF background is missing {name}")
+            history = numpy.asarray(context[name], dtype=float)
+            if history.ndim == 0:
+                history = numpy.full(a_values.shape, float(history))
+            if (
+                history.shape != a_values.shape
+                or not numpy.all(numpy.isfinite(history))
+                or numpy.any(history <= 0.0)
+            ):
+                raise ValueError(f"QRSF {name} history is invalid")
+            histories[name] = history
+        today_factor = context.get("qrsf_matter_factor_today")
+        if today_factor is not None:
+            today_value = float(
+                numpy.asarray(today_factor, dtype=float).reshape(-1)[0]
+            )
+            if (
+                abs(today_value - histories["qrsf_matter_factor"][-1])
+                > 1.0e-10
+            ):
+                raise ValueError("QRSF present matter factor is inconsistent")
+        omega_rel0 = context.get("Omega_rel0")
+        omega_de0 = context.get("Omega_de0")
+        if omega_rel0 is not None and omega_de0 is not None:
+            expected_de = float(omega_rel0) * density_normalization
+            if abs(float(omega_de0) - expected_de) > 1.0e-10 * max(
+                abs(expected_de),
+                1.0,
+            ):
+                raise ValueError("QRSF relational density is not normalized")
+        audit["qrsf"] = {
+            "normalization": "present_density_sum",
+            "background_normalization": normalization,
+            "density_normalization": density_normalization,
+            "matter_factor_min": float(
+                numpy.min(histories["qrsf_matter_factor"])
+            ),
+            "matter_factor_max": float(
+                numpy.max(histories["qrsf_matter_factor"])
+            ),
+            "rel_factor_min": float(numpy.min(histories["qrsf_rel_factor"])),
+            "rel_factor_max": float(numpy.max(histories["qrsf_rel_factor"])),
+        }
+
+    if "tog_temporal_factor" in context:
+        temporal_factor = numpy.asarray(
+            context["tog_temporal_factor"],
+            dtype=float,
+        )
+        if (
+            temporal_factor.shape != a_values.shape
+            or not numpy.all(numpy.isfinite(temporal_factor))
+            or numpy.any(temporal_factor < 0.0)
+        ):
+            raise ValueError("TOG temporal factor history is invalid")
+        present_index = int(numpy.argmax(a_values))
+        if abs(float(temporal_factor[present_index]) - 1.0) > 1.0e-10:
+            raise ValueError("TOG temporal factor is not present-normalized")
+        audit["tog"] = {
+            "normalization": "present_temporal_activation",
+            "factor_at_present": float(temporal_factor[present_index]),
+            "factor_min": float(numpy.min(temporal_factor)),
+            "factor_max": float(numpy.max(temporal_factor)),
+        }
+
+    if "torg_matter_factor" in context or "torg_dark_factor" in context:
+        if (
+            "torg_matter_factor" not in context
+            or "torg_dark_factor" not in context
+        ):
+            raise ValueError("TORG background must declare both factors")
+        matter_factor = numpy.asarray(
+            context["torg_matter_factor"],
+            dtype=float,
+        )
+        dark_factor = numpy.asarray(context["torg_dark_factor"], dtype=float)
+        if (
+            matter_factor.shape != a_values.shape
+            or dark_factor.shape != a_values.shape
+            or not numpy.all(numpy.isfinite(matter_factor))
+            or not numpy.all(numpy.isfinite(dark_factor))
+            or numpy.any(matter_factor <= 0.0)
+            or numpy.any(dark_factor < 0.0)
+        ):
+            raise ValueError("TORG response histories are invalid")
+        present_index = int(numpy.argmax(a_values))
+        matter_today = context.get("torg_matter_factor_today")
+        if matter_today is not None:
+            matter_today_value = float(
+                numpy.asarray(matter_today, dtype=float).reshape(-1)[0]
+            )
+            if (
+                abs(matter_today_value - matter_factor[present_index])
+                > 1.0e-10
+            ):
+                raise ValueError("TORG present matter factor is inconsistent")
+        if abs(float(dark_factor[present_index]) - 1.0) > 1.0e-10:
+            raise ValueError("TORG dark factor is not present-normalized")
+        audit["torg"] = {
+            "normalization": "present_relational_response",
+            "matter_factor_at_present": float(matter_factor[present_index]),
+            "dark_factor_at_present": float(dark_factor[present_index]),
+            "matter_factor_min": float(numpy.min(matter_factor)),
+            "matter_factor_max": float(numpy.max(matter_factor)),
+            "dark_factor_min": float(numpy.min(dark_factor)),
+            "dark_factor_max": float(numpy.max(dark_factor)),
+        }
+
+    return audit
+
+
 def _get_declared_reionization_section(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
@@ -976,6 +1201,7 @@ class _CustomCMBBackgroundData:
     sound_speed_of_eta: PchipInterpolator
     baryon_sound_speed_sq_of_eta: PchipInterpolator
     dark_energy_audit: Mapping[str, Any] = field(default_factory=dict)
+    modified_background_audit: Mapping[str, Any] = field(default_factory=dict)
 
     def sample(
         self, eta_values: numpy.ndarray | float
@@ -2814,6 +3040,10 @@ def _build_custom_cmb_background(
         background_grid_context,
         scale_factor=a_grid,
     )
+    modified_background_audit = _audit_modified_model_background(
+        background_grid_context,
+        scale_factor=a_grid,
+    )
 
     def _coerce_background_history(
         *,
@@ -4080,6 +4310,7 @@ def _build_custom_cmb_background(
         sound_speed_of_eta=sound_speed_of_eta,
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
         dark_energy_audit=dark_energy_audit,
+        modified_background_audit=modified_background_audit,
     )
     cache.set_cmb_background(cache_key, background_data)
     return _get_cached_custom_cmb_background(cache_key)

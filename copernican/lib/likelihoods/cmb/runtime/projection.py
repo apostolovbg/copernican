@@ -10106,6 +10106,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         runtime_envelope["dark_energy_background"] = dict(
             background.dark_energy_audit
         )
+    if background.modified_background_audit:
+        runtime_envelope["modified_model_background"] = dict(
+            background.modified_background_audit
+        )
     runtime_envelope["scalar_constraint_projection"] = {
         "method": "source_history_coupled_einstein_reconstruction",
         "mode_count": int(scalar_constraint_projection_count),

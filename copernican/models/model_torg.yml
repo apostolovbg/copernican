@@ -1108,15 +1108,45 @@ cmb:
       Omega_b0: ombh2 / (h * h)
       Omega_gamma0: 2.469e-5 * ((Tcmb_K / 2.7255) ** 4) / (h * h)
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
-      Omega_r0: Or0
-      Omega_m0: Omega_b0
+      effective_massive_neutrino_species: 0.5 * (Neff
+        + num_massive_neutrinos - abs(Neff - num_massive_neutrinos))
+      Omega_nu_massless0: Omega_nu0 * (Neff
+        - effective_massive_neutrino_species) / Neff
+      massive_neutrino_mass_eV: sum_mnu / (num_massive_neutrinos + 1.0e-30)
+      massive_neutrino_transition_a: (3.151 * ((4.0 / 11.0) ** (1.0 / 3.0))
+        * 8.617333262145e-5 * Tcmb_K) / (massive_neutrino_mass_eV + 1.0e-30)
+      Omega_nu_massive_rel0: Omega_nu0 * effective_massive_neutrino_species
+        / Neff
+      Omega_nu_massive_nr0: sum_mnu / (93.14 * h * h)
+        * effective_massive_neutrino_species
+        / (num_massive_neutrinos + 1.0e-30)
+      Omega_nu_massive0: Omega_nu_massive_nr0
+        + (Omega_nu_massive_rel0 - Omega_nu_massive_nr0)
+        * exp(-massive_neutrino_mass_eV / 1.0e-4)
+      Omega_rel0: 0.5 * (Or0 - Omega_gamma0 - Omega_nu0
+        + abs(Or0 - Omega_gamma0 - Omega_nu0))
+      Omega_r0: Omega_gamma0 + Omega_rel0 + Omega_nu_massless0
+        + Omega_nu_massive_rel0
+      Omega_m0: Omega_b0 * torg_matter_factor_today + Omega_nu_massive0
       torg_z_a: 1.0 / a
       torg_transition: 1.0 / (1.0 + (torg_z_a / (1.0 + zt)) ** beta)
       torg_transition_today: 1.0 / (1.0 + (1.0 / (1.0 + zt)) ** beta)
       torg_matter_factor: 1.0 + Xr0 * torg_transition * a ** gamma_r / torg_transition_today
       torg_dark_factor: torg_transition * a ** gamma_r / torg_transition_today
-      H: H0 * sqrt(Or0 / (a ** 4) + Ob0 / (a ** 3) * torg_matter_factor + torg_dark_factor
-        * (1 - Or0 - Ob0 * (1 + Xr0)))
+      torg_matter_factor_today: 1.0 + Xr0
+      torg_radiation_factor: Omega_gamma0 + Omega_rel0 + Omega_nu_massless0
+      torg_massive_neutrino_ratio: sqrt(a * a
+        + massive_neutrino_transition_a * massive_neutrino_transition_a)
+        / (sqrt(1.0 + massive_neutrino_transition_a
+        * massive_neutrino_transition_a) * (a ** 4))
+      torg_baryon_density: Omega_b0 * torg_matter_factor
+      Omega_de0: 1.0 - Omega_gamma0 - Omega_rel0 - Omega_nu_massless0
+        - Omega_nu_massive0 - Omega_b0 * torg_matter_factor_today
+        - Omega_k0
+      H: H0 * sqrt(torg_radiation_factor / (a ** 4)
+        + Omega_nu_massive0 * torg_massive_neutrino_ratio
+        + torg_baryon_density / (a ** 3)
+        + Omega_k0 / (a ** 2) + Omega_de0 * torg_dark_factor)
     reionization:
       calibration:
         symbol: reionization_log10_amplitude

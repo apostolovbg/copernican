@@ -910,12 +910,14 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "model_qauc.yml": {
                 "baryon",
                 "cdm",
+                "dark_energy",
                 "massless_neutrino",
                 "massive_neutrino",
                 "photon",
             },
             "model_qrsf.yml": {
                 "baryon",
+                "dark_energy",
                 "massless_neutrino",
                 "massive_neutrino",
                 "photon",
@@ -1916,6 +1918,256 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     1.0,
                     places=12,
                 )
+
+    def test_qauc_qrsf_backgrounds_close_at_present(self) -> None:
+        """Modified backgrounds stay normalized and neutrino-consistent."""
+
+        scale_factors = numpy.asarray((1.0e-3, 1.0e-2, 0.1, 1.0))
+        for model_name in ("model_qauc.yml", "model_qrsf.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                runtime = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                context = cmb_background._resolve_declared_background_context(
+                    runtime,
+                    a_values=scale_factors,
+                    z_values=1.0 / scale_factors - 1.0,
+                )
+                self.assertTrue(numpy.all(numpy.isfinite(context["H"])))
+                self.assertTrue(numpy.all(context["H"] > 0.0))
+                self.assertAlmostEqual(
+                    float(context["H"][-1]),
+                    float(plugin.INITIAL_GUESSES[0]),
+                    places=10,
+                )
+                self.assertAlmostEqual(
+                    float(
+                        context["Omega_nu_massless0"]
+                        + context["Omega_nu_massive_rel0"]
+                    ),
+                    float(context["Omega_nu0"]),
+                    places=15,
+                )
+                audit = cmb_background._audit_modified_model_background(
+                    context,
+                    scale_factor=scale_factors,
+                )
+                self.assertIn(
+                    "qauc" if model_name == "model_qauc.yml" else "qrsf",
+                    audit,
+                )
+                if model_name == "model_qauc.yml":
+                    self.assertAlmostEqual(
+                        float(context["qauc_dark_energy_factor"][-1]),
+                        1.0,
+                        places=12,
+                    )
+                    present_total = (
+                        context["Omega_b0"]
+                        + context["Omega_c0"]
+                        + context["Omega_nu_massive0"]
+                        + context["Omega_gamma0"]
+                        + context["Omega_nu_massless0"]
+                        + context["Omega_de0"]
+                        + context["Omega_k0"]
+                    )
+                    self.assertAlmostEqual(
+                        float(present_total),
+                        1.0,
+                        places=12,
+                    )
+                else:
+                    self.assertTrue(
+                        numpy.all(
+                            context["qrsf_matter_factor"] > 0.0
+                        )
+                    )
+                    self.assertGreater(
+                        float(context["qrsf_background_normalization"]),
+                        0.0,
+                    )
+                    self.assertAlmostEqual(
+                        float(context["Omega_de0"]),
+                        float(
+                            context["Omega_rel0"]
+                            * context["qrsf_density_normalization"]
+                        ),
+                        places=12,
+                    )
+
+    def test_qauc_qrsf_parameter_responses_are_not_lcdm_surrogates(
+        self,
+    ) -> None:
+        """Modified-theory controls change their declared H(a) histories."""
+
+        scale_factors = numpy.asarray((1.0e-3, 0.01, 0.1, 1.0))
+        for model_name, parameter_index, delta in (
+            ("model_qauc.yml", 7, 0.1),
+            ("model_qrsf.yml", 5, 0.2),
+        ):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                baseline_runtime = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                baseline = cmb_background._resolve_declared_background_context(
+                    baseline_runtime,
+                    a_values=scale_factors,
+                    z_values=1.0 / scale_factors - 1.0,
+                )
+                changed = list(plugin.INITIAL_GUESSES)
+                changed[parameter_index] += delta
+                changed_runtime = plugin.get_cmb_declared_runtime(
+                    tuple(changed)
+                )
+                response = cmb_background._resolve_declared_background_context(
+                    changed_runtime,
+                    a_values=scale_factors,
+                    z_values=1.0 / scale_factors - 1.0,
+                )
+                self.assertFalse(
+                    numpy.allclose(
+                        baseline["H"],
+                        response["H"],
+                        rtol=1.0e-12,
+                        atol=1.0e-8,
+                    )
+                )
+
+    def test_qauc_qrsf_emit_finite_declared_surfaces(self) -> None:
+        """QAUC and QRSF routes emit every declared scalar surface."""
+
+        ell_grid = numpy.asarray([2, 5, 10, 20], dtype=int)
+        expected = {"TT", "TE", "EE", "BB", "PP", "TP", "EP"}
+        for model_name in ("model_qauc.yml", "model_qrsf.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                spectra = cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    plugin.INITIAL_GUESSES,
+                    ell_grid,
+                    spectra=tuple(sorted(expected)),
+                )
+                self.assertEqual(set(spectra), expected)
+                for values in spectra.values():
+                    self.assertEqual(values.shape, ell_grid.shape)
+                    self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_tog_torg_backgrounds_close_at_present(self) -> None:
+        """TOG and TORG preserve their relational present-day closures."""
+
+        scale_factors = numpy.asarray((1.0e-3, 1.0e-2, 0.1, 1.0))
+        for model_name in ("model_tog.yml", "model_torg.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                runtime = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                context = cmb_background._resolve_declared_background_context(
+                    runtime,
+                    a_values=scale_factors,
+                    z_values=1.0 / scale_factors - 1.0,
+                )
+                self.assertTrue(numpy.all(numpy.isfinite(context["H"])))
+                self.assertTrue(numpy.all(context["H"] > 0.0))
+                self.assertAlmostEqual(
+                    float(context["H"][-1]),
+                    float(plugin.INITIAL_GUESSES[0]),
+                    places=10,
+                )
+                self.assertAlmostEqual(
+                    float(
+                        context["Omega_nu_massless0"]
+                        + context["Omega_nu_massive_rel0"]
+                    ),
+                    float(context["Omega_nu0"]),
+                    places=15,
+                )
+                audit = cmb_background._audit_modified_model_background(
+                    context,
+                    scale_factor=scale_factors,
+                )
+                self.assertIn(
+                    "tog" if model_name == "model_tog.yml" else "torg",
+                    audit,
+                )
+                if model_name == "model_tog.yml":
+                    present_total = (
+                        context["Omega_b0"]
+                        + context["Omega_c0"]
+                        + context["Omega_nu_massive0"]
+                        + context["Omega_gamma0"]
+                        + context["Omega_nu_massless0"]
+                        + context["Omega_de0"]
+                        + context["Omega_k0"]
+                    )
+                else:
+                    present_total = (
+                        context["Omega_b0"]
+                        * context["torg_matter_factor_today"]
+                        + context["Omega_nu_massive0"]
+                        + context["Omega_gamma0"]
+                        + context["Omega_rel0"]
+                        + context["Omega_nu_massless0"]
+                        + context["Omega_de0"]
+                        + context["Omega_k0"]
+                    )
+                self.assertAlmostEqual(
+                    float(present_total),
+                    1.0,
+                    places=12,
+                )
+
+    def test_tog_torg_emit_finite_declared_surfaces(self) -> None:
+        """TOG and TORG routes emit every declared scalar surface."""
+
+        ell_grid = numpy.asarray([2, 5, 10, 20], dtype=int)
+        expected = {"TT", "TE", "EE", "BB", "PP", "TP", "EP"}
+        for model_name in ("model_tog.yml", "model_torg.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                spectra = cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    plugin.INITIAL_GUESSES,
+                    ell_grid,
+                    spectra=tuple(sorted(expected)),
+                )
+                self.assertEqual(set(spectra), expected)
+                for values in spectra.values():
+                    self.assertEqual(values.shape, ell_grid.shape)
+                    self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_tog_torg_keep_explicit_gauge_and_source_contracts(self) -> None:
+        """Relational models retain both gauge routes and source metadata."""
+
+        for model_name in ("model_tog.yml", "model_torg.yml"):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_low_resolution_dark_energy_plugin(
+                    model_name
+                )
+                perturbations = plugin.get_cmb_perturbation_data(
+                    plugin.INITIAL_GUESSES
+                )
+                scalar = perturbations.sectors["scalar"]
+                self.assertIn("conformal_newtonian", scalar.supported_gauges)
+                self.assertIn("synchronous", scalar.supported_gauges)
+                summary = perturbations.manifest_summary
+                self.assertEqual(
+                    summary["execution_route"]["solver_id"],
+                    CCMBS_ID,
+                )
+                self.assertTrue(summary["source_names"])
 
     @staticmethod
     def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):

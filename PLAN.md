@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-03
+**Last Updated:** 2026-09-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -467,7 +467,7 @@ production doubled-k convergence gate passed. The complete spectral CAMB
 parity rows are retained for the all-model matrix in Slice Seven rather than
 being duplicated here.
 
-### [planned] Slice Four — QAU and QRSF model closure
+### [closed] Slice Four — QAU and QRSF model closure
 
 **Models:** `model_qauc.yml` and `model_qrsf.yml`.
 
@@ -491,7 +491,23 @@ spectra; source and constraint residuals pass; distinct parameters produce
 distinct histories; standard-limit comparisons pass; and no equation is
 silently replaced by a generic LCDM term.
 
-### [planned] Slice Five — TOG and TORG model closure
+**Closure evidence (2026-09-04):** QAUC now normalizes its oscillatory
+attractor envelope at the present epoch, separates the fixed massive-neutrino
+component from CDM, and uses the shared q-resolved radiation and matter
+closure. QRSF now normalizes its baryon-locking and relational-release
+background at the present epoch, derives the effective matter and dark-energy
+fractions from that normalization, and scales its named matter source
+closures consistently. Both declarations explicitly expose a smooth
+dark-energy species with unit sound speed and zero anisotropic stress; no
+new hierarchy or LCDM fallback is introduced. Focused contract, background,
+standard-limit, parameter-response, and complete TT/TE/EE/BB/PP/TP/EP
+surface tests pass. At the deterministic production-shaped controls used by
+the model matrix, both routes return finite arrays for every declared
+observable and the shared doubled-k convergence gate remains active. Full
+CAMB-comparable rows are retained for the all-model parity matrix in Slice
+Seven.
+
+### [closed] Slice Five — TOG and TORG model closure
 
 **Models:** `model_tog.yml` and `model_torg.yml`.
 
@@ -513,6 +529,21 @@ metric bridges, hidden-prefix evolution, and observable sources.
 source residuals pass; all declared observables are computed; standard or
 controlled limits are continuous; and the graphs show stable resolved
 structure rather than request-dependent artifacts.
+
+**Closure evidence (2026-09-04):** TOG now separates its q-resolved
+massive-neutrino background from CDM and normalizes its volume-activated
+temporal-opposition factor at the present epoch. TORG now separates residual,
+massless, and massive radiation, normalizes its baryon-locked relational
+matter and temporal-response factors, and retains its explicit matter-density,
+matter-momentum, and baryon-Euler closures without adding a CDM species.
+The runtime background audit validates both model-specific histories and
+present-day closure. Focused gauge/source-contract, hidden-superhorizon-prefix,
+visibility-refinement, background-closure, and complete
+TT/TE/EE/BB/PP/TP/EP surface tests pass for both routes; bundled declaration,
+source-graph, and finite-TT corpus audits remain green. The low-resolution
+complete surface reports are deterministic and finite; full CAMB-comparable
+parity rows and production graph bundles remain assigned to Slice Seven and
+Slice Ten, respectively.
 
 ### [planned] Slice Six — USMF2 model closure
 

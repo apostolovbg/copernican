@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-03
+**Last Updated:** 2026-09-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,41 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-04:
+  Change: Completed Slice Five TOG and TORG model closure.
+  Why: Repaired temporal and relational background normalization while
+    preserving each theory's explicit gauge, source, and matter contracts.
+  Impact: TOG and TORG now expose finite normalized backgrounds and complete
+    declared TT, TE, EE, BB, PP, TP, and EP routes without LCDM surrogates.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-04:
+  Change: Completed Slice Four QAU and QRSF model closure.
+  Why: Repaired modified-theory background normalization and preserved their
+    explicit neutrino, relational, and source contracts.
+  Impact: QAUC and QRSF now expose finite normalized backgrounds and complete
+    declared TT, TE, EE, BB, PP, TP, and EP routes without LCDM surrogates.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  tests/copernican/lib/test_model_adapter.py
 
 - 2026-09-03:
   Change: Completed Slice Three dark-energy model closure.

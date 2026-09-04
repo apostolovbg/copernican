@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-03
+**Last Updated:** 2026-09-04
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -263,6 +263,15 @@ Both contracts declare dark energy as a smooth background component with
 unit rest-frame sound speed and zero anisotropic stress. CCMBS validates the
 analytic density and pressure factors on the full scale-factor grid before
 recombination and line-of-sight evolution.
+QAUC and QRSF likewise expose their theory-specific background terms
+explicitly: QAUC normalizes its oscillatory attractor at the present epoch,
+while QRSF normalizes its baryon-locking and relational-release sectors.
+QRSF retains its named matter-density, matter-momentum, and baryon-Euler
+closures, and neither model is routed through a generic LCDM surrogate.
+TOG normalizes its volume-activated temporal-opposition term and separates
+the q-resolved massive-neutrino background from CDM. TORG keeps its
+baryon-locked relational inertia and explicitly splits residual, massless,
+and massive radiation without introducing an independent CDM species.
 Pipeline summaries now retain typed CMB failures, and CMB plot infoboxes show
 the failure category and message when a theory cannot be computed; a failed
 theory is never silently reduced to an unlabeled data-only panel.

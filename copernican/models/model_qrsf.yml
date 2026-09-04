@@ -171,6 +171,16 @@ Hz_expression: >-
     + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
     + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
         * exp(-3 * w_rel_a * z / (1 + z))
+  ) / sqrt(
+    Omega_b * (
+      1 + xi_low
+      + (xi_high - xi_low) * (
+        (1 / (1 + z_trans))**n_trans
+        / (1 + (1 / (1 + z_trans))**n_trans)
+      )
+    )
+    + Omega_gamma * (1 + 0.2271 * Neff)
+    + Omega_rel0
   )
 equations:
   sne:
@@ -204,6 +214,16 @@ rs_expression: >-
         + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
         + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
             * exp(-3 * w_rel_a * z / (1 + z))
+      ) / sqrt(
+        Omega_b * (
+          1 + xi_low
+          + (xi_high - xi_low) * (
+            (1 / (1 + z_trans))**n_trans
+            / (1 + (1 / (1 + z_trans))**n_trans)
+          )
+        )
+        + Omega_gamma * (1 + 0.2271 * Neff)
+        + Omega_rel0
       )
     ), (z, z_rec, oo)
   )
@@ -249,17 +269,48 @@ cmb:
       Omega_b0: ombh2 / (h * h)
       Omega_gamma0: Omega_gamma
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
-      Omega_r0: Omega_gamma0 + Omega_nu0
-      Omega_m0: Omega_b0 * (1.0 + xi_high)
       w0: w_rel0
       wa: w_rel_a
       qrsf_transition_ratio: ((1 / a) / (1 + z_trans)) ** n_trans
       qrsf_matter_factor: 1 + xi_low + (xi_high - xi_low) * qrsf_transition_ratio
         / (1 + qrsf_transition_ratio)
+      qrsf_matter_factor_today: 1 + xi_low + (xi_high - xi_low)
+        * (1 / (1 + z_trans)) ** n_trans
+        / (1 + (1 / (1 + z_trans)) ** n_trans)
       qrsf_rel_factor: (1 / a) ** (3 * (1 + w_rel0 + w_rel_a)) * exp(-3 * w_rel_a
         * (1 - a))
-      H: H0 * sqrt(Omega_b * (1 / a) ** 3 * qrsf_matter_factor + Omega_gamma * (1
-        + 0.2271 * Neff) * (1 / a) ** 4 + Omega_rel0 * qrsf_rel_factor)
+      effective_massive_neutrino_species: 0.5 * (Neff
+        + num_massive_neutrinos - abs(Neff - num_massive_neutrinos))
+      Omega_nu_massless0: Omega_nu0 * (Neff
+        - effective_massive_neutrino_species) / Neff
+      massive_neutrino_mass_eV: sum_mnu / (num_massive_neutrinos + 1.0e-30)
+      massive_neutrino_transition_a: (3.151 * ((4.0 / 11.0) ** (1.0 / 3.0))
+        * 8.617333262145e-5 * Tcmb_K) / (massive_neutrino_mass_eV + 1.0e-30)
+      Omega_nu_massive_rel0: Omega_nu0 * effective_massive_neutrino_species
+        / Neff
+      Omega_nu_massive_nr0: sum_mnu / (93.14 * h * h)
+        * effective_massive_neutrino_species
+        / (num_massive_neutrinos + 1.0e-30)
+      Omega_nu_massive0: Omega_nu_massive_nr0
+        + (Omega_nu_massive_rel0 - Omega_nu_massive_nr0)
+        * exp(-massive_neutrino_mass_eV / 1.0e-4)
+      Omega_r0: Omega_gamma0 + Omega_nu_massless0
+        + Omega_nu_massive_rel0
+      Omega_m0: Omega_b0 * qrsf_matter_factor_today
+        + Omega_nu_massive0
+      qrsf_background_normalization: Omega_b0 * qrsf_matter_factor_today
+        + Omega_gamma0 + Omega_nu_massless0 + Omega_nu_massive0 + Omega_rel0
+      Omega_de0: Omega_rel0 / qrsf_background_normalization
+      qrsf_density_normalization: 1.0 / qrsf_background_normalization
+      H: H0 * sqrt((Omega_gamma0 + Omega_nu_massless0)
+        * qrsf_density_normalization / (a ** 4)
+        + Omega_nu_massive0 * sqrt(a * a + massive_neutrino_transition_a
+        * massive_neutrino_transition_a) / (sqrt(1.0
+        + massive_neutrino_transition_a * massive_neutrino_transition_a)
+        * (a ** 4)) * qrsf_density_normalization
+        + Omega_b0 * qrsf_matter_factor * qrsf_density_normalization
+        / (a ** 3)
+        + Omega_de0 * qrsf_rel_factor)
     reionization:
       calibration:
         symbol: reionization_log10_amplitude
@@ -296,6 +347,7 @@ cmb:
         - baryon
         - massless_neutrino
         - massive_neutrino
+        - dark_energy
         hierarchy_families:
         - photon_temperature
         - photon_polarization_e
@@ -327,6 +379,13 @@ cmb:
         hierarchy_family: massive_neutrino
         background_reference: Omega_nu0
         anisotropic_stress: supported
+      dark_energy:
+        sector: scalar
+        background_reference: Omega_de0
+        equation_of_state: w_rel0 + w_rel_a * (1 - a)
+        sound_speed: '1.0'
+        anisotropic_stress: zero
+        description: Smooth relational release background; no hierarchy.
     hierarchy_families:
       photon_temperature:
         sector: scalar
@@ -403,12 +462,14 @@ cmb:
     sources:
       qrsf_matter_density:
         expression: >-
-          Omega_b0 * qrsf_matter_factor * observable_delta_b
+          Omega_b0 * qrsf_matter_factor * qrsf_density_normalization
+          * observable_delta_b
         role: matter_density
         description: QRSF baryon-locked density source with relational inertia.
       qrsf_matter_momentum:
         expression: >-
-          Omega_b0 * qrsf_matter_factor * observable_theta_b
+          Omega_b0 * qrsf_matter_factor * qrsf_density_normalization
+          * observable_theta_b
         role: matter_momentum
         description: QRSF baryon-locked momentum source with relational inertia.
       qrsf_baryon_euler:
