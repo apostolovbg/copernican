@@ -358,7 +358,12 @@ USMF2 closure choices. The `accuracy_controls.analytic_limits` entries name
 the homogeneous, no-shrink, and zero-shear limits covered by the production
 contract tests. The declared runtime also checks finite source histories,
 parameter response, declared conservation balance, and coarse-to-reference
-history agreement.
+history agreement. The USMF2 contract additionally enforces a doubled-k
+production comparison for TT, TE, EE, and PP, and records its declared
+shrinking-background normalization and radiation/matter closure in the raw
+runtime envelope. Its scalar-only scope is explicit: vector, tensor, and
+lensed requests are typed non-applicable rather than filled with another
+model's values.
 
 ## Capability Audit
 `copernican.lib.cmb_contract.audit_cmb_capabilities` is the authoritative

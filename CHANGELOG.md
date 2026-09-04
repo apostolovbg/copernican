@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-04:
+  Change: Completed Slice Six USMF2 model closure and production checks.
+  Why: Audited the shrinking background and declared every USMF2 scalar
+  observable with an enforced doubled-k convergence comparison.
+  Impact: USMF2 now records finite complete scalar spectra, explicit physical
+  closures, and fail-closed background and projection diagnostics.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/models/model_usmf2.yml
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-04:
   Change: Completed Slice Five TOG and TORG model closure.
   Why: Repaired temporal and relational background normalization while
     preserving each theory's explicit gauge, source, and matter contracts.

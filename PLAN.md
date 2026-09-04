@@ -545,7 +545,7 @@ complete surface reports are deterministic and finite; full CAMB-comparable
 parity rows and production graph bundles remain assigned to Slice Seven and
 Slice Ten, respectively.
 
-### [planned] Slice Six — USMF2 model closure
+### [closed] Slice Six — USMF2 model closure
 
 **Model:** `model_usmf2.yml`.
 
@@ -568,6 +568,20 @@ or treating its explicit graph as sufficient evidence.
 diagnostics, or it has a precise typed unavailable decision tied to an
 explicit non-CMB declaration. It may not remain unclassified, be timed
 out into unavailable, or be substituted by another model.
+
+**Closure evidence (2026-09-04):** USMF2 now declares the shared doubled-k
+production convergence rule for TT, TE, EE, and PP with fail-closed typed
+handling. Its shrinking-background audit verifies the declared H(a)
+normalization, photon-plus-neutrino radiation closure, and baryon-only matter
+closure on an independent scale-factor grid. Contract tests enumerate every
+USMF2 equation, metric constraint, hierarchy tail, collision operator, source,
+and public observable. The low-resolution independent eta refinement emits
+finite TT, TE, EE, BB, PP, TP, and EP arrays, while the production-shaped
+route records a converged base/refined k comparison and the full model emits a
+finite default TT mode. USMF2 remains explicitly scalar: vector, tensor, and
+lensed surfaces are represented as typed non-applicable declarations rather
+than fabricated values. Full CAMB parity rows and end-to-end graph bundles
+remain assigned to Slices Seven and Ten.
 
 ### [planned] Slice Seven — complete full-spectrum projection parity
 

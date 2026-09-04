@@ -3381,6 +3381,12 @@ def run_cmb_model_diagnostic(
 
     base_contract = plugin.get_cmb_declared_runtime(parameter_values)
     base = _bound_contract(base_contract, numerical_overrides)
+    if refine_wave_number_grid:
+        # This report owns the explicit base/refined comparison below.  Keep
+        # the base products available when that comparison rejects a model;
+        # otherwise the production wrapper raises before it can retain the
+        # diagnostic evidence and failure metrics.
+        base["_defer_production_scalar_convergence"] = True
     if matrix_fast_path:
         # Matrix certification uses the declared tier's physical node count
         # directly.  The production floor is an optional sampling safeguard

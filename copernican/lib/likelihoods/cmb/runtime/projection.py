@@ -1128,7 +1128,32 @@ def _build_projection_k_grid(
         0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
     )
     required_k_max = 1.5 * ((float(grid_ell_max) + 16.0) / eta_rec_distance)
+    accuracy_controls = (
+        getattr(
+            perturbation_data,
+            "accuracy_controls",
+            {},
+        )
+        or {}
+    )
     manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    refinement_factor = max(
+        1,
+        int(getattr(numerics, "k_grid_refinement_factor", 1)),
+    )
+    generated_final_hierarchy = bool(
+        manifest_summary.get("generated_scalar_hierarchy")
+        and accuracy_controls.get("accuracy_tier") == "final"
+    )
+    if refinement_factor > 1 and not generated_final_hierarchy:
+        # Explicit graphs do not use the generated final-grid floor below.
+        # Promote the requested node count before applying the minimum so a
+        # doubled production request is a real physical refinement even when
+        # both declared counts are below the eight-node safety floor.
+        sample_count = max(
+            sample_count * refinement_factor,
+            int(numerics.k_sample_count) * refinement_factor,
+        )
     if manifest_summary.get("generated_tensor_hierarchy"):
         # Tensor spin-2 kernels retain an oscillatory high-k tail beyond the
         # scalar projection envelope.  Keep that tail in the fixed node
@@ -1153,18 +1178,6 @@ def _build_projection_k_grid(
     if k_max <= k_min:
         return numpy.asarray((k_min,), dtype=float)
 
-    accuracy_controls = (
-        getattr(
-            perturbation_data,
-            "accuracy_controls",
-            {},
-        )
-        or {}
-    )
-    generated_final_hierarchy = bool(
-        manifest_summary.get("generated_scalar_hierarchy")
-        and accuracy_controls.get("accuracy_tier") == "final"
-    )
     if generated_final_hierarchy and allow_final_production_floor:
         # A 64-node ladder is adequate for contract smoke tests but cannot
         # resolve the rapidly oscillating spherical-Bessel projection at the
@@ -1177,10 +1190,6 @@ def _build_projection_k_grid(
         # 64-node base request and a 96-node refinement both collapse to the
         # same 512-node grid, so the convergence comparison does not actually
         # measure a refinement.
-        refinement_factor = max(
-            1,
-            int(getattr(numerics, "k_grid_refinement_factor", 1)),
-        )
         sample_count = max(sample_count * refinement_factor * 8, 512)
     phase_setting = accuracy_controls.get("phase_aware_k_quadrature")
     phase_aware_k_enabled = (
@@ -10395,6 +10404,9 @@ def _compute_custom_cmb_spectrum_data(
             and not contract_or_params.get(
                 "_diagnostic_matrix_fast_path", False
             )
+            and not contract_or_params.get(
+                "_defer_production_scalar_convergence", False
+            )
         )
         if production_enforced and requested is not None:
             effective_requested_spectra = tuple(
@@ -10428,9 +10440,10 @@ def _compute_custom_cmb_spectrum_data(
                 production_controls.k_refinement_factor
             )
             refined_contract["_numerical_overrides"] = {
-                "k_sample_count": (
-                    base_k_count * production_controls.k_refinement_factor
-                )
+                # The grid builder applies the declared refinement factor.
+                # Keep the base count here so the safety floor and the
+                # refinement factor cannot silently multiply one another.
+                "k_sample_count": base_k_count,
             }
             refined_timer = PhaseTimer()
             refinement_started = perf_counter()

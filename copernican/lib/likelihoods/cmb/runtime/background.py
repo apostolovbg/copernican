@@ -820,6 +820,109 @@ def _audit_modified_model_background(
             "dark_factor_max": float(numpy.max(dark_factor)),
         }
 
+    if any(name in context for name in ("p_alpha", "k_exp", "s_exp", "H_A")):
+        required = ("H_A", "p_alpha", "k_exp", "s_exp")
+        missing = [name for name in required if name not in context]
+        if missing:
+            raise ValueError(
+                "USMF2 background is missing " + ", ".join(missing)
+            )
+        h_values = numpy.asarray(context.get("H"), dtype=float)
+        if (
+            h_values.shape != a_values.shape
+            or not numpy.all(numpy.isfinite(h_values))
+            or numpy.any(h_values <= 0.0)
+        ):
+            raise ValueError("USMF2 H history is invalid")
+        h_a = float(numpy.asarray(context["H_A"], dtype=float).reshape(-1)[0])
+        p_alpha = float(
+            numpy.asarray(context["p_alpha"], dtype=float).reshape(-1)[0]
+        )
+        k_exp = float(
+            numpy.asarray(context["k_exp"], dtype=float).reshape(-1)[0]
+        )
+        s_exp = float(
+            numpy.asarray(context["s_exp"], dtype=float).reshape(-1)[0]
+        )
+        if not all(
+            numpy.isfinite(value) for value in (h_a, p_alpha, k_exp, s_exp)
+        ):
+            raise ValueError("USMF2 background parameters are invalid")
+        expected_h = (
+            h_a
+            * (1.0 / a_values) ** (1.0 + p_alpha)
+            * numpy.exp(
+                k_exp
+                * (numpy.arctan((1.0 / a_values) ** s_exp) - numpy.pi / 4.0)
+            )
+        )
+        relative_error = numpy.abs(h_values - expected_h) / numpy.maximum(
+            numpy.abs(expected_h),
+            1.0e-300,
+        )
+        if float(numpy.max(relative_error)) > 1.0e-10:
+            raise ValueError("USMF2 H history disagrees with its declaration")
+        density_names = (
+            "Omega_gamma0",
+            "Omega_nu0",
+            "Omega_r0",
+            "Omega_b0",
+            "Omega_m0",
+        )
+        missing_densities = [
+            name for name in density_names if name not in context
+        ]
+        if missing_densities:
+            raise ValueError(
+                "USMF2 background is missing densities "
+                + ", ".join(missing_densities)
+            )
+        omega_gamma = float(
+            numpy.asarray(context["Omega_gamma0"], dtype=float).reshape(-1)[0]
+        )
+        omega_nu = float(
+            numpy.asarray(context["Omega_nu0"], dtype=float).reshape(-1)[0]
+        )
+        omega_r = float(
+            numpy.asarray(context["Omega_r0"], dtype=float).reshape(-1)[0]
+        )
+        omega_b = float(
+            numpy.asarray(context["Omega_b0"], dtype=float).reshape(-1)[0]
+        )
+        omega_m = float(
+            numpy.asarray(context["Omega_m0"], dtype=float).reshape(-1)[0]
+        )
+        density_values = (
+            omega_gamma,
+            omega_nu,
+            omega_r,
+            omega_b,
+            omega_m,
+        )
+        if not all(
+            numpy.isfinite(value) and value >= 0.0 for value in density_values
+        ):
+            raise ValueError("USMF2 density closure contains invalid values")
+        if abs(omega_r - omega_gamma - omega_nu) > 1.0e-12:
+            raise ValueError("USMF2 radiation density is not closed")
+        if abs(omega_m - omega_b) > 1.0e-12:
+            raise ValueError("USMF2 matter density is not baryon-only")
+        present_index = int(numpy.argmax(a_values))
+        if abs(float(a_values[present_index]) - 1.0) <= 1.0e-10:
+            present_error = abs(float(h_values[present_index]) - h_a)
+            if present_error > 1.0e-10 * max(abs(h_a), 1.0):
+                raise ValueError("USMF2 H history is not present-normalized")
+        audit["usmf2"] = {
+            "normalization": "declared_shrinking_background",
+            "h_present": float(h_values[present_index]),
+            "h_reference": h_a,
+            "h_max_relative_error": float(numpy.max(relative_error)),
+            "omega_r0": omega_r,
+            "omega_m0": omega_m,
+            "omega_gamma0": omega_gamma,
+            "omega_nu0": omega_nu,
+        }
+
     return audit
 
 

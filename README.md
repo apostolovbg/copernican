@@ -37,7 +37,10 @@ without a defensible perturbation closure reports CMB output as unavailable.
 USMF2 now executes through that same declared route. Its theory-specific
 shrink-field closure, sourced initial conditions, metric constraints,
 projection sources, and public observables are evaluated directly from the
-declared graph without a CAMB, CLASS, or LCDM substitution.
+declared graph without a CAMB, CLASS, or LCDM substitution. Its production
+route records a fail-closed doubled-k comparison and audits the shrinking
+background's radiation and baryon-only matter closure; unsupported vector,
+tensor, and lensed surfaces remain typed non-applicable declarations.
 
 The CMB subsystem's physical state convention, hierarchy equations, collision
 operators, gauge routes, line-of-sight sources, spectrum units, lensing
@@ -134,6 +137,9 @@ derivatives and compiler-backed source and closure expressions before runtime;
 bindings, so missing derivatives cannot become implicit zero histories. BAO
 has a fixed-background regression that deliberately breaks the CMB entrypoint
 and verifies that BAO evaluation remains usable.
+Fixed-point diagnostics retain the base raw spectra when their explicit
+doubled-k comparison rejects a model; the nested production comparison is
+deferred on that evidence path so convergence failures remain inspectable.
 Full observable parity is available through
 `compare_full_cmb_observable_parity()` and `build_cmb_parity_report()` in
 `copernican.lib.likelihoods.cmb.diagnostics`. These helpers compare raw

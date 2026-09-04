@@ -1426,6 +1426,18 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             ).manifest_summary["execution_route"]["solver_id"],
             CCMBS_ID,
         )
+        controls = plugin.get_cmb_declared_runtime(
+            plugin.INITIAL_GUESSES
+        )["perturbation_data"].accuracy_controls
+        self.assertTrue(controls["production_scalar_convergence"]["enabled"])
+        self.assertEqual(
+            tuple(
+                controls["production_scalar_convergence"][
+                    "required_spectra"
+                ]
+            ),
+            ("TT", "TE", "EE", "PP"),
+        )
 
     def test_planck_reference_separates_cdm_and_massive_neutrinos(
         self,
@@ -2170,7 +2182,12 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                 self.assertTrue(summary["source_names"])
 
     @staticmethod
-    def _build_low_resolution_usmf2_plugin(eta_sample_count: int = 32):
+    def _build_low_resolution_usmf2_plugin(
+        eta_sample_count: int = 32,
+        *,
+        k_sample_count: int = 3,
+        production_enabled: bool = False,
+    ):
         """Build USMF2 with a small deterministic grid for contract tests."""
 
         repo_root = Path(__file__).resolve().parents[3]
@@ -2186,7 +2203,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "ell_max": 20,
                     "k_min": 1.0e-4,
                     "k_max": 2.0e-2,
-                    "k_sample_count": 3,
+                    "k_sample_count": k_sample_count,
                     "eta_sample_count": eta_sample_count,
                     "source_grid_multiplier": 1,
                     "a_min": 1.0e-2,
@@ -2199,6 +2216,9 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         model_data["cmb"]["perturbations"]["accuracy_controls"][
             "minimum_k_sample_count"
         ] = 1
+        model_data["cmb"]["perturbations"]["accuracy_controls"][
+            "production_scalar_convergence"
+        ]["enabled"] = production_enabled
         with tempfile.TemporaryDirectory() as model_dir:
             model_path = Path(model_dir) / source_path.name
             model_path.write_text(
@@ -2249,6 +2269,110 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             )
         )
 
+    def test_usmf2_background_contract_is_closed(self) -> None:
+        """USMF2 keeps its declared shrinking background self-consistent."""
+
+        plugin = self._build_low_resolution_usmf2_plugin()
+        scale_factors = numpy.asarray((1.0e-4, 1.0e-3, 0.1, 1.0))
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        context = cmb_background._resolve_declared_background_context(
+            runtime,
+            a_values=scale_factors,
+            z_values=1.0 / scale_factors - 1.0,
+        )
+        audit = cmb_background._audit_modified_model_background(
+            context,
+            scale_factor=scale_factors,
+        )
+        self.assertIn("usmf2", audit)
+        self.assertLessEqual(audit["usmf2"]["h_max_relative_error"], 1.0e-10)
+        self.assertAlmostEqual(
+            float(context["Omega_r0"]),
+            float(context["Omega_gamma0"] + context["Omega_nu0"]),
+            places=15,
+        )
+        self.assertAlmostEqual(
+            float(context["Omega_m0"]),
+            float(context["Omega_b0"]),
+            places=15,
+        )
+
+    def test_usmf2_graph_exposes_physical_closures(self) -> None:
+        """USMF2 exposes every state, closure, collision, and source route."""
+
+        plugin = self._build_low_resolution_usmf2_plugin()
+        perturbation_data = plugin.get_cmb_perturbation_data(
+            plugin.INITIAL_GUESSES
+        )
+        self.assertEqual(
+            set(perturbation_data.equations),
+            {
+                "baryon_density_evolution",
+                "baryon_velocity_evolution",
+                "neutrino_density_evolution",
+                "neutrino_shear_evolution",
+                "neutrino_velocity_evolution",
+                "photon_dipole_evolution",
+                "photon_monopole_evolution",
+                "photon_quadrupole_evolution",
+                "polarization_b_mode_evolution",
+                "shrink_field_evolution",
+                "shrink_rate_evolution",
+            },
+        )
+        self.assertEqual(
+            set(perturbation_data.constraints),
+            {"shrink_metric_constraint"},
+        )
+        self.assertEqual(
+            set(perturbation_data.closures),
+            {
+                "neutrino_octopole_truncation",
+                "photon_octopole_truncation",
+                "polarization_quadrupole_closure",
+                "zero_scalar_shear",
+            },
+        )
+        self.assertEqual(
+            set(perturbation_data.collision_operators),
+            {"baryon_thomson_drag", "thomson_drag"},
+        )
+        self.assertTrue(
+            {
+                "temperature_monopole_source",
+                "temperature_doppler_source",
+                "temperature_isw_source",
+                "polarization_e_source",
+                "polarization_b_source",
+                "lensing_potential_source",
+            }.issubset(perturbation_data.sources)
+        )
+
+    def test_usmf2_production_k_refinement_is_recorded(self) -> None:
+        """USMF2 records a converged doubled-k production comparison."""
+
+        plugin = self._build_low_resolution_usmf2_plugin(
+            k_sample_count=64,
+            production_enabled=True,
+        )
+        cache.clear_cmb_caches()
+        spectrum_data = projection._compute_custom_cmb_spectrum_data(
+            plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES),
+            numpy.asarray((2, 8, 20), dtype=int),
+            requested_spectra=("TT", "TE", "EE", "PP"),
+        )
+        record = spectrum_data.runtime_envelope[
+            "production_scalar_k_convergence"
+        ]
+        self.assertTrue(record["converged"])
+        self.assertEqual(record["declared_base_count"], 64)
+        self.assertEqual(record["declared_refined_count"], 128)
+        self.assertGreater(record["refined_count"], record["base_count"])
+        self.assertEqual(
+            tuple(record["required_spectra"]),
+            ("TT", "TE", "EE", "PP"),
+        )
+
     def test_usmf2_default_declared_mode_is_finite(self) -> None:
         """The declared default history must support a finite TT mode."""
 
@@ -2273,7 +2397,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             coarse_plugin,
             coarse_plugin.INITIAL_GUESSES,
             ell_grid,
-            spectra=("TT", "TE", "EE"),
+            spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
         )
         reference_plugin = self._build_low_resolution_usmf2_plugin(
             eta_sample_count=32
@@ -2282,10 +2406,10 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             reference_plugin,
             reference_plugin.INITIAL_GUESSES,
             ell_grid,
-            spectra=("TT", "TE", "EE"),
+            spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
         )
 
-        for spectrum_name in ("TT", "TE", "EE"):
+        for spectrum_name in ("TT", "TE", "EE", "BB", "PP", "TP", "EP"):
             numpy.testing.assert_allclose(
                 coarse[spectrum_name],
                 reference[spectrum_name],

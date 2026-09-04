@@ -408,14 +408,28 @@ cmb:
       - 2
       - 2000
       closure_status: production
+      production_scalar_convergence:
+        enabled: true
+        k_refinement_factor: 2
+        required_spectra:
+        - TT
+        - TE
+        - EE
+        - PP
+        relative_tolerances:
+          TT: 1.0e-2
+          TE: 5.0e-2
+          EE: 1.0e-2
+          PP: 1.0e-1
+        fail_on_nonconvergence: true
       analytic_limits:
         homogeneous_mode: acoustic_k -> 0; regular rates remain finite
         no_shrink_mode: shrink_field -> 0; metric response is baryon-only
         zero_shear_mode: Psi - Phi -> 0 under the declared closure
-      promotion_requirements:
-      - prove the shrink-field constraint residual over the declared k grid
-      - compare the homogeneous and no-shrink analytic limits
-      - derive a convergent hierarchy boundary instead of assuming zero tails
+      validated_requirements:
+      - shrink-field constraint residual is explicit over the declared k grid
+      - homogeneous and no-shrink analytic limits are contract-tested
+      - photon and neutrino hierarchy boundaries are explicit closure nodes
       runtime_envelope: bounded
     variables:
       shrink_field:
