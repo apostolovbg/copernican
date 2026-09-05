@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-04
+**Last Updated:** 2026-09-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -124,7 +124,9 @@ their active sector identity from compiled observable and tensor-character
 metadata, so runtime envelopes cannot silently omit executed sectors.
 
 The fixed-parameter CCMBS diagnostics API is independent of samplers and
-plots. `discover_bundled_cmb_plugins()` enumerates all bundled CMB models;
+plots. `discover_bundled_cmb_model_records()` enumerates all model files and
+retains typed ready, unavailable, or rejected rows; the compatibility helper
+`discover_bundled_cmb_plugins()` returns only ready CMB models;
 `run_cmb_model_diagnostic()` captures raw transfer components, raw and public
 TT/TE/EE spectra, runtime-envelope metadata, and doubled-k-grid refinement
 errors before plotting. `run_bundled_cmb_diagnostics()` applies the same
@@ -189,6 +191,11 @@ fixed-background values and covariance handling.
 and dataset identities, fixture hashes, per-model raw evidence digests, and
 explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
 BAO values, covariance metadata, and typed failures without invoking CCMBS.
+Generated model plugins expose separate recombination and drag-epoch sound
+horizons. BAO selects `get_sound_horizon_rs_drag_Mpc()` and records its
+epoch, source, and fitted drag redshift; the CMB background continues to use
+its recombination-era visibility sound horizon. Models without the optional
+drag helper retain a typed legacy fallback for compatibility.
 Slice One records the pre-repair corpus baseline before any shared physics is
 changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and
@@ -231,6 +238,11 @@ source residuals, doubled-grid evidence, scalar/batch comparisons, and cache
 identities remain nested in each row; missing or unclassified models are never
 promoted to a passing corpus result. `write_bundled_cmb_full_matrix_report()`
 serializes the same hashable matrix without dropping any raw fields.
+`CAMB_COMPARABLE_CMB_MODEL_FILENAMES` names the five bundled declarations with
+a defensible CAMB counterpart. A reference-required row is rejected unless an
+independent fixed-point comparison is present and converged; fixtures are
+never manufactured or borrowed from another theory. Unknown reference rows
+and dropped declared observables fail validation.
 Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so

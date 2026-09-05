@@ -23,11 +23,13 @@ from ... import model_adapter, model_coder, model_spec_validator
 from ...cmb_contract import audit_cmb_capabilities
 from ...cmb_output import canonical_cmb_spectrum_name, describe_cmb_spectrum
 from .contracts_audit import (
+    _audit_plugin,
+    _audit_source_graph_plugin,
     audit_bundled_cmb_contracts,
     audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
 )
-from .errors import CMBError, ConvergenceError
+from .errors import CMBError, ConvergenceError, ModelDiscoveryError
 from .runtime import cache
 from .runtime.projection import _compute_custom_cmb_spectrum_data
 
@@ -55,16 +57,29 @@ BUNDLED_CMB_MODEL_FILENAMES = (
     "model_wcdm.yml",
 )
 
+# These declarations have a direct CAMB counterpart for the same scalar
+# background and are therefore the rows for which a supplied independent
+# fixture is mandatory in the full-observable matrix.  The remaining bundled
+# theories still require complete CCMBS evidence, but cannot be assigned a
+# CAMB parity verdict without changing their physical theory.
+CAMB_COMPARABLE_CMB_MODEL_FILENAMES = (
+    "model_lcdm.yml",
+    "model_lcdm_mnu.yml",
+    "model_ref_planck2018.yml",
+    "model_w0wa.yml",
+    "model_wcdm.yml",
+)
+
 # This is deliberately a named, reproducible request.  It is a bounded
 # evidence tier for the matrix and is never substituted for a model's
 # production numerical declaration.
 CMB_CERTIFICATION_TIER = {
-    "id": "ccmbs-slice-six-final-certification-v1",
+    "id": "ccmbs-slice-seven-full-observable-v1",
     # The first acoustic feature is near ell=200.  A certification surface
     # that stops below it can only test finiteness, not the physical acoustic
     # structure required by the matrix acceptance contract.
     "ells": tuple(range(2, 301)),
-    "spectra": _DEFAULT_SPECTRA,
+    "spectra": ("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
     "refine_wave_number_grid": True,
     "numerical_overrides": {"k_sample_count": 1024},
 }
@@ -2044,6 +2059,40 @@ def _unavailable_report(
     )
 
 
+def _discovery_report(
+    record: CMBModelDiscoveryRecord,
+    *,
+    requested_ells: tuple[int, ...],
+    requested_spectra: tuple[str, ...],
+) -> "CMBModelDiagnostic":
+    """Materialize a typed matrix row for a non-ready discovery record."""
+
+    failure = dict(record.failure or {})
+    failure.setdefault("error_type", "CMBModelDiscoveryError")
+    failure.setdefault("category", record.status)
+    failure.setdefault(
+        "message",
+        "Model was not available for CCMBS execution",
+    )
+    return CMBModelDiagnostic(
+        model_filename=record.model_filename,
+        model_name=record.model_name,
+        parameter_names=tuple(
+            str(value)
+            for value in getattr(record.plugin, "PARAMETER_NAMES", ())
+        ),
+        parameter_values=tuple(
+            float(value)
+            for value in getattr(record.plugin, "INITIAL_GUESSES", ())
+        ),
+        requested_ells=requested_ells,
+        requested_spectra=requested_spectra,
+        availability=record.status,
+        contract_identity={},
+        failure=failure,
+    )
+
+
 def _cache_identity_payload() -> dict[str, Any]:
     """Return a path-free, stable record of the latest CCMBS cache key.
 
@@ -2173,6 +2222,48 @@ class CMBModelDiagnostic:
             "scalar_batch_evidence": _jsonable(self.scalar_batch_evidence),
             "spectra": _jsonable(self.spectra),
             "success": self.success,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CMBModelDiscoveryRecord:
+    """Deterministic discovery outcome for one declarative model file.
+
+    Discovery is deliberately separate from numerical execution.  A model
+    that is disabled, malformed, or missing a generated capability therefore
+    remains visible to corpus reports instead of disappearing from the
+    plugin tuple used by legacy callers.
+    """
+
+    model_filename: str
+    model_name: str
+    status: str
+    plugin: Any | None = field(default=None, repr=False, compare=False)
+    failure: Mapping[str, Any] | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the closed discovery status vocabulary."""
+
+        status = str(self.status).lower()
+        if status not in {"ready", "unavailable", "rejected"}:
+            raise ValueError("Invalid CMB model discovery status")
+        object.__setattr__(self, "status", status)
+
+    @property
+    def ready(self) -> bool:
+        """Return whether a compiled CMB plugin is available."""
+
+        return self.status == "ready" and self.plugin is not None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return path-free, serializable discovery evidence."""
+
+        return {
+            "model_filename": self.model_filename,
+            "model_name": self.model_name,
+            "status": self.status,
+            "failure": _jsonable(self.failure),
+            "ready": self.ready,
         }
 
 
@@ -4149,7 +4240,7 @@ def build_bundled_cmb_matrix_report(
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
     declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build the strict filename-keyed scientific matrix for Slice Five."""
+    """Build the strict filename-keyed scientific matrix for Slice Seven."""
 
     return build_cmb_certification_report(
         reports,
@@ -4170,6 +4261,7 @@ def build_bundled_cmb_full_matrix_report(
     required_model_filenames: Iterable[str] = BUNDLED_CMB_MODEL_FILENAMES,
     declared_spectra_by_model: Mapping[str, Sequence[str]] | None = None,
     certification_tier: Mapping[str, Any] | None = None,
+    reference_required_models: Iterable[str] = (),
     contract_audits: Mapping[str, Mapping[str, Any]] | None = None,
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
     declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
@@ -4206,6 +4298,13 @@ def build_bundled_cmb_full_matrix_report(
         )
         for name, values in (declared_spectra_by_model or {}).items()
     }
+    reference_required = {str(name) for name in reference_required_models}
+    unknown_reference_models = sorted(reference_required - set(expected))
+    if unknown_reference_models:
+        raise ValueError(
+            "Reference-required models are not in the matrix: "
+            + ", ".join(unknown_reference_models)
+        )
     records: list[dict[str, Any]] = []
     accepted: list[str] = []
     unavailable: list[str] = []
@@ -4234,7 +4333,7 @@ def build_bundled_cmb_full_matrix_report(
             valid, evidence_issues = _matrix_evidence_status(
                 report,
                 required_spectra=declared,
-                require_reference=False,
+                require_reference=filename in reference_required,
                 contract_audit=(contract_audits or {}).get(filename),
                 source_graph_audit=(source_graph_audits or {}).get(filename),
                 declaration_audit=declaration,
@@ -4307,6 +4406,7 @@ def build_bundled_cmb_full_matrix_report(
             name: list(declared_map.get(name, ())) for name in expected
         },
         "certification_tier": _jsonable(certification_tier or {}),
+        "reference_required_models": sorted(reference_required),
         "complete": complete,
         "decision_complete": decision_complete,
         "no_unclassified_models": decision_complete,
@@ -4332,6 +4432,9 @@ def run_bundled_cmb_full_matrix(
     reference_tolerances_by_model: (
         Mapping[str, Mapping[str, float]] | None
     ) = None,
+    reference_required_models: Iterable[str] = (
+        *CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
+    ),
     execute_batch_checks: bool = True,
 ) -> dict[str, Any]:
     """Execute the full declared-observable matrix for every CMB model.
@@ -4349,13 +4452,21 @@ def run_bundled_cmb_full_matrix(
         raise ValueError("Certification tier must declare ells")
     tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
     tier_overrides.update(numerical_overrides or {})
-    plugins = discover_bundled_cmb_plugins(model_directory)
+    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    plugins = tuple(
+        record.plugin for record in discovery_records if record.ready
+    )
     default_corpus = model_directory is None
     expected = (
         BUNDLED_CMB_MODEL_FILENAMES
         if default_corpus
-        else tuple(sorted(str(plugin.MODEL_FILENAME) for plugin in plugins))
+        else tuple(
+            sorted(record.model_filename for record in discovery_records)
+        )
     )
+    required_references = set(
+        str(name) for name in reference_required_models
+    ) & set(expected)
     contract_audits = {
         audit.model_filename: audit.to_dict()
         for audit in audit_bundled_cmb_contracts(model_directory)
@@ -4368,11 +4479,34 @@ def run_bundled_cmb_full_matrix(
         decision.model_filename: decision.to_dict()
         for decision in audit_bundled_cmb_declarations(model_directory)
     }
+    for record in discovery_records:
+        if record.status == "unavailable":
+            declaration_audits.setdefault(
+                record.model_filename,
+                {
+                    "model_filename": record.model_filename,
+                    "model_name": record.model_name,
+                    "decision": "unavailable",
+                    "valid": True,
+                    "issues": [],
+                },
+            )
     declared_map = {
         str(plugin.MODEL_FILENAME): declared_cmb_spectrum_names(plugin)
         for plugin in plugins
     }
+    for record in discovery_records:
+        declared_map.setdefault(record.model_filename, ())
     reports: list[CMBModelDiagnostic] = []
+    reports.extend(
+        _discovery_report(
+            record,
+            requested_ells=requested_ells,
+            requested_spectra=declared_map.get(record.model_filename, ()),
+        )
+        for record in discovery_records
+        if not record.ready
+    )
     for plugin in plugins:
         filename = str(plugin.MODEL_FILENAME)
         requested_spectra = declared_map.get(filename, ())
@@ -4473,6 +4607,10 @@ def run_bundled_cmb_full_matrix(
         required_model_filenames=expected,
         declared_spectra_by_model=declared_map,
         certification_tier=tier,
+        reference_required_models=(
+            required_references
+            | set((reference_spectra_by_model or {}).keys())
+        ),
         contract_audits=contract_audits,
         source_graph_audits=source_graph_audits,
         declaration_audits=declaration_audits,
@@ -4556,12 +4694,17 @@ def run_bundled_cmb_matrix(
         raise ValueError("Certification tier must declare ells and spectra")
     tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
     tier_overrides.update(numerical_overrides or {})
-    plugins = discover_bundled_cmb_plugins(model_directory)
+    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    plugins = tuple(
+        record.plugin for record in discovery_records if record.ready
+    )
     default_corpus = model_directory is None
     expected = (
         BUNDLED_CMB_MODEL_FILENAMES
         if default_corpus
-        else tuple(sorted(str(plugin.MODEL_FILENAME) for plugin in plugins))
+        else tuple(
+            sorted(record.model_filename for record in discovery_records)
+        )
     )
     contract_audits = {
         audit.model_filename: audit.to_dict()
@@ -4575,7 +4718,34 @@ def run_bundled_cmb_matrix(
         decision.model_filename: decision.to_dict()
         for decision in audit_bundled_cmb_declarations(model_directory)
     }
+    for record in discovery_records:
+        if record.status == "unavailable":
+            declaration_audits.setdefault(
+                record.model_filename,
+                {
+                    "model_filename": record.model_filename,
+                    "model_name": record.model_name,
+                    "decision": "unavailable",
+                    "valid": True,
+                    "issues": [],
+                },
+            )
+    declared_map = {
+        str(plugin.MODEL_FILENAME): declared_cmb_spectrum_names(plugin)
+        for plugin in plugins
+    }
+    for record in discovery_records:
+        declared_map.setdefault(record.model_filename, ())
     reports: list[CMBModelDiagnostic] = []
+    reports.extend(
+        _discovery_report(
+            record,
+            requested_ells=requested_ells,
+            requested_spectra=requested_spectra,
+        )
+        for record in discovery_records
+        if not record.ready
+    )
     for plugin in plugins:
         filename = str(plugin.MODEL_FILENAME)
         try:
@@ -4653,27 +4823,126 @@ def run_bundled_cmb_matrix(
     )
 
 
-def discover_bundled_cmb_plugins(
+def discover_bundled_cmb_model_records(
     model_directory: str | Path | None = None,
-) -> tuple[Any, ...]:
-    """Build every bundled model plugin whose contract enables CMB support."""
+) -> tuple[CMBModelDiscoveryRecord, ...]:
+    """Discover every model file without silently dropping failures.
+
+    Validation and code generation are performed once per file.  A disabled
+    model is recorded as ``unavailable`` and a malformed or unsupported file
+    as ``rejected``.  The failure payload intentionally contains no absolute
+    path so reports remain reproducible across machines.
+    """
 
     package_root = Path(__file__).resolve().parents[3]
     models_path = Path(model_directory or package_root / "models")
-    plugins: list[Any] = []
+    records: list[CMBModelDiscoveryRecord] = []
     for model_path in sorted(models_path.glob("model_*.yml")):
-        with tempfile.TemporaryDirectory(prefix="ccmbs-model-") as cache_dir:
-            cache_path = model_spec_validator.validate_and_cache_model(
-                model_path,
-                cache_dir,
+        filename = model_path.name
+        fallback_name = model_path.stem.removeprefix("model_")
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix="ccmbs-model-"
+            ) as cache_dir:
+                cache_path = model_spec_validator.validate_and_cache_model(
+                    model_path,
+                    cache_dir,
+                )
+                functions, model_data = model_coder.generate_callables(
+                    cache_path
+                )
+            model_name = str(model_data.get("model_name", fallback_name))
+            if not bool(model_data.get("valid_for_cmb", False)):
+                records.append(
+                    CMBModelDiscoveryRecord(
+                        model_filename=filename,
+                        model_name=model_name,
+                        status="unavailable",
+                        failure={
+                            "error_type": "CMBDisabledDeclaration",
+                            "category": "unavailable",
+                            "message": (
+                                "Model declaration sets valid_for_cmb=false"
+                            ),
+                        },
+                    )
+                )
+                continue
+            plugin = model_adapter.build_plugin(model_data, functions)
+            plugin.MODEL_FILENAME = filename
+            contract_audit = _audit_plugin(plugin)
+            source_graph_audit = _audit_source_graph_plugin(plugin)
+            structural_issues = tuple(
+                sorted(
+                    set(contract_audit.issues) | set(source_graph_audit.issues)
+                )
             )
-            functions, model_data = model_coder.generate_callables(cache_path)
-        if not bool(model_data.get("valid_for_cmb", False)):
-            continue
-        plugin = model_adapter.build_plugin(model_data, functions)
-        plugin.MODEL_FILENAME = model_path.name
-        plugins.append(plugin)
-    return tuple(plugins)
+            if structural_issues:
+                records.append(
+                    CMBModelDiscoveryRecord(
+                        model_filename=filename,
+                        model_name=str(
+                            getattr(plugin, "MODEL_NAME", model_name)
+                        ),
+                        status="rejected",
+                        failure={
+                            "error_type": "ContractError",
+                            "category": "contract_invalidity",
+                            "message": "; ".join(structural_issues),
+                            "issues": structural_issues,
+                        },
+                    )
+                )
+                continue
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=str(getattr(plugin, "MODEL_NAME", model_name)),
+                    status="ready",
+                    plugin=plugin,
+                )
+            )
+        except (
+            ArithmeticError,
+            AttributeError,
+            ImportError,
+            LookupError,
+            OSError,
+            RuntimeError,
+            SyntaxError,
+            TypeError,
+            UnicodeError,
+            ValueError,
+        ) as error:
+            typed = ModelDiscoveryError(
+                f"{type(error).__name__}: {error}",
+                context={
+                    "model_filename": filename,
+                    "model_name": fallback_name,
+                    "failure_type": type(error).__name__,
+                },
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="rejected",
+                    failure=typed.diagnostic(),
+                )
+            )
+    return tuple(records)
+
+
+def discover_bundled_cmb_plugins(
+    model_directory: str | Path | None = None,
+) -> tuple[Any, ...]:
+    """Build every discovered model plugin whose contract enables CMB."""
+
+    return tuple(
+        record.plugin
+        for record in discover_bundled_cmb_model_records(model_directory)
+        if record.ready
+    )
 
 
 def run_bundled_cmb_diagnostics(
@@ -4698,8 +4967,20 @@ def run_bundled_cmb_diagnostics(
 
     requested_ells = tuple(int(value) for value in ells)
     requested_spectra = tuple(str(value) for value in spectra)
-    reports = []
-    for plugin in discover_bundled_cmb_plugins(model_directory):
+    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    reports = [
+        _discovery_report(
+            record,
+            requested_ells=requested_ells,
+            requested_spectra=requested_spectra,
+        )
+        for record in discovery_records
+        if not record.ready
+    ]
+    for record in discovery_records:
+        if not record.ready:
+            continue
+        plugin = record.plugin
         supported = set(
             audit_cmb_capabilities(
                 plugin.CMB_PERTURBATION_DATA
@@ -4962,9 +5243,12 @@ def run_bundled_cmb_corpus_baseline(
         None,
         baseline_request=request,
     )
-    plugins = discover_bundled_cmb_plugins(model_directory)
+    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    plugins = tuple(
+        record.plugin for record in discovery_records if record.ready
+    )
     discovered_filenames = tuple(
-        str(plugin.MODEL_FILENAME) for plugin in plugins
+        record.model_filename for record in discovery_records
     )
     expected = (
         BUNDLED_CMB_MODEL_FILENAMES
@@ -4982,13 +5266,28 @@ def run_bundled_cmb_corpus_baseline(
     plugin_by_filename = {
         str(plugin.MODEL_FILENAME): plugin for plugin in plugins
     }
+    discovery_by_filename = {
+        record.model_filename: record for record in discovery_records
+    }
     rows: list[CMBCorpusBaselineRow] = []
-    for filename in expected:
+    filenames_to_report = tuple(
+        dict.fromkeys((*expected, *discovered_filenames))
+    )
+    for filename in filenames_to_report:
         plugin = plugin_by_filename.get(filename)
         if plugin is None:
-            report = _missing_corpus_baseline_report(
-                filename,
-                baseline_request=request,
+            discovery = discovery_by_filename.get(filename)
+            report = (
+                _discovery_report(
+                    discovery,
+                    requested_ells=tuple(request["ells"]),
+                    requested_spectra=tuple(request["spectra"]),
+                )
+                if discovery is not None
+                else _missing_corpus_baseline_report(
+                    filename,
+                    baseline_request=request,
+                )
             )
             rows.append(
                 _build_corpus_baseline_row(
@@ -5056,11 +5355,13 @@ def run_bundled_cmb_corpus_baseline(
 
 __all__ = [
     "BUNDLED_CMB_MODEL_FILENAMES",
+    "CAMB_COMPARABLE_CMB_MODEL_FILENAMES",
     "CMB_CERTIFICATION_TIER",
     "CMB_CORPUS_BASELINE_REQUEST",
     "CMB_USMF2_BASELINE_TIERS",
     "CMBCorpusBaselineRow",
     "CMBModelDiagnostic",
+    "CMBModelDiscoveryRecord",
     "assess_scalar_batch_cache_evidence",
     "assess_acoustic_structure",
     "assess_physical_spectrum_shape",
@@ -5074,6 +5375,7 @@ __all__ = [
     "audit_cmb_repository_integrity",
     "compare_cmb_spectra_to_reference",
     "compare_full_cmb_observable_parity",
+    "discover_bundled_cmb_model_records",
     "discover_bundled_cmb_plugins",
     "run_bundled_cmb_matrix",
     "run_bundled_cmb_full_matrix",

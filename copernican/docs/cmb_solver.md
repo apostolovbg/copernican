@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-04
+**Last Updated:** 2026-09-05
 **Project Version:** 12.0.26
 
 ## Overview
@@ -57,8 +57,11 @@ integrator.
 ## Fixed-Parameter Diagnostics
 
 The public CMB diagnostics helpers provide a sampler- and plot-independent
-scientific evidence path. `discover_bundled_cmb_plugins()` enumerates every
-bundled model whose declaration enables CMB output. `run_cmb_model_diagnostic`
+scientific evidence path. `discover_bundled_cmb_model_records()` enumerates
+every model file and retains a typed `ready`, `unavailable`, or `rejected`
+record; malformed or unsupported future files therefore cannot disappear from
+the corpus. `discover_bundled_cmb_plugins()` remains the compatibility helper
+that returns only ready CMB plugins. `run_cmb_model_diagnostic`
 then evaluates one model at its fixed initial-guess parameter vector and
 returns the public TT, TE, and EE spectra together with the unscaled raw
 spectra, raw transfer-component arrays, resolved runtime envelope, and source
@@ -151,6 +154,11 @@ source residuals, doubled-grid evidence, scalar/batch comparisons, and cache
 identities remain nested in each row; missing or unclassified models are never
 promoted to a passing corpus result. `write_bundled_cmb_full_matrix_report()`
 serializes the same hashable matrix without dropping any raw fields.
+`CAMB_COMPARABLE_CMB_MODEL_FILENAMES` identifies the five bundled models with
+a defensible CAMB counterpart. A reference-required row is rejected unless an
+independent fixed-point comparison is present and converged; fixtures are
+never manufactured or borrowed from another theory. Unknown reference rows
+and dropped declared observables fail validation.
 Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
@@ -284,7 +292,12 @@ no generated-hierarchy or LCDM fallback.
 BAO evaluation remains independent of this path. Its fixed-background
 regression exercises the BAO likelihood while the CCMBS entrypoint is made to
 fail, proving that BAO distances and sound-horizon handling do not require a
-CMB solver call.
+CMB solver call. The generated model adapter keeps the CMB recombination
+sound horizon (`get_sound_horizon_rs_rec_Mpc`) distinct from the BAO drag
+sound horizon (`get_sound_horizon_rs_drag_Mpc`). BAO selects the drag helper,
+records the fitted `z_drag` and source in likelihood metadata, and uses the
+legacy `get_sound_horizon_rs_Mpc` only for external plugins that do not expose
+the drag contract.
 
 ## Declared Model Declarations
 `copernican/models/model_lcdm.yml` is the canonical declared LambdaCDM

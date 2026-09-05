@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-04
+**Last Updated:** 2026-09-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -580,10 +580,10 @@ finite TT, TE, EE, BB, PP, TP, and EP arrays, while the production-shaped
 route records a converged base/refined k comparison and the full model emits a
 finite default TT mode. USMF2 remains explicitly scalar: vector, tensor, and
 lensed surfaces are represented as typed non-applicable declarations rather
-than fabricated values. Full CAMB parity rows and end-to-end graph bundles
-remain assigned to Slices Seven and Ten.
+than fabricated values. Full CAMB parity rows are now enforced by Slice Seven;
+end-to-end GUI and graph bundles remain assigned to Slice Ten.
 
-### [planned] Slice Seven — complete full-spectrum projection parity
+### [closed] Slice Seven — complete full-spectrum projection parity
 
 **Scope:** all ten bundled models and every surface they declare.
 
@@ -611,7 +611,25 @@ frozen tolerances; non-CAMB theories pass their full physical and
 standard-limit contract; and no declared surface is omitted or replaced by
 a placeholder.
 
-### [planned] Slice Eight — valid future-model discovery and compatibility
+**Closure evidence (2026-09-04):** The full-observable matrix now derives its
+request from every compiled model declaration and requires an exact ordered
+`TT`, `TE`, `EE`, `BB`, `PP`, `TP`, and `EP` row for each enabled model.
+`CAMB_COMPARABLE_CMB_MODEL_FILENAMES` identifies the five models with a
+defensible CAMB counterpart; their matrix rows require an independently
+supplied fixed-point reference comparison, while non-CAMB theories remain
+subject to the complete CCMBS physical and refinement evidence without a
+theory-changing reference substitution. Unknown reference rows, dropped
+declared surfaces, missing raw products, failed doubled-grid convergence,
+failed residual audits, missing scalar/batch evidence, and non-isolated cache
+identities are rejected explicitly. The matrix preserves typed unavailable
+declarations and typed solver failures, never turning either into acceptance.
+Full-parity helpers and strict comparable-row tests cover all seven public
+observables and preserve the deterministic matrix digest. Full production
+matrix execution uses `CMB_CERTIFICATION_TIER` (ell=2..300, doubled-k
+refinement, k=1024 base) and cannot claim comparable acceptance without the
+corresponding independent CAMB fixture.
+
+### [closed] Slice Eight — valid future-model discovery and compatibility
 
 **Scope:** model discovery and future declarative contracts.
 
@@ -635,7 +653,20 @@ silently rejecting a valid model or hiding unsupported physics.
 fixtures execute through CCMBS; unsupported features fail explicitly; and no
 model can disappear from the corpus or plot without a recorded reason.
 
-### [planned] Slice Nine — BAO and background closure
+**Closure evidence (2026-09-05):** Added deterministic
+`discover_bundled_cmb_model_records()` inventory with typed `ready`,
+`unavailable`, and `rejected` outcomes. Full and ordinary model matrices now
+retain every discovered file, including malformed future declarations, while
+the legacy plugin helper remains limited to ready models. Disabled contracts
+receive explicit unavailable declaration rows; compiler and validator failures
+receive path-free `ModelDiscoveryError` evidence with the original failure
+type and message. Custom model directories derive their expected corpus from
+the complete file inventory, so an invalid or unsupported model cannot be
+silently dropped. Focused tests cover disabled and malformed future fixtures,
+all ten bundled model records remain ready, and the public documentation names
+the discovery contract.
+
+### [closed] Slice Nine — BAO and background closure
 
 **Scope:** BAO independence and shared background inputs.
 
@@ -657,6 +688,17 @@ background bookkeeping exposed by the CMB repair.
 invoke CCMBS, uses the correct epoch and density inputs, and is unchanged at
 fixed background points except where a documented bookkeeping bug is
 corrected.
+
+**Closure evidence (2026-09-05):** Generated model plugins now retain the
+declared recombination sound horizon and derive a separate drag-epoch horizon
+from the Eisenstein--Hu drag-redshift fit. `BAOLike` selects the drag helper,
+records the epoch, source, and `z_drag` in its state metadata, and falls back
+to the legacy helper only for external plugins that do not expose the new
+contract. The CMB runtime keeps its visibility/recombination sound horizon
+separate. All ten bundled models produce finite, positive, distinct
+recombination and drag horizons at their fixed initial points. Focused tests
+prove CMB-entrypoint isolation, covariance preservation, divergent-integral
+failure, drag-helper selection, and epoch evidence without a CMB call.
 
 ### [planned] Slice Ten — end-to-end production certification
 

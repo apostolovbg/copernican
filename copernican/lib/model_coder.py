@@ -876,6 +876,80 @@ class _SoundHorizonFromExpression:
             ) from exc
 
 
+def _drag_redshift_expression(param_syms: Sequence[sympy.Symbol]):
+    """Return the Eisenstein--Hu drag redshift for a model parameter set.
+
+    The model files historically declare the recombination redshift because
+    that is the natural endpoint for CMB background diagnostics.  BAO uses
+    the drag epoch instead.  This helper derives the standard fitting
+    formula from the declared physical baryon and matter densities without
+    adding a new sampled parameter to any model.
+    """
+
+    symbols = {str(symbol): symbol for symbol in param_syms}
+    hubble_parameter_symbol = next(
+        (
+            symbols[name]
+            for name in ("H0", "H_0", "H_star", "H_A")
+            if name in symbols
+        ),
+        None,
+    )
+    baryon = next(
+        (symbols[name] for name in ("Omega_b", "Ob0") if name in symbols),
+        None,
+    )
+    if hubble_parameter_symbol is None or baryon is None:
+        return None
+
+    matter = symbols.get("Omega_m0")
+    if matter is None and "Ob0" in symbols and "Xr0" in symbols:
+        matter = symbols["Ob0"] * (1 + symbols["Xr0"])
+    if matter is None:
+        # USMF2 and QRSF expose their effective matter through the baryonic
+        # background declaration rather than a separate Omega_m0 parameter.
+        matter = baryon
+
+    h_squared = (hubble_parameter_symbol / 100) ** 2
+    omega_b = baryon * h_squared
+    omega_m = matter * h_squared
+    drag_b1 = (
+        sympy.Float("0.313")
+        * omega_m ** sympy.Float("-0.419")
+        * (1 + sympy.Float("0.607") * omega_m ** sympy.Float("0.674"))
+    )
+    drag_b2 = sympy.Float("0.238") * omega_m ** sympy.Float("0.223")
+    return (
+        sympy.Float("1291")
+        * omega_m ** sympy.Float("0.251")
+        / (1 + sympy.Float("0.659") * omega_m ** sympy.Float("0.828"))
+        * (1 + drag_b1 * omega_b**drag_b2)
+    )
+
+
+def _replace_sound_horizon_lower_limit(
+    expression: sympy.Expr,
+    drag_redshift: sympy.Expr,
+) -> sympy.Expr | None:
+    """Replace a declared recombination lower limit with ``z_drag``."""
+
+    replacements: dict[sympy.Integral, sympy.Integral] = {}
+    for integral in expression.atoms(sympy.Integral):
+        if len(integral.limits) != 1:
+            continue
+        variable, lower, upper = integral.limits[0]
+        if not isinstance(lower, sympy.Symbol):
+            continue
+        replacements[integral] = sympy.Integral(
+            integral.function,
+            (variable, drag_redshift, upper),
+        )
+        break
+    if not replacements:
+        return None
+    return expression.xreplace(replacements)
+
+
 class _DistanceModulusFromLuminosity:
     """Convert luminosity distance results to distance modulus."""
 
@@ -1592,16 +1666,52 @@ def generate_callables(cache_path):
                     # ``Integral`` terms here are also expanded to calls to
                     # ``quad``.
 
-                    rs_fn_sym = _compile_sympy_expr(
+                    rs_rec_fn_sym = _compile_sympy_expr(
                         rs_sym,
                         tuple(param_syms),
-                        name_hint="get_sound_horizon_rs_Mpc",
+                        name_hint="get_sound_horizon_rs_rec_Mpc",
                     )
-
-                    funcs["get_sound_horizon_rs_Mpc"] = (
-                        _SoundHorizonFromExpression(rs_fn_sym)
-                    )
+                    rs_rec_fn = _SoundHorizonFromExpression(rs_rec_fn_sym)
+                    # Keep the historical helper as the explicitly declared
+                    # recombination value.  BAO selects the drag helper below
+                    # and therefore cannot accidentally reuse this endpoint.
+                    funcs["get_sound_horizon_rs_rec_Mpc"] = rs_rec_fn
+                    funcs["get_sound_horizon_rs_Mpc"] = rs_rec_fn
+                    code_dict["get_sound_horizon_rs_rec_Mpc"] = str(rs_sym)
                     code_dict["get_sound_horizon_rs_Mpc"] = str(rs_sym)
+
+                    drag_redshift = _drag_redshift_expression(param_syms)
+                    drag_sym = (
+                        None
+                        if drag_redshift is None
+                        else _replace_sound_horizon_lower_limit(
+                            rs_sym,
+                            drag_redshift,
+                        )
+                    )
+                    if drag_sym is not None:
+                        drag_fn_sym = _compile_sympy_expr(
+                            drag_sym,
+                            tuple(param_syms),
+                            name_hint="get_sound_horizon_rs_drag_Mpc",
+                        )
+                        funcs["get_sound_horizon_rs_drag_Mpc"] = (
+                            _SoundHorizonFromExpression(drag_fn_sym)
+                        )
+                        drag_redshift_fn = _compile_sympy_expr(
+                            drag_redshift,
+                            tuple(param_syms),
+                            name_hint="get_bao_drag_redshift",
+                        )
+                        funcs["get_bao_drag_redshift"] = drag_redshift_fn
+                        code_dict["get_sound_horizon_rs_drag_Mpc"] = str(
+                            drag_sym
+                        )
+                        code_dict["get_bao_drag_redshift"] = str(drag_redshift)
+                        model_data["bao_sound_horizon_epoch"] = "drag"
+                        model_data["bao_drag_redshift_expression"] = str(
+                            drag_redshift
+                        )
                     model_data["valid_for_bao"] = True
                     logger.info(
                         "Derived r_s from symbolic rs_expression in model "

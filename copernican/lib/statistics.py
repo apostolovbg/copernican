@@ -152,9 +152,17 @@ def calculate_bao_observables(
         rs_value = rs_guess
         if not (numpy.isfinite(rs_value) and rs_value > 0):
             try:
-                rs_value = float(
-                    model_plugin.get_sound_horizon_rs_Mpc(*model_params)
+                get_rs_drag_model = getattr(
+                    model_plugin,
+                    "get_sound_horizon_rs_drag_Mpc",
+                    None,
                 )
+                if get_rs_drag_model is not None:
+                    rs_value = float(get_rs_drag_model(*model_params))
+                else:
+                    rs_value = float(
+                        model_plugin.get_sound_horizon_rs_Mpc(*model_params)
+                    )
             except (
                 AttributeError,
                 ImportError,

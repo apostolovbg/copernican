@@ -60,6 +60,12 @@ class ContractError(CMBError):
     category = "contract_invalidity"
 
 
+class ModelDiscoveryError(CMBError):
+    """Identify a model file that cannot be compiled for CCMBS."""
+
+    category = "model_discovery"
+
+
 class ConvergenceError(CMBError):
     """Identify a numerical solve or refinement that did not converge."""
 
@@ -185,6 +191,7 @@ __all__ = [
     "ConvergenceError",
     "ImplementationError",
     "InitialPointError",
+    "ModelDiscoveryError",
     "NonFiniteEvolutionError",
     "ParameterDomainError",
     "UnsupportedCapabilityError",

@@ -18,11 +18,13 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
 )
 from copernican.lib.likelihoods.cmb.diagnostics import (
     BUNDLED_CMB_MODEL_FILENAMES,
+    CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
     CMB_CERTIFICATION_TIER,
     CMB_CORPUS_BASELINE_REQUEST,
     CMB_USMF2_BASELINE_TIERS,
     CMBCorpusBaselineRow,
     CMBModelDiagnostic,
+    CMBModelDiscoveryRecord,
     _jsonable,
     _run_scalar_batch_cache_check,
     assess_acoustic_structure,
@@ -39,6 +41,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     compare_cmb_spectra_to_reference,
     compare_full_cmb_observable_parity,
     declared_cmb_spectrum_names,
+    discover_bundled_cmb_model_records,
     discover_bundled_cmb_plugins,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
@@ -375,6 +378,15 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         plugins = tuple(
             Plugin(filename) for filename in BUNDLED_CMB_MODEL_FILENAMES
         )
+        discovery_records = tuple(
+            CMBModelDiscoveryRecord(
+                model_filename=plugin.MODEL_FILENAME,
+                model_name=plugin.MODEL_NAME,
+                status="ready",
+                plugin=plugin,
+            )
+            for plugin in plugins
+        )
         audits = tuple(
             Audit(filename) for filename in BUNDLED_CMB_MODEL_FILENAMES
         )
@@ -389,6 +401,11 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 "copernican.lib.likelihoods.cmb.diagnostics."
                 "discover_bundled_cmb_plugins",
                 return_value=plugins,
+            ),
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "discover_bundled_cmb_model_records",
+                return_value=discovery_records,
             ),
             mock.patch(
                 "copernican.lib.likelihoods.cmb.diagnostics."
@@ -458,6 +475,74 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             },
         )
 
+    def test_discovery_records_disabled_and_invalid_future_models(
+        self,
+    ) -> None:
+        """Discovery retains disabled and malformed future files."""
+
+        source_path = (
+            Path(__file__).resolve().parents[5]
+            / "copernican"
+            / "models"
+            / "model_lcdm.yml"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            models_path = Path(directory)
+            disabled = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+            disabled["valid_for_cmb"] = False
+            (models_path / "model_disabled.yml").write_text(
+                yaml.safe_dump(disabled, sort_keys=False),
+                encoding="utf-8",
+            )
+            (models_path / "model_invalid.yml").write_text(
+                "valid_for_cmb: true\n",
+                encoding="utf-8",
+            )
+            records = discover_bundled_cmb_model_records(models_path)
+
+        self.assertEqual(
+            [record.model_filename for record in records],
+            ["model_disabled.yml", "model_invalid.yml"],
+        )
+        self.assertEqual(records[0].status, "unavailable")
+        self.assertEqual(records[1].status, "rejected")
+        self.assertFalse(records[1].ready)
+        self.assertEqual(records[1].failure["category"], "model_discovery")
+        self.assertEqual(
+            CMBModelDiscoveryRecord(
+                model_filename="model_fixture.yml",
+                model_name="fixture",
+                status="ready",
+                plugin=object(),
+            ).to_dict()["status"],
+            "ready",
+        )
+
+    def test_discovery_compiles_valid_future_model_fixture(self) -> None:
+        """A valid declarative future filename follows the CCMBS route."""
+
+        source_path = (
+            Path(__file__).resolve().parents[5]
+            / "copernican"
+            / "models"
+            / "model_lcdm.yml"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            fixture_path = Path(directory) / "model_future_lcdm.yml"
+            fixture_path.write_text(
+                source_path.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            records = discover_bundled_cmb_model_records(directory)
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].status, "ready")
+        self.assertIsNotNone(records[0].plugin)
+        self.assertEqual(
+            records[0].plugin.MODEL_FILENAME,
+            "model_future_lcdm.yml",
+        )
+
     def test_declared_spectrum_inventory_includes_full_angular_contract(self):
         """The corpus request is derived from each model's own graph."""
 
@@ -512,6 +597,110 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "does not exactly match",
             " ".join(matrix["rejected_models"][row.model_filename]),
         )
+
+    def test_full_matrix_requires_reference_for_comparable_rows(self):
+        """Comparable rows cannot pass without independent parity evidence."""
+
+        filename = CAMB_COMPARABLE_CMB_MODEL_FILENAMES[0]
+        names = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        values = {name: numpy.ones(2) for name in names}
+        row = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2, 20),
+            requested_spectra=names,
+            spectra=values,
+            raw_spectra=values,
+            shape={
+                "finite": True,
+                "auto_spectra_nonnegative": True,
+            },
+            refinement={"converged": True},
+            source_residual_audit={
+                "available": True,
+                "converged": True,
+            },
+            availability="measured",
+            contract_identity={"sha256": "contract"},
+            scalar_batch_evidence={
+                "available": True,
+                "converged": True,
+            },
+            cache_isolation_evidence={
+                "available": True,
+                "isolated": True,
+            },
+        )
+        audit = {filename: {"valid": True, "decision": "ready"}}
+        matrix = build_bundled_cmb_full_matrix_report(
+            (row,),
+            required_model_filenames=(filename,),
+            declared_spectra_by_model={filename: names},
+            reference_required_models=(filename,),
+            contract_audits=audit,
+            source_graph_audits=audit,
+            declaration_audits=audit,
+        )
+        self.assertFalse(matrix["success"])
+        self.assertEqual(matrix["classifications"][filename], "rejected")
+        self.assertIn(
+            "reference comparison is unavailable",
+            " ".join(matrix["rejected_models"][filename]),
+        )
+
+    def test_full_matrix_accepts_comparable_row_with_reference_evidence(self):
+        """A comparable row passes after all seven parity rows converge."""
+
+        filename = CAMB_COMPARABLE_CMB_MODEL_FILENAMES[0]
+        names = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        values = {name: numpy.ones(2) for name in names}
+        row = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2, 20),
+            requested_spectra=names,
+            spectra=values,
+            raw_spectra=values,
+            shape={
+                "finite": True,
+                "auto_spectra_nonnegative": True,
+            },
+            refinement={"converged": True},
+            source_residual_audit={
+                "available": True,
+                "converged": True,
+            },
+            reference_comparison={
+                "available": True,
+                "converged": True,
+            },
+            availability="measured",
+            contract_identity={"sha256": "contract"},
+            scalar_batch_evidence={
+                "available": True,
+                "converged": True,
+            },
+            cache_isolation_evidence={
+                "available": True,
+                "isolated": True,
+            },
+        )
+        audit = {filename: {"valid": True, "decision": "ready"}}
+        matrix = build_bundled_cmb_full_matrix_report(
+            (row,),
+            required_model_filenames=(filename,),
+            declared_spectra_by_model={filename: names},
+            reference_required_models=(filename,),
+            contract_audits=audit,
+            source_graph_audits=audit,
+            declaration_audits=audit,
+        )
+        self.assertTrue(matrix["success"])
+        self.assertEqual(matrix["accepted_models"], [filename])
 
     def test_full_matrix_accepts_truthful_unavailable_declaration(self):
         """Explicitly non-CMB declarations receive a typed unavailable row."""

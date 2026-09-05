@@ -122,4 +122,60 @@ def assess_bao_cmb_isolation(
     }
 
 
-__all__ = ["assess_bao_cmb_isolation"]
+def assess_bao_sound_horizon_epochs(
+    model_plugin: Any,
+    params: Any,
+) -> dict[str, Any]:
+    """Report the independent recombination and BAO drag horizons.
+
+    CMB diagnostics use recombination-era quantities, whereas BAO ratios
+    require the drag-epoch sound horizon.  Generated model plugins expose
+    both callables so this check can prove that the BAO route selects the
+    latter without importing or invoking the CMB solver.
+    """
+
+    rec_fn = getattr(model_plugin, "get_sound_horizon_rs_rec_Mpc", None)
+    if rec_fn is None:
+        rec_fn = getattr(model_plugin, "get_sound_horizon_rs_Mpc", None)
+    drag_fn = getattr(model_plugin, "get_sound_horizon_rs_drag_Mpc", None)
+    z_drag_fn = getattr(model_plugin, "get_bao_drag_redshift", None)
+    if not callable(rec_fn) or not callable(drag_fn):
+        return {
+            "available": False,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": "unavailable",
+        }
+    try:
+        rec_value = float(rec_fn(*params))
+        drag_value = float(drag_fn(*params))
+        z_drag = None if z_drag_fn is None else float(z_drag_fn(*params))
+    except (ArithmeticError, TypeError, ValueError, OverflowError):
+        return {
+            "available": True,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": "drag",
+        }
+    finite = bool(
+        numpy.isfinite(rec_value)
+        and numpy.isfinite(drag_value)
+        and rec_value > 0.0
+        and drag_value > 0.0
+        and (z_drag is None or numpy.isfinite(z_drag))
+    )
+    return {
+        "available": True,
+        "finite": finite,
+        "distinct": bool(not numpy.isclose(rec_value, drag_value)),
+        "recombination_rs_Mpc": rec_value,
+        "drag_rs_Mpc": drag_value,
+        "z_drag": z_drag,
+        "sound_horizon_epoch": "drag",
+    }
+
+
+__all__ = [
+    "assess_bao_cmb_isolation",
+    "assess_bao_sound_horizon_epochs",
+]

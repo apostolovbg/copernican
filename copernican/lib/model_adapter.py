@@ -83,6 +83,9 @@ REQUIRED_ATTRIBUTES: list[str] = [
 _OPTIONAL_FUNCTIONS: tuple[str, ...] = (
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_contract",
+    "get_sound_horizon_rs_rec_Mpc",
+    "get_sound_horizon_rs_drag_Mpc",
+    "get_bao_drag_redshift",
 )
 
 _ALLOWED_MATH_FUNCS = {
@@ -1071,6 +1074,9 @@ class ModelPlugin:
     get_Hz_per_Mpc: Callable[..., Any] | None
     get_DV_Mpc: Callable[..., Any] | None
     get_sound_horizon_rs_Mpc: Callable[..., Any] | None
+    get_sound_horizon_rs_rec_Mpc: Callable[..., Any] | None
+    get_sound_horizon_rs_drag_Mpc: Callable[..., Any] | None
+    get_bao_drag_redshift: Callable[..., Any] | None
     compute_cmb_spectrum: Callable[..., Any] | None
     compute_cmb_spectrum_from_contract: Callable[..., Any] | None
     extras: Mapping[str, Any] = field(default_factory=dict)
@@ -1373,6 +1379,13 @@ def build_model_plugin(
         get_Hz_per_Mpc=functions.get("get_Hz_per_Mpc"),
         get_DV_Mpc=functions.get("get_DV_Mpc"),
         get_sound_horizon_rs_Mpc=functions.get("get_sound_horizon_rs_Mpc"),
+        get_sound_horizon_rs_rec_Mpc=functions.get(
+            "get_sound_horizon_rs_rec_Mpc"
+        ),
+        get_sound_horizon_rs_drag_Mpc=functions.get(
+            "get_sound_horizon_rs_drag_Mpc"
+        ),
+        get_bao_drag_redshift=functions.get("get_bao_drag_redshift"),
         compute_cmb_spectrum=functions.get("compute_cmb_spectrum"),
         compute_cmb_spectrum_from_contract=functions.get(
             "compute_cmb_spectrum_from_contract"

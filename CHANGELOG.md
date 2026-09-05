@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-04
+**Last Updated:** 2026-09-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,85 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-05:
+  Change: Fixed BAO legacy-probe compatibility and divergence handling.
+  Why: Existing wrappers must still be exercised while the drag helper is
+        selected, and divergent legacy integrals must remain hard failures.
+  Impact: Preserved BAO isolation and divergent-horizon regressions without
+          weakening drag-epoch selection for generated plugins.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/bao/__init__.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/statistics.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Closed Slice Nine with independent BAO drag-epoch closure.
+  Why: Prevented BAO from reusing the CMB recombination sound horizon while
+        preserving fixed-background CMB isolation and typed failures.
+  Impact: All ten bundled models expose finite recombination and drag
+          horizons, BAO records its drag source and redshift, and focused
+          tests prove epoch selection and background independence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/likelihoods/bao/__init__.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/statistics.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+
+- 2026-09-05:
+  Change: Closed Slice Eight with typed future-model discovery outcomes.
+  Why: Prevented malformed, disabled, or unsupported model files from
+  disappearing before CCMBS contract and observable-matrix decisions.
+  Impact: Full and ordinary diagnostics retain every discovered model row,
+  preserve actionable path-free discovery failures, and keep the ready-plugin
+  compatibility helper deterministic.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+
+- 2026-09-04:
+  Change: Closed Slice Seven by enforcing complete declared-observable
+  projection parity and independent-reference requirements.
+  Why: Prevented full-spectrum matrices from accepting omitted surfaces or
+  CAMB-comparable rows without fixed-point parity evidence.
+  Impact: CCMBS matrix reports now cover all seven public observables,
+  preserve typed failures, and reject unknown references deterministically.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
 
 - 2026-09-04:
   Change: Completed Slice Six USMF2 model closure and production checks.

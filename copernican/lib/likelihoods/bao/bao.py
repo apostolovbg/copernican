@@ -47,6 +47,10 @@ class BAOLike(LikelihoodProtocol):
     _fallback_dv: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_da: Callable[..., Any] | None = field(init=False, repr=False)
     _fallback_rs: Callable[..., Any] | None = field(init=False, repr=False)
+    _fallback_rs_drag: Callable[..., Any] | None = field(
+        init=False, repr=False
+    )
+    _fallback_z_drag: Callable[..., Any] | None = field(init=False, repr=False)
     _c_light_km_s: float = field(init=False, repr=False)
     _setup_error: str | None = field(init=False, default=None, repr=False)
 
@@ -94,6 +98,12 @@ class BAOLike(LikelihoodProtocol):
         self._fallback_rs = getattr(
             self.model_plugin, "get_sound_horizon_rs_Mpc", None
         )
+        self._fallback_rs_drag = getattr(
+            self.model_plugin, "get_sound_horizon_rs_drag_Mpc", None
+        )
+        self._fallback_z_drag = getattr(
+            self.model_plugin, "get_bao_drag_redshift", None
+        )
         fixed = getattr(self.model_plugin, "FIXED_PARAMS", {}) or {}
         self._c_light_km_s = float(fixed.get("C_LIGHT_KM_S", 299_792.458))
 
@@ -126,9 +136,10 @@ class BAOLike(LikelihoodProtocol):
                     rs_background = float("nan")
                 else:
                     rs_background = float(rs_arr.flat[0])
-            if numpy.isnan(rs_background) and self._fallback_rs is not None:
+            legacy_rs_background = float("nan")
+            if self._fallback_rs is not None:
                 try:
-                    rs_background = float(
+                    legacy_rs_background = float(
                         self._call_with_params(self._fallback_rs, (), params)
                     )
                 except SoundHorizonComputationError as exc:
@@ -160,6 +171,48 @@ class BAOLike(LikelihoodProtocol):
                         "(bao_like): Sound horizon fallback failed: %s",
                         exc,
                     )
+            if (
+                numpy.isnan(rs_background)
+                and self._fallback_rs_drag is not None
+            ):
+                try:
+                    rs_background = float(
+                        self._call_with_params(
+                            self._fallback_rs_drag, (), params
+                        )
+                    )
+                except SoundHorizonComputationError as exc:
+                    logger.error(
+                        "(bao_like): drag-epoch sound-horizon integral "
+                        "diverged; aborting BAO predictions: %s",
+                        exc,
+                    )
+                    self._state = LikelihoodState(
+                        metadata={
+                            "error": (
+                                "Drag-epoch sound horizon integral diverged; "
+                                "see BAO diagnostics."
+                            )
+                        }
+                    )
+                    return float("-inf")
+                except (
+                    AttributeError,
+                    ImportError,
+                    OSError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                    OverflowError,
+                ) as exc:
+                    logger.warning(
+                        "(bao_like): drag-epoch sound-horizon fallback "
+                        "failed: %s",
+                        exc,
+                    )
+            if numpy.isnan(rs_background):
+                rs_background = legacy_rs_background
             rs_mpc = rs_background
 
         if not (numpy.isfinite(rs_mpc) and rs_mpc > 0):
@@ -210,7 +263,33 @@ class BAOLike(LikelihoodProtocol):
             return float("-inf")
 
         cov_inv = self._cov_inv
-        metadata: dict[str, Any] = {"points": int(self._observed.size)}
+        metadata: dict[str, Any] = {
+            "points": int(self._observed.size),
+            "sound_horizon_epoch": (
+                "drag" if self._fallback_rs_drag is not None else "legacy"
+            ),
+            "sound_horizon_source": (
+                "model_plugin.get_sound_horizon_rs_drag_Mpc"
+                if self._fallback_rs_drag is not None
+                else "model_plugin.get_sound_horizon_rs_Mpc"
+            ),
+        }
+        if self._fallback_z_drag is not None:
+            try:
+                metadata["z_drag"] = float(
+                    self._call_with_params(self._fallback_z_drag, (), params)
+                )
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+                ZeroDivisionError,
+                OverflowError,
+            ):
+                metadata["z_drag"] = float("nan")
         chi2 = float("inf")
         if cov_inv is not None:
             try:

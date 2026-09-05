@@ -199,6 +199,64 @@ class TestSoundHorizonRigour(unittest.TestCase):
         self.assertAlmostEqual(rs_model, rs_expected, places=6)
         self.assertTrue(model_data["valid_for_bao"])
 
+    def test_bao_sound_horizon_uses_drag_epoch_helper(self):
+        """Generated BAO helpers expose drag and recombination horizons."""
+
+        payload = {
+            "parameters": [
+                {
+                    "name": "Hubble",
+                    "python_var": "H0",
+                    "bounds": [70.0, 70.0],
+                },
+                {
+                    "name": "Matter",
+                    "python_var": "Omega_m0",
+                    "bounds": [0.3, 0.3],
+                },
+                {
+                    "name": "Baryon",
+                    "python_var": "Omega_b",
+                    "bounds": [0.05, 0.05],
+                },
+                {
+                    "name": "Photon",
+                    "python_var": "Omega_gamma",
+                    "bounds": [5e-5, 5e-5],
+                },
+                {
+                    "name": "Recombination",
+                    "python_var": "z_rec",
+                    "bounds": [1100.0, 1100.0],
+                },
+            ],
+            "Hz_expression": (
+                "H(z) = H0 * sqrt(Omega_m0*(1 + z)**3 + (1 - Omega_m0))"
+            ),
+            "rs_expression": (
+                "r_s = Integral("
+                "299792.458 / sqrt("
+                "3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))"
+                ") / ("
+                "H0 * sqrt(Omega_m0 * (1 + z)**3 + (1 - Omega_m0))"
+                "), (z, z_rec, oo))"
+            ),
+            "skip_bao": False,
+            "valid_for_bao": True,
+        }
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            cache = self._write_model(temporary_path, payload)
+            funcs, model_data = model_coder.generate_callables(cache)
+
+        params = (70.0, 0.3, 0.05, 5e-5, 1100.0)
+        recombination = funcs["get_sound_horizon_rs_rec_Mpc"](*params)
+        drag = funcs["get_sound_horizon_rs_drag_Mpc"](*params)
+        self.assertGreater(funcs["get_bao_drag_redshift"](*params), 0.0)
+        self.assertTrue(model_data["bao_sound_horizon_epoch"] == "drag")
+        self.assertGreater(drag, 0.0)
+        self.assertNotAlmostEqual(drag, recombination)
+
     def test_sound_horizon_divergence_raises_signal(self):
         """Divergent ``rs_expression`` integrals must raise a clear error."""
 

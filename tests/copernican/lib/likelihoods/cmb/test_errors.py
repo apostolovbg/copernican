@@ -16,6 +16,7 @@ from copernican.lib.likelihoods.cmb.errors import (
     ConvergenceError,
     ImplementationError,
     InitialPointError,
+    ModelDiscoveryError,
     NonFiniteEvolutionError,
     ParameterDomainError,
     UnsupportedCapabilityError,
@@ -52,7 +53,21 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
         self.assertTrue(issubclass(ConvergenceError, CMBError))
         self.assertTrue(issubclass(ImplementationError, CMBError))
         self.assertTrue(issubclass(InitialPointError, CMBError))
+        self.assertTrue(issubclass(ModelDiscoveryError, CMBError))
         self.assertTrue(issubclass(UnsupportedCapabilityError, CMBError))
+
+    def test_model_discovery_error_preserves_file_context(self) -> None:
+        """Discovery failures retain a typed model-file diagnostic."""
+
+        error = ModelDiscoveryError(
+            "invalid future declaration",
+            context={"model_filename": "model_future.yml"},
+        )
+        self.assertEqual(error.category, "model_discovery")
+        self.assertEqual(
+            error.diagnostic()["context"]["model_filename"],
+            "model_future.yml",
+        )
 
     def test_failure_context_and_classifier_are_structured(self) -> None:
         """Boundary helpers should retain request identity and error type."""

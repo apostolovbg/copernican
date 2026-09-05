@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy as numpy_module
@@ -181,6 +182,33 @@ class BAOCovarianceTestCase(unittest.TestCase):
         evidence = bao.assess_bao_cmb_isolation(baseline, isolated)
         self.assertFalse(evidence["converged"])
         self.assertFalse(evidence["values_preserved"])
+
+    def test_loglike_prefers_drag_epoch_sound_horizon(self):
+        """BAO ratios select the drag helper when a plugin supplies one."""
+
+        def _ones(redshift, *_params):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_ones,
+            get_Hz_per_Mpc=_ones,
+            get_DV_Mpc=_ones,
+            get_angular_diameter_distance_Mpc=_ones,
+            get_sound_horizon_rs_Mpc=lambda *_: 100.0,
+            get_sound_horizon_rs_drag_Mpc=lambda *_: 200.0,
+            get_bao_drag_redshift=lambda *_: 1020.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+        self.assertEqual(like.loglike(()), 0.0)
+        self.assertEqual(like.state["metadata"]["sound_horizon_epoch"], "drag")
+        self.assertEqual(like.state["metadata"]["z_drag"], 1020.0)
 
 
 class BAOPublicSymbolCoverageTestCase(unittest.TestCase):
