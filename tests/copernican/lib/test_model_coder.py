@@ -457,6 +457,9 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
                 "recombination": {
                     "quantities": {
                         "hydrogen_temperature_K": "3000.0",
+                        "hydrogen_alpha_B": "1.0e-19",
+                        "beta_continuum": "5.0e-20",
+                        "peebles_c": "0.75",
                     },
                 },
                 "reionization": {
@@ -498,7 +501,7 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
         self.assertEqual(len(runtime.background_runtime.derived_plan), 1)
         self.assertEqual(
             len(runtime.background_runtime.recombination_quantity_plan),
-            1,
+            4,
         )
         self.assertEqual(
             runtime.background_runtime.reionization_calibration_symbol,
@@ -519,9 +522,12 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
             background_reference_names=(
                 "H",
                 "Omega_m0",
+                "beta_continuum",
                 "density",
+                "hydrogen_alpha_B",
                 "hydrogen_ionization_rate",
                 "hydrogen_temperature_K",
+                "peebles_c",
                 "tau",
             ),
         )

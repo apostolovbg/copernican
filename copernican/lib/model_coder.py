@@ -56,6 +56,14 @@ _REMOVED_CMB_ROUTE_KEYS = frozenset({"backend"})
 _REMOVED_PERTURBATION_ROUTE_KEYS = frozenset(
     {"backend", "backend_mapping", "standard"}
 )
+_REQUIRED_RECOMBINATION_QUANTITIES = frozenset(
+    {
+        "hydrogen_temperature_K",
+        "hydrogen_alpha_B",
+        "beta_continuum",
+        "peebles_c",
+    }
+)
 
 
 def _reject_removed_cmb_route_keys(contract: Mapping[str, Any]) -> None:
@@ -450,11 +458,28 @@ def compile_declared_cmb_runtime(
     )
     perturbation_contract.pop("model_name", None)
     background_section = cmb_contract.get("background", {}) or {}
-    recombination_section = (
-        background_section.get("recombination", {}) or {}
-        if isinstance(background_section, Mapping)
-        else {}
+    if not isinstance(background_section, Mapping):
+        raise ValueError("cmb.background must be a mapping")
+    recombination_section = background_section.get("recombination", {}) or {}
+    if not isinstance(recombination_section, Mapping):
+        raise ValueError("cmb.background.recombination must be a mapping")
+    recombination_quantities = (
+        recombination_section.get("quantities", {}) or {}
     )
+    if not isinstance(recombination_quantities, Mapping):
+        raise ValueError(
+            "cmb.background.recombination.quantities must be a mapping"
+        )
+    if recombination_quantities:
+        missing_recombination = sorted(
+            _REQUIRED_RECOMBINATION_QUANTITIES
+            - set(str(name) for name in recombination_quantities)
+        )
+        if missing_recombination:
+            raise ValueError(
+                "Declared recombination mathematics is incomplete; missing "
+                "quantity equation(s): " + ", ".join(missing_recombination)
+            )
     reionization_section = (
         background_section.get("reionization", {}) or {}
         if isinstance(background_section, Mapping)
@@ -540,9 +565,7 @@ def compile_declared_cmb_runtime(
                 else {}
             ),
             recombination_quantity_plan=_compile_declared_symbol_plan(
-                (recombination_section.get("quantities", {}) or {})
-                if isinstance(recombination_section, Mapping)
-                else {}
+                recombination_quantities
             ),
             reionization_quantity_plan=_compile_declared_symbol_plan(
                 (reionization_section.get("quantities", {}) or {})

@@ -57,16 +57,21 @@ integrator.
 ## Fixed-Parameter Diagnostics
 
 The public CMB diagnostics helpers provide a sampler- and plot-independent
-scientific evidence path. `discover_bundled_cmb_model_records()` enumerates
-every model file and retains a typed `ready`, `unavailable`, or `rejected`
-record; malformed or unsupported future files therefore cannot disappear from
-the corpus. `discover_bundled_cmb_plugins()` remains the compatibility helper
-that returns only ready CMB plugins. `run_cmb_model_diagnostic`
+scientific evidence path. `discover_cmb_model_records()` enumerates every
+`.yml` and `.yaml` declaration and retains a typed `ready`, `unavailable`,
+`rejected`, or `engine_error` record. Unavailable is reserved for a theory
+that explicitly declares no CMB output. Rejected means malformed or
+incomplete mathematics. A valid declaration that the compiler or runtime
+cannot execute is an engine error and blocks CCMBS closure; unfamiliar
+physics is never itself a rejection. `discover_cmb_plugins()` returns only
+ready CMB plugins. `run_cmb_model_diagnostic`
 then evaluates one model at its fixed initial-guess parameter vector and
 returns the public TT, TE, and EE spectra together with the unscaled raw
 spectra, raw transfer-component arrays, resolved runtime envelope, and source
 history diagnostics. `run_bundled_cmb_diagnostics()` applies the same report
-shape to the complete bundled corpus.
+shape to the complete bundled corpus. LambdaCDM is an ordinary declaration
+under these rules, and complete non-standard recombination equations are
+compiled without importing LambdaCDM defaults.
 
 The report optionally repeats the fixed request after doubling
 `k_sample_count`. It records component-wise relative errors and tolerances;

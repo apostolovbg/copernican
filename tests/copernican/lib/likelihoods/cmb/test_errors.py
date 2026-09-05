@@ -14,8 +14,10 @@ from copernican.lib.likelihoods.cmb.errors import (
     ConstraintViolationError,
     ContractError,
     ConvergenceError,
+    EngineCapabilityError,
     ImplementationError,
     InitialPointError,
+    ModelDeclarationError,
     ModelDiscoveryError,
     NonFiniteEvolutionError,
     ParameterDomainError,
@@ -51,8 +53,10 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
 
         self.assertTrue(issubclass(ContractError, CMBError))
         self.assertTrue(issubclass(ConvergenceError, CMBError))
+        self.assertTrue(issubclass(EngineCapabilityError, CMBError))
         self.assertTrue(issubclass(ImplementationError, CMBError))
         self.assertTrue(issubclass(InitialPointError, CMBError))
+        self.assertTrue(issubclass(ModelDeclarationError, CMBError))
         self.assertTrue(issubclass(ModelDiscoveryError, CMBError))
         self.assertTrue(issubclass(UnsupportedCapabilityError, CMBError))
 
@@ -90,8 +94,12 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
 
         cases = (
             (
-                ValueError("requested unsupported projection"),
+                ValueError("model does not provide requested TT"),
                 UnsupportedCapabilityError,
+            ),
+            (
+                ValueError("requested unsupported projection"),
+                EngineCapabilityError,
             ),
             (
                 ValueError("contract did not converge"),
@@ -122,6 +130,22 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
                     typed.context["workload"],
                     "joint_mcmc",
                 )
+
+    def test_universal_admission_categories_are_theory_neutral(self) -> None:
+        """Declaration, engine, and request failures remain distinct."""
+
+        self.assertEqual(
+            ModelDeclarationError.category,
+            "declaration_invalidity",
+        )
+        self.assertEqual(
+            EngineCapabilityError.category,
+            "engine_capability_gap",
+        )
+        self.assertEqual(
+            UnsupportedCapabilityError.category,
+            "request_not_declared",
+        )
 
     def test_cmb_like_rejects_only_parameter_domain_errors(self) -> None:
         """Expected proposals return -inf while invariant failures escape."""

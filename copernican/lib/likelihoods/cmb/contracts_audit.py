@@ -400,11 +400,11 @@ def audit_bundled_cmb_source_graphs(
 ) -> tuple[CMBSourceGraphAudit, ...]:
     """Audit generated source graphs for every bundled CMB model."""
 
-    from .diagnostics import discover_bundled_cmb_plugins
+    from .diagnostics import discover_cmb_plugins
 
     return tuple(
         _audit_source_graph_plugin(plugin)
-        for plugin in discover_bundled_cmb_plugins(model_directory)
+        for plugin in discover_cmb_plugins(model_directory)
     )
 
 
@@ -514,9 +514,9 @@ def audit_bundled_cmb_declarations(
     turning a structural pass into a spectrum claim.
     """
 
-    from .diagnostics import discover_bundled_cmb_plugins
+    from .diagnostics import discover_cmb_plugins
 
-    plugins = discover_bundled_cmb_plugins(model_directory)
+    plugins = discover_cmb_plugins(model_directory)
     contract_audits = {
         audit.model_filename: audit
         for audit in audit_bundled_cmb_contracts(model_directory)
@@ -720,11 +720,11 @@ def audit_bundled_cmb_contracts(
 ) -> tuple[CMBContractAudit, ...]:
     """Audit every bundled model declaration that enables CMB output."""
 
-    from .diagnostics import discover_bundled_cmb_plugins
+    from .diagnostics import discover_cmb_plugins
 
     return tuple(
         _audit_plugin(plugin)
-        for plugin in discover_bundled_cmb_plugins(model_directory)
+        for plugin in discover_cmb_plugins(model_directory)
     )
 
 

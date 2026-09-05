@@ -11,6 +11,7 @@ import numpy
 import yaml
 
 from copernican.lib import model_adapter, model_coder, model_spec_validator
+from copernican.lib.likelihoods.cmb import cmb as cmb_api
 from copernican.lib.likelihoods.cmb import diagnostics
 from copernican.lib.likelihoods.cmb.contracts_audit import (
     assert_bundled_cmb_contracts,
@@ -41,8 +42,8 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     compare_cmb_spectra_to_reference,
     compare_full_cmb_observable_parity,
     declared_cmb_spectrum_names,
-    discover_bundled_cmb_model_records,
-    discover_bundled_cmb_plugins,
+    discover_cmb_model_records,
+    discover_cmb_plugins,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
@@ -51,6 +52,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     write_cmb_corpus_baseline_report,
     write_final_cmb_certification_report,
 )
+from copernican.lib.likelihoods.cmb.errors import EngineCapabilityError
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
 
@@ -149,6 +151,86 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         plugin = model_adapter.build_plugin(parsed, functions)
         plugin.MODEL_FILENAME = source_path.name
         return plugin
+
+    @staticmethod
+    def _universal_recombination_fixture(model_name: str):
+        """Return a bounded valid theory with a non-standard opacity law."""
+
+        source_path = (
+            Path(__file__).resolve().parents[5]
+            / "copernican"
+            / "models"
+            / "model_lcdm.yml"
+        )
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        model_data["model_name"] = model_name
+        model_data["cmb"]["background"]["recombination"] = {
+            "quantities": {
+                "hydrogen_temperature_K": "2.2 * (1.0 + z)",
+                "hydrogen_alpha_B": (
+                    "1.7e-19 * " "((hydrogen_temperature_K / 3000.0) ** -0.4)"
+                ),
+                "beta_continuum": (
+                    "8.0e-20 * " "((hydrogen_temperature_K / 3000.0) ** 0.3)"
+                ),
+                "peebles_c": "0.63",
+            }
+        }
+        for controls in (
+            model_data["cmb"]["numerical"],
+            model_data["cmb"]["perturbations"]["numerics"],
+        ):
+            controls.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": 20,
+                    "k_min": 1.0e-4,
+                    "k_max": 1.0e-2,
+                    "k_sample_count": 1,
+                    "eta_sample_count": 16,
+                    "source_grid_multiplier": 1,
+                }
+            )
+        accuracy_controls = model_data["cmb"]["perturbations"][
+            "accuracy_controls"
+        ]
+        accuracy_controls["scalar_reference_ells"] = [2, 20]
+        accuracy_controls["minimum_k_sample_count"] = 1
+        return model_data
+
+    @staticmethod
+    def _bounded_bundled_fixture(filename: str, model_name: str):
+        """Return one bounded renamed declaration from the model corpus."""
+
+        source_path = (
+            Path(__file__).resolve().parents[5]
+            / "copernican"
+            / "models"
+            / filename
+        )
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        model_data["model_name"] = model_name
+        for controls in (
+            model_data["cmb"]["numerical"],
+            model_data["cmb"]["perturbations"]["numerics"],
+        ):
+            controls.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": 20,
+                    "k_min": 1.0e-4,
+                    "k_max": 1.0e-2,
+                    "k_sample_count": 1,
+                    "eta_sample_count": 16,
+                    "source_grid_multiplier": 1,
+                }
+            )
+        accuracy_controls = model_data["cmb"]["perturbations"][
+            "accuracy_controls"
+        ]
+        accuracy_controls["scalar_reference_ells"] = [2, 20]
+        accuracy_controls["minimum_k_sample_count"] = 1
+        return model_data
 
     @staticmethod
     def _corpus_fixture_report(
@@ -399,12 +481,12 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         with (
             mock.patch(
                 "copernican.lib.likelihoods.cmb.diagnostics."
-                "discover_bundled_cmb_plugins",
+                "discover_cmb_plugins",
                 return_value=plugins,
             ),
             mock.patch(
                 "copernican.lib.likelihoods.cmb.diagnostics."
-                "discover_bundled_cmb_model_records",
+                "discover_cmb_model_records",
                 return_value=discovery_records,
             ),
             mock.patch(
@@ -457,7 +539,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
     def test_discovery_covers_every_bundled_cmb_model(self) -> None:
         """The harness must enumerate the complete bundled CMB corpus."""
 
-        plugins = discover_bundled_cmb_plugins()
+        plugins = discover_cmb_plugins()
         self.assertEqual(len(plugins), 10)
         self.assertEqual(
             {plugin.MODEL_FILENAME for plugin in plugins},
@@ -498,7 +580,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 "valid_for_cmb: true\n",
                 encoding="utf-8",
             )
-            records = discover_bundled_cmb_model_records(models_path)
+            records = discover_cmb_model_records(models_path)
 
         self.assertEqual(
             [record.model_filename for record in records],
@@ -507,7 +589,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertEqual(records[0].status, "unavailable")
         self.assertEqual(records[1].status, "rejected")
         self.assertFalse(records[1].ready)
-        self.assertEqual(records[1].failure["category"], "model_discovery")
+        self.assertEqual(
+            records[1].failure["category"],
+            "declaration_invalidity",
+        )
         self.assertEqual(
             CMBModelDiscoveryRecord(
                 model_filename="model_fixture.yml",
@@ -533,7 +618,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 source_path.read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
-            records = discover_bundled_cmb_model_records(directory)
+            records = discover_cmb_model_records(directory)
 
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].status, "ready")
@@ -543,10 +628,145 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "model_future_lcdm.yml",
         )
 
+    def test_universal_discovery_executes_nonstandard_recombination(self):
+        """Novel names and recombination laws use one theory-neutral route."""
+
+        spectra = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        with tempfile.TemporaryDirectory() as directory:
+            models_path = Path(directory)
+            first_data = self._universal_recombination_fixture("Fairy Dust")
+            second_data = self._universal_recombination_fixture(
+                "Unrelated Model Name"
+            )
+            (models_path / "model_fairy_dust.yaml").write_text(
+                yaml.safe_dump(first_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            (models_path / "model_unrelated_name.yml").write_text(
+                yaml.safe_dump(second_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            records = discover_cmb_model_records(models_path)
+            self.assertEqual(
+                tuple(record.status for record in records),
+                ("ready", "ready"),
+            )
+            results = []
+            for record in records:
+                results.append(
+                    cmb_api.compute_cmb_spectrum_cached(
+                        record.plugin,
+                        record.plugin.INITIAL_GUESSES,
+                        (2,),
+                        spectra=spectra,
+                    )
+                )
+
+        for result in results:
+            self.assertEqual(set(result), set(spectra))
+            for values in result.values():
+                self.assertTrue(numpy.all(numpy.isfinite(values)))
+        for spectrum in spectra:
+            numpy.testing.assert_allclose(
+                results[0][spectrum],
+                results[1][spectrum],
+                rtol=1.0e-12,
+                atol=1.0e-30,
+            )
+
+    def test_partial_recombination_is_a_declaration_error(self) -> None:
+        """Underdetermined opacity mathematics names every missing hook."""
+
+        model_data = self._universal_recombination_fixture("Incomplete Law")
+        model_data["cmb"]["background"]["recombination"]["quantities"] = {
+            "peebles_c": "0.5",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model_incomplete.yaml"
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            record = discover_cmb_model_records(directory)[0]
+
+        self.assertEqual(record.status, "rejected")
+        self.assertEqual(
+            record.failure["category"],
+            "declaration_invalidity",
+        )
+        self.assertIn("hydrogen_alpha_B", record.failure["message"])
+        self.assertIn("hydrogen_temperature_K", record.failure["message"])
+
+    def test_future_multisector_interaction_declaration_executes(self):
+        """Novel interaction metadata remains executable after discovery."""
+
+        model_data = self._bounded_bundled_fixture(
+            "model_usmf2.yml",
+            "Future Coupled Sectors",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model_future_interaction.yaml"
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            record = discover_cmb_model_records(directory)[0]
+            self.assertEqual(record.status, "ready")
+            perturbations = record.plugin.CMB_PERTURBATION_DATA
+            self.assertIn("shrink_baryon_response", perturbations.interactions)
+            self.assertIn(
+                "temperature_monopole_source",
+                perturbations.sources,
+            )
+            contract = dict(
+                record.plugin.get_cmb_declared_runtime(
+                    record.plugin.INITIAL_GUESSES
+                )
+            )
+            contract["_defer_production_scalar_convergence"] = True
+            result = cmb_api.compute_cmb_spectrum_from_contract(
+                contract,
+                (2,),
+                spectra=("TT",),
+            )
+
+        self.assertTrue(numpy.all(numpy.isfinite(result)))
+
+    def test_engine_gap_is_not_a_model_rejection(self) -> None:
+        """A compiler limitation is retained as universal-engine work."""
+
+        model_data = self._universal_recombination_fixture("Novel Operator")
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model_novel_operator.yaml"
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                model_coder,
+                "generate_callables",
+                side_effect=EngineCapabilityError(
+                    "Declared operator is not implemented by CCMBS"
+                ),
+            ):
+                record = discover_cmb_model_records(directory)[0]
+
+        self.assertEqual(record.status, "engine_error")
+        self.assertEqual(
+            record.failure["category"],
+            "engine_capability_gap",
+        )
+        report = diagnostics._discovery_report(
+            record,
+            requested_ells=(2,),
+            requested_spectra=("TT",),
+        )
+        self.assertEqual(report.availability, "execution_failure")
+
     def test_declared_spectrum_inventory_includes_full_angular_contract(self):
         """The corpus request is derived from each model's own graph."""
 
-        plugins = discover_bundled_cmb_plugins()
+        plugins = discover_cmb_plugins()
         inventories = {
             plugin.MODEL_FILENAME: declared_cmb_spectrum_names(plugin)
             for plugin in plugins
@@ -596,6 +816,47 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertIn(
             "does not exactly match",
             " ".join(matrix["rejected_models"][row.model_filename]),
+        )
+
+    def test_full_matrix_separates_engine_failure_from_rejection(self):
+        """Valid theory blocked by CCMBS remains explicit engine work."""
+
+        names = ("TT",)
+        row = CMBModelDiagnostic(
+            model_filename="model_novel.yml",
+            model_name="Novel Physics",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2,),
+            requested_spectra=names,
+            availability="execution_failure",
+            contract_identity={"sha256": "novel"},
+            failure={
+                "error_type": "EngineCapabilityError",
+                "category": "engine_capability_gap",
+                "message": "Declared operator is not implemented",
+            },
+        )
+        audit = {"valid": True, "decision": "ready"}
+        matrix = build_bundled_cmb_full_matrix_report(
+            (row,),
+            required_model_filenames=(row.model_filename,),
+            declared_spectra_by_model={row.model_filename: names},
+            contract_audits={row.model_filename: audit},
+            source_graph_audits={row.model_filename: audit},
+            declaration_audits={row.model_filename: audit},
+        )
+
+        self.assertTrue(matrix["decision_complete"])
+        self.assertFalse(matrix["success"])
+        self.assertEqual(
+            matrix["classifications"][row.model_filename],
+            "execution_failure",
+        )
+        self.assertNotIn(row.model_filename, matrix["rejected_models"])
+        self.assertIn(
+            row.model_filename,
+            matrix["execution_failure_models"],
         )
 
     def test_full_matrix_requires_reference_for_comparable_rows(self):

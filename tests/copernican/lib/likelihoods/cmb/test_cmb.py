@@ -8053,7 +8053,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         }
         with self.assertRaisesRegex(
             ValueError,
-            "must define 'hydrogen_alpha_B'",
+            "missing quantity equation.*hydrogen_alpha_B",
         ):
             cmb.compute_cmb_spectrum_from_contract(
                 contract,
@@ -11224,8 +11224,10 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "ConstraintViolationError",
                 "ContractError",
                 "ConvergenceError",
+                "EngineCapabilityError",
                 "ImplementationError",
                 "InitialPointError",
+                "ModelDeclarationError",
                 "NonFiniteEvolutionError",
                 "ParameterDomainError",
                 "UnsupportedCapabilityError",
@@ -11251,7 +11253,8 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "audit_bundled_cmb_declarations",
                 "audit_bundled_cmb_contracts",
                 "audit_bundled_cmb_source_graphs",
-                "discover_bundled_cmb_plugins",
+                "discover_cmb_model_records",
+                "discover_cmb_plugins",
                 "run_bundled_cmb_corpus_baseline",
                 "run_bundled_cmb_diagnostics",
                 "run_cmb_model_diagnostic",

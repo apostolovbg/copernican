@@ -124,14 +124,20 @@ their active sector identity from compiled observable and tensor-character
 metadata, so runtime envelopes cannot silently omit executed sectors.
 
 The fixed-parameter CCMBS diagnostics API is independent of samplers and
-plots. `discover_bundled_cmb_model_records()` enumerates all model files and
-retains typed ready, unavailable, or rejected rows; the compatibility helper
-`discover_bundled_cmb_plugins()` returns only ready CMB models;
+plots. `discover_cmb_model_records()` enumerates `.yml` and `.yaml` model
+declarations and retains typed ready, unavailable, rejected, or engine-error
+rows; `discover_cmb_plugins()` returns only ready CMB models;
 `run_cmb_model_diagnostic()` captures raw transfer components, raw and public
 TT/TE/EE spectra, runtime-envelope metadata, and doubled-k-grid refinement
 errors before plotting. `run_bundled_cmb_diagnostics()` applies the same
 report shape to the full corpus, preserving explicit non-convergence instead
-of hiding it. `compare_cmb_spectra_to_reference()` adds backend-neutral
+of hiding it. Unavailable means that the theory explicitly declares no CMB
+output. Invalid or incomplete mathematics is rejected, while a valid
+declaration that exposes missing compiler or runtime machinery is an engine
+failure and therefore CCMBS work, never unsupported theory. LambdaCDM and
+novel declarations use the same admission rules. Deliberately non-standard
+recombination is accepted when all required recombination equations are
+declared. `compare_cmb_spectra_to_reference()` adds backend-neutral
 fractional auto-spectrum and normalized cross-spectrum checks for independent
 fixed-point fixtures. Generated scalar contracts validate explicit metric
 derivatives and compiler-backed source and closure expressions before runtime;

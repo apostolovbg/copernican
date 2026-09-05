@@ -21,9 +21,11 @@ Use `PLAN.md` to track active implementation work below this block.
 
 **Goal:** Deliver a production-ready Copernican Cosmic Microwave Background
 Solver (CCMBS) that works as the old CAMB-backed solver worked, without using
-CAMB as a runtime fallback. Every bundled CMB model must execute through the
-same solver, produce the complete set of observables it declares, and emit
-usable CAMB-like graphs. CAMB is a comparison oracle only.
+CAMB as a runtime fallback. CCMBS is a universal declarative solver: LambdaCDM
+is one theory declaration among many, not a privileged baseline or fallback.
+Every mathematically complete CMB declaration, bundled or novel, must execute
+through the same solver, produce the complete set of observables it declares,
+and emit a usable CAMB-like graph. CAMB is a comparison oracle only.
 
 **Scope:** This plan owns the generated source compiler, background and
 recombination inputs, perturbation hierarchies, metric and collision sources,
@@ -77,6 +79,17 @@ below.
 * Do not lower accuracy, omit a requested sector, clip a requested grid,
   widen a cache key, swallow a typed failure, or relax a tolerance merely to
   obtain a pass.
+* Treat LambdaCDM as an ordinary model declaration. No solver branch,
+  default, validation rule, source term, recombination law, or fallback may be
+  selected because a model resembles or differs from LambdaCDM.
+* A well-posed declaration is never rejected as "unsupported physics" because
+  its theory is unfamiliar. If the grammar, compiler, or runtime cannot yet
+  express valid declared physics, that is an engine defect assigned to an
+  implementation slice, not a model status.
+* Reject only declarations whose mathematics is malformed, incomplete,
+  dimensionally inconsistent, singular, non-finite, non-convergent, or fails
+  an explicitly declared conservation or constraint law. The diagnostic must
+  name the mathematical defect and contain no LCDM-specific assumption.
 * A valid production request must not be rejected by an arbitrary wall-clock
   or nominal work ceiling. Resource accounting may bound memory and report
   work, but cannot replace numerical acceptance.
@@ -106,6 +119,7 @@ below.
 * [Overview](#overview)
 * [Current Evidence](#current-evidence)
 * [Scientific Acceptance Contract](#scientific-acceptance-contract)
+* [Universal Theory Contract](#universal-theory-contract)
 * [CAMB Parity Contract](#camb-parity-contract)
 * [Diagnostic Status Terms](#diagnostic-status-terms)
 * [Execution Rules](#execution-rules)
@@ -126,6 +140,14 @@ resolved at its declared production controls and returns complete raw
 spectra, or it fails with a precise typed diagnosis. The GUI and CLI must not
 turn a failed theory into an empty legend entry or silently display only a
 reference curve.
+
+LambdaCDM is subject to exactly the same declaration parsing, compilation,
+background construction, hierarchy evolution, projection, and validation
+routes as every other theory. The ten bundled files are a certification
+corpus, not the boundary of the engine. A new theory with fully specified
+equations must be admitted by extending the generic declaration/compiler
+contract where necessary; it must not be placed in an unavailable bucket just
+because no bundled fixture resembles it.
 
 ## Current Evidence
 
@@ -189,6 +211,34 @@ production tier.
    comparisons, parity reports, graph files, and decisions are canonical,
    reproducible, and hashable before any sampler result is accepted.
 
+## Universal Theory Contract
+
+The unit of CCMBS support is a complete mathematical declaration, not a model
+name or a match to LambdaCDM. A declaration is complete when it supplies, for
+every requested sector and observable, the background equations and domains,
+species and stress-energy terms, recombination/opacity law, perturbation and
+collision operators, metric closures, gauge and initial conditions, source
+derivatives, projection conventions, and numerical controls needed to solve
+them. It may describe standard matter, modified gravity, additional fluids,
+non-standard recombination, or entirely novel interactions.
+
+The universal compiler and runtime must execute every complete declaration
+without importing physics from another theory. This includes declarations
+whose recombination or visibility history is deliberately unlike LambdaCDM.
+The acceptance corpus therefore includes adversarial, non-LCDM fixtures with
+explicit equations and checks that their histories and spectra are not
+silently replaced by standard ones.
+
+There are only two legitimate failure classes. A declaration may fail before
+execution when its mathematics is missing, malformed, dimensionally
+inconsistent, singular, or internally contradictory. A mathematically valid
+declaration may fail during execution only with a typed numerical diagnosis
+such as non-finite state, violated closure, or failed convergence. Neither
+class may be reported as a vague unsupported-physics decision, and neither
+may be influenced by LambdaCDM comparison values. A valid declaration that
+exposes a capability not yet expressible by CCMBS is an implementation gap;
+the owning slice must extend the engine until that declaration executes.
+
 ## CAMB Parity Contract
 
 CAMB parity is required wherever CAMB implements the same physical model and
@@ -214,15 +264,23 @@ comparison to the closest valid reference. Such a model may not be called
 CAMB-parity-proven where no CAMB equation exists; it must still produce a
 sensible CAMB-like graph.
 
+No model is a reference implementation inside CCMBS. CAMB parity is a
+comparison property of matching declarations, never a permission to replace
+the equations, defaults, or outputs of a non-matching theory.
+
 ## Diagnostic Status Terms
 
 * **Accepted:** all applicable scientific, numerical, execution, and evidence
   checks pass.
-* **Rejected:** CCMBS returned a result, but raw evidence failed a scientific
-  check. The report names the failing layer and owning slice.
-* **Unavailable:** the model truthfully declares no CMB capability, or a
-  typed execution failure prevents any result. A slow run, a missing graph,
-  or a failed scientific check is not an excuse to use this label.
+* **Rejected:** the declaration is mathematically malformed, incomplete,
+  inconsistent, singular, non-finite, or explicitly violates its own
+  declared equations. The report names the exact defect and owning slice.
+* **Execution failure:** a mathematically valid declaration encountered a
+  typed solver, residual, convergence, or resource failure. This blocks
+  closure and is never converted into unavailable or silently omitted output.
+* **Unavailable:** only a declaration that explicitly has no CMB capability.
+  Unfamiliar physics, a missing engine capability, a slow run, a missing
+  graph, or a failed scientific check is not an excuse to use this label.
 * **Unclassified:** the required production measurement has not completed.
   It remains open work and cannot count as success.
 
@@ -241,10 +299,13 @@ sensible CAMB-like graph.
    closure require the named production controls and complete raw arrays;
    reducing `ell`, k, eta, or hierarchy orders cannot turn a failed
    production result into an accepted one.
-7. Run focused tests, stage the changed files, and run
+7. If a complete declaration cannot be represented by the current schema,
+   compiler, hierarchy, or projector, extend that shared capability before
+   closing the owning slice. Do not classify the declaration as unsupported.
+8. Run focused tests, stage the changed files, and run
    `source .venv/bin/activate && python -m devcovenant gate --verify` on the
    staged revision before reporting a slice complete.
-8. Run `devcovenant run`, close the gate, commit, or push only when the user
+9. Run `devcovenant run`, close the gate, commit, or push only when the user
    explicitly requests that action for the turn.
 
 Task markers mean:
@@ -585,7 +646,8 @@ end-to-end GUI and graph bundles remain assigned to Slice Ten.
 
 ### [closed] Slice Seven — complete full-spectrum projection parity
 
-**Scope:** all ten bundled models and every surface they declare.
+**Scope:** every discovered mathematically valid CMB declaration, with all
+ten bundled models as the mandatory certification corpus.
 
 **Purpose:** Certify that CCMBS computes the complete observable boundary,
 not just scalar TT/TE/EE.
@@ -629,12 +691,14 @@ matrix execution uses `CMB_CERTIFICATION_TIER` (ell=2..300, doubled-k
 refinement, k=1024 base) and cannot claim comparable acceptance without the
 corresponding independent CAMB fixture.
 
-### [closed] Slice Eight — valid future-model discovery and compatibility
+### [closed] Slice Eight — universal declaration admission and
+compatibility
 
 **Scope:** model discovery and future declarative contracts.
 
-**Purpose:** Ensure the solver is complete beyond today's ten files without
-silently rejecting a valid model or hiding unsupported physics.
+**Purpose:** Ensure the solver is universal beyond today's ten files. A valid
+declaration must be admitted regardless of its theory, while mathematically
+invalid declarations fail with a precise, LCDM-neutral diagnosis.
 
 **Implementation tasks:**
 
@@ -642,29 +706,51 @@ silently rejecting a valid model or hiding unsupported physics.
    declared sectors and observables.
 2. Validate new species, source roles, derivatives, gauges, hierarchy orders,
    tensor/vector sectors, and lensed outputs before execution.
-3. Add representative future-model fixtures covering new source and sector
-   combinations.
-4. Make unsupported physics fail with an actionable typed contract error
-   naming the missing equation or capability.
-5. Prohibit silent skip, reduced-grid downgrade, false unavailable status,
-   or reference-model substitution.
+3. Add representative future-model and adversarial fixtures covering new
+   species, source and sector combinations, altered recombination, and
+   non-standard interactions without LambdaCDM defaults.
+4. Extend the schema, compiler, hierarchy, background, and projector when a
+   complete fixture exposes a capability not yet expressible by CCMBS. A
+   capability gap is engine work, not a rejection of the theory.
+5. Make genuinely malformed or underdetermined mathematics fail with an
+   actionable typed contract error naming the exact missing or inconsistent
+   equation, domain, dimension, or closure.
+6. Prohibit silent skip, reduced-grid downgrade, false unavailable status,
+   reference-model substitution, and model-name-dependent validation.
 
-**Acceptance:** All ten current models remain accepted; valid future-model
-fixtures execute through CCMBS; unsupported features fail explicitly; and no
-model can disappear from the corpus or plot without a recorded reason.
+**Acceptance:** All ten current models remain accepted; every valid future or
+adversarial fixture executes through universal CCMBS; only mathematically
+invalid declarations fail explicitly; and no model can disappear from the
+corpus or plot without a recorded reason. No valid theory is labeled
+unsupported or unavailable because its equations differ from LambdaCDM.
 
-**Closure evidence (2026-09-05):** Added deterministic
-`discover_bundled_cmb_model_records()` inventory with typed `ready`,
-`unavailable`, and `rejected` outcomes. Full and ordinary model matrices now
-retain every discovered file, including malformed future declarations, while
-the legacy plugin helper remains limited to ready models. Disabled contracts
-receive explicit unavailable declaration rows; compiler and validator failures
-receive path-free `ModelDiscoveryError` evidence with the original failure
-type and message. Custom model directories derive their expected corpus from
-the complete file inventory, so an invalid or unsupported model cannot be
-silently dropped. Focused tests cover disabled and malformed future fixtures,
-all ten bundled model records remain ready, and the public documentation names
-the discovery contract.
+**Closure evidence (2026-09-05):** Universal discovery now enumerates both
+`model_*.yml` and `model_*.yaml` without applying the bundled LambdaCDM-era
+contract audit as an admission rule. A CMB-enabled declaration is ready when
+its own compiled runtime and declared observable inventory are complete;
+explicit `valid_for_cmb: false` remains the only unavailable route. Invalid
+or underdetermined mathematics is a typed `ModelDeclarationError`, a caller
+request for an undeclared surface is a typed `UnsupportedCapabilityError`,
+and valid declared physics blocked by compiler or runtime machinery is a
+typed `EngineCapabilityError`. Discovery, fixed-point diagnostics, corpus
+baselines, ordinary certification, final certification, and the complete
+observable matrix preserve engine failures as `engine_error` or
+`execution_failure`, never as rejected theory or unavailable output.
+
+The executable adversarial corpus includes `.yaml` declarations with names
+unrelated to LambdaCDM, a deliberately non-standard hydrogen temperature,
+recombination coefficient, continuum rate, and Peebles factor, plus a renamed
+multi-source interaction theory. The altered-recombination pair returns
+finite TT, TE, EE, BB, PP, TP, and EP surfaces through the same CCMBS route
+and produces identical arrays under model-name changes. The interaction
+fixture compiles its declared species, source roles, and interaction operator
+and executes a finite raw TT surface. Existing explicit scalar, vector, and
+tensor contract fixtures continue to validate gauge, hierarchy, source,
+derivative, sector, and projection combinations. A partial recombination law
+is rejected before evolution with the exact missing equation names, while an
+injected valid-operator engine gap remains explicit implementation work. The
+public API uses theory-neutral `discover_cmb_model_records()` and
+`discover_cmb_plugins()` names with no deprecated compatibility alias.
 
 ### [closed] Slice Nine — BAO and background closure
 
@@ -709,8 +795,9 @@ scientific result that passed the raw-array tests.
 
 **Implementation tasks:**
 
-1. Run the GUI/CLI workflow for all ten bundled models at their production
-   settings and write one complete bundle per model.
+1. Discover every bundled and user-supplied mathematically valid CMB
+   declaration and run the GUI/CLI workflow at its declared production
+   settings, writing one complete bundle per declaration.
 2. Require each bundle to contain raw spectra, source histories, residuals,
    convergence evidence, parity or standard-limit reports, and all graphs.
 3. Verify every configured theory and declared observable appears in the
@@ -725,7 +812,8 @@ scientific result that passed the raw-array tests.
    environment, then run gate verification on the staged revision.
 
 **Acceptance:** A clean invocation produces sensible CAMB-like graphs for all
-ten models; every declared surface is finite, resolved, and present; all
+discovered mathematically valid CMB declarations, including the ten bundled
+models; every declared surface is finite, resolved, and present; all
 CAMB-comparable raw arrays pass; non-CAMB theories pass their physical
 contracts; BAO remains independent; and no runtime fallback or silent
 omission exists.
@@ -741,10 +829,11 @@ This plan is complete only when all ten slices are closed. The following
 requirements are assigned to slices above; this section introduces no
 unassigned work:
 
-* all ten known model files execute through CCMBS with theory-faithful
-  declarations (Slices One through Six and Eight);
-* every valid future declarative model is discovered and either executed or
-  rejected with an explicit missing-capability diagnosis (Slice Eight);
+* all ten known model files execute through universal CCMBS with
+  theory-faithful declarations (Slices One through Six and Eight);
+* every mathematically complete future declarative model is discovered and
+  executed, while only mathematically invalid declarations fail with an
+  explicit LCDM-neutral diagnosis (Slice Eight);
 * generated background, metric, hierarchy, collision, visibility,
   polarization, initial-condition, and ISW histories are finite and
   independently residual-clean (Slices One through Six and Seven);
@@ -768,6 +857,8 @@ unassigned work:
   DevCovenant verification are green (Slice Ten).
 
 The final raw scientific report and production graph bundles—not a policy
-gate, finite output, or attractive screenshot alone—are proof that CCMBS
-works as the old CAMB solver worked. No scientific requirement may remain
-outside these slices when the plan is closed.
+gate, finite output, or attractive screenshot alone—are proof that universal
+CCMBS works as the old CAMB solver worked. LambdaCDM is one certified theory,
+not the engine's hidden reference. No mathematically complete theory may be
+left outside the admission and production evidence, and no scientific
+requirement may remain outside these slices when the plan is closed.

@@ -42,15 +42,13 @@ description: |
     the `matter_density`, `matter_momentum`, and `baryon_euler` roles when a
     declared background changes the baryon-locked scalar source. Do not
     represent a relational or effective response as a synthetic species.
-  * Set `valid_for_cmb: false` when the theory lacks a defensible linear
-    perturbation closure. Keep the declared contract descriptive, and expose
-    CMB output as unavailable rather than substituting a standard model or
-    returning fabricated zero spectra.
-  * A specification-only model may keep `valid_for_cmb: false` after declaring
-    a complete theory-facing graph. In that case, use `notes` on every
-    equation, constraint, closure, source, and initial condition to record
-    provenance, and use `accuracy_controls` for analytic limits and promotion
-    gates that a later implementation must prove.
+  * Set `valid_for_cmb: false` only when the theory explicitly defines no CMB
+    observable. A theory that intends CMB output must declare its complete
+    mathematics and use `valid_for_cmb: true`; a missing engine capability is
+    CCMBS work and must not make the theory unavailable.
+  * A specification-only model may remain outside executable model discovery
+    until its equations are complete. Do not use `valid_for_cmb: false` to
+    hide incomplete mathematics or a compiler/runtime capability gap.
   * Production contracts do not select a solver. Route keys such as
     `backend`, `standard`, and `backend_mapping` are invalid because every
     accepted CMB contract executes through the declared graph.
@@ -411,7 +409,8 @@ notes: |
     consumes those declared outputs first and only derives required physical
     scalars when the contract makes that possible.
     `cmb.background.recombination.quantities` may also override the declared
-    hydrogen recombination hook, but when present it must define
+    hydrogen recombination hook. Non-standard laws are admitted without
+    LambdaCDM comparison, but when the mapping is present it must define
     `hydrogen_temperature_K`, `hydrogen_alpha_B`, `beta_continuum`, and
     `peebles_c`.
   * Transfer components bind named source terms through declared observable

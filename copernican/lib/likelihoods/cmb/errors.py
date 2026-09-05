@@ -49,9 +49,25 @@ class ParameterDomainError(CMBError):
 
 
 class UnsupportedCapabilityError(CMBError):
-    """Identify a requested capability absent from the declared graph."""
+    """Identify an API request absent from the model's declared graph.
 
-    category = "unsupported_capability"
+    This error describes a caller requesting an undeclared output or solver
+    identifier.  It must never be used to classify unfamiliar model physics.
+    """
+
+    category = "request_not_declared"
+
+
+class ModelDeclarationError(CMBError):
+    """Identify malformed or mathematically incomplete model declarations."""
+
+    category = "declaration_invalidity"
+
+
+class EngineCapabilityError(CMBError):
+    """Identify valid declared physics not yet executable by CCMBS."""
+
+    category = "engine_capability_gap"
 
 
 class ContractError(CMBError):
@@ -61,7 +77,7 @@ class ContractError(CMBError):
 
 
 class ModelDiscoveryError(CMBError):
-    """Identify a model file that cannot be compiled for CCMBS."""
+    """Identify an I/O or discovery failure unrelated to model physics."""
 
     category = "model_discovery"
 
@@ -172,11 +188,10 @@ def classify_exception(
         or "conservation rule exceeded" in normalized
     ):
         error_type = ConstraintViolationError
-    elif (
-        "unsupported" in normalized
-        or "does not provide requested" in normalized
-    ):
+    elif "does not provide requested" in normalized:
         error_type = UnsupportedCapabilityError
+    elif "unsupported" in normalized:
+        error_type = EngineCapabilityError
     elif isinstance(exc, (KeyError, TypeError, ValueError)):
         error_type = ContractError
     else:
@@ -189,9 +204,11 @@ __all__ = [
     "ConstraintViolationError",
     "ContractError",
     "ConvergenceError",
+    "EngineCapabilityError",
     "ImplementationError",
     "InitialPointError",
     "ModelDiscoveryError",
+    "ModelDeclarationError",
     "NonFiniteEvolutionError",
     "ParameterDomainError",
     "UnsupportedCapabilityError",

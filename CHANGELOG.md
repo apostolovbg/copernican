@@ -80,6 +80,32 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-05:
+  Change: Completed universal CCMBS declaration admission and diagnostics.
+  Why: Separated invalid mathematics, undeclared requests, explicit absence,
+       and engine capability gaps without LambdaCDM-based classification.
+  Impact: Added theory-neutral YAML discovery, executable adversarial
+          fixtures, exact recombination validation, and fail-loud engine
+          evidence across certification reports.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/model_coder.py
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
   Change: Fixed BAO legacy-probe compatibility and divergence handling.
   Why: Existing wrappers must still be exercised while the drag helper is
         selected, and divergent legacy integrals must remain hard failures.

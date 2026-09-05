@@ -23,13 +23,22 @@ from ... import model_adapter, model_coder, model_spec_validator
 from ...cmb_contract import audit_cmb_capabilities
 from ...cmb_output import canonical_cmb_spectrum_name, describe_cmb_spectrum
 from .contracts_audit import (
-    _audit_plugin,
-    _audit_source_graph_plugin,
     audit_bundled_cmb_contracts,
     audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
 )
-from .errors import CMBError, ConvergenceError, ModelDiscoveryError
+from .errors import (
+    CMBError,
+    ContractError,
+    ConvergenceError,
+    EngineCapabilityError,
+    ImplementationError,
+    ModelDeclarationError,
+    ModelDiscoveryError,
+    ParameterDomainError,
+    UnsupportedCapabilityError,
+    classify_exception,
+)
 from .runtime import cache
 from .runtime.projection import _compute_custom_cmb_spectrum_data
 
@@ -1668,12 +1677,27 @@ def _jsonable(value: Any) -> Any:
 def _diagnostic_failure(error: BaseException) -> dict[str, Any]:
     """Return a stable failure payload without hiding diagnostic context."""
 
-    if isinstance(error, CMBError):
-        return error.diagnostic()
-    return {
-        "error_type": type(error).__name__,
-        "message": str(error),
-    }
+    typed = error if isinstance(error, CMBError) else classify_exception(error)
+    payload = typed.diagnostic()
+    payload["error_type"] = type(typed).__name__
+    return payload
+
+
+def _diagnostic_failure_availability(error: BaseException) -> str:
+    """Separate invalid declarations from failures of the universal engine."""
+
+    typed = error if isinstance(error, CMBError) else classify_exception(error)
+    if isinstance(
+        typed,
+        (
+            ContractError,
+            ModelDeclarationError,
+            ParameterDomainError,
+            UnsupportedCapabilityError,
+        ),
+    ):
+        return "rejected"
+    return "execution_failure"
 
 
 def _bound_contract(
@@ -1942,7 +1966,7 @@ def audit_cmb_repository_integrity(
                         1,
                         f"rejected declaration: {decision.model_filename}",
                     )
-            plugins = discover_bundled_cmb_plugins(str(models_path))
+            plugins = discover_cmb_plugins(str(models_path))
             for plugin in plugins:
                 declared = set(declared_cmb_spectrum_names(plugin))
                 supported = set(
@@ -2059,6 +2083,32 @@ def _unavailable_report(
     )
 
 
+def _failed_report(
+    plugin: Any,
+    *,
+    requested_ells: tuple[int, ...],
+    requested_spectra: tuple[str, ...],
+    error: BaseException,
+) -> "CMBModelDiagnostic":
+    """Create a typed row for invalid math or a universal-engine failure."""
+
+    return CMBModelDiagnostic(
+        model_filename=str(getattr(plugin, "MODEL_FILENAME", "<unknown>")),
+        model_name=str(getattr(plugin, "MODEL_NAME", "<unknown>")),
+        parameter_names=tuple(
+            str(value) for value in getattr(plugin, "PARAMETER_NAMES", ())
+        ),
+        parameter_values=tuple(
+            float(value) for value in getattr(plugin, "INITIAL_GUESSES", ())
+        ),
+        requested_ells=requested_ells,
+        requested_spectra=requested_spectra,
+        availability=_diagnostic_failure_availability(error),
+        contract_identity=_contract_identity(plugin),
+        failure=_diagnostic_failure(error),
+    )
+
+
 def _discovery_report(
     record: CMBModelDiscoveryRecord,
     *,
@@ -2074,6 +2124,11 @@ def _discovery_report(
         "message",
         "Model was not available for CCMBS execution",
     )
+    availability = (
+        "execution_failure"
+        if record.status == "engine_error"
+        else record.status
+    )
     return CMBModelDiagnostic(
         model_filename=record.model_filename,
         model_name=record.model_name,
@@ -2087,7 +2142,7 @@ def _discovery_report(
         ),
         requested_ells=requested_ells,
         requested_spectra=requested_spectra,
-        availability=record.status,
+        availability=availability,
         contract_identity={},
         failure=failure,
     )
@@ -2151,7 +2206,7 @@ def _relative_error(reference: Any, refined: Any) -> float:
 
 @dataclass(frozen=True, slots=True)
 class CMBModelDiagnostic:
-    """Raw fixed-point CCMBS evidence for one bundled CMB model."""
+    """Raw fixed-point CCMBS evidence for one declarative CMB model."""
 
     model_filename: str
     model_name: str
@@ -2178,13 +2233,18 @@ class CMBModelDiagnostic:
     failure: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
-        """Validate the explicit measured, rejected, or unavailable state."""
+        """Validate the explicit measured, failed, or unavailable state."""
 
         availability = str(self.availability).lower()
-        if availability not in {"measured", "unavailable", "rejected"}:
+        if availability not in {
+            "measured",
+            "unavailable",
+            "rejected",
+            "execution_failure",
+        }:
             raise ValueError(
                 "Diagnostic availability must be measured, unavailable, "
-                "or rejected"
+                "rejected, or execution_failure"
             )
         object.__setattr__(self, "availability", availability)
 
@@ -2230,9 +2290,8 @@ class CMBModelDiscoveryRecord:
     """Deterministic discovery outcome for one declarative model file.
 
     Discovery is deliberately separate from numerical execution.  A model
-    that is disabled, malformed, or missing a generated capability therefore
-    remains visible to corpus reports instead of disappearing from the
-    plugin tuple used by legacy callers.
+    that is disabled, malformed, or exposes an engine defect therefore
+    remains visible to reports instead of disappearing from the plugin tuple.
     """
 
     model_filename: str
@@ -2245,7 +2304,12 @@ class CMBModelDiscoveryRecord:
         """Validate the closed discovery status vocabulary."""
 
         status = str(self.status).lower()
-        if status not in {"ready", "unavailable", "rejected"}:
+        if status not in {
+            "ready",
+            "unavailable",
+            "rejected",
+            "engine_error",
+        }:
             raise ValueError("Invalid CMB model discovery status")
         object.__setattr__(self, "status", status)
 
@@ -2633,6 +2697,8 @@ def _baseline_decision(report: CMBModelDiagnostic) -> str:
 
     if report.availability == "unavailable":
         return "unavailable"
+    if report.availability == "execution_failure":
+        return "execution_failure"
     if report.failure is None and report.availability == "measured":
         return "accepted"
     return "rejected"
@@ -2669,6 +2735,7 @@ class CMBCorpusBaselineRow:
         if decision not in {
             "accepted",
             "rejected",
+            "execution_failure",
             "unavailable",
             "unclassified",
         }:
@@ -2748,6 +2815,8 @@ def _baseline_evidence_issues(
                 issues.append("missing refined cache identity")
     elif row.decision == "unavailable" and report.failure is None:
         issues.append("unavailable row has no typed failure")
+    elif row.decision == "execution_failure" and report.failure is None:
+        issues.append("execution-failure row has no typed failure")
     elif row.decision == "unclassified":
         remaining = row.decision_context.get("remaining_tiers", ())
         if not remaining:
@@ -2812,6 +2881,7 @@ def build_cmb_corpus_baseline_report(
     outcome_counts = {
         "accepted": 0,
         "rejected": 0,
+        "execution_failure": 0,
         "unavailable": 0,
         "unclassified": 0,
     }
@@ -2864,6 +2934,11 @@ def build_cmb_corpus_baseline_report(
             row.model_filename
             for row in ordered_rows
             if row.decision == "rejected"
+        ],
+        "execution_failure_models": [
+            row.model_filename
+            for row in ordered_rows
+            if row.decision == "execution_failure"
         ],
         "unavailable_models": [
             row.model_filename
@@ -3063,6 +3138,7 @@ def build_cmb_certification_report(
     model_records: list[dict[str, Any]] = []
     accepted: list[str] = []
     rejected: dict[str, list[str]] = {}
+    execution_failures: dict[str, list[str]] = {}
     for report in ordered_reports:
         audit = (contract_audits or {}).get(str(report.model_filename))
         graph_audit = (source_graph_audits or {}).get(
@@ -3102,6 +3178,8 @@ def build_cmb_certification_report(
         )
         if valid:
             accepted.append(model_name)
+        elif report.availability == "execution_failure":
+            execution_failures[model_name] = list(issues)
         else:
             rejected[model_name] = list(issues)
     for model_name in missing_models:
@@ -3133,9 +3211,15 @@ def build_cmb_certification_report(
             bool(item["accepted"]) or bool(item["issues"])
             for item in model_records
         )
-        and len(rejected) == len(expected) - len(accepted)
+        and len(rejected) + len(execution_failures)
+        == len(expected) - len(accepted)
     )
-    success = complete and len(accepted) == len(expected) and not rejected
+    success = bool(
+        complete
+        and len(accepted) == len(expected)
+        and not rejected
+        and not execution_failures
+    )
     record: dict[str, Any] = {
         "schema_version": 1,
         "required_spectra": list(required),
@@ -3147,6 +3231,10 @@ def build_cmb_certification_report(
         "success": success,
         "accepted_models": sorted(accepted),
         "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "execution_failure_models": {
+            name: execution_failures[name]
+            for name in sorted(execution_failures)
+        },
         "contract_audits": {
             name: _jsonable((contract_audits or {}).get(name))
             for name in sorted(contract_audits or {})
@@ -3249,9 +3337,10 @@ def build_final_cmb_certification_report(
     The ordinary certification builder remains useful for intermediate
     evidence.  This boundary additionally requires the frozen corpus, a
     declared reference for selected models, provenance metadata, all runtime
-    integrity checks, and an independent BAO result.  An explicitly disabled
-    CMB model is reported as ``unavailable``; an enabled model with a failed
-    run remains rejected.
+    integrity checks, and an independent BAO result. An explicitly disabled
+    CMB model is reported as ``unavailable``; invalid mathematics is
+    ``rejected``; and a valid declaration that fails in CCMBS is an
+    ``execution_failure``.
     """
 
     ordered_reports = tuple(reports)
@@ -3294,6 +3383,10 @@ def build_final_cmb_certification_report(
         str(name): list(issues)
         for name, issues in base["rejected_models"].items()
     }
+    execution_failures = {
+        str(name): list(issues)
+        for name, issues in base.get("execution_failure_models", {}).items()
+    }
     unavailable: set[str] = set()
     for name in sorted(set(required_models) & set(report_by_name)):
         report = report_by_name[name]
@@ -3313,23 +3406,27 @@ def build_final_cmb_certification_report(
         if explicitly_unavailable:
             accepted.discard(name)
             rejected.pop(name, None)
+            execution_failures.pop(name, None)
             unavailable.add(name)
 
     for name in reference_models:
         report = report_by_name.get(name)
         comparison = report.reference_comparison if report else {}
+        issue_target = (
+            execution_failures if name in execution_failures else rejected
+        )
         if report is None:
-            rejected.setdefault(name, []).append(
+            issue_target.setdefault(name, []).append(
                 "required independent reference model is missing"
             )
         elif not bool(comparison.get("available", False)):
             accepted.discard(name)
-            rejected.setdefault(name, []).append(
+            issue_target.setdefault(name, []).append(
                 "required independent reference comparison is unavailable"
             )
         elif not bool(comparison.get("converged", False)):
             accepted.discard(name)
-            rejected.setdefault(name, []).append(
+            issue_target.setdefault(name, []).append(
                 "required independent reference comparison failed"
             )
 
@@ -3380,11 +3477,15 @@ def build_final_cmb_certification_report(
         base["complete"]
         and base["decision_complete"]
         and not rejected
+        and not execution_failures
         and not global_issues
     )
     base["accepted_models"] = sorted(accepted)
     base["rejected_models"] = {
         name: rejected[name] for name in sorted(rejected)
+    }
+    base["execution_failure_models"] = {
+        name: execution_failures[name] for name in sorted(execution_failures)
     }
     base["repository_integrity"] = _jsonable(repository_integrity or {})
     base["full_matrix"] = _jsonable(full_matrix or {})
@@ -3395,6 +3496,10 @@ def build_final_cmb_certification_report(
         "accepted_models": sorted(accepted),
         "unavailable_models": sorted(unavailable),
         "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "execution_failure_models": {
+            name: execution_failures[name]
+            for name in sorted(execution_failures)
+        },
         "reference_required_models": sorted(reference_models),
         "integrity_checks": checks,
         "repository_integrity": _jsonable(repository_integrity or {}),
@@ -3719,7 +3824,7 @@ def run_cmb_model_diagnostic(
             parameter_values=parameter_values,
             requested_ells=requested_ells,
             requested_spectra=requested_spectra,
-            availability="unavailable",
+            availability=_diagnostic_failure_availability(error),
             contract_identity=contract_identity,
             failure=_diagnostic_failure(error),
         )
@@ -4271,8 +4376,10 @@ def build_bundled_cmb_full_matrix_report(
     Unlike the historical TT/TE/EE matrix, this report derives required
     spectra per model and records an explicit classification for every row.
     A declaration-level ``unavailable`` decision is the only acceptable
-    unavailable outcome; an enabled model that fails execution is rejected.
-    Thus no missing output can be hidden by a corpus-wide default request.
+    unavailable outcome. Invalid mathematics is rejected, while an enabled
+    valid declaration that exposes missing engine machinery is recorded as
+    an execution failure. No missing output can be hidden by a corpus-wide
+    default request.
     """
 
     ordered_reports = tuple(
@@ -4309,6 +4416,7 @@ def build_bundled_cmb_full_matrix_report(
     accepted: list[str] = []
     unavailable: list[str] = []
     rejected: dict[str, list[str]] = {}
+    execution_failures: dict[str, list[str]] = {}
     classifications: dict[str, str] = {}
     for report in ordered_reports:
         filename = str(report.model_filename)
@@ -4339,12 +4447,19 @@ def build_bundled_cmb_full_matrix_report(
                 declaration_audit=declaration,
             )
             issues.extend(evidence_issues)
-            outcome = "accepted" if valid and not issues else "rejected"
+            if valid and not issues:
+                outcome = "accepted"
+            elif report.availability == "execution_failure":
+                outcome = "execution_failure"
+            else:
+                outcome = "rejected"
         classifications[filename] = outcome
         if outcome == "accepted":
             accepted.append(filename)
         elif outcome == "unavailable":
             unavailable.append(filename)
+        elif outcome == "execution_failure":
+            execution_failures[filename] = list(issues)
         else:
             rejected[filename] = list(issues)
         records.append(
@@ -4394,7 +4509,12 @@ def build_bundled_cmb_full_matrix_report(
         complete
         and all(
             classifications.get(filename)
-            in {"accepted", "rejected", "unavailable"}
+            in {
+                "accepted",
+                "rejected",
+                "execution_failure",
+                "unavailable",
+            }
             for filename in expected
         )
     )
@@ -4410,10 +4530,14 @@ def build_bundled_cmb_full_matrix_report(
         "complete": complete,
         "decision_complete": decision_complete,
         "no_unclassified_models": decision_complete,
-        "success": bool(complete and not rejected),
+        "success": bool(complete and not rejected and not execution_failures),
         "accepted_models": sorted(accepted),
         "unavailable_models": sorted(unavailable),
         "rejected_models": {name: rejected[name] for name in sorted(rejected)},
+        "execution_failure_models": {
+            name: execution_failures[name]
+            for name in sorted(execution_failures)
+        },
         "classifications": {
             name: classifications[name] for name in sorted(classifications)
         },
@@ -4452,7 +4576,7 @@ def run_bundled_cmb_full_matrix(
         raise ValueError("Certification tier must declare ells")
     tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
     tier_overrides.update(numerical_overrides or {})
-    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    discovery_records = discover_cmb_model_records(model_directory)
     plugins = tuple(
         record.plugin for record in discovery_records if record.ready
     )
@@ -4561,15 +4685,12 @@ def run_bundled_cmb_full_matrix(
             TypeError,
             ValueError,
         ) as error:
-            report = _unavailable_report(
+            report = _failed_report(
                 plugin,
                 requested_ells=requested_ells,
                 requested_spectra=requested_spectra,
-                error_type=type(error).__name__,
-                message=str(error),
-                category="rejected",
+                error=error,
             )
-            report = replace(report, availability="rejected")
         scalar_batch = report.scalar_batch_evidence
         cache_isolation = report.cache_isolation_evidence
         if execute_batch_checks and report.availability == "measured":
@@ -4694,7 +4815,7 @@ def run_bundled_cmb_matrix(
         raise ValueError("Certification tier must declare ells and spectra")
     tier_overrides = dict(tier.get("numerical_overrides", {}) or {})
     tier_overrides.update(numerical_overrides or {})
-    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    discovery_records = discover_cmb_model_records(model_directory)
     plugins = tuple(
         record.plugin for record in discovery_records if record.ready
     )
@@ -4774,12 +4895,11 @@ def run_bundled_cmb_matrix(
             TypeError,
             ValueError,
         ) as error:  # pragma: no cover - defensive boundary
-            report = _unavailable_report(
+            report = _failed_report(
                 plugin,
                 requested_ells=requested_ells,
                 requested_spectra=requested_spectra,
-                error_type=type(error).__name__,
-                message=str(error),
+                error=error,
             )
         scalar_batch = report.scalar_batch_evidence
         cache_isolation = report.cache_isolation_evidence
@@ -4823,21 +4943,29 @@ def run_bundled_cmb_matrix(
     )
 
 
-def discover_bundled_cmb_model_records(
+def discover_cmb_model_records(
     model_directory: str | Path | None = None,
 ) -> tuple[CMBModelDiscoveryRecord, ...]:
     """Discover every model file without silently dropping failures.
 
-    Validation and code generation are performed once per file.  A disabled
-    model is recorded as ``unavailable`` and a malformed or unsupported file
-    as ``rejected``.  The failure payload intentionally contains no absolute
-    path so reports remain reproducible across machines.
+    Validation and code generation are performed once per YAML declaration.
+    A disabled model is ``unavailable``, invalid mathematics is ``rejected``,
+    and a compiler/runtime capability defect is ``engine_error``.  The
+    failure payload contains no absolute path, model-name heuristic, or
+    LambdaCDM comparison so reports remain theory-neutral and reproducible.
     """
 
     package_root = Path(__file__).resolve().parents[3]
     models_path = Path(model_directory or package_root / "models")
     records: list[CMBModelDiscoveryRecord] = []
-    for model_path in sorted(models_path.glob("model_*.yml")):
+    model_paths = sorted(
+        {
+            *models_path.glob("model_*.yml"),
+            *models_path.glob("model_*.yaml"),
+        },
+        key=lambda path: path.name,
+    )
+    for model_path in model_paths:
         filename = model_path.name
         fallback_name = model_path.stem.removeprefix("model_")
         try:
@@ -4870,14 +4998,27 @@ def discover_bundled_cmb_model_records(
                 continue
             plugin = model_adapter.build_plugin(model_data, functions)
             plugin.MODEL_FILENAME = filename
-            contract_audit = _audit_plugin(plugin)
-            source_graph_audit = _audit_source_graph_plugin(plugin)
-            structural_issues = tuple(
-                sorted(
-                    set(contract_audit.issues) | set(source_graph_audit.issues)
-                )
+            runtime = plugin.get_cmb_declared_runtime(
+                getattr(plugin, "INITIAL_GUESSES", ())
             )
+            structural_issues: tuple[str, ...] = ()
+            if not isinstance(runtime, Mapping):
+                structural_issues = ("declared CMB runtime must be a mapping",)
+            elif not declared_cmb_spectrum_names(plugin):
+                structural_issues = (
+                    "CMB-enabled declaration must declare an observable",
+                )
             if structural_issues:
+                typed = ModelDeclarationError(
+                    "; ".join(structural_issues),
+                    context={
+                        "model_filename": filename,
+                        "model_name": str(
+                            getattr(plugin, "MODEL_NAME", model_name)
+                        ),
+                        "failure_stage": "contract_audit",
+                    },
+                )
                 records.append(
                     CMBModelDiscoveryRecord(
                         model_filename=filename,
@@ -4886,9 +5027,7 @@ def discover_bundled_cmb_model_records(
                         ),
                         status="rejected",
                         failure={
-                            "error_type": "ContractError",
-                            "category": "contract_invalidity",
-                            "message": "; ".join(structural_issues),
+                            **_diagnostic_failure(typed),
                             "issues": structural_issues,
                         },
                     )
@@ -4902,24 +5041,68 @@ def discover_bundled_cmb_model_records(
                     plugin=plugin,
                 )
             )
+        except (EngineCapabilityError, ImplementationError) as error:
+            typed = error.add_context(
+                model_filename=filename,
+                model_name=fallback_name,
+                failure_stage="declaration_compilation",
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="engine_error",
+                    failure=_diagnostic_failure(typed),
+                )
+            )
+        except (
+            ContractError,
+            ModelDeclarationError,
+            ParameterDomainError,
+            UnsupportedCapabilityError,
+        ) as error:
+            typed = error.add_context(
+                model_filename=filename,
+                model_name=fallback_name,
+                failure_stage="declaration_compilation",
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="rejected",
+                    failure=_diagnostic_failure(typed),
+                )
+            )
+        except CMBError as error:
+            typed = error.add_context(
+                model_filename=filename,
+                model_name=fallback_name,
+                failure_stage="declaration_compilation",
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="engine_error",
+                    failure=_diagnostic_failure(typed),
+                )
+            )
         except (
             ArithmeticError,
-            AttributeError,
-            ImportError,
             LookupError,
-            OSError,
-            RuntimeError,
             SyntaxError,
             TypeError,
             UnicodeError,
             ValueError,
         ) as error:
-            typed = ModelDiscoveryError(
+            typed = ModelDeclarationError(
                 f"{type(error).__name__}: {error}",
                 context={
                     "model_filename": filename,
                     "model_name": fallback_name,
                     "failure_type": type(error).__name__,
+                    "failure_stage": "declaration_compilation",
                 },
             )
             records.append(
@@ -4927,20 +5110,38 @@ def discover_bundled_cmb_model_records(
                     model_filename=filename,
                     model_name=fallback_name,
                     status="rejected",
-                    failure=typed.diagnostic(),
+                    failure=_diagnostic_failure(typed),
+                )
+            )
+        except (AttributeError, ImportError, OSError, RuntimeError) as error:
+            typed = ModelDiscoveryError(
+                f"{type(error).__name__}: {error}",
+                context={
+                    "model_filename": filename,
+                    "model_name": fallback_name,
+                    "failure_type": type(error).__name__,
+                    "failure_stage": "declaration_discovery",
+                },
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="engine_error",
+                    failure=_diagnostic_failure(typed),
                 )
             )
     return tuple(records)
 
 
-def discover_bundled_cmb_plugins(
+def discover_cmb_plugins(
     model_directory: str | Path | None = None,
 ) -> tuple[Any, ...]:
     """Build every discovered model plugin whose contract enables CMB."""
 
     return tuple(
         record.plugin
-        for record in discover_bundled_cmb_model_records(model_directory)
+        for record in discover_cmb_model_records(model_directory)
         if record.ready
     )
 
@@ -4967,7 +5168,7 @@ def run_bundled_cmb_diagnostics(
 
     requested_ells = tuple(int(value) for value in ells)
     requested_spectra = tuple(str(value) for value in spectra)
-    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    discovery_records = discover_cmb_model_records(model_directory)
     reports = [
         _discovery_report(
             record,
@@ -5151,12 +5352,11 @@ def _run_usmf2_corpus_baseline(
             TypeError,
             ValueError,
         ) as error:
-            report = _unavailable_report(
+            report = _failed_report(
                 plugin,
                 requested_ells=tuple(baseline_request["ells"]),
                 requested_spectra=tuple(baseline_request["spectra"]),
-                error_type=type(error).__name__,
-                message=str(error),
+                error=error,
             )
         terminal_report = report
         progression.append(
@@ -5243,7 +5443,7 @@ def run_bundled_cmb_corpus_baseline(
         None,
         baseline_request=request,
     )
-    discovery_records = discover_bundled_cmb_model_records(model_directory)
+    discovery_records = discover_cmb_model_records(model_directory)
     plugins = tuple(
         record.plugin for record in discovery_records if record.ready
     )
@@ -5330,12 +5530,11 @@ def run_bundled_cmb_corpus_baseline(
             TypeError,
             ValueError,
         ) as error:
-            report = _unavailable_report(
+            report = _failed_report(
                 plugin,
                 requested_ells=tuple(request["ells"]),
                 requested_spectra=tuple(request["spectra"]),
-                error_type=type(error).__name__,
-                message=str(error),
+                error=error,
             )
         rows.append(
             _build_corpus_baseline_row(
@@ -5375,8 +5574,8 @@ __all__ = [
     "audit_cmb_repository_integrity",
     "compare_cmb_spectra_to_reference",
     "compare_full_cmb_observable_parity",
-    "discover_bundled_cmb_model_records",
-    "discover_bundled_cmb_plugins",
+    "discover_cmb_model_records",
+    "discover_cmb_plugins",
     "run_bundled_cmb_matrix",
     "run_bundled_cmb_full_matrix",
     "run_bundled_cmb_corpus_baseline",
