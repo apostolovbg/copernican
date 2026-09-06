@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import tempfile
+import time
 import unittest
 import warnings
 from pathlib import Path
@@ -205,6 +206,77 @@ class TestSamplerMcmc(unittest.TestCase):
         full = adapter.assemble_full(numpy.array([4.0, 5.0]))
         self.assertTrue(numpy.allclose(full, numpy.array([4.0, 2.0, 5.0])))
         self.assertEqual(adapter(numpy.array([4.0, 5.0])), 11.0)
+
+    def test_active_log_probability_tracks_sampling_phase(self) -> None:
+        """The adapter exposes the stage used in proposal telemetry."""
+
+        adapter = _ActiveLogProbability(
+            lambda _params: 0.0,
+            numpy.asarray((1.0,)),
+            numpy.asarray((0,)),
+        )
+        self.assertEqual(adapter.phase, "unassigned")
+        adapter.set_phase("production")
+        self.assertEqual(adapter.phase, "production")
+
+    def test_worker_proposal_logs_phase_position_and_elapsed(self) -> None:
+        """Worker telemetry identifies each completed proposal."""
+
+        class _FastProposal:
+            def __call__(self, position):
+                return float(numpy.sum(position))
+
+        previous_adapter = module._WORKER_LOG_PROBABILITY
+        previous_phase = module._WORKER_PHASE
+        previous_timeout = module._WORKER_EVALUATION_TIMEOUT_SECONDS
+        module._WORKER_LOG_PROBABILITY = _FastProposal()
+        module._WORKER_PHASE = "production"
+        module._WORKER_EVALUATION_TIMEOUT_SECONDS = 1.0
+        try:
+            with self.assertLogs(level="INFO") as captured:
+                value = module._worker_log_probability(
+                    numpy.asarray((1.0, 2.0))
+                )
+        finally:
+            module._WORKER_LOG_PROBABILITY = previous_adapter
+            module._WORKER_PHASE = previous_phase
+            module._WORKER_EVALUATION_TIMEOUT_SECONDS = previous_timeout
+
+        self.assertEqual(value, 3.0)
+        output = "\n".join(captured.output)
+        self.assertIn("MCMC proposal started", output)
+        self.assertIn("phase=production", output)
+        self.assertIn("position=[1.,2.]", output)
+        self.assertIn("MCMC proposal completed", output)
+        self.assertIn("elapsed=", output)
+
+    def test_worker_proposal_watchdog_rejects_slow_proposal(self) -> None:
+        """A worker timeout returns ``-inf`` and records a clear reason."""
+
+        class _SlowProposal:
+            def __call__(self, _position):
+                time.sleep(0.05)
+                return 1.0
+
+        previous_adapter = module._WORKER_LOG_PROBABILITY
+        previous_phase = module._WORKER_PHASE
+        previous_timeout = module._WORKER_EVALUATION_TIMEOUT_SECONDS
+        module._WORKER_LOG_PROBABILITY = _SlowProposal()
+        module._WORKER_PHASE = "burn_in"
+        module._WORKER_EVALUATION_TIMEOUT_SECONDS = 0.01
+        try:
+            with self.assertLogs(level="ERROR") as captured:
+                value = module._worker_log_probability(numpy.asarray((1.0,)))
+        finally:
+            module._WORKER_LOG_PROBABILITY = previous_adapter
+            module._WORKER_PHASE = previous_phase
+            module._WORKER_EVALUATION_TIMEOUT_SECONDS = previous_timeout
+
+        self.assertTrue(numpy.isneginf(value))
+        output = "\n".join(captured.output)
+        self.assertIn("MCMC proposal timeout", output)
+        self.assertIn("phase=burn_in", output)
+        self.assertIn("outcome=rejected", output)
 
     def test_active_log_probability_evaluates_batch_in_order(self) -> None:
         """Batch adapter preserves full-vector assembly and result order."""

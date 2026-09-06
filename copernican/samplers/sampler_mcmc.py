@@ -24,6 +24,11 @@ each batch still announces its completion so transcripts never retain stale
 bars. The counter updates log the stage label, completed steps and percentage,
 keeping the GUI monitor and log in sync while the logger focuses on statistics.
 
+Current proposal execution records parameter vectors, stage labels, elapsed
+times, and bounded CMB runtime evidence. Worker heartbeats and a configurable
+wall-time watchdog prevent one pathological declared evaluation from making a
+whole ensemble step appear idle forever.
+
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
 :func:`copernican.lib.utils.get_random_seed` value.  The helper captures the
@@ -38,6 +43,8 @@ import logging
 import math
 import multiprocessing as multiprocessing_module
 import os
+import signal
+import threading
 import warnings
 from time import perf_counter
 from typing import Any, Callable, Iterable, Iterator, Sequence
@@ -145,6 +152,17 @@ SAMPLER_SETTINGS = (
         default=0,
         hint="0=disabled",
     ),
+    SamplerSetting(
+        key="cmb_evaluation_timeout_seconds",
+        label="CMB proposal timeout (s)",
+        description=(
+            "Maximum wall time for one worker proposal before it is "
+            "rejected and sampling continues."
+        ),
+        dtype="float",
+        default=300.0,
+        hint="300=5 minutes",
+    ),
 )
 SAMPLER_PROGRESS_CHUNKS = (
     SamplerProgressChunk(name="burn_in", label="Burn-in"),
@@ -178,7 +196,7 @@ class _ActiveLogProbability:
     serialisable for ``multiprocessing.Pool``.
     """
 
-    __slots__ = ("_posterior", "_template", "_active_indices")
+    __slots__ = ("_posterior", "_template", "_active_indices", "_phase")
 
     def __init__(
         self,
@@ -198,6 +216,18 @@ class _ActiveLogProbability:
         self._template = numpy.asarray(template_params, dtype=float)
         # ``active_indices`` pinpoints which coordinates ``emcee`` manipulates.
         self._active_indices = numpy.asarray(active_indices, dtype=int)
+        self._phase = "unassigned"
+
+    @property
+    def phase(self) -> str:
+        """Return the sampler stage currently evaluating proposals."""
+
+        return self._phase
+
+    def set_phase(self, phase: str) -> None:
+        """Set the stage label included in worker proposal telemetry."""
+
+        self._phase = str(phase)
 
     def assemble_full(self, position: numpy.ndarray) -> numpy.ndarray:
         """Return a full parameter vector for ``position``.
@@ -250,14 +280,114 @@ class _ActiveLogProbability:
 
 
 _WORKER_LOG_PROBABILITY: _ActiveLogProbability | None = None
+_WORKER_PHASE = "worker_initialization"
+_WORKER_EVALUATION_TIMEOUT_SECONDS = 300.0
+_WORKER_HEARTBEAT_INTERVAL_SECONDS = 30.0
+
+
+class _MCMCProposalTimeout(BaseException):
+    """Signal raised when one worker proposal exceeds its wall-time budget."""
+
+
+def _proposal_position_text(position: numpy.ndarray) -> str:
+    """Return a compact, deterministic proposal vector for run logs."""
+
+    return numpy.array2string(
+        numpy.asarray(position, dtype=float),
+        precision=8,
+        separator=",",
+        suppress_small=False,
+        max_line_width=120,
+    )
+
+
+def _proposal_heartbeat(
+    stop_event: threading.Event,
+    *,
+    started: float,
+    phase: str,
+    position_text: str,
+    logger: logging.Logger,
+) -> None:
+    """Log periodic evidence while a worker is inside one proposal."""
+
+    while not stop_event.wait(_WORKER_HEARTBEAT_INTERVAL_SECONDS):
+        logger.info(
+            "MCMC proposal heartbeat: phase=%s; elapsed=%.1fs; " "position=%s",
+            phase,
+            max(perf_counter() - started, 0.0),
+            position_text,
+        )
+
+
+def _proposal_alarm_handler(signum: int, frame: object) -> None:
+    """Raise a typed timeout from the worker's main execution thread."""
+
+    del signum, frame
+    raise _MCMCProposalTimeout("MCMC proposal exceeded its wall-time budget")
+
+
+def _stage_heartbeat(
+    stop_event: threading.Event,
+    *,
+    stage_name: str,
+    iteration: int,
+    total: int,
+    started: float,
+    logger: logging.Logger,
+    progress_listener: Callable[[dict[str, object]], None] | None,
+) -> None:
+    """Report a blocked ensemble step while emcee awaits worker results."""
+
+    while not stop_event.wait(_WORKER_HEARTBEAT_INTERVAL_SECONDS):
+        elapsed = max(perf_counter() - started, 0.0)
+        logger.info(
+            "MCMC stage heartbeat: stage=%s; iteration=%d/%d; "
+            "elapsed=%.1fs; awaiting walker evaluations",
+            stage_name,
+            iteration,
+            total,
+            elapsed,
+        )
+        if progress_listener is not None:
+            try:
+                progress_listener(
+                    {
+                        "event": "heartbeat",
+                        "phase": f"{stage_name}_evaluation",
+                        "stage": stage_name,
+                        "stage_label": stage_name,
+                        "stage_metadata": {"phase": stage_name},
+                        "iteration": int(iteration),
+                        "step_index": int(iteration),
+                        "processed": max(int(iteration) - 1, 0),
+                        "total": int(total),
+                        "percent": int(
+                            round(
+                                max(int(iteration) - 1, 0)
+                                / max(int(total), 1)
+                                * 100
+                            )
+                        ),
+                        "walker_processed": 0,
+                        "walker_total": 1,
+                        "heartbeat": True,
+                        "elapsed_seconds": elapsed,
+                    }
+                )
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                logger.debug("MCMC stage heartbeat update failed: %s", exc)
 
 
 def _initialize_mcmc_worker(
     log_probability: _ActiveLogProbability,
+    timeout_seconds: float = 300.0,
 ) -> None:
     """Install one sampler callable and compile worker-local static assets."""
 
+    global _WORKER_EVALUATION_TIMEOUT_SECONDS
     global _WORKER_LOG_PROBABILITY
+    global _WORKER_PHASE
     runtime_started = perf_counter()
     # Keep one numerical thread per worker so BLAS/OpenMP pools cannot multiply
     # the process cap into an unbounded numerical workload.
@@ -270,11 +400,28 @@ def _initialize_mcmc_worker(
     ):
         os.environ[variable] = "1"
     _WORKER_LOG_PROBABILITY = log_probability
+    _WORKER_PHASE = "worker_initialization"
+    _WORKER_EVALUATION_TIMEOUT_SECONDS = float(timeout_seconds)
+    log_probability.set_phase(_WORKER_PHASE)
     log_probability.prepare_worker_runtime()
     logging.getLogger().info(
-        "MCMC worker runtime prepared in %.3fs.",
+        "MCMC worker runtime prepared in %.3fs; proposal timeout=%.1fs; "
+        "heartbeat=%.1fs.",
         max(perf_counter() - runtime_started, 0.0),
+        _WORKER_EVALUATION_TIMEOUT_SECONDS,
+        _WORKER_HEARTBEAT_INTERVAL_SECONDS,
     )
+
+
+def _worker_set_phase(phase: str) -> str:
+    """Broadcast a sampler stage label to one initialized worker."""
+
+    global _WORKER_PHASE
+    _WORKER_PHASE = str(phase)
+    if _WORKER_LOG_PROBABILITY is not None:
+        _WORKER_LOG_PROBABILITY.set_phase(_WORKER_PHASE)
+    logging.getLogger().info("MCMC worker phase set: %s", _WORKER_PHASE)
+    return _WORKER_PHASE
 
 
 def _worker_log_probability(position: numpy.ndarray) -> float:
@@ -282,7 +429,87 @@ def _worker_log_probability(position: numpy.ndarray) -> float:
 
     if _WORKER_LOG_PROBABILITY is None:
         raise RuntimeError("MCMC worker runtime was not initialized")
-    return _WORKER_LOG_PROBABILITY(position)
+    logger = logging.getLogger()
+    started = perf_counter()
+    phase = str(_WORKER_PHASE)
+    position_text = _proposal_position_text(position)
+    logger.info(
+        "MCMC proposal started: phase=%s; position=%s",
+        phase,
+        position_text,
+    )
+    heartbeat_stop = threading.Event()
+    heartbeat = threading.Thread(
+        target=_proposal_heartbeat,
+        args=(heartbeat_stop,),
+        kwargs={
+            "started": started,
+            "phase": phase,
+            "position_text": position_text,
+            "logger": logger,
+        },
+        daemon=True,
+    )
+    heartbeat.start()
+    previous_handler = None
+    previous_timer = (0.0, 0.0)
+    use_alarm = bool(
+        _WORKER_EVALUATION_TIMEOUT_SECONDS > 0.0
+        and hasattr(signal, "setitimer")
+        and threading.current_thread() is threading.main_thread()
+    )
+    try:
+        if use_alarm:
+            previous_handler = signal.signal(
+                signal.SIGALRM,
+                _proposal_alarm_handler,
+            )
+            previous_timer = signal.setitimer(
+                signal.ITIMER_REAL,
+                _WORKER_EVALUATION_TIMEOUT_SECONDS,
+            )
+        value = float(_WORKER_LOG_PROBABILITY(position))
+    except _MCMCProposalTimeout:
+        elapsed = max(perf_counter() - started, 0.0)
+        logger.error(
+            "MCMC proposal timeout: phase=%s; elapsed=%.3fs; "
+            "timeout=%.3fs; position=%s; outcome=rejected",
+            phase,
+            elapsed,
+            _WORKER_EVALUATION_TIMEOUT_SECONDS,
+            position_text,
+        )
+        return float("-inf")
+    # DEVCOV_ALLOW_BROAD_ONCE worker proposal telemetry boundary.
+    except Exception as exc:
+        logger.error(
+            "MCMC proposal failed: phase=%s; elapsed=%.3fs; "
+            "position=%s; error=%s: %s",
+            phase,
+            max(perf_counter() - started, 0.0),
+            position_text,
+            type(exc).__name__,
+            exc,
+        )
+        raise
+    finally:
+        if use_alarm:
+            signal.setitimer(signal.ITIMER_REAL, 0.0)
+            if previous_handler is not None:
+                signal.signal(signal.SIGALRM, previous_handler)
+            if previous_timer[0] > 0.0:
+                signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        heartbeat_stop.set()
+        heartbeat.join(timeout=0.2)
+    logger.info(
+        "MCMC proposal completed: phase=%s; elapsed=%.3fs; "
+        "logP=% .8g; position=%s",
+        phase,
+        max(perf_counter() - started, 0.0),
+        value,
+        position_text,
+    )
+    return value
 
 
 def _worker_batch_log_probability(
@@ -292,7 +519,12 @@ def _worker_batch_log_probability(
 
     if _WORKER_LOG_PROBABILITY is None:
         raise RuntimeError("MCMC worker runtime was not initialized")
-    return _WORKER_LOG_PROBABILITY.evaluate_batch(positions)
+    # Keep the batch API's ordering while applying the watchdog independently
+    # to every proposal.  A stalled member must not hold an entire batch open.
+    coordinates = numpy.asarray(positions, dtype=float)
+    if coordinates.ndim == 1:
+        coordinates = coordinates[numpy.newaxis, :]
+    return tuple(_worker_log_probability(position) for position in coordinates)
 
 
 def _worker_indexed_log_probability(
@@ -794,7 +1026,27 @@ def _run_stage_with_progress(
             initial_state, iterations=n_steps, progress=False
         )
         for idx in range(1, n_steps + 1):
-            state = next(iterator)
+            step_started = perf_counter()
+            step_heartbeat_stop = threading.Event()
+            step_heartbeat = threading.Thread(
+                target=_stage_heartbeat,
+                args=(step_heartbeat_stop,),
+                kwargs={
+                    "stage_name": stage_name,
+                    "iteration": idx,
+                    "total": n_steps,
+                    "started": step_started,
+                    "logger": logger,
+                    "progress_listener": progress_listener,
+                },
+                daemon=True,
+            )
+            step_heartbeat.start()
+            try:
+                state = next(iterator)
+            finally:
+                step_heartbeat_stop.set()
+                step_heartbeat.join(timeout=0.2)
             progress_bar.update(
                 idx,
                 processed=idx,
@@ -871,6 +1123,7 @@ def _ensemble_performance_envelope(
     batch_count: int = 0,
     batch_items: int = 0,
     batch_elapsed_seconds: float = 0.0,
+    cmb_evaluation_timeout_seconds: float = 300.0,
 ) -> dict[str, object]:
     """Build serialisable timing and worker-resource provenance."""
 
@@ -898,6 +1151,9 @@ def _ensemble_performance_envelope(
         "nominal_evaluations": int(nominal_evaluations),
         "failed_requests": int(max(0, failed_requests)),
         "cmb_batch_size": int(max(0, cmb_batch_size)),
+        "cmb_evaluation_timeout_seconds": float(
+            cmb_evaluation_timeout_seconds
+        ),
         "batch_count": int(max(0, batch_count)),
         "batch_items": int(max(0, batch_items)),
         "batch_elapsed_seconds": max(0.0, float(batch_elapsed_seconds)),
@@ -923,6 +1179,7 @@ def sample_parameters(
     display_progress: bool = True,
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     cmb_batch_size: int = 0,
+    cmb_evaluation_timeout_seconds: float = 300.0,
     cmb_solver: Any | str | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
@@ -949,6 +1206,25 @@ def sample_parameters(
             "Declared CMB batch adapter enabled: max batch size=%d.",
             cmb_batch_size,
         )
+    try:
+        cmb_evaluation_timeout_seconds = float(cmb_evaluation_timeout_seconds)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "cmb_evaluation_timeout_seconds must be a finite positive "
+            "number"
+        ) from exc
+    if not math.isfinite(cmb_evaluation_timeout_seconds) or (
+        cmb_evaluation_timeout_seconds <= 0.0
+    ):
+        raise ValueError(
+            "cmb_evaluation_timeout_seconds must be a finite positive "
+            "number"
+        )
+    logger.info(
+        "MCMC proposal watchdog configured: timeout=%.1fs; heartbeat=%.1fs.",
+        cmb_evaluation_timeout_seconds,
+        _WORKER_HEARTBEAT_INTERVAL_SECONDS,
+    )
     ensemble_started = perf_counter()
     phase_seconds = {
         "initialization": 0.0,
@@ -979,6 +1255,9 @@ def sample_parameters(
                 burn_in_steps=burn_steps,
                 production_steps=n_steps,
                 cmb_batch_size=cmb_batch_size,
+                cmb_evaluation_timeout_seconds=(
+                    cmb_evaluation_timeout_seconds
+                ),
             ),
         }
 
@@ -1117,7 +1396,10 @@ def sample_parameters(
                 pool = multiprocessing_module.get_context("spawn").Pool(
                     processes=pool_processes,
                     initializer=_initialize_mcmc_worker,
-                    initargs=(log_probability_active,),
+                    initargs=(
+                        log_probability_active,
+                        cmb_evaluation_timeout_seconds,
+                    ),
                 )
             finally:
                 if previous_worker_flag is None:
@@ -1138,6 +1420,17 @@ def sample_parameters(
                 pool_elapsed,
             )
         try:
+
+            def _set_worker_phase(phase: str) -> None:
+                """Label serial and worker evaluations with their stage."""
+
+                log_probability_active.set_phase(phase)
+                if pool is not None:
+                    pool.map(
+                        _worker_set_phase,
+                        [phase] * int(pool_processes or 0),
+                    )
+
             initial_log_probability = (
                 _worker_log_probability
                 if pool is not None
@@ -1168,6 +1461,7 @@ def sample_parameters(
                 )
 
             initialization_started = perf_counter()
+            _set_worker_phase("walker_initialization")
             initial_positions, logp = _initialise_active_walkers(
                 initial_active,
                 lower,
@@ -1216,6 +1510,7 @@ def sample_parameters(
                 progress_granularity=progress_granularity,
             )
             burn_in_started = perf_counter()
+            _set_worker_phase("burn_in")
             last = _run_stage_with_progress(
                 sampler,
                 initial_positions,
@@ -1258,6 +1553,7 @@ def sample_parameters(
                 progress_granularity=progress_granularity,
             )
             production_started = perf_counter()
+            _set_worker_phase("production")
             _run_stage_with_progress(
                 sampler,
                 coords,

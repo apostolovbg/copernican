@@ -10370,6 +10370,29 @@ def _compute_custom_cmb_spectrum_data_impl(
     return _get_cached_custom_cmb_spectrum_data(cache_key)
 
 
+def _runtime_telemetry_context(
+    result: CustomCMBSpectrumData,
+) -> dict[str, Any]:
+    """Extract compact grid metadata for per-proposal run telemetry."""
+
+    envelope = dict(result.runtime_envelope)
+    effective = dict(envelope.get("effective_numerical_controls", {}) or {})
+    ell_grid = numpy.asarray(result.ell_grid, dtype=int)
+    k_grid = numpy.asarray(result.k_grid, dtype=float)
+    return {
+        "ell_min": int(ell_grid.min()) if ell_grid.size else None,
+        "ell_max": int(ell_grid.max()) if ell_grid.size else None,
+        "ell_count": int(ell_grid.size),
+        "k_sample_count": int(k_grid.size),
+        "eta_sample_count": int(effective.get("eta_sample_count", 0)),
+        "accuracy_tier": envelope.get("accuracy_tier"),
+        "phase_aware_k_enabled": bool(
+            envelope.get("phase_aware_k_enabled", False)
+        ),
+        "cache_state": envelope.get("cache_state"),
+    }
+
+
 def _compute_custom_cmb_spectrum_data(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -10580,12 +10603,14 @@ def _compute_custom_cmb_spectrum_data(
         raise typed_error from exc
 
     timing = timer.snapshot(total_seconds=elapsed)
+    telemetry_context = dict(context)
+    telemetry_context["runtime"] = _runtime_telemetry_context(result)
     cache.record_cmb_performance(
         timing,
         cache_hit=timer.cache_state == "exact_cache_hit",
         workload=workload,
         cache_state=timer.cache_state,
         work_units=timer.work_units,
-        context=context,
+        context=telemetry_context,
     )
     return result

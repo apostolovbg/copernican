@@ -80,6 +80,28 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-06:
+  Change: Added per-proposal CMB telemetry, heartbeats, and watchdog limits.
+  Why: Long CCMBS evaluations were opaque and could block an MCMC ensemble.
+  Impact: Logs expose parameters, grids, phases, work, and bounded failures.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/run_pipeline.py
+  copernican/lib/run_executor.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+  PLAN.md
+  copernican/samplers/sampler_mcmc.py
+
+- 2026-09-06:
   Change: Completed Slice Eleven's final CCMBS certification runner.
   Why: Connected the complete observable matrix to strict provenance,
        repository-integrity, and BAO-isolation evidence without rerunning

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
@@ -124,6 +125,44 @@ def _with_extra_params(
     )
     updated["param_map"] = param_map
     return updated
+
+
+def _format_cmb_parameter_vector(plugin: Any, params: Sequence[float]) -> str:
+    """Format one proposal compactly for the CMB execution log."""
+
+    names = tuple(str(name) for name in getattr(plugin, "PARAMETER_NAMES", ()))
+    values = tuple(float(value) for value in params)
+    fields = []
+    for index, value in enumerate(values):
+        name = names[index] if index < len(names) else f"p{index}"
+        fields.append(f"{name}={value:.8g}")
+    return ",".join(fields)
+
+
+def _cmb_runtime_telemetry(result: CMBResult) -> dict[str, Any]:
+    """Return compact phase, cache, work, and grid evidence for one result."""
+
+    diagnostics = dict(result.diagnostics or {})
+    performance = diagnostics.get("performance_record", {})
+    if not isinstance(performance, Mapping):
+        performance = {}
+    context = performance.get("context", {})
+    if not isinstance(context, Mapping):
+        context = {}
+    runtime = context.get("runtime", {})
+    if not isinstance(runtime, Mapping):
+        runtime = {}
+    return {
+        "cache": diagnostics.get("cache_state", "unknown"),
+        "phases": dict(result.phase_timings or {}),
+        "work_units": dict(performance.get("work_units", {}) or {}),
+        "ell_min": runtime.get("ell_min"),
+        "ell_max": runtime.get("ell_max"),
+        "ell_count": runtime.get("ell_count", len(result.requested_ells)),
+        "k_sample_count": runtime.get("k_sample_count"),
+        "eta_sample_count": runtime.get("eta_sample_count"),
+        "accuracy_tier": runtime.get("accuracy_tier"),
+    }
 
 
 def compute_cmb_spectrum_from_contract(
@@ -547,6 +586,20 @@ class CMBLike(LikelihoodProtocol):
             )
 
         requested_spectra = self._observed_spectra or ("TT",)
+        request_started = perf_counter()
+        parameter_text = _format_cmb_parameter_vector(self.plugin, params)
+        ell_values = tuple(int(value) for value in self._ells)
+        logger.info(
+            "CMB proposal started: model=%s; workload=joint_mcmc; "
+            "spectra=%s; ell_range=%s..%s; ell_count=%d; parameters=%s",
+            getattr(self.plugin, "MODEL_NAME", "unknown"),
+            ",".join(requested_spectra),
+            ell_values[0] if ell_values else None,
+            ell_values[-1] if ell_values else None,
+            len(ell_values),
+            parameter_text,
+        )
+        result: CMBResult | None = None
         try:
             declared_contract = dict(declared_contract)
             declared_contract["_background_provider"] = self.plugin
@@ -554,7 +607,7 @@ class CMBLike(LikelihoodProtocol):
             prepared = self.cmb_solver.prepare(declared_contract)
             result = self.cmb_solver.evaluate(
                 prepared,
-                tuple(int(value) for value in self._ells),
+                ell_values,
                 spectra=requested_spectra,
                 workload="joint_mcmc",
             )
@@ -571,9 +624,59 @@ class CMBLike(LikelihoodProtocol):
             )
             if isinstance(typed_error, ParameterDomainError):
                 return self._reject_parameter_point(typed_error, logger=logger)
+            logger.error(
+                "CMB proposal failed: model=%s; elapsed=%.3fs; "
+                "phase=%s; parameters=%s; error=%s: %s",
+                getattr(self.plugin, "MODEL_NAME", "unknown"),
+                max(perf_counter() - request_started, 0.0),
+                (
+                    (
+                        dict(result.diagnostics)
+                        .get("performance_record", {})
+                        .get("stop_phase")
+                    )
+                    if result is not None
+                    else None
+                ),
+                parameter_text,
+                type(typed_error).__name__,
+                typed_error,
+            )
             raise typed_error from exc
 
-        return self._loglike_from_theory(theory, requested_spectra)
+        try:
+            loglike = self._loglike_from_theory(theory, requested_spectra)
+        # DEVCOV_ALLOW_BROAD_ONCE likelihood-assembly telemetry boundary.
+        except Exception as exc:
+            logger.error(
+                "CMB proposal failed: model=%s; elapsed=%.3fs; "
+                "phase=likelihood_assembly; parameters=%s; error=%s: %s",
+                getattr(self.plugin, "MODEL_NAME", "unknown"),
+                max(perf_counter() - request_started, 0.0),
+                parameter_text,
+                type(exc).__name__,
+                exc,
+            )
+            raise
+        telemetry = _cmb_runtime_telemetry(result)
+        logger.info(
+            "CMB proposal completed: model=%s; elapsed=%.3fs; loglike=% .8g; "
+            "cache=%s; grids=ell[%s..%s]/%s; k=%s; eta=%s; phases=%s; "
+            "work_units=%s; parameters=%s",
+            getattr(self.plugin, "MODEL_NAME", "unknown"),
+            max(perf_counter() - request_started, 0.0),
+            loglike,
+            telemetry["cache"],
+            telemetry["ell_min"],
+            telemetry["ell_max"],
+            telemetry["ell_count"],
+            telemetry["k_sample_count"],
+            telemetry["eta_sample_count"],
+            telemetry["phases"],
+            telemetry["work_units"],
+            parameter_text,
+        )
+        return loglike
 
     def loglike_batch(
         self, params_batch: Sequence[Sequence[float]]

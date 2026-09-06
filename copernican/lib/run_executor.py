@@ -362,6 +362,7 @@ def _sampling_provenance(result: Any) -> dict[str, Any]:
             key: envelope.get(key)
             for key in (
                 "cmb_batch_size",
+                "cmb_evaluation_timeout_seconds",
                 "batch_count",
                 "batch_items",
                 "elapsed_seconds",

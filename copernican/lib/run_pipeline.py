@@ -217,15 +217,19 @@ def execute_run_pipeline(
         sampling_walkers = int(sampling_plan["n_walkers"])
         sampling_pool = sampling_plan.get("pool_size")
         sampling_cmb_batch = int(sampling_plan.get("cmb_batch_size", 0))
+        sampling_cmb_timeout = float(
+            sampling_plan.get("cmb_evaluation_timeout_seconds", 300.0)
+        )
         pool_label = sampling_pool if sampling_pool is not None else "auto"
         logger.info(
             "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
-            "pool=%s, cmb_batch=%d",
+            "pool=%s, cmb_batch=%d, cmb_timeout=%.1fs",
             sampling_steps,
             sampling_burn_in,
             sampling_walkers,
             pool_label,
             sampling_cmb_batch,
+            sampling_cmb_timeout,
         )
         console_output.write(
             f"Configured sampler: steps {sampling_steps}, burn-in "
@@ -236,6 +240,9 @@ def execute_run_pipeline(
         )
         console_output.write(
             f"CMB batch size {sampling_cmb_batch or 'disabled'}."
+        )
+        console_output.write(
+            f"CMB proposal timeout {sampling_cmb_timeout:g} seconds."
         )
 
     fit_fn, _ = resolve_sampler_function(sampler_module)
@@ -280,6 +287,7 @@ def execute_run_pipeline(
             display_progress=display_progress,
             progress_callback=progress_callback,
             cmb_batch_size=sampling_cmb_batch,
+            cmb_evaluation_timeout_seconds=sampling_cmb_timeout,
             cmb_solver=selected_cmb_solver,
         )
 
@@ -331,6 +339,9 @@ def execute_run_pipeline(
             console_output.write(f"  Production steps: {sampling_steps}")
             console_output.write(f"  Walkers: {sampling_walkers}")
             console_output.write(f"  Worker pool: {pool_label}")
+            console_output.write(
+                f"  CMB proposal timeout: {sampling_cmb_timeout:g} seconds"
+            )
             console_output.write("  Starting test-model sampler...")
             console_output.write("")
             test_fit_results = fit_fn(
@@ -345,6 +356,7 @@ def execute_run_pipeline(
                 display_progress=display_progress,
                 progress_callback=progress_callback,
                 cmb_batch_size=sampling_cmb_batch,
+                cmb_evaluation_timeout_seconds=sampling_cmb_timeout,
                 cmb_solver=selected_cmb_solver,
             )
         console_output.write(

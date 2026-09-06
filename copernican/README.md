@@ -373,7 +373,11 @@ as explicit phases, including elapsed time, measured rate, remaining work, and
 ETA in both CLI output and GUI progress snapshots. Burn-in and production
 count iterations separately from cumulative walker evaluations. Worker logs
 record runtime preparation duration so expensive startup is distinguishable
-from posterior evaluation.
+from posterior evaluation. Each CMB proposal logs its parameter vector,
+elapsed time, cache state, effective ell/k/eta grids, phase timings, and work
+units. Worker processes emit a heartbeat every 30 seconds and enforce the
+configurable `cmb_evaluation_timeout_seconds` watchdog (default 300 seconds),
+returning a rejected proposal instead of blocking an ensemble step forever.
 Primordial-only parameter rebounds reuse bounded transfer products and rerun
 only primordial power integration; changed cosmological parameters retain
 separate transfer identities, and adaptive refinement keeps its full path.
@@ -389,9 +393,10 @@ effective numerical controls remain visible in the runtime envelope.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived
-worker limit, nominal proposal evaluations, and failed-request counts. Spawned
-workers request one numerical thread, and the record marks any process or
-numerical oversubscription. The reference validation manifest fixes seed 0,
+worker limit, nominal proposal evaluations, and failed-request counts. The
+record includes the configured CMB proposal timeout. Spawned workers request
+one numerical thread, and the record marks any process or numerical
+oversubscription. The reference validation manifest fixes seed 0,
 five burn-in steps, ten production steps, 32 walkers, and a three-worker pool;
 its copied run manifest and parameter summary preserve this provenance.
 
