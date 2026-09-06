@@ -26,6 +26,7 @@ from jsonschema import ValidationError, validate
 
 from . import error_handler, file_io, latex_utils, priors
 from .cmb_contract import _validate_cmb_contract_definition
+from .likelihoods.cmb.errors import ModelDeclarationError
 
 
 def _sanitise_name_to_var(name: str) -> str:
@@ -89,6 +90,7 @@ MODEL_SCHEMA = {
         },
         "equations": {"type": "object"},
         "rs_expression": {"type": "string"},
+        "bao_drag_redshift_expression": {"type": "string"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},
         "skip_bao": {"type": "boolean"},
@@ -135,7 +137,10 @@ def validate_and_cache_model(path, cache_dir):
         except ValidationError as e:
             msg = f"Model YAML validation error: {e.message}"
             error_handler.report_error(msg)
-            raise ValueError(msg) from e
+            raise ModelDeclarationError(
+                msg,
+                context={"failure_stage": "model_schema_validation"},
+            ) from e
 
     # Auto-generate missing python_var fields from LaTeX names
     used_vars = {
@@ -145,7 +150,9 @@ def validate_and_cache_model(path, cache_dir):
     }
     for param in model_spec.get("parameters", []):
         if "latex_name" not in param:
-            raise ValueError("Missing required latex_name for parameter")
+            raise ModelDeclarationError(
+                "Missing required latex_name for parameter"
+            )
         if not param.get("python_var"):
             base = _sanitise_name_to_var(param["latex_name"])
             candidate = base
@@ -169,21 +176,25 @@ def validate_and_cache_model(path, cache_dir):
                 "value": fixed_value,
             }
             if not isinstance(prior, dict):
-                raise ValueError("Fixed parameter priors must be mappings")
+                raise ModelDeclarationError(
+                    "Fixed parameter priors must be mappings"
+                )
             prior_map = dict(prior)
             try:
                 priors.normalise_prior_mapping(prior_map)
             except priors.PriorError as exc:
-                raise ValueError(str(exc)) from exc
+                raise ModelDeclarationError(str(exc)) from exc
             if prior_map.get("type") != "fixed":
-                raise ValueError("Fixed parameters must declare a fixed prior")
+                raise ModelDeclarationError(
+                    "Fixed parameters must declare a fixed prior"
+                )
             if not math.isclose(
                 float(prior_map.get("value", float("nan"))),
                 fixed_value,
                 rel_tol=1e-12,
                 abs_tol=1e-12,
             ):
-                raise ValueError(
+                raise ModelDeclarationError(
                     "Fixed prior value must match the declared bounds"
                 )
             param["prior"] = prior_map
@@ -192,12 +203,14 @@ def validate_and_cache_model(path, cache_dir):
         prior = param.get("prior")
         if prior:
             if not isinstance(prior, dict):
-                raise ValueError("Prior definitions must be mappings")
+                raise ModelDeclarationError(
+                    "Prior definitions must be mappings"
+                )
             prior_map = dict(prior)
             try:
                 priors.normalise_prior_mapping(prior_map)
             except priors.PriorError as exc:
-                raise ValueError(str(exc)) from exc
+                raise ModelDeclarationError(str(exc)) from exc
             if prior_map.get("type") == "fixed":
                 if not (
                     isinstance(bounds, list)
@@ -209,7 +222,7 @@ def validate_and_cache_model(path, cache_dir):
                         abs_tol=1e-12,
                     )
                 ):
-                    raise ValueError(
+                    raise ModelDeclarationError(
                         "Fixed priors require identical parameter bounds"
                     )
             param["prior"] = prior_map
@@ -221,7 +234,7 @@ def validate_and_cache_model(path, cache_dir):
         elif param.get("transform"):
             transform_name = param["transform"]
             if transform_name != "identity":
-                raise ValueError(
+                raise ModelDeclarationError(
                     "Transforms require a prior declaration to anchor them"
                 )
             param.pop("transform", None)
@@ -229,20 +242,36 @@ def validate_and_cache_model(path, cache_dir):
     if bool(model_spec.get("valid_for_cmb", True)):
         cmb_block = model_spec.get("cmb")
         if not isinstance(cmb_block, dict):
-            raise ValueError("valid_for_cmb models must declare cmb")
+            raise ModelDeclarationError(
+                "valid_for_cmb models must declare cmb"
+            )
         cmb_block.setdefault("model_parameters", {})
         cmb_block.setdefault("value_definitions", {})
-        _validate_cmb_contract_definition(
-            cmb_block,
-            [
-                param.get("python_var", param.get("name", ""))
-                for param in model_spec.get("parameters", [])
-            ],
-            [
-                param.get("latex_name", "")
-                for param in model_spec.get("parameters", [])
-            ],
-        )
+        try:
+            _validate_cmb_contract_definition(
+                cmb_block,
+                [
+                    param.get("python_var", param.get("name", ""))
+                    for param in model_spec.get("parameters", [])
+                ],
+                [
+                    param.get("latex_name", "")
+                    for param in model_spec.get("parameters", [])
+                ],
+            )
+        except ModelDeclarationError:
+            raise
+        except (
+            ArithmeticError,
+            LookupError,
+            SyntaxError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise ModelDeclarationError(
+                f"CMB declaration validation failed: {exc}",
+                context={"failure_stage": "cmb_contract_validation"},
+            ) from exc
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
     model_spec["Hz_expression"] = _ensure_delim(

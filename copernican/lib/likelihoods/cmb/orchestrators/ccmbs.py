@@ -19,7 +19,13 @@ from ....cmb_output import (
 from ....cmb_output import (
     split_cmb_spectrum_name as _split_canonical_spectrum_name,
 )
-from ..errors import classify_exception, failure_context
+from ..errors import (
+    ContractError,
+    NonFiniteEvolutionError,
+    UnsupportedCapabilityError,
+    classify_exception,
+    failure_context,
+)
 from ..runtime import cache
 from ..runtime.lensing import lensed_cls as _lensed_cls
 from ..runtime.performance import PhaseTimer
@@ -327,15 +333,15 @@ def _compute_declared_perturbation_spectrum_impl(
     del background_payload
     perturbation_data = contract_or_params.get("perturbation_data")
     if perturbation_data is None:
-        raise ValueError(
+        raise ContractError(
             "Declared CMB execution requires precompiled perturbation_data."
         )
     requested_ell_grid = numpy.asarray(tuple(ells), dtype=int)
     if requested_ell_grid.size == 0:
-        raise ValueError("ells must not be empty")
+        raise ContractError("ells must not be empty")
     requested_spectra = tuple(str(name) for name in spectra)
     if not requested_spectra:
-        raise ValueError("Requested CMB spectra must not be empty")
+        raise ContractError("Requested CMB spectra must not be empty")
     canonical_requested_spectra = tuple(
         _canonical_spectrum_name(name) for name in requested_spectra
     )
@@ -424,7 +430,7 @@ def _compute_declared_perturbation_spectrum_impl(
             )
     for spectrum_name, spectrum_values in spectra_results.items():
         if not numpy.all(numpy.isfinite(spectrum_values)):
-            raise ValueError(
+            raise NonFiniteEvolutionError(
                 "Declared CMB spectrum calculation produced non-finite "
                 f"{spectrum_name} values"
             )
@@ -458,7 +464,7 @@ def _compute_declared_perturbation_spectrum_impl(
             is None
         )
         missing_str = ", ".join(missing)
-        raise ValueError(
+        raise UnsupportedCapabilityError(
             "Declared CMB graph does not provide requested spectra: "
             f"{missing_str}"
         )

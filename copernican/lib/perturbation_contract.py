@@ -7129,7 +7129,7 @@ def _generated_scalar_source_closure_summary(contract: Any) -> dict[str, Any]:
     }
 
 
-def compile_perturbation_contract(
+def _compile_perturbation_contract_impl(
     contract: Mapping[str, Any],
     *,
     model_name: str,
@@ -9425,6 +9425,51 @@ def compile_perturbation_contract(
     )
     _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
     return _get_cached_perturbation_contract(cache_key)
+
+
+def compile_perturbation_contract(
+    contract: Mapping[str, Any],
+    *,
+    model_name: str,
+    parameter_names: Sequence[str],
+    latex_names: Sequence[str],
+    background_reference_names: Sequence[str],
+) -> PerturbationContractData:
+    """Compile a declaration with an explicit source-typed boundary.
+
+    Every exception raised while checking a perturbation declaration is
+    declaration evidence, not a solver capability decision.  Legacy parser
+    and schema helpers still raise built-in exceptions internally; this
+    wrapper converts those at the boundary while preserving already typed
+    numerical or execution failures.
+    """
+
+    from .likelihoods.cmb.errors import ModelDeclarationError
+
+    try:
+        return _compile_perturbation_contract_impl(
+            contract,
+            model_name=model_name,
+            parameter_names=parameter_names,
+            latex_names=latex_names,
+            background_reference_names=background_reference_names,
+        )
+    except ModelDeclarationError:
+        raise
+    except (
+        ArithmeticError,
+        LookupError,
+        SyntaxError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ModelDeclarationError(
+            f"Perturbation declaration validation failed: {exc}",
+            context={
+                "model_name": str(model_name),
+                "failure_stage": "perturbation_validation",
+            },
+        ) from exc
 
 
 __all__ = [

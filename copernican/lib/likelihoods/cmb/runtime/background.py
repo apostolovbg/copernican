@@ -1074,6 +1074,106 @@ def _resolve_declared_recombination_context(
     )
 
 
+def _resolve_declared_recombination_role_histories(
+    contract: Mapping[str, Any],
+    *,
+    a_values: numpy.ndarray,
+    z_values: numpy.ndarray,
+    hubble_rates: numpy.ndarray,
+    n_h_values: numpy.ndarray,
+    tcmb_k: float,
+    hubble0_si: float,
+) -> dict[str, numpy.ndarray]:
+    """Evaluate a theory's generic recombination role graph on one grid.
+
+    Role targets are declaration names, not LambdaCDM vocabulary.  The
+    universal background uses only their physical meanings: electron
+    fraction, positive opacity magnitude, visibility, and (optionally)
+    matter temperature.  The standard hydrogen/Peebles adapter remains the
+    fallback when no role graph is declared.
+    """
+
+    background_runtime = contract.get("background_runtime")
+    roles = dict(getattr(background_runtime, "recombination_roles", ()) or ())
+    if not roles:
+        return {}
+    grid = numpy.asarray(a_values, dtype=float)
+    z_grid = numpy.asarray(z_values, dtype=float)
+    h_grid = numpy.asarray(hubble_rates, dtype=float)
+    n_h_grid = numpy.asarray(n_h_values, dtype=float)
+    if any(
+        values.shape != grid.shape for values in (z_grid, h_grid, n_h_grid)
+    ):
+        raise ValueError("Generic recombination role inputs have bad shapes")
+    context = _resolve_declared_background_context(
+        contract,
+        a_values=grid,
+        z_values=z_grid,
+    )
+    context.update(
+        {
+            "n_H": n_h_grid,
+            "H_SI": h_grid * 1000.0 / _MPC_M,
+            "H0_SI": float(hubble0_si),
+            "Tcmb_K": float(tcmb_k),
+        }
+    )
+    resolved = _resolve_declared_recombination_context(
+        contract,
+        base_context=context,
+    )
+    histories: dict[str, numpy.ndarray] = {}
+    required_roles = ("electron_fraction", "opacity", "visibility")
+    for role in required_roles:
+        target = roles.get(role)
+        if target not in resolved:
+            raise ValueError(
+                f"Generic recombination role '{role}' resolved no history"
+            )
+        values = numpy.asarray(resolved[target], dtype=float)
+        if values.ndim == 0:
+            values = numpy.full(grid.shape, float(values), dtype=float)
+        if values.shape != grid.shape or not numpy.all(numpy.isfinite(values)):
+            raise ValueError(
+                f"Generic recombination role '{role}' produced invalid values"
+            )
+        histories[role] = values
+    if numpy.any(histories["electron_fraction"] < 0.0):
+        raise ValueError("Generic electron fraction must be non-negative")
+    if numpy.any(histories["opacity"] < 0.0):
+        raise ValueError("Generic opacity must be non-negative")
+    if numpy.any(histories["visibility"] < 0.0) or not numpy.any(
+        histories["visibility"] > 0.0
+    ):
+        raise ValueError("Generic visibility must be non-negative and nonzero")
+    temperature_target = roles.get("matter_temperature")
+    if temperature_target is not None:
+        values = numpy.asarray(resolved[temperature_target], dtype=float)
+        if values.ndim == 0:
+            values = numpy.full(grid.shape, float(values), dtype=float)
+        if (
+            values.shape != grid.shape
+            or not numpy.all(numpy.isfinite(values))
+            or numpy.any(values <= 0.0)
+        ):
+            raise ValueError(
+                "Generic matter temperature must be finite and positive"
+            )
+        histories["matter_temperature"] = values
+    for role, target in roles.items():
+        if role in histories or target not in resolved:
+            continue
+        values = numpy.asarray(resolved[target], dtype=float)
+        if values.ndim == 0:
+            values = numpy.full(grid.shape, float(values), dtype=float)
+        if values.shape != grid.shape or not numpy.all(numpy.isfinite(values)):
+            raise ValueError(
+                f"Generic recombination role '{role}' produced invalid values"
+            )
+        histories[role] = values
+    return histories
+
+
 def _lookup_declared_background_scalar(
     contract: Mapping[str, Any],
     background_context: Mapping[str, Any],
@@ -1140,6 +1240,14 @@ def _summarize_declared_background_manifest_summary(
             str(name) for name in ((recombination.get("quantities", {})) or {})
         )
     )
+    recombination_roles = tuple(
+        sorted(
+            (str(role), str(target))
+            for role, target in (
+                (recombination.get("roles", {})) or {}
+            ).items()
+        )
+    )
     reionization_names = tuple(
         sorted(
             str(name) for name in ((reionization.get("quantities", {})) or {})
@@ -1192,8 +1300,13 @@ def _summarize_declared_background_manifest_summary(
             "upper": calibration.get("upper"),
         },
         "recombination_runtime": {
-            "hydrogen_model": "peebles_case_b_ode",
+            "hydrogen_model": (
+                "peebles_case_b_ode"
+                if not recombination_roles
+                else "declaration_role_graph"
+            ),
             "declared_quantity_names": recombination_names,
+            "declared_role_map": dict(recombination_roles),
             "helium_electron_contribution": True,
             "reionization_ode": True,
         },
@@ -3430,6 +3543,15 @@ def _build_custom_cmb_background(
     recombination_quantities = (
         recombination_section.get("quantities", {}) or {}
     )
+    background_runtime = contract.get("background_runtime")
+    recombination_roles = dict(
+        getattr(background_runtime, "recombination_roles", ()) or ()
+    )
+    generic_recombination = bool(recombination_roles)
+    if generic_recombination:
+        # The generic role graph supplies its own state and opacity histories;
+        # do not route it through the hydrogen/Peebles derivative adapter.
+        recombination_quantities = {}
 
     def _hydrogen_temperature(z_value: float) -> float:
         """Return matter temperature after Compton decoupling."""
@@ -4275,6 +4397,25 @@ def _build_custom_cmb_background(
             _get_reionization_history(None)
         )
 
+    generic_recombination_histories = (
+        _resolve_declared_recombination_role_histories(
+            contract,
+            a_values=a_grid,
+            z_values=z_grid,
+            hubble_rates=H_grid,
+            n_h_values=n_H_grid,
+            tcmb_k=physical_params.Tcmb_K,
+            hubble0_si=hubble0_si,
+        )
+        if generic_recombination
+        else {}
+    )
+    if generic_recombination_histories:
+        x_e_recomb_grid = generic_recombination_histories["electron_fraction"]
+        reionization_xe_grid = numpy.zeros_like(x_e_recomb_grid)
+        reionization_tau = 0.0
+        z_reion = 0.0
+
     x_e_grid = numpy.clip(
         x_e_recomb_grid + reionization_xe_grid,
         1.0e-8,
@@ -4289,6 +4430,17 @@ def _build_custom_cmb_background(
     )[::-1]
     tau_grid = numpy.minimum(tau_grid, 700.0)
     visibility_grid = -tau_dot_grid * numpy.exp(-tau_grid)
+    if generic_recombination_histories:
+        # Generic opacity is declared as the positive magnitude of d tau/d
+        # eta in inverse Mpc; visibility is an independent declared kernel.
+        tau_dot_grid = -generic_recombination_histories["opacity"]
+        tau_grid = -cumulative_trapezoid(
+            (-tau_dot_grid)[::-1],
+            eta_grid[::-1],
+            initial=0.0,
+        )[::-1]
+        tau_grid = numpy.minimum(tau_grid, 700.0)
+        visibility_grid = generic_recombination_histories["visibility"]
     peak_index = int(numpy.argmax(visibility_grid))
     peak_z = float(z_grid[peak_index])
     visibility_integral = float(
@@ -4304,6 +4456,10 @@ def _build_custom_cmb_background(
         photon_temperature_grid,
         decoupling_temperature * ((1.0 + z_grid) / (1.0 + decoupling_z)) ** 2,
     )
+    if generic_recombination_histories.get("matter_temperature") is not None:
+        matter_temperature_grid = generic_recombination_histories[
+            "matter_temperature"
+        ]
     baryon_particle_factor = (1.0 + helium_number_ratio + x_e_grid) / max(
         1.0 + 4.0 * helium_number_ratio, 1.0e-12
     )

@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-05
+**Last Updated:** 2026-09-06
 **Project Version:** 12.0.26
 
 ## Overview
@@ -23,9 +23,10 @@ beside CCMBS without changing samplers or likelihood callers.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
-spectra defined here. A model may declare a declared contract while marking CMB
-output unavailable when its theory has no defensible linear perturbation
-closure.
+spectra defined here. A model may mark CMB output unavailable only when its
+declaration explicitly has no linear perturbation sector. Unfamiliar but
+complete mathematics is accepted by the same compiler and cannot be
+relabelled as unsupported.
 
 ## Ordered batch contract
 
@@ -62,8 +63,9 @@ scientific evidence path. `discover_cmb_model_records()` enumerates every
 `rejected`, or `engine_error` record. Unavailable is reserved for a theory
 that explicitly declares no CMB output. Rejected means malformed or
 incomplete mathematics. A valid declaration that the compiler or runtime
-cannot execute is an engine error and blocks CCMBS closure; unfamiliar
-physics is never itself a rejection. `discover_cmb_plugins()` returns only
+cannot execute is an implementation failure that blocks CCMBS closure;
+unfamiliar physics is never itself a rejection.
+`discover_cmb_plugins()` returns only
 ready CMB plugins. `run_cmb_model_diagnostic`
 then evaluates one model at its fixed initial-guess parameter vector and
 returns the public TT, TE, and EE spectra together with the unscaled raw
@@ -147,7 +149,8 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
-Slice Eleven adds the full corpus boundary. `declared_cmb_spectrum_names()`
+Slice Eight enforces the universal declaration boundary.
+`declared_cmb_spectrum_names()`
 reads every angular-power observable from a compiled model, so a matrix
 request cannot silently collapse to TT/TE/EE. `run_bundled_cmb_full_matrix()`
 executes those per-model requests, including BB, PP, TP, EP, and any lensed
@@ -168,7 +171,7 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
-Slice Twelve closes the final evidence boundary. The
+Slice Eleven closes the final evidence boundary. The
 `audit_cmb_repository_integrity()` helper checks production CCMBS sources for
 reference-solver imports, surrogates, delayed acceptance, hidden backend
 aliases, wall-clock decisions, local paths, plot-only acceptance, and omitted
@@ -176,6 +179,10 @@ declared spectra while re-running contract and source-graph audits.
 `build_final_cmb_certification_report()` retains the full-observable matrix,
 integrity record, and independently captured BAO baseline/isolation evidence
 in one deterministic digest.
+`run_final_cmb_certification()` executes that boundary from a clean fixed-point
+request, rehydrates the matrix's lossless raw reports, applies the repository
+and BAO-isolation checks, and can write the resulting JSON artifact. It does
+not run sampling and cannot replace missing raw evidence with a graph.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic
@@ -302,7 +309,18 @@ sound horizon (`get_sound_horizon_rs_rec_Mpc`) distinct from the BAO drag
 sound horizon (`get_sound_horizon_rs_drag_Mpc`). BAO selects the drag helper,
 records the fitted `z_drag` and source in likelihood metadata, and uses the
 legacy `get_sound_horizon_rs_Mpc` only for external plugins that do not expose
-the drag contract.
+the drag contract. Once a drag helper is present, BAO never evaluates the
+recombination helper first; an invalid drag value is a typed BAO failure and
+cannot be replaced by a recombination ruler.
+Epoch diagnostics preserve the failed endpoint and typed integral category
+for reproducible evidence. A model may declare
+`bao_drag_redshift_expression` when its drag transition differs from the
+standard Eisenstein--Hu fit. The compiler validates that expression against
+the model parameters, replaces only the outer sound-horizon endpoint, and
+keeps the declared recombination endpoint separate.
+BAO also preserves typed metadata for missing helpers, invalid background
+shapes or values, non-finite predictions, invalid drag endpoints, and invalid
+datasets; those failures cannot masquerade as a finite likelihood.
 
 ## Declared Model Declarations
 `copernican/models/model_lcdm.yml` is the canonical declared LambdaCDM
@@ -327,7 +345,7 @@ without a backend branch. USMF declares its physical species and
 declared contract and now carries a complete theory-facing shrinking-matter
 closure specification. Its CMB output is enabled only through the declared
 declared graph after the equations, limits, and runtime controls pass the
-Slice Twelve acceptance tests.
+universal declaration acceptance tests.
 
 The bundled ontology is explicit at the model boundary:
 
@@ -931,6 +949,14 @@ before Compton decoupling and the adiabatically cooled matter temperature
 afterward. The declared case-B coefficient includes the standard RECFAST
 multilevel-atom correction, while declared recombination quantity hooks
 remain authoritative.
+The hydrogen/Peebles path is an adapter rather than a solver prerequisite.
+A theory with another recombination ontology may declare arbitrary named
+quantities and map `electron_fraction`, `opacity`, and `visibility` through
+`background.recombination.roles`; optional state, rate,
+`matter_temperature`, and `drag_transition` roles are retained in the
+runtime manifest. The shared background evaluates those histories directly,
+with opacity interpreted as the positive magnitude of `d tau/d eta` in
+inverse Mpc, and never substitutes a LambdaCDM quantity name.
 Helium Saha fractions are iterated to convergence so neutral helium does not
 leave a numerical free-electron floor in the post-recombination tail.
 

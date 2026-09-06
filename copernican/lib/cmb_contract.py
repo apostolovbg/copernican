@@ -354,7 +354,9 @@ def require_cmb_capability(
     requirement = CMB_OBSERVABLE_REQUIREMENTS.get(name)
     if requirement is None:
         supported = ", ".join(CMB_OBSERVABLE_REQUIREMENTS)
-        raise ValueError(
+        from .likelihoods.cmb.errors import UnsupportedCapabilityError
+
+        raise UnsupportedCapabilityError(
             f"Unsupported CMB observable '{observable_name}'; "
             f"supported public observables are: {supported}"
         )
@@ -363,7 +365,9 @@ def require_cmb_capability(
     )
     if not row.available:
         detail = row.reason or "declared capability is incomplete"
-        raise ValueError(
+        from .likelihoods.cmb.errors import UnsupportedCapabilityError
+
+        raise UnsupportedCapabilityError(
             f"Unsupported CMB observable '{name}' for model "
             f"'{audit.model_name}': {detail}"
         )

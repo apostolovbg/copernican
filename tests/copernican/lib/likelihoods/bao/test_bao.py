@@ -210,6 +210,213 @@ class BAOCovarianceTestCase(unittest.TestCase):
         self.assertEqual(like.state["metadata"]["sound_horizon_epoch"], "drag")
         self.assertEqual(like.state["metadata"]["z_drag"], 1020.0)
 
+    def test_drag_helper_is_authoritative_over_recombination_helper(self):
+        """A broken recombination helper cannot poison a valid BAO ruler."""
+
+        def _ones(redshift, *_params):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        legacy = mock.Mock(
+            side_effect=AssertionError(
+                "BAO must not evaluate the recombination helper"
+            )
+        )
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_ones,
+            get_Hz_per_Mpc=_ones,
+            get_DV_Mpc=_ones,
+            get_angular_diameter_distance_Mpc=_ones,
+            get_sound_horizon_rs_Mpc=legacy,
+            get_sound_horizon_rs_drag_Mpc=lambda *_: 200.0,
+            get_bao_drag_redshift=lambda *_: 1020.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), 0.0)
+        legacy.assert_not_called()
+        self.assertEqual(
+            like.state["metadata"]["sound_horizon_source"],
+            "model_plugin.get_sound_horizon_rs_drag_Mpc",
+        )
+
+    def test_invalid_drag_helper_is_not_replaced_by_recombination(self):
+        """Reject invalid drag instead of silently changing the epoch."""
+
+        def _ones(redshift, *_params):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        legacy = mock.Mock(return_value=100.0)
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_ones,
+            get_Hz_per_Mpc=_ones,
+            get_DV_Mpc=_ones,
+            get_angular_diameter_distance_Mpc=_ones,
+            get_sound_horizon_rs_Mpc=legacy,
+            get_sound_horizon_rs_drag_Mpc=lambda *_: numpy_module.nan,
+            get_bao_drag_redshift=lambda *_: 1020.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), float("-inf"))
+        legacy.assert_not_called()
+        self.assertIn("error", like.state["metadata"])
+        self.assertEqual(
+            like.state["metadata"]["failure_type"], "invalid_value"
+        )
+        self.assertEqual(like.state["metadata"]["failure_stage"], "drag")
+
+    def test_signature_selects_no_parameter_helpers_without_retry(self):
+        """No-parameter plugins work without masking helper TypeErrors."""
+
+        def _distance(redshift):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_distance,
+            get_Hz_per_Mpc=_distance,
+            get_DV_Mpc=_distance,
+            get_angular_diameter_distance_Mpc=_distance,
+            get_sound_horizon_rs_drag_Mpc=lambda: 200.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), 0.0)
+        self.assertEqual(like.state["metadata"]["sound_horizon_epoch"], "drag")
+
+    def test_helper_type_error_is_not_retried_with_wrong_signature(self):
+        """A helper TypeError is an execution failure, not an arity probe."""
+
+        calls = []
+
+        def _broken_distance(redshift, *_params):
+            calls.append(tuple(_params))
+            raise TypeError("invalid distance mathematics")
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_broken_distance,
+            get_Hz_per_Mpc=lambda redshift, *_params: numpy_module.ones_like(
+                redshift, dtype=float
+            ),
+            get_sound_horizon_rs_drag_Mpc=lambda *_params: 200.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike((70.0,)), float("-inf"))
+        self.assertEqual(calls, [(70.0,)])
+        self.assertEqual(
+            like.state["metadata"]["failure_type"], "invalid_background"
+        )
+        self.assertEqual(like.state["metadata"]["failure_stage"], "background")
+
+    def test_invalid_drag_redshift_is_a_typed_bao_failure(self):
+        """A canonical drag ruler requires a physical positive endpoint."""
+
+        def _ones(redshift, *_params):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_ones,
+            get_Hz_per_Mpc=_ones,
+            get_DV_Mpc=_ones,
+            get_angular_diameter_distance_Mpc=_ones,
+            get_sound_horizon_rs_drag_Mpc=lambda *_: 200.0,
+            get_bao_drag_redshift=lambda *_: 0.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), float("-inf"))
+        self.assertEqual(
+            like.state["metadata"]["failure_type"], "invalid_value"
+        )
+        self.assertEqual(like.state["metadata"]["failure_stage"], "drag")
+
+    def test_invalid_dataset_shape_is_a_typed_bao_failure(self):
+        """Mismatched BAO input arrays fail before model execution."""
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=lambda redshift: redshift,
+            get_Hz_per_Mpc=lambda redshift: redshift + 1.0,
+            get_sound_horizon_rs_drag_Mpc=lambda: 200.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([]),
+            observable_errors=numpy_module.array([]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), float("-inf"))
+        self.assertEqual(
+            like.state["metadata"]["failure_type"], "invalid_dataset"
+        )
+        self.assertEqual(like.state["metadata"]["failure_stage"], "setup")
+
+    def test_nonfinite_background_is_a_typed_bao_failure(self):
+        """Non-finite model backgrounds cannot produce BAO ratios."""
+
+        def _nan_distance(redshift, *_params):
+            return numpy_module.full_like(redshift, numpy_module.nan)
+
+        def _ones(redshift, *_params):
+            return numpy_module.ones_like(redshift, dtype=float)
+
+        plugin = SimpleNamespace(
+            get_comoving_distance_Mpc=_nan_distance,
+            get_Hz_per_Mpc=_ones,
+            get_sound_horizon_rs_drag_Mpc=lambda *_: 200.0,
+            FIXED_PARAMS={"C_LIGHT_KM_S": 299792.458},
+        )
+        like = bao.BAOLike(
+            redshifts=numpy_module.array([0.5]),
+            observable_types=numpy_module.array(["DH_over_rs"]),
+            observable_values=numpy_module.array([1498.96229]),
+            observable_errors=numpy_module.array([1.0]),
+            model_plugin=plugin,
+        )
+
+        self.assertEqual(like.loglike(()), float("-inf"))
+        self.assertEqual(
+            like.state["metadata"]["failure_type"], "nonfinite_background"
+        )
+        self.assertEqual(like.state["metadata"]["failure_stage"], "background")
+
 
 class BAOPublicSymbolCoverageTestCase(unittest.TestCase):
     """Expose the BAO helper API to the coverage policy."""

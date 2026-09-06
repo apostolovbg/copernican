@@ -47,12 +47,12 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
+    run_final_cmb_certification,
     write_bundled_cmb_full_matrix_report,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
     write_final_cmb_certification_report,
 )
-from copernican.lib.likelihoods.cmb.errors import EngineCapabilityError
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 
 
@@ -674,6 +674,56 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 atol=1.0e-30,
             )
 
+    def test_non_peebles_recombination_roles_execute_all_surfaces(self):
+        """Role-declared opacity and visibility bypass Peebles assumptions."""
+
+        model_data = self._universal_recombination_fixture("Role Graph")
+        model_data["cmb"]["background"]["recombination"] = {
+            "quantities": {
+                "ionization_state": ("1.0 / (1.0 + exp((z - 900.0) / 80.0))"),
+                "free_electron_fraction": ("0.01 + 0.8 * ionization_state"),
+                "opacity_kernel": (
+                    "1.0e-2 + 1.0e-4 * " "exp(-((z - 1100.0) / 180.0) ** 2)"
+                ),
+                "visibility_kernel": ("exp(-((z - 1100.0) / 120.0) ** 2)"),
+                "thermal_state": "2.2 * (1.0 + z)",
+            },
+            "roles": {
+                "state": "ionization_state",
+                "rate": "opacity_kernel",
+                "electron_fraction": "free_electron_fraction",
+                "opacity": "opacity_kernel",
+                "visibility": "visibility_kernel",
+                "matter_temperature": "thermal_state",
+            },
+        }
+        spectra = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model_role_graph.yaml"
+            model_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            record = discover_cmb_model_records(Path(directory))[0]
+            self.assertEqual(record.status, "ready")
+            runtime = record.plugin.get_cmb_declared_runtime(
+                record.plugin.INITIAL_GUESSES
+            )
+            roles = dict(runtime["background_runtime"].recombination_roles)
+            self.assertEqual(
+                roles["electron_fraction"], "free_electron_fraction"
+            )
+            result = cmb_api.compute_cmb_spectrum_cached(
+                record.plugin,
+                record.plugin.INITIAL_GUESSES,
+                (2,),
+                spectra=spectra,
+            )
+
+        self.assertEqual(set(result), set(spectra))
+        for values in result.values():
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
     def test_partial_recombination_is_a_declaration_error(self) -> None:
         """Underdetermined opacity mathematics names every missing hook."""
 
@@ -731,37 +781,6 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             )
 
         self.assertTrue(numpy.all(numpy.isfinite(result)))
-
-    def test_engine_gap_is_not_a_model_rejection(self) -> None:
-        """A compiler limitation is retained as universal-engine work."""
-
-        model_data = self._universal_recombination_fixture("Novel Operator")
-        with tempfile.TemporaryDirectory() as directory:
-            model_path = Path(directory) / "model_novel_operator.yaml"
-            model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            with mock.patch.object(
-                model_coder,
-                "generate_callables",
-                side_effect=EngineCapabilityError(
-                    "Declared operator is not implemented by CCMBS"
-                ),
-            ):
-                record = discover_cmb_model_records(directory)[0]
-
-        self.assertEqual(record.status, "engine_error")
-        self.assertEqual(
-            record.failure["category"],
-            "engine_capability_gap",
-        )
-        report = diagnostics._discovery_report(
-            record,
-            requested_ells=(2,),
-            requested_spectra=("TT",),
-        )
-        self.assertEqual(report.availability, "execution_failure")
 
     def test_declared_spectrum_inventory_includes_full_angular_contract(self):
         """The corpus request is derived from each model's own graph."""
@@ -1057,6 +1076,11 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(serialized["cache_identity"]["base"]["available"])
         self.assertTrue(serialized["cache_identity"]["refined"]["available"])
         self.assertEqual(serialized["success"], False)
+        restored = CMBModelDiagnostic.from_dict(serialized)
+        self.assertEqual(restored.model_filename, report.model_filename)
+        numpy.testing.assert_allclose(
+            restored.raw_spectra["TT"], report.raw_spectra["TT"]
+        )
 
     def test_bundled_contract_audit_is_complete_and_consistent(self) -> None:
         """Every CMB-enabled bundle passes the declaration-level inventory."""
@@ -1587,6 +1611,84 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertFalse(record["success"])
         self.assertEqual(record["final_certification"]["status"], "rejected")
         self.assertTrue(record["final_certification"]["issues"])
+
+    def test_final_runner_rehydrates_matrix_rows_without_rerunning(self):
+        """Final orchestration preserves matrix raw evidence and provenance."""
+
+        filename = "model_lcdm.yml"
+        report = CMBModelDiagnostic(
+            model_filename=filename,
+            model_name="LambdaCDM",
+            parameter_names=(),
+            parameter_values=(),
+            requested_ells=(2, 20),
+            requested_spectra=("TT", "TE", "EE"),
+            spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            raw_spectra={
+                "TT": numpy.array([1.0, 2.0]),
+                "TE": numpy.array([0.1, -0.1]),
+                "EE": numpy.array([0.2, 0.3]),
+            },
+            refinement={"converged": True},
+            shape={
+                "finite": True,
+                "auto_spectra_nonnegative": True,
+                "smooth": True,
+            },
+            acoustic_structure={"available": True},
+            source_residual_audit={"available": True, "converged": True},
+            contract_identity={"sha256": "contract"},
+            scalar_batch_evidence={"available": True, "converged": True},
+            cache_isolation_evidence={"available": True, "isolated": True},
+        )
+        matrix = {
+            "required_models": [filename],
+            "certification_tier": {"id": "fixture"},
+            "success": True,
+            "reports": [
+                {
+                    "model_filename": filename,
+                    "contract_audit": {"valid": True},
+                    "source_graph_audit": {"valid": True},
+                    "declaration_audit": {"valid": True},
+                    "report": report.to_dict(),
+                }
+            ],
+        }
+        integrity = {
+            "valid": True,
+            "checks": {
+                key: True
+                for key in diagnostics._FINAL_CERTIFICATION_INTEGRITY_KEYS
+            },
+        }
+        with (
+            mock.patch.object(
+                diagnostics, "run_bundled_cmb_full_matrix", return_value=matrix
+            ),
+            mock.patch.object(
+                diagnostics,
+                "audit_cmb_repository_integrity",
+                return_value=integrity,
+            ),
+        ):
+            record = run_final_cmb_certification(
+                reference_required_models=(),
+                solver_identity="ccmbs_numpy",
+                dataset_identities={"cmb": "fixture"},
+                fixture_hashes={"fixture": "hash"},
+                bao_isolation={"available": True, "converged": True},
+            )
+        self.assertTrue(record["success"])
+        self.assertEqual(record["full_matrix"]["required_models"], [filename])
+        self.assertEqual(
+            record["provenance"]["raw_evidence_digests"][filename],
+            diagnostics._canonical_sha256(report.to_dict()),
+        )
 
     def test_scalar_batch_cache_audit_requires_order_and_unique_identities(
         self,

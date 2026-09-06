@@ -86,50 +86,48 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
         self.assertEqual(context["model_name"], "Model A")
         self.assertIsInstance(
             classify_exception(ValueError("invalid contract")),
-            ContractError,
+            ImplementationError,
         )
 
     def test_internal_failures_classify_into_distinct_categories(self) -> None:
         """Every required failure category must remain distinguishable."""
 
-        cases = (
-            (
-                ValueError("model does not provide requested TT"),
-                UnsupportedCapabilityError,
-            ),
-            (
-                ValueError("requested unsupported projection"),
-                EngineCapabilityError,
-            ),
-            (
-                ValueError("contract did not converge"),
-                ConvergenceError,
-            ),
-            (
-                ValueError("evolution produced non-finite values"),
-                NonFiniteEvolutionError,
-            ),
-            (
-                ValueError("Einstein constraint exceeded tolerance"),
-                ConstraintViolationError,
-            ),
-            (ValueError("invalid contract field"), ContractError),
-            (
-                RuntimeError("unexpected runtime fault"),
-                ImplementationError,
-            ),
+        typed_cases = (
+            UnsupportedCapabilityError("request is not declared"),
+            EngineCapabilityError("internal engine assertion"),
+            ConvergenceError("grid did not converge"),
+            NonFiniteEvolutionError("state is non-finite"),
+            ConstraintViolationError("closure residual exceeded tolerance"),
+            ContractError("invalid contract field"),
+            ImplementationError("unexpected runtime fault"),
         )
-        for raw_error, expected_type in cases:
-            with self.subTest(expected_type=expected_type.__name__):
+        for raw_error in typed_cases:
+            with self.subTest(expected_type=type(raw_error).__name__):
                 typed = classify_exception(
                     raw_error,
                     context={"workload": "joint_mcmc"},
                 )
-                self.assertIsInstance(typed, expected_type)
+                self.assertIs(type(typed), type(raw_error))
                 self.assertEqual(
                     typed.context["workload"],
                     "joint_mcmc",
                 )
+
+    def test_untyped_messages_never_select_scientific_categories(self) -> None:
+        """Message wording must not convict a valid theory at a boundary."""
+
+        messages = (
+            "model does not provide requested TT",
+            "requested unsupported projection",
+            "contract did not converge",
+            "evolution produced non-finite values",
+            "Einstein constraint exceeded tolerance",
+            "invalid contract field",
+        )
+        for message in messages:
+            with self.subTest(message=message):
+                typed = classify_exception(ValueError(message))
+                self.assertIsInstance(typed, ImplementationError)
 
     def test_universal_admission_categories_are_theory_neutral(self) -> None:
         """Declaration, engine, and request failures remain distinct."""
@@ -219,7 +217,9 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
             del args, kwargs
             performance_timer.set_work_units({"evolution_work_units": 12})
             with performance_timer.phase("evolution"):
-                raise ValueError("evolution produced non-finite values")
+                raise NonFiniteEvolutionError(
+                    "evolution produced non-finite values"
+                )
 
         with (
             mock.patch.object(

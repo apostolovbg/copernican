@@ -5,6 +5,7 @@ Model plugins provide their own background distances and sound horizon.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
@@ -86,6 +87,24 @@ class BAOLike(LikelihoodProtocol):
 
         if self._z_values.size == 0:
             self._setup_error = "(bao_like): BAO redshift array is empty."
+        elif any(
+            values.shape != self._z_values.shape
+            for values in (self._obs_type, self._observed, self._errors)
+        ):
+            self._setup_error = (
+                "(bao_like): BAO redshifts, observations, and errors must "
+                "have identical shapes."
+            )
+        elif not numpy.all(numpy.isfinite(self._z_values)):
+            self._setup_error = "(bao_like): BAO redshifts must be finite."
+        elif not numpy.all(numpy.isfinite(self._observed)):
+            self._setup_error = "(bao_like): BAO observations must be finite."
+        elif not numpy.all(
+            numpy.isfinite(self._errors) & (self._errors > 0.0)
+        ):
+            self._setup_error = (
+                "(bao_like): BAO errors must be finite and positive."
+            )
 
         self._fallback_dm = getattr(
             self.model_plugin, "get_comoving_distance_Mpc", None
@@ -117,66 +136,51 @@ class BAOLike(LikelihoodProtocol):
 
         if self._setup_error is not None:
             logger.error(self._setup_error)
-            self._state = LikelihoodState()
+            self._record_failure(
+                self._setup_error,
+                failure_type="invalid_dataset",
+                failure_stage="setup",
+            )
             return float("-inf")
 
         background = self._compute_plugin_background(params)
         if background is None:
-            self._state = LikelihoodState()
+            if not self._state.metadata:
+                self._record_failure(
+                    "Model background helpers returned no usable values.",
+                    failure_type="invalid_background",
+                    failure_stage="background",
+                )
             return float("-inf")
 
         rs_mpc = self._rs_override
+        sound_horizon_source = "explicit_override"
+        sound_horizon_epoch = "override"
         if rs_mpc is None:
             rs_drag = background.get("rs_drag")
             if rs_drag is None:
                 rs_background = float("nan")
             else:
                 rs_arr = numpy.asarray(rs_drag)
-                if rs_arr.size == 0:
-                    rs_background = float("nan")
-                else:
-                    rs_background = float(rs_arr.flat[0])
-            legacy_rs_background = float("nan")
-            if self._fallback_rs is not None:
-                try:
-                    legacy_rs_background = float(
-                        self._call_with_params(self._fallback_rs, (), params)
-                    )
-                except SoundHorizonComputationError as exc:
-                    logger.error(
-                        "(bao_like): rs_expression diverged; aborting BAO "
-                        "predictions: %s",
-                        exc,
-                    )
-                    self._state = LikelihoodState(
-                        metadata={
-                            "error": (
-                                "Sound horizon integral diverged; see log for "
-                                "rs_expression diagnostics."
-                            )
-                        }
+                if rs_arr.size != 1:
+                    self._record_failure(
+                        "Background drag sound horizon must be scalar.",
+                        failure_type="invalid_shape",
+                        failure_stage="drag",
                     )
                     return float("-inf")
-                except (
-                    AttributeError,
-                    ImportError,
-                    OSError,
-                    RuntimeError,
-                    TypeError,
-                    ValueError,
-                    ZeroDivisionError,
-                    OverflowError,
-                ) as exc:
-                    logger.warning(
-                        "(bao_like): Sound horizon fallback failed: %s",
-                        exc,
-                    )
-            if (
-                numpy.isnan(rs_background)
-                and self._fallback_rs_drag is not None
-            ):
+                rs_background = float(rs_arr.flat[0])
+
+            if numpy.isfinite(rs_background) and rs_background > 0.0:
+                rs_mpc = rs_background
+                sound_horizon_source = "background.rs_drag"
+                sound_horizon_epoch = "drag"
+            elif self._fallback_rs_drag is not None:
+                # The canonical BAO ruler is drag-era.  Do not probe the
+                # recombination helper first: a broken legacy helper must
+                # never prevent a valid drag ruler from being used.
                 try:
-                    rs_background = float(
+                    rs_mpc = float(
                         self._call_with_params(
                             self._fallback_rs_drag, (), params
                         )
@@ -187,13 +191,10 @@ class BAOLike(LikelihoodProtocol):
                         "diverged; aborting BAO predictions: %s",
                         exc,
                     )
-                    self._state = LikelihoodState(
-                        metadata={
-                            "error": (
-                                "Drag-epoch sound horizon integral diverged; "
-                                "see BAO diagnostics."
-                            )
-                        }
+                    self._record_failure(
+                        str(exc),
+                        failure_type=type(exc).__name__,
+                        failure_stage="drag",
                     )
                     return float("-inf")
                 except (
@@ -206,17 +207,86 @@ class BAOLike(LikelihoodProtocol):
                     ZeroDivisionError,
                     OverflowError,
                 ) as exc:
-                    logger.warning(
-                        "(bao_like): drag-epoch sound-horizon fallback "
+                    logger.error(
+                        "(bao_like): canonical drag sound-horizon helper "
                         "failed: %s",
                         exc,
                     )
-            if numpy.isnan(rs_background):
-                rs_background = legacy_rs_background
-            rs_mpc = rs_background
+                    self._record_failure(
+                        str(exc),
+                        failure_type="helper_error",
+                        failure_stage="drag",
+                    )
+                    return float("-inf")
+                if not (numpy.isfinite(rs_mpc) and rs_mpc > 0.0):
+                    logger.error(
+                        "(bao_like): canonical drag sound-horizon helper "
+                        "returned an invalid value: %s",
+                        rs_mpc,
+                    )
+                    self._record_failure(
+                        "Canonical drag sound-horizon helper returned a "
+                        "non-finite or non-positive value.",
+                        failure_type="invalid_value",
+                        failure_stage="drag",
+                    )
+                    return float("-inf")
+                sound_horizon_source = (
+                    "model_plugin.get_sound_horizon_rs_drag_Mpc"
+                )
+                sound_horizon_epoch = "drag"
+            elif self._fallback_rs is not None:
+                # External legacy plugins may expose only the historical
+                # recombination helper.  This compatibility path is reached
+                # only when no canonical drag helper exists, so BAO never
+                # silently substitutes recombination for drag on a modern
+                # plugin.
+                try:
+                    rs_background = float(
+                        self._call_with_params(self._fallback_rs, (), params)
+                    )
+                except SoundHorizonComputationError as exc:
+                    logger.error(
+                        "(bao_like): legacy sound-horizon integral diverged; "
+                        "aborting BAO predictions: %s",
+                        exc,
+                    )
+                    self._record_failure(
+                        str(exc),
+                        failure_type=type(exc).__name__,
+                        failure_stage="recombination",
+                    )
+                    return float("-inf")
+                except (
+                    AttributeError,
+                    ImportError,
+                    OSError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                    OverflowError,
+                ) as exc:
+                    logger.error(
+                        "(bao_like): legacy sound-horizon helper failed: %s",
+                        exc,
+                    )
+                    self._record_failure(
+                        str(exc),
+                        failure_type="helper_error",
+                        failure_stage="recombination",
+                    )
+                    return float("-inf")
+                rs_mpc = rs_background
+                sound_horizon_source = "model_plugin.get_sound_horizon_rs_Mpc"
+                sound_horizon_epoch = "legacy_recombination"
 
         if not (numpy.isfinite(rs_mpc) and rs_mpc > 0):
-            self._state = LikelihoodState()
+            self._record_failure(
+                "BAO sound horizon is non-finite or non-positive.",
+                failure_type="invalid_value",
+                failure_stage="drag",
+            )
             return float("-inf")
 
         self._prediction_buffer.fill(numpy.nan)
@@ -226,7 +296,11 @@ class BAOLike(LikelihoodProtocol):
         dv_vals = background.get("DV")
 
         if dm_vals is None or dh_vals is None or dv_vals is None:
-            self._state = LikelihoodState()
+            self._record_failure(
+                "Model returned no complete BAO distance background.",
+                failure_type="missing_helper",
+                failure_stage="background",
+            )
             return float("-inf")
 
         if numpy.any(self._mask_dm):
@@ -248,7 +322,11 @@ class BAOLike(LikelihoodProtocol):
             logger.warning(
                 "(bao_like): Model returned no finite BAO predictions."
             )
-            self._state = LikelihoodState()
+            self._record_failure(
+                "Model returned no finite BAO predictions.",
+                failure_type="nonfinite_prediction",
+                failure_stage="background",
+            )
             return float("-inf")
 
         numpy.subtract(
@@ -259,26 +337,31 @@ class BAOLike(LikelihoodProtocol):
         )
         if numpy.any(~numpy.isfinite(self._residual_buffer)):
             logger.warning("(bao_like): Non-finite residuals in BAO data.")
-            self._state = LikelihoodState()
+            self._record_failure(
+                "BAO residuals are non-finite.",
+                failure_type="nonfinite_prediction",
+                failure_stage="likelihood",
+            )
             return float("-inf")
 
         cov_inv = self._cov_inv
         metadata: dict[str, Any] = {
             "points": int(self._observed.size),
-            "sound_horizon_epoch": (
-                "drag" if self._fallback_rs_drag is not None else "legacy"
-            ),
-            "sound_horizon_source": (
-                "model_plugin.get_sound_horizon_rs_drag_Mpc"
-                if self._fallback_rs_drag is not None
-                else "model_plugin.get_sound_horizon_rs_Mpc"
-            ),
+            "sound_horizon_epoch": sound_horizon_epoch,
+            "sound_horizon_source": sound_horizon_source,
         }
-        if self._fallback_z_drag is not None:
+        if self._fallback_z_drag is not None and sound_horizon_epoch == "drag":
             try:
-                metadata["z_drag"] = float(
+                z_drag = float(
                     self._call_with_params(self._fallback_z_drag, (), params)
                 )
+            except SoundHorizonComputationError as exc:
+                self._record_failure(
+                    str(exc),
+                    failure_type=type(exc).__name__,
+                    failure_stage="drag",
+                )
+                return float("-inf")
             except (
                 AttributeError,
                 ImportError,
@@ -288,8 +371,21 @@ class BAOLike(LikelihoodProtocol):
                 ValueError,
                 ZeroDivisionError,
                 OverflowError,
-            ):
-                metadata["z_drag"] = float("nan")
+            ) as exc:
+                self._record_failure(
+                    str(exc),
+                    failure_type="invalid_value",
+                    failure_stage="drag",
+                )
+                return float("-inf")
+            if not (numpy.isfinite(z_drag) and z_drag > 0.0):
+                self._record_failure(
+                    "BAO drag redshift is non-finite or non-positive.",
+                    failure_type="invalid_value",
+                    failure_stage="drag",
+                )
+                return float("-inf")
+            metadata["z_drag"] = z_drag
         chi2 = float("inf")
         if cov_inv is not None:
             try:
@@ -315,7 +411,11 @@ class BAOLike(LikelihoodProtocol):
             valid = numpy.isfinite(self._errors) & (self._errors > 1e-9)
             if not numpy.any(valid):
                 logger.warning("(bao_like): No valid BAO errors available.")
-                self._state = LikelihoodState()
+                self._record_failure(
+                    "No valid BAO errors are available.",
+                    failure_type="invalid_dataset",
+                    failure_stage="likelihood",
+                )
                 return float("-inf")
             chi2 = float(
                 numpy.sum(
@@ -340,10 +440,37 @@ class BAOLike(LikelihoodProtocol):
     ) -> Any:
         """Invoke ``func`` with optional cosmological parameters."""
 
+        # Select the supported calling convention before invocation. Retrying
+        # after an arbitrary ``TypeError`` can execute a different convention
+        # and hide a genuine error raised inside a model helper.
+        supplied = (*args, *params)
         try:
-            return func(*args, *params)
+            signature = inspect.signature(func)
+        except (TypeError, ValueError):
+            return func(*supplied)
+        try:
+            signature.bind(*supplied)
         except TypeError:
+            signature.bind(*args)
             return func(*args)
+        return func(*supplied)
+
+    def _record_failure(
+        self,
+        message: str,
+        *,
+        failure_type: str,
+        failure_stage: str,
+    ) -> None:
+        """Store a typed BAO failure without exposing a fake likelihood."""
+
+        self._state = LikelihoodState(
+            metadata={
+                "error": str(message),
+                "failure_type": str(failure_type),
+                "failure_stage": str(failure_stage),
+            }
+        )
 
     def _compute_plugin_background(
         self, params: Sequence[float]
@@ -351,6 +478,11 @@ class BAOLike(LikelihoodProtocol):
         """Return background observables from model distance functions."""
 
         if self._fallback_dm is None or self._fallback_hz is None:
+            self._record_failure(
+                "BAO model is missing distance or Hubble helpers.",
+                failure_type="missing_helper",
+                failure_stage="background",
+            )
             return None
 
         try:
@@ -376,6 +508,11 @@ class BAOLike(LikelihoodProtocol):
                 "background distances: %s",
                 exc,
             )
+            self._record_failure(
+                str(exc),
+                failure_type=type(exc).__name__,
+                failure_stage="background",
+            )
             return None
         except (
             AttributeError,
@@ -384,13 +521,34 @@ class BAOLike(LikelihoodProtocol):
             RuntimeError,
             TypeError,
             ValueError,
-        ):
+        ) as exc:
+            self._record_failure(
+                str(exc),
+                failure_type="invalid_background",
+                failure_stage="background",
+            )
             return None
 
         if (
             dm_vals.shape != self._z_values.shape
             or hz_vals.shape != dm_vals.shape
         ):
+            self._record_failure(
+                "BAO distance helpers returned incompatible shapes.",
+                failure_type="invalid_shape",
+                failure_stage="background",
+            )
+            return None
+
+        if not (
+            numpy.all(numpy.isfinite(dm_vals))
+            and numpy.all(numpy.isfinite(hz_vals))
+        ):
+            self._record_failure(
+                "BAO distance helpers returned non-finite values.",
+                failure_type="nonfinite_background",
+                failure_stage="background",
+            )
             return None
 
         with numpy.errstate(divide="ignore", invalid="ignore"):

@@ -430,7 +430,7 @@ def _build_parameter_replacements(
     return replacements
 
 
-def _validate_cmb_contract_definition(
+def _validate_cmb_contract_definition_impl(
     contract: Mapping[str, Any],
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
@@ -703,6 +703,68 @@ def _validate_cmb_contract_definition(
     background_reference_names.update(value_names)
     background_section = contract.get("background", {}) or {}
     if isinstance(background_section, Mapping):
+        recombination_section = (
+            background_section.get("recombination", {}) or {}
+        )
+        if not isinstance(recombination_section, Mapping):
+            raise ValueError("cmb.background.recombination must be a mapping")
+        recombination_quantities = (
+            recombination_section.get("quantities", {}) or {}
+        )
+        if not isinstance(recombination_quantities, Mapping):
+            raise ValueError(
+                "cmb.background.recombination.quantities must be a mapping"
+            )
+        recombination_roles = recombination_section.get("roles", {}) or {}
+        if not isinstance(recombination_roles, Mapping):
+            raise ValueError(
+                "cmb.background.recombination.roles must be a mapping"
+            )
+        allowed_recombination_roles = {
+            "state",
+            "rate",
+            "electron_fraction",
+            "opacity",
+            "visibility",
+            "matter_temperature",
+            "drag_transition",
+        }
+        invalid_recombination_roles = {
+            str(name) for name in recombination_roles
+        } - allowed_recombination_roles
+        if invalid_recombination_roles:
+            raise ValueError(
+                "Unknown recombination role(s): "
+                + ", ".join(sorted(invalid_recombination_roles))
+            )
+        if recombination_roles:
+            required_recombination_roles = {
+                "electron_fraction",
+                "opacity",
+                "visibility",
+            }
+            missing_recombination_roles = sorted(
+                required_recombination_roles
+                - {str(name) for name in recombination_roles}
+            )
+            if missing_recombination_roles:
+                raise ValueError(
+                    "Generic recombination roles are incomplete; missing "
+                    "role(s): " + ", ".join(missing_recombination_roles)
+                )
+            invalid_targets = sorted(
+                {
+                    str(target)
+                    for target in recombination_roles.values()
+                    if not isinstance(target, str)
+                    or str(target) not in recombination_quantities
+                }
+            )
+            if invalid_targets:
+                raise ValueError(
+                    "Recombination role target(s) must name declared "
+                    "quantities: " + ", ".join(invalid_targets)
+                )
         for section_name in (
             "derived",
             "expressions",
@@ -720,6 +782,43 @@ def _validate_cmb_contract_definition(
         latex_names=latex_names,
         background_reference_names=tuple(background_reference_names),
     )
+
+
+def _validate_cmb_contract_definition(
+    contract: Mapping[str, Any],
+    parameter_names: Sequence[str],
+    latex_names: Sequence[str],
+) -> None:
+    """Validate one declaration and type all failures at its source.
+
+    The implementation contains the detailed structural checks and delegates
+    perturbation validation to the shared compiler.  This boundary is the
+    point that knows an exception concerns declaration mathematics, so it
+    wraps legacy untyped validation exceptions explicitly instead of relying
+    on message-based classification later in the solver.
+    """
+
+    from .likelihoods.cmb.errors import ModelDeclarationError
+
+    try:
+        _validate_cmb_contract_definition_impl(
+            contract,
+            parameter_names,
+            latex_names,
+        )
+    except ModelDeclarationError:
+        raise
+    except (
+        ArithmeticError,
+        LookupError,
+        SyntaxError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ModelDeclarationError(
+            f"CMB declaration validation failed: {exc}",
+            context={"failure_stage": "contract_validation"},
+        ) from exc
 
 
 def _validate_cmb_perturbation_definition(

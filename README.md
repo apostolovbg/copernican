@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-05
+**Last Updated:** 2026-09-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -133,11 +133,18 @@ errors before plotting. `run_bundled_cmb_diagnostics()` applies the same
 report shape to the full corpus, preserving explicit non-convergence instead
 of hiding it. Unavailable means that the theory explicitly declares no CMB
 output. Invalid or incomplete mathematics is rejected, while a valid
-declaration that exposes missing compiler or runtime machinery is an engine
-failure and therefore CCMBS work, never unsupported theory. LambdaCDM and
-novel declarations use the same admission rules. Deliberately non-standard
-recombination is accepted when all required recombination equations are
-declared. `compare_cmb_spectra_to_reference()` adds backend-neutral
+declaration that exposes missing compiler or runtime machinery is an
+implementation failure and therefore CCMBS work, never unsupported theory.
+LambdaCDM and novel declarations use the same admission rules. Deliberately
+non-standard recombination is accepted when its declaration is complete; the
+standard hydrogen quantities are an adapter, not a universal vocabulary.
+Declarations with a different recombination ontology may instead provide
+named `background.recombination.quantities` and map them through
+`background.recombination.roles` for `electron_fraction`, `opacity`, and
+`visibility` (with optional state, rate, matter-temperature, and drag roles).
+CCMBS evaluates those role histories directly on its shared background grid;
+it does not substitute a hydrogen or Peebles quantity.
+`compare_cmb_spectra_to_reference()` adds backend-neutral
 fractional auto-spectrum and normalized cross-spectrum checks for independent
 fixed-point fixtures. Generated scalar contracts validate explicit metric
 derivatives and compiler-backed source and closure expressions before runtime;
@@ -197,11 +204,26 @@ fixed-background values and covariance handling.
 and dataset identities, fixture hashes, per-model raw evidence digests, and
 explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
 BAO values, covariance metadata, and typed failures without invoking CCMBS.
+`run_final_cmb_certification()` is the production hand-off: it executes the
+full declared-observable matrix, rehydrates every raw report, applies the
+repository and BAO-isolation gates, and optionally writes one deterministic
+JSON artifact. It never invokes sampling or accepts a plot in place of raw
+scientific evidence.
 Generated model plugins expose separate recombination and drag-epoch sound
 horizons. BAO selects `get_sound_horizon_rs_drag_Mpc()` and records its
 epoch, source, and fitted drag redshift; the CMB background continues to use
 its recombination-era visibility sound horizon. Models without the optional
-drag helper retain a typed legacy fallback for compatibility.
+drag helper retain a typed legacy fallback for compatibility. When a drag
+helper is present, BAO never evaluates the recombination helper first, and an
+invalid drag value is reported as a BAO failure rather than silently replaced.
+The independent epoch diagnostic also preserves whether a recombination or
+drag integral failed, including the typed failure category. A declaration may
+provide `bao_drag_redshift_expression` when its drag transition is not the
+standard Eisenstein--Hu fit; CCMBS compiles that expression and uses it only
+for the drag-era BAO ruler, leaving the recombination endpoint independent.
+Missing helpers, invalid background shapes or values, non-finite predictions,
+and invalid drag endpoints are retained as typed BAO metadata rather than
+being collapsed into an unexplained likelihood value.
 Slice One records the pre-repair corpus baseline before any shared physics is
 changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and
@@ -232,7 +254,8 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
-Slice Eleven adds the full corpus boundary. `declared_cmb_spectrum_names()`
+Slice Eight enforces the universal declaration boundary.
+`declared_cmb_spectrum_names()`
 reads every angular-power observable from a compiled model, so a matrix
 request cannot silently collapse to TT/TE/EE. `run_bundled_cmb_full_matrix()`
 executes those per-model requests, including BB, PP, TP, EP, and any lensed
@@ -253,7 +276,7 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
-Slice Twelve closes the final evidence boundary. The
+Slice Eleven closes the final evidence boundary. The
 `audit_cmb_repository_integrity()` helper checks the production CCMBS tree
 for reference-solver imports, surrogates,
 delayed acceptance, hidden backend aliases, wall-clock decisions, local paths,

@@ -257,6 +257,82 @@ class TestSoundHorizonRigour(unittest.TestCase):
         self.assertGreater(drag, 0.0)
         self.assertNotAlmostEqual(drag, recombination)
 
+    def test_declared_drag_redshift_overrides_standard_fit(self):
+        """A theory may declare its own drag epoch without LCDM defaults."""
+
+        payload = {
+            "parameters": [
+                {
+                    "name": "Hubble",
+                    "python_var": "H0",
+                    "bounds": [70.0, 70.0],
+                },
+                {
+                    "name": "Matter",
+                    "python_var": "Omega_m0",
+                    "bounds": [0.3, 0.3],
+                },
+                {
+                    "name": "Baryon",
+                    "python_var": "Omega_b",
+                    "bounds": [0.05, 0.05],
+                },
+                {
+                    "name": "Photon",
+                    "python_var": "Omega_gamma",
+                    "bounds": [5e-5, 5e-5],
+                },
+                {
+                    "name": "Recombination",
+                    "python_var": "z_rec",
+                    "bounds": [1100.0, 1100.0],
+                },
+            ],
+            "Hz_expression": (
+                "H(z) = H0 * sqrt(Omega_m0*(1 + z)**3 + (1 - Omega_m0))"
+            ),
+            "rs_expression": (
+                "r_s = Integral("
+                "299792.458 / sqrt("
+                "3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))"
+                ") / ("
+                "H0 * sqrt(Omega_m0 * (1 + z)**3 + (1 - Omega_m0))"
+                "), (z, z_rec + 10, oo))"
+            ),
+            "bao_drag_redshift_expression": "z_drag = z_rec - 50",
+            "skip_bao": False,
+            "valid_for_bao": True,
+        }
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            temporary_path = Path(temporary_dir)
+            cache = self._write_model(temporary_path, payload)
+            funcs, model_data = model_coder.generate_callables(cache)
+
+        params = (70.0, 0.3, 0.05, 5e-5, 1100.0)
+        self.assertEqual(funcs["get_bao_drag_redshift"](*params), 1050.0)
+        self.assertEqual(
+            model_data["bao_drag_redshift_expression"], "z_rec - 50"
+        )
+        self.assertGreater(
+            funcs["get_sound_horizon_rs_drag_Mpc"](*params), 0.0
+        )
+
+    def test_drag_replacement_targets_outer_sound_horizon_integral(self):
+        """Nested integrals retain their own limits during drag conversion."""
+
+        x, y, z_rec, z_drag = sympy.symbols("x y z_rec z_drag")
+        inner = sympy.Integral(y, (y, 0, 1))
+        expression = sympy.Integral(inner + x, (x, z_rec, sympy.oo))
+
+        replaced = model_coder._replace_sound_horizon_lower_limit(
+            expression,
+            z_drag,
+        )
+
+        self.assertIsNotNone(replaced)
+        self.assertEqual(replaced.limits[0][1], z_drag)
+        self.assertIn(inner, replaced.function.args)
+
     def test_sound_horizon_divergence_raises_signal(self):
         """Divergent ``rs_expression`` integrals must raise a clear error."""
 
@@ -531,6 +607,92 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
                 "tau",
             ),
         )
+
+    def test_compile_declared_cmb_runtime_compiles_generic_recombination_roles(
+        self,
+    ):
+        """Generic recombination roles compile without Peebles names."""
+
+        compile_result = object()
+        cmb_contract = {
+            "param_map": {"Omega_m0": "Omega_m0"},
+            "grids": {},
+            "values": {},
+            "background": {
+                "derived": {"density": "Omega_m0"},
+                "recombination": {
+                    "quantities": {
+                        "state": "1.0 / (1.0 + exp(z))",
+                        "xe": "0.1 + 0.8 * state",
+                        "opacity_rate": "1.0e-4 * xe",
+                        "visibility_kernel": "exp(-z ** 2)",
+                    },
+                    "roles": {
+                        "state": "state",
+                        "rate": "opacity_rate",
+                        "electron_fraction": "xe",
+                        "opacity": "opacity_rate",
+                        "visibility": "visibility_kernel",
+                    },
+                },
+            },
+            "numerical": {},
+            "calls": [],
+            "perturbations": {},
+        }
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ):
+            runtime = model_coder.compile_declared_cmb_runtime(
+                model_name="GenericRecombinationModel",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+
+        self.assertEqual(
+            dict(runtime.background_runtime.recombination_roles),
+            {
+                "electron_fraction": "xe",
+                "opacity": "opacity_rate",
+                "rate": "opacity_rate",
+                "state": "state",
+                "visibility": "visibility_kernel",
+            },
+        )
+
+    def test_compile_declared_cmb_runtime_rejects_incomplete_generic_roles(
+        self,
+    ):
+        """Generic role graphs must declare all required physical outputs."""
+
+        cmb_contract = {
+            "param_map": {"Omega_m0": "Omega_m0"},
+            "grids": {},
+            "values": {},
+            "background": {
+                "recombination": {
+                    "quantities": {"xe": "0.5"},
+                    "roles": {"electron_fraction": "xe"},
+                }
+            },
+            "numerical": {},
+            "calls": [],
+            "perturbations": {},
+        }
+
+        with self.assertRaises(ValueError) as context:
+            model_coder.compile_declared_cmb_runtime(
+                model_name="IncompleteGenericRecombinationModel",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+        self.assertIn("opacity", str(context.exception))
+        self.assertIn("visibility", str(context.exception))
 
     def test_compile_declared_cmb_runtime_reuses_cached_runtime_bundle(self):
         """Repeated compilation requests should reuse one cached runtime."""

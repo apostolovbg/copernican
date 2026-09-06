@@ -64,6 +64,20 @@ _REQUIRED_RECOMBINATION_QUANTITIES = frozenset(
         "peebles_c",
     }
 )
+_RECOMBINATION_ROLE_NAMES = frozenset(
+    {
+        "state",
+        "rate",
+        "electron_fraction",
+        "opacity",
+        "visibility",
+        "matter_temperature",
+        "drag_transition",
+    }
+)
+_REQUIRED_GENERIC_RECOMBINATION_ROLES = frozenset(
+    {"electron_fraction", "opacity", "visibility"}
+)
 
 
 def _reject_removed_cmb_route_keys(contract: Mapping[str, Any]) -> None:
@@ -96,6 +110,7 @@ class DeclaredCMBBackgroundRuntime:
     reionization_quantity_plan: Any
     reionization_target_tau: Any
     reionization_calibration_symbol: str | None
+    recombination_roles: Any = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -370,7 +385,7 @@ def prepare_declared_cmb_execution_contract(
     )
 
 
-def compile_declared_cmb_runtime(
+def _compile_declared_cmb_runtime_impl(
     *,
     model_name: str,
     parameter_names: Sequence[str],
@@ -470,7 +485,43 @@ def compile_declared_cmb_runtime(
         raise ValueError(
             "cmb.background.recombination.quantities must be a mapping"
         )
-    if recombination_quantities:
+    recombination_roles = recombination_section.get("roles", {}) or {}
+    if not isinstance(recombination_roles, Mapping):
+        raise ValueError(
+            "cmb.background.recombination.roles must be a mapping"
+        )
+    invalid_roles = set(str(name) for name in recombination_roles) - set(
+        _RECOMBINATION_ROLE_NAMES
+    )
+    if invalid_roles:
+        raise ValueError(
+            "Unknown recombination role(s): "
+            + ", ".join(sorted(invalid_roles))
+        )
+    if recombination_roles:
+        missing_roles = sorted(
+            _REQUIRED_GENERIC_RECOMBINATION_ROLES
+            - set(str(name) for name in recombination_roles)
+        )
+        if missing_roles:
+            raise ValueError(
+                "Generic recombination roles are incomplete; missing role(s): "
+                + ", ".join(missing_roles)
+            )
+        unknown_targets = sorted(
+            {
+                str(target)
+                for target in recombination_roles.values()
+                if not isinstance(target, str)
+                or str(target) not in recombination_quantities
+            }
+        )
+        if unknown_targets:
+            raise ValueError(
+                "Recombination role target(s) must name declared quantities: "
+                + ", ".join(unknown_targets)
+            )
+    elif recombination_quantities:
         missing_recombination = sorted(
             _REQUIRED_RECOMBINATION_QUANTITIES
             - set(str(name) for name in recombination_quantities)
@@ -577,6 +628,12 @@ def compile_declared_cmb_runtime(
                 None
                 if not isinstance(calibration_section, Mapping)
                 else calibration_section.get("symbol")
+            ),
+            recombination_roles=tuple(
+                sorted(
+                    (str(role), str(target))
+                    for role, target in recombination_roles.items()
+                )
             ),
         ),
         runtime_signature=_declared_runtime_signature(cache_key),
@@ -956,21 +1013,38 @@ def _replace_sound_horizon_lower_limit(
 ) -> sympy.Expr | None:
     """Replace a declared recombination lower limit with ``z_drag``."""
 
-    replacements: dict[sympy.Integral, sympy.Integral] = {}
-    for integral in expression.atoms(sympy.Integral):
-        if len(integral.limits) != 1:
-            continue
-        variable, lower, upper = integral.limits[0]
-        if not isinstance(lower, sympy.Symbol):
-            continue
-        replacements[integral] = sympy.Integral(
-            integral.function,
-            (variable, drag_redshift, upper),
-        )
-        break
-    if not replacements:
+    candidates = [
+        integral
+        for integral in expression.atoms(sympy.Integral)
+        if len(integral.limits) == 1
+    ]
+    if not candidates:
         return None
-    return expression.xreplace(replacements)
+    outermost = [
+        integral
+        for integral in candidates
+        if not any(
+            integral != parent and parent.has(integral)
+            for parent in candidates
+        )
+    ]
+    infinite = [
+        integral for integral in outermost if integral.limits[0][2] == sympy.oo
+    ]
+    if len(infinite) > 1:
+        return None
+    if infinite:
+        target = infinite[0]
+    elif len(outermost) == 1:
+        target = outermost[0]
+    else:
+        return None
+    variable, _lower, upper = target.limits[0]
+    replacement = sympy.Integral(
+        target.function,
+        (variable, drag_redshift, upper),
+    )
+    return expression.xreplace({target: replacement})
 
 
 class _DistanceModulusFromLuminosity:
@@ -1568,7 +1642,7 @@ def _extract_last_updated_header(text: str) -> str:
     return None
 
 
-def generate_callables(cache_path):
+def _generate_callables_impl(cache_path):
     """Create callables from the cached model and update the cache file.
 
     Parameters
@@ -1703,7 +1777,42 @@ def generate_callables(cache_path):
                     code_dict["get_sound_horizon_rs_rec_Mpc"] = str(rs_sym)
                     code_dict["get_sound_horizon_rs_Mpc"] = str(rs_sym)
 
-                    drag_redshift = _drag_redshift_expression(param_syms)
+                    declared_drag_redshift = model_data.get(
+                        "bao_drag_redshift_expression"
+                    )
+                    if declared_drag_redshift:
+                        parsed_drag_redshift = _latex_to_sympy_str(
+                            declared_drag_redshift
+                        )
+                        drag_redshift = _safe_parse_expr(
+                            parsed_drag_redshift,
+                            local_dict,
+                        )
+                        if drag_redshift.has(z):
+                            raise ValueError(
+                                "bao_drag_redshift_expression must not depend "
+                                "on integration variable z."
+                            )
+                        used_drag_symbols = {
+                            str(symbol)
+                            for symbol in drag_redshift.free_symbols
+                        }
+                        missing_drag_symbols = used_drag_symbols - {
+                            parameter["python_var"]
+                            for parameter in model_data["parameters"]
+                        }
+                        if missing_drag_symbols:
+                            missing_str = "', '".join(
+                                sorted(missing_drag_symbols)
+                            )
+                            raise ValueError(
+                                "Parameter '"
+                                f"{missing_str}' used in "
+                                "bao_drag_redshift_expression is not "
+                                "defined in model parameters."
+                            )
+                    else:
+                        drag_redshift = _drag_redshift_expression(param_syms)
                     drag_sym = (
                         None
                         if drag_redshift is None
@@ -1712,6 +1821,15 @@ def generate_callables(cache_path):
                             drag_redshift,
                         )
                     )
+                    if (
+                        declared_drag_redshift
+                        and drag_redshift is not None
+                        and drag_sym is None
+                    ):
+                        raise ValueError(
+                            "bao_drag_redshift_expression requires one "
+                            "unambiguous sound-horizon integral."
+                        )
                     if drag_sym is not None:
                         drag_fn_sym = _compile_sympy_expr(
                             drag_sym,
@@ -1856,3 +1974,67 @@ def generate_callables(cache_path):
         yaml.safe_dump(model_data, f, sort_keys=False, allow_unicode=True)
 
     return funcs, model_data
+
+
+def compile_declared_cmb_runtime(
+    *,
+    model_name: str,
+    parameter_names: Sequence[str],
+    latex_names: Sequence[str],
+    cmb_contract: Mapping[str, Any],
+) -> DeclaredCMBRuntime:
+    """Compile declared background and perturbation mathematics.
+
+    This source boundary owns static declaration compilation.  Legacy helper
+    routines may still emit built-in parser exceptions internally; convert
+    those here so public discovery cannot infer model validity from message
+    text or from an unrelated runtime catch.
+    """
+
+    from .likelihoods.cmb.errors import ModelDeclarationError
+
+    try:
+        return _compile_declared_cmb_runtime_impl(
+            model_name=model_name,
+            parameter_names=parameter_names,
+            latex_names=latex_names,
+            cmb_contract=cmb_contract,
+        )
+    except ModelDeclarationError:
+        raise
+    except (
+        ArithmeticError,
+        LookupError,
+        SyntaxError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ModelDeclarationError(
+            f"Declared CMB compilation failed: {exc}",
+            context={
+                "model_name": str(model_name),
+                "failure_stage": "declared_runtime_compilation",
+            },
+        ) from exc
+
+
+def generate_callables(cache_path):
+    """Generate model callables with a declaration-typed compiler boundary."""
+
+    from .likelihoods.cmb.errors import ModelDeclarationError
+
+    try:
+        return _generate_callables_impl(cache_path)
+    except ModelDeclarationError:
+        raise
+    except (
+        ArithmeticError,
+        LookupError,
+        SyntaxError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise ModelDeclarationError(
+            f"Model equation compilation failed: {exc}",
+            context={"failure_stage": "model_equation_compilation"},
+        ) from exc

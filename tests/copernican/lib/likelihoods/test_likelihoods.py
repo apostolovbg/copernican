@@ -164,7 +164,14 @@ class LikelihoodTestCase(unittest.TestCase):
 
             def __init__(self, base_plugin):
                 self._base = base_plugin
-                self.calls = {"dm": 0, "hz": 0, "dv": 0, "da": 0, "rs": 0}
+                self.calls = {
+                    "dm": 0,
+                    "hz": 0,
+                    "dv": 0,
+                    "da": 0,
+                    "rs": 0,
+                    "rs_drag": 0,
+                }
 
             def __getattr__(self, name):
                 return getattr(self._base, name)
@@ -194,6 +201,12 @@ class LikelihoodTestCase(unittest.TestCase):
                 self.calls["rs"] += 1
                 return self._base.get_sound_horizon_rs_Mpc(*args, **kwargs)
 
+            def get_sound_horizon_rs_drag_Mpc(self, *args, **kwargs):
+                self.calls["rs_drag"] += 1
+                return self._base.get_sound_horizon_rs_drag_Mpc(
+                    *args, **kwargs
+                )
+
         params = self.plugin.INITIAL_GUESSES
         bao_df = self._prepare_bao()
         tracking_plugin = TrackingPlugin(self.plugin)
@@ -211,7 +224,8 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(loglike))
         self.assertGreater(tracking_plugin.calls["dm"], 0)
         self.assertGreater(tracking_plugin.calls["hz"], 0)
-        self.assertGreater(tracking_plugin.calls["rs"], 0)
+        self.assertGreater(tracking_plugin.calls["rs_drag"], 0)
+        self.assertEqual(tracking_plugin.calls["rs"], 0)
 
     def test_bao_fixed_background_survives_cmb_solver_failure(self):
         """A fixed BAO background remains evaluable without CCMBS."""
@@ -262,6 +276,9 @@ class LikelihoodTestCase(unittest.TestCase):
                 raise AssertionError("BAO must not query the CMB runtime")
 
             def get_sound_horizon_rs_Mpc(self, *params):
+                return self._base.get_sound_horizon_rs_Mpc(*params)
+
+            def get_sound_horizon_rs_drag_Mpc(self, *params):
                 return divergent_helper(*params)
 
         params = self.plugin.INITIAL_GUESSES

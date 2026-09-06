@@ -7,6 +7,8 @@ from typing import Any
 
 import numpy
 
+from ...model_coder import SoundHorizonComputationError
+
 
 def _same_value(left: Any, right: Any, *, rtol: float, atol: float) -> bool:
     """Compare nested BAO values without depending on object identity."""
@@ -148,22 +150,68 @@ def assess_bao_sound_horizon_epochs(
         }
     try:
         rec_value = float(rec_fn(*params))
+    except SoundHorizonComputationError as exc:
+        return {
+            "available": True,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": "recombination",
+            "failure_type": type(exc).__name__,
+            "failure_stage": "recombination",
+        }
+    except (ArithmeticError, TypeError, ValueError, OverflowError):
+        return {
+            "available": True,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": "recombination",
+            "failure_type": "invalid_value",
+            "failure_stage": "recombination",
+        }
+    try:
         drag_value = float(drag_fn(*params))
         z_drag = None if z_drag_fn is None else float(z_drag_fn(*params))
+    except SoundHorizonComputationError as exc:
+        return {
+            "available": True,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": "drag",
+            "failure_type": type(exc).__name__,
+            "failure_stage": "drag",
+        }
     except (ArithmeticError, TypeError, ValueError, OverflowError):
         return {
             "available": True,
             "finite": False,
             "distinct": False,
             "sound_horizon_epoch": "drag",
+            "failure_type": "invalid_value",
+            "failure_stage": "drag",
         }
     finite = bool(
         numpy.isfinite(rec_value)
         and numpy.isfinite(drag_value)
         and rec_value > 0.0
         and drag_value > 0.0
-        and (z_drag is None or numpy.isfinite(z_drag))
+        and (z_drag is None or (numpy.isfinite(z_drag) and z_drag > 0.0))
     )
+    if not finite:
+        if not (numpy.isfinite(rec_value) and rec_value > 0.0):
+            failure_stage = "recombination"
+        else:
+            failure_stage = "drag"
+        return {
+            "available": True,
+            "finite": False,
+            "distinct": False,
+            "sound_horizon_epoch": failure_stage,
+            "recombination_rs_Mpc": rec_value,
+            "drag_rs_Mpc": drag_value,
+            "z_drag": z_drag,
+            "failure_type": "invalid_value",
+            "failure_stage": failure_stage,
+        }
     return {
         "available": True,
         "finite": finite,

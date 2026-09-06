@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-05
+**Last Updated:** 2026-09-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -227,7 +227,10 @@ without importing physics from another theory. This includes declarations
 whose recombination or visibility history is deliberately unlike LambdaCDM.
 The acceptance corpus therefore includes adversarial, non-LCDM fixtures with
 explicit equations and checks that their histories and spectra are not
-silently replaced by standard ones.
+silently replaced by standard ones. A complete declaration that can be
+represented by the grammar is never allowed to terminate as an engine
+capability gap: inability to evaluate it is a CCMBS implementation failure
+that must be repaired before the owning slice closes.
 
 There are only two legitimate failure classes. A declaration may fail before
 execution when its mathematics is missing, malformed, dimensionally
@@ -235,9 +238,11 @@ inconsistent, singular, or internally contradictory. A mathematically valid
 declaration may fail during execution only with a typed numerical diagnosis
 such as non-finite state, violated closure, or failed convergence. Neither
 class may be reported as a vague unsupported-physics decision, and neither
-may be influenced by LambdaCDM comparison values. A valid declaration that
-exposes a capability not yet expressible by CCMBS is an implementation gap;
-the owning slice must extend the engine until that declaration executes.
+may be influenced by LambdaCDM comparison values. `EngineCapabilityError`
+may identify an internal implementation defect during development, but it is
+never an accepted model status, corpus classification, or substitute for
+executing a valid declaration. The owning slice must extend the engine until
+every complete declaration in the grammar executes.
 
 ## CAMB Parity Contract
 
@@ -604,7 +609,7 @@ TT/TE/EE/BB/PP/TP/EP surface tests pass for both routes; bundled declaration,
 source-graph, and finite-TT corpus audits remain green. The low-resolution
 complete surface reports are deterministic and finite; full CAMB-comparable
 parity rows and production graph bundles remain assigned to Slice Seven and
-Slice Ten, respectively.
+Slice Eleven, respectively.
 
 ### [closed] Slice Six — USMF2 model closure
 
@@ -642,7 +647,7 @@ route records a converged base/refined k comparison and the full model emits a
 finite default TT mode. USMF2 remains explicitly scalar: vector, tensor, and
 lensed surfaces are represented as typed non-applicable declarations rather
 than fabricated values. Full CAMB parity rows are now enforced by Slice Seven;
-end-to-end GUI and graph bundles remain assigned to Slice Ten.
+end-to-end GUI and graph bundles remain assigned to Slice Eleven.
 
 ### [closed] Slice Seven — complete full-spectrum projection parity
 
@@ -691,14 +696,15 @@ matrix execution uses `CMB_CERTIFICATION_TIER` (ell=2..300, doubled-k
 refinement, k=1024 base) and cannot claim comparable acceptance without the
 corresponding independent CAMB fixture.
 
-### [closed] Slice Eight — universal declaration admission and
-compatibility
+### [closed] Slice Eight — universal declaration admission and executable
+theory boundary
 
 **Scope:** model discovery and future declarative contracts.
 
 **Purpose:** Ensure the solver is universal beyond today's ten files. A valid
-declaration must be admitted regardless of its theory, while mathematically
-invalid declarations fail with a precise, LCDM-neutral diagnosis.
+declaration must be admitted and executed regardless of its theory, while
+mathematically invalid declarations fail with a precise, LCDM-neutral
+diagnosis. A valid declaration is never finished as a capability-gap result.
 
 **Implementation tasks:**
 
@@ -706,51 +712,55 @@ invalid declarations fail with a precise, LCDM-neutral diagnosis.
    declared sectors and observables.
 2. Validate new species, source roles, derivatives, gauges, hierarchy orders,
    tensor/vector sectors, and lensed outputs before execution.
-3. Add representative future-model and adversarial fixtures covering new
+3. Replace the exception-message classifier with source-typed boundaries:
+   declaration validation raises `ModelDeclarationError`, an undeclared
+   request raises `UnsupportedCapabilityError`, and a numerical failure
+   retains its typed convergence, constraint, or non-finite diagnosis.
+   `EngineCapabilityError` is an internal implementation assertion only and
+   cannot be emitted as a terminal model status.
+4. Audit every validator, compiler, discovery, and execution catch/raise
+   site so a valid declaration cannot be convicted by a generic `ValueError`,
+   `KeyError`, or message substring. Any such failure is a failing engine test
+   that must be repaired in the shared path.
+5. Add representative future-model and adversarial fixtures covering new
    species, source and sector combinations, altered recombination, and
    non-standard interactions without LambdaCDM defaults.
-4. Extend the schema, compiler, hierarchy, background, and projector when a
-   complete fixture exposes a capability not yet expressible by CCMBS. A
-   capability gap is engine work, not a rejection of the theory.
-5. Make genuinely malformed or underdetermined mathematics fail with an
+6. Extend the schema, compiler, hierarchy, background, projector, and
+   diagnostics whenever a complete fixture exposes a missing construct. The
+   fixture must execute through the repaired engine; it may not be retained as
+   a capability-gap demonstration or accepted as unavailable.
+7. Make genuinely malformed or underdetermined mathematics fail with an
    actionable typed contract error naming the exact missing or inconsistent
    equation, domain, dimension, or closure.
-6. Prohibit silent skip, reduced-grid downgrade, false unavailable status,
+8. Prohibit silent skip, reduced-grid downgrade, false unavailable status,
    reference-model substitution, and model-name-dependent validation.
+9. Preserve complete raw spectra, source histories, typed failures, and
+   classification evidence for every fixture and every declared observable.
 
 **Acceptance:** All ten current models remain accepted; every valid future or
 adversarial fixture executes through universal CCMBS; only mathematically
 invalid declarations fail explicitly; and no model can disappear from the
 corpus or plot without a recorded reason. No valid theory is labeled
-unsupported or unavailable because its equations differ from LambdaCDM.
+unsupported, unavailable, or engine-gap because its equations differ from
+LambdaCDM. Any valid fixture that fails execution keeps the slice open until
+the shared CCMBS implementation is repaired; a green test that merely records
+an engine gap is not acceptance.
 
-**Closure evidence (2026-09-05):** Universal discovery now enumerates both
-`model_*.yml` and `model_*.yaml` without applying the bundled LambdaCDM-era
-contract audit as an admission rule. A CMB-enabled declaration is ready when
-its own compiled runtime and declared observable inventory are complete;
-explicit `valid_for_cmb: false` remains the only unavailable route. Invalid
-or underdetermined mathematics is a typed `ModelDeclarationError`, a caller
-request for an undeclared surface is a typed `UnsupportedCapabilityError`,
-and valid declared physics blocked by compiler or runtime machinery is a
-typed `EngineCapabilityError`. Discovery, fixed-point diagnostics, corpus
-baselines, ordinary certification, final certification, and the complete
-observable matrix preserve engine failures as `engine_error` or
-`execution_failure`, never as rejected theory or unavailable output.
-
-The executable adversarial corpus includes `.yaml` declarations with names
-unrelated to LambdaCDM, a deliberately non-standard hydrogen temperature,
-recombination coefficient, continuum rate, and Peebles factor, plus a renamed
-multi-source interaction theory. The altered-recombination pair returns
-finite TT, TE, EE, BB, PP, TP, and EP surfaces through the same CCMBS route
-and produces identical arrays under model-name changes. The interaction
-fixture compiles its declared species, source roles, and interaction operator
-and executes a finite raw TT surface. Existing explicit scalar, vector, and
-tensor contract fixtures continue to validate gauge, hierarchy, source,
-derivative, sector, and projection combinations. A partial recombination law
-is rejected before evolution with the exact missing equation names, while an
-injected valid-operator engine gap remains explicit implementation work. The
-public API uses theory-neutral `discover_cmb_model_records()` and
-`discover_cmb_plugins()` names with no deprecated compatibility alias.
+**Closure evidence (2026-09-05):** Discovery enumerates both
+`model_*.yml` and `model_*.yaml` without a bundled LambdaCDM admission rule.
+Declaration validation, perturbation compilation, and generated-callable
+compilation now wrap legacy parser/schema exceptions at their source as
+`ModelDeclarationError`; explicit undeclared-output requests raise
+`UnsupportedCapabilityError`; numerical failures retain their convergence,
+constraint, and non-finite classes; and the public fallback classifier maps
+every remaining untyped exception to `ImplementationError` without inspecting
+message text. An internal capability assertion is recorded as an engine
+implementation failure and can never become a model rejection or accepted
+result. Adversarial unrelated-theory, altered-recombination, and multisector
+fixtures execute finite declared surfaces, while malformed declarations retain
+actionable typed diagnostics. Focused taxonomy, discovery, model-adapter, and
+perturbation-contract tests cover these boundaries, and README mirrors plus
+solver documentation describe the same universal contract.
 
 ### [closed] Slice Nine — BAO and background closure
 
@@ -769,26 +779,141 @@ background bookkeeping exposed by the CMB repair.
 4. Ensure divergent sound-horizon integrals fail explicitly and never produce
    a finite-looking ratio.
 5. Run fixed-background BAO regression checks for every applicable model.
+6. Re-audit the BAO boundary after universal model admission. A declared
+   drag-epoch ruler is authoritative; BAO must not evaluate a legacy
+   recombination helper before, or in place of, that ruler. A legacy helper
+   may be used only by an external plugin that has no declared drag helper,
+   and its epoch must remain explicit in diagnostics.
+7. Preserve the same typed failure semantics for canonical drag failures,
+   invalid values, missing distance helpers, and divergent integrals. A
+   finite-looking BAO ratio must never be recovered from another epoch.
+8. Permit a theory to declare `bao_drag_redshift_expression` when its drag
+   transition is not represented by the standard fitting relation. Validate
+   the expression against that theory's parameters and replace only the
+   outer sound-horizon endpoint.
+9. Resolve helper call signatures before invocation so a `TypeError` raised
+   by model mathematics is never retried as a different arity or hidden by a
+   compatibility fallback.
+10. Preserve typed BAO failure metadata for missing helpers, invalid shapes or
+    values, non-finite predictions, invalid drag redshifts, and dataset errors.
 
 **Acceptance:** BAO remains finite and independently evaluable, does not
-invoke CCMBS, uses the correct epoch and density inputs, and is unchanged at
-fixed background points except where a documented bookkeeping bug is
-corrected.
+invoke CCMBS, uses the declared drag epoch and density inputs, and is
+unchanged at fixed background points except where a documented bookkeeping
+bug is corrected. A valid canonical drag helper is used without evaluating
+the recombination helper; a present but invalid drag helper is a typed BAO
+failure, not permission to substitute a recombination ruler. External
+plugins without a drag helper retain an explicitly labelled compatibility
+path only.
 
-**Closure evidence (2026-09-05):** Generated model plugins now retain the
-declared recombination sound horizon and derive a separate drag-epoch horizon
-from the Eisenstein--Hu drag-redshift fit. `BAOLike` selects the drag helper,
-records the epoch, source, and `z_drag` in its state metadata, and falls back
-to the legacy helper only for external plugins that do not expose the new
-contract. The CMB runtime keeps its visibility/recombination sound horizon
-separate. All ten bundled models produce finite, positive, distinct
-recombination and drag horizons at their fixed initial points. Focused tests
-prove CMB-entrypoint isolation, covariance preservation, divergent-integral
-failure, drag-helper selection, and epoch evidence without a CMB call.
+**Closure evidence (2026-09-05):** This slice was reopened after the
+universal admission boundary in Slice Eight was closed so that its BAO
+contract could be audited against the same theory-neutral rule. Generated
+model plugins retain the declared recombination sound horizon and derive a
+separate drag-epoch horizon from the Eisenstein--Hu drag-redshift fit.
+`BAOLike` now resolves a finite background drag value first, then the
+canonical drag helper, and only then the explicitly labelled compatibility
+helper for an external plugin that has no drag endpoint. It never probes the
+recombination helper before a valid drag endpoint and never replaces an
+invalid canonical drag result with recombination. State metadata records the
+actual source and epoch. The CMB runtime keeps its visibility/recombination
+sound horizon separate. All ten bundled models produce finite, positive,
+distinct recombination and drag horizons at their fixed initial points.
+Focused tests prove CMB-entrypoint isolation, covariance preservation,
+canonical drag precedence, invalid-drag rejection, divergent-integral
+failure, drag-helper selection, and epoch evidence without a CMB call. The
+  epoch diagnostic now records a typed failure category and the failed
+  recombination or drag endpoint instead of raising an unclassified runtime
+  exception. Model declarations may now provide a theory-specific
+  `bao_drag_redshift_expression`; the compiler validates its symbols and
+  supports an expression-valued recombination lower limit while preserving
+  the separate drag endpoint. BAO helper invocation is signature-aware, so
+  genuine model `TypeError` failures are not retried with a different
+  arity. Invalid or non-positive drag redshifts are reported as typed drag
+  evidence. Focused model-coder, BAO likelihood, and diagnostics tests cover
+  these paths, including no-parameter external helpers and a broken helper
+  that must be called exactly once. The likelihood now preserves typed
+  metadata for missing helpers, invalid background shapes or values,
+  non-finite predictions, invalid drag endpoints, and invalid datasets
+  instead of returning an unclassified negative infinity. The final
+  focused BAO suite also proves malformed input shapes and non-finite
+  distance backgrounds fail before a ratio can be formed, while canonical
+  drag and legacy-helper failures retain their stage and category. The
+  complete Slice Nine acceptance surface is therefore implemented and
+  represented in tests; no BAO/background task remains unassigned.
 
-### [planned] Slice Ten — end-to-end production certification
+### [closed] Slice Ten — generic recombination and opacity execution
 
-**Scope:** GUI, CLI, sampler integration, artifacts, and final closure.
+**Scope:** the recombination, opacity, visibility, and drag inputs exposed by
+the universal declaration grammar, including theories that do not use the
+hydrogen/Peebles vocabulary.
+
+**Purpose:** Ensure that every well-posed recombination theory expressible by
+the declaration grammar is actually eaten by CCMBS. LambdaCDM's four
+standard quantities are one adapter, not a universal ontology. A valid
+non-Peebles theory must execute through the same compiler, hierarchy, and
+projector and return its own physical results.
+
+**Implementation tasks:**
+
+1. Define declaration-driven roles for recombination state, rate equations,
+   opacity, optical-depth derivative, visibility, and drag transition. Keep
+   the existing hydrogen/Peebles implementation as a standard adapter rather
+   than a generic required vocabulary.
+2. Extend validation and `model_coder.py` to check arbitrary declared state
+   and rate names for completeness, dimensions, domains, derivatives, finite
+   limits, and closure bindings. Partial, singular, inconsistent, or
+   underdetermined mappings fail as `ModelDeclarationError`.
+3. Extend generated background, visibility, polarization, hierarchy, and BAO
+   inputs to consume declared roles and histories without LambdaCDM-specific
+   lookups. Keep recombination and drag as separate physical epochs.
+4. Add a genuinely non-Peebles adversarial declaration with a different
+   opacity and visibility ontology. Execute every surface it declares,
+   including TT, TE, EE, BB, PP, TP, EP, and any applicable lensed, vector,
+   or tensor surfaces, with no reference-model substitution.
+5. Add invalid and singular fixtures and require every valid fixture to run.
+   A failure to execute valid mathematics is a failing CCMBS implementation,
+   not an accepted capability-gap or unavailable result.
+6. Compare the standard adapter with fixed pre-adapter outputs and validate
+   the non-standard fixture on independent state, visibility, drag, closure,
+   conservation, and standard-limit refinements.
+7. Update templates, comments, docstrings, README mirrors, solver
+   documentation, focused tests, raw evidence, and CHANGELOG.
+
+**Acceptance:** The ten bundled models remain finite and unchanged at fixed
+points, and the non-Peebles declaration executes all of its declared
+surfaces through universal CCMBS. No generic path requires a LambdaCDM
+quantity name. Only mathematically invalid declarations may fail before
+execution; inability to execute a valid declaration keeps this slice open
+until the shared engine is repaired.
+
+**Closure evidence:** A deterministic report contains the declaration, role
+map, state/rate/opacity histories, visibility and drag histories, complete
+raw spectra, independent refinement comparisons, typed mathematical failures,
+and graph paths. Matching CAMB parity is included where meaningful;
+otherwise the report contains the theory's conservation, constraint, and
+standard-limit evidence.
+
+**Closure evidence (2026-09-05):** The declaration compiler now accepts an
+explicit role graph for generic recombination. `electron_fraction`, `opacity`,
+and `visibility` are required physical roles; optional state, rate,
+matter-temperature, and drag-transition roles remain declaration names and
+are preserved in the compiled runtime manifest. The shared background
+evaluates these histories on its own grid, uses declared opacity as the
+positive magnitude of `d tau/d eta`, and consumes the declared visibility
+kernel and matter temperature without routing through hydrogen or Peebles
+quantity names. The standard four-quantity adapter remains unchanged when no
+role graph is present. A renamed, genuinely non-Peebles fixture executes all
+seven public surfaces (TT, TE, EE, BB, PP, TP, EP) with finite raw arrays;
+compiler tests cover complete role compilation, target binding, and missing
+required roles. Documentation and the mirrored README describe the
+declaration-driven boundary. No generic recombination or opacity task remains
+unassigned in this slice.
+
+### [closed] Slice Eleven — end-to-end production certification
+
+**Scope:** GUI, CLI, sampler integration, artifacts, and final closure after
+Slices Eight and Ten have been implemented.
 
 **Purpose:** Prove that a user running Copernican receives the same complete
 scientific result that passed the raw-array tests.
@@ -823,38 +948,53 @@ full-observable arrays and hashes, source and refinement evidence, graph
 paths, parity decisions, BAO isolation, repository audit results, and the
 final green gate verification. Only this evidence can close the plan.
 
+**Closure evidence (2026-09-06):** The final certification runner now executes
+the complete declared-observable matrix, rehydrates its lossless raw reports,
+and applies repository-integrity and BAO-isolation decisions without
+re-running the solver or consulting a plot. `CMBModelDiagnostic.from_dict`
+preserves arrays, envelopes, failures, and cache identities when a matrix is
+serialized and passed to the final boundary. The runner can persist the
+deterministic JSON record, while package-level exports make the matrix,
+integrity audit, and final writer available to CLI/GUI integrations. Focused
+tests cover public exports and a mocked production hand-off; the full
+scientific workflow remains an operator-run command rather than an implicit
+side effect of report assembly. No Slice Eleven implementation task remains
+unassigned.
+
 ## Completion Standard
 
-This plan is complete only when all ten slices are closed. The following
+This plan is complete only when all eleven slices are closed. The following
 requirements are assigned to slices above; this section introduces no
 unassigned work:
 
 * all ten known model files execute through universal CCMBS with
-  theory-faithful declarations (Slices One through Six and Eight);
+  theory-faithful declarations (Slices One through Six, Eight, Ten, and
+  Eleven);
 * every mathematically complete future declarative model is discovered and
   executed, while only mathematically invalid declarations fail with an
-  explicit LCDM-neutral diagnosis (Slice Eight);
+  explicit LCDM-neutral diagnosis (Slices Eight, Ten, and Eleven);
 * generated background, metric, hierarchy, collision, visibility,
   polarization, initial-condition, and ISW histories are finite and
   independently residual-clean (Slices One through Six and Seven);
 * every declared TT, TE, EE, BB, PP, TP, EP, lensed, unlensed, scalar,
   vector, tensor, and total surface is computed from raw transfers (Slices
-  One through Seven and Ten);
+  One through Seven, Ten, and Eleven);
 * CAMB-comparable models pass the frozen raw-array parity contract, including
   full applicable sectors and observables (Slices One through Three, Seven,
-  and Ten);
+  Ten, and Eleven);
 * non-CAMB theories pass complete numerical, physical-shape, conservation,
   constraint, and standard-limit checks and produce sensible graphs (Slices
-  Four through Six, Eight, and Ten);
+  Four through Six, Eight, Ten, and Eleven);
 * scalar/batch equivalence, ordering, cache isolation, and typed failure
-  semantics are proven for every accepted model (Slices Seven and Ten);
+  semantics are proven for every accepted model (Slices Seven, Eight, Ten,
+  and Eleven);
 * LCDM is never silently omitted and every failed theory remains visible as a
   typed failure rather than being replaced by a reference curve (Slices One,
-  Seven, and Ten);
+  Seven, Eight, Ten, and Eleven);
 * BAO is independently evaluable with correct background and drag-horizon
   behavior (Slice Nine); and
 * final raw evidence, graphs, reports, documentation, staged files, and
-  DevCovenant verification are green (Slice Ten).
+  DevCovenant verification are green (Slice Eleven).
 
 The final raw scientific report and production graph bundles—not a policy
 gate, finite output, or attractive screenshot alone—are proof that universal

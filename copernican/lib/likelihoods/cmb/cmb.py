@@ -74,7 +74,7 @@ def _select_cmb_solver(
         and cmb_solver is not None
         and solver is not cmb_solver
     ):
-        raise ValueError("Specify either solver or cmb_solver, not both")
+        raise ContractError("Specify either solver or cmb_solver, not both")
     return resolve_cmb_solver(solver if solver is not None else cmb_solver)
 
 
@@ -97,10 +97,12 @@ def _resolve_plugin_cmb_contract(
 
     get_declared_runtime = getattr(plugin, "get_cmb_declared_runtime", None)
     if not callable(get_declared_runtime):
-        raise ValueError("Model plugin does not expose a declared CMB runtime")
+        raise ContractError(
+            "Model plugin does not expose a declared CMB runtime"
+        )
     declared_runtime = get_declared_runtime(model_params)
     if not isinstance(declared_runtime, Mapping):
-        raise ValueError("Model declared CMB runtime must be a mapping")
+        raise ContractError("Model declared CMB runtime must be a mapping")
     return declared_runtime
 
 

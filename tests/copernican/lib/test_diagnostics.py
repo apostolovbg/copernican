@@ -22,13 +22,16 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     audit_cmb_repository_integrity,
     build_bundled_cmb_full_matrix_report,
     build_cmb_corpus_baseline_report,
+    build_final_cmb_certification_report,
     declared_cmb_spectrum_names,
     run_bundled_cmb_corpus_baseline,
     run_bundled_cmb_diagnostics,
     run_bundled_cmb_full_matrix,
     run_cmb_model_diagnostic,
+    run_final_cmb_certification,
     write_bundled_cmb_full_matrix_report,
     write_cmb_corpus_baseline_report,
+    write_final_cmb_certification_report,
 )
 
 
@@ -89,6 +92,18 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertIs(
             cmb_module.write_bundled_cmb_full_matrix_report,
             write_bundled_cmb_full_matrix_report,
+        )
+        self.assertIs(
+            cmb_module.build_final_cmb_certification_report,
+            build_final_cmb_certification_report,
+        )
+        self.assertIs(
+            cmb_module.run_final_cmb_certification,
+            run_final_cmb_certification,
+        )
+        self.assertIs(
+            cmb_module.write_final_cmb_certification_report,
+            write_final_cmb_certification_report,
         )
         self.assertIs(cmb_package.CMBContractAudit, CMBContractAudit)
         self.assertIs(

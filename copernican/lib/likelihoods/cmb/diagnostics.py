@@ -1678,6 +1678,14 @@ def _diagnostic_failure(error: BaseException) -> dict[str, Any]:
     """Return a stable failure payload without hiding diagnostic context."""
 
     typed = error if isinstance(error, CMBError) else classify_exception(error)
+    if isinstance(typed, EngineCapabilityError):
+        typed = ImplementationError(
+            f"CCMBS internal capability defect: {typed}",
+            context={
+                **typed.context,
+                "internal_error_type": type(typed).__name__,
+            },
+        )
     payload = typed.diagnostic()
     payload["error_type"] = type(typed).__name__
     return payload
@@ -2283,6 +2291,72 @@ class CMBModelDiagnostic:
             "spectra": _jsonable(self.spectra),
             "success": self.success,
         }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "CMBModelDiagnostic":
+        """Rehydrate one report from a serialized matrix record.
+
+        The full-corpus runner stores JSON-safe reports so its matrix digest
+        is portable.  Final certification needs the same typed report object
+        to apply its stricter provenance checks; this inverse keeps that
+        hand-off lossless without re-running the solver or touching caches.
+        """
+
+        if not isinstance(payload, Mapping):
+            raise TypeError("CMB diagnostic payload must be a mapping")
+
+        def _tuple_values(name: str, converter: Any) -> tuple[Any, ...]:
+            """Normalize one serialized tuple field."""
+
+            values = payload.get(name, ()) or ()
+            return tuple(converter(value) for value in values)
+
+        def _array_map(name: str) -> dict[str, numpy.ndarray]:
+            """Restore one serialized mapping of numeric arrays."""
+
+            values = payload.get(name, {}) or {}
+            if not isinstance(values, Mapping):
+                raise TypeError(
+                    f"CMB diagnostic field '{name}' must be a mapping"
+                )
+            return {
+                str(key): numpy.asarray(value, dtype=float)
+                for key, value in values.items()
+            }
+
+        return cls(
+            model_filename=str(payload.get("model_filename", "")),
+            model_name=str(payload.get("model_name", "")),
+            parameter_names=_tuple_values("parameter_names", str),
+            parameter_values=_tuple_values("parameter_values", float),
+            requested_ells=_tuple_values("requested_ells", int),
+            requested_spectra=_tuple_values("requested_spectra", str),
+            spectra=_array_map("spectra"),
+            raw_spectra=_array_map("raw_spectra"),
+            raw_transfer_components=_array_map("raw_transfer_components"),
+            runtime_envelope=dict(payload.get("runtime_envelope", {}) or {}),
+            refinement=dict(payload.get("refinement", {}) or {}),
+            shape=dict(payload.get("shape", {}) or {}),
+            acoustic_structure=dict(
+                payload.get("acoustic_structure", {}) or {}
+            ),
+            source_residual_audit=dict(
+                payload.get("source_residual_audit", {}) or {}
+            ),
+            reference_comparison=dict(
+                payload.get("reference_comparison", {}) or {}
+            ),
+            availability=str(payload.get("availability", "measured")),
+            contract_identity=dict(payload.get("contract_identity", {}) or {}),
+            cache_identity=dict(payload.get("cache_identity", {}) or {}),
+            scalar_batch_evidence=dict(
+                payload.get("scalar_batch_evidence", {}) or {}
+            ),
+            cache_isolation_evidence=dict(
+                payload.get("cache_isolation_evidence", {}) or {}
+            ),
+            failure=payload.get("failure"),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -3528,6 +3602,106 @@ def write_final_cmb_certification_report(
         json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    return record
+
+
+def run_final_cmb_certification(
+    *,
+    model_directory: str | Path | None = None,
+    certification_tier: Mapping[str, Any] | None = None,
+    numerical_overrides: Mapping[str, Any] | None = None,
+    reference_spectra_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    reference_tolerances_by_model: (
+        Mapping[str, Mapping[str, float]] | None
+    ) = None,
+    reference_required_models: Iterable[str] = (
+        *CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
+    ),
+    execute_batch_checks: bool = True,
+    bao_isolation: Mapping[str, Any] | None = None,
+    bao_baseline: Mapping[str, Any] | None = None,
+    bao_isolated: Mapping[str, Any] | None = None,
+    solver_identity: Mapping[str, Any] | str | None = None,
+    dataset_identities: Mapping[str, Any] | None = None,
+    fixture_hashes: Mapping[str, Any] | None = None,
+    repository_root: str | Path | None = None,
+    destination: str | Path | None = None,
+) -> dict[str, Any]:
+    """Run and persist the complete final CCMBS certification boundary.
+
+    This is the production-facing hand-off between the fixed-point matrix
+    and the final report.  It executes every declaration's complete public
+    surface first, rehydrates the lossless raw reports from the matrix, then
+    applies repository-integrity and BAO-isolation checks.  No sampler or
+    plot can turn an execution failure into a passing row.  ``destination``
+    is optional so callers may inspect the deterministic record in memory.
+    """
+
+    required_references = tuple(
+        str(name) for name in reference_required_models
+    )
+    matrix = run_bundled_cmb_full_matrix(
+        model_directory=model_directory,
+        certification_tier=certification_tier,
+        numerical_overrides=numerical_overrides,
+        reference_spectra_by_model=reference_spectra_by_model,
+        reference_tolerances_by_model=reference_tolerances_by_model,
+        reference_required_models=required_references,
+        execute_batch_checks=execute_batch_checks,
+    )
+    matrix_rows = matrix.get("reports", ())
+    reports = tuple(
+        CMBModelDiagnostic.from_dict(row["report"])
+        for row in matrix_rows
+        if isinstance(row, Mapping) and isinstance(row.get("report"), Mapping)
+    )
+    contract_audits = {
+        str(row["model_filename"]): row.get("contract_audit", {}) or {}
+        for row in matrix_rows
+        if isinstance(row, Mapping) and "model_filename" in row
+    }
+    source_graph_audits = {
+        str(row["model_filename"]): row.get("source_graph_audit", {}) or {}
+        for row in matrix_rows
+        if isinstance(row, Mapping) and "model_filename" in row
+    }
+    declaration_audits = {
+        str(row["model_filename"]): row.get("declaration_audit", {}) or {}
+        for row in matrix_rows
+        if isinstance(row, Mapping) and "model_filename" in row
+    }
+    required_models = tuple(
+        str(name)
+        for name in matrix.get("required_models", BUNDLED_CMB_MODEL_FILENAMES)
+    )
+    repository_integrity = audit_cmb_repository_integrity(repository_root)
+    record = build_final_cmb_certification_report(
+        reports,
+        required_model_filenames=required_models,
+        reference_required_models=required_references,
+        certification_tier=matrix.get("certification_tier")
+        or certification_tier
+        or CMB_CERTIFICATION_TIER,
+        contract_audits=contract_audits,
+        source_graph_audits=source_graph_audits,
+        declaration_audits=declaration_audits,
+        solver_identity=solver_identity,
+        dataset_identities=dataset_identities,
+        fixture_hashes=fixture_hashes,
+        integrity_checks=repository_integrity.get("checks"),
+        bao_isolation=bao_isolation,
+        bao_baseline=bao_baseline,
+        bao_isolated=bao_isolated,
+        full_matrix=matrix,
+        repository_integrity=repository_integrity,
+    )
+    if destination is not None:
+        path = Path(destination)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(_jsonable(record), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     return record
 
 
@@ -5041,7 +5215,28 @@ def discover_cmb_model_records(
                     plugin=plugin,
                 )
             )
-        except (EngineCapabilityError, ImplementationError) as error:
+        except EngineCapabilityError as error:
+            # A complete declaration may not be convicted by an internal
+            # capability marker.  Keep the failure visible as an engine
+            # implementation defect until the shared path is repaired.
+            typed = ImplementationError(
+                f"CCMBS engine defect while compiling declaration: {error}",
+                context={
+                    "model_filename": filename,
+                    "model_name": fallback_name,
+                    "failure_stage": "declaration_compilation",
+                    "internal_error_type": type(error).__name__,
+                },
+            )
+            records.append(
+                CMBModelDiscoveryRecord(
+                    model_filename=filename,
+                    model_name=fallback_name,
+                    status="engine_error",
+                    failure=_diagnostic_failure(typed),
+                )
+            )
+        except ImplementationError as error:
             typed = error.add_context(
                 model_filename=filename,
                 model_name=fallback_name,
@@ -5088,34 +5283,42 @@ def discover_cmb_model_records(
                     failure=_diagnostic_failure(typed),
                 )
             )
-        except (
-            ArithmeticError,
-            LookupError,
-            SyntaxError,
-            TypeError,
-            UnicodeError,
-            ValueError,
-        ) as error:
-            typed = ModelDeclarationError(
+        except (AttributeError, ImportError, OSError, RuntimeError) as error:
+            typed = ModelDiscoveryError(
                 f"{type(error).__name__}: {error}",
                 context={
                     "model_filename": filename,
                     "model_name": fallback_name,
                     "failure_type": type(error).__name__,
-                    "failure_stage": "declaration_compilation",
+                    "failure_stage": "declaration_discovery",
                 },
             )
             records.append(
                 CMBModelDiscoveryRecord(
                     model_filename=filename,
                     model_name=fallback_name,
-                    status="rejected",
+                    status="engine_error",
                     failure=_diagnostic_failure(typed),
                 )
             )
-        except (AttributeError, ImportError, OSError, RuntimeError) as error:
-            typed = ModelDiscoveryError(
-                f"{type(error).__name__}: {error}",
+        except (
+            ArithmeticError,
+            AttributeError,
+            ImportError,
+            LookupError,
+            NameError,
+            OSError,
+            RuntimeError,
+            SyntaxError,
+            TypeError,
+            UnicodeError,
+            ValueError,
+        ) as error:
+            # No untyped exception can be interpreted as declaration
+            # invalidity.  It is an implementation defect that blocks
+            # universal execution and must remain visible in the report.
+            typed = ImplementationError(
+                f"Unexpected CCMBS discovery failure: {error}",
                 context={
                     "model_filename": filename,
                     "model_name": fallback_name,

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-05
+**Last Updated:** 2026-09-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,322 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-06:
+  Change: Completed Slice Eleven's final CCMBS certification runner.
+  Why: Connected the complete observable matrix to strict provenance,
+       repository-integrity, and BAO-isolation evidence without rerunning
+       the solver during report assembly.
+  Impact: Production callers can execute and persist one deterministic,
+          raw-evidence certification record for every discovered model.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_diagnostics.py
+
+- 2026-09-06:
+  Change: Completed Slice Ten's declaration-driven recombination and opacity
+          execution path.
+  Why: Added generic role compilation and direct state, opacity, visibility,
+       and temperature histories without a hydrogen-specific fallback.
+  Impact: Enabled valid non-Peebles theories to execute every declared CMB
+          surface through the shared CCMBS background and projector.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Completed Slice Nine's final typed BAO failure and dataset
+          boundary checks.
+  Why: Added regression evidence for malformed inputs, non-finite
+       backgrounds, canonical drag failures, and helper-stage metadata.
+  Impact: Preserved explicit, CMB-independent BAO outcomes through the
+          complete Slice Nine acceptance surface.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Reopened Slice Nine for the requested final closure review.
+  Why: Preserved the BAO/background boundary explicitly in progress while its
+       remaining evidence is audited.
+  Impact: Preserved an honest Slice Nine status for the next work pass.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Reopened and completed Slice Nine's typed BAO failure boundary.
+  Why: Prevented missing helpers, invalid endpoints, and non-finite
+       backgrounds from becoming unclassified likelihood failures.
+  Impact: Preserved explicit drag-epoch diagnostics across universal plugins.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Reopened and completed Slice Nine with theory-specific drag epochs
+          and strict BAO helper contracts.
+  Why: Corrected remaining shared-background ambiguity without allowing a
+       recombination ruler or masked helper error to enter BAO calculations.
+  Impact: Enabled universal declarations to compile their own drag transition,
+          while fixed-background BAO failures remain explicit and
+          CMB-independent.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_model_coder.py
+
+- 2026-09-05:
+  Change: Closed Slice Nine after the requested final BAO audit.
+  Why: Verified the reopened boundary and retained its explicit drag-epoch
+       precedence and typed failure evidence.
+  Impact: Slice Nine is closed with no unrecorded BAO acceptance state.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+
+- 2026-09-05:
+  Change: Reopened Slice Nine for a final BAO closure audit.
+  Why: Preserved the shared background boundary for any remaining concrete
+       acceptance defect after universal admission was closed.
+  Impact: Slice Nine is explicitly in progress pending the requested audit.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+
+- 2026-09-05:
+  Change: Added typed BAO epoch-failure evidence and regression coverage.
+  Why: Diagnostics could not distinguish a failed recombination endpoint
+       from a failed drag endpoint.
+  Impact: BAO evidence now preserves the failed epoch and exception category.
+  Files:
+  copernican/lib/likelihoods/bao/bao.py
+  copernican/lib/likelihoods/bao/diagnostics.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/cmb_contract.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/bao/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+
+- 2026-09-05:
+  Change: Repaired BAO drag-ruler precedence after universal admission.
+  Why: Prevented a legacy recombination helper from failing before a valid
+       drag helper was evaluated and coupling BAO to the wrong epoch.
+  Impact: BAO now uses canonical drag inputs first, rejects invalid drag
+          values without epoch substitution, and records the actual source.
+  Files:
+  copernican/lib/likelihoods/bao/bao.py
+  tests/copernican/lib/likelihoods/bao/test_bao.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+
+- 2026-09-05:
+  Change: Completed source-typed universal declaration admission for CCMBS.
+  Why: Prevented generic compiler exceptions and message wording from
+       classifying valid theories as rejected or unsupported.
+  Impact: Wrapped declaration boundaries, preserved explicit numerical and
+          request failures, and documented the closed Slice Eight contract.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_contract.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/errors.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+
+- 2026-09-05:
+  Change: Reopened universal execution work and removed capability-gap
+          acceptance from the CCMBS plan.
+  Why: Clarified that every well-posed declaration must execute, while only
+       mathematical or numerical failures may produce a non-result.
+  Impact: Defined source-typed admission, generic recombination, BAO, and
+          production solver implementation as explicit ordered slices.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-09-05:
   Change: Completed universal CCMBS declaration admission and diagnostics.

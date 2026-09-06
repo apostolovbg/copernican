@@ -164,39 +164,27 @@ def classify_exception(
     *,
     context: Mapping[str, Any] | None = None,
 ) -> CMBError:
-    """Translate an untyped internal exception at the declared boundary."""
+    """Translate an untyped exception without inferring physics from text.
+
+    Scientific categories are assigned at the source that knows the failed
+    contract (declaration validation, request dispatch, or numerical solve).
+    A boundary cannot recover that information from an exception message:
+    doing so made an ordinary compiler ``ValueError`` look like either an
+    invalid theory or an engine capability decision.  Untyped failures are
+    therefore implementation failures and retain their original type/message
+    in structured context for the owning layer to repair.
+    """
 
     if isinstance(exc, CMBError):
         if context:
             exc.add_context(**dict(context))
         return exc
 
-    message = str(exc)
-    normalized = message.casefold()
-    error_type: type[CMBError]
-    if "non-finite" in normalized or "nonfinite" in normalized:
-        error_type = NonFiniteEvolutionError
-    elif (
-        "failed to converge" in normalized
-        or "did not converge" in normalized
-        or "under-resolved" in normalized
-        or "incomplete state history" in normalized
-    ):
-        error_type = ConvergenceError
-    elif (
-        "constraint" in normalized
-        or "conservation rule exceeded" in normalized
-    ):
-        error_type = ConstraintViolationError
-    elif "does not provide requested" in normalized:
-        error_type = UnsupportedCapabilityError
-    elif "unsupported" in normalized:
-        error_type = EngineCapabilityError
-    elif isinstance(exc, (KeyError, TypeError, ValueError)):
-        error_type = ContractError
-    else:
-        error_type = ImplementationError
-    return error_type(message, context=context)
+    message = str(exc) or type(exc).__name__
+    diagnostic_context = dict(context or {})
+    diagnostic_context.setdefault("failure_type", type(exc).__name__)
+    diagnostic_context.setdefault("source_typed", False)
+    return ImplementationError(message, context=diagnostic_context)
 
 
 __all__ = [
