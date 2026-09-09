@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-06
+**Last Updated:** 2026-09-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,72 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-09:
+  Change: Updated the public CMB regression contract for exported helpers.
+  Why: Refreshed documentation metadata and recorded the complete gate-session
+  file set after correcting public-symbol coverage.
+  Impact: Gate checks track the current API, plan, documentation, and tests.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/csv_writer.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-08:
+  Change: Synchronized public CMB API coverage with certification helpers.
+  Why: The package intentionally exposes the complete diagnostic and parity
+  surface documented for production certification.
+  Impact: Public-symbol regression tests now cover every exported CMB helper.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/csv_writer.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-08:
+  Change: Replaced the CCMBS execution plan with an engine-owned numerical
+  planner and theory-only model contract.
+  Why: Corrected per-model solver controls that left CMB requests
+  under-resolved and obscured the universal solver's real defects.
+  Impact: Future slices remove numerical knobs from every model and require
+  automatic resolution, complete observables, production graphs, and CAMB
+  parity before closure.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/csv_writer.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/plotter.py
+  copernican/lib/run_pipeline.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_csv_writer.py
+  tests/copernican/lib/test_perturbation_contract.py
 
 - 2026-09-06:
   Change: Added per-proposal CMB telemetry, heartbeats, and watchdog limits.
