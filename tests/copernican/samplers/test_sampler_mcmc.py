@@ -55,7 +55,12 @@ def _build_model_plugin(
         # Keep that fixture explicitly declared while bounding its declared
         # accuracy tier so the test measures likelihood behavior, not a
         # production full-range spectrum on every proposal.
-        numerical = parsed["cmb"]["numerical"]
+        cmb_data = parsed["cmb"]
+        cmb_data.setdefault("numerical", {})
+        cmb_data.setdefault("perturbations", {})
+        cmb_data["perturbations"].setdefault("numerics", {})
+        cmb_data["perturbations"].setdefault("accuracy_controls", {})
+        numerical = cmb_data["numerical"]
         numerical.update(
             {
                 "ell_max": 40,
@@ -68,7 +73,7 @@ def _build_model_plugin(
                 "neutrino_hierarchy_l_max": 2,
             }
         )
-        perturbations = parsed["cmb"]["perturbations"]
+        perturbations = cmb_data["perturbations"]
         perturbations["accuracy_controls"].pop("accuracy_tier", None)
         perturbations["accuracy_controls"]["minimum_k_sample_count"] = 8
         perturbations["accuracy_controls"]["scalar_reference_ells"] = [

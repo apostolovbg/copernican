@@ -4,10 +4,13 @@ solver.
 
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Iterator, Mapping
+
+_LOGGER = logging.getLogger(__name__)
 
 CMB_PHASE_NAMES = (
     "compilation",
@@ -28,6 +31,12 @@ class PhaseTimer:
     failed_phase: str | None = None
     cache_state: str = "cold"
     work_units: dict[str, int] = field(default_factory=dict)
+    heartbeat_interval_seconds: float = 30.0
+    heartbeat_count: int = 0
+    last_heartbeat_phase: str | None = None
+    last_heartbeat_seconds: float = 0.0
+    _started_at: float = field(default_factory=perf_counter)
+    _last_heartbeat_at: float = field(default_factory=perf_counter)
 
     @contextmanager
     def phase(self, name: str) -> Iterator[None]:
@@ -85,9 +94,39 @@ class PhaseTimer:
                 )
             self.work_units[str(name)] = value
 
+    def heartbeat(
+        self,
+        phase: str,
+        *,
+        completed: int | None = None,
+        total: int | None = None,
+        force: bool = False,
+    ) -> bool:
+        """Emit a low-frequency progress record for a long-running phase."""
+
+        now = perf_counter()
+        if not force and now - self._last_heartbeat_at < float(
+            self.heartbeat_interval_seconds
+        ):
+            return False
+        self._last_heartbeat_at = now
+        self.heartbeat_count += 1
+        self.last_heartbeat_phase = str(phase)
+        self.last_heartbeat_seconds = float(now - self._started_at)
+        progress = ""
+        if completed is not None and total is not None:
+            progress = f"; completed={int(completed)}/{int(total)}"
+        _LOGGER.info(
+            "CCMBS phase heartbeat: phase=%s; elapsed=%.1fs%s",
+            self.last_heartbeat_phase,
+            self.last_heartbeat_seconds,
+            progress,
+        )
+        return True
+
     def snapshot(
         self, *, total_seconds: float | None = None
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         """Return a stable scalar timing payload for runtime manifests."""
 
         snapshot = {
@@ -99,6 +138,9 @@ class PhaseTimer:
         snapshot["total_seconds"] = float(
             self.total_seconds() if total_seconds is None else total_seconds
         )
+        snapshot["heartbeat_count"] = int(self.heartbeat_count)
+        snapshot["last_heartbeat_phase"] = self.last_heartbeat_phase
+        snapshot["last_heartbeat_seconds"] = float(self.last_heartbeat_seconds)
         return snapshot
 
 

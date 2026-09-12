@@ -352,12 +352,10 @@ def resolve_los_quadrature_controls(
         ),
         minimum=minimum_nodes,
     )
-    # The sampled background history is already part of the resolved grid.
-    # A cap below that history length cannot refine or even represent the
-    # input grid and previously failed with an opaque minimum/maximum error.
-    # Promote the effective cap to the existing history length while keeping
-    # the configured value visible in the runtime envelope.
-    maximum_nodes = max(configured_maximum_nodes, base_nodes)
+    # The phase-aware routine can coarsen a dense background grid before
+    # refinement.  Keep the configured cap authoritative so bounded requests
+    # remain bounded; a denser native history must not silently override it.
+    maximum_nodes = configured_maximum_nodes
     phase_points = _positive_float(
         section.get(
             "phase_points_per_cycle",
@@ -668,6 +666,13 @@ def phase_aware_eta_grid(
     )
     peak = max(float(numpy.max(visibility_values)), 1.0e-30)
     visibility_scale = max(peak * 1.0e-4, 1.0e-30)
+    # The caller's grid can be denser than the requested bounded surface.
+    # Reduce it before applying the phase-aware refinement so an explicit
+    # ``minimum_nodes == maximum_nodes`` request remains an actual cap.
+    if eta.size > maximum:
+        indices = numpy.linspace(0, eta.size - 1, maximum, dtype=int)
+        eta = eta[numpy.unique(indices)]
+        visibility_values = visibility_values[numpy.unique(indices)]
     result = eta.copy()
     for _ in range(32):
         if result.size >= maximum:

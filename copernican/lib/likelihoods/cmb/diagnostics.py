@@ -3763,6 +3763,11 @@ def run_cmb_model_diagnostic(
         # for long likelihood runs, not part of fixed-point evidence, and
         # would otherwise multiply every model audit by eight.
         base["_diagnostic_matrix_fast_path"] = True
+    if refine_wave_number_grid:
+        # Fixed-point reports intentionally retain the declared diagnostic
+        # ladder.  Production phase floors belong to the production wrapper,
+        # not to the raw base/refined evidence captured here.
+        base["_diagnostic_matrix_fast_path"] = True
     try:
         raw_data = _compute_custom_cmb_spectrum_data(
             base,
@@ -3949,6 +3954,19 @@ def run_cmb_model_diagnostic(
                 "message": "; ".join(acoustic_structure["issues"]),
                 "acoustic_structure": _jsonable(acoustic_structure),
             }
+        if failure is not None:
+            failure.setdefault(
+                "category",
+                {
+                    "reference_mismatch": "reference_failure",
+                    "source_residual_failure": "constraint_violation",
+                    "spectrum_shape_failure": "shape_failure",
+                    "acoustic_shape_failure": "shape_failure",
+                }.get(
+                    str(failure.get("error_type", "")),
+                    "convergence_failure",
+                ),
+            )
         return CMBModelDiagnostic(
             model_filename=model_filename,
             model_name=model_name,

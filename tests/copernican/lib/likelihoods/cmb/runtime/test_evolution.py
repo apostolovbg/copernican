@@ -212,6 +212,33 @@ class EvolutionModuleTestCase(unittest.TestCase):
         self.assertEqual(stats["entries"], 1)
         self.assertEqual(stats["hits"], 2)
 
+    def test_execution_schedule_descriptor_is_structural_and_deterministic(
+        self,
+    ):
+        """Expose stable structural evidence for the compiled schedule."""
+
+        perturbation_data = _compiled_graph_fixture()
+        self.assertTrue(
+            callable(evolution.describe_declared_execution_schedule)
+        )
+        execution_plan = evolution._compile_declared_graph_execution_plan(
+            perturbation_data
+        )
+        first = evolution.describe_declared_execution_schedule(
+            perturbation_data,
+            execution_plan,
+        )
+        second = evolution.describe_declared_execution_schedule(
+            perturbation_data,
+            execution_plan,
+        )
+
+        self.assertEqual(first, second)
+        self.assertEqual(first["evolution_variable"], "eta")
+        self.assertIsInstance(first["mode_partitions"], dict)
+        self.assertGreaterEqual(first["state_slot_count"], 2)
+        self.assertTrue(first["signature"])
+
     def test_runtime_assets_are_isolated_by_process_owner(self):
         """A process identity change must materialize a distinct bundle."""
 

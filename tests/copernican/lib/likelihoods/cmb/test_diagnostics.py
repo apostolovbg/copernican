@@ -115,9 +115,16 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             / "model_usmf2.yml"
         )
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        cmb_data = model_data["cmb"]
+        # Solver controls are engine-owned; fixtures may add explicit
+        # diagnostic overrides without requiring them in model declarations.
+        cmb_data.setdefault("numerical", {})
+        cmb_data.setdefault("perturbations", {})
+        cmb_data["perturbations"].setdefault("numerics", {})
+        cmb_data["perturbations"].setdefault("accuracy_controls", {})
         for controls in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
+            cmb_data["numerical"],
+            cmb_data["perturbations"]["numerics"],
         ):
             controls.update(
                 {
@@ -132,9 +139,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                     "initial_redshift": 99.0,
                 }
             )
-        accuracy_controls = model_data["cmb"]["perturbations"][
-            "accuracy_controls"
-        ]
+        accuracy_controls = cmb_data["perturbations"]["accuracy_controls"]
         accuracy_controls["scalar_reference_ells"] = [2, 20]
         accuracy_controls["minimum_k_sample_count"] = 1
         with tempfile.TemporaryDirectory() as model_dir:
@@ -164,6 +169,11 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         )
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
         model_data["model_name"] = model_name
+        cmb_data = model_data["cmb"]
+        cmb_data.setdefault("numerical", {})
+        cmb_data.setdefault("perturbations", {})
+        cmb_data["perturbations"].setdefault("numerics", {})
+        cmb_data["perturbations"].setdefault("accuracy_controls", {})
         model_data["cmb"]["background"]["recombination"] = {
             "quantities": {
                 "hydrogen_temperature_K": "2.2 * (1.0 + z)",
@@ -177,8 +187,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             }
         }
         for controls in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
+            cmb_data["numerical"],
+            cmb_data["perturbations"]["numerics"],
         ):
             controls.update(
                 {
@@ -191,9 +201,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                     "source_grid_multiplier": 1,
                 }
             )
-        accuracy_controls = model_data["cmb"]["perturbations"][
-            "accuracy_controls"
-        ]
+        accuracy_controls = cmb_data["perturbations"]["accuracy_controls"]
         accuracy_controls["scalar_reference_ells"] = [2, 20]
         accuracy_controls["minimum_k_sample_count"] = 1
         return model_data
@@ -210,9 +218,14 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         )
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
         model_data["model_name"] = model_name
+        cmb_data = model_data["cmb"]
+        cmb_data.setdefault("numerical", {})
+        cmb_data.setdefault("perturbations", {})
+        cmb_data["perturbations"].setdefault("numerics", {})
+        cmb_data["perturbations"].setdefault("accuracy_controls", {})
         for controls in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
+            cmb_data["numerical"],
+            cmb_data["perturbations"]["numerics"],
         ):
             controls.update(
                 {
@@ -225,9 +238,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                     "source_grid_multiplier": 1,
                 }
             )
-        accuracy_controls = model_data["cmb"]["perturbations"][
-            "accuracy_controls"
-        ]
+        accuracy_controls = cmb_data["perturbations"]["accuracy_controls"]
         accuracy_controls["scalar_reference_ells"] = [2, 20]
         accuracy_controls["minimum_k_sample_count"] = 1
         return model_data

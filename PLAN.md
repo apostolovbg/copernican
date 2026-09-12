@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -199,6 +199,59 @@ surfaces when their equations require it. A failure must identify the
 surface, resolution levels, residuals, and remaining error; it must never be
 fixed by silently accepting an under-resolved spectrum.
 
+### Runtime performance and development execution contract
+
+Performance closure is part of the automatic numerical contract, not a
+later optimization or a verification-only activity. A resolved spectrum must
+not pay for the same physical work twice. The engine records per-request
+phase times, work units, grid sizes, refinement counts, batch schedules,
+cache hits and misses, and a heartbeat while a long phase is active. An
+aggregate test-run duration without per-test and per-request evidence is not
+an adequate performance report.
+
+The evolution scheduler groups modes only when their eta grids, collision
+paths, and integration schedules are compatible. It must not force every
+mode to use the most expensive substep schedule in a batch. The source
+history cache is keyed by the complete physical and grid identity and a
+partial hit evolves only the missing modes; it must never re-evolve cached
+modes and discard the result. K refinement is nested whenever the grids are
+compatible, so a refined calculation adds modes instead of recomputing the
+base modes.
+
+Background, hierarchy, source, and line-of-sight grids share one physical
+budget. Phase-aware refinement may add nodes only when its measured error
+requires them, and must reuse histories already computed on a compatible
+grid. These rules preserve accuracy and convergence; reducing a node count,
+skipping a refinement, or imposing a machine-local work ceiling is not a
+performance fix.
+
+The development test surface keeps real scientific coverage while avoiding
+accidental repeated production integrations. Sampler and runner tests use a
+canonical fixed physical CMB artifact or a deterministic lightweight
+fixture when they test orchestration. At least one real cold production
+request remains in the focused CMB acceptance suite, while full production
+and CAMB parity runs remain explicit scientific evidence. Timing artifacts
+must identify every intentionally expensive test and request so a slow run
+cannot appear idle or be diagnosed from a single aggregate command timer.
+
+Performance benchmarks are evidence, not physics acceptance thresholds. A
+fixed Planck-like cold request, a low-ell cold request, a warm compatible
+request, and an exact repeat are benchmarked before and after runtime changes;
+their raw spectra, convergence evidence, and planner decisions must remain
+unchanged while redundant work and wall time decrease measurably.
+
+The workflow has two explicit test tiers. The fast development tier covers
+contracts, compilation, planner decisions, cache identity, failure
+semantics, and lightweight real CMB anchors. It must not accidentally launch
+an entire production matrix. The scientific tier covers cold production
+requests, complete observable surfaces, CAMB parity, graphs, and posterior
+regressions at the controls required by their acceptance claims. A focused
+test may use a diagnostic grid only when its purpose is explicitly numerical
+or structural; it may not stand in for a production acceptance test. The
+full workflow remains the release gate, while per-test and per-request
+telemetry makes its expensive members accountable and prevents duplicated
+cold integrations from being mistaken for necessary science.
+
 ## Scientific Acceptance Contract
 
 Every model and observable must pass all layers below at its automatically
@@ -297,7 +350,7 @@ shape checks. Such theories are not falsely labelled CAMB-equivalent.
 
 ## Execution Slices
 
-### [planned] Slice One — pure theory declarations and automatic planner
+### [closed] Slice One — planner and declaration firewall
 
 Remove all solver implementation controls from the ten model files and from
 the accepted model schema. Introduce the engine-owned numerical-planning
@@ -305,20 +358,57 @@ contract and request-level observable/ell inputs. Migrate model validation,
 compiled dataclasses, cache identity, manifests, docs, and fixtures so no
 runtime path reads a model `numerical` or `accuracy_controls` block.
 
+Close the declaration/compiler firewall. The physical graph compiler must
+receive the declaration exactly as supplied; planner decisions are passed
+through an engine-owned context and are materialized only in immutable runtime
+data. A compiled graph must never make a model's solver settings part of its
+public contract, cache identity, or model-renaming equivalence. Legacy
+programmatic fixtures may be translated at the engine boundary for tests, but
+that compatibility path may not re-enter YAML validation or production output.
+
 Implement the planner's physical scale analysis and deterministic baseline
 resolution selection. It must derive initial k/eta/q grids, hierarchy orders,
 ODE tolerances, tight-coupling transitions, and integration starts from
-equations and request shape, then expose its decisions in telemetry. Preserve
-the scalar reference path and make under-resolution an explicit diagnostic.
+equations and request shape, then expose its decisions in telemetry. The
+baseline must avoid duplicate background/source grids and redundant per-k
+evolution work; adaptive refinement is the only permitted way to add work.
+Direct spectrum requests must emit phase-level telemetry before and after
+evolution and projection so a slow request is diagnosable rather than silent.
+Preserve the scalar reference path and make under-resolution an explicit
+diagnostic.
+
+Close the runtime performance boundary before advancing to the next slice.
+Instrument per-test timing and long-phase heartbeats, partition batched
+evolution by compatible schedules, repair partial source-history reuse, and
+make compatible k refinements nested. Measure the staged one-budget eta
+allocation on a cold fixed point. Restructure integration tests that launch
+many distinct cold sampler proposals so they retain dispatch coverage without
+turning every development run into a production posterior calculation.
 
 Acceptance requires every bundled declaration to validate without numerical
 knobs, a novel renamed declaration to compile identically, planner decisions
 to be finite and deterministic, cache keys to include all physical inputs,
 and no model-name branch or hidden standard-cosmology default to be found by
-repository audit. Raw planner manifests are required for at least LCDM,
-USMF2, QAU, QRSF, TOG, TORG, wCDM, and w0wa.
+repository audit. The compiler-call contract must remain pure when inspected
+with a mock, while the real generated hierarchy still receives the separate
+engine plan. A cold full-surface fixed point must record bounded, non-duplicate
+work and progress telemetry, and the focused declaration/compiler regressions
+must pass. The fixed-point benchmark must include cold, warm, exact-repeat,
+and partial-source-cache cases; the latter must show that cached modes are
+not re-evolved. The workflow must publish per-test timing for intentionally
+expensive CMB tests and preserve a real cold production request in focused
+acceptance evidence. Raw planner manifests are required for at least LCDM,
+USMF2, QAU, QRSF, TOG, TORG, wCDM, and w0wa. These runtime, performance,
+and contract-boundary criteria are the Slice One closure standard; a
+policy-only green gate is not closure evidence.
 
-### [planned] Slice Two — automatic background, recombination, and drag
+Slice One closure evidence: the ten bundled model files contain no solver
+numerical or accuracy blocks; the engine planner is the sole source of runtime
+resolution; planner/cache/compiler firewall tests and the fixed cold/warm/
+partial-cache benchmark pass; and the Slice One `devcovenant run` completed
+successfully before this slice opened.
+
+### [closed] Slice Two — automatic background, recombination, and drag
 
 Move background resolution, recombination, opacity, visibility, and drag
 transition selection entirely into the planner/runtime. Derive adaptive
@@ -340,7 +430,18 @@ zero-mass behavior, independent BAO evaluation with the CMB entry point
 absent, and raw background/drag evidence for every bundled model that uses
 those quantities.
 
-### [planned] Slice Three — automatic hierarchy, collisions, and initial data
+Slice Two closure evidence: the engine now allocates one physical background
+grid budget across early, visibility, and reionization regions, computes the
+drag transition from the pre-recombination opacity depth, and performs an
+independent doubled-grid background refinement. The q-resolved Fermi-Dirac
+density and pressure histories are the same products used by perturbations;
+the full `(sum_mnu, N_eff)` matrix including `N_eff` below three, the zero-mass
+limit, `H(a=1)=H_0`, positivity, and visibility/drag invariants pass. LCDM,
+massive-neutrino LCDM, and the Planck reference produce finite raw background
+products with converged refinement evidence, and the independent BAO drag
+tests pass without invoking the CMB entry point.
+
+### [closed] Slice Three — automatic hierarchy, collisions, and initial data
 
 Make hierarchy depth and ODE resolution adaptive for every declared scalar,
 vector, and tensor family, including q-resolved massive neutrinos. Derive
@@ -355,11 +456,32 @@ all initial/boundary conditions. The engine must evolve a hidden early prefix
 when the requested line-of-sight grid starts later, while preserving the same
 physical history for late-start requests.
 
+Partition scalar, vector, tensor, and q-resolved modes by compatible
+hierarchy and collision schedules. Cache compiled hierarchy programs,
+initial-condition assets, and source-independent evolution products by their
+complete physical identity. Scalar and batch acceptance paths must share
+those products without re-evolving modes that are already present; a finer
+request may extend a compatible schedule rather than discard its coarser
+history.
+
 Acceptance requires scalar-vs-batch equivalence, finite residual-clean
 histories, adaptive hierarchy and q refinements, collision conservation
 evidence, stable low-ell results when request ranges change, and distinct
 histories for distinct declared modes and gauges. Missing derivatives or
-collision terms must fail explicitly with their source name.
+collision terms must fail explicitly with their source name. The fast tier
+must cover compiler and cache behavior, and the scientific tier must include
+one cold production hierarchy anchor plus warm and partial-cache repeats with
+per-phase work and timing evidence.
+
+Slice Three closure evidence: compiled execution schedules now expose stable
+hierarchy-family, collision, initial-condition, and mode-partition digests.
+The runtime reuses bounded initial-state and phase-schedule products keyed by
+complete physical and grid identity, reports partial reuse, and retains the
+existing source-history cache for missing-mode-only evolution. The planner
+records phase/visibility hierarchy resolution, declaration-defined collision
+partitioning, and hidden-prefix initial-data decisions. Focused planner,
+cache, perturbation-contract, and generated-scalar runtime acceptance tests
+pass, including finite constraint-anchor diagnostics and schedule telemetry.
 
 ### [planned] Slice Four — universal source graph and all-sector projection
 
@@ -376,11 +498,20 @@ projection products and refinement arrays in the diagnostic result. A valid
 request may not be dropped because its grid is difficult; the planner must
 refine it or report the raw numerical obstruction.
 
+Batch source evaluation and radial-kernel construction must be shared across
+all requested observables and compatible refinement levels. A k or eta
+refinement reuses source histories and kernel values whose physical grid
+identity is unchanged, and its telemetry records exactly which nodes were
+newly evaluated. The projection planner must expose enough evidence to
+distinguish required phase resolution from redundant recomputation.
+
 Acceptance requires smooth low- and intermediate-ell acoustic structure for
 LCDM and the Planck reference, alternating-sign TE, structured EE, finite
 tensor/vector surfaces, and convergence of raw TT/TE/EE/BB/PP/TP/EP arrays at
 the planner-selected production range. The tests must inspect arrays before
-plotting.
+plotting. Fast tests cover kernel and cache identity; scientific tests retain
+at least one cold complete projection and one warm/refined comparison with
+raw work-accounting evidence.
 
 ### [planned] Slice Five — complete observable post-processing
 
@@ -390,11 +521,21 @@ scalar/vector/tensor totals. Enforce declared physical zeros only from proved
 symmetries. Remove any path that returns only TT/TE/EE or silently substitutes
 an absent BB/PP component.
 
+Post-processing must consume cached transfer and lensing intermediates for
+every compatible surface. Lensed and unlensed products, auto/cross assembly,
+and scalar/vector/tensor totals must not independently rerun the same source
+or remapping work. Cache keys include the full observable, convention, and
+grid identity, and telemetry records reuse separately from numerical
+refinement.
+
 Acceptance requires complete surface sets for every model that declares them,
 finite covariance-compatible units, positive auto spectra, correct cross
 signs, stable lensing response, and scalar-vs-batch/cache identity for every
 surface. Raw transfer components and post-processing intermediates must be
-stored in the canonical evidence artifact.
+stored in the canonical evidence artifact. The fast tier exercises all
+surface assembly and cache branches; the scientific tier includes one cold
+complete surface set and an exact repeat whose raw arrays and work evidence
+are unchanged.
 
 ### [planned] Slice Six — universal model corpus and grammar extension
 
@@ -407,11 +548,22 @@ declared observable. If a valid declaration exposes a grammar or execution
 gap, extend the generic schema/compiler/runtime here; do not add a capability
 fixture or classify the theory as unavailable.
 
+Compile each declaration once per immutable structural identity and reuse the
+compiled program across the corpus matrix. Model-matrix tests must not launch
+duplicate cold compilation, background, hierarchy, or projection work when
+the physical and request identities are equal. The same rule applies to
+novel declarations: unfamiliar names may change the equations, but not the
+engine route or cache semantics.
+
 Acceptance requires every complete bundled and adversarial declaration to
 execute finite converged requested surfaces, with no LambdaCDM-name dependence,
 no engine-capability status left unresolved, and raw model manifests showing
 the same universal route. Malformed mathematics must still fail with a named
-model-independent validation error.
+model-independent validation error. Fast corpus tests cover admission,
+compilation, route identity, and cache isolation; scientific corpus tests
+retain real cold anchors for every bundled theory and record warm/partial
+reuse rather than silently substituting lightweight fixtures for the physics
+claim.
 
 ### [planned] Slice Seven — CAMB parity and production graph recovery
 
@@ -428,10 +580,20 @@ graphs, with no missing curve caused by a convergence exception. The graph
 path must display an explicit typed failure instead of silently omitting a
 theory when any genuinely invalid request fails.
 
+Parity comparisons and graph generation consume the same canonical production
+arrays. The harness must not rerun a cold CCMBS solve separately for each
+observable, graph panel, or error metric. It records cold, warm, exact-repeat,
+and cross-request cache evidence while keeping parity controls identical
+between the compared products.
+
 Acceptance is actual parity evidence, not synthetic arrays: complete raw
 reports and graph artifacts pass the declared numerical and physical-shape
 bounds at several fixed points and mass values. The production Planck
 likelihood receives finite, non-catastrophic spectra and a sane CMB chi-square.
+
+The fast tier validates report assembly and artifact hashing; the scientific
+tier owns the expensive cold parity and graph requests and publishes their
+per-phase timing and work-accounting evidence.
 
 ### [planned] Slice Eight — end-to-end solver closure
 
@@ -440,6 +602,13 @@ and plot exporters, GUI/CLI, cache reuse, and failure reporting against all
 bundled models and representative novel declarations. Confirm that BAO uses
 only the independent drag background boundary and that CMB failures never
 corrupt SNe/BAO results.
+
+Use the fast tier for repeated orchestration and failure-path development,
+and reserve the scientific tier for the real production likelihood, graph,
+parity, and fixed-seed posterior regressions. The final run must demonstrate
+that warm caches, exact repeats, and shared artifacts reduce work without
+changing any accepted raw array. Any intentionally expensive test is named
+in the workflow timing artifact and states the production behavior it proves.
 
 Run repeated fixed-seed short posterior regressions only after the production
 graphs and raw parity reports pass. Verify that the posterior does not repair
@@ -472,6 +641,11 @@ This plan is complete only when all of the following are true:
 * non-CAMB theories pass finite, converged, theory-faithful internal checks;
 * background, recombination, drag, BAO, likelihood, sampler, cache, export,
   and failure boundaries are independently evidenced;
+* the fast development tier and the scientific acceptance tier are both
+  green, with every expensive test justified by a production or parity claim;
+* per-test and per-request timing, work units, cache reuse, and refinement
+  evidence show no avoidable duplicate cold computation and no unexplained
+  performance regression;
 * raw arrays, histories, grids, residuals, planner decisions, parity reports,
   graph files, and hashes are reproducible and attached to the closure
   manifest;

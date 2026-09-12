@@ -23,14 +23,12 @@ description: |
     and declared CMB backgrounds aligned while letting relativistic species
     float.
   * The `cmb` block is the structured declared execution contract. Keep scalar
-    inputs in `param_map`, declare numerical grids in `grids`, put evaluated
+    inputs in `param_map`, declare physical grids in `grids`, put evaluated
     expressions in `values`, list reviewed graph calls in `calls`, and define
     the declared background and perturbation graph in the same block.
-  * `cmb.numerical` declares declared runtime controls such as ell and k
-    bounds,
-    sampling counts, ODE tolerances, tight-coupling settings, and the initial
-    redshift. Repeat the controls under `cmb.perturbations.numerics` when the
-    hierarchy compiler must use them while materializing the graph.
+  * Do not add solver controls such as `numerical`, `numerics`, or
+    `accuracy_controls` to a model. CCMBS derives k, eta, q, hierarchy,
+    tolerance, and coupling resolution from the equations and request shape.
   * `valid_for_cmb: true` requires a complete structured contract. A declared
     model uses `calls: []` unless it declares reviewed adapter metadata, and
     its perturbation contract must provide typed graph metadata, physical
@@ -184,19 +182,6 @@ cmb:
   grids: {}
   values: {}
   calls: []
-  numerical:
-    ell_min: 2
-    ell_max: 2000
-    k_min: 1.0e-4
-    k_max: 0.3
-    k_sample_count: 64
-    eta_sample_count: 1024
-    ode_rtol: 1.0e-6
-    ode_atol: 1.0e-9
-    tight_coupling_ratio: 80.0
-    a_min: 1.0e-6
-    source_grid_multiplier: 2
-    initial_redshift: 2.0e4
   background:
     derived:
       h: H0 / 100.0
@@ -352,9 +337,6 @@ cmb:
           order: 0
         expression: 0.1 * seed
     boundary_conditions: {}
-    numerics:
-      ode_rtol: 1.0e-5
-      ode_atol: 1.0e-8
     validity:
       regimes:
         - linear

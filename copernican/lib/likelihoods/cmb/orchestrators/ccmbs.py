@@ -366,8 +366,50 @@ def _compute_declared_perturbation_spectrum_impl(
         canonical_requested_spectra,
         perturbation_data=perturbation_data,
     )
+    # Resolve request-dependent grids in the engine.  The model contributes
+    # only its compiled physical graph; all numerical choices are derived
+    # from this observable request and the graph's declared sectors.
+    from ..runtime.planner import plan_cmb_numerics, planner_accuracy_controls
+
+    planned_contract = dict(contract_or_params)
+    request_plan = plan_cmb_numerics(
+        planned_contract,
+        ells=requested_ell_grid,
+        spectra=base_requested_spectra,
+    )
+    request_numerics = dict(request_plan.numerical_controls)
+    request_numerics.update(request_plan.hierarchy_controls)
+    if (
+        request_plan.momentum_grid_controls
+        and "momentum_grids" not in request_numerics
+    ):
+        request_numerics["momentum_grids"] = {
+            str(name): dict(values)
+            for name, values in request_plan.momentum_grid_controls.items()
+        }
+    # Prepared legacy fixtures may intentionally carry a reduced numerical
+    # request.  Treat a changed legacy mapping as a request override only;
+    # bundled model declarations no longer contain this mapping.
+    legacy_numerics = planned_contract.get("numerical")
+    baseline_numerics = planned_contract.get("_engine_numerical_plan")
+    if (
+        isinstance(legacy_numerics, Mapping)
+        and isinstance(baseline_numerics, Mapping)
+        and dict(legacy_numerics) != dict(baseline_numerics)
+    ):
+        request_numerics.update(legacy_numerics)
+    planned_contract["_engine_numerical_plan"] = request_numerics
+    planned_contract["_engine_accuracy_controls"] = planner_accuracy_controls(
+        planned_contract,
+        ells=requested_ell_grid,
+        spectra=base_requested_spectra,
+    )
+    planned_contract["_engine_planner_evidence"] = {
+        **dict(request_plan.physical_scale_evidence),
+        "signature": request_plan.signature,
+    }
     custom_data = _compute_custom_cmb_spectrum_data(
-        contract_or_params,
+        planned_contract,
         analysis_ell_grid,
         background_provider=background_provider,
         requested_spectra=base_requested_spectra,
@@ -405,16 +447,30 @@ def _compute_declared_perturbation_spectrum_impl(
         lensing_inputs = _normalize_lensing_input_spectra(spectra_results)
         lensing_started = perf_counter()
         try:
+            lensing_sampling_factor = float(
+                custom_data.runtime_envelope.get(
+                    "lensing_sampling_factor",
+                    1.4,
+                )
+            )
+            # Tensor transfer surfaces are much smaller than the scalar
+            # temperature signal, so the remapping quadrature error that is
+            # negligible for scalar TT remains visible in tensor lensed TT.
+            # Resolve that public tensor surface with the engine's bounded
+            # high-accuracy remapping ladder; this is not a model-authored
+            # numerical control.
+            if bool(
+                (getattr(perturbation_data, "manifest_summary", {}) or {}).get(
+                    "generated_tensor_hierarchy",
+                    False,
+                )
+            ):
+                lensing_sampling_factor = max(lensing_sampling_factor, 2.2)
             spectra_results.update(
                 _assemble_exact_lensed_spectra(
                     lensing_inputs,
                     custom_data.ell_grid,
-                    sampling_factor=float(
-                        custom_data.runtime_envelope.get(
-                            "lensing_sampling_factor",
-                            1.4,
-                        )
-                    ),
+                    sampling_factor=lensing_sampling_factor,
                 )
             )
         # DEVCOV_ALLOW_BROAD_ONCE lensing adapter normalization boundary.

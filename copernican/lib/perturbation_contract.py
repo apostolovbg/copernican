@@ -8,7 +8,9 @@ the numerical CMB solver evolves the system.
 from __future__ import annotations
 
 import ast
+import contextvars
 import copy
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
@@ -1240,6 +1242,16 @@ def _materialize_declared_scalar_hierarchy_contract(
                     int(momentum_grid_def.get("count", 1)),
                 )
     materialized = copy.deepcopy(dict(contract))
+    if has_massive_neutrino:
+        # The existence of a massive species is physical graph metadata.  The
+        # planner supplies the actual q grid; give the generated family a
+        # stable internal topology name without requiring one in YAML.
+        families = dict(materialized.get("hierarchy_families", {}) or {})
+        massive_family = dict(families.get("massive_neutrino", {}) or {})
+        if not str(massive_family.get("momentum_grid", "")).strip():
+            massive_family["momentum_grid"] = "massive_neutrino_default"
+            families["massive_neutrino"] = massive_family
+            materialized["hierarchy_families"] = families
     declared_source_definitions = copy.deepcopy(
         materialized.get("sources", {}) or {}
     )
@@ -3295,12 +3307,25 @@ def _materialize_declared_vector_hierarchy_contract(
     neutrino_default_l_max = hierarchy_families[
         "massless_neutrino_vector"
     ].get("default_l_max", 4)
+    accuracy_controls = contract.get("accuracy_controls", {}) or {}
+    bounded_sparse_surface = (
+        isinstance(accuracy_controls, Mapping)
+        and accuracy_controls.get("runtime_envelope") == "bounded"
+        and int(numerics.get("k_sample_count", 18)) <= 8
+    )
+    # Sparse bounded diagnostic surfaces need a deeper vector hierarchy to
+    # keep the truncation boundary out of the projected signal.  This is an
+    # engine stability rule, not a model setting; ordinary requests retain
+    # the declared/default depth and the public terminal equations.
+    hierarchy_floor = 10 if bounded_sparse_surface else 3
+    polarization_floor = 10 if bounded_sparse_surface else 2
+    neutrino_floor = 7 if bounded_sparse_surface else 3
     photon_l_max = max(
-        3,
+        hierarchy_floor,
         int(numerics.get("photon_hierarchy_l_max", photon_default_l_max)),
     )
     polarization_l_max = max(
-        2,
+        polarization_floor,
         int(
             numerics.get(
                 "photon_polarization_hierarchy_l_max",
@@ -3309,7 +3334,7 @@ def _materialize_declared_vector_hierarchy_contract(
         ),
     )
     neutrino_l_max = max(
-        3,
+        neutrino_floor,
         int(
             numerics.get(
                 "neutrino_hierarchy_l_max",
@@ -4790,6 +4815,33 @@ _SUPPORTED_OBSERVABLE_KINDS = {
 _COMPILED_CONTRACT_RESULTS: dict[
     tuple[Any, ...], "PerturbationContractData"
 ] = {}
+_ACTIVE_ENGINE_NUMERICAL_PLAN: contextvars.ContextVar[
+    tuple[Mapping[str, Any], Mapping[str, Any]] | None
+] = contextvars.ContextVar(
+    "active_engine_numerical_plan",
+    default=None,
+)
+
+
+@contextmanager
+def engine_numerical_plan_context(
+    numerical_controls: Mapping[str, Any],
+    accuracy_controls: Mapping[str, Any],
+):
+    """Temporarily provide engine controls to compiler materialization.
+
+    The declaration passed to :func:`compile_perturbation_contract` remains
+    untouched.  Generated hierarchy topology may still use the request's
+    engine plan, but those controls cannot become model-owned contract data.
+    """
+
+    token = _ACTIVE_ENGINE_NUMERICAL_PLAN.set(
+        (dict(numerical_controls), dict(accuracy_controls))
+    )
+    try:
+        yield
+    finally:
+        _ACTIVE_ENGINE_NUMERICAL_PLAN.reset(token)
 
 
 @lru_cache(maxsize=256)
@@ -7141,6 +7193,16 @@ def _compile_perturbation_contract_impl(
 
     if not isinstance(contract, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
+    active_plan = _ACTIVE_ENGINE_NUMERICAL_PLAN.get()
+    if active_plan is not None and not contract.get("numerics"):
+        # Keep planner decisions outside the physical declaration while still
+        # allowing generated hierarchy materialization to use this request's
+        # topology.  The copy is private to compilation and never returned as
+        # the model contract.
+        engine_numerics, engine_accuracy = active_plan
+        contract = copy.deepcopy(dict(contract))
+        contract["numerics"] = dict(engine_numerics)
+        contract["accuracy_controls"] = dict(engine_accuracy)
     contract, materialized_scalar_hierarchy = (
         _materialize_declared_scalar_hierarchy_contract(contract)
     )

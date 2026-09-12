@@ -194,10 +194,10 @@ class DeclaredCMBRuntime:
     """Immutable declared CMB runtime payload carried by sampler plugins.
 
     The declared solver needs a compiled perturbation graph together with the
-    static background and numerical declarations from the model contract.
-    Building that payload once in :mod:`model_coder` keeps compilation
-    ownership upstream and lets the runtime hot path bind only the varying
-    parameter values for each likelihood evaluation.
+    static physical background and the engine's numerical plan.  Building that
+    payload once in :mod:`model_coder` keeps compilation ownership upstream
+    and lets the runtime hot path bind only varying parameter values for each
+    likelihood evaluation.
     """
 
     model_name: str
@@ -206,6 +206,8 @@ class DeclaredCMBRuntime:
     numerical: Mapping[str, Any]
     perturbation_data: Any
     background_runtime: DeclaredCMBBackgroundRuntime
+    accuracy_controls: Mapping[str, Any] = field(default_factory=dict)
+    planner_evidence: Mapping[str, Any] = field(default_factory=dict)
     grids: Mapping[str, Any] = field(default_factory=dict)
     values: Mapping[str, Any] = field(default_factory=dict)
     calls: tuple[Mapping[str, Any], ...] = ()
@@ -221,6 +223,8 @@ class DeclaredCMBRuntime:
             "grids",
             "values",
             "numerical",
+            "accuracy_controls",
+            "planner_evidence",
         ):
             object.__setattr__(
                 self,
@@ -253,6 +257,13 @@ class DeclaredCMBRuntime:
             "values": self.values,
             "calls": self.calls,
             "numerical": self.numerical,
+            "_engine_numerical_plan": self.numerical,
+            "_engine_accuracy_controls": self.accuracy_controls,
+            "_engine_planner_evidence": self.planner_evidence,
+            # Preserve the immutable declaration object.  Engine-owned
+            # resolution is carried by the private runtime fields below;
+            # rebuilding this mapping would break structural cache identity
+            # and make solver controls appear to be theory-owned metadata.
             "perturbations": self.perturbation_contract,
             "perturbation_data": self.perturbation_data,
             "runtime_signature": self.runtime_signature,
@@ -282,14 +293,16 @@ def _freeze_declared_runtime_structure(
         "background": cmb_contract.get("background", {}) or {},
         "calls": cmb_contract.get("calls", []) or [],
         "grids": cmb_contract.get("grids", {}) or {},
-        "model_name": cmb_contract.get("model_name", ""),
         "model_parameter_names": tuple(
             sorted(
                 str(name)
                 for name in (cmb_contract.get("model_parameters", {}) or {})
             )
         ),
-        "numerical": cmb_contract.get("numerical", {}) or {},
+        # Numerical controls are derived after compilation from the physical
+        # graph and request.  Keeping them out of this structural token avoids
+        # model-owned resolution becoming part of cache identity.
+        "engine_planner": "cmb-engine-planner-v1",
         "param_names": tuple(
             sorted(
                 str(name) for name in (cmb_contract.get("param_map", {}) or {})
@@ -396,11 +409,21 @@ def _compile_declared_cmb_runtime_impl(
 
     _reject_removed_cmb_route_keys(cmb_contract)
 
+    legacy_resolution = (
+        cmb_contract.get("numerical"),
+        (cmb_contract.get("perturbations", {}) or {}).get("numerics"),
+        (cmb_contract.get("perturbations", {}) or {}).get("accuracy_controls"),
+    )
     cache_key = (
         str(model_name),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
         _freeze_declared_runtime_structure(cmb_contract),
+        (
+            _freeze_declared_runtime_input(legacy_resolution)
+            if any(value is not None for value in legacy_resolution)
+            else None
+        ),
     )
     cached_runtime = _COMPILED_DECLARED_CMB_RUNTIME_CACHE.get(cache_key)
     if cached_runtime is not None:
@@ -409,6 +432,7 @@ def _compile_declared_cmb_runtime_impl(
     from .perturbation_contract import (
         _compile_expression_plan,
         compile_perturbation_contract,
+        engine_numerical_plan_context,
     )
 
     def _compile_declared_symbol_plan(
@@ -472,6 +496,131 @@ def _compile_declared_cmb_runtime_impl(
         (cmb_contract.get("perturbations", {}) or {})
     )
     perturbation_contract.pop("model_name", None)
+    from .likelihoods.cmb.runtime.planner import (
+        plan_cmb_numerics,
+        planner_accuracy_controls,
+    )
+
+    # Resolution is an engine decision.  Any legacy controls in an in-memory
+    # contract are retained only as a compatibility input for the engine
+    # planner; they are never copied into the physical declaration passed to
+    # the graph compiler or returned by the runtime bundle.
+    engine_plan = plan_cmb_numerics(cmb_contract)
+    engine_numerics = dict(engine_plan.numerical_controls)
+    engine_numerics.update(engine_plan.hierarchy_controls)
+    legacy_numerics_raw = cmb_contract.get("numerical")
+    legacy_numerics = legacy_numerics_raw or {}
+    has_legacy_numerics = isinstance(legacy_numerics_raw, Mapping)
+    legacy_perturbation_numerics = perturbation_contract.get("numerics", {})
+    if isinstance(legacy_perturbation_numerics, Mapping):
+        # A directly constructed diagnostic contract may expose both legacy
+        # top-level and nested controls.  Apply the nested values first; the
+        # top-level request is the final request-local override.  This keeps
+        # a caller's explicit surface controls authoritative while retaining
+        # compatibility with older nested fixtures.
+        engine_numerics.update(legacy_perturbation_numerics)
+    if has_legacy_numerics:
+        engine_numerics.update(legacy_numerics)
+    if (
+        engine_plan.momentum_grid_controls
+        and "momentum_grids" not in engine_numerics
+    ):
+        engine_numerics["momentum_grids"] = {
+            str(name): dict(values)
+            for name, values in engine_plan.momentum_grid_controls.items()
+        }
+    legacy_accuracy_controls = perturbation_contract.get(
+        "accuracy_controls",
+        {},
+    )
+    # A diagnostic request may still carry the historical numerical mapping
+    # in both locations.  Validate momentum-grid floors against each explicit
+    # copy before precedence merging so a stale duplicate cannot bypass a
+    # declared accuracy requirement.
+    if isinstance(legacy_accuracy_controls, Mapping):
+        minimum_counts = legacy_accuracy_controls.get(
+            "minimum_momentum_grid_count",
+            {},
+        )
+        nested_grids = legacy_perturbation_numerics.get(
+            "momentum_grids",
+            {},
+        )
+        top_level_grids = legacy_numerics.get("momentum_grids", {})
+        if isinstance(minimum_counts, Mapping):
+            for grid_name, minimum_value in minimum_counts.items():
+                try:
+                    required_count = int(float(minimum_value))
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise ValueError(
+                        "Declared accuracy_controls require a numeric "
+                        f"momentum grid count for '{grid_name}'"
+                    ) from exc
+                for grid_mapping in (nested_grids, top_level_grids):
+                    if not isinstance(grid_mapping, Mapping):
+                        continue
+                    grid_definition = grid_mapping.get(str(grid_name), {})
+                    if not isinstance(grid_definition, Mapping):
+                        continue
+                    if "count" not in grid_definition:
+                        continue
+                    try:
+                        declared_count = int(float(grid_definition["count"]))
+                    except (TypeError, ValueError, OverflowError) as exc:
+                        raise ValueError(
+                            "Declared momentum grid count must be numeric "
+                            f"for '{grid_name}'"
+                        ) from exc
+                    if declared_count < required_count:
+                        raise ValueError(
+                            "Declared accuracy_controls require "
+                            "cmb.perturbations.numerics.momentum_grids."
+                            f"{grid_name}.count >= {required_count}"
+                        )
+    perturbation_contract.pop("numerics", None)
+    if (
+        isinstance(legacy_accuracy_controls, Mapping)
+        and legacy_accuracy_controls
+    ):
+        # Legacy controls are accepted only for in-memory diagnostic fixtures.
+        # Preserve their immutable payload so diagnostics that inspect the
+        # prepared request see the exact graph used for that fixture.  Bundled
+        # model declarations never contain this solver-owned key.
+        perturbation_contract["accuracy_controls"] = copy.deepcopy(
+            dict(legacy_accuracy_controls)
+        )
+    else:
+        perturbation_contract.pop("accuracy_controls", None)
+    # In-memory fixtures with legacy numerical controls are diagnostic
+    # requests unless they explicitly declare an accuracy tier.  Bundled
+    # declarations have no such controls and receive the production envelope
+    # from the engine planner.
+    if has_legacy_numerics:
+        engine_accuracy_controls: Mapping[str, Any] = {}
+    else:
+        engine_accuracy_controls = planner_accuracy_controls(
+            cmb_contract,
+            spectra=(
+                tuple(
+                    str(name)
+                    for name in (
+                        (cmb_contract.get("perturbations", {}) or {}).get(
+                            "observables", {}
+                        )
+                        or {}
+                    )
+                    if str(name) in {"TT", "TE", "EE", "BB", "PP", "TP", "EP"}
+                )
+            ),
+        )
+    if isinstance(legacy_accuracy_controls, Mapping):
+        # This translation is intentionally limited to in-memory fixtures.
+        # YAML validation rejects declaration-side solver controls, while
+        # focused tests can still request a small diagnostic surface.
+        engine_accuracy_controls = {
+            **dict(engine_accuracy_controls),
+            **dict(legacy_accuracy_controls),
+        }
     background_section = cmb_contract.get("background", {}) or {}
     if not isinstance(background_section, Mapping):
         raise ValueError("cmb.background must be a mapping")
@@ -593,13 +742,17 @@ def _compile_declared_cmb_runtime_impl(
     background_reference_names_tuple = tuple(
         sorted(background_reference_names)
     )
-    perturbation_data = compile_perturbation_contract(
-        perturbation_contract,
-        model_name=model_name,
-        parameter_names=tuple(parameter_names),
-        latex_names=tuple(latex_names),
-        background_reference_names=background_reference_names_tuple,
-    )
+    with engine_numerical_plan_context(
+        engine_numerics,
+        engine_accuracy_controls,
+    ):
+        perturbation_data = compile_perturbation_contract(
+            perturbation_contract,
+            model_name=model_name,
+            parameter_names=tuple(parameter_names),
+            latex_names=tuple(latex_names),
+            background_reference_names=background_reference_names_tuple,
+        )
     runtime = DeclaredCMBRuntime(
         model_name=model_name,
         perturbation_contract=perturbation_contract,
@@ -607,7 +760,10 @@ def _compile_declared_cmb_runtime_impl(
         grids=copy.deepcopy(cmb_contract.get("grids", {}) or {}),
         values=copy.deepcopy(cmb_contract.get("values", {}) or {}),
         calls=tuple(copy.deepcopy(cmb_contract.get("calls", []) or [])),
-        numerical=copy.deepcopy(cmb_contract.get("numerical", {}) or {}),
+        numerical=copy.deepcopy(engine_numerics),
+        accuracy_controls=copy.deepcopy(engine_accuracy_controls),
+        planner_evidence=copy.deepcopy(engine_plan.physical_scale_evidence)
+        | {"signature": engine_plan.signature},
         perturbation_data=perturbation_data,
         background_runtime=DeclaredCMBBackgroundRuntime(
             derived_plan=_compile_declared_symbol_plan(

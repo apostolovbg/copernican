@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-12
 **Project Version:** 12.0.26
 
 ## Overview
@@ -600,12 +600,24 @@ The declared background splits the neutrino density into the residual
 massless fraction and the q-resolved massive fraction. A smooth transition
 expression provides the model's algebraic baseline, then the background
 runtime replaces that term with the same q-resolved Fermi-Dirac density
-moment used by the hierarchy. The present-day normalization is tied to
-`sum_mnu / (93.14 h^2)` and remains continuous at zero mass. The effective
-massive-species count is `min(N_eff, num_massive_neutrinos)` in algebraic
-form, leaving a non-negative residual massless fraction even below three
-species. `Omega_c0` is derived after subtracting the massive component, so
-the Friedmann source counts each component exactly once.
+moment used by the hierarchy. The present-day normalization is derived from
+the declared radiation density and the q-integrated energy moment, and
+remains continuous at zero mass. With standard thermal photon and neutrino
+densities this reduces to the familiar `sum_mnu / (93.14 h^2)` convention.
+The effective massive-species count is `min(N_eff, num_massive_neutrinos)` in
+algebraic form, leaving a non-negative residual massless fraction even below
+three species. `Omega_c0` is derived after subtracting the massive component,
+so the Friedmann source counts each component exactly once.
+
+The engine owns the background grid. It partitions one physical scale-factor
+budget across the early radiation scaffold, the recombination visibility
+feature, and the late reionization interval, then rebuilds the complete
+history on a doubled budget. The accepted background retains relative errors
+for conformal age, both sound horizons, visibility, and ionization fraction.
+The BAO drag transition is found from the pre-recombination opacity depth and
+is exposed separately from the recombination visibility ruler. For massive
+neutrinos, the background payload retains density and pressure histories from
+the same q quadrature that supplies the perturbation weights.
 
 The authoritative evolved states are the q-resolved hierarchy members:
 
@@ -1054,11 +1066,18 @@ collision_rate >= k * tight_coupling_ratio
 with hysteretic exit at
 `collision_rate <= k * tight_coupling_ratio * tight_coupling_exit_ratio`.
 
-The entry multiplier is `cmb.perturbations.numerics.tight_coupling_ratio`;
-the exit multiplier is the separately declared
-`cmb.perturbations.numerics.tight_coupling_exit_ratio`, which must be
-strictly between zero and one. The declared runtime does not infer an exit
-threshold from a hidden scalar constant.
+The entry and exit multipliers are selected by the engine planner from the
+collision-rate and wave-number histories. They are recorded in runtime
+telemetry, but are never supplied by a model declaration.
+
+Before evolution, CCMBS compiles a deterministic schedule descriptor from the
+declared hierarchy families, collision matrices, and initial-condition graph.
+The descriptor partitions scalar, vector, tensor, and q-resolved modes by
+compatible eta grids and phase schedules. Initial states and per-mode phase
+schedules are retained in bounded caches keyed by the complete physical and
+grid identity. A warm or partial request therefore reuses compiled programs,
+initial data, and source-independent histories without re-evolving modes; the
+runtime envelope records the schedule digest and every cache hit or miss.
 
 Within and outside the fast-manifold regime,
 `copernican/lib/perturbation_contract.py` and
@@ -1474,37 +1493,23 @@ default to eight multipoles. Generated scalar evolution uses deterministic
 explicit Runge-Kutta substeps shared by every supported scalar gauge. The
 substep count follows the declared wave-number phase history, while exact
 symmetric collision half-steps absorb collision stiffness without redundant
-microsteps after the declared tight-coupling transition. The tight-coupling
-entry ratio is `50.0`, and the exit ratio defaults to `0.1`; both are declared
-numerical controls. The
-`source_grid_multiplier = 2` setting refines the line-of-sight grid. The
-optional
-`evolution_eta_sample_count` controls the maximum number of conformal-time
-samples used by generated hierarchy evolution independently of source-grid
-refinement; leaving it undeclared retains the bounded default evolution
-grid. `evolution_phase_step` is a positive phase-length target for the
-declaration-driven Runge-Kutta schedule on split-collision hierarchies. It
-controls integration substep density, not the equations or collision rates,
-and is validated as part of the numerical contract. Contracts may also
-declare `ode_rtol` and `ode_atol` as
-numerical-control metadata; those
-values do not select a gauge-specific adaptive trajectory. All values are
-declared through `cmb.perturbations.numerics` and are subject to
-`cmb.perturbations.accuracy_controls` minimums.
+microsteps after the declared tight-coupling transition. The engine planner
+selects the entry and exit ratios, phase step, source-grid density, evolution
+samples, and ODE tolerances from collision rates and request shape. Those
+decisions are recorded in telemetry; model declarations contain no numerical
+control sections.
 
 Generated tensor projections reserve a wider fixed k envelope than scalar
 requests because spin-2 radial kernels retain an oscillatory high-k tail.
 This reserves quadrature coverage without rescaling or replacing a declared
 tensor source.
 
-Accuracy controls can require minimum ell, k, eta, hierarchy, source-grid,
-and momentum-grid coverage. A declared `runtime_envelope` records the
-deterministic evolution, projection, momentum, and total work estimates. A
-large request is split into ordered mode and projection chunks without
-clipping its requested resolution. A momentum-grid declaration supplies the
-q nodes and weights for a massive or other momentum-resolved hierarchy;
-minimum counts are checked against the accuracy controls before the grid
-enters the cache.
+The planner records deterministic evolution, projection, momentum, and total
+work estimates in the runtime envelope. A large request is split into ordered
+mode and projection chunks without clipping its requested resolution. Physical
+momentum declarations supply the q weighting for a massive or other
+momentum-resolved hierarchy; the engine chooses nodes and weights before the
+grid enters the cache.
 
 Split collision operators use the declaration-driven staged integrator by
 default. A contract may opt into the continuous stiff collision integrator
@@ -1591,35 +1596,8 @@ signed normalization terms, normalization scale and source, tolerance
 provenance, anchor values, and source-grid and evolution refinement evidence.
 Generated state and residual units are checked before projection.
 
-Adaptive refinement is opt-in through `accuracy_controls`. The canonical
-sections are `adaptive_transfer`, `adaptive_source`, `adaptive_projection`,
-and `adaptive_evolution`:
-
-```yaml
-accuracy_controls:
-  phase_points_per_cycle: 8
-  phase_aware_k_quadrature: true
-  adaptive_transfer:
-    minimum_nodes: 32
-    maximum_nodes: 128
-    relative_tolerance: 0.05
-    absolute_tolerance: 1.0e-12
-  adaptive_source:
-    minimum_nodes: 512
-    maximum_nodes: 2048
-    relative_tolerance: 0.05
-    absolute_tolerance: 1.0e-12
-  adaptive_projection:
-    minimum_nodes: 512
-    maximum_nodes: 2048
-    relative_tolerance: 0.05
-    absolute_tolerance: 1.0e-12
-  adaptive_evolution:
-    minimum_nodes: 64
-    maximum_nodes: 256
-    relative_tolerance: 0.01
-    absolute_tolerance: 1.0e-12
-```
+Adaptive refinement is driven by the engine planner. The canonical runtime
+stages are transfer, source, projection, and evolution:
 
 Transfer refinement places nodes from the requested radial phase, acoustic
 sound-horizon phase, and declared reference multipoles. Source refinement
@@ -1642,30 +1620,26 @@ terms needed by those spectra. An unavailable requested spectrum raises an
 explicit availability error before evolution rather than returning an empty
 surface or borrowing another sector.
 
-`adaptive_evolution` requires `evolution_eta_sample_count` and a declared
-scalar evolution graph. Its node bounds apply to the declared fine history,
-and the runtime envelope charges the coarse, intermediate, and reference
-integrations. A
+The planner requires an evolution sample plan and a declared scalar evolution
+graph. Its node bounds apply to the declared fine history, and the runtime
+envelope charges the coarse, intermediate, and reference integrations. A
 strict request raises a named under-resolution error when any physical anchor
 fails the declared absolute or relative tolerance; it never substitutes a
 grid-size response or an empirical spectrum correction.
 
-The controls are convergence guards, not output corrections. Each enabled
+The planner's convergence guards are not output corrections. Each enabled
 surface compares successive physical approximations and raises a named
-under-resolution error when its declared tolerance cannot be met. Set
-`fail_on_nonconvergence: false` only for an exploratory request whose runtime
-envelope explicitly accepts the reported error. Adaptive work remains bounded
-by the declared node and runtime limits; it never replaces unavailable
-observables or introduces an empirical spectrum scale.
+under-resolution error when its engine tolerance cannot be met. Adaptive work
+remains bounded by engine accounting and never replaces unavailable observables
+or introduces an empirical spectrum scale.
 
 ### Final Convergence Tier
 
-Set `accuracy_tier: final` to request the bounded cross-sector acceptance
-envelope. `final` is the only named tier. An unknown tier or an incomplete
-bounded runtime envelope fails before background integration. The resolved
-envelope records the active sectors, every background and projection
-control, hierarchy depths, momentum-grid definitions, runtime limits, and
-acceptance thresholds.
+The planner selects the bounded cross-sector acceptance envelope from the
+request and physical graph. The resolved envelope records active sectors,
+background and projection controls, hierarchy depths, momentum-grid
+definitions, runtime limits, and acceptance thresholds. Model declarations
+cannot select a tier or supply an incomplete envelope.
 
 When an explicit graph omits a sector registry, the resolved envelope infers
 its active sectors from the compiler's observable-sector and variable

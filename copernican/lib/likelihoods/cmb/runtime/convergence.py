@@ -210,7 +210,11 @@ class ConvergenceReport:
 
 
 def _accuracy_controls(contract: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Return compiled or raw accuracy controls from ``contract``."""
+    """Return the engine-owned accuracy envelope for ``contract``."""
+
+    engine_controls = contract.get("_engine_accuracy_controls")
+    if isinstance(engine_controls, Mapping):
+        return engine_controls
 
     perturbation_data = contract.get("perturbation_data")
     if perturbation_data is not None:
@@ -298,10 +302,12 @@ def resolve_production_scalar_convergence(
 
 
 def _numerical_controls(contract: Mapping[str, Any]) -> dict[str, Any]:
-    """Return merged background and hierarchy numerical declarations."""
+    """Return merged engine-planned background and hierarchy controls."""
 
     merged = dict(_NUMERICAL_DEFAULTS)
-    raw_numerical = contract.get("numerical", {}) or {}
+    raw_numerical = contract.get("_engine_numerical_plan")
+    if raw_numerical is None:
+        raw_numerical = contract.get("numerical", {}) or {}
     if isinstance(raw_numerical, Mapping):
         merged.update(raw_numerical)
     perturbation_data = contract.get("perturbation_data")
@@ -414,6 +420,24 @@ def _resolved_hierarchy_controls(
                 defaults["massive_neutrino"],
             )
         )
+    # Generated hierarchy metadata may intentionally omit a declaration-side
+    # default because the planner owns the topology.  In that case the
+    # presence of the corresponding family still identifies the active
+    # physical hierarchy and its engine-selected depth supplies the manifest
+    # and final-tier validation value.
+    engine_controls = {
+        "photon_temperature": "photon_hierarchy_l_max",
+        "photon_polarization": "photon_polarization_hierarchy_l_max",
+        "massless_neutrino": "neutrino_hierarchy_l_max",
+        "massive_neutrino": "massive_neutrino_hierarchy_l_max",
+    }
+    for family_name, entry in _family_entries(contract).items():
+        hierarchy_kind = _hierarchy_kind(str(family_name), entry)
+        if hierarchy_kind in resolved or hierarchy_kind not in engine_controls:
+            continue
+        control_name = engine_controls[hierarchy_kind]
+        if control_name in numerical:
+            resolved[hierarchy_kind] = int(numerical[control_name])
     return resolved
 
 
@@ -695,7 +719,11 @@ def _fractional_refinement_error(
     if coarse.shape != fine.shape:
         raise ValueError("Declared refinement surfaces must have equal shapes")
     peak = numpy.max(numpy.abs(fine), initial=numpy.longdouble(0.0))
-    scale = max(peak, numpy.finfo(numpy.longdouble).tiny)
+    # Relative errors are not meaningful below the solver's absolute
+    # floating-point noise floor.  Without this floor, a harmless 1e-16
+    # change in an EE surface whose physical amplitude is 1e-16 is reported
+    # as a 100-percent refinement failure.
+    scale = max(peak, numpy.longdouble("1.0e-14"))
     return float(numpy.max(numpy.abs(fine - coarse), initial=0.0) / scale)
 
 

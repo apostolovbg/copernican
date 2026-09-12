@@ -41,6 +41,19 @@ class PerformanceModuleTestCase(unittest.TestCase):
         snapshot = timer.snapshot(total_seconds=181.0)
         self.assertEqual(snapshot["total_seconds"], 181.0)
 
+    def test_heartbeat_is_throttled_and_serialized(self):
+        """Long phases expose progress without flooding the log."""
+
+        timer = performance.PhaseTimer(heartbeat_interval_seconds=60.0)
+        self.assertTrue(
+            timer.heartbeat("evolution", completed=2, total=4, force=True)
+        )
+        self.assertFalse(timer.heartbeat("evolution", completed=3, total=4))
+        snapshot = timer.snapshot(total_seconds=1.0)
+        self.assertEqual(snapshot["heartbeat_count"], 1)
+        self.assertEqual(snapshot["last_heartbeat_phase"], "evolution")
+        self.assertGreaterEqual(snapshot["last_heartbeat_seconds"], 0.0)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

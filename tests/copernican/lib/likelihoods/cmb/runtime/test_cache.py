@@ -37,6 +37,22 @@ class CacheModuleTestCase(unittest.TestCase):
         """The module cache helpers should store every cache family."""
 
         cache.clear_cmb_caches()
+        self.assertIsNone(cache.get_cmb_initial_state("direct-missing"))
+        self.assertIsNone(
+            cache.set_cmb_initial_state("direct-initial", ("state",))
+        )
+        self.assertEqual(
+            cache.get_cmb_initial_state("direct-initial"),
+            ("state",),
+        )
+        self.assertIsNone(cache.get_cmb_hierarchy_schedule("direct-missing"))
+        self.assertIsNone(
+            cache.set_cmb_hierarchy_schedule("direct-schedule", (1, 2, 4))
+        )
+        self.assertEqual(
+            cache.get_cmb_hierarchy_schedule("direct-schedule"),
+            (1, 2, 4),
+        )
         self.assertIsNone(cache.get_declared_symbol_plan("plan"))
         cache.set_declared_symbol_plan("plan", {"step": 1})
         self.assertEqual(
@@ -209,6 +225,14 @@ class CacheModuleTestCase(unittest.TestCase):
             source_key,
             {"temperature": numpy.asarray([1.0, 2.0])},
         )
+        cache.set_cmb_initial_state(
+            ("initial", 0.1),
+            (numpy.asarray([1.0]), (), {}),
+        )
+        cache.set_cmb_hierarchy_schedule(
+            ("schedule", 0.1),
+            numpy.asarray([1, 2, 4], dtype=int),
+        )
         self.assertTrue(callable(cache.set_cmb_source_history))
         self.assertTrue(
             numpy.array_equal(
@@ -241,6 +265,8 @@ class CacheModuleTestCase(unittest.TestCase):
         self.assertEqual(stats["background"]["entries"], 0)
         self.assertEqual(stats["declared_spectrum"]["entries"], 0)
         self.assertEqual(stats["source_history"]["entries"], 0)
+        self.assertEqual(stats["initial_state"]["entries"], 0)
+        self.assertEqual(stats["hierarchy_schedule"]["entries"], 0)
 
     def test_result_and_request_accounting_helpers_are_explicit(self):
         """Result invalidation and request mutation should stay observable."""

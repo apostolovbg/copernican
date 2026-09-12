@@ -29,6 +29,17 @@ from copernican.lib.perturbation_contract import PerturbationContractData
 MAKE_POSTERIOR = model_plugin_validation.make_logposterior
 
 
+def _legacy_numerical_test_blocks(model_data):
+    """Create explicit test-only controls for reduced-grid fixtures."""
+
+    cmb_block = model_data["cmb"]
+    perturbations = cmb_block["perturbations"]
+    numerical = cmb_block.setdefault("numerical", {})
+    perturbation_numerics = perturbations.setdefault("numerics", {})
+    controls = perturbations.setdefault("accuracy_controls", {})
+    return numerical, perturbation_numerics, controls
+
+
 def _dummy_func(*_args, **_kwargs):
     """Return a placeholder numerical value."""
     return 0.0
@@ -1131,7 +1142,10 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 model_data = yaml.safe_load(
                     (models_dir / model_name).read_text(encoding="utf-8")
                 )
-                model_data["cmb"]["numerical"].update(
+                numerical, _perturbation_numerics, controls = (
+                    _legacy_numerical_test_blocks(model_data)
+                )
+                numerical.update(
                     {
                         "ell_min": 2,
                         "ell_max": 20,
@@ -1142,12 +1156,8 @@ class ModelInterfaceTestCase(unittest.TestCase):
                         "source_grid_multiplier": 1,
                     }
                 )
-                model_data["cmb"]["perturbations"][
-                    "accuracy_controls"
-                ]["scalar_reference_ells"] = [2, 20]
-                model_data["cmb"]["perturbations"]["accuracy_controls"][
-                    "minimum_k_sample_count"
-                ] = 1
+                controls["scalar_reference_ells"] = [2, 20]
+                controls["minimum_k_sample_count"] = 1
                 with tempfile.TemporaryDirectory() as temp_dir:
                     temp_path = Path(temp_dir) / model_name
                     temp_path.write_text(
@@ -1674,6 +1684,75 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                         places=12,
                     )
 
+    def test_engine_background_records_drag_and_refinement_evidence(self):
+        """Production backgrounds expose automatic drag/refinement evidence."""
+
+        for model_name in (
+            "model_lcdm.yml",
+            "model_lcdm_mnu.yml",
+            "model_qrsf.yml",
+        ):
+            with self.subTest(model_name=model_name):
+                plugin = self._build_plugin(model_name)
+                runtime = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                physical = (
+                    cmb_background._resolve_custom_cmb_physical_parameters(
+                        runtime
+                    )
+                )
+                numerics = cmb_background._resolve_custom_cmb_numerics(
+                    runtime
+                )
+                cache.clear_cmb_caches()
+                resolved = cmb_background._build_custom_cmb_background(
+                    runtime,
+                    physical,
+                    numerics,
+                )
+                evidence = resolved.resolution_evidence
+                refinement = evidence["refinement"]
+                self.assertTrue(refinement["converged"])
+                self.assertGreater(
+                    refinement["fine_eta_nodes"],
+                    refinement["coarse_eta_nodes"],
+                )
+                self.assertGreater(resolved.drag_sound_horizon_mpc, 0.0)
+                self.assertGreater(resolved.drag_redshift, 0.0)
+                self.assertEqual(
+                    evidence["drag_transition"],
+                    "remaining_optical_depth_unity",
+                )
+
+    def test_massive_background_retains_q_density_and_pressure_histories(self):
+        """Massive background products retain the perturbation q moments."""
+
+        plugin = self._build_plugin("model_lcdm_mnu.yml")
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
+            runtime
+        )
+        numerics = cmb_background._resolve_custom_cmb_numerics(runtime)
+        cache.clear_cmb_caches()
+        resolved = cmb_background._build_custom_cmb_background(
+            runtime,
+            physical,
+            numerics,
+        )
+        density = resolved.massive_neutrino_density_grid
+        pressure = resolved.massive_neutrino_pressure_grid
+        self.assertIsNotNone(density)
+        self.assertIsNotNone(pressure)
+        self.assertEqual(density.shape, resolved.a_grid.shape)
+        self.assertEqual(pressure.shape, resolved.a_grid.shape)
+        self.assertTrue(numpy.all(numpy.isfinite(density)))
+        self.assertTrue(numpy.all(numpy.isfinite(pressure)))
+        self.assertTrue(numpy.all(density >= 0.0))
+        self.assertTrue(numpy.all(pressure >= 0.0))
+        self.assertGreater(float(density[-1]), 0.0)
+        self.assertLess(float(pressure[-1]), float(density[-1]))
+
     def test_lcdm_mnu_declared_surfaces_are_finite(self) -> None:
         """The massive-neutrino route must emit every declared surface."""
 
@@ -1684,10 +1763,10 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             / "model_lcdm_mnu.yml"
         )
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
-        for numerics in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
-        ):
+        numerical, perturbation_numerics, controls = (
+            _legacy_numerical_test_blocks(model_data)
+        )
+        for numerics in (numerical, perturbation_numerics):
             numerics.update(
                 {
                     "ell_min": 2,
@@ -1701,7 +1780,6 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "initial_redshift": 99.0,
                 }
             )
-        controls = model_data["cmb"]["perturbations"]["accuracy_controls"]
         controls["minimum_k_sample_count"] = 1
         controls["scalar_reference_ells"] = [2, 20]
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1742,10 +1820,10 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             / model_name
         )
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
-        for numerics in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
-        ):
+        numerical, perturbation_numerics, controls = (
+            _legacy_numerical_test_blocks(model_data)
+        )
+        for numerics in (numerical, perturbation_numerics):
             numerics.update(
                 {
                     "ell_min": 2,
@@ -1759,7 +1837,6 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "initial_redshift": 99.0,
                 }
             )
-        controls = model_data["cmb"]["perturbations"]["accuracy_controls"]
         controls["minimum_k_sample_count"] = 1
         controls["scalar_reference_ells"] = [2, 20]
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -2193,11 +2270,11 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[3]
         source_path = repo_root / "copernican" / "models" / "model_usmf2.yml"
         model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
-        for controls in (
-            model_data["cmb"]["numerical"],
-            model_data["cmb"]["perturbations"]["numerics"],
-        ):
-            controls.update(
+        numerical, perturbation_numerics, controls = (
+            _legacy_numerical_test_blocks(model_data)
+        )
+        for control_block in (numerical, perturbation_numerics):
+            control_block.update(
                 {
                     "ell_min": 2,
                     "ell_max": 20,
@@ -2210,15 +2287,11 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "initial_redshift": 99.0,
                 }
             )
-        model_data["cmb"]["perturbations"]["accuracy_controls"][
-            "scalar_reference_ells"
-        ] = [2, 20]
-        model_data["cmb"]["perturbations"]["accuracy_controls"][
-            "minimum_k_sample_count"
-        ] = 1
-        model_data["cmb"]["perturbations"]["accuracy_controls"][
-            "production_scalar_convergence"
-        ]["enabled"] = production_enabled
+        controls["scalar_reference_ells"] = [2, 20]
+        controls["minimum_k_sample_count"] = 1
+        controls.setdefault("production_scalar_convergence", {})[
+            "enabled"
+        ] = production_enabled
         with tempfile.TemporaryDirectory() as model_dir:
             model_path = Path(model_dir) / source_path.name
             model_path.write_text(

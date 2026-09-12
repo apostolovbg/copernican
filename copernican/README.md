@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -44,7 +44,8 @@ tensor, and lensed surfaces remain typed non-applicable declarations.
 
 The CMB subsystem's physical state convention, hierarchy equations, collision
 operators, gauge routes, line-of-sight sources, spectrum units, lensing
-inputs, numerical controls, and independent-reference boundaries are
+inputs, engine-owned numerical planning, and independent-reference
+boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
 
@@ -291,6 +292,12 @@ acoustic sources are not aliased by sparse-history interpolation. Joint MCMC
 evaluation may defer the doubled-grid comparison, but it cannot bypass the
 declared final phase-grid floor; a low-node smoke path is restricted to the
 explicit diagnostic matrix.
+The hierarchy runtime now derives a structural schedule from the compiled
+families, collision operators, and initial conditions. Compatible modes share
+one schedule; incompatible scalar, vector, tensor, and q-resolved modes remain
+partitioned. Initial states and phase schedules use bounded, full-identity
+caches, and runtime envelopes report schedule signatures, cache reuse, and
+the hidden early-prefix decision alongside the raw spectra.
 The fixed Planck-reference declaration maps its 0.06 eV neutrino mass to
 `omnuh2` and subtracts that contribution from `omch2`; the generated mixed
 hierarchy weights the residual massless-neutrino source by its own density.
@@ -303,6 +310,14 @@ component at every scale factor. The declared transition is a smooth
 numerical baseline and is corrected to the q integral before recombination.
 The effective massive-species allocation is bounded by `N_eff`, so points
 below three massive species cannot overcount the early radiation.
+The engine-owned background planner allocates its physical scale-factor
+budget across the radiation scaffold, recombination visibility feature, and
+late reionization interval, then performs an independent doubled-grid
+refinement. Each production background records the refinement errors,
+visibility normalization, drag-transition index, and the canonical BAO
+drag ruler. Massive-neutrino density and pressure histories are retained
+from the same q quadrature used by perturbation evolution, including the
+continuous zero-mass limit.
 The wCDM and w0waCDM CMB declarations use that same density closure while
 evolving constant-`w0` and CPL dark-energy factors, respectively; their
 `w=-1`, `wa=0` limit is continuous with the shared background path.
@@ -388,8 +403,8 @@ rejected proposals; contract, convergence, non-finite, constraint, and
 capability failures stop execution with typed diagnostics. Runtime telemetry
 records phase timings, cache states, and work units without imposing a
 wall-clock limit on valid solver evaluations. Large fixed-point requests use
-deterministic ordered mode and projection chunks, and their configured and
-effective numerical controls remain visible in the runtime envelope.
+deterministic ordered mode and projection chunks, and their engine-planned
+numerical controls remain visible in the runtime envelope.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived

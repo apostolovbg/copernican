@@ -38,6 +38,7 @@ from copernican.lib.perturbation_contract import (
     PerturbationValidityData,
     PerturbationVariableData,
     compile_perturbation_contract,
+    engine_numerical_plan_context,
     evaluate_compiled_expression,
     validate_generated_scalar_source_graph,
 )
@@ -736,6 +737,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             perturbation_contract_module.compile_perturbation_contract,
             compile_perturbation_contract,
         )
+        self.assertTrue(callable(engine_numerical_plan_context))
 
     def test_generated_source_validator_rejects_missing_derivatives(self):
         """Generated graphs fail before runtime when derivatives are absent.

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import subprocess  # nosec
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
@@ -54,6 +55,26 @@ def _copernican_version() -> str:
     if callable(getter):
         return getter()
     return "0+unknown"
+
+
+def _yaml_safe(value: Any) -> Any:
+    """Convert immutable runtime mappings into ordinary YAML values."""
+
+    if isinstance(value, Mapping):
+        return {str(key): _yaml_safe(item) for key, item in value.items()}
+    # Compiled declarations may expose read-only mapping facades that do not
+    # register with ``collections.abc.Mapping`` after a plugin boundary (for
+    # example when they are reconstructed by a worker process).  Treat any
+    # explicit ``items`` provider as a mapping here so manifests never leak
+    # runtime wrapper objects to PyYAML.
+    items = getattr(value, "items", None)
+    if callable(items):
+        return {str(key): _yaml_safe(item) for key, item in items()}
+    if isinstance(value, (list, tuple)):
+        return [_yaml_safe(item) for item in value]
+    if isinstance(value, set):
+        return sorted((_yaml_safe(item) for item in value), key=str)
+    return value
 
 
 def _git_info() -> dict:
@@ -138,7 +159,20 @@ def _cmb_info(
             background_manifest_summary = {}
         execution_route = manifest_summary_data.get("execution_route", {})
         perturbation_sources = getattr(perturbation_data, "sources", {}) or {}
+        declared_runtime = getattr(plugin, "CMB_DECLARED_RUNTIME", None)
         numerical_settings = contract.get("numerical", {}) or {}
+        if declared_runtime is not None:
+            # Model declarations no longer carry solver controls.  The
+            # manifest records the immutable plan resolved by CCMBS instead
+            # of emitting an empty legacy block.
+            numerical_settings = (
+                getattr(
+                    declared_runtime,
+                    "numerical",
+                    numerical_settings,
+                )
+                or numerical_settings
+            )
         numerical_settings = (
             dict(numerical_settings)
             if isinstance(numerical_settings, dict)
@@ -147,7 +181,6 @@ def _cmb_info(
         accuracy_controls = (
             getattr(perturbation_data, "accuracy_controls", {}) or {}
         )
-        declared_runtime = getattr(plugin, "CMB_DECLARED_RUNTIME", None)
         compile_diagnostics = getattr(
             declared_runtime, "compile_diagnostics", None
         )
@@ -627,7 +660,7 @@ def build_manifest(
     if cmb_details is not None:
         manifest["cmb"] = cmb_details
 
-    return manifest
+    return _yaml_safe(manifest)
 
 
 def save_manifest(

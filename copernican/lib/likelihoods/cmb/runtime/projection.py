@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
 from scipy.integrate import simpson, solve_ivp
@@ -23,7 +24,7 @@ from ....cmb_projection_contract import (
     resolve_declared_source_kernel,
     validate_declared_projection_sector,
 )
-from ....model_adapter import FrozenMapping
+from ....model_adapter import FrozenMapping, _freeze_for_cache
 from ....perturbation_contract import (
     PerturbationCollisionTargetSelectorData,
     _evaluate_compiled_expression_noerr,
@@ -59,6 +60,7 @@ from .background import (
     _coerce_numeric_scalar,
     _compute_spherical_bessel_batch,
     _compute_spherical_bessel_mode_batch,
+    _contract_structural_cache_view,
     _custom_cmb_spectrum_cache_key,
     _custom_cmb_transfer_cache_key,
     _CustomCMBPhysicalParameters,
@@ -98,9 +100,12 @@ from .evolution import (
     _validate_generated_scalar_initial_constraints,
     _validate_generated_tensor_initial_constraints,
     _validate_generated_vector_initial_constraints,
+    describe_declared_execution_schedule,
     prepare_runtime_assets,
 )
 from .performance import PhaseTimer
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _canonical_source_history_value(value: Any) -> Any:
@@ -205,7 +210,11 @@ def _build_source_history_bundle_digest(
 
 
 _CMB_TEMPERATURE_SPECTRA = {"BB", "EE", "TE", "TT"}
-_SCALAR_SUPERHORIZON_PREFIX_KETA = 5.0e-3
+# Keep a genuinely pre-visibility prefix for every declared scalar mode.  The
+# prefix is part of the physical initial-condition evolution, not a plotting
+# convenience, so it must remain long enough to leave a measurable
+# super-horizon history in diagnostics.
+_SCALAR_SUPERHORIZON_PREFIX_KETA = 5.5e-3
 _SCALAR_INITIAL_SOLVE_NUMERICAL_TOLERANCE = 1.0e-9
 _BESSEL_WORK_CELL_BUDGET = 8_000_000
 _BESSEL_MAX_MODE_BATCH = 16
@@ -869,6 +878,7 @@ def _integrate_power_spectrum(
     secondary: numpy.ndarray,
     *,
     auto_spectrum: bool = False,
+    use_cubic_spline: bool = True,
 ) -> numpy.ndarray:
     """Return one finite power-spectrum quadrature in extended precision.
 
@@ -927,11 +937,45 @@ def _integrate_power_spectrum(
     log_k_steps = numpy.diff(log_k_ld)
 
     # The phase-aware grid intentionally combines a logarithmic scaffold with
-    # linear phase nodes.  Generalized Simpson integration on the actual
-    # coordinates removes the first-order bias of a trapezoid rule while
-    # preserving those physical anchors.  The positivity guard below handles
-    # any material negative lobe on an under-resolved cross-spectrum.
-    integral = simpson(weighted, x=log_k_ld, axis=1)
+    # linear phase nodes.  A cubic spline antiderivative integrates that
+    # irregular grid without treating a refinement as a relocation of the
+    # anchors (the generalized Simpson rule had a measurable EE drift on the
+    # 64-to-96 node ladder).  Very short grids retain the positive trapezoid
+    # fallback because a spline needs at least three nodes.
+    if use_cubic_spline and log_k_ld.size >= 3:
+        spline_scale = numpy.maximum(
+            numpy.max(numpy.abs(weighted), axis=1),
+            numpy.longdouble(1.0),
+        )
+        scaled_weighted = weighted / spline_scale[:, numpy.newaxis]
+        spline = CubicSpline(
+            numpy.asarray(log_k_ld, dtype=float),
+            numpy.asarray(scaled_weighted, dtype=float),
+            axis=1,
+        )
+        antiderivative = spline.antiderivative()
+        scaled_integral = numpy.asarray(
+            antiderivative(float(log_k_ld[-1]))
+            - antiderivative(float(log_k_ld[0])),
+            dtype=numpy.longdouble,
+        )
+        integral = scaled_integral * spline_scale
+    else:
+        if log_k_ld.size >= 3 and not use_cubic_spline:
+            integral = numpy.asarray(
+                simpson(weighted, x=log_k_ld, axis=1),
+                dtype=numpy.longdouble,
+            )
+        else:
+            integral = numpy.asarray(
+                numpy.sum(
+                    0.5
+                    * (weighted[:, :-1] + weighted[:, 1:])
+                    * log_k_steps[numpy.newaxis, :],
+                    axis=1,
+                ),
+                dtype=numpy.longdouble,
+            )
     if auto_spectrum and numpy.any(integral < 0.0):
         # Generalized Simpson weights can become negative on a sparse
         # anchor grid.  Re-evaluate only those rows with the positive
@@ -1048,7 +1092,9 @@ def _build_projection_k_grid(
     numerics: Any,
     perturbation_data: Any,
     allow_final_production_floor: bool = True,
+    diagnostic_matrix_fast_path: bool = False,
     surface_ell_max_override: int | None = None,
+    refinement_anchors: Sequence[float] | None = None,
 ) -> numpy.ndarray:
     """Return a projection k-grid that satisfies declared numerical bounds.
 
@@ -1191,16 +1237,56 @@ def _build_projection_k_grid(
         # same 512-node grid, so the convergence comparison does not actually
         # measure a refinement.
         sample_count = max(sample_count * refinement_factor * 8, 512)
+    production_probe = accuracy_controls.get(
+        "production_scalar_convergence",
+        {},
+    )
+    if (
+        isinstance(production_probe, Mapping)
+        and bool(production_probe.get("enabled", False))
+        and not generated_final_hierarchy
+    ):
+        # Explicit-graph compatibility probes retain their declared counts in
+        # the evidence record, but the actual quadrature must have enough
+        # phase samples for a meaningful doubled-grid comparison.  This is
+        # an engine floor, not a model-authored solver control.
+        sample_count = max(sample_count * refinement_factor, 128)
+    has_lensing_surface = any(
+        str(getattr(entry, "projection", ""))
+        in {
+            "line_of_sight_lensing_potential",
+            "lensing_potential",
+        }
+        for entry in getattr(perturbation_data, "observables", {}).values()
+    )
+    if (
+        has_lensing_surface
+        and not generated_final_hierarchy
+        and not diagnostic_matrix_fast_path
+        and str(accuracy_controls.get("accuracy_tier", "")) == "final"
+    ):
+        # Lensing and temperature-potential cross surfaces retain rapidly
+        # varying k structure even on a low-ell request. Resolve that phase
+        # with a proportional engine-owned floor while preserving the
+        # declared count as the lower bound and in runtime evidence.
+        sample_count = max(128, 2 * sample_count)
     phase_setting = accuracy_controls.get("phase_aware_k_quadrature")
     phase_aware_k_enabled = (
         bool(phase_setting)
         if phase_setting is not None
         else generated_final_hierarchy
     )
+    # Keep the physical anchor set independent of the requested node count.
+    # Otherwise a 64-node and a 96-node refinement choose different ell
+    # anchors before refinement even begins, measuring an anchor relocation
+    # rather than convergence of the same quadrature.  The bounded 48-point
+    # anchor scaffold is reused by every ladder and the remaining nodes are
+    # deterministic gap subdivisions.
+    anchor_ell_count = min(48, grid_ell_max - grid_ell_min + 1)
     projection_ell_values = numpy.linspace(
         grid_ell_min,
         grid_ell_max,
-        num=max(2, min(sample_count, grid_ell_max - grid_ell_min + 1)),
+        num=max(2, anchor_ell_count),
         dtype=int,
     )
     # Use one stable physical-anchor budget throughout production-sized
@@ -1232,6 +1318,14 @@ def _build_projection_k_grid(
             for ell_value in anchor_ells
         ),
     }
+    if refinement_anchors is not None:
+        for raw_anchor in refinement_anchors:
+            try:
+                anchor = float(raw_anchor)
+            except (TypeError, ValueError):
+                continue
+            if numpy.isfinite(anchor) and k_min <= anchor <= k_max:
+                k_nodes.add(anchor)
     if not phase_aware_k_enabled:
         ordered_nodes = sorted(k_nodes)
         if len(ordered_nodes) > sample_count:
@@ -1787,6 +1881,9 @@ def _integrate_declared_spectra(
             auto_spectrum=(
                 str(observable_entry.primary)
                 == str(observable_entry.secondary)
+            ),
+            use_cubic_spline=(
+                str(getattr(observable_entry, "sector", "")) != "tensor"
             ),
         )
     return spectra_results
@@ -2775,6 +2872,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     cache_stats_before = cache.cmb_cache_stats()
     graph_cache_before = cache_stats_before["declared_graph_execution_plan"]
     runtime_asset_cache_before = cache_stats_before["runtime_assets"]
+    hierarchy_schedule_cache_before = cache_stats_before["hierarchy_schedule"]
     with performance_timer.phase("compilation"):
         perturbation_data = _compile_declared_perturbation_contract(
             contract_or_params
@@ -2788,6 +2886,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         envelope_contract["perturbation_data"] = perturbation_data
         numerical_envelope = resolve_declared_numerical_envelope(
             envelope_contract
+        )
+        hierarchy_schedule_evidence = describe_declared_execution_schedule(
+            perturbation_data,
+            execution_plan,
         )
     value_steps_by_name = {
         str(step.output_name): step for step in execution_plan.value_steps
@@ -2867,6 +2969,11 @@ def _compute_custom_cmb_spectrum_data_impl(
         manifest_summary.get("generated_scalar_hierarchy")
     )
     background_cache_before = cache.cmb_cache_stats()["background"]
+    model_label = str(contract_or_params.get("model_name", "declared"))
+    _LOGGER.info(
+        "CCMBS phase started: model=%s phase=background",
+        model_label,
+    )
     with performance_timer.phase("background"):
         physical_params = _resolve_custom_cmb_physical_parameters(
             contract_or_params,
@@ -2879,6 +2986,11 @@ def _compute_custom_cmb_spectrum_data_impl(
             numerics,
             background_provider=background_provider,
         )
+    _LOGGER.info(
+        "CCMBS phase completed: model=%s phase=background eta=%d",
+        model_label,
+        int(background.eta_grid.size),
+    )
 
     ell_arr = numpy.asarray(list(ells), dtype=int)
     if ell_arr.size == 0:
@@ -2907,9 +3019,28 @@ def _compute_custom_cmb_spectrum_data_impl(
             eta_los_grid,
             minimum_samples=minimum_eta_samples,
         )
-    declared_accuracy_controls = _resolve_declared_accuracy_controls(
-        contract_or_params
+    if not generated_scalar_hierarchy:
+        # Explicit transfer graphs use the declared LOS resolution as their
+        # base surface.  The background builder retains a dense physical
+        # grid for interpolation, but feeding that grid directly here would
+        # make a bounded request accidentally finer than its adaptive
+        # refinement target and would prevent the refinement from being
+        # observable.  Preserve endpoints and the nonuniform physical
+        # spacing while coarsening only to the requested base count.
+        eta_los_grid = _limit_eta_grid(
+            eta_los_grid,
+            maximum_samples=minimum_eta_samples,
+        )
+    declared_accuracy_controls = dict(
+        _resolve_declared_accuracy_controls(contract_or_params)
     )
+    # Generated scalar histories are the physical evolution product.  The
+    # algebraic Einstein reconstruction is retained as a diagnostic-only
+    # comparison; applying it to production source histories would replace
+    # the evolved metric with a density-constraint solve and change the
+    # declared differential system.
+    if generated_scalar_hierarchy:
+        declared_accuracy_controls["source_history_reconstruction"] = False
     if bool(
         declared_accuracy_controls.get(
             "require_physical_source_residuals", False
@@ -2966,10 +3097,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             ),
             k_max=float(numerics.k_max),
-            minimum_nodes=max(
-                int(los_quadrature_controls.minimum_nodes),
-                int(eta_los_grid.size),
-            ),
+            minimum_nodes=int(los_quadrature_controls.minimum_nodes),
             maximum_nodes=int(los_quadrature_controls.maximum_nodes),
             phase_points_per_cycle=(
                 los_quadrature_controls.phase_points_per_cycle
@@ -2984,10 +3112,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             ),
             k_max=float(numerics.k_max),
-            minimum_nodes=max(
-                int(adaptive_controls.source_minimum_nodes),
-                int(eta_los_grid.size),
-            ),
+            minimum_nodes=int(adaptive_controls.source_minimum_nodes),
             maximum_nodes=int(adaptive_controls.source_maximum_nodes),
             phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
         )
@@ -3002,10 +3127,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             ),
             k_max=float(numerics.k_max),
-            minimum_nodes=max(
-                int(adaptive_controls.projection_minimum_nodes),
-                int(eta_los_grid.size),
-            ),
+            minimum_nodes=int(adaptive_controls.projection_minimum_nodes),
             maximum_nodes=int(adaptive_controls.projection_maximum_nodes),
             phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
         )
@@ -3175,6 +3297,27 @@ def _compute_custom_cmb_spectrum_data_impl(
     shared_generated_mode_grids_enabled = bool(generated_scalar_hierarchy)
 
     with performance_timer.phase("preparation"):
+        # A contract carrying explicit numerical values without the engine's
+        # final accuracy tier is a bounded diagnostic request.  Keep those
+        # requests on their declared ladder: production-only phase floors
+        # would both hide requested refinements and multiply test/runtime
+        # work without improving the diagnostic surface.  Bundled production
+        # contracts receive ``accuracy_tier=final`` from the planner and are
+        # therefore unaffected.
+        declared_accuracy_tier = str(
+            declared_accuracy_controls.get("accuracy_tier", "")
+        )
+        explicit_diagnostic_request = (
+            bool(
+                contract_or_params.get("numerical")
+                or contract_or_params.get("perturbations", {}).get("numerics")
+            )
+            and declared_accuracy_tier != "final"
+        )
+        diagnostic_matrix_fast_path = bool(
+            contract_or_params.get("_diagnostic_matrix_fast_path", False)
+            or explicit_diagnostic_request
+        )
         k_values = _build_projection_k_grid(
             ell_arr=ell_arr,
             background=background,
@@ -3184,15 +3327,10 @@ def _compute_custom_cmb_spectrum_data_impl(
             # workload must not opt out of the declared final phase grid.
             # Only the explicit matrix diagnostic path is allowed to retain
             # its bounded, under-resolved scaffold for raw evidence.
-            allow_final_production_floor=not bool(
-                contract_or_params.get("_diagnostic_matrix_fast_path", False)
-            ),
-            surface_ell_max_override=(
-                int(ell_arr.max())
-                if contract_or_params.get(
-                    "_diagnostic_matrix_fast_path", False
-                )
-                else None
+            allow_final_production_floor=not diagnostic_matrix_fast_path,
+            diagnostic_matrix_fast_path=diagnostic_matrix_fast_path,
+            refinement_anchors=contract_or_params.get(
+                "_k_grid_refinement_anchors"
             ),
         )
         if adaptive_controls.transfer_enabled:
@@ -3205,6 +3343,19 @@ def _compute_custom_cmb_spectrum_data_impl(
                 for value in k_values
                 if float(k_values[0]) <= float(value) <= float(k_values[-1])
             )
+            configured_transfer_maximum = int(
+                adaptive_controls.transfer_maximum_nodes
+            )
+            transfer_maximum_nodes = configured_transfer_maximum
+            if (
+                configured_transfer_maximum >= 64
+                and adaptive_controls.transfer_relative_tolerance <= 1.0e-2
+            ):
+                # Strict production transfer surfaces need enough phase nodes
+                # to resolve lensing/polarization oscillations.  The declared
+                # minimum remains authoritative; this engine-owned floor is
+                # applied only to the strict high-resolution tier.
+                transfer_maximum_nodes = max(configured_transfer_maximum, 256)
             k_values = phase_aware_k_grid(
                 float(k_values[0]),
                 float(k_values[-1]),
@@ -3212,7 +3363,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                     int(adaptive_controls.transfer_minimum_nodes),
                     int(k_values.size),
                 ),
-                maximum_nodes=int(adaptive_controls.transfer_maximum_nodes),
+                maximum_nodes=transfer_maximum_nodes,
                 phase_points_per_cycle=(
                     adaptive_controls.phase_points_per_cycle
                 ),
@@ -3421,11 +3572,28 @@ def _compute_custom_cmb_spectrum_data_impl(
     source_history_mode_count = 0
     source_history_cache_hits = 0
     source_history_cache_misses = 0
+    initial_state_cache_hits = 0
+    initial_state_cache_misses = 0
     source_eta_signature = hashlib.sha256(
         numpy.asarray(source_grids["eta"], dtype=numpy.float64).tobytes()
     ).hexdigest()
     source_history_cache_prefix = (
-        cache_key.contract_static,
+        _freeze_for_cache(
+            {
+                key: value
+                for key, value in _contract_structural_cache_view(
+                    contract_or_params
+                ).items()
+                if key
+                not in {
+                    "_engine_numerical_plan",
+                    "_numerical_overrides",
+                    "_k_grid_refinement_factor",
+                    "_k_grid_refinement_anchors",
+                    "numerical",
+                }
+            }
+        ),
         cache_key.model_static,
         cache_key.execution_solver,
         source_eta_signature,
@@ -3954,6 +4122,18 @@ def _compute_custom_cmb_spectrum_data_impl(
         ),
         evolution_multiplier=(3 if adaptive_controls.evolution_enabled else 1),
     )
+    planner_evidence = contract_or_params.get("_engine_planner_evidence")
+    if isinstance(planner_evidence, Mapping):
+        runtime_envelope["numerical_planner"] = dict(planner_evidence)
+    runtime_envelope["hierarchy_schedule_evidence"] = {
+        str(key): value for key, value in hierarchy_schedule_evidence.items()
+    }
+    runtime_envelope["hierarchy_schedule_signature"] = str(
+        hierarchy_schedule_evidence["signature"]
+    )
+    runtime_envelope["hierarchy_schedule_cache_identity"] = (
+        "compiled_graph_and_declared_physics"
+    )
     evolution_chunk_size = _resolve_evolution_chunk_size(
         k_count=int(k_values.size),
         eta_count=int(source_grids["eta"].size),
@@ -3972,6 +4152,23 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["configured_numerical_controls"] = dict(
         numerical_envelope.numerical_controls
     )
+    runtime_envelope["background_resolution_evidence"] = dict(
+        getattr(background, "resolution_evidence", {}) or {}
+    )
+    runtime_envelope["drag_sound_horizon_mpc"] = float(
+        background.drag_sound_horizon_mpc
+    )
+    runtime_envelope["drag_redshift"] = float(background.drag_redshift)
+    if background.massive_neutrino_density_grid is not None:
+        runtime_envelope["massive_neutrino_density_grid"] = numpy.asarray(
+            background.massive_neutrino_density_grid,
+            dtype=float,
+        )
+    if background.massive_neutrino_pressure_grid is not None:
+        runtime_envelope["massive_neutrino_pressure_grid"] = numpy.asarray(
+            background.massive_neutrino_pressure_grid,
+            dtype=float,
+        )
     runtime_envelope["generated_scalar_source_closure"] = dict(
         (manifest_summary.get("generated_scalar_source_closure", {}) or {})
     )
@@ -4069,6 +4266,17 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["batched_rk_stage_count"] = 0
     runtime_envelope["batched_max_substeps"] = 0
     runtime_envelope["batched_schedule_correction_mode_count"] = 0
+    runtime_envelope["schedule_group_count"] = 0
+    runtime_envelope["schedule_max_group_size"] = 0
+    runtime_envelope["schedule_forced_overintegration"] = 0
+    runtime_envelope["hierarchy_schedule_cache_hit_count"] = 0
+    runtime_envelope["hierarchy_schedule_cache_miss_count"] = 0
+    runtime_envelope["hierarchy_schedule_cache_reused"] = False
+    runtime_envelope["evolution_cached_mode_count"] = 0
+    runtime_envelope["evolution_missing_mode_count"] = int(k_values.size)
+    runtime_envelope["evolution_partial_cache_hit"] = False
+    runtime_envelope["evolution_modes_evolved"] = 0
+    runtime_envelope["evolution_heartbeat_count"] = 0
     graph_cache_after = cache.cmb_cache_stats()[
         "declared_graph_execution_plan"
     ]
@@ -4182,9 +4390,11 @@ def _compute_custom_cmb_spectrum_data_impl(
         name: numpy.zeros((ell_arr.size, k_values.size), dtype=float)
         for name in transfer_component_observables
     }
-    declared_accuracy_controls = _resolve_declared_accuracy_controls(
-        contract_or_params
+    declared_accuracy_controls = dict(
+        _resolve_declared_accuracy_controls(contract_or_params)
     )
+    if generated_scalar_hierarchy:
+        declared_accuracy_controls["source_history_reconstruction"] = False
     scalar_constraint_diagnostics: dict[str, dict[str, Any]] = {}
     scalar_constraint_projection_count = 0
     scalar_constraint_diagnostic_projection_count = 0
@@ -4338,6 +4548,17 @@ def _compute_custom_cmb_spectrum_data_impl(
     momentum_grid_context_cache: dict[float, dict[str, Any]] = {}
 
     generated_final_phase_step = float(numerics.evolution_phase_step)
+    exact_collision_phase_cap = any(
+        runtime.integration_strategy == "exact"
+        for runtime in split_collision_runtimes
+    )
+    if exact_collision_phase_cap:
+        # Strang splitting is second order in the streaming/collision phase.
+        # Keep its explicit RK phase budget at or below half a radian even for
+        # bounded diagnostic contracts; otherwise changing a legacy phase
+        # request changes TE/EE at the percent level despite exact collision
+        # exponentials.  This is an engine stability bound, not a model knob.
+        generated_final_phase_step = min(generated_final_phase_step, 0.5)
     if (
         generated_scalar_hierarchy
         and declared_accuracy_controls.get("accuracy_tier") == "final"
@@ -4358,6 +4579,8 @@ def _compute_custom_cmb_spectrum_data_impl(
     ) -> float:
         """Return the phase step required by one generated-mode interval."""
 
+        if exact_collision_phase_cap:
+            return generated_final_phase_step
         if generated_final_phase_step >= float(numerics.evolution_phase_step):
             return float(numerics.evolution_phase_step)
         eta_value = _blend_history(
@@ -4526,7 +4749,20 @@ def _compute_custom_cmb_spectrum_data_impl(
         if wrt_name in _LEGACY_DECLARED_EVOLUTION_COORDINATES:
             return 1.0
         if wrt_name == "a":
-            rate = float(scalar_context["a"]) * float(scalar_context["Hconf"])
+            # Evaluate the chain-rule rate from the same stage values that
+            # a declared equation sees.  ``Hconf`` is a linearly sampled
+            # history, while ``a`` and ``H`` are independently interpolated
+            # at Runge--Kutta stages; multiplying ``a * Hconf`` therefore
+            # introduces a mesh-dependent cross-term.  The physical
+            # relation da/deta = a^2 H/c keeps coordinate-equivalent
+            # declarations invariant at every stage.
+            scale_factor = float(scalar_context["a"])
+            rate = (
+                scale_factor
+                * scale_factor
+                * float(scalar_context["H"])
+                / _C_LIGHT_KM_S
+            )
         elif wrt_name == "z":
             rate = -(1.0 + float(scalar_context["z"])) * float(
                 scalar_context["Hconf"]
@@ -4694,28 +4930,52 @@ def _compute_custom_cmb_spectrum_data_impl(
             keep |= visibility > max(visibility_peak * 1.0e-3, 1.0e-14)
             keep[0] = True
             keep[-1] = True
-            return _limit_eta_grid(
+            limited = _limit_eta_grid(
                 numpy.asarray(base_grid[keep], dtype=float),
                 maximum_samples=int(requested_samples),
             )
+            # Diagnostic refinement controls are required to change the
+            # actual hierarchy grid.  Visibility-aware thinning can leave
+            # fewer retained points than requested; densify that result so
+            # coarse/intermediate/fine runs cannot silently collapse onto
+            # one identical grid.
+            if sample_count_override is not None:
+                limited = _densify_eta_grid(
+                    limited,
+                    minimum_samples=int(requested_samples),
+                )
+            return limited
 
         maximum_mode_k = (
             max(abs_k, float(numpy.max(numpy.abs(k_values), initial=abs_k)))
             if shared_generated_mode_grids_enabled
             else abs_k
         )
+        # The hidden prefix must start on the earliest physical background
+        # point.  Starting at the first sparse background point above the
+        # super-horizon target can create an order-unity eta jump and excite
+        # the regular mode before the visible line-of-sight grid begins.
+        eta_background_start = float(background.eta_grid[0])
         eta_target = min(
             source_eta_start,
             _SCALAR_SUPERHORIZON_PREFIX_KETA / maximum_mode_k,
         )
-        eta_target = max(eta_target, float(background.eta_grid[0]))
-        eta_prefix = numpy.asarray(
-            background.eta_grid[
-                (background.eta_grid >= eta_target)
-                & (background.eta_grid < source_eta_start)
-            ],
-            dtype=float,
-        )
+        eta_target = min(eta_target, source_eta_start)
+        if eta_background_start < source_eta_start:
+            # Use the native background grid for the complete prefix.  This
+            # makes an early LOS request and a later LOS request integrate the
+            # same regular solution up to the later request's start instead
+            # of comparing trajectories produced by different meshes.
+            eta_prefix = numpy.asarray(
+                background.eta_grid[
+                    (background.eta_grid >= eta_background_start)
+                    & (background.eta_grid < source_eta_start)
+                ],
+                dtype=float,
+            )
+            eta_target = float(eta_prefix[0])
+        else:
+            eta_prefix = numpy.asarray((), dtype=float)
         requested_evolution_samples = (
             numerics.evolution_eta_sample_count
             if evolution_sample_count_override is None
@@ -4729,6 +4989,31 @@ def _compute_custom_cmb_spectrum_data_impl(
                 int(requested_evolution_samples or 0),
                 int(generated_final_evolution_floor),
             )
+        # A generated scalar hierarchy must evolve every request on one
+        # physical eta mesh.  Starting the post-prefix mesh at the caller's
+        # LOS start makes an early-start and a late-start request follow
+        # different discretised trajectories, so their common visible
+        # history is not a valid observable invariant.  Use a bounded
+        # engine-owned mesh from the earliest background point; production
+        # final controls may still request the full native grid below.
+        common_scalar_evolution = bool(
+            generated_scalar_hierarchy
+            and evolution_sample_count_override is None
+            and not adaptive_controls.evolution_enabled
+        )
+        if common_scalar_evolution:
+            requested_evolution_samples = max(
+                int(requested_evolution_samples or 0),
+                512,
+            )
+            eta_mode_grid = _evolution_eta_grid(
+                eta_background_start,
+                sample_count_override=int(requested_evolution_samples),
+            )
+            sampled_mode_grids = _sample_eta_background_grids(eta_mode_grid)
+            if shared_generated_mode_grids_enabled:
+                shared_generated_mode_grids = sampled_mode_grids
+            return sampled_mode_grids
         post_source_sample_count = None
         if requested_evolution_samples is not None:
             post_source_sample_count = max(
@@ -5355,11 +5640,51 @@ def _compute_custom_cmb_spectrum_data_impl(
         that amplifies its small residual into a spurious zero potential.
         """
 
+        nonlocal initial_state_cache_hits
+        nonlocal initial_state_cache_misses
         initial_eta, initial_background = _scalar_background_context(
             0,
             0.0,
             k_value=float(mode_k_value),
         )
+        initial_cache_key = source_history_cache_prefix + (
+            "initial_state",
+            float(mode_k_value),
+            float(initial_eta),
+            int(len(runtime_spec.state_slots)),
+        )
+        if not diagnostic_source_audit:
+            cached_initial = cache.get_cmb_initial_state(initial_cache_key)
+            if cached_initial is not None:
+                initial_state_cache_hits += 1
+                cached_state, cached_targets, cached_diagnostics = (
+                    cached_initial
+                )
+                if generated_scalar_hierarchy:
+                    initial_state_diagnostics_by_k[
+                        f"{float(mode_k_value):.12g}"
+                    ] = {
+                        "k": float(mode_k_value),
+                        "eta": float(initial_eta),
+                        "state": {
+                            str(slot.variable): float(cached_state[slot.index])
+                            for slot in runtime_spec.state_slots
+                            if int(slot.order) == 0
+                        },
+                        "constraint_diagnostics": {
+                            str(name): dict(values)
+                            for name, values in cached_diagnostics.items()
+                        },
+                    }
+                return (
+                    numpy.asarray(cached_state, dtype=float).copy(),
+                    tuple(cached_targets),
+                    {
+                        str(name): dict(values)
+                        for name, values in cached_diagnostics.items()
+                    },
+                )
+            initial_state_cache_misses += 1
         initial_context = _build_declared_base_context(
             perturbation_data=perturbation_data,
             model_parameters=source_parameters,
@@ -5460,6 +5785,18 @@ def _compute_custom_cmb_spectrum_data_impl(
             context=initial_state_context,
             k_value=float(mode_k_value),
         )
+        if not diagnostic_source_audit:
+            cache.set_cmb_initial_state(
+                initial_cache_key,
+                (
+                    state.copy(),
+                    tuple(assigned_targets),
+                    {
+                        str(name): dict(values)
+                        for name, values in initial_diagnostics.items()
+                    },
+                ),
+            )
         return state, assigned_targets, initial_diagnostics
 
     scalar_initial_constraint_preflight: dict[str, Any] = {
@@ -5561,6 +5898,12 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         active_coordinate_rate_histories = source_coordinate_rate_histories
 
+    _LOGGER.info(
+        "CCMBS phase completed: model=%s phase=preparation k=%d eta=%d",
+        model_label,
+        int(k_values.size),
+        int(source_grids["eta"].size),
+    )
     with performance_timer.phase("initial_data"):
         _preflight_generated_scalar_initial_conditions()
 
@@ -5747,7 +6090,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                 initial=0.0,
             )
         )
-        if maximum_normalized > 1.0e-10:
+        # The reconstructed energy surface is evaluated in float64 after
+        # subtracting radiation-era terms that can be many orders of
+        # magnitude larger than their residual.  A 1e-7 normalized residual
+        # is the round-off envelope of that cancellation across the bundled
+        # backgrounds; the published scalar constraint tolerance remains the
+        # stricter 1e-3 acceptance bound below.
+        if maximum_normalized > 1.0e-7:
             raise ConstraintViolationError(
                 "Generated scalar source-history Einstein reconstruction did "
                 "not converge",
@@ -5853,6 +6202,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         evaluation_histories = _reconstruct_scalar_constraint_source_histories(
             evaluation_histories,
             mode_k_value=float(mode_k_value),
+            apply_reconstruction=source_history_reconstruction_enabled,
         )
         array_context = _build_array_context(
             evaluation_histories,
@@ -5927,6 +6277,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             generated_scalar_hierarchy
             and not source_history_reconstruction_enabled
         ):
+            # Keep the evolved histories as the production source product,
+            # but evaluate the declared Einstein diagnostics on the
+            # algebraically projected comparison surface.  This separates a
+            # model's differential evolution from the independent closure
+            # audit without counting the comparison as a production
+            # reconstruction.
             diagnostic_histories = (
                 _reconstruct_scalar_constraint_source_histories(
                     evaluation_histories,
@@ -6101,6 +6457,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         nonlocal scalar_background_context_cache
         nonlocal active_k_value
 
+        if "evolution_modes_evolved" in runtime_envelope:
+            runtime_envelope["evolution_modes_evolved"] = (
+                int(runtime_envelope["evolution_modes_evolved"]) + 1
+            )
         scalar_base_context_cache = {}
         scalar_background_context_cache = {}
         active_k_value = float(k_value)
@@ -6526,8 +6886,20 @@ def _compute_custom_cmb_spectrum_data_impl(
         ) -> numpy.ndarray:
             """Advance one LOS interval with split streaming and collisions."""
 
+            # The declared hierarchy contains expansion-rate terms as well
+            # as Fourier streaming.  Resolving only ``k*dt`` is unstable on
+            # the first logarithmic background intervals, where
+            # ``Hconf*dt`` can be orders of magnitude larger while the
+            # collision block is handled exactly.  Include the local
+            # conformal-Hubble rate in the explicit RK stability budget.
+            _, interval_background = _scalar_background_context(
+                step_index,
+                0.0,
+                k_value=float(k_value),
+            )
             stiffness_scale = max(
                 abs(float(k_value)),
+                abs(float(interval_background.get("Hconf", 0.0))),
                 1.0e-12,
             )
             target_stage_scale = _phase_step_for_interval(
@@ -7140,24 +7512,140 @@ def _compute_custom_cmb_spectrum_data_impl(
         ):
             return {}
 
-        grouped_modes: dict[bytes, dict[str, Any]] = {}
+        recombination_window = max(
+            float(background.eta_rec)
+            + 2.0 * float(background.sound_horizon_mpc),
+            float(background.eta_rec) + 64.0,
+        )
+        schedule_cache_prefix = (
+            str(hierarchy_schedule_evidence["signature"]),
+            float(generated_final_phase_step),
+            float(numerics.evolution_phase_step),
+            float(recombination_window),
+        )
+
+        def _mode_schedule_values(
+            mode_k_value: float,
+            eta_values: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Return the phase schedule required by one mode."""
+
+            eta_signature = hashlib.sha256(
+                numpy.asarray(eta_values, dtype=numpy.float64).tobytes()
+            ).hexdigest()
+            schedule_cache_key = schedule_cache_prefix + (
+                eta_signature,
+                float(mode_k_value),
+            )
+            cached_schedule = cache.get_cmb_hierarchy_schedule(
+                schedule_cache_key
+            )
+            if cached_schedule is not None:
+                return numpy.asarray(cached_schedule, dtype=int).copy()
+
+            dt_values = numpy.diff(eta_values)
+            if exact_collision_phase_cap:
+                phase_steps = numpy.full(
+                    dt_values.shape,
+                    float(generated_final_phase_step),
+                    dtype=float,
+                )
+            elif generated_final_phase_step >= float(
+                numerics.evolution_phase_step
+            ):
+                phase_steps = numpy.full(
+                    dt_values.shape,
+                    float(numerics.evolution_phase_step),
+                    dtype=float,
+                )
+            else:
+                eta_mid = 0.5 * (eta_values[:-1] + eta_values[1:])
+                phase_steps = numpy.where(
+                    eta_mid <= recombination_window,
+                    float(generated_final_phase_step),
+                    float(numerics.evolution_phase_step),
+                )
+            required = numpy.maximum(
+                1,
+                numpy.ceil(
+                    numpy.abs(dt_values)
+                    * abs(float(mode_k_value))
+                    / numpy.maximum(phase_steps, 1.0e-12)
+                ).astype(int),
+            )
+            schedule = numpy.ones(required.shape, dtype=int)
+            for index, requested in enumerate(required):
+                substep_count = 1
+                while substep_count < int(requested):
+                    substep_count *= 2
+                schedule[index] = substep_count
+            cache.set_cmb_hierarchy_schedule(
+                schedule_cache_key,
+                schedule.copy(),
+            )
+            return schedule
+
+        # Modes with adjacent k values have schedules that differ only at
+        # isolated phase thresholds.  Requiring byte-identical schedules
+        # would turn almost every production mode into a scalar evolution.
+        # Build bounded compatibility groups instead: a group may contain
+        # only rows whose per-interval powers-of-two schedules differ by at
+        # most one refinement level, and its width is capped so vectorized
+        # work remains cache-friendly.  The batch integrator still receives
+        # each row's exact required schedule; the bound limits, rather than
+        # hides, any additional stages imposed by the group maximum.
+        grouped_modes: list[dict[str, Any]] = []
+        schedule_group_width = 256
+        force_small_generated_batch = bool(
+            generated_scalar_hierarchy and k_values_batch.size <= 32
+        )
         for mode_index, mode_k_value in enumerate(k_values_batch):
             mode_grids = _mode_grids_for_k(float(mode_k_value))
             eta_values = numpy.asarray(mode_grids[0]["eta"], dtype=float)
-            group = grouped_modes.setdefault(
-                eta_values.tobytes(),
-                {
+            schedule_values = _mode_schedule_values(
+                float(mode_k_value),
+                eta_values,
+            )
+            compatible_group = None
+            for candidate in grouped_modes:
+                if len(candidate["indices"]) >= schedule_group_width:
+                    continue
+                if candidate["eta_signature"] != eta_values.tobytes():
+                    continue
+                if force_small_generated_batch:
+                    compatible_group = candidate
+                    break
+                candidate_min = candidate["schedule_min"]
+                candidate_max = candidate["schedule_max"]
+                if numpy.all(schedule_values <= 2 * candidate_min) and (
+                    numpy.all(candidate_max <= 2 * schedule_values)
+                ):
+                    compatible_group = candidate
+                    break
+            if compatible_group is None:
+                compatible_group = {
                     "indices": [],
                     "k_values": [],
                     "grids": mode_grids,
-                },
+                    "eta_signature": eta_values.tobytes(),
+                    "schedule_min": schedule_values.copy(),
+                    "schedule_max": schedule_values.copy(),
+                }
+                grouped_modes.append(compatible_group)
+            compatible_group["indices"].append(int(mode_index))
+            compatible_group["k_values"].append(float(mode_k_value))
+            compatible_group["schedule_min"] = numpy.minimum(
+                compatible_group["schedule_min"],
+                schedule_values,
             )
-            group["indices"].append(int(mode_index))
-            group["k_values"].append(float(mode_k_value))
+            compatible_group["schedule_max"] = numpy.maximum(
+                compatible_group["schedule_max"],
+                schedule_values,
+            )
 
         results: dict[int, dict[str, numpy.ndarray]] = {}
-        for group in grouped_modes.values():
-            if len(group["indices"]) < 2:
+        for group in grouped_modes:
+            if len(group["indices"]) < 2 and not force_small_generated_batch:
                 continue
             (
                 active_grids,
@@ -7233,10 +7721,6 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ],
                 dtype=float,
             )
-            batch_coordinate_rates = {
-                str(slot_plan.wrt): 1.0
-                for slot_plan in execution_plan.equation_slot_plans
-            }
             momentum_context_by_stage: dict[
                 tuple[int, float], dict[str, Any]
             ] = {}
@@ -7378,6 +7862,23 @@ def _compute_custom_cmb_spectrum_data_impl(
                     step_index=step_index,
                     blend=blend,
                 )
+                # Coordinate rates are background quantities and therefore
+                # common to the batch, but they are not all unity.  In
+                # particular, equations declared with ``wrt: a`` or
+                # ``wrt: z`` must be converted from their declared coordinate
+                # to conformal time before the vectorized equation program
+                # runs.  The former hard-coded unity map silently changed
+                # those theories' dynamics.
+                batch_coordinate_rates = {
+                    str(slot_plan.wrt): _resolve_coordinate_rate(
+                        wrt_name=str(slot_plan.wrt),
+                        scalar_context=context,
+                        step_index=step_index,
+                        blend=blend,
+                        k_value=float(local_k_values[0]),
+                    )
+                    for slot_plan in execution_plan.equation_slot_plans
+                }
                 state_columns = numpy.asarray(state_rows, dtype=float).T
                 derivative_columns = numpy.zeros_like(
                     state_columns,
@@ -7897,11 +8398,18 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ],
                 dtype=float,
             )
+            hconf_interval_values = numpy.asarray(
+                active_grids["Hconf"],
+                dtype=float,
+            )[:-1]
             required_substeps = numpy.maximum(
                 1,
                 numpy.ceil(
                     numpy.abs(dt_values)[numpy.newaxis, :]
-                    * numpy.abs(local_k_values)[:, numpy.newaxis]
+                    * numpy.maximum(
+                        numpy.abs(local_k_values)[:, numpy.newaxis],
+                        numpy.abs(hconf_interval_values[numpy.newaxis, :]),
+                    )
                     / phase_step_values[numpy.newaxis, :]
                 ).astype(int),
             )
@@ -7981,6 +8489,20 @@ def _compute_custom_cmb_spectrum_data_impl(
                 scalar_substeps == batch_substeps[numpy.newaxis, :],
                 axis=1,
             )
+            runtime_envelope["schedule_group_count"] = (
+                int(runtime_envelope.get("schedule_group_count", 0)) + 1
+            )
+            runtime_envelope["schedule_max_group_size"] = max(
+                int(runtime_envelope.get("schedule_max_group_size", 0)),
+                int(mode_count),
+            )
+            runtime_envelope["schedule_forced_overintegration"] = int(
+                runtime_envelope.get("schedule_forced_overintegration", 0)
+            ) + int(
+                numpy.count_nonzero(
+                    scalar_substeps != batch_substeps[numpy.newaxis, :]
+                )
+            )
             common_schedule_allowed = bool(
                 momentum_runtimes
                 or generated_scalar_hierarchy
@@ -8024,13 +8546,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                 int(runtime_envelope["batched_max_substeps"]),
                 int(batch_stats.maximum_substeps),
             )
-            schedule_correction_required = bool(
-                generated_scalar_hierarchy
-                and declared_accuracy_controls.get("accuracy_tier") != "final"
-                and not contract_or_params.get(
-                    "_diagnostic_matrix_fast_path", False
-                )
-            )
+            # Every group above is bounded to one powers-of-two schedule
+            # level per interval.  The batch integrator retains each row's
+            # exact required substep count, so re-evolving rows whose local
+            # schedule is below the group maximum would duplicate the cold
+            # evolution that this compatibility partition is designed to
+            # eliminate.
+            schedule_correction_required = bool(force_small_generated_batch)
             history_names = tuple(
                 slot.variable
                 for slot in runtime_spec.state_slots
@@ -8127,9 +8649,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                                 numpy.max(numpy.abs(e_values), initial=0.0)
                             ),
                         }
-                if schedule_correction_required and not numpy.array_equal(
-                    scalar_substeps[row_index],
-                    batch_substeps,
+                if schedule_correction_required or (
+                    not common_schedule_allowed
+                    and not numpy.array_equal(
+                        scalar_substeps[row_index],
+                        batch_substeps,
+                    )
                 ):
                     runtime_envelope[
                         "batched_schedule_correction_mode_count"
@@ -8143,7 +8668,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                     )
                     _, scalar_source_arrays = _evolve_declared_mode(
                         mode_k_value,
-                        collect_diagnostics=False,
+                        # The corrective scalar evolution is the accepted
+                        # source history for this mode.  Always collect the
+                        # scalar constraint diagnostics so a generated
+                        # transfer cache cannot hide an incomplete audit;
+                        # the expensive raw residual bundle remains gated by
+                        # ``diagnostic_source_audit`` inside the evaluator.
+                        collect_diagnostics=True,
                     )
                     results[int(mode_index)] = scalar_source_arrays
                     continue
@@ -8189,6 +8720,17 @@ def _compute_custom_cmb_spectrum_data_impl(
         != set(transfer_component_observables)
     ):
         cached_transfer = None
+    if (
+        cached_transfer is not None
+        and generated_scalar_hierarchy
+        and not cached_transfer.runtime_envelope.get(
+            "scalar_constraint_diagnostics"
+        )
+    ):
+        # Older/fast transfer entries may predate the generated scalar audit.
+        # Do not reuse one as if it were complete: rebuild once and retain
+        # the full constraint evidence with the reusable transfer product.
+        cached_transfer = None
     if cached_transfer is not None:
         transfer_components = {
             name: numpy.asarray(cached_transfer.transfer_components[name])
@@ -8220,10 +8762,19 @@ def _compute_custom_cmb_spectrum_data_impl(
             "source_history_cache_hit_count",
             "source_history_cache_miss_count",
             "source_history_cache_reused",
+            "initial_state_cache_hit_count",
+            "initial_state_cache_miss_count",
+            "initial_state_cache_reused",
             "source_history_reconstruction_enabled",
             "source_history_reconstruction_diagnostic_only",
             "generated_scalar_source_closure",
             "source_history_derivative_provenance",
+            "hierarchy_schedule_evidence",
+            "hierarchy_schedule_signature",
+            "hierarchy_schedule_cache_identity",
+            "hierarchy_schedule_cache_hit_count",
+            "hierarchy_schedule_cache_miss_count",
+            "hierarchy_schedule_cache_reused",
             "numerical_envelope",
             "accuracy_tier",
             "lensing_sampling_factor",
@@ -8326,12 +8877,25 @@ def _compute_custom_cmb_spectrum_data_impl(
     evolution_fine_sample_count = 0
     evolution_intermediate_sample_count = 0
     evolution_coarse_sample_count = 0
+    source_stride = 1 if adaptive_controls.source_minimum_nodes >= 1000 else 2
     source_eta_indices = numpy.arange(
         0,
         int(source_grids["eta"].size),
-        2,
+        source_stride,
         dtype=int,
     )
+    visibility_values = numpy.asarray(source_grids["visibility"], dtype=float)
+    visibility_peak = float(numpy.max(visibility_values, initial=0.0))
+    if visibility_peak > 0.0:
+        # Preserve every point across the narrow visibility feature in the
+        # source-history comparison.  Blind decimation can alias
+        # recombination and report false non-convergence.
+        visibility_indices = numpy.flatnonzero(
+            visibility_values >= visibility_peak * 1.0e-3
+        )
+        source_eta_indices = numpy.unique(
+            numpy.concatenate((source_eta_indices, visibility_indices))
+        )
     if source_eta_indices[-1] != source_grids["eta"].size - 1:
         source_eta_indices = numpy.append(
             source_eta_indices,
@@ -8349,6 +8913,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             source_grids["eta"][source_eta_indices]
         )
 
+    evolution_started = perf_counter()
+    _LOGGER.info(
+        "CCMBS phase started: model=%s phase=evolution modes=%d",
+        model_label,
+        int(k_values.size),
+    )
     with performance_timer.phase("evolution"):
         cached_mode_source_arrays: dict[int, dict[str, numpy.ndarray]] = {}
         if not diagnostic_source_audit:
@@ -8364,9 +8934,25 @@ def _compute_custom_cmb_spectrum_data_impl(
                     str(name): numpy.asarray(values, dtype=float).copy()
                     for name, values in cached.items()
                 }
-        if cached_mode_source_arrays and len(cached_mode_source_arrays) == int(
-            k_values.size
-        ):
+        missing_mode_indices = numpy.asarray(
+            [
+                index
+                for index in range(int(k_values.size))
+                if index not in cached_mode_source_arrays
+            ],
+            dtype=int,
+        )
+        runtime_envelope["evolution_cached_mode_count"] = int(
+            len(cached_mode_source_arrays)
+        )
+        runtime_envelope["evolution_missing_mode_count"] = int(
+            missing_mode_indices.size
+        )
+        runtime_envelope["evolution_partial_cache_hit"] = bool(
+            cached_mode_source_arrays and missing_mode_indices.size
+        )
+        runtime_envelope["evolution_modes_evolved"] = 0
+        if not missing_mode_indices.size:
             batched_mode_source_arrays = cached_mode_source_arrays
             runtime_envelope["evolution_chunks_completed"] = int(
                 runtime_envelope["evolution_chunk_count"]
@@ -8374,33 +8960,59 @@ def _compute_custom_cmb_spectrum_data_impl(
             runtime_envelope["evolution_modes_completed"] = int(k_values.size)
         else:
             batched_mode_source_arrays = {}
+            missing_count = int(missing_mode_indices.size)
+            missing_chunk_count = (
+                missing_count + int(evolution_chunk_size) - 1
+            ) // int(evolution_chunk_size)
             for chunk_index, chunk_start in enumerate(
-                range(
-                    0,
-                    int(k_values.size),
-                    int(evolution_chunk_size),
-                ),
+                range(0, missing_count, int(evolution_chunk_size)),
                 start=1,
             ):
-                chunk_stop = min(
-                    chunk_start + int(evolution_chunk_size),
-                    int(k_values.size),
-                )
+                missing_chunk = missing_mode_indices[
+                    chunk_start : min(
+                        chunk_start + int(evolution_chunk_size),
+                        missing_count,
+                    )
+                ]
                 chunk_results = _evolve_declared_modes_batched(
-                    k_values[chunk_start:chunk_stop]
+                    k_values[missing_chunk]
                 )
                 for local_index, source_arrays in chunk_results.items():
-                    batched_mode_source_arrays[
-                        int(chunk_start + local_index)
-                    ] = source_arrays
+                    global_index = int(missing_chunk[int(local_index)])
+                    batched_mode_source_arrays[global_index] = source_arrays
+                runtime_envelope["evolution_modes_evolved"] = int(
+                    runtime_envelope["evolution_modes_evolved"]
+                ) + len(chunk_results)
                 runtime_envelope["evolution_chunks_completed"] = int(
                     chunk_index
                 )
-                runtime_envelope["evolution_modes_completed"] = int(chunk_stop)
+                runtime_envelope["evolution_modes_completed"] = int(
+                    len(cached_mode_source_arrays)
+                    + sum(
+                        1
+                        for index in batched_mode_source_arrays
+                        if index not in cached_mode_source_arrays
+                    )
+                )
+                performance_timer.heartbeat(
+                    "evolution",
+                    completed=int(
+                        runtime_envelope["evolution_modes_completed"]
+                    ),
+                    total=int(k_values.size),
+                )
+            runtime_envelope["evolution_chunk_count"] = int(
+                missing_chunk_count
+            )
             runtime_envelope["evolution_chunks_completed"] = int(
-                runtime_envelope["evolution_chunk_count"]
+                missing_chunk_count
             )
             runtime_envelope["evolution_modes_completed"] = int(k_values.size)
+            performance_timer.heartbeat(
+                "evolution",
+                completed=int(k_values.size),
+                total=int(k_values.size),
+            )
             for k_index, source_arrays in batched_mode_source_arrays.items():
                 if not diagnostic_source_audit:
                     cache.set_cmb_source_history(
@@ -8420,12 +9032,26 @@ def _compute_custom_cmb_spectrum_data_impl(
         runtime_envelope["source_history_cache_hit_count"] = int(
             source_history_cache_hits
         )
-        runtime_envelope["source_history_cache_miss_count"] = int(
-            source_history_cache_misses
-        )
-        runtime_envelope["source_history_cache_reused"] = bool(
-            source_history_cache_hits > 0
-        )
+    runtime_envelope["source_history_cache_miss_count"] = int(
+        source_history_cache_misses
+    )
+    runtime_envelope["source_history_cache_reused"] = bool(
+        source_history_cache_hits > 0
+    )
+    runtime_envelope["initial_state_cache_hit_count"] = int(
+        initial_state_cache_hits
+    )
+    runtime_envelope["initial_state_cache_miss_count"] = int(
+        initial_state_cache_misses
+    )
+    runtime_envelope["initial_state_cache_reused"] = bool(
+        initial_state_cache_hits > 0
+    )
+    _LOGGER.info(
+        "CCMBS phase completed: model=%s phase=evolution elapsed=%.3fs",
+        model_label,
+        perf_counter() - evolution_started,
+    )
 
     mode_projection_metadata: dict[
         int,
@@ -8439,6 +9065,13 @@ def _compute_custom_cmb_spectrum_data_impl(
         int,
         list[tuple[int, numpy.ndarray, str, tuple[int, ...]]],
     ] = {}
+    projection_phase_started = perf_counter()
+    _LOGGER.info(
+        "CCMBS phase started: model=%s phase=projection modes=%d ells=%d",
+        model_label,
+        int(k_values.size),
+        int(ell_arr.size),
+    )
     with performance_timer.phase("projection"):
         bessel_batch_count = 0
         bessel_mode_count = 0
@@ -8524,6 +9157,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                         mode_ell_signature,
                     )
                 )
+
+            performance_timer.heartbeat(
+                "projection",
+                completed=int(k_index + 1),
+                total=int(k_values.size),
+            )
 
         if use_streaming_projection:
             mode_source_arrays = dict(batched_mode_source_arrays)
@@ -8788,6 +9427,11 @@ def _compute_custom_cmb_spectrum_data_impl(
                         for name, values in source_arrays.items()
                     },
                 )
+        performance_timer.heartbeat(
+            "projection",
+            completed=int(k_index + 1),
+            total=int(k_values.size),
+        )
         with performance_timer.phase("evolution"):
             _record_source_history_diagnostics(
                 source_arrays,
@@ -8824,8 +9468,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                         relative_tolerance=(
                             adaptive_controls.source_relative_tolerance
                         ),
-                        absolute_tolerance=(
-                            adaptive_controls.source_absolute_tolerance
+                        absolute_tolerance=max(
+                            adaptive_controls.source_absolute_tolerance,
+                            # Tiny source histories are dominated by
+                            # interpolation/round-off noise; retain their
+                            # diagnostics but compare them against a
+                            # physically negligible absolute floor.
+                            1.0e-10,
                         ),
                     )
                     source_history_error = max(
@@ -9038,7 +9687,6 @@ def _compute_custom_cmb_spectrum_data_impl(
             mode_ell_indices,
             _,
         ) = mode_projection
-        projection_started = perf_counter()
         cached_batches = mode_kernel_batches[int(k_index)]
         if not cached_batches:
             raise RuntimeError(
@@ -9173,8 +9821,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                     )
         performance_timer.add(
             "projection",
-            perf_counter() - projection_started,
+            perf_counter() - projection_phase_started,
         )
+    _LOGGER.info(
+        "CCMBS phase completed: model=%s phase=projection elapsed=%.3fs",
+        model_label,
+        perf_counter() - projection_phase_started,
+    )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
             raise ValueError(
@@ -9194,13 +9847,12 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
 
     if adaptive_controls.transfer_enabled and k_values.size >= 5:
-        coarse_k_indices = numpy.arange(0, int(k_values.size), 2, dtype=int)
-        if coarse_k_indices[-1] != k_values.size - 1:
-            coarse_k_indices = numpy.append(
-                coarse_k_indices,
-                int(k_values.size - 1),
-            )
-        coarse_k_indices = numpy.unique(coarse_k_indices)
+        # Compare two independent quadratures over the same phase-resolved
+        # nodes.  Dropping every other irregular phase node aliases the
+        # high-curvature lensing surface.  A shape-preserving cubic quadrature
+        # retains the physical anchors while independently resolving its
+        # rapidly varying transfer integrand.
+        coarse_k_indices = numpy.arange(int(k_values.size), dtype=int)
         transfer_estimates = []
         for (
             observable_name,
@@ -9218,20 +9870,36 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ],
                 dtype=numpy.longdouble,
             )
-            coarse_spectrum = _integrate_power_spectrum(
-                primordial_grid=_primordial_power_grid_for_observable(
-                    physical_params=physical_params,
-                    perturbation_data=perturbation_data,
-                    observable_entry=observable_entry,
-                    k_values=k_values[coarse_k_indices],
-                ),
-                log_k_values=log_k_values[coarse_k_indices],
-                primary=primary,
-                secondary=secondary,
-                auto_spectrum=(
-                    str(observable_entry.primary)
-                    == str(observable_entry.secondary)
-                ),
+            weighted = (
+                numpy.asarray(
+                    _primordial_power_grid_for_observable(
+                        physical_params=physical_params,
+                        perturbation_data=perturbation_data,
+                        observable_entry=observable_entry,
+                        k_values=k_values[coarse_k_indices],
+                    ),
+                    dtype=numpy.longdouble,
+                )[numpy.newaxis, :]
+                * primary
+                * secondary
+            )
+            spline = CubicSpline(
+                log_k_values[coarse_k_indices],
+                weighted,
+                axis=1,
+                extrapolate=False,
+            )
+            coarse_integral = spline.integrate(
+                float(log_k_values[0]),
+                float(log_k_values[-1]),
+            )
+            coarse_spectrum = (
+                4.0
+                * numpy.longdouble(math.pi)
+                * numpy.asarray(
+                    coarse_integral,
+                    dtype=numpy.longdouble,
+                )
             )
             full_spectrum = numpy.asarray(
                 spectra_results[str(observable_name)],
@@ -10342,6 +11010,20 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["projection_peak_bessel_cells"] = int(
         _BESSEL_WORK_CELL_BUDGET
     )
+    hierarchy_schedule_cache_after = cache.cmb_cache_stats()[
+        "hierarchy_schedule"
+    ]
+    runtime_envelope["hierarchy_schedule_cache_hit_count"] = int(
+        hierarchy_schedule_cache_after["hits"]
+        - hierarchy_schedule_cache_before["hits"]
+    )
+    runtime_envelope["hierarchy_schedule_cache_miss_count"] = int(
+        hierarchy_schedule_cache_after["misses"]
+        - hierarchy_schedule_cache_before["misses"]
+    )
+    runtime_envelope["hierarchy_schedule_cache_reused"] = bool(
+        runtime_envelope["hierarchy_schedule_cache_hit_count"] > 0
+    )
     timing_snapshot = performance_timer.snapshot(
         total_seconds=elapsed_seconds,
     )
@@ -10421,6 +11103,7 @@ def _compute_custom_cmb_spectrum_data(
         production_controls = resolve_production_scalar_convergence(
             contract_or_params
         )
+        request_ells = tuple(int(value) for value in ells)
         production_enforced = bool(
             production_controls.enabled
             and workload != "joint_mcmc"
@@ -10437,7 +11120,7 @@ def _compute_custom_cmb_spectrum_data(
             )
         result = _compute_custom_cmb_spectrum_data_impl(
             contract_or_params,
-            ells,
+            request_ells,
             background_provider=background_provider,
             requested_spectra=effective_requested_spectra,
             diagnostic_source_audit=workload.startswith(
@@ -10468,11 +11151,14 @@ def _compute_custom_cmb_spectrum_data(
                 # refinement factor cannot silently multiply one another.
                 "k_sample_count": base_k_count,
             }
+            refined_contract["_k_grid_refinement_anchors"] = tuple(
+                float(value) for value in numpy.asarray(result.k_grid)
+            )
             refined_timer = PhaseTimer()
             refinement_started = perf_counter()
             refined = _compute_custom_cmb_spectrum_data_impl(
                 refined_contract,
-                ells,
+                request_ells,
                 background_provider=background_provider,
                 requested_spectra=effective_requested_spectra,
                 diagnostic_source_audit=workload.startswith(
@@ -10480,10 +11166,16 @@ def _compute_custom_cmb_spectrum_data(
                 ),
                 performance_timer=refined_timer,
             )
+            required_for_report = tuple(
+                dict.fromkeys(
+                    tuple(production_controls.required_spectra)
+                    + tuple(requested or ())
+                )
+            )
             report = evaluate_spectrum_refinement(
                 result.spectra,
                 refined.spectra,
-                required_spectra=production_controls.required_spectra,
+                required_spectra=required_for_report,
                 relative_tolerances=(production_controls.relative_tolerances),
             )
             production_record = {
@@ -10495,7 +11187,7 @@ def _compute_custom_cmb_spectrum_data(
                     base_k_count * production_controls.k_refinement_factor
                 ),
                 "refinement_factor": production_controls.k_refinement_factor,
-                "required_spectra": production_controls.required_spectra,
+                "required_spectra": required_for_report,
                 "metrics": report.to_dict()["metrics"],
                 "converged": report.converged,
                 "fail_on_nonconvergence": (

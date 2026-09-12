@@ -169,19 +169,6 @@ cmb:
   grids: {}
   values: {}
   calls: []
-  numerical:
-    ell_min: 2
-    ell_max: 2000
-    k_min: 0.0001
-    k_max: 0.3
-    k_sample_count: 64
-    eta_sample_count: 192
-    ode_rtol: 1.0e-05
-    ode_atol: 1.0e-08
-    tight_coupling_ratio: 80.0
-    a_min: 1.0e-06
-    source_grid_multiplier: 2
-    initial_redshift: 2.0e4
   background:
     derived:
       h: H0 / 100.0
@@ -314,30 +301,25 @@ cmb:
         species:
         - photon
         closure: free_streaming_scalar
-        default_l_max: 8
         multipole_symbol: theta_gamma_l
       photon_polarization_e:
         sector: scalar
         species:
         - photon
         closure: free_streaming_scalar
-        default_l_max: 8
         multipole_symbol: e_gamma_l
       massless_neutrino:
         sector: scalar
         species:
         - massless_neutrino
         closure: free_streaming_scalar
-        default_l_max: 5
         multipole_symbol: nu_l
       massive_neutrino:
         sector: scalar
         species:
         - massive_neutrino
         closure: free_streaming_scalar
-        default_l_max: 5
         multipole_symbol: nu_massive_l
-        momentum_grid: massive_neutrino_default
     collision_operators:
       thomson_drag:
         sector: scalar
@@ -370,12 +352,6 @@ cmb:
         - transfer_component
         parity: even
         spin: 0.0
-    accuracy_controls:
-      minimum_k_sample_count: 64
-      scalar_reference_ells:
-      - 2
-      - 2000
-      runtime_envelope: bounded
     variables: {}
     derived: {}
     equations: {}
@@ -385,26 +361,6 @@ cmb:
     observables: {}
     initial_conditions: {}
     boundary_conditions: {}
-    numerics:
-      ell_min: 2
-      ell_max: 2000
-      k_min: 0.0001
-      k_max: 0.3
-      k_sample_count: 64
-      eta_sample_count: 192
-      ode_rtol: 1.0e-05
-      ode_atol: 1.0e-08
-      tight_coupling_ratio: 80.0
-      a_min: 1.0e-06
-      source_grid_multiplier: 2
-      initial_redshift: 2.0e4
-      massive_neutrino_hierarchy_l_max: 5
-      momentum_grids:
-        massive_neutrino_default:
-          count: 8
-          q_min: 0.05
-          q_max: 18.0
-          mass_parameter: sum_mnu
     validity:
       regimes:
       - linear

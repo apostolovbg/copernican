@@ -292,19 +292,6 @@ cmb:
   grids: {}
   values: {}
   calls: []
-  numerical:
-    ell_min: 2
-    ell_max: 2000
-    k_min: 0.0001
-    k_max: 0.3
-    k_sample_count: 64
-    eta_sample_count: 192
-    ode_rtol: 1.0e-05
-    ode_atol: 1.0e-08
-    tight_coupling_ratio: 80.0
-    a_min: 1.0e-06
-    source_grid_multiplier: 2
-    initial_redshift: 2.0e4
   background:
     derived:
       h: H0 / 100.0
@@ -386,51 +373,19 @@ cmb:
         species:
         - photon
         closure: free_streaming_scalar
-        default_l_max: 8
         multipole_symbol: theta_gamma_l
       photon_polarization_e:
         sector: scalar
         species:
         - photon
         closure: free_streaming_scalar
-        default_l_max: 8
         multipole_symbol: e_gamma_l
       massless_neutrino:
         sector: scalar
         species:
         - massless_neutrino
         closure: free_streaming_scalar
-        default_l_max: 5
         multipole_symbol: nu_l
-    accuracy_controls:
-      minimum_k_sample_count: 64
-      scalar_reference_ells:
-      - 2
-      - 2000
-      closure_status: production
-      production_scalar_convergence:
-        enabled: true
-        k_refinement_factor: 2
-        required_spectra:
-        - TT
-        - TE
-        - EE
-        - PP
-        relative_tolerances:
-          TT: 1.0e-2
-          TE: 5.0e-2
-          EE: 1.0e-2
-          PP: 1.0e-1
-        fail_on_nonconvergence: true
-      analytic_limits:
-        homogeneous_mode: acoustic_k -> 0; regular rates remain finite
-        no_shrink_mode: shrink_field -> 0; metric response is baryon-only
-        zero_shear_mode: Psi - Phi -> 0 under the declared closure
-      validated_requirements:
-      - shrink-field constraint residual is explicit over the declared k grid
-      - homogeneous and no-shrink analytic limits are contract-tested
-      - photon and neutrino hierarchy boundaries are explicit closure nodes
-      runtime_envelope: bounded
     variables:
       shrink_field:
         kind: scale_factor_perturbation
@@ -1169,19 +1124,6 @@ cmb:
         spin: 0.0
         description: Scalar temperature projection typing.
         notes: "provenance: Declared projection convention."
-    numerics:
-      ell_min: 2
-      ell_max: 2000
-      k_min: 0.0001
-      k_max: 0.3
-      k_sample_count: 64
-      eta_sample_count: 192
-      ode_rtol: 1.0e-05
-      ode_atol: 1.0e-08
-      tight_coupling_ratio: 80.0
-      a_min: 1.0e-06
-      source_grid_multiplier: 2
-      initial_redshift: 2.0e4
     validity:
       regimes:
       - linear

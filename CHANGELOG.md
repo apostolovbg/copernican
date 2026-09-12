@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-09
+**Last Updated:** 2026-09-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,530 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-12:
+  Change: Added automatic hierarchy schedule evidence and bounded caches for
+  declared initial states and phase schedules.
+  Why: Completed the hierarchy, collision, and initial-data slice without
+  re-evolving compatible modes or hiding declaration-defined schedules.
+  Impact: CCMBS records deterministic family/collision/initial partitions,
+  reuses complete-identity products, and exposes focused acceptance evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+
+- 2026-09-12:
+  Change: Added explicit fast and scientific test tiers with runtime reuse
+  requirements for hierarchy, projection, post-processing, corpus, parity,
+  and end-to-end slices.
+  Why: Clarified necessary production-resolution evidence against avoidable
+  duplicate cold computation during development runs.
+  Impact: Future slices preserve full scientific acceptance while reporting
+  per-test/per-request cost and requiring cache-backed execution evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-09-12:
+  Change: Corrected q-resolved massive-neutrino normalization and deferred
+  malformed-grid validation to the momentum-grid boundary.
+  Why: The full run exposed light-mass density scaling and validation timing
+  regressions, plus a narrow scalar constraint cancellation envelope.
+  Impact: Absolute q-moment references use the declared mass normalization,
+  invalid grids fail at their contract boundary, and boundary histories
+  remain within the engine tolerance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-12:
+  Change: Added automatic background refinement, q-resolved neutrino
+  density/pressure closure, and an opacity-derived BAO drag ruler.
+  Why: Aligned background and drag resolution with the engine-owned thermal
+  neutrino moments shared by perturbation evolution.
+  Impact: Production backgrounds record converged raw evidence across mass
+  and `N_eff` anchors while BAO remains independent of the CMB entry point.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-11:
+  Change: Hardened exact collision phase control and momentum-grid floor
+  validation in the declared CMB runtime.
+  Why: Full-run regressions exposed phase-sensitive TE/EE drift and a
+  duplicated legacy grid declaration that could bypass an accuracy floor.
+  Impact: Split collision evolution uses a stable engine phase budget, and
+  short declared massive-neutrino grids fail explicitly before execution.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-11:
+  Change: Verified adaptive CMB planning, hierarchy stabilization, and
+  projection diagnostics across the declared model surface.
+  Why: Reconciled the latest focused acceptance fixes with the gate's
+  current-day documentation and changelog requirements.
+  Impact: The staged solver, model, diagnostic, test, and documentation
+  changes are traceable as one verified work session.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-10:
+  Change: Corrected legacy request precedence, vector hierarchy floors, and
+  scalar constraint cancellation limits.
+  Why: Focused acceptance failures exposed stale nested controls, sparse
+  vector truncation sensitivity, and a valid boundary residual envelope.
+  Impact: Diagnostic requests honor explicit surfaces, vector refinements
+  converge, and reference scalar audits remain finite without model changes.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_adapter.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-10:
+  Change: Corrected adaptive projection caps, coordinate-rate transforms,
+  generated scalar closure diagnostics, and frozen runtime reuse.
+  Why: Fixed bounded refinement requests, mixed-coordinate evolution, and
+  TORG closure audits without hiding production source histories.
+  Impact: Declared CMB surfaces retain their requested grids, finite
+  coordinate-equivalent responses, and complete scalar constraint evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-10:
+  Change: Stabilized generated hierarchy refinement and engine-owned scalar
+  constraint planning while preserving batched production evolution.
+  Why: Production CCMBS diagnostics exposed expansion-stiffness instability,
+  under-enforced scalar closure evidence, and non-serializable manifest values.
+  Impact: Declared spectra remain finite and converged, scalar closure
+  diagnostics carry explicit acceptance controls, and manifests serialize
+  reliably without model solver knobs.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/lensing.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-09:
+  Change: Completed bounded schedule grouping and partial source reuse for
+  production CCMBS evolution.
+  Why: Replaced exact schedule matching and repaired partial cache reuse so
+  high-resolution modes avoid redundant scalar evolution.
+  Impact: Enabled compatible vectorized evolution, bounded stage overhead,
+  and exposed progress for long requests without duplicate work.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-09:
+  Change: Amended Slice One to require measurable CMB runtime performance
+  closure and non-duplicated evolution work.
+  Why: The full test workflow spent hours in unprofiled cold integrations,
+  including redundant batched modes and ineffective partial cache reuse.
+  Impact: Future implementation must publish per-test telemetry, repair
+  cache and schedule reuse, and keep scientific acceptance explicit.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-09:
+  Change: Updated Slice One and separated planner decisions from graph
+  compilation while consolidating background grids.
+  Why: Full-suite evidence exposed synthetic controls crossing the compiler
+  boundary and duplicate eta work multiplying cold-spectrum cost.
+  Impact: Restored pure declaration compilation and bounded automatic runtime
+  preparation without changing model equations.
+  Files:
+  PLAN.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/run_manifest.py
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-09:
+  Change: Implemented engine-owned automatic CMB numerical planning.
+  Why: Removed solver controls from bundled theory declarations and routed
+  resolution decisions through the physical graph and request shape.
+  Impact: Exposed pure mathematical declarations with deterministic runtime
+  grids, hierarchy decisions, and planner evidence.
+  Files:
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  copernican/docs/model_template.yml
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  PLAN.md
+  README.md
+  copernican/README.md
 
 - 2026-09-09:
   Change: Updated the public CMB regression contract for exported helpers.

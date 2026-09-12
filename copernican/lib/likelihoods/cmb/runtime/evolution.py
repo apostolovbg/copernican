@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
+import json
 import keyword
 import os
 from dataclasses import dataclass
@@ -208,6 +210,189 @@ class BatchedEvolutionStats:
     rk_stage_count: int
     substep_count: int
     maximum_substeps: int
+
+
+def describe_declared_execution_schedule(
+    perturbation_data: Any,
+    execution_plan: Any | None = None,
+) -> dict[str, Any]:
+    """Describe the compiled hierarchy, collision, and initial-data schedule.
+
+    This is structural evidence only.  It is derived from the compiled
+    declaration and execution plan, so it remains independent of model names
+    and request-local numerical overrides.  The projection runtime records it
+    beside measured work and cache evidence.
+    """
+
+    if execution_plan is None:
+        execution_plan = _compile_declared_graph_execution_plan(
+            perturbation_data
+        )
+    families = getattr(perturbation_data, "hierarchy_families", {}) or {}
+    family_rows = []
+    for name, entry in sorted(families.items(), key=lambda item: str(item[0])):
+        family_rows.append(
+            {
+                "name": str(name),
+                "sector": str(getattr(entry, "sector", "") or ""),
+                "species": tuple(
+                    sorted(
+                        str(value) for value in getattr(entry, "species", ())
+                    )
+                ),
+                "closure": str(getattr(entry, "closure", "") or ""),
+                "multipole_symbol": str(
+                    getattr(entry, "multipole_symbol", "") or ""
+                ),
+                "momentum_grid": str(
+                    getattr(entry, "momentum_grid", "") or ""
+                ),
+            }
+        )
+    collision_rows = []
+    collisions = getattr(perturbation_data, "collision_operators", {}) or {}
+    for name, entry in sorted(
+        collisions.items(), key=lambda item: str(item[0])
+    ):
+        linear_form = getattr(entry, "exact_form", None) or getattr(
+            entry, "linear_block", None
+        )
+        matrix = getattr(linear_form, "matrix", ()) if linear_form else ()
+        targets = getattr(linear_form, "targets", ()) if linear_form else ()
+        collision_rows.append(
+            {
+                "name": str(name),
+                "sector": str(getattr(entry, "sector", "") or ""),
+                "species": tuple(
+                    sorted(
+                        str(value) for value in getattr(entry, "species", ())
+                    )
+                ),
+                "integration_strategy": str(
+                    getattr(entry, "integration_strategy", "explicit")
+                ),
+                "activation_strategy": str(
+                    getattr(entry, "activation_strategy", "always")
+                ),
+                "counterpart": str(getattr(entry, "counterpart", "") or ""),
+                "rate_dependencies": tuple(
+                    sorted(
+                        str(value)
+                        for value in getattr(entry, "rate_dependencies", ())
+                    )
+                ),
+                "target_count": int(len(targets)),
+                "matrix_shape": (
+                    int(len(matrix)),
+                    int(len(matrix[0])) if matrix else 0,
+                ),
+                "exact": bool(getattr(entry, "exact_form", None) is not None),
+                "linear": bool(
+                    getattr(entry, "linear_block", None) is not None
+                ),
+            }
+        )
+    initial_entries = tuple(
+        sorted(
+            (
+                getattr(perturbation_data, "initial_conditions", {}) or {}
+            ).values(),
+            key=lambda entry: str(getattr(entry, "name", "")),
+        )
+    )
+    boundary_entries = tuple(
+        sorted(
+            (
+                getattr(perturbation_data, "boundary_conditions", {}) or {}
+            ).values(),
+            key=lambda entry: str(getattr(entry, "name", "")),
+        )
+    )
+    initial_rows = tuple(
+        {
+            "name": str(getattr(entry, "name", "")),
+            "anchor": "start",
+            "target": str(
+                getattr(getattr(entry, "target", None), "variable", "")
+            ),
+            "dependencies": tuple(
+                sorted(
+                    str(value) for value in getattr(entry, "dependencies", ())
+                )
+            ),
+        }
+        for entry in (*initial_entries,)
+    ) + tuple(
+        {
+            "name": str(getattr(entry, "name", "")),
+            "anchor": str(getattr(entry, "anchor", "start")),
+            "target": str(
+                getattr(getattr(entry, "target", None), "variable", "")
+            ),
+            "dependencies": tuple(
+                sorted(
+                    str(value) for value in getattr(entry, "dependencies", ())
+                )
+            ),
+        }
+        for entry in boundary_entries
+    )
+    state_slots = tuple(
+        {
+            "variable": str(slot.variable),
+            "wrt": str(slot.wrt),
+            "order": int(slot.order),
+        }
+        for slot in execution_plan.runtime_spec.state_slots
+    )
+    mode_partitions: dict[str, list[str]] = {
+        "scalar": [],
+        "vector": [],
+        "tensor": [],
+        "q_resolved": [],
+    }
+    for row in family_rows:
+        family_name = row["name"].lower()
+        if "tensor" in family_name:
+            partition = "tensor"
+        elif "vector" in family_name:
+            partition = "vector"
+        else:
+            partition = "scalar"
+        mode_partitions[partition].append(row["name"])
+        if row["momentum_grid"]:
+            mode_partitions["q_resolved"].append(row["name"])
+    mode_partitions = {
+        key: sorted(values)
+        for key, values in mode_partitions.items()
+        if values
+    }
+    payload = {
+        "evolution_variable": str(
+            execution_plan.runtime_spec.evolution_variable
+        ),
+        "state_slots": state_slots,
+        "families": tuple(family_rows),
+        "collisions": tuple(collision_rows),
+        "initial_conditions": initial_rows,
+        "mode_partitions": mode_partitions,
+    }
+    signature = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=list).encode("utf-8")
+    ).hexdigest()[:24]
+    return {
+        "signature": signature,
+        "evolution_variable": payload["evolution_variable"],
+        "state_slot_count": int(len(state_slots)),
+        "equation_count": int(
+            len(getattr(perturbation_data, "equations", {}) or {})
+        ),
+        "hierarchy_families": tuple(family_rows),
+        "collision_schedules": tuple(collision_rows),
+        "initial_condition_schedule": initial_rows,
+        "mode_partitions": mode_partitions,
+        "cache_identity": "compiled_graph_and_declared_physics",
+    }
 
 
 def _integrate_batched_rk4(
@@ -894,6 +1079,33 @@ def _normalize_declared_momentum_weights(
     )
 
 
+def _log_grid_quadrature_weights(
+    count: int,
+    log_min: float,
+    log_max: float,
+) -> numpy.ndarray:
+    """Return positive trapezoidal weights on a log-momentum grid.
+
+    The q nodes are endpoint-inclusive and logarithmically spaced.  Keeping
+    the physical trapezoid rule here is important: the same positive weights
+    drive both the declared Fermi--Dirac moments and the q-resolved
+    perturbation hierarchy, so changing the rule changes the model rather
+    than merely improving an integration estimate.
+    """
+
+    point_count = int(count)
+    if point_count < 2:
+        raise ValueError("Momentum quadrature requires at least two nodes")
+    spacing = (float(log_max) - float(log_min)) / float(point_count - 1)
+    weights = numpy.full(point_count, spacing, dtype=float)
+    weights[[0, -1]] *= 0.5
+    if not numpy.all(numpy.isfinite(weights)) or numpy.any(weights <= 0.0):
+        raise ValueError(
+            "Momentum quadrature produced invalid positive weights"
+        )
+    return numpy.asarray(weights, dtype=float)
+
+
 def _validate_declared_momentum_grid_definition(
     grid_name: str,
     grid_def: Mapping[str, Any],
@@ -1401,13 +1613,11 @@ def _resolve_declared_momentum_grid_runtimes(
                     f"momentum grid '{grid_name}' produced invalid q nodes"
                 )
             log_points = numpy.log(points)
-            weights = numpy.empty_like(points)
-            deltas = numpy.diff(log_points)
-            weights[0] = 0.5 * deltas[0]
-            weights[-1] = 0.5 * deltas[-1]
-            if points.size > 2:
-                weights[1:-1] = 0.5 * (deltas[:-1] + deltas[1:])
-            weights = numpy.asarray(weights, dtype=float)
+            weights = _log_grid_quadrature_weights(
+                int(points.size),
+                float(log_points[0]),
+                float(log_points[-1]),
+            )
             if not numpy.all(numpy.isfinite(weights)) or numpy.any(
                 weights <= 0.0
             ):
@@ -1651,46 +1861,61 @@ def _declared_momentum_grid_context(
     def _massive_neutrino_omega0(
         runtime: _DeclaredMomentumGridRuntime,
         total_mass_eV: float,
+        density_moment_today: float,
     ) -> float:
-        """Return the present massive-neutrino density fraction."""
+        """Return the q-integrated present massive density fraction.
 
-        del runtime
+        The q-integrated moment supplies the smooth relativistic-to-matter
+        evolution, while the declared total mass fixes the present massive
+        density whenever a non-zero mass is declared.  This preserves the
+        standard ``sum(m_nu)/93.14`` normalization even for very light
+        non-zero species; an exactly massless declaration remains radiation.
+        """
 
+        neutrino_count = max(
+            float(model_parameters.get("num_massive_neutrinos", 1)),
+            1.0e-30,
+        )
+        effective_neff = max(
+            float(physical_params.Neff or neutrino_count),
+            1.0e-30,
+        )
+        effective_massive_species = min(effective_neff, neutrino_count)
+        if effective_massive_species <= 0.0:
+            return 0.0
         if total_mass_eV > 0.0:
-            neutrino_count = max(
-                float(model_parameters.get("num_massive_neutrinos", 1)),
-                1.0e-30,
-            )
-            effective_neff = max(
-                float(physical_params.Neff or 0.0),
-                1.0e-30,
-            )
-            effective_massive_species = 0.5 * (
-                effective_neff
-                + neutrino_count
-                - abs(effective_neff - neutrino_count)
-            )
-            species_fraction = effective_massive_species / neutrino_count
             return (
-                species_fraction
+                effective_massive_species
+                / neutrino_count
                 * total_mass_eV
                 / (
                     _NEUTRINO_DENSITY_EV_H2
                     * max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
                 )
             )
-        neutrino_count = max(
-            float(model_parameters.get("num_massive_neutrinos", 1)),
-            0.0,
+        massless_density_moment = float(
+            numpy.sum(
+                _prepare_declared_momentum_static_terms(
+                    tuple(float(value) for value in runtime.points),
+                    tuple(float(value) for value in runtime.weights),
+                    0.0,
+                )[1]
+                * runtime.points
+            )
         )
-        effective_neff = max(float(physical_params.Neff or 0.0), 1.0e-30)
-        effective_massive_species = 0.5 * (
-            effective_neff
-            + neutrino_count
-            - abs(effective_neff - neutrino_count)
-        )
-        return max(float(physical_params.Omega_nu0 or 0.0), 0.0) * (
-            effective_massive_species / effective_neff
+        if not numpy.isfinite(massless_density_moment) or (
+            massless_density_moment <= 0.0
+        ):
+            raise ValueError(
+                "Massive-neutrino massless density moment is invalid"
+            )
+        energy_ratio = float(density_moment_today) / massless_density_moment
+        if not numpy.isfinite(energy_ratio) or energy_ratio <= 0.0:
+            raise ValueError("Massive-neutrino q energy ratio is invalid")
+        return (
+            max(float(physical_params.Omega_nu0 or 0.0), 0.0)
+            * (effective_massive_species / effective_neff)
+            * energy_ratio
         )
 
     for runtime in runtimes:
@@ -1708,6 +1933,15 @@ def _declared_momentum_grid_context(
             tuple(float(value) for value in runtime.weights),
             mass_ratio_today,
         )
+        massless_density_moment = float(
+            numpy.sum(density_weight_base * runtime.points)
+        )
+        if not numpy.isfinite(massless_density_moment) or (
+            massless_density_moment <= 0.0
+        ):
+            raise ValueError(
+                "Massive-neutrino massless density moment is invalid"
+            )
         mass_term = mass_ratio_today * a_values
         epsilon = numpy.sqrt(
             numpy.square(runtime.points) + numpy.square(mass_term[..., None])
@@ -1732,6 +1966,7 @@ def _declared_momentum_grid_context(
         massive_omega0 = _massive_neutrino_omega0(
             runtime,
             total_mass_eV,
+            density_moment_today,
         )
         scale_factor_array = numpy.maximum(a_values, 1.0e-30)
         density_fraction = (
@@ -1795,6 +2030,7 @@ def _declared_momentum_grid_context(
         context[f"{prefix}_background_density_moment"] = _context_value(
             background_density_moment
         )
+        context[f"{prefix}_massless_density_moment"] = massless_density_moment
         context[f"{prefix}_background_pressure_moment"] = _context_value(
             background_pressure_moment
         )
@@ -1813,6 +2049,10 @@ def _declared_momentum_grid_context(
             ("pressure_fraction", pressure_fraction),
             ("momentum_fraction", momentum_fraction),
             ("shear_fraction", shear_fraction),
+            (
+                "density_energy_ratio",
+                float(density_moment_today) / massless_density_moment,
+            ),
         ):
             normalized = numpy.asarray(value, dtype=float)
             if normalized.ndim == 0:
@@ -1903,6 +2143,7 @@ def _declared_momentum_grid_context(
         ):
             for name in (
                 "mass_eV",
+                "massless_density_moment",
                 "background_density_moment",
                 "background_pressure_moment",
                 "background_momentum_moment",
@@ -1915,6 +2156,7 @@ def _declared_momentum_grid_context(
                 "pressure_fraction",
                 "momentum_fraction",
                 "shear_fraction",
+                "density_energy_ratio",
             ):
                 context[f"massive_neutrino_{name}"] = context[
                     f"{prefix}_{name}"

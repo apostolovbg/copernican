@@ -698,8 +698,9 @@ def _audit_plugin(plugin: Any) -> CMBContractAudit:
     if reference_values and ell_min is not None and ell_max is not None:
         if min(reference_values) < ell_min or max(reference_values) > ell_max:
             issues.append("scalar_reference_ells must lie within ell bounds")
-    if not accuracy_controls.get("runtime_envelope"):
-        issues.append("runtime_envelope must be declared")
+    # Runtime envelopes and numerical budgets are engine-owned.  A model
+    # declaration is audited for its physical graph and finite domains; it is
+    # not required to embed a machine-dependent execution policy.
     return CMBContractAudit(
         model_filename=model_filename,
         model_name=model_name,

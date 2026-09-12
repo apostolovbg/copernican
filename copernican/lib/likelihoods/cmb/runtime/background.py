@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
-from dataclasses import astuple, dataclass, field
+from dataclasses import astuple, dataclass, field, replace
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
@@ -386,8 +386,15 @@ def _resolve_declared_background_context(
     *,
     a_values: Any,
     z_values: Any,
+    include_q_resolved: bool = True,
 ) -> dict[str, Any]:
-    """Return the resolved declared background graph context."""
+    """Return the resolved declared background graph context.
+
+    ``include_q_resolved`` is disabled while resolving the scalar physical
+    parameter contract.  That stage must be able to read the declared
+    algebraic background even when a later momentum-grid validation is the
+    operation expected to report a malformed q definition.
+    """
 
     env: dict[str, Any] = {
         "a": a_values,
@@ -412,11 +419,251 @@ def _resolve_declared_background_context(
             "background_runtime. Prepare the runtime through model_coder "
             "before likelihood evaluation."
         )
-    return _evaluate_declared_symbol_plan(
+    resolved = _evaluate_declared_symbol_plan(
         getattr(background_runtime, "derived_plan", ()),
         base_context=env,
         label="background.derived",
     )
+    # Massive-neutrino background terms are evaluated by the same thermal
+    # q quadrature that supplies the perturbation hierarchy.  A declaration
+    # may still expose algebraic neutrino terms for readability, but those
+    # terms are only a provisional graph input: once a q family is present,
+    # replace its present density and the compensating dark-energy closure,
+    # and rebuild H(a) with the smooth q-resolved density.  Keeping this
+    # normalization in the shared context means direct background diagnostics
+    # and the full CMB runtime observe exactly the same physical history.
+    perturbation_data = contract.get("perturbation_data")
+    if perturbation_data is not None and include_q_resolved:
+        try:
+            from types import SimpleNamespace
+
+            from .evolution import _declared_momentum_grid_context
+
+            def _scalar(name: str, default: float = 0.0) -> float:
+                """Read one scalar from the resolved background context."""
+
+                value = resolved.get(name, env.get(name, default))
+                array = numpy.asarray(value, dtype=float)
+                if array.size == 0:
+                    return float(default)
+                return float(array.reshape(-1)[-1])
+
+            physical_stub = SimpleNamespace(
+                hubble_ratio=_scalar(
+                    "h",
+                    _scalar("H0", _scalar("H_0", 100.0)) / 100.0,
+                ),
+                Omega_nu0=_scalar("Omega_nu0", 0.0),
+                Neff=_scalar("Neff", 0.0),
+                Tcmb_K=_scalar("Tcmb_K", _scalar("Tcmb", 2.7255)),
+            )
+            q_context = _declared_momentum_grid_context(
+                perturbation_data,
+                model_parameters=(contract.get("param_map", {}) or {}),
+                physical_params=physical_stub,
+                scale_factor=numpy.asarray(a_values, dtype=float),
+            )
+            exact_density = q_context.get("massive_neutrino_density_fraction")
+            if exact_density is not None and "Omega_nu_massive0" in resolved:
+                exact_array = numpy.asarray(exact_density, dtype=float)
+                exact_present = float(exact_array.reshape(-1)[-1])
+                old_massive = float(resolved["Omega_nu_massive0"])
+                resolved["Omega_nu_massive0"] = exact_present
+                # The q moment is the present density of the represented
+                # massive family; retaining the historical key as an alias
+                # keeps the closure explicit without introducing a second
+                # density normalization.
+                if "Omega_nu_massive_nr0" in resolved:
+                    resolved["Omega_nu_massive_nr0"] = exact_present
+                transition = resolved.get("massive_neutrino_transition_a")
+                hubble_history = resolved.get("H")
+                qrsf_normalization = resolved.get(
+                    "qrsf_background_normalization"
+                )
+                qrsf_density_normalization = resolved.get(
+                    "qrsf_density_normalization"
+                )
+                qrsf_rel_factor = resolved.get("qrsf_rel_factor")
+                qrsf_matter_factor = resolved.get("qrsf_matter_factor")
+                if (
+                    qrsf_normalization is not None
+                    and qrsf_density_normalization is not None
+                    and qrsf_rel_factor is not None
+                    and qrsf_matter_factor is not None
+                ):
+                    # QRSF normalizes all background components by one
+                    # present-day relational sum.  Recompute that sum after
+                    # replacing the algebraic massive-neutrino term so the
+                    # relational density remains exactly normalized.
+                    old_normalization = float(qrsf_normalization)
+                    new_normalization = (
+                        old_normalization - old_massive + exact_present
+                    )
+                    if not numpy.isfinite(new_normalization) or (
+                        new_normalization <= 0.0
+                    ):
+                        raise ValueError(
+                            "QRSF q-resolved background normalization "
+                            "is invalid"
+                        )
+                    density_normalization = 1.0 / new_normalization
+                    resolved["qrsf_background_normalization"] = (
+                        new_normalization
+                    )
+                    resolved["qrsf_density_normalization"] = (
+                        density_normalization
+                    )
+                    omega_rel0 = float(resolved.get("Omega_rel0", 0.0))
+                    resolved["Omega_de0"] = omega_rel0 * density_normalization
+                    if "Omega_m0" in resolved:
+                        matter_today = float(
+                            numpy.asarray(
+                                resolved.get("qrsf_matter_factor_today", 1.0),
+                                dtype=float,
+                            ).reshape(-1)[-1]
+                        )
+                        resolved["Omega_m0"] = (
+                            float(resolved.get("Omega_b0", 0.0)) * matter_today
+                            + exact_present * density_normalization
+                        )
+                    if hubble_history is not None:
+                        a_array = numpy.asarray(a_values, dtype=float)
+                        old_hubble = numpy.asarray(hubble_history, dtype=float)
+                        if old_hubble.ndim == 0:
+                            old_hubble = numpy.full_like(
+                                a_array,
+                                float(old_hubble),
+                                dtype=float,
+                            )
+                        exact_array = numpy.broadcast_to(
+                            exact_array,
+                            a_array.shape,
+                        )
+
+                        def _history(
+                            name: str, default: float
+                        ) -> numpy.ndarray:
+                            """Broadcast one resolved history to the a-grid."""
+
+                            values = numpy.asarray(
+                                resolved.get(name, default),
+                                dtype=float,
+                            )
+                            if values.ndim == 0:
+                                return numpy.full_like(
+                                    a_array,
+                                    float(values),
+                                    dtype=float,
+                                )
+                            return numpy.broadcast_to(values, a_array.shape)
+
+                        gamma_plus_massless = float(
+                            resolved.get("Omega_gamma0", 0.0)
+                        ) + _history("Omega_nu_massless0", 0.0)
+                        matter_factor = _history(
+                            "qrsf_matter_factor",
+                            1.0,
+                        )
+                        relational_factor = _history(
+                            "qrsf_rel_factor",
+                            1.0,
+                        )
+                        h0_value = _scalar(
+                            "H0",
+                            _scalar(
+                                "H_0",
+                                float(old_hubble.reshape(-1)[-1]),
+                            ),
+                        )
+                        a_safe = numpy.maximum(a_array, 1.0e-30)
+                        hubble_squared = (
+                            gamma_plus_massless
+                            * density_normalization
+                            / numpy.power(a_safe, 4.0)
+                            + exact_array * density_normalization
+                            + float(resolved.get("Omega_b0", 0.0))
+                            * matter_factor
+                            * density_normalization
+                            / numpy.power(a_safe, 3.0)
+                            + float(resolved.get("Omega_de0", 0.0))
+                            * relational_factor
+                        )
+                        if not numpy.all(
+                            numpy.isfinite(hubble_squared)
+                        ) or numpy.any(hubble_squared <= 0.0):
+                            raise ValueError(
+                                "QRSF q-resolved closure produced an invalid "
+                                "H(a)"
+                            )
+                        resolved["H"] = h0_value * numpy.sqrt(hubble_squared)
+                else:
+                    old_dark_energy = resolved.get("Omega_de0")
+                    if old_dark_energy is not None:
+                        resolved["Omega_de0"] = float(old_dark_energy) + (
+                            old_massive - exact_present
+                        )
+                if (
+                    transition is not None
+                    and hubble_history is not None
+                    and qrsf_normalization is None
+                ):
+                    a_array = numpy.asarray(a_values, dtype=float)
+                    old_hubble = numpy.asarray(hubble_history, dtype=float)
+                    if old_hubble.ndim == 0:
+                        old_hubble = numpy.full_like(
+                            a_array,
+                            float(old_hubble),
+                            dtype=float,
+                        )
+                    transition_value = float(
+                        numpy.asarray(transition, dtype=float).reshape(-1)[-1]
+                    )
+                    a_safe = numpy.maximum(a_array, 1.0e-30)
+                    old_term = (
+                        old_massive
+                        * numpy.sqrt(
+                            a_safe * a_safe
+                            + transition_value * transition_value
+                        )
+                        / (
+                            numpy.sqrt(
+                                1.0 + transition_value * transition_value
+                            )
+                            * numpy.power(a_safe, 4.0)
+                        )
+                    )
+                    h0_value = _scalar(
+                        "H0",
+                        _scalar("H_0", float(old_hubble.reshape(-1)[-1])),
+                    )
+                    exact_array = numpy.broadcast_to(
+                        exact_array,
+                        a_array.shape,
+                    )
+                    hubble_squared = numpy.square(
+                        old_hubble / max(h0_value, 1.0e-30)
+                    )
+                    hubble_squared += exact_array - old_term
+                    hubble_squared += old_massive - exact_present
+                    if not numpy.all(
+                        numpy.isfinite(hubble_squared)
+                    ) or numpy.any(hubble_squared <= 0.0):
+                        raise ValueError(
+                            "Q-resolved neutrino closure produced an invalid "
+                            "H(a)"
+                        )
+                    rebuilt_hubble = max(h0_value, 1.0e-30) * numpy.sqrt(
+                        hubble_squared
+                    )
+                    resolved["H"] = (
+                        float(rebuilt_hubble)
+                        if rebuilt_hubble.ndim == 0
+                        else rebuilt_hubble
+                    )
+                resolved["_q_resolved_neutrino_closure"] = True
+        except (AttributeError, KeyError, TypeError, ValueError):
+            raise
+    return resolved
 
 
 def _dark_energy_density_factor(
@@ -1418,6 +1665,11 @@ class _CustomCMBBackgroundData:
     baryon_sound_speed_sq_of_eta: PchipInterpolator
     dark_energy_audit: Mapping[str, Any] = field(default_factory=dict)
     modified_background_audit: Mapping[str, Any] = field(default_factory=dict)
+    drag_sound_horizon_mpc: float = float("nan")
+    drag_redshift: float = float("nan")
+    resolution_evidence: Mapping[str, Any] = field(default_factory=dict)
+    massive_neutrino_density_grid: numpy.ndarray | None = None
+    massive_neutrino_pressure_grid: numpy.ndarray | None = None
 
     def sample(
         self, eta_values: numpy.ndarray | float
@@ -1649,7 +1901,11 @@ class _DeclaredProjectionKernelBatch:
 def _resolve_declared_accuracy_controls(
     contract: Mapping[str, Any],
 ) -> Mapping[str, Any]:
-    """Return the declared perturbation accuracy controls for ``contract``."""
+    """Return the engine-owned accuracy envelope for ``contract``."""
+
+    engine_controls = contract.get("_engine_accuracy_controls")
+    if isinstance(engine_controls, Mapping):
+        return engine_controls
 
     perturbation_data = contract.get("perturbation_data")
     if perturbation_data is not None:
@@ -1789,19 +2045,22 @@ def _compute_spherical_bessel_batch(
         if numpy.any(downward_mask):
             downward_x = positive_x[downward_mask]
             downward_columns = positive_indices[downward_mask]
-            effective_maximum = numpy.minimum(
-                maximum_ell,
-                (
-                    numpy.ceil(
-                        (
-                            downward_x
-                            + 32.0
-                            + 8.0 * numpy.sqrt(numpy.maximum(downward_x, 0.0))
-                        )
-                        / 32.0
-                    ).astype(int)
-                    * 32
-                ),
+            # The downward recurrence is normalized at j_0.  Its numerical
+            # error depends on the highest order at which it is started, so
+            # choosing that order from the caller's ell subset makes a low
+            # multipole change when a high multipole is requested alongside
+            # it.  Use the same phase-derived safe order for every request;
+            # only the requested rows are copied into the output below.
+            effective_maximum = (
+                numpy.ceil(
+                    (
+                        downward_x
+                        + 32.0
+                        + 8.0 * numpy.sqrt(numpy.maximum(downward_x, 0.0))
+                    )
+                    / 32.0
+                ).astype(int)
+                * 32
             )
             for local_maximum in numpy.unique(effective_maximum):
                 column_mask = effective_maximum == local_maximum
@@ -1835,7 +2094,8 @@ def _compute_spherical_bessel_batch(
                     next_value, current = current, previous
                 work *= numpy.exp(scales - scales[0])
                 work *= numpy.sinc(group_x / math.pi) / work[0]
-                values[: group_maximum + 1, group_columns] = work
+                copy_rows = min(group_maximum, maximum_ell) + 1
+                values[:copy_rows, group_columns] = work[:copy_rows]
         upward_mask = ~downward_mask
         if numpy.any(upward_mask):
             upward_x = positive_x[upward_mask]
@@ -2463,9 +2723,19 @@ def _extract_contract_scalar_with_source(
 def _resolve_custom_cmb_numerics(
     contract: Mapping[str, Any],
 ) -> _CustomCMBNumerics:
-    """Return numerical settings for declared-graph execution."""
+    """Return engine-planned numerical settings for declared execution."""
 
-    raw = contract.get("numerical", {}) or {}
+    raw = contract.get("_engine_numerical_plan")
+    if raw is None:
+        raw = contract.get("numerical", {}) or {}
+    else:
+        # A prepared runtime carries an immutable engine plan.  A caller may
+        # still create a bounded diagnostic request by supplying explicit
+        # top-level overrides; merge those request values without mutating
+        # the compiled plan or the source declaration.
+        overrides = contract.get("numerical", {}) or {}
+        if isinstance(overrides, Mapping):
+            raw = {**dict(raw), **dict(overrides)}
     if not isinstance(raw, Mapping):
         raise ValueError("cmb.numerical must be a mapping when declared")
     raw = dict(raw)
@@ -2791,6 +3061,7 @@ def _resolve_custom_cmb_physical_parameters(
         prepared_contract,
         a_values=1.0,
         z_values=0.0,
+        include_q_resolved=False,
     )
     quantity_provenance: dict[str, str] = {}
 
@@ -3190,7 +3461,7 @@ def _resolve_custom_cmb_physical_parameters(
     )
 
 
-def _build_custom_cmb_background(
+def _build_custom_cmb_background_impl(
     contract: Mapping[str, Any],
     physical_params: _CustomCMBPhysicalParameters,
     numerics: _CustomCMBNumerics,
@@ -3213,8 +3484,35 @@ def _build_custom_cmb_background(
     MPC_M = 3.085_677_581_491_3673e22
     SIGMA_T_M2 = 6.652_458_7321e-29
 
-    a_min = max(numerics.a_min, 1.0e-8)
-    log_a = numpy.geomspace(a_min, 1.0, numerics.eta_sample_count)
+    # Keep the background ahead of even the earliest declared hierarchy
+    # start.  A request may legitimately ask for an initial redshift at the
+    # model's nominal lower bound; the scalar regular-mode prefix still needs
+    # a genuinely pre-start interval to evolve that seed before the first
+    # visible sample.  Extending the engine grid is safe because the physical
+    # background equations, rather than a model-authored solver cutoff, own
+    # this early-time domain.
+    a_min = min(max(float(numerics.a_min), 1.0e-8), 1.0e-8)
+    # The planner's eta count is a total background budget.  The previous
+    # implementation allocated that budget independently to the global,
+    # recombination, and reionization grids, then concatenated all three;
+    # a nominal 528-node plan consequently became a 2,000+ node history.
+    # Allocate the budget across the three physical regions before merging so
+    # visibility features remain represented without tripling every ODE and
+    # source evaluation.
+    eta_budget = max(64, int(numerics.eta_sample_count))
+    # Keep the global logarithmic scaffold responsive even for bounded
+    # diagnostics.  A fixed floor in the recombination/reionization windows
+    # must not make distinct requested eta budgets collapse to one grid.
+    global_count = max(32, int(round(0.25 * eta_budget)))
+    # Recombination is the stiffest background feature.  Give it a stable
+    # floor so increasing the nominal total budget cannot leave the coarse
+    # and refined histories under-resolving the visibility transition.
+    recombination_count = max(512, int(round(0.82 * eta_budget)))
+    reionization_count = max(
+        256,
+        eta_budget - global_count - recombination_count,
+    )
+    log_a = numpy.geomspace(a_min, 1.0, global_count)
 
     helium_ionization_energy_j = 24.587_387 * 1.602_176_634e-19
     helium_double_ionization_energy_j = 54.417_763 * 1.602_176_634e-19
@@ -3229,17 +3527,22 @@ def _build_custom_cmb_background(
     recombination_window = numpy.geomspace(
         1.0 / 5_000.0,
         1.0 / 30.0,
-        max(32, numerics.eta_sample_count),
+        recombination_count,
+    )
+    saha_window = numpy.geomspace(
+        max(a_min, 1.0e-4),
+        float(recombination_window[0]),
+        max(64, min(256, recombination_count // 2)),
     )
     reionization_window = numpy.geomspace(
         1.0 / 30.0,
         1.0,
-        max(16, numerics.eta_sample_count // 2),
+        reionization_count,
     )
     a_grid = numpy.unique(
         numpy.clip(
             numpy.concatenate(
-                (log_a, recombination_window, reionization_window)
+                (log_a, saha_window, recombination_window, reionization_window)
             ),
             a_min,
             1.0,
@@ -3247,6 +3550,8 @@ def _build_custom_cmb_background(
     )
     a_grid.sort()
     z_grid = numpy.maximum(1.0 / a_grid - 1.0, 0.0)
+    massive_neutrino_density_grid = None
+    massive_neutrino_pressure_grid = None
     background_grid_context = _resolve_declared_background_context(
         contract,
         a_values=a_grid,
@@ -3322,7 +3627,9 @@ def _build_custom_cmb_background(
         exact_massive = momentum_context.get(
             "massive_neutrino_density_fraction"
         )
-        if exact_massive is not None:
+        if exact_massive is not None and not bool(
+            background_grid_context.get("_q_resolved_neutrino_closure", False)
+        ):
             massive_density = numpy.asarray(exact_massive, dtype=float)
             if massive_density.ndim == 0:
                 massive_density = numpy.full_like(
@@ -3374,6 +3681,19 @@ def _build_custom_cmb_background(
                         "invalid expansion history."
                     )
                 H_grid = hubble_constant * numpy.sqrt(h2_grid)
+        if exact_massive is not None:
+            massive_neutrino_density_grid = numpy.asarray(
+                exact_massive,
+                dtype=float,
+            )
+            exact_pressure = momentum_context.get(
+                "massive_neutrino_pressure_fraction"
+            )
+            if exact_pressure is not None:
+                massive_neutrino_pressure_grid = numpy.asarray(
+                    exact_pressure,
+                    dtype=float,
+                )
     radiation_density = max(
         float(physical_params.Omega_r0 or 0.0),
         float(physical_params.Omega_gamma0),
@@ -3706,16 +4026,26 @@ def _build_custom_cmb_background(
     for index in range(hydrogen_recombination_start_index, z_grid.size):
         z_value = float(z_grid[index])
         n_h_value = float(n_H_grid[index])
-        _, helium_fraction_guess = _helium_electron_fraction(
-            z_value,
-            hydrogen_guess,
-            n_h_value,
-        )
-        hydrogen_saha_grid[index] = _hydrogen_saha_fraction(
-            z_value,
-            float(helium_fraction_guess),
-            n_h_value,
-        )
+        local_guess = hydrogen_guess
+        # Solve the local Saha closure to a fixed point at each scale factor;
+        # carrying only one previous-grid iterate makes the result depend on
+        # the requested background resolution.
+        for _ in range(12):
+            _, helium_fraction_guess = _helium_electron_fraction(
+                z_value,
+                local_guess,
+                n_h_value,
+            )
+            candidate = _hydrogen_saha_fraction(
+                z_value,
+                float(helium_fraction_guess),
+                n_h_value,
+            )
+            if abs(candidate - local_guess) <= 1.0e-12:
+                local_guess = candidate
+                break
+            local_guess = candidate
+        hydrogen_saha_grid[index] = float(local_guess)
         hydrogen_guess = float(hydrogen_saha_grid[index])
         if (
             saha_break_index == z_grid.size
@@ -3728,6 +4058,21 @@ def _build_custom_cmb_background(
         x_h_grid[:saha_break_index] = hydrogen_saha_grid[:saha_break_index]
     if saha_break_index < z_grid.size:
         initial_fraction = float(hydrogen_saha_grid[saha_break_index])
+        # The recombination ODE must not inherit first-order interpolation
+        # error from the outer background grid.  Smooth monotone interpolants
+        # keep coarse and refined background requests on the same physical
+        # trajectory while retaining the requested output grid.
+        z_of_a_for_ode = PchipInterpolator(a_grid, z_grid, extrapolate=True)
+        n_h_of_a_for_ode = PchipInterpolator(
+            a_grid,
+            n_H_grid,
+            extrapolate=True,
+        )
+        hubble_of_a_for_ode = PchipInterpolator(
+            a_grid,
+            hydrogen_rate_grid,
+            extrapolate=True,
+        )
 
         def _hydrogen_ode(
             a_value: float,
@@ -3735,11 +4080,9 @@ def _build_custom_cmb_background(
         ) -> numpy.ndarray:
             """Return the stiff hydrogen recombination derivative."""
 
-            z_value = float(numpy.interp(a_value, a_grid, z_grid))
-            n_h_value = float(numpy.interp(a_value, a_grid, n_H_grid))
-            hubble_rate = float(
-                numpy.interp(a_value, a_grid, hydrogen_rate_grid)
-            )
+            z_value = float(z_of_a_for_ode(a_value))
+            n_h_value = float(n_h_of_a_for_ode(a_value))
+            hubble_rate = float(hubble_of_a_for_ode(a_value))
             derivative = _hydrogen_recombination_rate(
                 a_value=float(a_value),
                 hydrogen_fraction=float(numpy.clip(state[0], 1.0e-8, 1.0)),
@@ -4504,6 +4847,100 @@ def _build_custom_cmb_background(
         )
     )
 
+    # The BAO ruler is set by baryon drag, not by the last-scattering
+    # visibility peak.  Resolve the transition from the same opacity and
+    # expansion histories used above: the remaining drag optical depth
+    # reaches unity at ``a_drag``.  This is independent of the CMB
+    # likelihood entry point and remains valid for a declared non-standard
+    # recombination law whenever it supplies a physical opacity history.
+    photon_to_baryon_ratio = (
+        4.0
+        * float(physical_params.Omega_gamma0)
+        / (
+            3.0
+            * max(float(physical_params.Omega_b0), 1.0e-30)
+            * numpy.maximum(a_grid, 1.0e-30)
+        )
+    )
+    drag_rate = numpy.divide(
+        numpy.maximum(-tau_dot_grid, 0.0),
+        numpy.maximum(photon_to_baryon_ratio, 1.0e-30),
+    )
+    drag_depth = cumulative_trapezoid(
+        drag_rate,
+        eta_grid,
+        initial=0.0,
+    )
+    # Reionization creates a second, late opacity episode that is irrelevant
+    # to the baryon-drag epoch.  The drag optical depth is therefore closed
+    # on the pre-recombination interval ending at the visibility peak.
+    drag_upper_index = int(peak_index)
+    pre_drag_depth = float(drag_depth[drag_upper_index])
+    remaining_drag_depth = pre_drag_depth - drag_depth
+    remaining_drag_depth[drag_upper_index + 1 :] = 0.0
+    if (
+        not numpy.all(numpy.isfinite(remaining_drag_depth))
+        or float(remaining_drag_depth[-1]) < 0.0
+    ):
+        raise ValueError("Baryon-drag optical depth is non-finite")
+    crossing = numpy.flatnonzero(
+        (numpy.arange(a_grid.size) <= drag_upper_index)
+        & (remaining_drag_depth <= 1.0)
+    )
+    if crossing.size == 0:
+        # A model with optically thin photons has no finite drag transition;
+        # its BAO ruler is the complete acoustic integral to a=1.
+        drag_index = drag_upper_index
+        a_drag = float(a_grid[drag_upper_index])
+        drag_status = "optically_thin"
+    else:
+        drag_index = int(crossing[0])
+        if drag_index == 0:
+            a_drag = float(a_grid[0])
+        else:
+            left = drag_index - 1
+            right = drag_index
+            depth_left = float(remaining_drag_depth[left])
+            depth_right = float(remaining_drag_depth[right])
+            if depth_left == depth_right:
+                a_drag = float(a_grid[right])
+            else:
+                a_drag = float(
+                    numpy.interp(
+                        1.0,
+                        (depth_right, depth_left),
+                        (float(a_grid[right]), float(a_grid[left])),
+                    )
+                )
+        drag_status = "remaining_optical_depth_unity"
+    drag_redshift = max(1.0 / max(a_drag, 1.0e-30) - 1.0, 0.0)
+    drag_sound_horizon_mpc = float(
+        numpy.interp(
+            a_drag,
+            a_grid,
+            sound_horizon_grid,
+            left=float(sound_horizon_grid[0]),
+            right=float(sound_horizon_grid[-1]),
+        )
+    )
+    if not (
+        numpy.isfinite(drag_sound_horizon_mpc)
+        and drag_sound_horizon_mpc > 0.0
+        and numpy.isfinite(drag_redshift)
+    ):
+        raise ValueError("Baryon-drag ruler is non-finite or non-positive")
+    resolution_evidence = {
+        "eta_budget": int(eta_budget),
+        "global_nodes": int(global_count),
+        "recombination_nodes": int(recombination_count),
+        "reionization_nodes": int(reionization_count),
+        "background_nodes": int(a_grid.size),
+        "drag_transition": drag_status,
+        "drag_transition_index": int(drag_index),
+        "drag_pre_recombination_depth": float(pre_drag_depth),
+        "drag_remaining_depth_at_transition": 1.0,
+    }
+
     eta_of_a = PchipInterpolator(a_grid, eta_grid, extrapolate=True)
     a_of_eta = PchipInterpolator(eta_grid, a_grid, extrapolate=True)
     z_of_eta = PchipInterpolator(eta_grid, z_grid, extrapolate=True)
@@ -4570,6 +5007,155 @@ def _build_custom_cmb_background(
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
         dark_energy_audit=dark_energy_audit,
         modified_background_audit=modified_background_audit,
+        drag_sound_horizon_mpc=drag_sound_horizon_mpc,
+        drag_redshift=drag_redshift,
+        resolution_evidence=resolution_evidence,
+        massive_neutrino_density_grid=massive_neutrino_density_grid,
+        massive_neutrino_pressure_grid=massive_neutrino_pressure_grid,
     )
     cache.set_cmb_background(cache_key, background_data)
+    return _get_cached_custom_cmb_background(cache_key)
+
+
+def _build_custom_cmb_background(
+    contract: Mapping[str, Any],
+    physical_params: _CustomCMBPhysicalParameters,
+    numerics: _CustomCMBNumerics,
+    *,
+    background_provider: Any | None = None,
+) -> _CustomCMBBackgroundData:
+    """Build a background and prove its physical-grid refinement.
+
+    Production plans perform one independent eta refinement of the complete
+    background/recombination solution.  The refined product is retained in
+    the returned evidence while the coarser product remains cache-addressed
+    under its own numerical identity.  Diagnostic requests carrying legacy
+    controls intentionally use the implementation directly so focused tests
+    can inspect their requested grids without paying for production work.
+    """
+
+    base = _build_custom_cmb_background_impl(
+        contract,
+        physical_params,
+        numerics,
+        background_provider=background_provider,
+    )
+    controls = _resolve_declared_accuracy_controls(contract)
+    if controls.get("accuracy_tier") != "final":
+        return base
+    cached_refinement = base.resolution_evidence.get("refinement")
+    if isinstance(cached_refinement, Mapping) and bool(
+        cached_refinement.get("converged", False)
+    ):
+        return base
+
+    refinement_factor = int(controls.get("background_refinement_factor", 2))
+    if refinement_factor < 2:
+        raise ValueError("Background refinement factor must be at least two")
+    refined_eta_count = max(
+        int(numerics.eta_sample_count) * refinement_factor,
+        int(numerics.eta_sample_count) + 1,
+    )
+    refined_numerics = replace(
+        numerics,
+        eta_sample_count=refined_eta_count,
+        evolution_eta_sample_count=(
+            None
+            if numerics.evolution_eta_sample_count is None
+            else max(
+                int(numerics.evolution_eta_sample_count) * refinement_factor,
+                int(numerics.evolution_eta_sample_count) + 1,
+            )
+        ),
+    )
+    refined = _build_custom_cmb_background_impl(
+        contract,
+        physical_params,
+        refined_numerics,
+        background_provider=background_provider,
+    )
+    common_a = numpy.geomspace(
+        max(float(base.a_grid[0]), float(refined.a_grid[0]), 1.0e-8),
+        1.0,
+        128,
+    )
+
+    def _relative_error(coarse: Any, fine: Any) -> float:
+        """Return a finite relative max error on one common a-grid."""
+
+        coarse_values = numpy.asarray(
+            coarse(base.eta_of_a(common_a)), dtype=float
+        )
+        fine_values = numpy.asarray(
+            fine(refined.eta_of_a(common_a)), dtype=float
+        )
+        # Relative error is ill-conditioned in the exponentially suppressed
+        # tails of visibility/ionization histories.  Normalize those tails
+        # to the feature amplitude while retaining a true relative metric for
+        # the bulk of each physical history.
+        floor = max(
+            float(numpy.max(numpy.abs(fine_values))) * 1.0e-6, 1.0e-300
+        )
+        denominator = numpy.maximum(numpy.abs(fine_values), floor)
+        error = numpy.max(numpy.abs(coarse_values - fine_values) / denominator)
+        if not numpy.isfinite(error):
+            raise ValueError("Background refinement produced non-finite error")
+        return float(error)
+
+    errors = {
+        "eta0": abs(float(base.eta0) - float(refined.eta0))
+        / max(abs(float(refined.eta0)), 1.0e-300),
+        "sound_horizon_mpc": abs(
+            float(base.sound_horizon_mpc) - float(refined.sound_horizon_mpc)
+        )
+        / max(abs(float(refined.sound_horizon_mpc)), 1.0e-300),
+        "drag_sound_horizon_mpc": abs(
+            float(base.drag_sound_horizon_mpc)
+            - float(refined.drag_sound_horizon_mpc)
+        )
+        / max(abs(float(refined.drag_sound_horizon_mpc)), 1.0e-300),
+        "drag_redshift": abs(
+            float(base.drag_redshift) - float(refined.drag_redshift)
+        )
+        / max(abs(float(refined.drag_redshift)), 1.0),
+        "visibility": _relative_error(
+            base.visibility_of_eta,
+            refined.visibility_of_eta,
+        ),
+        "electron_fraction": _relative_error(
+            base.x_e_of_eta,
+            refined.x_e_of_eta,
+        ),
+    }
+    if not all(numpy.isfinite(value) for value in errors.values()):
+        raise ValueError("Background refinement produced non-finite evidence")
+    tolerance = float(controls.get("background_refinement_tolerance", 1.0e-2))
+    evidence = dict(base.resolution_evidence)
+    evidence.update(
+        {
+            "refinement": {
+                "coarse_eta_nodes": int(numerics.eta_sample_count),
+                "fine_eta_nodes": int(refined_numerics.eta_sample_count),
+                "relative_errors": errors,
+                "tolerance": tolerance,
+                "converged": bool(max(errors.values()) <= tolerance),
+            },
+            "selected_eta_nodes": int(refined_numerics.eta_sample_count),
+        }
+    )
+    if max(errors.values()) > tolerance:
+        raise ValueError(
+            "Automatic background refinement did not converge: "
+            + ", ".join(
+                f"{name}={value:.6g}" for name, value in errors.items()
+            )
+        )
+    base.resolution_evidence = evidence
+    cache_key = _custom_cmb_background_cache_key(
+        contract,
+        physical_params,
+        numerics,
+        background_provider,
+    )
+    cache.set_cmb_background(cache_key, base)
     return _get_cached_custom_cmb_background(cache_key)

@@ -128,8 +128,16 @@ _CMB_TRANSFER_CACHE = _BoundedCacheStore(
     max_bytes=64 * 1024 * 1024,
 )
 _CMB_SOURCE_HISTORY_CACHE = _BoundedCacheStore(
-    limit=128,
+    limit=1024,
     max_bytes=128 * 1024 * 1024,
+)
+_CMB_INITIAL_STATE_CACHE = _BoundedCacheStore(
+    limit=2048,
+    max_bytes=32 * 1024 * 1024,
+)
+_CMB_HIERARCHY_SCHEDULE_CACHE = _BoundedCacheStore(
+    limit=2048,
+    max_bytes=8 * 1024 * 1024,
 )
 _CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
 _CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
@@ -298,6 +306,30 @@ def set_cmb_source_history(cache_key: Any, source_data: Any) -> None:
     _CMB_SOURCE_HISTORY_CACHE.set(cache_key, source_data)
 
 
+def get_cmb_initial_state(cache_key: Any):
+    """Return one cached declared initial state for an exact mode identity."""
+
+    return _CMB_INITIAL_STATE_CACHE.get(cache_key)
+
+
+def set_cmb_initial_state(cache_key: Any, state_data: Any) -> None:
+    """Store one immutable declared initial state and its diagnostics."""
+
+    _CMB_INITIAL_STATE_CACHE.set(cache_key, state_data)
+
+
+def get_cmb_hierarchy_schedule(cache_key: Any):
+    """Return a cached automatic hierarchy schedule for one mode identity."""
+
+    return _CMB_HIERARCHY_SCHEDULE_CACHE.get(cache_key)
+
+
+def set_cmb_hierarchy_schedule(cache_key: Any, schedule: Any) -> None:
+    """Store one automatic hierarchy schedule without changing physics."""
+
+    _CMB_HIERARCHY_SCHEDULE_CACHE.set(cache_key, schedule)
+
+
 def remember_cmb_request_identity(cache_key: Any) -> None:
     """Record the most recent declared spectrum request shape."""
 
@@ -366,7 +398,7 @@ def set_declared_projection_kernel_batch(cache_key: Any, batch: Any) -> None:
 
 
 def record_cmb_performance(
-    phase_seconds: Mapping[str, float],
+    phase_seconds: Mapping[str, Any],
     *,
     cache_hit: bool = False,
     workload: str = "full_spectrum",
@@ -398,7 +430,17 @@ def record_cmb_performance(
     if normalized_cache_state not in {"cold", "warm", "exact_cache_hit"}:
         raise ValueError("Declared performance cache state is invalid")
     normalized_phases: dict[str, float] = {}
+    heartbeat: dict[str, Any] = {}
     for phase_name, elapsed in phase_seconds.items():
+        if str(phase_name) == "last_heartbeat_phase":
+            heartbeat["phase"] = None if elapsed is None else str(elapsed)
+            continue
+        if str(phase_name) == "heartbeat_count":
+            heartbeat["count"] = int(elapsed)
+            continue
+        if str(phase_name) == "last_heartbeat_seconds":
+            heartbeat["elapsed_seconds"] = float(elapsed)
+            continue
         value = float(elapsed)
         if value < 0.0 or value != value:
             raise ValueError("Declared performance phase time must be finite")
@@ -419,6 +461,7 @@ def record_cmb_performance(
         },
         "failure": None if failure is None else dict(failure),
         "context": dict(context or {}),
+        "heartbeat": heartbeat,
     }
     _CMB_PERFORMANCE_RECORDS.append(record)
     return dict(record)
@@ -483,6 +526,7 @@ def latest_cmb_performance_record() -> Mapping[str, Any] | None:
         "phase_seconds": dict(latest["phase_seconds"]),
         "work_units": dict(latest["work_units"]),
         "context": dict(latest["context"]),
+        "heartbeat": dict(latest.get("heartbeat", {})),
         "failure": (
             None if latest["failure"] is None else dict(latest["failure"])
         ),
@@ -549,6 +593,7 @@ def cmb_performance_stats() -> dict[str, Any]:
                 "phase_seconds": dict(record["phase_seconds"]),
                 "work_units": dict(record["work_units"]),
                 "context": dict(record["context"]),
+                "heartbeat": dict(record.get("heartbeat", {})),
                 "failure": (
                     None
                     if record["failure"] is None
@@ -576,6 +621,8 @@ def clear_cmb_parameter_caches() -> None:
         _CMB_SPECTRUM_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
+        _CMB_INITIAL_STATE_CACHE,
+        _CMB_HIERARCHY_SCHEDULE_CACHE,
         _CMB_BESSEL_INPUT_CACHE,
         _CMB_BESSEL_VALUE_CACHE,
         _CMB_BESSEL_BATCH_CACHE,
@@ -602,6 +649,8 @@ def clear_cmb_caches() -> None:
         _CMB_SPECTRUM_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
+        _CMB_INITIAL_STATE_CACHE,
+        _CMB_HIERARCHY_SCHEDULE_CACHE,
         _CMB_BESSEL_INPUT_CACHE,
         _CMB_BESSEL_VALUE_CACHE,
         _CMB_BESSEL_BATCH_CACHE,
@@ -635,6 +684,8 @@ def cmb_cache_stats() -> dict[str, dict[str, int]]:
         "declared_spectrum": _CMB_SPECTRUM_CACHE.snapshot(),
         "declared_transfer": _CMB_TRANSFER_CACHE.snapshot(),
         "source_history": _CMB_SOURCE_HISTORY_CACHE.snapshot(),
+        "initial_state": _CMB_INITIAL_STATE_CACHE.snapshot(),
+        "hierarchy_schedule": _CMB_HIERARCHY_SCHEDULE_CACHE.snapshot(),
         "bessel_inputs": _CMB_BESSEL_INPUT_CACHE.snapshot(),
         "bessel_values": _CMB_BESSEL_VALUE_CACHE.snapshot(),
         "declared_projection_kernel_batch": (
@@ -660,6 +711,8 @@ def cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
         "declared_spectrum": "result",
         "declared_transfer": "parameter",
         "source_history": "parameter",
+        "initial_state": "parameter",
+        "hierarchy_schedule": "parameter",
     }
     snapshots = cmb_cache_stats()
     return {

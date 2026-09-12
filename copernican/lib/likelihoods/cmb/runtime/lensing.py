@@ -376,7 +376,7 @@ def lensed_cls(
     clpp: numpy.ndarray,
     lmax: int | None = None,
     lmax_lensed: int | None = None,
-    sampling_factor: float = 1.4,
+    sampling_factor: float = 2.2,
     delta_cls: bool = False,
     theta_max: float = numpy.pi / 32.0,
     apodize_point_width: int = 10,
