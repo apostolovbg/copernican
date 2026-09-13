@@ -119,17 +119,21 @@ def plan_cmb_numerics(
         if name in {str(value).upper() for value in spectra}
     )
     perturbations = _mapping(contract.get("perturbations"))
-    if not perturbations and contract.get("perturbation_data") is not None:
-        compiled_perturbations = contract["perturbation_data"]
+    compiled_perturbations = contract.get("perturbation_data")
+    if compiled_perturbations is not None:
         sectors = _mapping(getattr(compiled_perturbations, "sectors", {}))
         species = _mapping(getattr(compiled_perturbations, "species", {}))
         families = _mapping(
             getattr(compiled_perturbations, "hierarchy_families", {})
         )
+        observables = _mapping(
+            getattr(compiled_perturbations, "observables", {})
+        )
     else:
         sectors = _mapping(perturbations.get("sectors"))
         species = _mapping(perturbations.get("species"))
         families = _mapping(perturbations.get("hierarchy_families"))
+        observables = _mapping(perturbations.get("observables"))
 
     sector_names = tuple(sorted(str(name) for name in sectors)) or ("scalar",)
     family_names = tuple(sorted(str(name) for name in families))
@@ -248,6 +252,34 @@ def plan_cmb_numerics(
         + len(closure_entries)
         + len(constraint_entries)
         + len(collision_entries)
+    )
+    transfer_routes = tuple(
+        {
+            "name": str(name),
+            "projection": str(_field(entry, "projection", "") or ""),
+            "kernel": str(_field(entry, "kernel", "") or ""),
+            "sector": str(_field(entry, "sector", "") or "scalar"),
+            "source_roles": _tuple_strings(
+                _field(entry, "source_terms", {}).keys()
+                if isinstance(_field(entry, "source_terms", {}), Mapping)
+                else ()
+            ),
+        }
+        for name, entry in sorted(
+            observables.items(), key=lambda item: str(item[0])
+        )
+        if str(_field(entry, "kind", "")) == "transfer_component"
+    )
+    spectrum_edges = tuple(
+        {
+            "name": str(name),
+            "primary": str(_field(entry, "primary", "") or ""),
+            "secondary": str(_field(entry, "secondary", "") or ""),
+        }
+        for name, entry in sorted(
+            observables.items(), key=lambda item: str(item[0])
+        )
+        if str(_field(entry, "kind", "")) == "angular_power_spectrum"
     )
 
     # The phase scale k(eta_0-eta_*) grows approximately linearly with ell.
@@ -422,6 +454,41 @@ def plan_cmb_numerics(
             "conditions": initial_condition_rows,
             "hidden_prefix": True,
             "state_slot_count": int(len(equation_entries)),
+        },
+        "projection_resolution": {
+            "method": "declared_source_route_and_phase_kernel",
+            "transfer_route_count": int(len(transfer_routes)),
+            "spectrum_edge_count": int(len(spectrum_edges)),
+            "sectors": tuple(
+                sorted(
+                    {
+                        str(row["sector"])
+                        for row in transfer_routes
+                        if row["sector"]
+                    }
+                )
+            ),
+            "kernels": tuple(
+                sorted(
+                    {
+                        str(row["kernel"])
+                        for row in transfer_routes
+                        if row["kernel"]
+                    }
+                )
+            ),
+            "phase_anchors": {
+                "ell_min": int(ell_min),
+                "ell_max": int(ell_max),
+                "k_nodes": int(k_nodes),
+                "eta_nodes": int(eta_nodes),
+            },
+            "independent_refinement_axes": (
+                "k",
+                "eta",
+                "source",
+                "projection",
+            ),
         },
     }
     payload = {

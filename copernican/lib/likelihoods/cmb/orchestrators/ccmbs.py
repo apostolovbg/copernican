@@ -2,6 +2,8 @@ r"""Declared-graph CMB solver orchestration helpers."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from contextvars import ContextVar
 from time import perf_counter
@@ -29,6 +31,7 @@ from ..errors import (
 from ..runtime import cache
 from ..runtime.lensing import lensed_cls as _lensed_cls
 from ..runtime.performance import PhaseTimer
+from ..runtime.postprocessing import build_postprocessing_evidence
 from ..runtime.projection import _compute_custom_cmb_spectrum_data
 
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
@@ -36,6 +39,7 @@ _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_e",
     "temperature",
 }
+_LENSED_AUTO_ROUNDOFF_RELATIVE_TOLERANCE = numpy.longdouble("1.0e-6")
 
 _LAST_DECLARED_RAW_SPECTRA: ContextVar[Mapping[str, numpy.ndarray] | None] = (
     ContextVar(
@@ -44,11 +48,24 @@ _LAST_DECLARED_RAW_SPECTRA: ContextVar[Mapping[str, numpy.ndarray] | None] = (
     )
 )
 
+_LAST_DECLARED_POSTPROCESSING_EVIDENCE: ContextVar[
+    Mapping[str, Any] | None
+] = ContextVar(
+    "last_declared_postprocessing_evidence",
+    default=None,
+)
+
 
 def last_declared_raw_spectra() -> Mapping[str, numpy.ndarray] | None:
     """Return raw unscaled spectra from the most recent declared solve."""
 
     return _LAST_DECLARED_RAW_SPECTRA.get()
+
+
+def last_declared_postprocessing_evidence() -> Mapping[str, Any] | None:
+    """Return post-processing evidence from the most recent declared solve."""
+
+    return _LAST_DECLARED_POSTPROCESSING_EVIDENCE.get()
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -82,6 +99,56 @@ def _lensing_potential_clpp(pp_spectrum: numpy.ndarray) -> numpy.ndarray:
     if spectrum.size > 2:
         clpp[2:] = spectrum[2:]
     return clpp
+
+
+def _lensing_input_digest(values: numpy.ndarray) -> str:
+    """Hash lensing inputs without narrowing extended-precision values."""
+
+    array = numpy.ascontiguousarray(numpy.asarray(values))
+    header = json.dumps(
+        {
+            "dtype": str(array.dtype),
+            "shape": tuple(int(value) for value in array.shape),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(header + array.tobytes()).hexdigest()
+
+
+def _clip_lensed_auto_roundoff(
+    lensed_cls: numpy.ndarray,
+    scaled_spectra: Mapping[str, numpy.ndarray],
+) -> None:
+    """Clip only numerically tiny negative lensed auto-spectrum values."""
+
+    source_names_by_column = {
+        0: ("TT",),
+        1: ("EE",),
+        # Lensing converts the declared E surface into B, so E is the
+        # relevant scale when the unlensed B surface is physically zero.
+        2: ("BB", "EE"),
+    }
+    for column, source_names in source_names_by_column.items():
+        source_scale = numpy.longdouble(1.0)
+        for source_name in source_names:
+            values = scaled_spectra.get(source_name)
+            if values is None:
+                continue
+            source_scale = max(
+                source_scale,
+                numpy.max(
+                    numpy.abs(numpy.asarray(values, dtype=numpy.longdouble)),
+                    initial=numpy.longdouble(0.0),
+                ),
+            )
+        negative_limit = (
+            _LENSED_AUTO_ROUNDOFF_RELATIVE_TOLERANCE * source_scale
+        )
+        values = numpy.asarray(lensed_cls[:, column], dtype=numpy.longdouble)
+        tiny_negative = (values < 0.0) & (numpy.abs(values) <= negative_limit)
+        values[tiny_negative] = 0.0
+        lensed_cls[:, column] = values
 
 
 def _assemble_exact_lensed_spectra(
@@ -145,6 +212,28 @@ def _assemble_exact_lensed_spectra(
             "lensed_EE": numpy.asarray(ee_spectrum[: lmax + 1], dtype=float),
             "lensed_BB": numpy.asarray(bb_spectrum[: lmax + 1], dtype=float),
         }
+    cache_payload = {
+        "schema_version": 1,
+        "convention": "ccmbs_public_D_ell_v1",
+        "sampling_factor": float(sampling_factor),
+        "ell_grid": numpy.ascontiguousarray(ell_values).tobytes().hex(),
+        "inputs": {
+            str(name): _lensing_input_digest(values)
+            for name, values in sorted(scaled_spectra.items())
+            if name in {"TT", "TE", "EE", "BB", "PP"}
+        },
+    }
+    cache_key = hashlib.sha256(
+        json.dumps(
+            cache_payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    ).hexdigest()
+    cached = cache.get_cmb_lensing(cache_key)
+    if cached is not None:
+        return {
+            str(name): numpy.asarray(values, dtype=float).copy()
+            for name, values in cached.items()
+        }
     base_cls = numpy.zeros((lmax + 1, 4), dtype=numpy.longdouble)
     base_cls[:, 0] = tt_spectrum[: lmax + 1]
     base_cls[:, 1] = ee_spectrum[: lmax + 1]
@@ -160,11 +249,23 @@ def _assemble_exact_lensed_spectra(
         lmax_lensed=lmax,
         sampling_factor=sampling_factor,
     )
-    return {
+    _clip_lensed_auto_roundoff(lensed_cls, scaled_spectra)
+    result = {
         "lensed_TT": _safe_float_output(lensed_cls[:, 0]),
         "lensed_EE": _safe_float_output(lensed_cls[:, 1]),
         "lensed_BB": _safe_float_output(lensed_cls[:, 2]),
         "lensed_TE": _safe_float_output(lensed_cls[:, 3]),
+    }
+    frozen_result = {
+        str(name): numpy.asarray(values, dtype=float).copy()
+        for name, values in result.items()
+    }
+    for values in frozen_result.values():
+        values.setflags(write=False)
+    cache.set_cmb_lensing(cache_key, frozen_result)
+    return {
+        str(name): numpy.asarray(values, dtype=float).copy()
+        for name, values in frozen_result.items()
     }
 
 
@@ -340,6 +441,7 @@ def _compute_declared_perturbation_spectrum_impl(
     if requested_ell_grid.size == 0:
         raise ContractError("ells must not be empty")
     requested_spectra = tuple(str(name) for name in spectra)
+    _LAST_DECLARED_POSTPROCESSING_EVIDENCE.set(None)
     if not requested_spectra:
         raise ContractError("Requested CMB spectra must not be empty")
     canonical_requested_spectra = tuple(
@@ -443,6 +545,11 @@ def _compute_declared_perturbation_spectrum_impl(
             dtype=numpy.longdouble,
         )
         spectra_results[canonical_name] = scale * raw_values
+    unlensed_spectra_results = {
+        str(name): numpy.asarray(values, dtype=numpy.longdouble).copy()
+        for name, values in spectra_results.items()
+    }
+    lensing_cache_before = cache.cmb_cache_stats()["declared_lensing"]
     if needs_lensing:
         lensing_inputs = _normalize_lensing_input_spectra(spectra_results)
         lensing_started = perf_counter()
@@ -484,6 +591,48 @@ def _compute_declared_perturbation_spectrum_impl(
                 "lensing",
                 perf_counter() - lensing_started,
             )
+    lensing_cache_after = cache.cmb_cache_stats()["declared_lensing"]
+    postprocessing_requested = tuple(
+        _resolve_available_spectrum_name(
+            name,
+            perturbation_data=perturbation_data,
+            available_spectra=spectra_results,
+        )
+        or name
+        for name in canonical_requested_spectra
+    )
+    postprocessing_evidence = build_postprocessing_evidence(
+        transfer_components=custom_data.transfer_components,
+        unlensed_spectra=unlensed_spectra_results,
+        output_spectra=spectra_results,
+        requested_spectra=postprocessing_requested,
+        spectrum_availability=custom_data.spectrum_availability,
+        ell_grid=custom_data.ell_grid,
+        k_grid=custom_data.k_grid,
+        lensed=needs_lensing,
+        lensing_cache={
+            "cache_name": "declared_lensing",
+            "hit_count": int(
+                lensing_cache_after["hits"] - lensing_cache_before["hits"]
+            ),
+            "miss_count": int(
+                lensing_cache_after["misses"] - lensing_cache_before["misses"]
+            ),
+            "reused": bool(
+                lensing_cache_after["hits"] > lensing_cache_before["hits"]
+            ),
+        },
+    )
+    postprocessing_evidence["requested_surfaces"] = canonical_requested_spectra
+    postprocessing_evidence["resolved_requested_surfaces"] = (
+        postprocessing_requested
+    )
+    _LAST_DECLARED_POSTPROCESSING_EVIDENCE.set(postprocessing_evidence)
+    if not bool(postprocessing_evidence["accepted"]):
+        raise ValueError(
+            "Declared CMB post-processing validation failed: "
+            + "; ".join(postprocessing_evidence["issues"])
+        )
     for spectrum_name, spectrum_values in spectra_results.items():
         if not numpy.all(numpy.isfinite(spectrum_values)):
             raise NonFiniteEvolutionError(

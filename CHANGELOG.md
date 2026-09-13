@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,56 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-13:
+  Change: Completed declared CMB observable post-processing and exact
+  lensing-remapping reuse.
+  Why: Validated that every requested auto, cross, unlensed, and lensed
+  surface needs explicit dependencies, finite-unit validation, and raw
+  evidence without repeating compatible remapping work.
+  Impact: CCMBS now records hash-addressed post-processing evidence and
+  reuses exact lensed surfaces through a bounded convention-aware cache.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/postprocessing.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/source_graph.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_postprocessing.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_source_graph.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-09-12:
+  Change: Added universal source-graph compilation, projection-route
+  validation, phase-aware planner evidence, and per-mode source binding.
+  Why: Completed Slice Four's all-sector projection contract without
+  model-specific routing or repeated source binding work.
+  Impact: CCMBS now records digest-addressed source, kernel, sector, and
+  spectrum-edge evidence while preserving raw refinement and cache identity.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/__init__.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/source_graph.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_source_graph.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-09-12:
   Change: Added automatic hierarchy schedule evidence and bounded caches for

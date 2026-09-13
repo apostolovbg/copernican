@@ -141,6 +141,62 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         self.assertTrue(initial["hidden_prefix"])
         self.assertIn("conditions", initial)
 
+    def test_plan_records_all_projection_route_axes(self) -> None:
+        """Projection planning exposes sectors, kernels, and refinements."""
+
+        contract = self._lcdm_contract()
+        perturbations = dict(contract["perturbations"])
+        perturbations["observables"] = {
+            "temperature": {
+                "kind": "transfer_component",
+                "projection": "line_of_sight_temperature",
+                "kernel": "temperature_mixed_window",
+                "sector": "scalar",
+                "source_terms": {"monopole": "temperature_monopole"},
+            },
+            "polarization_e": {
+                "kind": "transfer_component",
+                "projection": "line_of_sight_polarization_e",
+                "kernel": "spin2_e_window",
+                "sector": "scalar",
+                "source_terms": {"polarization": "polarization_source"},
+            },
+            "TT": {
+                "kind": "angular_power_spectrum",
+                "primary": "temperature",
+                "secondary": "temperature",
+            },
+            "TE": {
+                "kind": "angular_power_spectrum",
+                "primary": "temperature",
+                "secondary": "polarization_e",
+            },
+            "EE": {
+                "kind": "angular_power_spectrum",
+                "primary": "polarization_e",
+                "secondary": "polarization_e",
+            },
+            "PP": {
+                "kind": "angular_power_spectrum",
+                "primary": "temperature",
+                "secondary": "temperature",
+            },
+        }
+        contract["perturbations"] = perturbations
+        evidence = plan_cmb_numerics(
+            contract,
+            ells=range(2, 201),
+            spectra=("TT", "TE", "EE", "PP"),
+        ).physical_scale_evidence["projection_resolution"]
+        self.assertEqual(
+            evidence["independent_refinement_axes"],
+            ("k", "eta", "source", "projection"),
+        )
+        self.assertGreaterEqual(int(evidence["transfer_route_count"]), 2)
+        self.assertGreaterEqual(int(evidence["spectrum_edge_count"]), 4)
+        self.assertIn("scalar", evidence["sectors"])
+        self.assertTrue(evidence["kernels"])
+
 
 if __name__ == "__main__":
     unittest.main()

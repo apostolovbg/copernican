@@ -104,6 +104,8 @@ from .evolution import (
     prepare_runtime_assets,
 )
 from .performance import PhaseTimer
+from .postprocessing import build_postprocessing_evidence
+from .source_graph import compile_declared_source_graph
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -3530,6 +3532,10 @@ def _compute_custom_cmb_spectrum_data_impl(
             or name in required_transfer_components
         )
     }
+    declared_source_graph = compile_declared_source_graph(
+        perturbation_data,
+        requested_spectra=requested_spectrum_names,
+    )
     required_source_names = {
         str(source_name)
         for component_entry in transfer_component_observables.values()
@@ -3596,6 +3602,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         ),
         cache_key.model_static,
         cache_key.execution_solver,
+        declared_source_graph.digest,
         source_eta_signature,
         tuple(sorted(str(name) for name in required_source_names)),
     )
@@ -4377,6 +4384,22 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["adaptive_evolution_absolute_error"] = 0.0
     runtime_envelope["declared_source_history_roles"] = (
         declared_source_history_roles
+    )
+    runtime_envelope["declared_source_graph"] = declared_source_graph.to_dict()
+    runtime_envelope["declared_source_graph_digest"] = (
+        declared_source_graph.digest
+    )
+    runtime_envelope["declared_source_graph_schema"] = int(
+        declared_source_graph.schema_version
+    )
+    runtime_envelope["declared_projection_route_count"] = int(
+        len(declared_source_graph.transfer_routes)
+    )
+    runtime_envelope["declared_projection_active_route_count"] = int(
+        sum(
+            bool(row.get("active", False))
+            for row in declared_source_graph.transfer_routes
+        )
     )
     runtime_envelope["declared_source_history_sample_count"] = int(
         source_grids["eta"].size
@@ -9427,6 +9450,16 @@ def _compute_custom_cmb_spectrum_data_impl(
                         for name, values in source_arrays.items()
                     },
                 )
+        bound_source_histories = {
+            str(component_name): _bind_declared_source_histories(
+                component_name=str(component_name),
+                component_entry=component_entry,
+                source_arrays=source_arrays,
+            )
+            for component_name, component_entry in (
+                transfer_component_observables.items()
+            )
+        }
         performance_timer.heartbeat(
             "projection",
             completed=int(k_index + 1),
@@ -9714,11 +9747,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 component_name,
                 component_entry,
             ) in transfer_component_observables.items():
-                source_histories = _bind_declared_source_histories(
-                    component_name=str(component_name),
-                    component_entry=component_entry,
-                    source_arrays=source_arrays,
-                )
+                source_histories = bound_source_histories[str(component_name)]
                 transfer_components[component_name][batch_indices, k_index] = (
                     _declared_graph_projection(
                         projection=str(component_entry.projection or ""),
@@ -10774,6 +10803,26 @@ def _compute_custom_cmb_spectrum_data_impl(
                     numpy.asarray(values[adaptive_ell_indices], dtype=float),
                 )
         spectra_results = adaptive_spectra
+
+    base_postprocessing_evidence = build_postprocessing_evidence(
+        transfer_components=transfer_components,
+        unlensed_spectra=spectra_results,
+        output_spectra=spectra_results,
+        requested_spectra=(
+            tuple(sorted(power_spectrum_observables))
+            + tuple(sorted(physical_zero_spectra))
+        ),
+        spectrum_availability=spectrum_availability,
+        ell_grid=ell_arr,
+        k_grid=k_values,
+        lensed=False,
+    )
+    runtime_envelope["postprocessing_evidence"] = base_postprocessing_evidence
+    if not bool(base_postprocessing_evidence["accepted"]):
+        raise ValueError(
+            "Declared CMB surface validation failed: "
+            + "; ".join(base_postprocessing_evidence["issues"])
+        )
 
     elapsed_seconds = perf_counter() - request_started
     runtime_envelope["scalar_initial_constraint_preflight"] = (

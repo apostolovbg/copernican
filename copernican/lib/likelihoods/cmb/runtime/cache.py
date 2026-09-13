@@ -123,6 +123,10 @@ _DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
 _CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
 _CMB_REIONIZATION_CALIBRATION_SEED_CACHE = _BoundedCacheStore(limit=128)
 _CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
+_CMB_LENSING_CACHE = _BoundedCacheStore(
+    limit=32,
+    max_bytes=64 * 1024 * 1024,
+)
 _CMB_TRANSFER_CACHE = _BoundedCacheStore(
     limit=16,
     max_bytes=64 * 1024 * 1024,
@@ -280,6 +284,18 @@ def set_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
 
     _CMB_SPECTRUM_CACHE.set(cache_key, spectrum_data)
     remember_cmb_request_identity(cache_key)
+
+
+def get_cmb_lensing(cache_key: Any):
+    """Return one cached exact lensing-remapping result when present."""
+
+    return _CMB_LENSING_CACHE.get(cache_key)
+
+
+def set_cmb_lensing(cache_key: Any, lensing_data: Any) -> None:
+    """Store one bounded post-processing lensing result."""
+
+    _CMB_LENSING_CACHE.set(cache_key, lensing_data)
 
 
 def get_cmb_transfer(cache_key: Any):
@@ -609,6 +625,7 @@ def clear_cmb_result_caches() -> None:
     """Clear complete declared spectrum results without dropping structure."""
 
     _CMB_SPECTRUM_CACHE.clear()
+    _CMB_LENSING_CACHE.clear()
 
 
 def clear_cmb_parameter_caches() -> None:
@@ -619,6 +636,7 @@ def clear_cmb_parameter_caches() -> None:
         _CMB_BACKGROUND_CACHE,
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
+        _CMB_LENSING_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
         _CMB_INITIAL_STATE_CACHE,
@@ -647,6 +665,7 @@ def clear_cmb_caches() -> None:
         _CMB_BACKGROUND_CACHE,
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
+        _CMB_LENSING_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
         _CMB_INITIAL_STATE_CACHE,
@@ -682,6 +701,7 @@ def cmb_cache_stats() -> dict[str, dict[str, int]]:
             _CMB_REIONIZATION_CALIBRATION_SEED_CACHE.snapshot()
         ),
         "declared_spectrum": _CMB_SPECTRUM_CACHE.snapshot(),
+        "declared_lensing": _CMB_LENSING_CACHE.snapshot(),
         "declared_transfer": _CMB_TRANSFER_CACHE.snapshot(),
         "source_history": _CMB_SOURCE_HISTORY_CACHE.snapshot(),
         "initial_state": _CMB_INITIAL_STATE_CACHE.snapshot(),
@@ -709,6 +729,7 @@ def cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
         "bessel_values": "parameter",
         "declared_projection_kernel_batch": "parameter",
         "declared_spectrum": "result",
+        "declared_lensing": "result",
         "declared_transfer": "parameter",
         "source_history": "parameter",
         "initial_state": "parameter",

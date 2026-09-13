@@ -43,6 +43,9 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
             callable(cmb_solver._compute_declared_perturbation_spectrum)
         )
         self.assertTrue(callable(cmb_solver.last_declared_raw_spectra))
+        self.assertTrue(
+            callable(cmb_solver.last_declared_postprocessing_evidence)
+        )
 
     def test_lensed_assembly_uses_declared_unlensed_and_pp_surfaces(self):
         """Lensed output must be assembled from declared surfaces."""
@@ -100,6 +103,33 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
                 spectra,
                 numpy.asarray((0, 2, 4, 6), dtype=int),
             )
+
+    def test_lensed_assembly_clips_tiny_auto_roundoff(self):
+        """Lensing roundoff cannot make public auto spectra negative."""
+
+        ell_grid = numpy.arange(8, dtype=int)
+        spectra = {
+            "TT": numpy.full(8, 100.0),
+            "TE": numpy.zeros(8),
+            "EE": numpy.full(8, 10.0),
+            "BB": numpy.zeros(8),
+            "PP": numpy.full(8, 0.01),
+        }
+        remapped = numpy.zeros((8, 4), dtype=numpy.longdouble)
+        remapped[:, 0] = -5.0e-5
+        remapped[:, 2] = -9.0e-6
+        with mock.patch.object(
+            cmb_solver,
+            "_lensed_cls",
+            return_value=remapped,
+        ):
+            result = cmb_solver._assemble_exact_lensed_spectra(
+                spectra,
+                ell_grid,
+            )
+
+        self.assertTrue(numpy.all(result["lensed_TT"] >= 0.0))
+        self.assertTrue(numpy.all(result["lensed_BB"] >= 0.0))
 
 
 if __name__ == "__main__":  # pragma: no cover

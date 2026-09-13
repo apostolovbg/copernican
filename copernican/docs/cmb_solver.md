@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1166,6 +1166,14 @@ allowed sector metadata. The compiler and runtime reject an incompatible
 sector or radial kernel before line-of-sight integration rather than
 silently using a scalar window for a vector or tensor source.
 
+Before projection, CCMBS compiles a model-independent source graph from the
+immutable perturbation contract. Each source node retains its expression,
+role, dependencies, units, and domain; each transfer route retains its
+sector, projection, kernel kind, source-to-kernel bindings, parity, and
+active spectrum edges. The graph is digest-addressed and stored in the raw
+runtime envelope, so renamed theories and warm cache requests can be checked
+against identical physical routing without relying on model names.
+
 Every transfer component must bind a non-empty set of declared source terms.
 The runtime resolves those bindings before projection and raises an
 availability error when a referenced history is absent. It never replaces a
@@ -1386,8 +1394,12 @@ stages:
 5. `orchestrators/ccmbs.py` converts raw spectra to the public units,
    resolves requested-spectrum dependencies, and sends the four-component
    temperature/polarization surface through `lensing.py` when lensed
-   outputs are requested. `runtime/cache.py` owns bounded structural,
-   parameter-dependent, and result caches with explicit invalidation rules.
+   outputs are requested. `runtime/postprocessing.py` then records every
+   surface dependency, validates finite auto/cross products, and hashes the
+   raw transfer, unlensed, and public arrays. `runtime/cache.py` owns bounded
+   structural, parameter-dependent, and result caches with explicit
+   invalidation rules; exact lensed remapping is reused by a key containing
+   its scaled inputs, convention, sampling factor, and ell grid.
 
 The runtime has three cache classes. Structural work contains the compiled
 expression and equation plans, dependency closure, state-slot and hierarchy

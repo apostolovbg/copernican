@@ -17,6 +17,7 @@ from ..contracts import CMBResult, CMBSolverCapabilities
 from ..errors import classify_exception, failure_context
 from ..orchestrators.ccmbs import (
     _compute_declared_perturbation_spectrum,
+    last_declared_postprocessing_evidence,
     last_declared_raw_spectra,
 )
 from ..runtime import cache
@@ -169,6 +170,7 @@ class CCMBSNumpySolver:
             from ..orchestrators import ccmbs as ccmbs_orchestrator
 
             ccmbs_orchestrator._LAST_DECLARED_RAW_SPECTRA.set(None)
+            ccmbs_orchestrator._LAST_DECLARED_POSTPROCESSING_EVIDENCE.set(None)
             executor = _compute_declared_perturbation_spectrum
             try:
                 from .. import cmb as cmb_api
@@ -215,6 +217,9 @@ class CCMBSNumpySolver:
         record = _performance_record_after(previous_index)
         diagnostics, phases = _result_provenance(record)
         diagnostics["elapsed_seconds"] = max(perf_counter() - started, 0.0)
+        evidence = last_declared_postprocessing_evidence()
+        if evidence is not None:
+            diagnostics["postprocessing_evidence"] = dict(evidence)
         return CMBResult(
             spectra=spectra_result,
             requested_ells=requested_ells,

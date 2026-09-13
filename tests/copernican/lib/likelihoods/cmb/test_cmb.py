@@ -4872,6 +4872,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             (ells.size, spectrum_data.k_grid.size),
         )
         self.assertEqual(set(spectrum_data.spectra), {"TT", "TE", "EE"})
+        graph = spectrum_data.runtime_envelope["declared_source_graph"]
+        self.assertEqual(graph["schema_version"], 1)
+        self.assertTrue(graph["digest"])
+        self.assertEqual(
+            spectrum_data.runtime_envelope["declared_source_graph_digest"],
+            graph["digest"],
+        )
+        self.assertGreaterEqual(
+            int(
+                spectrum_data.runtime_envelope[
+                    "declared_projection_active_route_count"
+                ]
+            ),
+            2,
+        )
         self.assertTrue(
             numpy.array_equal(
                 spectrum_data.Delta_l_T,

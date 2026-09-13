@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -48,6 +48,15 @@ inputs, engine-owned numerical planning, and independent-reference
 boundaries are
 documented in
 [`copernican/docs/cmb_solver.md`](copernican/docs/cmb_solver.md).
+
+CCMBS compiles one model-independent source graph before numerical evolution.
+The graph records every declared source, transfer component, radial kernel,
+sector route, and spectrum edge in a digest-addressed runtime envelope.  The
+planner selects phase-aware k and eta resolution from the requested surface;
+source, transfer, and line-of-sight refinements retain their raw arrays and
+reuse evidence.  Scalar, vector, and tensor routes therefore share one
+validated projection contract without model-name dispatch or fabricated
+zero-valued sources.
 
 The compiled contract audit in `copernican.lib.cmb_contract` produces a
 machine-testable model-by-capability matrix for `TT`, `TE`, `EE`, `BB`, `PP`,
@@ -114,6 +123,13 @@ separate metadata in plots, diagnostics, and long-form CSV output. Runtime
 payloads distinguish computed, unrequested, physically zero, and unavailable
 spectra, while cache identities bind the graph, parameters, numerical grids,
 accuracy controls, requested spectra, and multipole sequence.
+The post-processing boundary records the complete dependency graph for every
+requested surface. It hashes raw transfer components, unlensed products, and
+public outputs, validates finite non-negative auto spectra, preserves cross
+signs, and records proved physical-zero states. Exact lensed remapping uses a
+bounded cache keyed by its scaled inputs, output convention, sampling factor,
+and ell grid, so an exact repeat reuses the lensing intermediate rather than
+rerunning the remapper.
 
 Declared CMB validation records the resolved numerical envelope in each run
 manifest. The named final tier requires bounded background, transfer,

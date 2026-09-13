@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-09-13
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -483,7 +483,7 @@ partitioning, and hidden-prefix initial-data decisions. Focused planner,
 cache, perturbation-contract, and generated-scalar runtime acceptance tests
 pass, including finite constraint-anchor diagnostics and schedule telemetry.
 
-### [planned] Slice Four — universal source graph and all-sector projection
+### [closed] Slice Four — universal source graph and all-sector projection
 
 Implement the generic source compiler and line-of-sight projection for every
 declared source and kernel. Derive k sampling from radial and acoustic phase,
@@ -513,7 +513,20 @@ plotting. Fast tests cover kernel and cache identity; scientific tests retain
 at least one cold complete projection and one warm/refined comparison with
 raw work-accounting evidence.
 
-### [planned] Slice Five — complete observable post-processing
+Slice Four closure evidence: CCMBS now compiles a deterministic,
+model-name-independent source graph before evolution. Every declared source
+and transfer route is validated against its projection, sector, parity, and
+radial-kernel contract; every angular-spectrum edge is retained in the graph
+manifest. The graph digest is stored in the runtime envelope and source
+history bundle digest, and source-history bindings are prepared once per mode
+before ell batching. The planner records all four independent refinement
+axes (k, eta, source, and projection), selected phase anchors, route counts,
+sectors, and kernels. Focused projection, source-graph, and planner tests
+pass, including renamed-graph digest identity, missing-source rejection,
+planner route evidence, finite cold scalar projection, and runtime graph
+telemetry.
+
+### [closed] Slice Five — complete observable post-processing
 
 Implement and validate all declared unlensed and lensed surfaces, including
 the lensing potential, remapping, BB generation, TP/EP cross spectra, and
@@ -536,6 +549,18 @@ stored in the canonical evidence artifact. The fast tier exercises all
 surface assembly and cache branches; the scientific tier includes one cold
 complete surface set and an exact repeat whose raw arrays and work evidence
 are unchanged.
+
+Slice Five closure evidence: CCMBS now validates the post-processing boundary
+for every requested surface and records deterministic dependencies, units,
+finite/auto-spectrum checks, cross-spectrum sign summaries, physical-zero
+states, and SHA-256 identities for transfer, unlensed, and public products.
+Exact curved-sky lensing remapping is cached by the full scaled input,
+observable convention, sampling factor, and ell grid, with hit/miss telemetry
+separate from evolution and projection refinement. The solver result carries
+the post-processing evidence, while the projection payload retains the raw
+base-surface evidence. Focused tests cover complete TT/TE/EE/BB/PP/TP/EP
+accounting, lensed dependencies, deterministic digests, negative-auto
+rejection, and exact remapping reuse.
 
 ### [planned] Slice Six — universal model corpus and grammar extension
 

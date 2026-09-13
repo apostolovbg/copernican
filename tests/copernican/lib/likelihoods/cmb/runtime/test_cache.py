@@ -120,6 +120,15 @@ class CacheModuleTestCase(unittest.TestCase):
             {"tt": 2.0},
         )
 
+        self.assertIsNone(cache.get_cmb_lensing("lensing"))
+        cache.set_cmb_lensing("lensing", {"lensed_TT": numpy.ones(2)})
+        self.assertTrue(
+            numpy.array_equal(
+                cache.get_cmb_lensing("lensing")["lensed_TT"],
+                numpy.ones(2),
+            )
+        )
+
         self.assertIsNone(cache.get_cmb_transfer("transfer"))
         cache.set_cmb_transfer(
             "transfer",

@@ -11,6 +11,11 @@ from .planner import (
     plan_cmb_numerics,
     planner_accuracy_controls,
 )
+from .postprocessing import (
+    POST_PROCESSING_SCHEMA_VERSION,
+    build_postprocessing_evidence,
+)
+from .source_graph import DeclaredSourceGraph, compile_declared_source_graph
 
 __all__ = [
     "CMBNumericalPlan",
@@ -18,4 +23,8 @@ __all__ = [
     "plan_cmb_numerics",
     "planner_accuracy_controls",
     "describe_declared_execution_schedule",
+    "DeclaredSourceGraph",
+    "compile_declared_source_graph",
+    "POST_PROCESSING_SCHEMA_VERSION",
+    "build_postprocessing_evidence",
 ]
