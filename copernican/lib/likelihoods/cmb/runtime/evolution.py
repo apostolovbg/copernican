@@ -1288,7 +1288,6 @@ def _declared_graph_execution_plan_cache_token(
             )
             for name, entry in interaction_entries.items()
         },
-        "model_name": getattr(perturbation_data, "model_name", ""),
         "boundary_conditions": {
             name: (
                 getattr(entry.target, "variable", None),

@@ -4815,6 +4815,9 @@ _SUPPORTED_OBSERVABLE_KINDS = {
 _COMPILED_CONTRACT_RESULTS: dict[
     tuple[Any, ...], "PerturbationContractData"
 ] = {}
+_COMPILED_CONTRACT_LABEL_RESULTS: dict[
+    tuple[tuple[Any, ...], str], "PerturbationContractData"
+] = {}
 _ACTIVE_ENGINE_NUMERICAL_PLAN: contextvars.ContextVar[
     tuple[Mapping[str, Any], Mapping[str, Any]] | None
 ] = contextvars.ContextVar(
@@ -4851,6 +4854,22 @@ def _get_cached_perturbation_contract(
     """Return a cached contract for ``cache_key``."""
 
     return _COMPILED_CONTRACT_RESULTS[cache_key]
+
+
+def _discard_cached_contract_labels(cache_key: tuple[Any, ...]) -> None:
+    """Discard label façades when their structural payload is absent."""
+
+    for label_key in tuple(_COMPILED_CONTRACT_LABEL_RESULTS):
+        if label_key[0] == cache_key:
+            del _COMPILED_CONTRACT_LABEL_RESULTS[label_key]
+
+
+def clear_perturbation_contract_caches() -> None:
+    """Clear structural and model-label perturbation caches."""
+
+    _COMPILED_CONTRACT_RESULTS.clear()
+    _COMPILED_CONTRACT_LABEL_RESULTS.clear()
+    _get_cached_perturbation_contract.cache_clear()
 
 
 @dataclass(frozen=True, slots=True)
@@ -7215,14 +7234,30 @@ def _compile_perturbation_contract_impl(
 
     cache_key = (
         _freeze_for_cache(contract),
-        str(model_name),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
         tuple(str(name) for name in background_reference_names),
     )
     cached_result = _COMPILED_CONTRACT_RESULTS.get(cache_key)
     if cached_result is not None:
-        return cached_result
+        requested_model_name = str(model_name)
+        label_key = (cache_key, requested_model_name)
+        cached_label_result = _COMPILED_CONTRACT_LABEL_RESULTS.get(label_key)
+        if cached_label_result is not None:
+            return cached_label_result
+        if cached_result.model_name == requested_model_name:
+            _COMPILED_CONTRACT_LABEL_RESULTS[label_key] = cached_result
+            return cached_result
+        manifest_data = dict(cached_result.manifest_summary)
+        manifest_data["model_name"] = requested_model_name
+        labeled_result = replace(
+            cached_result,
+            model_name=requested_model_name,
+            manifest_summary=FrozenMapping(manifest_data),
+        )
+        _COMPILED_CONTRACT_LABEL_RESULTS[label_key] = labeled_result
+        return labeled_result
+    _discard_cached_contract_labels(cache_key)
 
     contract_keys = {str(key) for key in contract.keys()}
     required_sections = {
@@ -9486,6 +9521,9 @@ def _compile_perturbation_contract_impl(
         manifest_summary=FrozenMapping(manifest_summary_data),
     )
     _COMPILED_CONTRACT_RESULTS[cache_key] = compiled
+    _COMPILED_CONTRACT_LABEL_RESULTS[(cache_key, compiled.model_name)] = (
+        compiled
+    )
     return _get_cached_perturbation_contract(cache_key)
 
 

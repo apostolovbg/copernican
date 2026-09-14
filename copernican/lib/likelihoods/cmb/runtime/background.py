@@ -2607,6 +2607,7 @@ def _contract_cache_view(
 
     transient_keys = {
         "background_runtime",
+        "_background_provider",
         "compile_diagnostics",
         "perturbation_data",
         "runtime_signature",
@@ -2615,7 +2616,7 @@ def _contract_cache_view(
     view = {
         key: value
         for key, value in contract.items()
-        if key not in transient_keys
+        if key not in transient_keys and key != "model_name"
     }
     perturbations = view.get("perturbations")
     if isinstance(perturbations, Mapping):

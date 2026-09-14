@@ -19,7 +19,7 @@ import math
 import re
 import sys
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
@@ -272,8 +272,52 @@ class DeclaredCMBRuntime:
 
 
 _DeclaredCMBRuntimeCache = dict[tuple[Any, ...], DeclaredCMBRuntime]
+_DeclaredCMBRuntimeFacadeCache = dict[
+    tuple[tuple[Any, ...], str], DeclaredCMBRuntime
+]
 
 _COMPILED_DECLARED_CMB_RUNTIME_CACHE: _DeclaredCMBRuntimeCache = {}
+_DECLARED_CMB_RUNTIME_FACADE_CACHE: _DeclaredCMBRuntimeFacadeCache = {}
+
+
+def _discard_declared_cmb_runtime_facades(cache_key: tuple[Any, ...]) -> None:
+    """Discard label façades when their structural payload is absent."""
+
+    for facade_key in tuple(_DECLARED_CMB_RUNTIME_FACADE_CACHE):
+        if facade_key[0] == cache_key:
+            del _DECLARED_CMB_RUNTIME_FACADE_CACHE[facade_key]
+
+
+def clear_declared_cmb_runtime_caches() -> None:
+    """Clear structural and label-façade declared-runtime caches."""
+
+    _COMPILED_DECLARED_CMB_RUNTIME_CACHE.clear()
+    _DECLARED_CMB_RUNTIME_FACADE_CACHE.clear()
+
+
+def _label_declared_cmb_runtime(
+    runtime: DeclaredCMBRuntime,
+    requested_model_name: str,
+) -> DeclaredCMBRuntime:
+    """Return one immutable runtime façade for ``requested_model_name``."""
+
+    if runtime.model_name == requested_model_name:
+        return runtime
+    perturbation_data = runtime.perturbation_data
+    manifest = getattr(perturbation_data, "manifest_summary", None)
+    if manifest is not None:
+        manifest_data = dict(manifest)
+        manifest_data["model_name"] = requested_model_name
+        perturbation_data = replace(
+            perturbation_data,
+            model_name=requested_model_name,
+            manifest_summary=DeclaredFrozenMapping(manifest_data),
+        )
+    return replace(
+        runtime,
+        model_name=requested_model_name,
+        perturbation_data=perturbation_data,
+    )
 
 
 def _freeze_declared_runtime_input(value: Any) -> Any:
@@ -415,7 +459,6 @@ def _compile_declared_cmb_runtime_impl(
         (cmb_contract.get("perturbations", {}) or {}).get("accuracy_controls"),
     )
     cache_key = (
-        str(model_name),
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
         _freeze_declared_runtime_structure(cmb_contract),
@@ -427,7 +470,18 @@ def _compile_declared_cmb_runtime_impl(
     )
     cached_runtime = _COMPILED_DECLARED_CMB_RUNTIME_CACHE.get(cache_key)
     if cached_runtime is not None:
-        return cached_runtime
+        requested_model_name = str(model_name)
+        facade_key = (cache_key, requested_model_name)
+        cached_facade = _DECLARED_CMB_RUNTIME_FACADE_CACHE.get(facade_key)
+        if cached_facade is not None:
+            return cached_facade
+        facade = _label_declared_cmb_runtime(
+            cached_runtime,
+            requested_model_name,
+        )
+        _DECLARED_CMB_RUNTIME_FACADE_CACHE[facade_key] = facade
+        return facade
+    _discard_declared_cmb_runtime_facades(cache_key)
 
     from .perturbation_contract import (
         _compile_expression_plan,
@@ -803,6 +857,9 @@ def _compile_declared_cmb_runtime_impl(
         ),
     )
     _COMPILED_DECLARED_CMB_RUNTIME_CACHE[cache_key] = runtime
+    _DECLARED_CMB_RUNTIME_FACADE_CACHE[(cache_key, runtime.model_name)] = (
+        runtime
+    )
     return runtime
 
 

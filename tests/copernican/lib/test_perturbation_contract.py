@@ -730,6 +730,47 @@ class PerturbationContractTestCase(unittest.TestCase):
             background_reference_names=("H0",),
         )
 
+    def test_model_label_facades_reuse_compiled_contract(self) -> None:
+        """Repeated labels reuse façades over one structural contract."""
+
+        perturbation_contract_module.clear_perturbation_contract_caches()
+        contract = _scalar_metadata_only_contract()
+        common = {
+            "parameter_names": ("H0",),
+            "latex_names": ("H_0",),
+            "background_reference_names": ("H0",),
+        }
+        first = compile_perturbation_contract(
+            contract,
+            model_name="UnrelatedTheoryOne",
+            **common,
+        )
+        second = compile_perturbation_contract(
+            contract,
+            model_name="UnrelatedTheoryTwo",
+            **common,
+        )
+        second_repeat = compile_perturbation_contract(
+            contract,
+            model_name="UnrelatedTheoryTwo",
+            **common,
+        )
+        first_repeat = compile_perturbation_contract(
+            contract,
+            model_name="UnrelatedTheoryOne",
+            **common,
+        )
+
+        self.assertIsNot(first, second)
+        self.assertIs(second, second_repeat)
+        self.assertIs(first, first_repeat)
+        self.assertEqual(first.model_name, "UnrelatedTheoryOne")
+        self.assertEqual(second.model_name, "UnrelatedTheoryTwo")
+        self.assertEqual(
+            first.dependency_graph_summary,
+            second.dependency_graph_summary,
+        )
+
     def test_module_symbols_are_exported(self) -> None:
         """The module should export the declared graph data symbols."""
 
@@ -738,6 +779,11 @@ class PerturbationContractTestCase(unittest.TestCase):
             compile_perturbation_contract,
         )
         self.assertTrue(callable(engine_numerical_plan_context))
+        self.assertTrue(
+            callable(
+                perturbation_contract_module.clear_perturbation_contract_caches
+            )
+        )
 
     def test_generated_source_validator_rejects_missing_derivatives(self):
         """Generated graphs fail before runtime when derivatives are absent.

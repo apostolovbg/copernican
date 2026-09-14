@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-13
+**Last Updated:** 2026-09-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -562,7 +562,7 @@ base-surface evidence. Focused tests cover complete TT/TE/EE/BB/PP/TP/EP
 accounting, lensed dependencies, deterministic digests, negative-auto
 rejection, and exact remapping reuse.
 
-### [planned] Slice Six — universal model corpus and grammar extension
+### [closed] Slice Six — universal model corpus and grammar extension
 
 Run the same engine against all ten bundled theories after their numerical
 blocks are removed. Repair shared compiler/runtime paths for QAU, QRSF, TOG,
@@ -589,6 +589,18 @@ compilation, route identity, and cache isolation; scientific corpus tests
 retain real cold anchors for every bundled theory and record warm/partial
 reuse rather than silently substituting lightweight fixtures for the physics
 claim.
+
+Slice Six closure evidence: all ten numerical-block-free bundled declarations
+validate and execute finite TT/TE/EE/BB/PP/TP/EP surfaces through the CCMBS
+route, including the USMF2 source ontology. Renamed nonstandard-recombination
+declarations compile to one runtime signature and the second full observable
+request is an exact cache hit with no duplicate background, hierarchy, or
+projection work. Repeated requests for each model label reuse a memoized
+immutable façade over the same structural payload. Role-declared opacity, a
+multi-sector interaction, and
+model-independent malformed-recombination diagnostics pass through the same
+generic discovery and execution paths. Compiler, hierarchy-schedule,
+background, diagnostic-plan, and route-identity regressions pass.
 
 ### [planned] Slice Seven — CAMB parity and production graph recovery
 

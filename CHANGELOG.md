@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-13
+**Last Updated:** 2026-09-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,60 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-14:
+  Change: Fixed structural L2 cache reuse while preserving model-labelled
+  runtime façades and synchronized diagnostic plans.
+  Why: Prevented equivalent declared CMB contracts from recompiling when only
+  model labels differ.
+  Impact: Repeated compiler requests now return the same cached runtime
+  identity and retain correct labels across contract, background, and CMB
+  paths.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+
+- 2026-09-13:
+  Change: Expanded universal CMB corpus execution and label-independent
+  structural cache reuse across compiler, planner, background, hierarchy,
+  and projection boundaries, with stable per-label runtime façades.
+  Why: Repair complete declarations with unfamiliar names so they share
+  physical work,
+  while diagnostic requests must update prepared engine plans consistently.
+  Impact: All ten bundled-model surface tests include USMF2, adversarial
+  routes retain their typed evidence, and renamed theories preserve cache and
+  route identity without stale numerical controls.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  PLAN.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
 
 - 2026-09-13:
   Change: Completed declared CMB observable post-processing and exact

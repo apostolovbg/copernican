@@ -2,6 +2,7 @@
 
 import ast
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -211,6 +212,17 @@ class EvolutionModuleTestCase(unittest.TestCase):
         stats = cache.cmb_cache_stats()["runtime_assets"]
         self.assertEqual(stats["entries"], 1)
         self.assertEqual(stats["hits"], 2)
+
+    def test_execution_schedule_identity_ignores_model_label(self):
+        """Renamed declarations share one compiled execution schedule."""
+
+        first = _compiled_graph_fixture()
+        second = replace(first, model_name="UnrelatedTheory")
+
+        self.assertEqual(
+            evolution._declared_graph_execution_plan_cache_token(first),
+            evolution._declared_graph_execution_plan_cache_token(second),
+        )
 
     def test_execution_schedule_descriptor_is_structural_and_deterministic(
         self,

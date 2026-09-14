@@ -863,6 +863,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "model_ref_planck2018.yml",
             "model_tog.yml",
             "model_torg.yml",
+            "model_usmf2.yml",
             "model_wcdm.yml",
             "model_w0wa.yml",
             "model_qauc.yml",
@@ -900,6 +901,11 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 "baryon",
                 "massless_neutrino",
                 "massive_neutrino",
+                "photon",
+            },
+            "model_usmf2.yml": {
+                "baryon",
+                "massless_neutrino",
                 "photon",
             },
             "model_wcdm.yml": {
@@ -945,6 +951,16 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 "torg_matter_momentum",
                 "torg_baryon_euler",
             },
+        }
+        expected_source_names = {
+            "model_usmf2.yml": {
+                "lensing_potential_source",
+                "polarization_b_source",
+                "polarization_e_source",
+                "temperature_doppler_source",
+                "temperature_isw_source",
+                "temperature_monopole_source",
+            }
         }
         common_sources = {
             "lensing_potential",
@@ -1000,8 +1016,11 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 )
                 self.assertEqual(
                     set(summary["source_names"]),
-                    common_sources
-                    | expected_source_closures.get(model_name, set()),
+                    expected_source_names.get(
+                        model_name,
+                        common_sources
+                        | expected_source_closures.get(model_name, set()),
+                    ),
                 )
                 self.assertEqual(
                     set(summary["angular_power_spectrum_targets"]),
@@ -1121,8 +1140,8 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     any(term in description for term in forbidden_terms)
                 )
 
-    def test_declared_cmb_models_execute_finite_declared_tt(self):
-        """Every CMB-capable model must execute finite declared TT."""
+    def test_declared_cmb_models_execute_finite_declared_surfaces(self):
+        """Every CMB-capable model must execute its declared surfaces."""
 
         repo_root = Path(__file__).resolve().parents[3]
         models_dir = repo_root / "copernican" / "models"
@@ -1132,6 +1151,7 @@ class ModelInterfaceTestCase(unittest.TestCase):
             "model_ref_planck2018.yml",
             "model_tog.yml",
             "model_torg.yml",
+            "model_usmf2.yml",
             "model_wcdm.yml",
             "model_w0wa.yml",
             "model_qauc.yml",
@@ -1181,7 +1201,15 @@ class ModelInterfaceTestCase(unittest.TestCase):
                         plugin,
                         plugin.INITIAL_GUESSES,
                         numpy.asarray([2], dtype=int),
-                        spectra=("TT", "TE", "EE"),
+                        spectra=(
+                            "TT",
+                            "TE",
+                            "EE",
+                            "BB",
+                            "PP",
+                            "TP",
+                            "EP",
+                        ),
                     )
                 for values in spectra.values():
                     self.assertTrue(numpy.all(numpy.isfinite(values)))

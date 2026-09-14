@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-13
+**Last Updated:** 2026-09-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,13 @@ source, transfer, and line-of-sight refinements retain their raw arrays and
 reuse evidence.  Scalar, vector, and tensor routes therefore share one
 validated projection contract without model-name dispatch or fabricated
 zero-valued sources.
+
+Corpus admission and execution keep theory labels separate from physical
+identity. Renaming a complete declaration preserves its route, compiled
+runtime signature, background identity, hierarchy schedule, and projection
+cache key while manifests still report the requested label. Request-local
+diagnostic grids update the engine plan consistently, including prepared
+runtimes, so a corpus matrix cannot silently run a stale numerical plan.
 
 The compiled contract audit in `copernican.lib.cmb_contract` produces a
 machine-testable model-by-capability matrix for `TT`, `TE`, `EE`, `BB`, `PP`,

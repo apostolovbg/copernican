@@ -1712,17 +1712,28 @@ def _bound_contract(
     contract: Mapping[str, Any],
     overrides: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Copy a contract while replacing declared numerical controls only."""
+    """Bind request-local numerical overrides to a prepared contract.
+
+    Prepared declared runtimes carry the planner result in a private engine
+    field as well as in the public diagnostic view.  Keep both views aligned
+    and retain the explicit override layer so hierarchy metadata cannot
+    overwrite a request-local diagnostic choice.
+    """
 
     bound = dict(contract)
     numerical = dict(bound.get("numerical", {}) or {})
-    for name, value in (overrides or {}).items():
+    requested_overrides = dict(overrides or {})
+    for name, value in requested_overrides.items():
         if isinstance(value, bool):
             raise ValueError(
                 f"Diagnostic numerical override {name} is boolean"
             )
         numerical[str(name)] = value
     bound["numerical"] = numerical
+    if "_engine_numerical_plan" in bound:
+        bound["_engine_numerical_plan"] = numerical
+    if requested_overrides:
+        bound["_numerical_overrides"] = requested_overrides
     return bound
 
 

@@ -54,10 +54,34 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     write_final_cmb_certification_report,
 )
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
+from copernican.lib.likelihoods.cmb.runtime import cache
 
 
 class CCMBSDiagnosticTestCase(unittest.TestCase):
     """Verify raw fixed-point evidence is captured before plotting."""
+
+    def test_request_overrides_update_prepared_engine_plan(self):
+        """Diagnostic grids override the immutable plan at the request edge."""
+
+        contract = {
+            "numerical": {"k_sample_count": 8},
+            "_engine_numerical_plan": {"k_sample_count": 8},
+        }
+
+        bound = diagnostics._bound_contract(
+            contract,
+            {"k_sample_count": 64},
+        )
+
+        self.assertEqual(bound["numerical"]["k_sample_count"], 64)
+        self.assertEqual(
+            bound["_engine_numerical_plan"]["k_sample_count"],
+            64,
+        )
+        self.assertEqual(
+            bound["_numerical_overrides"],
+            {"k_sample_count": 64},
+        )
 
     def test_full_parity_helpers_build_and_compare_raw_rows(self):
         """Full parity helpers preserve strict raw-row acceptance."""
@@ -643,6 +667,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         """Novel names and recombination laws use one theory-neutral route."""
 
         spectra = ("BB", "EE", "EP", "PP", "TE", "TP", "TT")
+        cache.clear_cmb_caches()
         with tempfile.TemporaryDirectory() as directory:
             models_path = Path(directory)
             first_data = self._universal_recombination_fixture("Fairy Dust")
@@ -661,6 +686,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             self.assertEqual(
                 tuple(record.status for record in records),
                 ("ready", "ready"),
+            )
+            self.assertEqual(
+                records[0].plugin.CMB_DECLARED_RUNTIME.runtime_signature,
+                records[1].plugin.CMB_DECLARED_RUNTIME.runtime_signature,
             )
             results = []
             for record in records:
@@ -684,6 +713,13 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 rtol=1.0e-12,
                 atol=1.0e-30,
             )
+        performance = cache.cmb_performance_stats()
+        self.assertEqual(int(performance["requests"]), 2)
+        self.assertEqual(int(performance["cache_hits"]), 1)
+        self.assertEqual(
+            cache.latest_cmb_performance_record()["cache_state"],
+            "exact_cache_hit",
+        )
 
     def test_non_peebles_recombination_roles_execute_all_surfaces(self):
         """Role-declared opacity and visibility bypass Peebles assumptions."""

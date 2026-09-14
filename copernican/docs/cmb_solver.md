@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-13
+**Last Updated:** 2026-09-14
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1418,6 +1418,14 @@ canonical spectra, and the ordered multipole sequence. Repeated multipoles
 remain part of that sequence. Changing any one of these inputs produces a
 different request identity, while an identical request returns the same
 read-only payload.
+
+The model label is evidence metadata, not physical structure. Structural
+compilation, graph schedules, background caches, and spectrum caches exclude
+that label, so renamed declarations retain the same runtime signature and
+reuse compatible work while their reports continue to show the requested
+theory name. Diagnostic numerical overrides are applied at the request edge
+to both public and private planner views, preventing a prepared runtime from
+executing stale controls.
 
 Primordial-only parameter rebounds use a separate bounded transfer cache.
 Changes to the scalar amplitude, scalar tilt, tensor ratio, or tensor tilt

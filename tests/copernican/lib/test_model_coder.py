@@ -697,6 +697,10 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
     def test_compile_declared_cmb_runtime_reuses_cached_runtime_bundle(self):
         """Repeated compilation requests should reuse one cached runtime."""
 
+        self.assertTrue(
+            callable(model_coder.clear_declared_cmb_runtime_caches)
+        )
+        model_coder.clear_declared_cmb_runtime_caches()
         compile_result = object()
         cmb_contract = {
             "param_map": {"Omega_m0": "Omega_m0"},
@@ -727,6 +731,63 @@ class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
             )
 
         self.assertIs(first, second)
+        compile_contract.assert_called_once()
+
+    def test_compile_declared_cmb_runtime_ignores_model_label(self):
+        """Renaming a declaration must not duplicate structural compilation."""
+
+        compile_result = object()
+        cmb_contract = {
+            "param_map": {"Omega_m0": "Omega_m0"},
+            "grids": {},
+            "values": {},
+            "background": {},
+            "numerical": {},
+            "calls": [],
+            "perturbations": {},
+        }
+        model_coder.clear_declared_cmb_runtime_caches()
+
+        with mock.patch(
+            "copernican.lib.perturbation_contract."
+            "compile_perturbation_contract",
+            return_value=compile_result,
+        ) as compile_contract:
+            first = model_coder.compile_declared_cmb_runtime(
+                model_name="UnrelatedTheoryOne",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+            second = model_coder.compile_declared_cmb_runtime(
+                model_name="UnrelatedTheoryTwo",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+            second_repeat = model_coder.compile_declared_cmb_runtime(
+                model_name="UnrelatedTheoryTwo",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+            first_repeat = model_coder.compile_declared_cmb_runtime(
+                model_name="UnrelatedTheoryOne",
+                parameter_names=("Omega_m0",),
+                latex_names=(r"\Omega_m",),
+                cmb_contract=cmb_contract,
+            )
+
+        self.assertIsNot(first, second)
+        self.assertIs(second, second_repeat)
+        self.assertIs(first, first_repeat)
+        self.assertEqual(first.model_name, "UnrelatedTheoryOne")
+        self.assertEqual(second.model_name, "UnrelatedTheoryTwo")
+        self.assertEqual(
+            first.runtime_signature,
+            second.runtime_signature,
+        )
+        self.assertIs(first.perturbation_data, second.perturbation_data)
         compile_contract.assert_called_once()
 
     def test_compile_declared_cmb_runtime_ignores_bound_parameter_values(self):

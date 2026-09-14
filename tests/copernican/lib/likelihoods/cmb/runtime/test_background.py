@@ -15,6 +15,25 @@ from copernican.lib.likelihoods.cmb.runtime import (
 class BackgroundModuleTestCase(unittest.TestCase):
     """Exercise declared background helpers directly."""
 
+    def test_structural_cache_identity_ignores_model_label(self):
+        """Renaming a theory must not duplicate background work."""
+
+        contract = {
+            "model_name": "TheoryOne",
+            "param_map": {"H0": 67.4},
+            "model_parameters": {"Tcmb_K": 2.7255},
+            "perturbations": {"variables": {"state": {"kind": "x"}}},
+        }
+        renamed = dict(contract)
+        renamed["model_name"] = "TheoryTwo"
+        contract["_background_provider"] = object()
+        renamed["_background_provider"] = object()
+
+        self.assertEqual(
+            background._contract_structural_cache_view(contract),
+            background._contract_structural_cache_view(renamed),
+        )
+
     def test_manifest_summary_tracks_declared_background_metadata(self):
         """Manifest summaries should report declared background details."""
 
